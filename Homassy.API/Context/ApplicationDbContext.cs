@@ -11,6 +11,14 @@ namespace Homassy.API.Context
         {
         }
 
+        public DbSet<Family> Families { get; set; }
+        public DbSet<User> Users { get; set; }
+        public DbSet<Product> Products { get; set; }
+        public DbSet<ProductItem> ProductItems { get; set; }
+        public DbSet<ShoppingListItem> ShoppingListItems { get; set; }
+        public DbSet<ShoppingLocation> ShoppingLocations { get; set; }
+        public DbSet<StorageLocation> StorageLocations { get; set; }
+
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
             base.OnModelCreating(modelBuilder);
@@ -18,24 +26,24 @@ namespace Homassy.API.Context
 
         public override Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)
         {
-            UpdateRekordChanges();
+            UpdateRecordChanges();
             return base.SaveChangesAsync(cancellationToken);
         }
 
         public override int SaveChanges()
         {
-            UpdateRekordChanges();
+            UpdateRecordChanges();
             return base.SaveChanges();
         }
 
-        private void UpdateRekordChanges()
+        private void UpdateRecordChanges()
         {
             var entities = ChangeTracker.Entries<BaseEntity>()
                 .Where(e => e.State == EntityState.Added || e.State == EntityState.Modified);
 
             foreach (var entity in entities)
             {
-                entity.Entity.UpdateRekordChange();
+                entity.Entity.UpdateRecordChange();
             }
         }
     }

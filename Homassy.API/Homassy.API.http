@@ -1,6 +1,0 @@
-@Homassy.API_HostAddress = http://localhost:5226
-
-GET {{Homassy.API_HostAddress}}/weatherforecast/
-Accept: application/json
-
-###
