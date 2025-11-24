@@ -13,6 +13,6 @@ namespace Homassy.API.Entities
         public string? ProductPictureBase64 { get; set; }
         public bool IsEatable { get; set; } = true;
         public required Unit DefaultUnit { get; set; } = Unit.Gram;
-        public DateTime CreatedAt { get; set; } = DateTime.Now;
+        public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
     }
 }

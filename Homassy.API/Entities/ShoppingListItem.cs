@@ -13,7 +13,7 @@ namespace Homassy.API.Entities
         public required decimal Quantity { get; set; } = 1.0m;
         public required Unit Unit { get; set; } = Unit.Gram;
         public string? Note { get; set; }
-        public DateTime CreatedAt { get; set; } = DateTime.Now;
+        public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
         public DateTime? PurchasedAt { get; set; }
         public DateTime? DeadlineAt { get; set; }
         public DateTime? DueAt { get; set; }

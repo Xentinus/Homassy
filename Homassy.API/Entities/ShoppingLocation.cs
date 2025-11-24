@@ -10,6 +10,6 @@
         public string? City { get; set; }
         public string? PostalCode { get; set; }
         public string? Country { get; set; }
-        public DateTime CreatedAt { get; set; } = DateTime.Now;
+        public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
     }
 }

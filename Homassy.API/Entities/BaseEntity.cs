@@ -8,11 +8,11 @@ namespace Homassy.API.Entities
         [Key]
         public required int Id { get; set; }
         public required bool IsDeleted { get; set; } = false;
-        public string RecordChange { get; set; } = JsonSerializer.Serialize(new { LastModifiedDate = DateTime.Now });
+        public string RecordChange { get; set; } = JsonSerializer.Serialize(new { LastModifiedDate = DateTime.UtcNow });
 
         public void UpdateRecordChange()
         {
-            RecordChange = JsonSerializer.Serialize(new { LastModifiedDate = DateTime.Now });
+            RecordChange = JsonSerializer.Serialize(new { LastModifiedDate = DateTime.UtcNow });
         }
 
         public void DeleteRekord()
