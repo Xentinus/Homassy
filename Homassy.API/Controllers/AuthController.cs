@@ -1,4 +1,5 @@
-﻿using Homassy.API.Context;
+﻿using Asp.Versioning;
+using Homassy.API.Context;
 using Homassy.API.Entities;
 using Homassy.API.Extensions;
 using Homassy.API.Models.Auth;
@@ -7,14 +8,14 @@ using Homassy.API.Models.User;
 using Homassy.API.Security;
 using Homassy.API.Services;
 using Microsoft.AspNetCore.Authorization;
-using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using System.Security.Claims;
 
 namespace Homassy.API.Controllers
 {
-    [Route("api/[controller]")]
+    [ApiVersion(1.0)]
+    [Route("api/v{version:apiVersion}/[controller]")]
     [ApiController]
     public class AuthController : ControllerBase
     {
@@ -42,6 +43,7 @@ namespace Homassy.API.Controllers
         }
 
         [HttpPost("request-code")]
+        [MapToApiVersion(1.0)]
         public async Task<IActionResult> RequestVerificationCode([FromBody] LoginRequest request)
         {
             if (string.IsNullOrWhiteSpace(request.Email) || !request.Email.Contains('@'))
@@ -125,6 +127,7 @@ namespace Homassy.API.Controllers
         }
 
         [HttpPost("verify-code")]
+        [MapToApiVersion(1.0)]
         public async Task<IActionResult> VerifyCode([FromBody] VerifyLoginRequest request)
         {
             if (string.IsNullOrWhiteSpace(request.Email) || string.IsNullOrWhiteSpace(request.VerificationCode))
@@ -216,6 +219,7 @@ namespace Homassy.API.Controllers
         }
 
         [HttpPost("refresh")]
+        [MapToApiVersion(1.0)]
         public async Task<IActionResult> RefreshToken([FromBody] RefreshTokenRequest request)
         {
             if (string.IsNullOrWhiteSpace(request.AccessToken) || string.IsNullOrWhiteSpace(request.RefreshToken))
@@ -302,6 +306,7 @@ namespace Homassy.API.Controllers
 
         [Authorize]
         [HttpPost("logout")]
+        [MapToApiVersion(1.0)]
         public async Task<IActionResult> Logout()
         {
             var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
@@ -325,6 +330,7 @@ namespace Homassy.API.Controllers
 
         [Authorize]
         [HttpGet("me")]
+        [MapToApiVersion(1.0)]
         public async Task<IActionResult> GetCurrentUser()
         {
             var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
