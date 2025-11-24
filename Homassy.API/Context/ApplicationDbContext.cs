@@ -22,6 +22,11 @@ namespace Homassy.API.Context
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
             base.OnModelCreating(modelBuilder);
+
+            // Faster lookups
+            modelBuilder.Entity<User>()
+                .HasIndex(u => u.Email)
+                .IsUnique();
         }
 
         public override Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)
