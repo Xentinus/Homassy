@@ -15,6 +15,8 @@ builder.Services.AddDbContext<ApplicationDbContext>(options =>
 // Services
 builder.Services.AddScoped<JwtService>();
 builder.Services.AddScoped<EmailService>();
+builder.Services.AddSingleton<RateLimitService>();
+builder.Services.AddHostedService<RateLimitCleanupService>();
 
 // JWT Authentication
 builder.Services.AddAuthentication(options =>
