@@ -132,6 +132,9 @@ try
     }
 
     app.UseHttpsRedirection();
+    
+  
+    app.UseMiddleware<RateLimitingMiddleware>();
     app.UseAuthorization();
     app.UseMiddleware<SessionInfoMiddleware>();
     app.MapControllers();

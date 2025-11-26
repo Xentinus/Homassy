@@ -1,5 +1,4 @@
 ﻿using Asp.Versioning;
-using Homassy.API.Extensions;
 using Homassy.API.Functions;
 using Homassy.API.Models.Auth;
 using Homassy.API.Models.Common;
@@ -22,28 +21,17 @@ namespace Homassy.API.Controllers
         [MapToApiVersion(1.0)]
         public async Task<IActionResult> RequestVerificationCode([FromBody] LoginRequest request)
         {
+            if (!ModelState.IsValid)
+            {
+                return BadRequest(ApiResponse.ErrorResponse("Invalid request data"));
+            }
+
             if (string.IsNullOrWhiteSpace(request.Email) || !request.Email.Contains('@'))
             {
                 return BadRequest(ApiResponse.ErrorResponse("Invalid email address"));
             }
 
             var email = request.Email.ToLowerInvariant().Trim();
-            var clientIp = HttpContext.GetClientIpAddress();
-            var rateLimitKey = $"request-code:{email}:{clientIp}";
-
-            var maxAttempts = int.Parse(ConfigService.GetValue("RateLimiting:RequestCodeMaxAttempts"));
-            var windowMinutes = int.Parse(ConfigService.GetValue("RateLimiting:RequestCodeWindowMinutes"));
-            var window = TimeSpan.FromMinutes(windowMinutes);
-
-            if (RateLimitService.IsRateLimited(rateLimitKey, maxAttempts, window))
-            {
-                var remaining = RateLimitService.GetLockoutRemaining(rateLimitKey, window);
-                Log.Warning($"Rate limit exceeded for email {email} from IP {clientIp}");
-
-                return StatusCode(429, ApiResponse.ErrorResponse(
-                    $"Too many attempts. Please try again in {remaining?.TotalMinutes:F0} minutes."));
-            }
-
             var genericMessage = "If this email is registered, a verification code will be sent.";
 
             try
@@ -79,6 +67,11 @@ namespace Homassy.API.Controllers
         [MapToApiVersion(1.0)]
         public async Task<IActionResult> VerifyCode([FromBody] VerifyLoginRequest request)
         {
+            if (!ModelState.IsValid)
+            {
+                return BadRequest(ApiResponse.ErrorResponse("Invalid request data"));
+            }
+
             if (string.IsNullOrWhiteSpace(request.Email) || string.IsNullOrWhiteSpace(request.VerificationCode))
             {
                 return BadRequest(ApiResponse.ErrorResponse("Email and code are required"));
@@ -86,21 +79,6 @@ namespace Homassy.API.Controllers
 
             var email = request.Email.ToLowerInvariant().Trim();
             var code = request.VerificationCode.Trim();
-            var clientIp = HttpContext.GetClientIpAddress();
-            var rateLimitKey = $"verify-code:{email}:{clientIp}";
-
-            var maxAttempts = int.Parse(ConfigService.GetValue("RateLimiting:VerifyCodeMaxAttempts"));
-            var windowMinutes = int.Parse(ConfigService.GetValue("RateLimiting:VerifyCodeWindowMinutes"));
-            var window = TimeSpan.FromMinutes(windowMinutes);
-
-            if (RateLimitService.IsRateLimited(rateLimitKey, maxAttempts, window))
-            {
-                var remaining = RateLimitService.GetLockoutRemaining(rateLimitKey, window);
-                Log.Warning($"Verify code rate limit exceeded for {email} from IP {clientIp}");
-
-                return StatusCode(429, ApiResponse.ErrorResponse(
-                    $"Too many failed attempts. Account locked for {remaining?.TotalMinutes:F0} minutes."));
-            }
 
             var user = await new UserFunctions().GetUserByEmailAsync(email);
 
@@ -119,12 +97,10 @@ namespace Homassy.API.Controllers
 
             if (!SecureCompare.ConstantTimeEquals(user.VerificationCode, code))
             {
-                Log.Warning($"Invalid verification code for {email} from IP {clientIp}");
+                Log.Warning($"Invalid verification code for {email}");
                 await Task.Delay(Random.Shared.Next(200, 400));
                 return Unauthorized(ApiResponse.ErrorResponse("Invalid or expired code"));
             }
-
-            RateLimitService.ResetAttempts(rateLimitKey);
 
             var accessToken = JwtService.GenerateAccessToken(user.Id, user.Email, user.FamilyId, user.DefaultCurrency);
             var refreshToken = JwtService.GenerateRefreshToken();
@@ -133,7 +109,7 @@ namespace Homassy.API.Controllers
 
             await new UserFunctions().CompleteAuthenticationAsync(user, refreshToken, refreshTokenExpiry);
 
-            Log.Information($"User {email} successfully authenticated from IP {clientIp}");
+            Log.Information($"User {email} successfully authenticated");
 
             var authResponse = new AuthResponse
             {
@@ -157,22 +133,14 @@ namespace Homassy.API.Controllers
         [MapToApiVersion(1.0)]
         public async Task<IActionResult> RefreshToken([FromBody] RefreshTokenRequest request)
         {
+            if (!ModelState.IsValid)
+            {
+                return BadRequest(ApiResponse.ErrorResponse("Invalid request data"));
+            }
+
             if (string.IsNullOrWhiteSpace(request.AccessToken) || string.IsNullOrWhiteSpace(request.RefreshToken))
             {
                 return BadRequest(ApiResponse.ErrorResponse("Tokens are required"));
-            }
-
-            var clientIp = HttpContext.GetClientIpAddress();
-            var rateLimitKey = $"refresh-token:{clientIp}";
-
-            var maxAttempts = int.Parse(ConfigService.GetValue("RateLimiting:RefreshTokenMaxAttempts"));
-            var windowMinutes = int.Parse(ConfigService.GetValue("RateLimiting:RefreshTokenWindowMinutes"));
-            var window = TimeSpan.FromMinutes(windowMinutes);
-
-            if (RateLimitService.IsRateLimited(rateLimitKey, maxAttempts, window))
-            {
-                Log.Warning($"Refresh token rate limit exceeded from IP {clientIp}");
-                return StatusCode(429, ApiResponse.ErrorResponse("Too many refresh attempts"));
             }
 
             var principal = JwtService.GetPrincipalFromExpiredToken(request.AccessToken);
@@ -198,7 +166,7 @@ namespace Homassy.API.Controllers
 
             if (!SecureCompare.ConstantTimeEquals(user.RefreshToken, request.RefreshToken))
             {
-                Log.Warning($"Invalid refresh token for user {userId} from IP {clientIp}");
+                Log.Warning($"Invalid refresh token for user {userId}");
                 await Task.Delay(Random.Shared.Next(100, 200));
                 return Unauthorized(ApiResponse.ErrorResponse("Invalid refresh token"));
             }
@@ -210,8 +178,6 @@ namespace Homassy.API.Controllers
                 return Unauthorized(ApiResponse.ErrorResponse("Expired refresh token"));
             }
 
-            RateLimitService.ResetAttempts(rateLimitKey);
-
             var newAccessToken = JwtService.GenerateAccessToken(user.Id, user.Email, user.FamilyId, user.DefaultCurrency);
             var newRefreshToken = JwtService.GenerateRefreshToken();
             var accessTokenExpiry = JwtService.GetAccessTokenExpiration();
@@ -219,7 +185,7 @@ namespace Homassy.API.Controllers
 
             await new UserFunctions().SetRefreshTokenAsync(user, newRefreshToken, refreshTokenExpiry);
 
-            Log.Information($"Token refreshed for user {userId} from IP {clientIp}");
+            Log.Information($"Token refreshed for user {userId}");
 
             var refreshResponse = new
             {
@@ -280,6 +246,64 @@ namespace Homassy.API.Controllers
             };
 
             return Ok(ApiResponse<UserInfo>.SuccessResponse(userInfo));
+        }
+
+        [HttpPost("register")]
+        [MapToApiVersion(1.0)]
+        public async Task<IActionResult> Register([FromBody] CreateUserRequest request)
+        {
+            var registrationEnabledValue = ConfigService.GetValueOrDefault("RegistrationEnabled", "false");
+            var registrationEnabled = !string.IsNullOrEmpty(registrationEnabledValue) && bool.Parse(registrationEnabledValue);
+
+            if (!registrationEnabled)
+            {
+                Log.Warning("Registration attempt while registration is disabled");
+                return StatusCode(403, ApiResponse.ErrorResponse("Registration is currently disabled"));
+            }
+
+            if (!ModelState.IsValid)
+            {
+                return BadRequest(ApiResponse.ErrorResponse("Invalid request data"));
+            }
+
+            var email = request.Email.ToLowerInvariant().Trim();
+            var genericMessage = "Registration request received. If the email is not already in use, a verification code will be sent.";
+
+            try
+            {
+                var existingUser = await new UserFunctions().GetUserByEmailAsync(email);
+
+                if (existingUser != null)
+                {
+                    Log.Information($"Registration attempt for existing email {email}");
+                    await Task.Delay(Random.Shared.Next(100, 300));
+                    return Ok(ApiResponse.SuccessResponse(genericMessage));
+                }
+
+                if (string.IsNullOrWhiteSpace(request.Name))
+                {
+                    return BadRequest(ApiResponse.ErrorResponse("Name is required"));
+                }
+
+                var user = await new UserFunctions().CreateUserAsync(request);
+
+                var code = EmailService.GenerateVerificationCode();
+                var expirationMinutes = int.Parse(ConfigService.GetValue("EmailVerification:CodeExpirationMinutes"));
+                var expiry = DateTime.UtcNow.AddMinutes(expirationMinutes);
+
+                await new UserFunctions().SetVerificationCodeAsync(user, code, expiry);
+                await EmailService.SendVerificationCodeAsync(user.Email, code, user.DefaultTimeZone);
+
+                Log.Information($"New user registered: {email}, verification code sent");
+            }
+            catch (Exception ex)
+            {
+                Log.Error($"Error during registration for {email}: {ex.Message}");
+                return StatusCode(500, ApiResponse.ErrorResponse("An error occurred during registration"));
+            }
+
+            await Task.Delay(Random.Shared.Next(100, 300));
+            return Ok(ApiResponse.SuccessResponse(genericMessage));
         }
     }
 }
