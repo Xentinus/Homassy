@@ -7,26 +7,24 @@ using System.Text;
 
 namespace Homassy.API.Services
 {
-    public class JwtService
+    public static class JwtService
     {
-        private readonly IConfiguration _configuration;
+        private static IConfiguration? _configuration;
 
-        public JwtService(IConfiguration configuration)
+        public static void Initialize(IConfiguration configuration)
         {
             _configuration = configuration;
         }
 
-        public string GenerateAccessToken(int userId, string email, int? familyId, Currency defaultCurrency)
+        public static string GenerateAccessToken(int userId, string email, int? familyId, Currency defaultCurrency)
         {
-            var securityKey = new SymmetricSecurityKey(
-                Encoding.UTF8.GetBytes(_configuration["Jwt:SecretKey"]!));
+            var securityKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_configuration!["Jwt:SecretKey"]!));
             var credentials = new SigningCredentials(securityKey, SecurityAlgorithms.HmacSha256);
 
             var claims = new List<Claim>
             {
                 new(ClaimTypes.NameIdentifier, userId.ToString()),
                 new(ClaimTypes.Email, email),
-                new(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString()),
                 new("DefaultCurrency", ((int)defaultCurrency).ToString())
             };
 
@@ -35,21 +33,18 @@ namespace Homassy.API.Services
                 claims.Add(new Claim("FamilyId", familyId.Value.ToString()));
             }
 
-            var expirationMinutes = int.Parse(_configuration["Jwt:AccessTokenExpirationMinutes"]!);
-            var expiration = DateTime.UtcNow.AddMinutes(expirationMinutes);
-
             var token = new JwtSecurityToken(
                 issuer: _configuration["Jwt:Issuer"],
                 audience: _configuration["Jwt:Audience"],
                 claims: claims,
-                expires: expiration,
+                expires: DateTime.UtcNow.AddMinutes(int.Parse(_configuration["Jwt:AccessTokenExpirationMinutes"]!)),
                 signingCredentials: credentials
             );
 
             return new JwtSecurityTokenHandler().WriteToken(token);
         }
 
-        public string GenerateRefreshToken()
+        public static string GenerateRefreshToken()
         {
             var randomNumber = new byte[64];
             using var rng = RandomNumberGenerator.Create();
@@ -57,25 +52,34 @@ namespace Homassy.API.Services
             return Convert.ToBase64String(randomNumber);
         }
 
-        public ClaimsPrincipal? GetPrincipalFromExpiredToken(string token)
+        public static DateTime GetAccessTokenExpiration()
+        {
+            return DateTime.UtcNow.AddMinutes(int.Parse(_configuration!["Jwt:AccessTokenExpirationMinutes"]!));
+        }
+
+        public static DateTime GetRefreshTokenExpiration()
+        {
+            return DateTime.UtcNow.AddDays(int.Parse(_configuration!["Jwt:RefreshTokenExpirationDays"]!));
+        }
+
+        public static ClaimsPrincipal? GetPrincipalFromExpiredToken(string token)
         {
             var tokenValidationParameters = new TokenValidationParameters
             {
-                ValidateAudience = true,
                 ValidateIssuer = true,
+                ValidateAudience = true,
+                ValidateLifetime = false,
                 ValidateIssuerSigningKey = true,
-                ValidIssuer = _configuration["Jwt:Issuer"],
+                ValidIssuer = _configuration!["Jwt:Issuer"],
                 ValidAudience = _configuration["Jwt:Audience"],
-                IssuerSigningKey = new SymmetricSecurityKey(
-                    Encoding.UTF8.GetBytes(_configuration["Jwt:SecretKey"]!)),
-                ValidateLifetime = false
+                IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_configuration["Jwt:SecretKey"]!))
             };
 
             var tokenHandler = new JwtSecurityTokenHandler();
 
             try
             {
-                var principal = tokenHandler.ValidateToken(token, tokenValidationParameters, out SecurityToken securityToken);
+                var principal = tokenHandler.ValidateToken(token, tokenValidationParameters, out var securityToken);
 
                 if (securityToken is not JwtSecurityToken jwtSecurityToken ||
                     !jwtSecurityToken.Header.Alg.Equals(SecurityAlgorithms.HmacSha256, StringComparison.InvariantCultureIgnoreCase))
@@ -89,18 +93,6 @@ namespace Homassy.API.Services
             {
                 return null;
             }
-        }
-
-        public DateTime GetAccessTokenExpiration()
-        {
-            var expirationMinutes = int.Parse(_configuration["Jwt:AccessTokenExpirationMinutes"]!);
-            return DateTime.UtcNow.AddMinutes(expirationMinutes);
-        }
-
-        public DateTime GetRefreshTokenExpiration()
-        {
-            var expirationDays = int.Parse(_configuration["Jwt:RefreshTokenExpirationDays"]!);
-            return DateTime.UtcNow.AddDays(expirationDays);
         }
     }
 }

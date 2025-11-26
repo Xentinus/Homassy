@@ -6,32 +6,30 @@ using Homassy.API.Functions;
 
 namespace Homassy.API.Services
 {
-    public class EmailService
+    public static class EmailService
     {
-        private readonly IConfiguration _configuration;
-        private readonly ILogger<EmailService> _logger;
+        private static IConfiguration? _configuration;
 
-        public EmailService(IConfiguration configuration, ILogger<EmailService> logger)
+        public static void Initialize(IConfiguration configuration)
         {
             _configuration = configuration;
-            _logger = logger;
         }
 
-        public string GenerateVerificationCode()
+        public static string GenerateVerificationCode()
         {
-            var codeLength = int.Parse(_configuration["EmailVerification:CodeLength"]!);
+            var codeLength = int.Parse(_configuration!["EmailVerification:CodeLength"]!);
             var random = new Random();
             return string.Join("", Enumerable.Range(0, codeLength)
                 .Select(_ => random.Next(0, 10).ToString()));
         }
 
-        public async Task SendVerificationCodeAsync(string email, string code, UserTimeZone? userTimeZone = null)
+        public static async Task SendVerificationCodeAsync(string email, string code, UserTimeZone? userTimeZone = null)
         {
             try
             {
                 var message = new MimeMessage();
                 message.From.Add(new MailboxAddress(
-                    _configuration["Email:SenderName"],
+                    _configuration!["Email:SenderName"],
                     _configuration["Email:SenderEmail"]));
                 message.To.Add(new MailboxAddress("", email));
                 message.Subject = "Your Homassy Verification Code";
@@ -39,7 +37,6 @@ namespace Homassy.API.Services
                 var expirationMinutes = int.Parse(_configuration["EmailVerification:CodeExpirationMinutes"]!);
                 var expirationTimeUtc = DateTime.UtcNow.AddMinutes(expirationMinutes);
 
-                // Convert to user's timezone or fallback to UTC
                 DateTime expirationTime;
                 string timeZoneName;
 
@@ -51,7 +48,6 @@ namespace Homassy.API.Services
                 var expirationTimeFormatted = $"{expirationTime:yyyy-MM-dd HH:mm} ({timeZoneName})";
                 var currentYear = DateTime.UtcNow.Year;
 
-                // Format code with dash separator (e.g., "123 - 456")
                 var halfLength = code.Length / 2;
                 var formattedCode = $"{code[..halfLength]} - {code[halfLength..]}";
 
@@ -186,102 +182,13 @@ namespace Homassy.API.Services
                                 .footer-text + .footer-text {{
                                     margin-top: 6px;
                                 }}
-                                .badge {{
-                                    display: inline-block;
-                                    background-color: #18181b;
-                                    color: #ffffff;
-                                    padding: 4px 12px;
-                                    border-radius: 6px;
-                                    font-size: 11px;
-                                    font-weight: 600;
-                                    margin-top: 12px;
-                                    letter-spacing: 0.3px;
-                                }}
-                                
-                                /* Mobile Responsive Styles */
                                 @media only screen and (max-width: 600px) {{
-                                    body {{
-                                        padding: 12px 8px;
-                                    }}
-                                    .header {{
-                                        padding: 28px 16px;
-                                    }}
-                                    .header-title {{
-                                        font-size: 22px;
-                                    }}
-                                    .header-subtitle {{
-                                        font-size: 12px;
-                                    }}
-                                    .content {{
-                                        padding: 24px 16px;
-                                    }}
-                                    .greeting {{
-                                        font-size: 16px;
-                                        margin-bottom: 10px;
-                                    }}
-                                    .message {{
-                                        font-size: 14px;
-                                        margin-bottom: 24px;
-                                    }}
-                                    .code-container {{
-                                        padding: 24px 12px;
-                                        margin: 24px 0;
-                                        border-radius: 10px;
-                                    }}
-                                    .code-label {{
-                                        font-size: 10px;
-                                        margin-bottom: 12px;
-                                    }}
-                                    .code {{
-                                        font-size: clamp(24px, 7vw, 32px);
-                                        letter-spacing: 0.25em;
-                                        padding: 0 8px;
-                                    }}
-                                    .expiry-info {{
-                                        font-size: 11px;
-                                        padding: 6px 12px;
-                                        gap: 5px;
-                                        margin-top: 16px;
-                                    }}
-                                    .divider {{
-                                        margin: 24px 0;
-                                    }}
-                                    .footer {{
-                                        padding: 16px 16px;
-                                    }}
-                                    .footer-text {{
-                                        font-size: 11px;
-                                    }}
-                                    .badge {{
-                                        font-size: 10px;
-                                        padding: 3px 10px;
-                                        margin-top: 10px;
-                                    }}
-                                }}
-                                
-                                /* Extra Small Mobile Devices */
-                                @media only screen and (max-width: 360px) {{
-                                    .code {{
-                                        font-size: 22px;
-                                        letter-spacing: 0.2em;
-                                    }}
-                                    .code-container {{
-                                        padding: 20px 8px;
-                                    }}
-                                }}
-                                
-                                /* Dark Mode Support */
-                                @media (prefers-color-scheme: dark) {{
-                                    body {{
-                                        background-color: #18181b;
-                                    }}
-                                    .container {{
-                                        border-color: #3f3f46;
-                                    }}
-                                    .footer {{
-                                        background-color: #18181b;
-                                        border-top-color: #3f3f46;
-                                    }}
+                                    body {{ padding: 12px 8px; }}
+                                    .header {{ padding: 28px 16px; }}
+                                    .header-title {{ font-size: 22px; }}
+                                    .content {{ padding: 24px 16px; }}
+                                    .code-container {{ padding: 24px 12px; }}
+                                    .code {{ font-size: clamp(24px, 7vw, 32px); letter-spacing: 0.25em; }}
                                 }}
                             </style>
                         </head>
@@ -292,14 +199,12 @@ namespace Homassy.API.Services
                                         <h1 class='header-title'>Homassy</h1>
                                         <p class='header-subtitle'>Home Storage Management System</p>
                                     </div>
-                                    
                                     <div class='content'>
                                         <h2 class='greeting'>Welcome back!</h2>
                                         <p class='message'>
                                             We received a request to sign in to your Homassy account. 
                                             Use the verification code below to complete your authentication.
                                         </p>
-                                        
                                         <div class='code-container'>
                                             <div class='code-label'>Your Verification Code</div>
                                             <div class='code'>{formattedCode}</div>
@@ -308,14 +213,11 @@ namespace Homassy.API.Services
                                                 <span>Expires at {expirationTimeFormatted}</span>
                                             </div>
                                         </div>
-                                        
                                         <div class='divider'></div>
-                                        
                                         <p class='message' style='margin-bottom: 0; font-size: 14px;'>
                                             This verification code is unique to your login session and should not be shared with anyone.
                                         </p>
                                     </div>
-                                    
                                     <div class='footer'>
                                         <p class='footer-text'>© {currentYear} Homassy. All rights reserved.</p>
                                         <p class='footer-text'>This is an automated message, please do not reply to this email.</p>
@@ -327,20 +229,16 @@ namespace Homassy.API.Services
                     TextBody = $"Welcome to Homassy!\n\n" +
                               $"Your verification code is: {formattedCode}\n\n" +
                               $"This code will expire at {expirationTimeFormatted}.\n\n" +
-                              $"This verification code is unique to your login session and should not be shared with anyone.\n\n" +
                               $"© {currentYear} Homassy - Home Storage Management System"
                 };
 
                 message.Body = bodyBuilder.ToMessageBody();
 
-                // Check if email is configured
                 var username = _configuration["Email:Username"];
                 var password = _configuration["Email:Password"];
 
                 if (string.IsNullOrEmpty(username) || string.IsNullOrEmpty(password))
                 {
-                    // Development mode: log to console
-                    _logger.LogWarning("Email not configured. Verification code for {Email}: {Code}", email, formattedCode);
                     Console.WriteLine($"\n{new string('=', 50)}");
                     Console.WriteLine($"VERIFICATION CODE FOR: {email}");
                     Console.WriteLine($"CODE: {formattedCode}");
@@ -362,11 +260,11 @@ namespace Homassy.API.Services
                 await client.SendAsync(message);
                 await client.DisconnectAsync(true);
 
-                _logger.LogInformation("Verification code sent to {Email}", email);
+                Console.WriteLine($"[INFO] Verification code sent to {email}");
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Failed to send verification code to {Email}", email);
+                Console.WriteLine($"[ERROR] Failed to send verification code to {email}: {ex.Message}");
                 throw;
             }
         }

@@ -1,15 +1,11 @@
 ﻿namespace Homassy.API.Services
 {
-    public class RateLimitCleanupService  : BackgroundService
+    public class RateLimitCleanupService : BackgroundService
     {
-        private readonly RateLimitService _rateLimitService;
         private readonly ILogger<RateLimitCleanupService> _logger;
 
-        public RateLimitCleanupService(
-            RateLimitService rateLimitService,
-            ILogger<RateLimitCleanupService> logger)
+        public RateLimitCleanupService(ILogger<RateLimitCleanupService> logger)
         {
-            _rateLimitService = rateLimitService;
             _logger = logger;
         }
 
@@ -22,7 +18,7 @@
                 try
                 {
                     await Task.Delay(TimeSpan.FromHours(1), stoppingToken);
-                    _rateLimitService.CleanupExpiredEntries(TimeSpan.FromHours(2));
+                    RateLimitService.CleanupExpiredEntries(TimeSpan.FromHours(2));
                     _logger.LogInformation("Rate limit cleanup completed");
                 }
                 catch (Exception ex)

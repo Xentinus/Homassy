@@ -3,17 +3,11 @@ using System.Collections.Concurrent;
 
 namespace Homassy.API.Services
 {
-    public class RateLimitService
+    public static class RateLimitService
     {
-        private readonly ConcurrentDictionary<string, RateLimitInfo> _attempts = new();
-        private readonly ILogger<RateLimitService> _logger;
+        private static readonly ConcurrentDictionary<string, RateLimitInfo> _attempts = new();
 
-        public RateLimitService(ILogger<RateLimitService> logger)
-        {
-            _logger = logger;
-        }
-
-        public bool IsRateLimited(string key, int maxAttempts, TimeSpan window)
+        public static bool IsRateLimited(string key, int maxAttempts, TimeSpan window)
         {
             var now = DateTime.UtcNow;
 
@@ -33,19 +27,19 @@ namespace Homassy.API.Services
 
             if (info.Attempts > maxAttempts)
             {
-                _logger.LogWarning("Rate limit exceeded for key: {Key}", key);
+                Console.WriteLine($"[WARNING] Rate limit exceeded for key: {key}");
                 return true;
             }
 
             return false;
         }
 
-        public void ResetAttempts(string key)
+        public static void ResetAttempts(string key)
         {
             _attempts.TryRemove(key, out _);
         }
 
-        public TimeSpan? GetLockoutRemaining(string key, TimeSpan window)
+        public static TimeSpan? GetLockoutRemaining(string key, TimeSpan window)
         {
             if (_attempts.TryGetValue(key, out var info))
             {
@@ -56,8 +50,7 @@ namespace Homassy.API.Services
             return null;
         }
 
-        // Cleanup old entries periodically
-        public void CleanupExpiredEntries(TimeSpan window)
+        public static void CleanupExpiredEntries(TimeSpan window)
         {
             var now = DateTime.UtcNow;
             var expiredKeys = _attempts

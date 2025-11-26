@@ -1,6 +1,8 @@
 ﻿using Homassy.API.Context;
 using Homassy.API.Entities;
+using Homassy.API.Models.User;
 using Microsoft.EntityFrameworkCore;
+using System.ComponentModel.DataAnnotations;
 
 namespace Homassy.API.Functions
 {
@@ -21,18 +23,15 @@ namespace Homassy.API.Functions
             return await context.Users.FindAsync(userId);
         }
 
-        public async Task<User> CreateUserAsync(string email)
+        public async Task<User> CreateUserAsync(CreateUserRequest request)
         {
-            var normalizedEmail = email.ToLowerInvariant().Trim();
-            var username = normalizedEmail.Split('@')[0];
+            var normalizedEmail = request.Email.ToLowerInvariant().Trim();
 
             var user = new User
             {
-                Id = 0,
                 Email = normalizedEmail,
-                Name = username,
-                DisplayName = username,
-                IsDeleted = false
+                Name = request.Name.Trim(),
+                DisplayName = request.DisplayName?.Trim() ?? request.Name.Trim(),
             };
 
             var context = new HomassyDbContext();
