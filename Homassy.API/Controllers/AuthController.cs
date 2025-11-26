@@ -9,6 +9,7 @@ using Homassy.API.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using System.Security.Claims;
+using Serilog;
 
 namespace Homassy.API.Controllers
 {
@@ -37,7 +38,7 @@ namespace Homassy.API.Controllers
             if (RateLimitService.IsRateLimited(rateLimitKey, maxAttempts, window))
             {
                 var remaining = RateLimitService.GetLockoutRemaining(rateLimitKey, window);
-                Console.WriteLine($"[WARNING] Rate limit exceeded for email {email} from IP {clientIp}");
+                Log.Warning($"Rate limit exceeded for email {email} from IP {clientIp}");
 
                 return StatusCode(429, ApiResponse.ErrorResponse(
                     $"Too many attempts. Please try again in {remaining?.TotalMinutes:F0} minutes."));
@@ -51,7 +52,7 @@ namespace Homassy.API.Controllers
 
                 if (user == null)
                 {
-                    Console.WriteLine($"[INFO] User not found for {email}");
+                    Log.Information($"User not found for {email}");
                     await Task.Delay(Random.Shared.Next(100, 300));
                     return Ok(ApiResponse.SuccessResponse(genericMessage));
                 }
@@ -63,11 +64,11 @@ namespace Homassy.API.Controllers
                 await new UserFunctions().SetVerificationCodeAsync(user, code, expiry);
                 await EmailService.SendVerificationCodeAsync(user.Email, code, user.DefaultTimeZone);
 
-                Console.WriteLine($"[INFO] Verification code sent to {email}");
+                Log.Information($"Verification code sent to {email}");
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"[ERROR] Error processing request-code for {email}: {ex.Message}");
+                Log.Error($"Error processing request-code for {email}: {ex.Message}");
             }
 
             await Task.Delay(Random.Shared.Next(100, 300));
@@ -95,7 +96,7 @@ namespace Homassy.API.Controllers
             if (RateLimitService.IsRateLimited(rateLimitKey, maxAttempts, window))
             {
                 var remaining = RateLimitService.GetLockoutRemaining(rateLimitKey, window);
-                Console.WriteLine($"[WARNING] Verify code rate limit exceeded for {email} from IP {clientIp}");
+                Log.Warning($"Verify code rate limit exceeded for {email} from IP {clientIp}");
 
                 return StatusCode(429, ApiResponse.ErrorResponse(
                     $"Too many failed attempts. Account locked for {remaining?.TotalMinutes:F0} minutes."));
@@ -111,14 +112,14 @@ namespace Homassy.API.Controllers
 
             if (user.VerificationCodeExpiry == null || user.VerificationCodeExpiry < DateTime.UtcNow)
             {
-                Console.WriteLine($"[WARNING] Expired verification code for {email}");
+                Log.Warning($"Expired verification code for {email}");
                 await Task.Delay(Random.Shared.Next(200, 400));
                 return Unauthorized(ApiResponse.ErrorResponse("Invalid or expired code"));
             }
 
             if (!SecureCompare.ConstantTimeEquals(user.VerificationCode, code))
             {
-                Console.WriteLine($"[WARNING] Invalid verification code for {email} from IP {clientIp}");
+                Log.Warning($"Invalid verification code for {email} from IP {clientIp}");
                 await Task.Delay(Random.Shared.Next(200, 400));
                 return Unauthorized(ApiResponse.ErrorResponse("Invalid or expired code"));
             }
@@ -132,7 +133,7 @@ namespace Homassy.API.Controllers
 
             await new UserFunctions().CompleteAuthenticationAsync(user, refreshToken, refreshTokenExpiry);
 
-            Console.WriteLine($"[INFO] User {email} successfully authenticated from IP {clientIp}");
+            Log.Information($"User {email} successfully authenticated from IP {clientIp}");
 
             var authResponse = new AuthResponse
             {
@@ -170,7 +171,7 @@ namespace Homassy.API.Controllers
 
             if (RateLimitService.IsRateLimited(rateLimitKey, maxAttempts, window))
             {
-                Console.WriteLine($"[WARNING] Refresh token rate limit exceeded from IP {clientIp}");
+                Log.Warning($"Refresh token rate limit exceeded from IP {clientIp}");
                 return StatusCode(429, ApiResponse.ErrorResponse("Too many refresh attempts"));
             }
 
@@ -197,14 +198,14 @@ namespace Homassy.API.Controllers
 
             if (!SecureCompare.ConstantTimeEquals(user.RefreshToken, request.RefreshToken))
             {
-                Console.WriteLine($"[WARNING] Invalid refresh token for user {userId} from IP {clientIp}");
+                Log.Warning($"Invalid refresh token for user {userId} from IP {clientIp}");
                 await Task.Delay(Random.Shared.Next(100, 200));
                 return Unauthorized(ApiResponse.ErrorResponse("Invalid refresh token"));
             }
 
             if (user.RefreshTokenExpiry == null || user.RefreshTokenExpiry < DateTime.UtcNow)
             {
-                Console.WriteLine($"[WARNING] Expired refresh token for user {userId}");
+                Log.Warning($"Expired refresh token for user {userId}");
                 await Task.Delay(Random.Shared.Next(100, 200));
                 return Unauthorized(ApiResponse.ErrorResponse("Expired refresh token"));
             }
@@ -218,7 +219,7 @@ namespace Homassy.API.Controllers
 
             await new UserFunctions().SetRefreshTokenAsync(user, newRefreshToken, refreshTokenExpiry);
 
-            Console.WriteLine($"[INFO] Token refreshed for user {userId} from IP {clientIp}");
+            Log.Information($"Token refreshed for user {userId} from IP {clientIp}");
 
             var refreshResponse = new
             {
@@ -248,7 +249,7 @@ namespace Homassy.API.Controllers
                 await new UserFunctions().ClearRefreshTokenAsync(user);
             }
 
-            Console.WriteLine($"[INFO] User {userId} logged out");
+            Log.Information($"User {userId} logged out");
 
             return Ok(ApiResponse.SuccessResponse("Logged out successfully"));
         }

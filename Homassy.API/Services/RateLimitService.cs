@@ -1,4 +1,5 @@
 ﻿using Homassy.API.Models.RateLimit;
+using Serilog;
 using System.Collections.Concurrent;
 
 namespace Homassy.API.Services
@@ -27,7 +28,7 @@ namespace Homassy.API.Services
 
             if (info.Attempts > maxAttempts)
             {
-                Console.WriteLine($"[WARNING] Rate limit exceeded for key: {key}");
+                Log.Warning($"Rate limit exceeded for key: {key}");
                 return true;
             }
 

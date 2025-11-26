@@ -3,6 +3,7 @@ using MailKit.Security;
 using MimeKit;
 using Homassy.API.Enums;
 using Homassy.API.Functions;
+using Serilog;
 
 namespace Homassy.API.Services
 {
@@ -237,16 +238,6 @@ namespace Homassy.API.Services
                 var username = _configuration["Email:Username"];
                 var password = _configuration["Email:Password"];
 
-                if (string.IsNullOrEmpty(username) || string.IsNullOrEmpty(password))
-                {
-                    Console.WriteLine($"\n{new string('=', 50)}");
-                    Console.WriteLine($"VERIFICATION CODE FOR: {email}");
-                    Console.WriteLine($"CODE: {formattedCode}");
-                    Console.WriteLine($"EXPIRES AT: {expirationTimeFormatted}");
-                    Console.WriteLine($"{new string('=', 50)}\n");
-                    return;
-                }
-
                 using var client = new SmtpClient();
 
                 var smtpServer = _configuration["Email:SmtpServer"]!;
@@ -260,11 +251,11 @@ namespace Homassy.API.Services
                 await client.SendAsync(message);
                 await client.DisconnectAsync(true);
 
-                Console.WriteLine($"[INFO] Verification code sent to {email}");
+                Log.Information($"Verification code sent to {email}");
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"[ERROR] Failed to send verification code to {email}: {ex.Message}");
+                Log.Error($"Failed to send verification code to {email}: {ex.Message}");
                 throw;
             }
         }
