@@ -184,7 +184,7 @@ namespace Homassy.API.Controllers
             _rateLimitService.ResetAttempts(rateLimitKey);
 
             // Generate tokens
-            var accessToken = _jwtService.GenerateAccessToken(user.Id, user.Email, user.FamilyId);
+            var accessToken = _jwtService.GenerateAccessToken(user.Id, user.Email, user.FamilyId, user.DefaultCurrency);
             var refreshToken = _jwtService.GenerateRefreshToken();
             var accessTokenExpiry = _jwtService.GetAccessTokenExpiration();
             var refreshTokenExpiry = _jwtService.GetRefreshTokenExpiration();
@@ -281,7 +281,7 @@ namespace Homassy.API.Controllers
             _rateLimitService.ResetAttempts(rateLimitKey);
 
             // Generate new tokens
-            var newAccessToken = _jwtService.GenerateAccessToken(user.Id, user.Email, user.FamilyId);
+            var newAccessToken = _jwtService.GenerateAccessToken(user.Id, user.Email, user.FamilyId, user.DefaultCurrency);
             var newRefreshToken = _jwtService.GenerateRefreshToken();
             var accessTokenExpiry = _jwtService.GetAccessTokenExpiration();
             var refreshTokenExpiry = _jwtService.GetRefreshTokenExpiration();

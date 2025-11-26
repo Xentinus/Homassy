@@ -1,4 +1,6 @@
-﻿namespace Homassy.API.Entities
+﻿using Homassy.API.Enums;
+
+namespace Homassy.API.Entities
 {
     public class User : BaseEntity
     {
@@ -15,5 +17,8 @@
         public DateTime? VerificationCodeExpiry { get; set; }
         public string? RefreshToken { get; set; }
         public DateTime? RefreshTokenExpiry { get; set; }
+
+        // Personal settings
+        public Currency DefaultCurrency { get; set; } = Currency.Huf;
     }
 }

@@ -1,4 +1,5 @@
-﻿using Microsoft.IdentityModel.Tokens;
+﻿using Homassy.API.Enums;
+using Microsoft.IdentityModel.Tokens;
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using System.Security.Cryptography;
@@ -15,7 +16,7 @@ namespace Homassy.API.Services
             _configuration = configuration;
         }
 
-        public string GenerateAccessToken(int userId, string email, int? familyId)
+        public string GenerateAccessToken(int userId, string email, int? familyId, Currency defaultCurrency)
         {
             var securityKey = new SymmetricSecurityKey(
                 Encoding.UTF8.GetBytes(_configuration["Jwt:SecretKey"]!));
@@ -25,7 +26,8 @@ namespace Homassy.API.Services
             {
                 new(ClaimTypes.NameIdentifier, userId.ToString()),
                 new(ClaimTypes.Email, email),
-                new(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString())
+                new(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString()),
+                new("DefaultCurrency", ((int)defaultCurrency).ToString())
             };
 
             if (familyId.HasValue)
