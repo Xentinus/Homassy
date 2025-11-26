@@ -1,16 +1,19 @@
-using Homassy.API.Context;
+﻿using Homassy.API.Context;
+using Homassy.API.Middleware;
 using Homassy.API.Services;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
-using Microsoft.OpenApi;
 using System.Reflection;
 using System.Text;
 
 var builder = WebApplication.CreateBuilder(args);
 
+// Set configuration for HomassyDbContext
+HomassyDbContext.SetConfiguration(builder.Configuration);
+
 // PostgreSQL Database
-builder.Services.AddDbContext<ApplicationDbContext>(options =>
+builder.Services.AddDbContext<HomassyDbContext>(options =>
     options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection")));
 
 // Services
@@ -108,6 +111,9 @@ if (app.Environment.IsDevelopment())
 app.UseHttpsRedirection();
 
 app.UseAuthorization();
+
+// Middlewares
+app.UseMiddleware<SessionInfoMiddleware>();
 
 app.MapControllers();
 

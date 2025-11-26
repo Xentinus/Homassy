@@ -4,11 +4,22 @@ using System.Linq.Expressions;
 
 namespace Homassy.API.Context
 {
-    public class ApplicationDbContext : DbContext
+    public class HomassyDbContext : DbContext
     {
-        public ApplicationDbContext(DbContextOptions<ApplicationDbContext> options)
+        private static IConfiguration? _configuration;
+
+        public HomassyDbContext()
+        {
+        }
+
+        public HomassyDbContext(DbContextOptions<HomassyDbContext> options)
             : base(options)
         {
+        }
+
+        public static void SetConfiguration(IConfiguration configuration)
+        {
+            _configuration = configuration;
         }
 
         public DbSet<Family> Families { get; set; }
@@ -18,6 +29,26 @@ namespace Homassy.API.Context
         public DbSet<ShoppingListItem> ShoppingListItems { get; set; }
         public DbSet<ShoppingLocation> ShoppingLocations { get; set; }
         public DbSet<StorageLocation> StorageLocations { get; set; }
+
+        protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
+        {
+            if (!optionsBuilder.IsConfigured)
+            {
+                if (_configuration == null)
+                {
+                    throw new InvalidOperationException(
+                        "Configuration not set. Call HomassyDbContext.SetConfiguration() during application startup.");
+                }
+
+                var connectionString = _configuration.GetConnectionString("DefaultConnection");
+                if (string.IsNullOrEmpty(connectionString))
+                {
+                    throw new InvalidOperationException("DefaultConnection string not found in configuration.");
+                }
+
+                optionsBuilder.UseNpgsql(connectionString);
+            }
+        }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -43,12 +74,13 @@ namespace Homassy.API.Context
 
         private void UpdateRecordChanges()
         {
+            var userId = SessionInfo.GetUserId();
             var entities = ChangeTracker.Entries<BaseEntity>()
                 .Where(e => e.State == EntityState.Added || e.State == EntityState.Modified);
 
             foreach (var entity in entities)
             {
-                entity.Entity.UpdateRecordChange();
+                entity.Entity.UpdateRecordChange(userId);
             }
         }
     }

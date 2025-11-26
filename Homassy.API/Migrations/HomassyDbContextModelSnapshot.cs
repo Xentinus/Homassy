@@ -3,7 +3,6 @@ using System;
 using Homassy.API.Context;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
-using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
@@ -11,12 +10,10 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
 namespace Homassy.API.Migrations
 {
-    [DbContext(typeof(ApplicationDbContext))]
-    [Migration("20251126115043_AddCurrencyToUser")]
-    partial class AddCurrencyToUser
+    [DbContext(typeof(HomassyDbContext))]
+    partial class HomassyDbContextModelSnapshot : ModelSnapshot
     {
-        /// <inheritdoc />
-        protected override void BuildTargetModel(ModelBuilder modelBuilder)
+        protected override void BuildModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -310,6 +307,12 @@ namespace Homassy.API.Migrations
 
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("timestamp with time zone");
+
+                    b.Property<int>("DefaultCurrency")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("DefaultTimeZone")
+                        .HasColumnType("integer");
 
                     b.Property<string>("DisplayName")
                         .IsRequired()

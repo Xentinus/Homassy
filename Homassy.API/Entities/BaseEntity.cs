@@ -1,4 +1,6 @@
-﻿using System.ComponentModel.DataAnnotations;
+﻿using Homassy.API.Models.Common;
+using System.ComponentModel.DataAnnotations;
+using System.ComponentModel.DataAnnotations.Schema;
 using System.Text.Json;
 
 namespace Homassy.API.Entities
@@ -6,19 +8,24 @@ namespace Homassy.API.Entities
     public abstract class BaseEntity
     {
         [Key]
-        public required int Id { get; set; }
-        public required bool IsDeleted { get; set; } = false;
-        public string RecordChange { get; set; } = JsonSerializer.Serialize(new { LastModifiedDate = DateTime.UtcNow });
+        [DatabaseGenerated(DatabaseGeneratedOption.Identity)]
+        public int Id { get; set; }
+        public bool IsDeleted { get; set; } = false;
+        public string RecordChange { get; set; } = JsonSerializer.Serialize(new RecordChange());
 
-        public void UpdateRecordChange()
+        public void UpdateRecordChange(int? modifiedBy = null)
         {
-            RecordChange = JsonSerializer.Serialize(new { LastModifiedDate = DateTime.UtcNow });
+            RecordChange = JsonSerializer.Serialize(new RecordChange
+            {
+                LastModifiedDate = DateTime.UtcNow,
+                LastModifiedBy = modifiedBy
+            });
         }
 
-        public void DeleteRekord()
+        public void DeleteRekord(int? modifiedBy = null)
         {
             IsDeleted = true;
-            UpdateRecordChange();
+            UpdateRecordChange(modifiedBy);
         }
     }
 }

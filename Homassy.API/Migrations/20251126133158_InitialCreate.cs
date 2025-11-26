@@ -41,6 +41,9 @@ namespace Homassy.API.Migrations
                     Quantity = table.Column<decimal>(type: "numeric", nullable: false),
                     Unit = table.Column<int>(type: "integer", nullable: false),
                     PurchaseAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
+                    PurchasedQuantity = table.Column<decimal>(type: "numeric", nullable: false),
+                    Price = table.Column<int>(type: "integer", nullable: true),
+                    Currency = table.Column<int>(type: "integer", nullable: true),
                     ExpirationAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: true),
                     ConsumedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: true),
                     IsDeleted = table.Column<bool>(type: "boolean", nullable: false),
@@ -156,6 +159,11 @@ namespace Homassy.API.Migrations
                     ProfilePictureBase64 = table.Column<string>(type: "text", nullable: true),
                     LastLoginAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
                     CreatedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
+                    VerificationCode = table.Column<string>(type: "text", nullable: true),
+                    VerificationCodeExpiry = table.Column<DateTime>(type: "timestamp with time zone", nullable: true),
+                    RefreshToken = table.Column<string>(type: "text", nullable: true),
+                    RefreshTokenExpiry = table.Column<DateTime>(type: "timestamp with time zone", nullable: true),
+                    DefaultCurrency = table.Column<int>(type: "integer", nullable: false),
                     IsDeleted = table.Column<bool>(type: "boolean", nullable: false),
                     RecordChange = table.Column<string>(type: "text", nullable: false)
                 },
@@ -163,6 +171,12 @@ namespace Homassy.API.Migrations
                 {
                     table.PrimaryKey("PK_Users", x => x.Id);
                 });
+
+            migrationBuilder.CreateIndex(
+                name: "IX_Users_Email",
+                table: "Users",
+                column: "Email",
+                unique: true);
         }
 
         /// <inheritdoc />

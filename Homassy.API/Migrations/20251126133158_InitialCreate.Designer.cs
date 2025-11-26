@@ -11,8 +11,8 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
 namespace Homassy.API.Migrations
 {
-    [DbContext(typeof(ApplicationDbContext))]
-    [Migration("20251123190403_InitialCreate")]
+    [DbContext(typeof(HomassyDbContext))]
+    [Migration("20251126133158_InitialCreate")]
     partial class InitialCreate
     {
         /// <inheritdoc />
@@ -118,6 +118,9 @@ namespace Homassy.API.Migrations
                     b.Property<DateTime?>("ConsumedAt")
                         .HasColumnType("timestamp with time zone");
 
+                    b.Property<int?>("Currency")
+                        .HasColumnType("integer");
+
                     b.Property<DateTime?>("ExpirationAt")
                         .HasColumnType("timestamp with time zone");
 
@@ -127,11 +130,17 @@ namespace Homassy.API.Migrations
                     b.Property<bool>("IsDeleted")
                         .HasColumnType("boolean");
 
+                    b.Property<int?>("Price")
+                        .HasColumnType("integer");
+
                     b.Property<int>("ProductId")
                         .HasColumnType("integer");
 
                     b.Property<DateTime>("PurchaseAt")
                         .HasColumnType("timestamp with time zone");
+
+                    b.Property<decimal>("PurchasedQuantity")
+                        .HasColumnType("numeric");
 
                     b.Property<decimal>("Quantity")
                         .HasColumnType("numeric");
@@ -302,6 +311,9 @@ namespace Homassy.API.Migrations
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("timestamp with time zone");
 
+                    b.Property<int>("DefaultCurrency")
+                        .HasColumnType("integer");
+
                     b.Property<string>("DisplayName")
                         .IsRequired()
                         .HasColumnType("text");
@@ -330,7 +342,22 @@ namespace Homassy.API.Migrations
                         .IsRequired()
                         .HasColumnType("text");
 
+                    b.Property<string>("RefreshToken")
+                        .HasColumnType("text");
+
+                    b.Property<DateTime?>("RefreshTokenExpiry")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("VerificationCode")
+                        .HasColumnType("text");
+
+                    b.Property<DateTime?>("VerificationCodeExpiry")
+                        .HasColumnType("timestamp with time zone");
+
                     b.HasKey("Id");
+
+                    b.HasIndex("Email")
+                        .IsUnique();
 
                     b.ToTable("Users");
                 });

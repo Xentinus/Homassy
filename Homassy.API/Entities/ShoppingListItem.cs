@@ -1,5 +1,6 @@
 ﻿
 using Homassy.API.Enums;
+using System.ComponentModel.DataAnnotations;
 
 namespace Homassy.API.Entities
 {
@@ -11,6 +12,7 @@ namespace Homassy.API.Entities
         public int? ShoppingLocationId { get; set; }
         public string? CustomName { get; set; }
         public required decimal Quantity { get; set; } = 1.0m;
+        [EnumDataType(typeof(Unit))]
         public required Unit Unit { get; set; } = Unit.Gram;
         public string? Note { get; set; }
         public DateTime CreatedAt { get; set; } = DateTime.UtcNow;

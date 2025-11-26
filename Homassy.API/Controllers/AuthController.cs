@@ -2,6 +2,7 @@
 using Homassy.API.Context;
 using Homassy.API.Entities;
 using Homassy.API.Extensions;
+using Homassy.API.Functions;
 using Homassy.API.Models.Auth;
 using Homassy.API.Models.Common;
 using Homassy.API.Models.User;
@@ -19,7 +20,6 @@ namespace Homassy.API.Controllers
     [ApiController]
     public class AuthController : ControllerBase
     {
-        private readonly ApplicationDbContext _context;
         private readonly JwtService _jwtService;
         private readonly EmailService _emailService;
         private readonly RateLimitService _rateLimitService;
@@ -27,14 +27,12 @@ namespace Homassy.API.Controllers
         private readonly ILogger<AuthController> _logger;
 
         public AuthController(
-            ApplicationDbContext context,
             JwtService jwtService,
             EmailService emailService,
             RateLimitService rateLimitService,
             IConfiguration configuration,
             ILogger<AuthController> logger)
         {
-            _context = context;
             _jwtService = jwtService;
             _emailService = emailService;
             _rateLimitService = rateLimitService;
@@ -74,46 +72,22 @@ namespace Homassy.API.Controllers
 
             try
             {
-                var user = await _context.Users
-                    .FirstOrDefaultAsync(u => u.Email == email && !u.IsDeleted);
+                var user = await new UserFunctions().GetUserByEmailAsync(email);
 
                 if (user == null)
                 {
-                    // Check if registration is allowed
-                    var canRegister = bool.Parse(_configuration["Authentication:UsersCanRegister"] ?? "true");
-                    if (!canRegister)
-                    {
-                        // Don't reveal that registration is disabled
-                        _logger.LogInformation("Registration attempt blocked for {Email}", email);
-                        await Task.Delay(Random.Shared.Next(100, 300)); // Timing attack mitigation
-                        return Ok(ApiResponse.SuccessResponse(genericMessage));
-                    }
-
-                    // Create new user
-                    user = new User
-                    {
-                        Id = 0,
-                        Email = email,
-                        Name = email.Split('@')[0],
-                        DisplayName = email.Split('@')[0],
-                        IsDeleted = false,
-                        RecordChange = ""
-                    };
-                    _context.Users.Add(user);
-                    await _context.SaveChangesAsync();
-
-                    _logger.LogInformation("New user registered: {Email} from IP {IP}", email, clientIp);
+                    _logger.LogInformation("User not found for {Email}", email);
+                    await Task.Delay(Random.Shared.Next(100, 300));
+                    return Ok(ApiResponse.SuccessResponse(genericMessage));
                 }
 
                 // Generate new verification code
                 var code = _emailService.GenerateVerificationCode();
                 var expirationMinutes = int.Parse(_configuration["EmailVerification:CodeExpirationMinutes"]!);
+                var expiry = DateTime.UtcNow.AddMinutes(expirationMinutes);
 
-                user.VerificationCode = code;
-                user.VerificationCodeExpiry = DateTime.UtcNow.AddMinutes(expirationMinutes);
-
-                await _context.SaveChangesAsync();
-                await _emailService.SendVerificationCodeAsync(user.Email, code);
+                await new UserFunctions().SetVerificationCodeAsync(user, code, expiry);
+                await _emailService.SendVerificationCodeAsync(user.Email, code, user.DefaultTimeZone);
 
                 _logger.LogInformation("Verification code sent to {Email}", email);
             }
@@ -154,12 +128,11 @@ namespace Homassy.API.Controllers
                     $"Too many failed attempts. Account locked for {remaining?.TotalMinutes:F0} minutes."));
             }
 
-            var user = await _context.Users
-                .FirstOrDefaultAsync(u => u.Email == email && !u.IsDeleted);
+            var user = await new UserFunctions().GetUserByEmailAsync(email);
 
             if (user == null)
             {
-                await Task.Delay(Random.Shared.Next(200, 400)); // Timing attack mitigation
+                await Task.Delay(Random.Shared.Next(200, 400));
                 return Unauthorized(ApiResponse.ErrorResponse("Invalid email or code"));
             }
 
@@ -168,7 +141,7 @@ namespace Homassy.API.Controllers
                 user.VerificationCodeExpiry < DateTime.UtcNow)
             {
                 _logger.LogWarning("Expired verification code for {Email}", email);
-                await Task.Delay(Random.Shared.Next(200, 400)); // Timing attack mitigation
+                await Task.Delay(Random.Shared.Next(200, 400));
                 return Unauthorized(ApiResponse.ErrorResponse("Invalid or expired code"));
             }
 
@@ -190,13 +163,7 @@ namespace Homassy.API.Controllers
             var refreshTokenExpiry = _jwtService.GetRefreshTokenExpiration();
 
             // Update user
-            user.RefreshToken = refreshToken;
-            user.RefreshTokenExpiry = refreshTokenExpiry;
-            user.VerificationCode = null;
-            user.VerificationCodeExpiry = null;
-            user.LastLoginAt = DateTime.UtcNow;
-
-            await _context.SaveChangesAsync();
+            await new UserFunctions().CompleteAuthenticationAsync(user, refreshToken, refreshTokenExpiry);
 
             _logger.LogInformation("User {Email} successfully authenticated from IP {IP}", email, clientIp);
 
@@ -255,7 +222,7 @@ namespace Homassy.API.Controllers
                 return Unauthorized(ApiResponse.ErrorResponse("Invalid token claims"));
             }
 
-            var user = await _context.Users.FindAsync(userId);
+            var user = await new UserFunctions().GetUserByIdAsync(userId);
             if (user == null || user.IsDeleted)
             {
                 await Task.Delay(Random.Shared.Next(100, 200));
@@ -286,10 +253,7 @@ namespace Homassy.API.Controllers
             var accessTokenExpiry = _jwtService.GetAccessTokenExpiration();
             var refreshTokenExpiry = _jwtService.GetRefreshTokenExpiration();
 
-            user.RefreshToken = newRefreshToken;
-            user.RefreshTokenExpiry = refreshTokenExpiry;
-
-            await _context.SaveChangesAsync();
+            await new UserFunctions().SetRefreshTokenAsync(user, newRefreshToken, refreshTokenExpiry);
 
             _logger.LogInformation("Token refreshed for user {UserId} from IP {IP}", userId, clientIp);
 
@@ -315,12 +279,10 @@ namespace Homassy.API.Controllers
                 return Unauthorized(ApiResponse.ErrorResponse("Invalid authentication"));
             }
 
-            var user = await _context.Users.FindAsync(userId);
+            var user = await new UserFunctions().GetUserByIdAsync(userId);
             if (user != null)
             {
-                user.RefreshToken = null;
-                user.RefreshTokenExpiry = null;
-                await _context.SaveChangesAsync();
+                await new UserFunctions().ClearRefreshTokenAsync(user);
             }
 
             _logger.LogInformation($"User {userId} logged out");
@@ -339,7 +301,7 @@ namespace Homassy.API.Controllers
                 return Unauthorized(ApiResponse.ErrorResponse("Invalid authentication"));
             }
 
-            var user = await _context.Users.FindAsync(userId);
+            var user = await new UserFunctions().GetUserByIdAsync(userId);
             if (user == null || user.IsDeleted)
             {
                 return NotFound(ApiResponse.ErrorResponse("User not found"));
