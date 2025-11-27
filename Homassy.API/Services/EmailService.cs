@@ -25,7 +25,7 @@ namespace Homassy.API.Services
             try
             {
                 var assembly = Assembly.GetExecutingAssembly();
-                
+
                 // Load verification template
                 var verificationResourceName = "Homassy.API.EmailTemplates.VerificationCode.html";
                 using (var stream = assembly.GetManifestResourceStream(verificationResourceName))
@@ -94,13 +94,9 @@ namespace Homassy.API.Services
                 var expirationMinutes = int.Parse(_configuration["EmailVerification:CodeExpirationMinutes"]!);
                 var expirationTimeUtc = DateTime.UtcNow.AddMinutes(expirationMinutes);
 
-                DateTime expirationTime;
-                string timeZoneName;
-
                 var timeZone = userTimeZone ?? UserTimeZone.UTC;
-                var timeZoneInfo = TimeZoneFunctions.GetTimeZoneInfo(timeZone);
-                expirationTime = TimeZoneInfo.ConvertTimeFromUtc(expirationTimeUtc, timeZoneInfo);
-                timeZoneName = TimeZoneFunctions.GetDisplayName(timeZone);
+                var expirationTime = TimeZoneFunctions.ConvertUtcToUserTimeZone(expirationTimeUtc, timeZone);
+                var timeZoneName = TimeZoneFunctions.GetDisplayName(timeZone);
 
                 var expirationTimeFormatted = $"{expirationTime:yyyy-MM-dd HH:mm} ({timeZoneName})";
                 var currentYear = DateTime.UtcNow.Year;
@@ -155,13 +151,9 @@ namespace Homassy.API.Services
                 var expirationMinutes = int.Parse(_configuration["EmailVerification:CodeExpirationMinutes"]!);
                 var expirationTimeUtc = DateTime.UtcNow.AddMinutes(expirationMinutes);
 
-                DateTime expirationTime;
-                string timeZoneName;
-
                 var timeZone = userTimeZone ?? UserTimeZone.UTC;
-                var timeZoneInfo = TimeZoneFunctions.GetTimeZoneInfo(timeZone);
-                expirationTime = TimeZoneInfo.ConvertTimeFromUtc(expirationTimeUtc, timeZoneInfo);
-                timeZoneName = TimeZoneFunctions.GetDisplayName(timeZone);
+                var expirationTime = TimeZoneFunctions.ConvertUtcToUserTimeZone(expirationTimeUtc, timeZone);
+                var timeZoneName = TimeZoneFunctions.GetDisplayName(timeZone);
 
                 var expirationTimeFormatted = $"{expirationTime:yyyy-MM-dd HH:mm} ({timeZoneName})";
                 var currentYear = DateTime.UtcNow.Year;

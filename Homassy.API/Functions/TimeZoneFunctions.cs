@@ -76,5 +76,16 @@ namespace Homassy.API.Functions
             var info = GetTimeZoneInfo(timeZone);
             return info.StandardName;
         }
+
+        public static DateTime ConvertUtcToUserTimeZone(UserTimeZone userTimeZone)
+        {
+            return ConvertUtcToUserTimeZone(DateTime.UtcNow, userTimeZone);
+        }
+
+        public static DateTime ConvertUtcToUserTimeZone(DateTime utcDateTime, UserTimeZone userTimeZone)
+        {
+            var timeZoneInfo = GetTimeZoneInfo(userTimeZone);
+            return TimeZoneInfo.ConvertTimeFromUtc(utcDateTime, timeZoneInfo);
+        }
     }
 }
