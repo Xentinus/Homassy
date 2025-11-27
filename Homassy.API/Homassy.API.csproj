@@ -14,6 +14,10 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <None Remove="EmailTemplates\VerificationCode.html" />
+  </ItemGroup>
+
+  <ItemGroup>
     <PackageReference Include="Asp.Versioning.Mvc" Version="8.1.0" />
     <PackageReference Include="Asp.Versioning.Mvc.ApiExplorer" Version="8.1.0" />
     <PackageReference Include="MailKit" Version="4.14.1" />
@@ -38,5 +42,9 @@
   <ItemGroup>
     <Folder Include="Migrations\" />
   </ItemGroup>
+
+	<ItemGroup>
+		<EmbeddedResource Include="EmailTemplates\**\*.html" />
+	</ItemGroup>
 
 </Project>

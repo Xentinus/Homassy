@@ -186,5 +186,37 @@ namespace Homassy.API.Functions
                    user.RefreshTokenExpiry > DateTime.UtcNow &&
                    !string.IsNullOrEmpty(user.RefreshToken);
         }
+
+        public async Task SetEmailVerifiedAsync(User user)
+        {
+            user.IsEmailVerified = true;
+
+            var context = new HomassyDbContext();
+            await using var transaction = await context.Database.BeginTransactionAsync();
+            try
+            {
+                context.Update(user);
+                await context.SaveChangesAsync();
+                await transaction.CommitAsync();
+            }
+            catch
+            {
+                await transaction.RollbackAsync();
+                throw;
+            }
+        }
+
+        public int? GetUserIdByPublicId(Guid? publicId)
+        {
+            if (publicId == null)
+                return null;
+
+            var context = new HomassyDbContext();
+            var user = context.Users
+                .AsNoTracking()
+                .FirstOrDefault(u => u.PublicId == publicId);
+
+            return user?.Id;
+        }
     }
 }

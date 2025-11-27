@@ -1,26 +1,28 @@
-﻿namespace Homassy.API.Context
+﻿using Homassy.API.Functions;
+
+namespace Homassy.API.Context
 {
     public static class SessionInfo
     {
+        private static readonly AsyncLocal<Guid?> _publicId = new();
         private static readonly AsyncLocal<int?> _userId = new();
-        private static readonly AsyncLocal<string?> _email = new();
         private static readonly AsyncLocal<int?> _familyId = new();
 
+        public static Guid? GetPublicId() => _publicId.Value;
         public static int? GetUserId() => _userId.Value;
-        public static string? GetEmail() => _email.Value;
         public static int? GetFamilyId() => _familyId.Value;
 
-        public static void SetUser(int? userId, string? email = null, int? familyId = null)
+        public static void SetUser(Guid? publicId, int? familyId = null)
         {
-            _userId.Value = userId;
-            _email.Value = email;
+            _publicId.Value = publicId;
+            _userId.Value = new UserFunctions().GetUserIdByPublicId(publicId);
             _familyId.Value = familyId;
         }
 
         public static void Clear()
         {
+            _publicId.Value = null;
             _userId.Value = null;
-            _email.Value = null;
             _familyId.Value = null;
         }
     }

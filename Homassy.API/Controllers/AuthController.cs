@@ -9,6 +9,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using System.Security.Claims;
 using Serilog;
+using Homassy.API.Extensions;
 
 namespace Homassy.API.Controllers
 {
@@ -102,7 +103,15 @@ namespace Homassy.API.Controllers
                 return Unauthorized(ApiResponse.ErrorResponse("Invalid or expired code"));
             }
 
-            var accessToken = JwtService.GenerateAccessToken(user.Id, user.Email, user.FamilyId, user.DefaultCurrency);
+            var isFirstLogin = !user.IsEmailVerified;
+
+            if (isFirstLogin)
+            {
+                await new UserFunctions().SetEmailVerifiedAsync(user);
+                Log.Information($"Email verified for new user {email}");
+            }
+
+            var accessToken = JwtService.GenerateAccessToken(user);
             var refreshToken = JwtService.GenerateRefreshToken();
             var accessTokenExpiry = JwtService.GetAccessTokenExpiration();
             var refreshTokenExpiry = JwtService.GetRefreshTokenExpiration();
@@ -119,10 +128,12 @@ namespace Homassy.API.Controllers
                 RefreshTokenExpiresAt = refreshTokenExpiry,
                 User = new UserInfo
                 {
-                    Email = user.Email,
                     Name = user.Name,
                     DisplayName = user.DisplayName,
-                    ProfilePictureBase64 = user.ProfilePictureBase64
+                    ProfilePictureBase64 = user.ProfilePictureBase64,
+                    TimeZone = user.DefaultTimeZone.ToTimeZoneId(),
+                    Language = user.DefaultLanguage.ToLanguageCode(),
+                    Currency = user.DefaultCurrency.ToCurrencyCode()
                 }
             };
 
@@ -178,7 +189,7 @@ namespace Homassy.API.Controllers
                 return Unauthorized(ApiResponse.ErrorResponse("Expired refresh token"));
             }
 
-            var newAccessToken = JwtService.GenerateAccessToken(user.Id, user.Email, user.FamilyId, user.DefaultCurrency);
+            var newAccessToken = JwtService.GenerateAccessToken(user);
             var newRefreshToken = JwtService.GenerateRefreshToken();
             var accessTokenExpiry = JwtService.GetAccessTokenExpiration();
             var refreshTokenExpiry = JwtService.GetRefreshTokenExpiration();
@@ -239,10 +250,12 @@ namespace Homassy.API.Controllers
 
             var userInfo = new UserInfo
             {
-                Email = user.Email,
                 Name = user.Name,
                 DisplayName = user.DisplayName,
-                ProfilePictureBase64 = user.ProfilePictureBase64
+                ProfilePictureBase64 = user.ProfilePictureBase64,
+                TimeZone = user.DefaultTimeZone.ToTimeZoneId(),
+                Language = user.DefaultLanguage.ToLanguageCode(),
+                Currency = user.DefaultCurrency.ToCurrencyCode()
             };
 
             return Ok(ApiResponse<UserInfo>.SuccessResponse(userInfo));
@@ -292,9 +305,11 @@ namespace Homassy.API.Controllers
                 var expiry = DateTime.UtcNow.AddMinutes(expirationMinutes);
 
                 await new UserFunctions().SetVerificationCodeAsync(user, code, expiry);
-                await EmailService.SendVerificationCodeAsync(user.Email, code, user.DefaultTimeZone);
 
-                Log.Information($"New user registered: {email}, verification code sent");
+                // Regisztrációs email küldése a verification code-dal
+                await EmailService.SendRegistrationEmailAsync(user.Email, user.Name, code, user.DefaultTimeZone);
+
+                Log.Information($"New user registered: {email}, registration email with verification code sent");
             }
             catch (Exception ex)
             {

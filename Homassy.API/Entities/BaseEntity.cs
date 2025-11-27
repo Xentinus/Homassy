@@ -18,7 +18,7 @@ namespace Homassy.API.Entities
             RecordChange = JsonSerializer.Serialize(new RecordChange
             {
                 LastModifiedDate = DateTime.UtcNow,
-                LastModifiedBy = modifiedBy
+                LastModifiedBy = modifiedBy ?? -1
             });
         }
 

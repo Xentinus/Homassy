@@ -4,16 +4,66 @@ using MimeKit;
 using Homassy.API.Enums;
 using Homassy.API.Functions;
 using Serilog;
+using System.Reflection;
 
 namespace Homassy.API.Services
 {
     public static class EmailService
     {
         private static IConfiguration? _configuration;
+        private static string? _verificationTemplate;
+        private static string? _registrationTemplate;
 
         public static void Initialize(IConfiguration configuration)
         {
             _configuration = configuration;
+            LoadEmailTemplates();
+        }
+
+        private static void LoadEmailTemplates()
+        {
+            try
+            {
+                var assembly = Assembly.GetExecutingAssembly();
+                
+                // Load verification template
+                var verificationResourceName = "Homassy.API.EmailTemplates.VerificationCode.html";
+                using (var stream = assembly.GetManifestResourceStream(verificationResourceName))
+                {
+                    if (stream != null)
+                    {
+                        using var reader = new StreamReader(stream);
+                        _verificationTemplate = reader.ReadToEnd();
+                        Log.Information("Verification email template loaded successfully");
+                    }
+                    else
+                    {
+                        Log.Warning($"Verification email template resource not found: {verificationResourceName}");
+                    }
+                }
+
+                // Load registration template (with verification code)
+                var registrationResourceName = "Homassy.API.EmailTemplates.SuccessfulRegistration.html";
+                using (var stream = assembly.GetManifestResourceStream(registrationResourceName))
+                {
+                    if (stream != null)
+                    {
+                        using var reader = new StreamReader(stream);
+                        _registrationTemplate = reader.ReadToEnd();
+                        Log.Information("Registration email template loaded successfully");
+                    }
+                    else
+                    {
+                        Log.Warning($"Registration email template resource not found: {registrationResourceName}");
+                    }
+                }
+
+                Log.Information($"Available resources: {string.Join(", ", assembly.GetManifestResourceNames())}");
+            }
+            catch (Exception ex)
+            {
+                Log.Error($"Failed to load email templates: {ex.Message}");
+            }
         }
 
         public static string GenerateVerificationCode()
@@ -28,6 +78,12 @@ namespace Homassy.API.Services
         {
             try
             {
+                if (string.IsNullOrEmpty(_verificationTemplate))
+                {
+                    Log.Error("Email template is not loaded, cannot send email");
+                    throw new InvalidOperationException("Email template is not loaded");
+                }
+
                 var message = new MimeMessage();
                 message.From.Add(new MailboxAddress(
                     _configuration!["Email:SenderName"],
@@ -52,181 +108,14 @@ namespace Homassy.API.Services
                 var halfLength = code.Length / 2;
                 var formattedCode = $"{code[..halfLength]} - {code[halfLength..]}";
 
+                var htmlBody = _verificationTemplate
+                    .Replace("{{CODE}}", formattedCode)
+                    .Replace("{{EXPIRY_TIME}}", expirationTimeFormatted)
+                    .Replace("{{YEAR}}", currentYear.ToString());
+
                 var bodyBuilder = new BodyBuilder
                 {
-                    HtmlBody = $@"
-                        <!DOCTYPE html>
-                        <html>
-                        <head>
-                            <meta charset='UTF-8'>
-                            <meta name='viewport' content='width=device-width, initial-scale=1.0'>
-                            <meta http-equiv='X-UA-Compatible' content='IE=edge'>
-                            <style>
-                                * {{
-                                    margin: 0;
-                                    padding: 0;
-                                    box-sizing: border-box;
-                                }}
-                                body {{ 
-                                    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
-                                    background-color: #f9fafb;
-                                    padding: 20px 16px;
-                                    line-height: 1.6;
-                                    -webkit-font-smoothing: antialiased;
-                                    -moz-osx-font-smoothing: grayscale;
-                                }}
-                                .email-wrapper {{
-                                    max-width: 600px;
-                                    margin: 0 auto;
-                                    width: 100%;
-                                }}
-                                .container {{ 
-                                    background-color: #ffffff;
-                                    border: 1px solid #e5e7eb;
-                                    border-radius: 12px;
-                                    overflow: hidden;
-                                    box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06);
-                                }}
-                                .header {{
-                                    background: linear-gradient(135deg, #18181b 0%, #27272a 100%);
-                                    padding: 32px 20px;
-                                    text-align: center;
-                                }}
-                                .header-title {{
-                                    color: #ffffff;
-                                    font-size: 24px;
-                                    font-weight: 700;
-                                    margin: 0;
-                                    letter-spacing: -0.5px;
-                                }}
-                                .header-subtitle {{
-                                    color: #a1a1aa;
-                                    font-size: 13px;
-                                    margin-top: 8px;
-                                    font-weight: 400;
-                                }}
-                                .content {{
-                                    padding: 32px 24px;
-                                }}
-                                .greeting {{
-                                    color: #18181b;
-                                    font-size: 18px;
-                                    font-weight: 600;
-                                    margin-bottom: 12px;
-                                    letter-spacing: -0.3px;
-                                }}
-                                .message {{
-                                    color: #52525b;
-                                    font-size: 15px;
-                                    margin-bottom: 28px;
-                                    line-height: 1.6;
-                                }}
-                                .code-container {{
-                                    background: linear-gradient(135deg, #18181b 0%, #27272a 100%);
-                                    border-radius: 12px;
-                                    padding: 28px 20px;
-                                    text-align: center;
-                                    margin: 28px 0;
-                                    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
-                                }}
-                                .code-label {{
-                                    color: #a1a1aa;
-                                    font-size: 11px;
-                                    text-transform: uppercase;
-                                    letter-spacing: 1.2px;
-                                    margin-bottom: 14px;
-                                    font-weight: 600;
-                                }}
-                                .code {{
-                                    color: #ffffff;
-                                    font-size: clamp(28px, 8vw, 36px);
-                                    font-weight: 700;
-                                    letter-spacing: 0.3em;
-                                    font-family: 'Courier New', Courier, monospace;
-                                    margin: 0;
-                                    user-select: all;
-                                    word-break: keep-all;
-                                    white-space: nowrap;
-                                    overflow: hidden;
-                                    text-overflow: clip;
-                                    padding: 0 10px;
-                                }}
-                                .expiry-info {{
-                                    display: inline-flex;
-                                    align-items: center;
-                                    gap: 6px;
-                                    background-color: #3f3f46;
-                                    color: #fafafa;
-                                    padding: 8px 14px;
-                                    border-radius: 8px;
-                                    font-size: 12px;
-                                    margin-top: 18px;
-                                    font-weight: 500;
-                                }}
-                                .divider {{
-                                    height: 1px;
-                                    background-color: #e5e7eb;
-                                    margin: 28px 0;
-                                }}
-                                .footer {{
-                                    background-color: #f9fafb;
-                                    padding: 20px 24px;
-                                    text-align: center;
-                                    border-top: 1px solid #e5e7eb;
-                                }}
-                                .footer-text {{
-                                    color: #71717a;
-                                    font-size: 12px;
-                                    margin: 0;
-                                    line-height: 1.5;
-                                }}
-                                .footer-text + .footer-text {{
-                                    margin-top: 6px;
-                                }}
-                                @media only screen and (max-width: 600px) {{
-                                    body {{ padding: 12px 8px; }}
-                                    .header {{ padding: 28px 16px; }}
-                                    .header-title {{ font-size: 22px; }}
-                                    .content {{ padding: 24px 16px; }}
-                                    .code-container {{ padding: 24px 12px; }}
-                                    .code {{ font-size: clamp(24px, 7vw, 32px); letter-spacing: 0.25em; }}
-                                }}
-                            </style>
-                        </head>
-                        <body>
-                            <div class='email-wrapper'>
-                                <div class='container'>
-                                    <div class='header'>
-                                        <h1 class='header-title'>Homassy</h1>
-                                        <p class='header-subtitle'>Home Storage Management System</p>
-                                    </div>
-                                    <div class='content'>
-                                        <h2 class='greeting'>Welcome back!</h2>
-                                        <p class='message'>
-                                            We received a request to sign in to your Homassy account. 
-                                            Use the verification code below to complete your authentication.
-                                        </p>
-                                        <div class='code-container'>
-                                            <div class='code-label'>Your Verification Code</div>
-                                            <div class='code'>{formattedCode}</div>
-                                            <div class='expiry-info'>
-                                                <span>⏱️</span>
-                                                <span>Expires at {expirationTimeFormatted}</span>
-                                            </div>
-                                        </div>
-                                        <div class='divider'></div>
-                                        <p class='message' style='margin-bottom: 0; font-size: 14px;'>
-                                            This verification code is unique to your login session and should not be shared with anyone.
-                                        </p>
-                                    </div>
-                                    <div class='footer'>
-                                        <p class='footer-text'>© {currentYear} Homassy. All rights reserved.</p>
-                                        <p class='footer-text'>This is an automated message, please do not reply to this email.</p>
-                                    </div>
-                                </div>
-                            </div>
-                        </body>
-                        </html>",
+                    HtmlBody = htmlBody,
                     TextBody = $"Welcome to Homassy!\n\n" +
                               $"Your verification code is: {formattedCode}\n\n" +
                               $"This code will expire at {expirationTimeFormatted}.\n\n" +
@@ -235,21 +124,7 @@ namespace Homassy.API.Services
 
                 message.Body = bodyBuilder.ToMessageBody();
 
-                var username = _configuration["Email:Username"];
-                var password = _configuration["Email:Password"];
-
-                using var client = new SmtpClient();
-
-                var smtpServer = _configuration["Email:SmtpServer"]!;
-                var smtpPort = int.Parse(_configuration["Email:SmtpPort"]!);
-                var enableSsl = bool.Parse(_configuration["Email:EnableSsl"]!);
-
-                await client.ConnectAsync(smtpServer, smtpPort,
-                    enableSsl ? SecureSocketOptions.StartTls : SecureSocketOptions.None);
-
-                await client.AuthenticateAsync(username, password);
-                await client.SendAsync(message);
-                await client.DisconnectAsync(true);
+                await SendEmailAsync(message);
 
                 Log.Information($"Verification code sent to {email}");
             }
@@ -258,6 +133,89 @@ namespace Homassy.API.Services
                 Log.Error($"Failed to send verification code to {email}: {ex.Message}");
                 throw;
             }
+        }
+
+        public static async Task SendRegistrationEmailAsync(string email, string username, string code, UserTimeZone? userTimeZone = null)
+        {
+            try
+            {
+                if (string.IsNullOrEmpty(_registrationTemplate))
+                {
+                    Log.Error("Registration email template is not loaded, cannot send email");
+                    throw new InvalidOperationException("Registration email template is not loaded");
+                }
+
+                var message = new MimeMessage();
+                message.From.Add(new MailboxAddress(
+                    _configuration!["Email:SenderName"],
+                    _configuration["Email:SenderEmail"]));
+                message.To.Add(new MailboxAddress(username, email));
+                message.Subject = "Welcome to Homassy - Complete Your Registration";
+
+                var expirationMinutes = int.Parse(_configuration["EmailVerification:CodeExpirationMinutes"]!);
+                var expirationTimeUtc = DateTime.UtcNow.AddMinutes(expirationMinutes);
+
+                DateTime expirationTime;
+                string timeZoneName;
+
+                var timeZone = userTimeZone ?? UserTimeZone.UTC;
+                var timeZoneInfo = TimeZoneFunctions.GetTimeZoneInfo(timeZone);
+                expirationTime = TimeZoneInfo.ConvertTimeFromUtc(expirationTimeUtc, timeZoneInfo);
+                timeZoneName = TimeZoneFunctions.GetDisplayName(timeZone);
+
+                var expirationTimeFormatted = $"{expirationTime:yyyy-MM-dd HH:mm} ({timeZoneName})";
+                var currentYear = DateTime.UtcNow.Year;
+
+                var halfLength = code.Length / 2;
+                var formattedCode = $"{code[..halfLength]} - {code[halfLength..]}";
+
+                var htmlBody = _registrationTemplate
+                    .Replace("{{USERNAME}}", username)
+                    .Replace("{{EMAIL}}", email)
+                    .Replace("{{CODE}}", formattedCode)
+                    .Replace("{{EXPIRY_TIME}}", expirationTimeFormatted)
+                    .Replace("{{YEAR}}", currentYear.ToString());
+
+                var bodyBuilder = new BodyBuilder
+                {
+                    HtmlBody = htmlBody,
+                    TextBody = $"Welcome to Homassy, {username}!\n\n" +
+                              $"Congratulations! You have successfully registered with the email: {email}\n\n" +
+                              $"To complete your registration, please log in with this verification code: {formattedCode}\n\n" +
+                              $"This code will expire at {expirationTimeFormatted}.\n\n" +
+                              $"© {currentYear} Homassy - Home Storage Management System"
+                };
+
+                message.Body = bodyBuilder.ToMessageBody();
+
+                await SendEmailAsync(message);
+
+                Log.Information($"Registration email sent to {email}");
+            }
+            catch (Exception ex)
+            {
+                Log.Error($"Failed to send registration email to {email}: {ex.Message}");
+                throw;
+            }
+        }
+
+        private static async Task SendEmailAsync(MimeMessage message)
+        {
+            var username = _configuration!["Email:Username"];
+            var password = _configuration["Email:Password"];
+
+            using var client = new SmtpClient();
+
+            var smtpServer = _configuration["Email:SmtpServer"]!;
+            var smtpPort = int.Parse(_configuration["Email:SmtpPort"]!);
+            var enableSsl = bool.Parse(_configuration["Email:EnableSsl"]!);
+
+            await client.ConnectAsync(smtpServer, smtpPort,
+                enableSsl ? SecureSocketOptions.StartTls : SecureSocketOptions.None);
+
+            await client.AuthenticateAsync(username, password);
+            await client.SendAsync(message);
+            await client.DisconnectAsync(true);
         }
     }
 }

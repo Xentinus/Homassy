@@ -1,0 +1,247 @@
+﻿<!DOCTYPE html>
+<html>
+<head>
+    <meta charset='UTF-8'>
+    <meta name='viewport' content='width=device-width, initial-scale=1.0'>
+    <meta http-equiv='X-UA-Compatible' content='IE=edge'>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background-color: #f9fafb;
+            padding: 20px 16px;
+            line-height: 1.6;
+            -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
+        }
+
+        .email-wrapper {
+            max-width: 600px;
+            margin: 0 auto;
+            width: 100%;
+        }
+
+        .container {
+            background-color: #ffffff;
+            border: 1px solid #e5e7eb;
+            border-radius: 12px;
+            overflow: hidden;
+            box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06);
+        }
+
+        .header {
+            background: linear-gradient(135deg, #18181b 0%, #27272a 100%);
+            padding: 32px 20px;
+            text-align: center;
+        }
+
+        .header-title {
+            color: #ffffff;
+            font-size: 24px;
+            font-weight: 700;
+            margin: 0;
+            letter-spacing: -0.5px;
+        }
+
+        .header-subtitle {
+            color: #a1a1aa;
+            font-size: 13px;
+            margin-top: 8px;
+            font-weight: 400;
+        }
+
+        .content {
+            padding: 32px 24px;
+        }
+
+        .success-icon {
+            text-align: center;
+            font-size: 64px;
+            margin-bottom: 20px;
+        }
+
+        .greeting {
+            color: #18181b;
+            font-size: 18px;
+            font-weight: 600;
+            margin-bottom: 12px;
+            letter-spacing: -0.3px;
+            text-align: center;
+        }
+
+        .message {
+            color: #52525b;
+            font-size: 15px;
+            margin-bottom: 28px;
+            line-height: 1.6;
+            text-align: center;
+        }
+
+        .code-container {
+            background: linear-gradient(135deg, #18181b 0%, #27272a 100%);
+            border-radius: 12px;
+            padding: 28px 20px;
+            text-align: center;
+            margin: 28px 0;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+        }
+
+        .code-label {
+            color: #a1a1aa;
+            font-size: 11px;
+            text-transform: uppercase;
+            letter-spacing: 1.2px;
+            margin-bottom: 14px;
+            font-weight: 600;
+        }
+
+        .code {
+            color: #ffffff;
+            font-size: clamp(28px, 8vw, 36px);
+            font-weight: 700;
+            letter-spacing: 0.3em;
+            font-family: 'Courier New', Courier, monospace;
+            margin: 0;
+            user-select: all;
+            word-break: keep-all;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: clip;
+            padding: 0 10px;
+        }
+
+        .expiry-info {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            background-color: #3f3f46;
+            color: #fafafa;
+            padding: 8px 14px;
+            border-radius: 8px;
+            font-size: 12px;
+            margin-top: 18px;
+            font-weight: 500;
+        }
+
+        .info-container {
+            background: linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%);
+            border: 1px solid #93c5fd;
+            border-radius: 12px;
+            padding: 20px;
+            margin: 28px 0;
+            text-align: center;
+        }
+
+        .info-title {
+            color: #1e40af;
+            font-size: 14px;
+            font-weight: 600;
+            margin-bottom: 8px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .info-text {
+            color: #1e3a8a;
+            font-size: 14px;
+            line-height: 1.5;
+        }
+
+        .divider {
+            height: 1px;
+            background-color: #e5e7eb;
+            margin: 28px 0;
+        }
+
+        .footer {
+            background-color: #f9fafb;
+            padding: 20px 24px;
+            text-align: center;
+            border-top: 1px solid #e5e7eb;
+        }
+
+        .footer-text {
+            color: #71717a;
+            font-size: 12px;
+            margin: 0;
+            line-height: 1.5;
+        }
+
+            .footer-text + .footer-text {
+                margin-top: 6px;
+            }
+
+        @media only screen and (max-width: 600px) {
+            body {
+                padding: 12px 8px;
+            }
+
+            .header {
+                padding: 28px 16px;
+            }
+
+            .header-title {
+                font-size: 22px;
+            }
+
+            .content {
+                padding: 24px 16px;
+            }
+
+            .success-icon {
+                font-size: 48px;
+            }
+
+            .code-container {
+                padding: 24px 12px;
+            }
+
+            .code {
+                font-size: clamp(24px, 7vw, 32px);
+                letter-spacing: 0.25em;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class='email-wrapper'>
+        <div class='container'>
+            <div class='header'>
+                <h1 class='header-title'>Homassy</h1>
+                <p class='header-subtitle'>Home Storage Management System</p>
+            </div>
+            <div class='content'>
+                <div class='success-icon'>🎉</div>
+                <h2 class='greeting'>Welcome, {{USERNAME}}!</h2>
+                <p class='message'>
+                    Congratulations! You have successfully registered to Homassy with the email address <strong>{{EMAIL}}</strong>.
+                </p>
+                <div class='info-container'>
+                    <div class='info-title'>⚠️ Complete Your Registration</div>
+                    <div class='info-text'>
+                        To finish the registration process and activate your account,
+                        please log in using the verification code below.
+                    </div>
+                </div>
+                <div class='code-container'>
+                    <div class='code-label'>Your Verification Code</div>
+                    <div class='code'>{{CODE}}</div>
+                    <div class='expiry-info'>
+                        <span>⏱️</span>
+                        <span>Expires at {{EXPIRY_TIME}}</span>
+                    </div>
+                </div>
+            </div>
+            <div class='footer'>
+                <p class='footer-text'>© {{YEAR}} Homassy. All rights reserved.</p>
+                <p class='footer-text'>This is an automated message, please do not reply to this email.</p>
+            </div>
+        </div>
+    </div>
+</body>
+</html>
