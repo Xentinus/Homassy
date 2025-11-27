@@ -8,6 +8,7 @@ namespace Homassy.API.Entities
     {
         public int? FamilyId { get; set; }
         public int? UserId { get; set; }
+        public int? StorageLocationId { get; set; }
         public required int ProductId { get; set; }
         [Range(0, double.MaxValue, ErrorMessage = "Quantity cannot be negative")]
         public required decimal Quantity { get; set; } = 1.0m;
