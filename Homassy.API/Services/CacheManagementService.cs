@@ -51,6 +51,7 @@ namespace Homassy.API.Services
                 await new UserFunctions().InitializeCacheAsync();
                 await new FamilyFunctions().InitializeCacheAsync();
                 await new ProductFunctions().InitializeCacheAsync();
+                await new LocationFunctions().InitializeCacheAsync();
 
                 Log.Information("All caches initialized successfully");
             }
@@ -136,6 +137,14 @@ namespace Homassy.API.Services
 
                 case TableNames.ProductItems:
                     await new ProductFunctions().RefreshProductItemCacheAsync(change.RecordId);
+                    break;
+
+                case TableNames.StorageLocations:
+                    await new LocationFunctions().RefreshStorageLocationCacheAsync(change.RecordId);
+                    break;
+
+                case TableNames.ShoppingLocations:
+                    await new LocationFunctions().RefreshShoppingLocationCacheAsync(change.RecordId);
                     break;
 
                 default:
