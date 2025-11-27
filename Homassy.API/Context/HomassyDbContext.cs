@@ -46,11 +46,6 @@ namespace Homassy.API.Context
         {
             base.OnModelCreating(modelBuilder);
 
-            // Faster lookups
-            modelBuilder.Entity<User>()
-                .HasIndex(u => u.Email)
-                .IsUnique();
-
             // Global query filter for soft delete - automatically applied to all BaseEntity types
             foreach (var entityType in modelBuilder.Model.GetEntityTypes())
             {
@@ -98,5 +93,6 @@ namespace Homassy.API.Context
         public DbSet<ShoppingListItem> ShoppingListItems { get; set; }
         public DbSet<ShoppingLocation> ShoppingLocations { get; set; }
         public DbSet<StorageLocation> StorageLocations { get; set; }
+        public DbSet<TableRecordChange> TableRecordChanges { get; set; }
     }
 }

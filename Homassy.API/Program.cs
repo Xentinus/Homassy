@@ -1,4 +1,5 @@
 ﻿using Homassy.API.Context;
+using Homassy.API.Infrastructure;
 using Homassy.API.Middleware;
 using Homassy.API.Services;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
@@ -95,6 +96,14 @@ try
     builder.Services.AddOpenApi();
 
     var app = builder.Build();
+
+    // Trigger inicializálás induláskor
+    using (var scope = app.Services.CreateScope())
+    {
+        var dbContext = scope.ServiceProvider.GetRequiredService<HomassyDbContext>();
+        var triggerInitializer = new DatabaseTriggerInitializer(dbContext);
+        await triggerInitializer.InitializeTriggersAsync();
+    }
 
     // Get application version from assembly
     var version = Assembly.GetExecutingAssembly()
