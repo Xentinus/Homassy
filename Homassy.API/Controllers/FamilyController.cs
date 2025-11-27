@@ -25,7 +25,7 @@ namespace Homassy.API.Controllers
                 return Unauthorized(ApiResponse.ErrorResponse("Invalid authentication"));
             }
 
-            var user = await new UserFunctions().GetUserByIdAsync(userId.Value);
+            var user = new UserFunctions().GetUserById(userId.Value);
             if (user == null)
             {
                 return NotFound(ApiResponse.ErrorResponse("User not found"));
@@ -36,7 +36,7 @@ namespace Homassy.API.Controllers
                 return BadRequest(ApiResponse.ErrorResponse("You are not a member of any family"));
             }
 
-            var family = await new FamilyFunctions().GetFamilyByIdAsync(user.FamilyId.Value);
+            var family = new FamilyFunctions().GetFamilyById(user.FamilyId.Value);
             if (family == null)
             {
                 return NotFound(ApiResponse.ErrorResponse("Family not found"));
@@ -68,7 +68,7 @@ namespace Homassy.API.Controllers
                 return Unauthorized(ApiResponse.ErrorResponse("Invalid authentication"));
             }
 
-            var user = await new UserFunctions().GetUserByIdAsync(userId.Value);
+            var user = new UserFunctions().GetUserById(userId.Value);
             if (user == null)
             {
                 return NotFound(ApiResponse.ErrorResponse("User not found"));
@@ -79,7 +79,7 @@ namespace Homassy.API.Controllers
                 return BadRequest(ApiResponse.ErrorResponse("You are not a member of any family"));
             }
 
-            var family = await new FamilyFunctions().GetFamilyByIdAsync(user.FamilyId.Value);
+            var family = new FamilyFunctions().GetFamilyById(user.FamilyId.Value);
             if (family == null)
             {
                 return NotFound(ApiResponse.ErrorResponse("Family not found"));
@@ -113,7 +113,7 @@ namespace Homassy.API.Controllers
                 return Unauthorized(ApiResponse.ErrorResponse("Invalid authentication"));
             }
 
-            var user = await new UserFunctions().GetUserByIdAsync(userId.Value);
+            var user = new UserFunctions().GetUserById(userId.Value);
             if (user == null)
             {
                 return NotFound(ApiResponse.ErrorResponse("User not found"));
@@ -161,7 +161,7 @@ namespace Homassy.API.Controllers
                 return Unauthorized(ApiResponse.ErrorResponse("Invalid authentication"));
             }
 
-            var user = await new UserFunctions().GetUserByIdAsync(userId.Value);
+            var user = new UserFunctions().GetUserById(userId.Value);
             if (user == null)
             {
                 return NotFound(ApiResponse.ErrorResponse("User not found"));
@@ -172,7 +172,7 @@ namespace Homassy.API.Controllers
                 return BadRequest(ApiResponse.ErrorResponse("You are already a member of a family. Please leave your current family first."));
             }
 
-            var family = await new FamilyFunctions().GetFamilyByShareCodeAsync(request.ShareCode);
+            var family = new FamilyFunctions().GetFamilyByShareCode(request.ShareCode);
             if (family == null)
             {
                 return NotFound(ApiResponse.ErrorResponse("Family not found with the provided share code"));
@@ -208,7 +208,7 @@ namespace Homassy.API.Controllers
                 return Unauthorized(ApiResponse.ErrorResponse("Invalid authentication"));
             }
 
-            var user = await new UserFunctions().GetUserByIdAsync(userId.Value);
+            var user = new UserFunctions().GetUserById(userId.Value);
             if (user == null)
             {
                 return NotFound(ApiResponse.ErrorResponse("User not found"));
@@ -249,7 +249,7 @@ namespace Homassy.API.Controllers
                 return Unauthorized(ApiResponse.ErrorResponse("Invalid authentication"));
             }
 
-            var user = await new UserFunctions().GetUserByIdAsync(userId.Value);
+            var user = new UserFunctions().GetUserById(userId.Value);
             if (user == null)
             {
                 return NotFound(ApiResponse.ErrorResponse("User not found"));
@@ -260,7 +260,7 @@ namespace Homassy.API.Controllers
                 return BadRequest(ApiResponse.ErrorResponse("You are not a member of any family"));
             }
 
-            var family = await new FamilyFunctions().GetFamilyByIdAsync(user.FamilyId.Value);
+            var family = new FamilyFunctions().GetFamilyById(user.FamilyId.Value);
             if (family == null)
             {
                 return NotFound(ApiResponse.ErrorResponse("Family not found"));
@@ -289,7 +289,7 @@ namespace Homassy.API.Controllers
                 return Unauthorized(ApiResponse.ErrorResponse("Invalid authentication"));
             }
 
-            var user = await new UserFunctions().GetUserByIdAsync(userId.Value);
+            var user = new UserFunctions().GetUserById(userId.Value);
             if (user == null)
             {
                 return NotFound(ApiResponse.ErrorResponse("User not found"));
@@ -300,7 +300,7 @@ namespace Homassy.API.Controllers
                 return BadRequest(ApiResponse.ErrorResponse("You are not a member of any family"));
             }
 
-            var family = await new FamilyFunctions().GetFamilyByIdAsync(user.FamilyId.Value);
+            var family = new FamilyFunctions().GetFamilyById(user.FamilyId.Value);
             if (family == null)
             {
                 return NotFound(ApiResponse.ErrorResponse("Family not found"));

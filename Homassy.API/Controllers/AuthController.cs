@@ -38,7 +38,7 @@ namespace Homassy.API.Controllers
 
             try
             {
-                var user = await new UserFunctions().GetUserByEmailAsync(email);
+                var user = new UserFunctions().GetUserByEmailAddress(email);
 
                 if (user == null)
                 {
@@ -82,7 +82,7 @@ namespace Homassy.API.Controllers
             var email = request.Email.ToLowerInvariant().Trim();
             var code = request.VerificationCode.Trim();
 
-            var user = await new UserFunctions().GetUserByEmailAsync(email);
+            var user = new UserFunctions().GetUserByEmailAddress(email);
 
             if (user == null)
             {
@@ -163,7 +163,7 @@ namespace Homassy.API.Controllers
                 return Unauthorized(ApiResponse.ErrorResponse("Invalid authentication"));
             }
 
-            var user = await new UserFunctions().GetUserByIdAsync(userId.Value);
+            var user = new UserFunctions().GetUserById(userId.Value);
             if (user == null)
             {
                 await Task.Delay(Random.Shared.Next(100, 200));
@@ -215,7 +215,7 @@ namespace Homassy.API.Controllers
                 return Unauthorized(ApiResponse.ErrorResponse("Invalid authentication"));
             }
 
-            var user = await new UserFunctions().GetUserByIdAsync(userId.Value);
+            var user = new UserFunctions().GetUserById(userId.Value);
             if (user != null)
             {
                 await new UserFunctions().ClearRefreshTokenAsync(user);
@@ -237,7 +237,7 @@ namespace Homassy.API.Controllers
                 return Unauthorized(ApiResponse.ErrorResponse("Invalid authentication"));
             }
 
-            var user = await new UserFunctions().GetUserByIdAsync(userId.Value);
+            var user = new UserFunctions().GetUserById(userId.Value);
             if (user == null)
             {
                 return NotFound(ApiResponse.ErrorResponse("User not found"));
@@ -279,7 +279,7 @@ namespace Homassy.API.Controllers
 
             try
             {
-                var existingUser = await new UserFunctions().GetUserByEmailAsync(email);
+                var existingUser = new UserFunctions().GetUserByEmailAddress(email);
 
                 if (existingUser != null)
                 {

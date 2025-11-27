@@ -15,7 +15,8 @@ namespace Homassy.API.Context
         public static void SetUser(Guid? publicId, int? familyId = null)
         {
             _publicId.Value = publicId;
-            _userId.Value = new UserFunctions().GetUserIdByPublicId(publicId);
+            var user = new UserFunctions().GetUserByPublicId(publicId);
+            _userId.Value = user?.Id;
             _familyId.Value = familyId;
         }
 

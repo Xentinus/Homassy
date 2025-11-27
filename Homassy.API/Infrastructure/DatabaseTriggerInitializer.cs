@@ -23,7 +23,7 @@ namespace Homassy.API.Infrastructure
                     CREATE OR REPLACE FUNCTION record_table_change()
                     RETURNS TRIGGER AS $$
                     BEGIN
-                        INSERT INTO ""TableRecordChanges"" (""TableName"", ""RowId"", ""IsDeleted"", ""RecordChange"")
+                        INSERT INTO ""TableRecordChanges"" (""TableName"", ""RecordId"", ""IsDeleted"", ""RecordChange"")
                         VALUES (TG_TABLE_NAME, NEW.""Id"", false, NOW()::text);
                         RETURN NEW;
                     EXCEPTION

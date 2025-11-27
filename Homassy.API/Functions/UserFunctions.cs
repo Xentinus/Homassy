@@ -2,26 +2,175 @@
 using Homassy.API.Entities;
 using Homassy.API.Models.User;
 using Microsoft.EntityFrameworkCore;
-using System.ComponentModel.DataAnnotations;
+using Serilog;
+using System.Collections.Concurrent;
 
 namespace Homassy.API.Functions
 {
     public class UserFunctions
     {
-        public async Task<User?> GetUserByEmailAsync(string email)
+        private static readonly ConcurrentDictionary<int, User> _userCache = new();
+        public static bool Inited = false;
+
+        #region Cache Management
+        public async Task InitializeCacheAsync()
         {
+            var context = new HomassyDbContext();
+            var users = await context.Users.AsNoTracking().ToListAsync();
+
+            try
+            {
+                foreach (var user in users)
+                {
+                    _userCache[user.Id] = user;
+                }
+                Inited = true;
+                Log.Information($"Initialized user cache with {users.Count} users.");
+            }
+            catch (Exception ex)
+            {
+                Log.Error(ex, "Failed to initialize user cache.");
+                throw;
+            }
+        }
+
+        public async Task RefreshCacheAsync(int userId)
+        {
+            try
+            {
+                var context = new HomassyDbContext();
+                var user = await context.Users.AsNoTracking().FirstOrDefaultAsync(u => u.Id == userId);
+                var existsInCache = _userCache.ContainsKey(userId);
+
+                if (user != null && existsInCache)
+                {
+                    _userCache[userId] = user;
+                    Log.Debug($"Refreshed user {userId} in cache.");
+                }
+                else if (user != null && !existsInCache)
+                {
+                    _userCache[userId] = user;
+                    Log.Debug($"Added user {userId} to cache.");
+                }
+                else if (user == null && existsInCache)
+                {
+                    _userCache.TryRemove(userId, out _);
+                    Log.Debug($"Removed deleted user {userId} from cache.");
+                }
+                else
+                {
+                    Log.Debug($"User {userId} not found in DB or cache.");
+                }
+            }
+            catch (Exception ex)
+            {
+                Log.Error(ex, $"Failed to refresh cache for user {userId}.");
+                throw;
+            }
+        }
+
+        public User? GetUserById(int? userId)
+        {
+            if (userId == null) return null;
+            User? user = null;
+
+            if (Inited)
+            {
+                _userCache.TryGetValue((int)userId, out user);
+            }
+
+            if (user == null)
+            {
+                var context = new HomassyDbContext();
+                user = context.Users.AsNoTracking().FirstOrDefault(u => u.Id == userId);
+            }
+
+            return user;
+        }
+
+        public User? GetUserByPublicId(Guid? publicId)
+        {
+            if (publicId == null) return null;
+            User? user = null;
+
+            if (Inited)
+            {
+                user = _userCache.Values.FirstOrDefault(u => u.PublicId == publicId);
+            }
+
+            if (user == null)
+            {
+                var context = new HomassyDbContext();
+                user = context.Users.AsNoTracking().FirstOrDefault(u => u.PublicId == publicId);
+            }
+
+            return user;
+        }
+
+        public User? GetUserByEmailAddress(string? email)
+        {
+            if (string.IsNullOrWhiteSpace(email)) return null;
             var normalizedEmail = email.ToLowerInvariant().Trim();
 
-            var context = new HomassyDbContext();
-            return await context.Users
-                .FirstOrDefaultAsync(u => u.Email == normalizedEmail && !u.IsDeleted);
+            User? user = null;
+
+            if (Inited)
+            {
+                user = _userCache.Values.FirstOrDefault(u => u.Email == normalizedEmail);
+            }
+
+            if (user == null)
+            {
+                var context = new HomassyDbContext();
+                user = context.Users.AsNoTracking().FirstOrDefault(u => u.Email == normalizedEmail);
+            }
+
+            return user;
         }
 
-        public async Task<User?> GetUserByIdAsync(int userId)
+        public List<User> GetUsersByIds(List<int?> userIds)
         {
-            var context = new HomassyDbContext();
-            return await context.Users.FindAsync(userId);
+            if (userIds == null || !userIds.Any()) return new List<User>();
+
+            var validIds = userIds.Where(id => id.HasValue).Select(id => id!.Value).ToList();
+            if (!validIds.Any()) return new List<User>();
+
+            var result = new List<User>();
+            var missingIds = new List<int>();
+
+            if (Inited)
+            {
+                foreach (var id in validIds)
+                {
+                    if (_userCache.TryGetValue(id, out var user))
+                    {
+                        result.Add(user);
+                    }
+                    else
+                    {
+                        missingIds.Add(id);
+                    }
+                }
+            }
+            else
+            {
+                missingIds = validIds;
+            }
+
+            if (missingIds.Count > 0)
+            {
+                var context = new HomassyDbContext();
+                var dbUsers = context.Users
+                    .AsNoTracking()
+                    .Where(u => missingIds.Contains(u.Id))
+                    .ToList();
+
+                result.AddRange(dbUsers);
+            }
+
+            return result;
         }
+        #endregion
 
         public async Task<User> CreateUserAsync(CreateUserRequest request)
         {
@@ -204,19 +353,6 @@ namespace Homassy.API.Functions
                 await transaction.RollbackAsync();
                 throw;
             }
-        }
-
-        public int? GetUserIdByPublicId(Guid? publicId)
-        {
-            if (publicId == null)
-                return null;
-
-            var context = new HomassyDbContext();
-            var user = context.Users
-                .AsNoTracking()
-                .FirstOrDefault(u => u.PublicId == publicId);
-
-            return user?.Id;
         }
 
         public async Task UpdateUserSettingsAsync(User user, UpdateUserSettingsRequest request)

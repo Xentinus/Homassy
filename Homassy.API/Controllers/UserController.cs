@@ -29,7 +29,7 @@ namespace Homassy.API.Controllers
                 return Unauthorized(ApiResponse.ErrorResponse("Invalid authentication"));
             }
 
-            var user = await new UserFunctions().GetUserByIdAsync(userId.Value);
+            var user = new UserFunctions().GetUserById(userId.Value);
             if (user == null)
             {
                 return NotFound(ApiResponse.ErrorResponse("User not found"));
@@ -38,7 +38,7 @@ namespace Homassy.API.Controllers
             FamilyInfo? familyInfo = null;
             if (user.FamilyId.HasValue)
             {
-                var family = await new FamilyFunctions().GetFamilyByIdAsync(user.FamilyId.Value);
+                var family = new FamilyFunctions().GetFamilyById(user.FamilyId.Value);
                 if (family != null)
                 {
                     familyInfo = new FamilyInfo
@@ -79,7 +79,7 @@ namespace Homassy.API.Controllers
                 return Unauthorized(ApiResponse.ErrorResponse("Invalid authentication"));
             }
 
-            var user = await new UserFunctions().GetUserByIdAsync(userId.Value);
+            var user = new UserFunctions().GetUserById(userId.Value);
             if (user == null)
             {
                 return NotFound(ApiResponse.ErrorResponse("User not found"));
@@ -87,7 +87,7 @@ namespace Homassy.API.Controllers
 
             if (!string.IsNullOrWhiteSpace(request.Email) && request.Email != user.Email)
             {
-                var existingUser = await new UserFunctions().GetUserByEmailAsync(request.Email);
+                var existingUser = new UserFunctions().GetUserByEmailAddress(request.Email);
                 if (existingUser != null && existingUser.Id != userId.Value)
                 {
                     return BadRequest(ApiResponse.ErrorResponse("Email address is already in use"));
@@ -122,7 +122,7 @@ namespace Homassy.API.Controllers
                 return Unauthorized(ApiResponse.ErrorResponse("Invalid authentication"));
             }
 
-            var user = await new UserFunctions().GetUserByIdAsync(userId.Value);
+            var user = new UserFunctions().GetUserById(userId.Value);
             if (user == null)
             {
                 return NotFound(ApiResponse.ErrorResponse("User not found"));
@@ -151,7 +151,7 @@ namespace Homassy.API.Controllers
                 return Unauthorized(ApiResponse.ErrorResponse("Invalid authentication"));
             }
 
-            var user = await new UserFunctions().GetUserByIdAsync(userId.Value);
+            var user = new UserFunctions().GetUserById(userId.Value);
             if (user == null)
             {
                 return NotFound(ApiResponse.ErrorResponse("User not found"));

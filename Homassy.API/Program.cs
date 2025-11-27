@@ -51,6 +51,7 @@ try
         options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection")));
 
     // Background services
+    builder.Services.AddHostedService<CacheManagementService>();
     builder.Services.AddHostedService<RateLimitCleanupService>();
 
     // API Versioning
