@@ -1,4 +1,6 @@
 ﻿using Asp.Versioning;
+using Homassy.API.Context;
+using Homassy.API.Extensions;
 using Homassy.API.Functions;
 using Homassy.API.Models.Auth;
 using Homassy.API.Models.Common;
@@ -7,9 +9,8 @@ using Homassy.API.Security;
 using Homassy.API.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using System.Security.Claims;
 using Serilog;
-using Homassy.API.Extensions;
+using System.Security.Claims;
 
 namespace Homassy.API.Controllers
 {
@@ -140,6 +141,7 @@ namespace Homassy.API.Controllers
             return Ok(ApiResponse<AuthResponse>.SuccessResponse(authResponse, "Login successful"));
         }
 
+        [Authorize]
         [HttpPost("refresh")]
         [MapToApiVersion(1.0)]
         public async Task<IActionResult> RefreshToken([FromBody] RefreshTokenRequest request)
@@ -154,22 +156,15 @@ namespace Homassy.API.Controllers
                 return BadRequest(ApiResponse.ErrorResponse("Tokens are required"));
             }
 
-            var principal = JwtService.GetPrincipalFromExpiredToken(request.AccessToken);
-            if (principal == null)
+            var userId = SessionInfo.GetUserId();
+            if (!userId.HasValue)
             {
                 await Task.Delay(Random.Shared.Next(100, 200));
-                return Unauthorized(ApiResponse.ErrorResponse("Invalid access token"));
+                return Unauthorized(ApiResponse.ErrorResponse("Invalid authentication"));
             }
 
-            var userIdClaim = principal.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-            if (userIdClaim == null || !int.TryParse(userIdClaim, out var userId))
-            {
-                await Task.Delay(Random.Shared.Next(100, 200));
-                return Unauthorized(ApiResponse.ErrorResponse("Invalid token claims"));
-            }
-
-            var user = await new UserFunctions().GetUserByIdAsync(userId);
-            if (user == null || user.IsDeleted)
+            var user = await new UserFunctions().GetUserByIdAsync(userId.Value);
+            if (user == null)
             {
                 await Task.Delay(Random.Shared.Next(100, 200));
                 return Unauthorized(ApiResponse.ErrorResponse("User not found"));
@@ -177,14 +172,14 @@ namespace Homassy.API.Controllers
 
             if (!SecureCompare.ConstantTimeEquals(user.RefreshToken, request.RefreshToken))
             {
-                Log.Warning($"Invalid refresh token for user {userId}");
+                Log.Warning($"Invalid refresh token for user {userId.Value}");
                 await Task.Delay(Random.Shared.Next(100, 200));
                 return Unauthorized(ApiResponse.ErrorResponse("Invalid refresh token"));
             }
 
             if (user.RefreshTokenExpiry == null || user.RefreshTokenExpiry < DateTime.UtcNow)
             {
-                Log.Warning($"Expired refresh token for user {userId}");
+                Log.Warning($"Expired refresh token for user {userId.Value}");
                 await Task.Delay(Random.Shared.Next(100, 200));
                 return Unauthorized(ApiResponse.ErrorResponse("Expired refresh token"));
             }
@@ -196,7 +191,7 @@ namespace Homassy.API.Controllers
 
             await new UserFunctions().SetRefreshTokenAsync(user, newRefreshToken, refreshTokenExpiry);
 
-            Log.Information($"Token refreshed for user {userId}");
+            Log.Information($"Token refreshed for user {userId.Value}");
 
             var refreshResponse = new
             {
@@ -214,19 +209,19 @@ namespace Homassy.API.Controllers
         [MapToApiVersion(1.0)]
         public async Task<IActionResult> Logout()
         {
-            var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-            if (userIdClaim == null || !int.TryParse(userIdClaim, out var userId))
+            var userId = SessionInfo.GetUserId();
+            if (!userId.HasValue)
             {
                 return Unauthorized(ApiResponse.ErrorResponse("Invalid authentication"));
             }
 
-            var user = await new UserFunctions().GetUserByIdAsync(userId);
+            var user = await new UserFunctions().GetUserByIdAsync(userId.Value);
             if (user != null)
             {
                 await new UserFunctions().ClearRefreshTokenAsync(user);
             }
 
-            Log.Information($"User {userId} logged out");
+            Log.Information($"User {userId.Value} logged out");
 
             return Ok(ApiResponse.SuccessResponse("Logged out successfully"));
         }
@@ -236,14 +231,14 @@ namespace Homassy.API.Controllers
         [MapToApiVersion(1.0)]
         public async Task<IActionResult> GetCurrentUser()
         {
-            var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-            if (userIdClaim == null || !int.TryParse(userIdClaim, out var userId))
+            var userId = SessionInfo.GetUserId();
+            if (!userId.HasValue)
             {
                 return Unauthorized(ApiResponse.ErrorResponse("Invalid authentication"));
             }
 
-            var user = await new UserFunctions().GetUserByIdAsync(userId);
-            if (user == null || user.IsDeleted)
+            var user = await new UserFunctions().GetUserByIdAsync(userId.Value);
+            if (user == null)
             {
                 return NotFound(ApiResponse.ErrorResponse("User not found"));
             }

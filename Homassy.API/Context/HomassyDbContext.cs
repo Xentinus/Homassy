@@ -22,14 +22,6 @@ namespace Homassy.API.Context
             _configuration = configuration;
         }
 
-        public DbSet<Family> Families { get; set; }
-        public DbSet<User> Users { get; set; }
-        public DbSet<Product> Products { get; set; }
-        public DbSet<ProductItem> ProductItems { get; set; }
-        public DbSet<ShoppingListItem> ShoppingListItems { get; set; }
-        public DbSet<ShoppingLocation> ShoppingLocations { get; set; }
-        public DbSet<StorageLocation> StorageLocations { get; set; }
-
         protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
         {
             if (!optionsBuilder.IsConfigured)
@@ -58,8 +50,22 @@ namespace Homassy.API.Context
             modelBuilder.Entity<User>()
                 .HasIndex(u => u.Email)
                 .IsUnique();
+
+            // Global query filter for soft delete - automatically applied to all BaseEntity types
+            foreach (var entityType in modelBuilder.Model.GetEntityTypes())
+            {
+                if (typeof(BaseEntity).IsAssignableFrom(entityType.ClrType))
+                {
+                    var parameter = Expression.Parameter(entityType.ClrType, "e");
+                    var property = Expression.Property(parameter, nameof(BaseEntity.IsDeleted));
+                    var filter = Expression.Lambda(Expression.Not(property), parameter);
+
+                    modelBuilder.Entity(entityType.ClrType).HasQueryFilter(filter);
+                }
+            }
         }
 
+        // Update record change tracking before saving
         public override Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)
         {
             UpdateRecordChanges();
@@ -83,5 +89,14 @@ namespace Homassy.API.Context
                 entity.Entity.UpdateRecordChange(userId);
             }
         }
+
+        // DbSets
+        public DbSet<Family> Families { get; set; }
+        public DbSet<User> Users { get; set; }
+        public DbSet<Product> Products { get; set; }
+        public DbSet<ProductItem> ProductItems { get; set; }
+        public DbSet<ShoppingListItem> ShoppingListItems { get; set; }
+        public DbSet<ShoppingLocation> ShoppingLocations { get; set; }
+        public DbSet<StorageLocation> StorageLocations { get; set; }
     }
 }

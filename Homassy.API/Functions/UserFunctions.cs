@@ -218,5 +218,90 @@ namespace Homassy.API.Functions
 
             return user?.Id;
         }
+
+        public async Task UpdateUserSettingsAsync(User user, UpdateUserSettingsRequest request)
+        {
+            if (!string.IsNullOrWhiteSpace(request.Email))
+            {
+                user.Email = request.Email.ToLowerInvariant().Trim();
+            }
+
+            if (!string.IsNullOrWhiteSpace(request.Name))
+            {
+                user.Name = request.Name.Trim();
+            }
+
+            if (!string.IsNullOrWhiteSpace(request.DisplayName))
+            {
+                user.DisplayName = request.DisplayName.Trim();
+            }
+
+            if (request.DefaultCurrency.HasValue)
+            {
+                user.DefaultCurrency = request.DefaultCurrency.Value;
+            }
+
+            if (request.DefaultTimeZone.HasValue)
+            {
+                user.DefaultTimeZone = request.DefaultTimeZone.Value;
+            }
+
+            if (request.DefaultLanguage.HasValue)
+            {
+                user.DefaultLanguage = request.DefaultLanguage.Value;
+            }
+
+            var context = new HomassyDbContext();
+            await using var transaction = await context.Database.BeginTransactionAsync();
+            try
+            {
+                context.Update(user);
+                await context.SaveChangesAsync();
+                await transaction.CommitAsync();
+            }
+            catch
+            {
+                await transaction.RollbackAsync();
+                throw;
+            }
+        }
+
+        public async Task UploadProfilePictureAsync(User user, string profilePictureBase64)
+        {
+            user.ProfilePictureBase64 = profilePictureBase64;
+
+            var context = new HomassyDbContext();
+            await using var transaction = await context.Database.BeginTransactionAsync();
+            try
+            {
+                context.Update(user);
+                await context.SaveChangesAsync();
+                await transaction.CommitAsync();
+            }
+            catch
+            {
+                await transaction.RollbackAsync();
+                throw;
+            }
+        }
+
+        public async Task DeleteProfilePictureAsync(User user)
+        {
+            user.ProfilePictureBase64 = null;
+
+            var context = new HomassyDbContext();
+            await using var transaction = await context.Database.BeginTransactionAsync();
+            try
+            {
+                context.Update(user);
+                await context.SaveChangesAsync();
+                await transaction.CommitAsync();
+            }
+            catch
+            {
+                await transaction.RollbackAsync();
+                throw;
+            }
+        }
     }
 }
