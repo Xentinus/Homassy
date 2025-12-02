@@ -1,5 +1,6 @@
 ﻿using Homassy.API.Constants;
 using Homassy.API.Context;
+using Homassy.API.Entities.Common;
 using Homassy.API.Functions;
 using Microsoft.EntityFrameworkCore;
 using Serilog;
@@ -119,12 +120,24 @@ namespace Homassy.API.Services
             }
         }
 
-        private static async Task ProcessSingleChangeAsync(Entities.TableRecordChange change)
+        private static async Task ProcessSingleChangeAsync(TableRecordChange change)
         {
             switch (change.TableName)
             {
                 case TableNames.Users:
-                    await new UserFunctions().RefreshCacheAsync(change.RecordId);
+                    await new UserFunctions().RefreshUserCacheAsync(change.RecordId);
+                    break;
+
+                case TableNames.UserAuthentications:
+                    await new UserFunctions().RefreshUserAuthCacheAsync(change.RecordId);
+                    break;
+
+                case TableNames.UserNotificationPreferences:
+                    await new UserFunctions().RefreshUserNotificationCacheAsync(change.RecordId);
+                    break;
+
+                case TableNames.UserProfiles:
+                    await new UserFunctions().RefreshUserProfileCacheAsync(change.RecordId);
                     break;
 
                 case TableNames.Families:

@@ -1,16 +1,10 @@
 ﻿using Homassy.API.Models.Common;
-using System.ComponentModel.DataAnnotations;
-using System.ComponentModel.DataAnnotations.Schema;
 using System.Text.Json;
 
-namespace Homassy.API.Entities
+namespace Homassy.API.Entities.Common
 {
-    public abstract class BaseEntity
+    public class RecordChangeEntity : SoftDeleteEntity
     {
-        [Key]
-        [DatabaseGenerated(DatabaseGeneratedOption.Identity)]
-        public int Id { get; set; }
-        public bool IsDeleted { get; set; } = false;
         public string RecordChange { get; set; } = JsonSerializer.Serialize(new RecordChange());
 
         public void UpdateRecordChange(int? modifiedBy = null)

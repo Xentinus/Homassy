@@ -1,22 +1,45 @@
 ﻿using Homassy.API.Context;
-using Homassy.API.Entities;
+using Homassy.API.Entities.User;
+using Homassy.API.Enums;
+using Homassy.API.Exceptions;
+using Homassy.API.Extensions;
+using Homassy.API.Models.Auth;
+using Homassy.API.Models.Common;
+using Homassy.API.Models.Family;
 using Homassy.API.Models.User;
+using Homassy.API.Security;
+using Homassy.API.Services;
 using Microsoft.EntityFrameworkCore;
 using Serilog;
 using System.Collections.Concurrent;
+using static Org.BouncyCastle.Crypto.Engines.SM2Engine;
 
 namespace Homassy.API.Functions
 {
     public class UserFunctions
     {
         private static readonly ConcurrentDictionary<int, User> _userCache = new();
+        private static readonly ConcurrentDictionary<int, UserProfile> _userProfileCache = new();
+        private static readonly ConcurrentDictionary<int, UserAuthentication> _userAuthCache = new();
+        private static readonly ConcurrentDictionary<int, UserNotificationPreferences> _userNotificationPrefsCache = new();
+
         public static bool Inited = false;
 
         #region Cache Management
         public async Task InitializeCacheAsync()
         {
             var context = new HomassyDbContext();
-            var users = await context.Users.AsNoTracking().ToListAsync();
+            var users =  await context.Users
+                .ToListAsync();
+
+            var profiles = await context.UserProfiles
+                .ToListAsync();
+
+            var authentications = await context.UserAuthentications
+                .ToListAsync();
+
+            var notificationPreferences = await context.UserNotificationPreferences
+                .ToListAsync();
 
             try
             {
@@ -24,6 +47,22 @@ namespace Homassy.API.Functions
                 {
                     _userCache[user.Id] = user;
                 }
+
+                foreach (var profile in profiles)
+                {
+                    _userProfileCache[profile.UserId] = profile;
+                }
+
+                foreach (var authentication in authentications)
+                {
+                    _userAuthCache[authentication.UserId] = authentication;
+                }
+
+                foreach (var notificationPreference in notificationPreferences)
+                {
+                    _userNotificationPrefsCache[notificationPreference.UserId] = notificationPreference;
+                }
+
                 Inited = true;
                 Log.Information($"Initialized user cache with {users.Count} users.");
             }
@@ -34,12 +73,14 @@ namespace Homassy.API.Functions
             }
         }
 
-        public async Task RefreshCacheAsync(int userId)
+        public async Task RefreshUserCacheAsync(int userId)
         {
             try
             {
                 var context = new HomassyDbContext();
-                var user = await context.Users.AsNoTracking().FirstOrDefaultAsync(u => u.Id == userId);
+                var user = await context.Users
+                    .FirstOrDefaultAsync(u => u.Id == userId);
+
                 var existsInCache = _userCache.ContainsKey(userId);
 
                 if (user != null && existsInCache)
@@ -69,6 +110,138 @@ namespace Homassy.API.Functions
             }
         }
 
+        public async Task RefreshUserProfileCacheAsync(int recordId)
+        {
+            try
+            {
+                var context = new HomassyDbContext();
+                var userProfile = await context.UserProfiles
+                    .FirstOrDefaultAsync(u => u.Id == recordId);
+
+                if (userProfile != null)
+                {
+                    var existsInCache = _userProfileCache.ContainsKey(userProfile.UserId);
+
+                    if (existsInCache)
+                    {
+                        _userProfileCache[userProfile.UserId] = userProfile;
+                        Log.Debug($"Refreshed user profile {userProfile.UserId} in cache.");
+                    }
+                    else
+                    {
+                        _userProfileCache[userProfile.UserId] = userProfile;
+                        Log.Debug($"Added user profile {userProfile.UserId} to cache.");
+                    }
+                }
+                else
+                {
+                    var cacheEntry = _userProfileCache.FirstOrDefault(kvp => kvp.Value.Id == recordId);
+                    if (cacheEntry.Value != null)
+                    {
+                        _userProfileCache.TryRemove(cacheEntry.Key, out _);
+                        Log.Debug($"Removed deleted user profile record {recordId} (userId: {cacheEntry.Key}) from cache.");
+                    }
+                    else
+                    {
+                        Log.Debug($"User profile record {recordId} not found in DB or cache.");
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                Log.Error(ex, $"Failed to refresh cache for user profile record {recordId}.");
+                throw;
+            }
+        }
+
+        public async Task RefreshUserAuthCacheAsync(int recordId)
+        {
+            try
+            {
+                var context = new HomassyDbContext();
+                var userAuth = await context.UserAuthentications
+                    .FirstOrDefaultAsync(u => u.Id == recordId);
+
+                if (userAuth != null)
+                {
+                    var existsInCache = _userAuthCache.ContainsKey(userAuth.UserId);
+
+                    if (existsInCache)
+                    {
+                        _userAuthCache[userAuth.UserId] = userAuth;
+                        Log.Debug($"Refreshed user authentication {userAuth.UserId} in cache.");
+                    }
+                    else
+                    {
+                        _userAuthCache[userAuth.UserId] = userAuth;
+                        Log.Debug($"Added user authentication {userAuth.UserId} to cache.");
+                    }
+                }
+                else
+                {
+                    var cacheEntry = _userAuthCache.FirstOrDefault(kvp => kvp.Value.Id == recordId);
+                    if (cacheEntry.Value != null)
+                    {
+                        _userAuthCache.TryRemove(cacheEntry.Key, out _);
+                        Log.Debug($"Removed deleted user authentication record {recordId} (userId: {cacheEntry.Key}) from cache.");
+                    }
+                    else
+                    {
+                        Log.Debug($"User authentication record {recordId} not found in DB or cache.");
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                Log.Error(ex, $"Failed to refresh cache for user authentication record {recordId}.");
+                throw;
+            }
+        }
+
+        public async Task RefreshUserNotificationCacheAsync(int recordId)
+        {
+            try
+            {
+                var context = new HomassyDbContext();
+                var userPrefs = await context.UserNotificationPreferences
+                    .FirstOrDefaultAsync(u => u.Id == recordId);
+
+                if (userPrefs != null)
+                {
+                    var existsInCache = _userNotificationPrefsCache.ContainsKey(userPrefs.UserId);
+
+                    if (existsInCache)
+                    {
+                        _userNotificationPrefsCache[userPrefs.UserId] = userPrefs;
+                        Log.Debug($"Refreshed user notification preferences {userPrefs.UserId} in cache.");
+                    }
+                    else
+                    {
+                        _userNotificationPrefsCache[userPrefs.UserId] = userPrefs;
+                        Log.Debug($"Added user notification preferences {userPrefs.UserId} to cache.");
+                    }
+                }
+                else
+                {
+                    var cacheEntry = _userNotificationPrefsCache.FirstOrDefault(kvp => kvp.Value.Id == recordId);
+                    if (cacheEntry.Value != null)
+                    {
+                        _userNotificationPrefsCache.TryRemove(cacheEntry.Key, out _);
+                        Log.Debug($"Removed deleted user notification preferences record {recordId} (userId: {cacheEntry.Key}) from cache.");
+                    }
+                    else
+                    {
+                        Log.Debug($"User notification preferences record {recordId} not found in DB or cache.");
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                Log.Error(ex, $"Failed to refresh cache for user notification preferences record {recordId}.");
+                throw;
+            }
+        }
+
         public User? GetUserById(int? userId)
         {
             if (userId == null) return null;
@@ -82,7 +255,170 @@ namespace Homassy.API.Functions
             if (user == null)
             {
                 var context = new HomassyDbContext();
-                user = context.Users.AsNoTracking().FirstOrDefault(u => u.Id == userId);
+                user = context.Users
+                    .FirstOrDefault(u => u.Id == userId);
+            }
+
+            return user;
+        }
+
+        public UserProfile? GetUserProfileByUserId(int? userId)
+        {
+            if (userId == null) return null;
+            UserProfile? profile = null;
+
+            if (Inited)
+            {
+                _userProfileCache.TryGetValue((int)userId, out profile);
+            }
+
+            if (profile == null)
+            {
+                var context = new HomassyDbContext();
+                profile = context.UserProfiles
+                    .FirstOrDefault(p => p.UserId == userId);
+            }
+
+            return profile;
+        }
+
+        public UserAuthentication? GetUserAuthenticationByUserId(int? userId)
+        {
+            if (userId == null) return null;
+            UserAuthentication? auth = null;
+
+            if (Inited)
+            {
+                _userAuthCache.TryGetValue((int)userId, out auth);
+            }
+
+            if (auth == null)
+            {
+                var context = new HomassyDbContext();
+                auth = context.UserAuthentications
+                    .FirstOrDefault(a => a.UserId == userId);
+            }
+
+            return auth;
+        }
+
+        public UserNotificationPreferences? GetUserNotificationPreferencesByUserId(int? userId)
+        {
+            if (userId == null) return null;
+            UserNotificationPreferences? prefs = null;
+
+            if (Inited)
+            {
+                _userNotificationPrefsCache.TryGetValue((int)userId, out prefs);
+            }
+
+            if (prefs == null)
+            {
+                var context = new HomassyDbContext();
+                prefs = context.UserNotificationPreferences
+                    .FirstOrDefault(n => n.UserId == userId);
+            }
+
+            return prefs;
+        }
+
+        public User? GetAllUserDataById(int? userId)
+        {
+            if (userId == null) return null;
+            User? user = null;
+            
+            if (Inited)
+            {
+                _userCache.TryGetValue((int)userId, out user);
+                
+                if (user != null)
+                {
+                    // Compose user data from all caches
+                    _userProfileCache.TryGetValue((int)userId, out var profile);
+                    _userAuthCache.TryGetValue((int)userId, out var auth);
+                    _userNotificationPrefsCache.TryGetValue((int)userId, out var notificationPrefs);
+                    
+                    user.Profile = profile;
+                    user.Authentication = auth;
+                    user.NotificationPreferences = notificationPrefs;
+                }
+            }
+            
+            if (user == null)
+            {
+                var context = new HomassyDbContext();
+                user = context.Users
+                    .Include(i => i.Profile)
+                    .Include(i => i.Authentication)
+                    .Include(i => i.NotificationPreferences)
+                    .FirstOrDefault(u => u.Id == userId);
+            }
+            
+            return user;
+        }
+
+        public User? GetAllUserDataByPublicId(Guid? publicId)
+        {
+            if (publicId == null) return null;
+            User? user = null;
+
+            if (Inited)
+            {
+                user = _userCache.Values.FirstOrDefault(u => u.PublicId == publicId);
+                if (user != null)
+                {
+                    // Compose user data from all caches
+                    _userProfileCache.TryGetValue(user.Id, out var profile);
+                    _userAuthCache.TryGetValue(user.Id, out var auth);
+                    _userNotificationPrefsCache.TryGetValue(user.Id, out var notificationPrefs);
+                    user.Profile = profile;
+                    user.Authentication = auth;
+                    user.NotificationPreferences = notificationPrefs;
+                }
+            }
+
+            if (user == null)
+            {
+                var context = new HomassyDbContext();
+                user = context.Users
+                    .Include(i => i.Profile)
+                    .Include(i => i.Authentication)
+                    .Include(i => i.NotificationPreferences)
+                    .FirstOrDefault(u => u.PublicId == publicId);
+            }
+
+            return user;
+        }
+
+        public User? GetAllUserDataByEmail(string? email)
+        {
+            if (string.IsNullOrWhiteSpace(email)) return null;
+            var normalizedEmail = email.ToLowerInvariant().Trim();
+            User? user = null;
+
+            if (Inited)
+            {
+                user = _userCache.Values.FirstOrDefault(u => u.Email == normalizedEmail);
+                if (user != null)
+                {
+                    // Compose user data from all caches
+                    _userProfileCache.TryGetValue(user.Id, out var profile);
+                    _userAuthCache.TryGetValue(user.Id, out var auth);
+                    _userNotificationPrefsCache.TryGetValue(user.Id, out var notificationPrefs);
+                    user.Profile = profile;
+                    user.Authentication = auth;
+                    user.NotificationPreferences = notificationPrefs;
+                }
+            }
+
+            if (user == null)
+            {
+                var context = new HomassyDbContext();
+                user = context.Users
+                    .Include(i => i.Profile)
+                    .Include(i => i.Authentication)
+                    .Include(i => i.NotificationPreferences)
+                    .FirstOrDefault(u => u.Email == normalizedEmail);
             }
 
             return user;
@@ -101,7 +437,8 @@ namespace Homassy.API.Functions
             if (user == null)
             {
                 var context = new HomassyDbContext();
-                user = context.Users.AsNoTracking().FirstOrDefault(u => u.PublicId == publicId);
+                user = context.Users
+                    .FirstOrDefault(u => u.PublicId == publicId);
             }
 
             return user;
@@ -122,7 +459,8 @@ namespace Homassy.API.Functions
             if (user == null)
             {
                 var context = new HomassyDbContext();
-                user = context.Users.AsNoTracking().FirstOrDefault(u => u.Email == normalizedEmail);
+                user = context.Users
+                    .FirstOrDefault(u => u.Email == normalizedEmail);
             }
 
             return user;
@@ -161,7 +499,6 @@ namespace Homassy.API.Functions
             {
                 var context = new HomassyDbContext();
                 var dbUsers = context.Users
-                    .AsNoTracking()
                     .Where(u => missingIds.Contains(u.Id))
                     .ToList();
 
@@ -170,8 +507,229 @@ namespace Homassy.API.Functions
 
             return result;
         }
+
+        public List<User> GetAllUsersDataByIds(List<int?> userIds)
+        {
+            if (userIds == null || !userIds.Any()) return new List<User>();
+
+            var validIds = userIds.Where(id => id.HasValue).Select(id => id!.Value).ToList();
+            if (!validIds.Any()) return new List<User>();
+
+            var result = new List<User>();
+            var missingIds = new List<int>();
+
+            if (Inited)
+            {
+                foreach (var id in validIds)
+                {
+                    if (_userCache.TryGetValue(id, out var user))
+                    {
+                        // Compose user data from all caches
+                        _userProfileCache.TryGetValue(id, out var profile);
+                        _userAuthCache.TryGetValue(id, out var auth);
+                        _userNotificationPrefsCache.TryGetValue(id, out var notificationPrefs);
+
+                        user.Profile = profile;
+                        user.Authentication = auth;
+                        user.NotificationPreferences = notificationPrefs;
+
+                        result.Add(user);
+                    }
+                    else
+                    {
+                        missingIds.Add(id);
+                    }
+                }
+            }
+            else
+            {
+                missingIds = validIds;
+            }
+
+            if (missingIds.Count > 0)
+            {
+                var context = new HomassyDbContext();
+                var dbUsers = context.Users
+                    .Include(i => i.Profile)
+                    .Include(i => i.Authentication)
+                    .Include(i => i.NotificationPreferences)
+                    .Where(u => missingIds.Contains(u.Id))
+                    .ToList();
+
+                result.AddRange(dbUsers);
+            }
+
+            return result;
+        }
+
+        public List<UserProfile> GetUserProfilesByUserIds(List<int?> userIds)
+        {
+            if (userIds == null || !userIds.Any()) return new List<UserProfile>();
+
+            var validIds = userIds.Where(id => id.HasValue).Select(id => id!.Value).ToList();
+            if (!validIds.Any()) return new List<UserProfile>();
+
+            var result = new List<UserProfile>();
+            var missingIds = new List<int>();
+
+            if (Inited)
+            {
+                foreach (var id in validIds)
+                {
+                    if (_userProfileCache.TryGetValue(id, out var profile))
+                    {
+                        result.Add(profile);
+                    }
+                    else
+                    {
+                        missingIds.Add(id);
+                    }
+                }
+            }
+            else
+            {
+                missingIds = validIds;
+            }
+
+            if (missingIds.Count > 0)
+            {
+                var context = new HomassyDbContext();
+                var dbProfiles = context.UserProfiles
+                    .Where(p => missingIds.Contains(p.UserId))
+                    .ToList();
+
+                result.AddRange(dbProfiles);
+            }
+
+            return result;
+        }
+
+        public UserAuthentication? GetUserAuthByUserId(int? userId)
+        {
+            if (userId == null) return null;
+            UserAuthentication? auth = null;
+
+            if (Inited)
+            {
+                _userAuthCache.TryGetValue((int)userId, out auth);
+            }
+
+            if (auth == null)
+            {
+                var context = new HomassyDbContext();
+                auth = context.UserAuthentications
+                    .FirstOrDefault(a => a.UserId == userId);
+            }
+
+            return auth;
+        }
+
+        public List<UserAuthentication> GetUserAuthsByUserIds(List<int?> userIds)
+        {
+            if (userIds == null || !userIds.Any()) return new List<UserAuthentication>();
+
+            var validIds = userIds.Where(id => id.HasValue).Select(id => id!.Value).ToList();
+            if (!validIds.Any()) return new List<UserAuthentication>();
+
+            var result = new List<UserAuthentication>();
+            var missingIds = new List<int>();
+
+            if (Inited)
+            {
+                foreach (var id in validIds)
+                {
+                    if (_userAuthCache.TryGetValue(id, out var auth))
+                    {
+                        result.Add(auth);
+                    }
+                    else
+                    {
+                        missingIds.Add(id);
+                    }
+                }
+            }
+            else
+            {
+                missingIds = validIds;
+            }
+
+            if (missingIds.Count > 0)
+            {
+                var context = new HomassyDbContext();
+                var dbAuths = context.UserAuthentications
+                    .Where(a => missingIds.Contains(a.UserId))
+                    .ToList();
+
+                result.AddRange(dbAuths);
+            }
+
+            return result;
+        }
+
+        public UserNotificationPreferences? GetUserPrefsByUserId(int? userId)
+        {
+            if (userId == null) return null;
+            UserNotificationPreferences? prefs = null;
+
+            if (Inited)
+            {
+                _userNotificationPrefsCache.TryGetValue((int)userId, out prefs);
+            }
+
+            if (prefs == null)
+            {
+                var context = new HomassyDbContext();
+                prefs = context.UserNotificationPreferences
+                    .FirstOrDefault(n => n.UserId == userId);
+            }
+
+            return prefs;
+        }
+
+        public List<UserNotificationPreferences> GetUserPrefsByUserIds(List<int?> userIds)
+        {
+            if (userIds == null || !userIds.Any()) return new List<UserNotificationPreferences>();
+
+            var validIds = userIds.Where(id => id.HasValue).Select(id => id!.Value).ToList();
+            if (!validIds.Any()) return new List<UserNotificationPreferences>();
+
+            var result = new List<UserNotificationPreferences>();
+            var missingIds = new List<int>();
+
+            if (Inited)
+            {
+                foreach (var id in validIds)
+                {
+                    if (_userNotificationPrefsCache.TryGetValue(id, out var prefs))
+                    {
+                        result.Add(prefs);
+                    }
+                    else
+                    {
+                        missingIds.Add(id);
+                    }
+                }
+            }
+            else
+            {
+                missingIds = validIds;
+            }
+
+            if (missingIds.Count > 0)
+            {
+                var context = new HomassyDbContext();
+                var dbPrefs = context.UserNotificationPreferences
+                    .Where(n => missingIds.Contains(n.UserId))
+                    .ToList();
+
+                result.AddRange(dbPrefs);
+            }
+
+            return result;
+        }
         #endregion
 
+        #region User Management
         public async Task<User> CreateUserAsync(CreateUserRequest request)
         {
             var normalizedEmail = request.Email.ToLowerInvariant().Trim();
@@ -179,8 +737,23 @@ namespace Homassy.API.Functions
             var user = new User
             {
                 Email = normalizedEmail,
-                Name = request.Name.Trim(),
-                DisplayName = request.DisplayName?.Trim() ?? request.Name.Trim(),
+                Name = request.Name.Trim()
+            };
+
+            var profile = new UserProfile
+            {
+                User = user,
+                DisplayName = request.DisplayName?.Trim() ?? request.Name.Trim()
+            };
+
+            var authentication = new UserAuthentication
+            {
+                User = user
+            };
+
+            var notificationPreferences = new UserNotificationPreferences
+            {
+                User = user
             };
 
             var context = new HomassyDbContext();
@@ -188,11 +761,15 @@ namespace Homassy.API.Functions
             try
             {
                 context.Users.Add(user);
+                context.Set<UserProfile>().Add(profile);
+                context.Set<UserAuthentication>().Add(authentication);
+                context.Set<UserNotificationPreferences>().Add(notificationPreferences);
                 await context.SaveChangesAsync();
                 await transaction.CommitAsync();
             }
-            catch
+            catch (Exception ex)
             {
+                Log.Error($"Error occurred while creating user: {ex}");
                 await transaction.RollbackAsync();
                 throw;
             }
@@ -200,244 +777,707 @@ namespace Homassy.API.Functions
             return user;
         }
 
-        public async Task SetVerificationCodeAsync(User user, string code, DateTime expiry)
+        public async Task RegisterAsync(CreateUserRequest request)
         {
-            user.VerificationCode = code;
-            user.VerificationCodeExpiry = expiry;
+            if (string.IsNullOrWhiteSpace(request.Email) || !request.Email.Contains('@'))
+            {
+                throw new BadRequestException("Invalid email address");
+            }
+
+            if (string.IsNullOrWhiteSpace(request.Name))
+            {
+                throw new BadRequestException("Name is required");
+            }
+
+            var normalizedEmail = request.Email.ToLowerInvariant().Trim();
+
+            var existingUser = GetUserByEmailAddress(normalizedEmail);
+            if (existingUser != null)
+            {
+                Log.Information($"Registration attempt for existing email {normalizedEmail}");
+                return;
+            }
+
+            var user = await CreateUserAsync(request);
+
+            var code = EmailService.GenerateVerificationCode();
+            var expirationMinutes = int.Parse(ConfigService.GetValue("EmailVerification:CodeExpirationMinutes"));
+            var expiry = DateTime.UtcNow.AddMinutes(expirationMinutes);
 
             var context = new HomassyDbContext();
             await using var transaction = await context.Database.BeginTransactionAsync();
             try
             {
-                context.Update(user);
+                var userAuth = await context.Set<UserAuthentication>().FirstOrDefaultAsync(a => a.UserId == user.Id);
+
+                if (userAuth == null)
+                {
+                    Log.Warning($"UserAuthentication not found for user {user.Id}");
+                    throw new UserNotFoundException("User authentication data not found");
+                }
+
+                userAuth.VerificationCode = code;
+                userAuth.VerificationCodeExpiry = expiry;
+
                 await context.SaveChangesAsync();
                 await transaction.CommitAsync();
             }
-            catch
+            catch (Exception ex)
             {
                 await transaction.RollbackAsync();
+                Log.Error($"Error setting verification code for user {user.Id}: {ex.Message}");
                 throw;
             }
+
+            var profile = GetUserProfileByUserId(user.Id);
+            var timezone = profile?.DefaultTimeZone ?? UserTimeZone.CentralEuropeStandardTime;
+
+            await EmailService.SendRegistrationEmailAsync(user.Email, user.Name, code, timezone);
+
+            Log.Information($"New user registered: {normalizedEmail}, registration email with verification code sent");
         }
 
-        public async Task ClearVerificationCodeAsync(User user)
+        public async Task<FamilyInfo> JoinFamilyAsync(JoinFamilyRequest request)
         {
-            user.VerificationCode = null;
-            user.VerificationCodeExpiry = null;
-
-            var context = new HomassyDbContext();
-            await using var transaction = await context.Database.BeginTransactionAsync();
-            try
+            var userId = SessionInfo.GetUserId();
+            if (!userId.HasValue)
             {
-                context.Update(user);
-                await context.SaveChangesAsync();
-                await transaction.CommitAsync();
-            }
-            catch
-            {
-                await transaction.RollbackAsync();
-                throw;
-            }
-        }
-
-        public async Task SetRefreshTokenAsync(User user, string refreshToken, DateTime expiry)
-        {
-            user.RefreshToken = refreshToken;
-            user.RefreshTokenExpiry = expiry;
-
-            var context = new HomassyDbContext();
-            await using var transaction = await context.Database.BeginTransactionAsync();
-            try
-            {
-                context.Update(user);
-                await context.SaveChangesAsync();
-                await transaction.CommitAsync();
-            }
-            catch
-            {
-                await transaction.RollbackAsync();
-                throw;
-            }
-        }
-
-        public async Task ClearRefreshTokenAsync(User user)
-        {
-            user.RefreshToken = null;
-            user.RefreshTokenExpiry = null;
-
-            var context = new HomassyDbContext();
-            await using var transaction = await context.Database.BeginTransactionAsync();
-            try
-            {
-                context.Update(user);
-                await context.SaveChangesAsync();
-                await transaction.CommitAsync();
-            }
-            catch
-            {
-                await transaction.RollbackAsync();
-                throw;
-            }
-        }
-
-        public async Task UpdateLastLoginAsync(User user)
-        {
-            user.LastLoginAt = DateTime.UtcNow;
-
-            var context = new HomassyDbContext();
-            await using var transaction = await context.Database.BeginTransactionAsync();
-            try
-            {
-                context.Update(user);
-                await context.SaveChangesAsync();
-                await transaction.CommitAsync();
-            }
-            catch
-            {
-                await transaction.RollbackAsync();
-                throw;
-            }
-        }
-
-        public async Task CompleteAuthenticationAsync(User user, string refreshToken, DateTime refreshTokenExpiry)
-        {
-            user.RefreshToken = refreshToken;
-            user.RefreshTokenExpiry = refreshTokenExpiry;
-            user.VerificationCode = null;
-            user.VerificationCodeExpiry = null;
-            user.LastLoginAt = DateTime.UtcNow;
-
-            var context = new HomassyDbContext();
-            await using var transaction = await context.Database.BeginTransactionAsync();
-            try
-            {
-                context.Update(user);
-                await context.SaveChangesAsync();
-                await transaction.CommitAsync();
-            }
-            catch
-            {
-                await transaction.RollbackAsync();
-                throw;
-            }
-        }
-
-        public bool IsVerificationCodeValid(User user, string code)
-        {
-            return user.VerificationCodeExpiry.HasValue &&
-                   user.VerificationCodeExpiry > DateTime.UtcNow &&
-                   !string.IsNullOrEmpty(user.VerificationCode);
-        }
-
-        public bool IsRefreshTokenValid(User user)
-        {
-            return user.RefreshTokenExpiry.HasValue &&
-                   user.RefreshTokenExpiry > DateTime.UtcNow &&
-                   !string.IsNullOrEmpty(user.RefreshToken);
-        }
-
-        public async Task SetEmailVerifiedAsync(User user)
-        {
-            user.IsEmailVerified = true;
-
-            var context = new HomassyDbContext();
-            await using var transaction = await context.Database.BeginTransactionAsync();
-            try
-            {
-                context.Update(user);
-                await context.SaveChangesAsync();
-                await transaction.CommitAsync();
-            }
-            catch
-            {
-                await transaction.RollbackAsync();
-                throw;
-            }
-        }
-
-        public async Task UpdateUserSettingsAsync(User user, UpdateUserSettingsRequest request)
-        {
-            if (!string.IsNullOrWhiteSpace(request.Email))
-            {
-                user.Email = request.Email.ToLowerInvariant().Trim();
+                Log.Warning("Invalid session: User ID not found");
+                throw new UnauthorizedException("Invalid authentication");
             }
 
-            if (!string.IsNullOrWhiteSpace(request.Name))
+            var familyId = SessionInfo.GetFamilyId();
+            if (familyId.HasValue)
             {
-                user.Name = request.Name.Trim();
+                throw new BadRequestException("You are already a member of a family. Please leave your current family first.");
             }
 
-            if (!string.IsNullOrWhiteSpace(request.DisplayName))
+            if (string.IsNullOrWhiteSpace(request.ShareCode))
             {
-                user.DisplayName = request.DisplayName.Trim();
+                throw new BadRequestException("Share code is required");
             }
 
-            if (request.DefaultCurrency.HasValue)
+            var family = new FamilyFunctions().GetFamilyByShareCode(request.ShareCode);
+            if (family == null)
             {
-                user.DefaultCurrency = request.DefaultCurrency.Value;
-            }
-
-            if (request.DefaultTimeZone.HasValue)
-            {
-                user.DefaultTimeZone = request.DefaultTimeZone.Value;
-            }
-
-            if (request.DefaultLanguage.HasValue)
-            {
-                user.DefaultLanguage = request.DefaultLanguage.Value;
+                throw new FamilyNotFoundException("Family not found with the provided share code");
             }
 
             var context = new HomassyDbContext();
             await using var transaction = await context.Database.BeginTransactionAsync();
             try
             {
-                context.Update(user);
+                var user = GetUserById(userId);
+
+                if (user == null)
+                {
+                    Log.Warning($"User not found for userId {userId.Value}");
+                    throw new UserNotFoundException("User not found");
+                }
+
+                user.FamilyId = family.Id;
+
                 await context.SaveChangesAsync();
                 await transaction.CommitAsync();
+
+                Log.Information($"User {userId.Value} joined family {family.Id}");
             }
-            catch
+            catch (Exception ex)
             {
                 await transaction.RollbackAsync();
+                Log.Error($"Error joining family for user {userId.Value}: {ex.Message}");
                 throw;
             }
+
+            var response = new FamilyInfo
+            {
+                Name = family.Name,
+                ShareCode = family.ShareCode
+            };
+
+            return response;
         }
 
-        public async Task UploadProfilePictureAsync(User user, string profilePictureBase64)
+        public async Task RemoveUserFromFamilyAsync()
         {
-            user.ProfilePictureBase64 = profilePictureBase64;
+            var userId = SessionInfo.GetUserId();
+            if (!userId.HasValue)
+            {
+                Log.Warning("Invalid session: User ID not found");
+                throw new UnauthorizedException("Invalid authentication");
+            }
+
+            var familyId = SessionInfo.GetFamilyId();
+            if (!familyId.HasValue)
+            {
+                throw new BadRequestException("You are not a member of any family");
+            }
 
             var context = new HomassyDbContext();
             await using var transaction = await context.Database.BeginTransactionAsync();
             try
             {
-                context.Update(user);
+                var user = GetUserById(userId);
+
+                if (user == null)
+                {
+                    Log.Warning($"User not found for userId {userId.Value}");
+                    throw new UserNotFoundException("User not found");
+                }
+
+                var familyIdToLog = user.FamilyId;
+                user.FamilyId = null;
+
                 await context.SaveChangesAsync();
                 await transaction.CommitAsync();
+
+                Log.Information($"User {userId.Value} left family {familyIdToLog}");
             }
-            catch
+            catch (Exception ex)
             {
                 await transaction.RollbackAsync();
+                Log.Error($"Error leaving family for user {userId.Value}: {ex.Message}");
                 throw;
             }
         }
+        #endregion
 
-        public async Task DeleteProfilePictureAsync(User user)
+        #region Authentication Management
+        public async Task RequestVerificationCodeAsync(string email)
         {
-            user.ProfilePictureBase64 = null;
+            if (string.IsNullOrWhiteSpace(email) || !email.Contains('@'))
+            {
+                throw new BadRequestException("Invalid email address");
+            }
+
+            var normalizedEmail = email.ToLowerInvariant().Trim();
+
+            var user = GetAllUserDataByEmail(normalizedEmail);
+
+            if (user == null || user.Authentication == null)
+            {
+                Log.Information($"User not found for {normalizedEmail}");
+                return;
+            }
+
+            var code = EmailService.GenerateVerificationCode();
+            var expirationMinutes = int.Parse(ConfigService.GetValue("EmailVerification:CodeExpirationMinutes"));
+            var expiry = DateTime.UtcNow.AddMinutes(expirationMinutes);
 
             var context = new HomassyDbContext();
             await using var transaction = await context.Database.BeginTransactionAsync();
             try
             {
-                context.Update(user);
+                var userAuth = await context.Set<UserAuthentication>().FirstOrDefaultAsync(a => a.UserId == user.Id);
+
+                if (userAuth == null)
+                {
+                    Log.Warning($"UserAuthentication not found for user {user.Id}");
+                    throw new UserNotFoundException("User authentication data not found");
+                }
+
+                userAuth.VerificationCode = code;
+                userAuth.VerificationCodeExpiry = expiry;
+
                 await context.SaveChangesAsync();
                 await transaction.CommitAsync();
             }
-            catch
+            catch (Exception ex)
             {
                 await transaction.RollbackAsync();
+                Log.Error($"Error setting verification code for user {user.Id}: {ex.Message}");
+                throw;
+            }
+
+            var profile = user.Profile ?? GetUserProfileByUserId(user.Id);
+            var timezone = profile?.DefaultTimeZone ?? UserTimeZone.CentralEuropeStandardTime;
+
+            await EmailService.SendVerificationCodeAsync(user.Email, code, timezone);
+
+            Log.Information($"Verification code sent to {normalizedEmail}");
+        }
+
+        public async Task<AuthResponse> VerifyCodeAsync(string email, string code)
+        {
+            if (string.IsNullOrWhiteSpace(email) || string.IsNullOrWhiteSpace(code))
+            {
+                throw new BadRequestException("Email and code are required");
+            }
+
+            var normalizedEmail = email.ToLowerInvariant().Trim();
+            var trimmedCode = code.Trim();
+
+            var user = GetAllUserDataByEmail(normalizedEmail);
+
+            if (user == null || user.Authentication == null)
+            {
+                Log.Warning($"User not found for email {normalizedEmail}");
+                throw new InvalidCredentialsException("Invalid email or code");
+            }
+
+            var auth = user.Authentication;
+
+            if (auth.VerificationCodeExpiry == null || auth.VerificationCodeExpiry < DateTime.UtcNow)
+            {
+                Log.Warning($"Expired verification code for {normalizedEmail}");
+                throw new ExpiredCredentialsException("Invalid or expired code");
+            }
+
+            if (!SecureCompare.ConstantTimeEquals(auth.VerificationCode, trimmedCode))
+            {
+                Log.Warning($"Invalid verification code for {normalizedEmail}");
+                throw new InvalidCredentialsException("Invalid or expired code");
+            }
+
+            var isFirstLogin = user.Status == UserStatus.PendingVerification;
+
+            var accessToken = JwtService.GenerateAccessToken(user);
+            var refreshToken = JwtService.GenerateRefreshToken();
+            var accessTokenExpiry = JwtService.GetAccessTokenExpiration();
+            var refreshTokenExpiry = JwtService.GetRefreshTokenExpiration();
+
+            var context = new HomassyDbContext();
+            await using var transaction = await context.Database.BeginTransactionAsync();
+            try
+            {
+                var userAuth = await context.Set<UserAuthentication>().FirstOrDefaultAsync(a => a.UserId == user.Id);
+                var userEntity = await context.Users.FindAsync(user.Id);
+
+                if (userAuth == null || userEntity == null)
+                {
+                    Log.Warning($"User or UserAuthentication not found for user {user.Id}");
+                    throw new UserNotFoundException("User authentication data not found");
+                }
+
+                if (isFirstLogin)
+                {
+                    userEntity.Status = UserStatus.Active;
+                    Log.Information($"Email verified for new user {normalizedEmail}");
+                }
+
+                userAuth.AccessToken = accessToken;
+                userAuth.AccessTokenExpiry = accessTokenExpiry;
+                userAuth.RefreshToken = refreshToken;
+                userAuth.RefreshTokenExpiry = refreshTokenExpiry;
+                userAuth.VerificationCode = null;
+                userAuth.VerificationCodeExpiry = null;
+                userEntity.LastLoginAt = DateTime.UtcNow;
+
+                await context.SaveChangesAsync();
+                await transaction.CommitAsync();
+            }
+            catch (Exception ex)
+            {
+                await transaction.RollbackAsync();
+                Log.Error($"Error completing authentication for user {user.Id}: {ex.Message}");
+                throw;
+            }
+
+            Log.Information($"User {normalizedEmail} successfully authenticated");
+
+            var profile = user.Profile ?? GetUserProfileByUserId(user.Id);
+
+            var authResponse = new AuthResponse
+            {
+                AccessToken = accessToken,
+                RefreshToken = refreshToken,
+                AccessTokenExpiresAt = accessTokenExpiry,
+                RefreshTokenExpiresAt = refreshTokenExpiry,
+                User = new UserInfo
+                {
+                    Name = user.Name,
+                    DisplayName = profile?.DisplayName ?? user.Name,
+                    ProfilePictureBase64 = profile?.ProfilePictureBase64,
+                    TimeZone = (profile?.DefaultTimeZone ?? UserTimeZone.CentralEuropeStandardTime).ToTimeZoneId(),
+                    Language = (profile?.DefaultLanguage ?? Language.Hungarian).ToLanguageCode(),
+                    Currency = (profile?.DefaultCurrency ?? Currency.Huf).ToCurrencyCode()
+                }
+            };
+
+            return authResponse;
+        }
+
+        public async Task<RefreshTokenResponse> RefreshTokenAsync(string currentRefreshToken)
+        {
+            var userId = SessionInfo.GetUserId();
+            if (!userId.HasValue)
+            {
+                Log.Warning("Invalid session: User ID not found");
+                throw new UserNotFoundException("User not found");
+            }
+
+            if (string.IsNullOrWhiteSpace(currentRefreshToken))
+            {
+                throw new BadRequestException("Refresh token is required");
+            }
+
+            var user = GetAllUserDataById(userId);
+
+            if (user == null || user.Authentication == null)
+            {
+                Log.Warning($"User not found for userId {userId}");
+                throw new UserNotFoundException("User not found");
+            }
+
+            var auth = user.Authentication;
+
+            if (!SecureCompare.ConstantTimeEquals(auth.RefreshToken, currentRefreshToken))
+            {
+                Log.Warning($"Invalid refresh token for user {userId}");
+                throw new InvalidCredentialsException("Invalid refresh token");
+            }
+
+            if (auth.RefreshTokenExpiry == null || auth.RefreshTokenExpiry < DateTime.UtcNow)
+            {
+                Log.Warning($"Expired refresh token for user {userId}");
+                throw new ExpiredCredentialsException("Expired refresh token");
+            }
+
+            var newAccessToken = JwtService.GenerateAccessToken(user);
+            var newRefreshToken = JwtService.GenerateRefreshToken();
+            var accessTokenExpiry = JwtService.GetAccessTokenExpiration();
+            var refreshTokenExpiry = JwtService.GetRefreshTokenExpiration();
+
+            var context = new HomassyDbContext();
+            await using var transaction = await context.Database.BeginTransactionAsync();
+            try
+            {
+                var userAuth = await context.Set<UserAuthentication>().FirstOrDefaultAsync(a => a.UserId == userId);
+
+                if (userAuth == null)
+                {
+                    Log.Warning($"UserAuthentication not found for user {userId}");
+                    throw new UserNotFoundException("User authentication data not found");
+                }
+
+                userAuth.AccessToken = newAccessToken;
+                userAuth.AccessTokenExpiry = accessTokenExpiry;
+                userAuth.RefreshToken = newRefreshToken;
+                userAuth.RefreshTokenExpiry = refreshTokenExpiry;
+
+                await context.SaveChangesAsync();
+                await transaction.CommitAsync();
+            }
+            catch (Exception ex)
+            {
+                await transaction.RollbackAsync();
+                Log.Error($"Error refreshing token for user {userId}: {ex.Message}");
+                throw;
+            }
+
+            Log.Information($"Token refreshed for user {userId}");
+
+            var refreshResponse = new RefreshTokenResponse
+            {
+                AccessToken = newAccessToken,
+                RefreshToken = newRefreshToken,
+                AccessTokenExpiresAt = accessTokenExpiry,
+                RefreshTokenExpiresAt = refreshTokenExpiry
+            };
+
+            return refreshResponse;
+        }
+
+        public async Task LogoutAsync()
+        {
+            var userId = SessionInfo.GetUserId();
+            if (!userId.HasValue)
+            {
+                Log.Warning("Invalid session: User ID not found");
+                throw new UserNotFoundException("User not found");
+            }
+
+            var context = new HomassyDbContext();
+            await using var transaction = await context.Database.BeginTransactionAsync();
+            try
+            {
+                var userAuth = await context.Set<UserAuthentication>().FirstOrDefaultAsync(a => a.UserId == userId);
+
+                if (userAuth == null)
+                {
+                    Log.Warning($"UserAuthentication not found for user {userId}");
+                    throw new UserNotFoundException("User authentication data not found");
+                }
+
+                userAuth.AccessToken = null;
+                userAuth.AccessTokenExpiry = null;
+                userAuth.RefreshToken = null;
+                userAuth.RefreshTokenExpiry = null;
+
+                await context.SaveChangesAsync();
+                await transaction.CommitAsync();
+            }
+            catch (Exception ex)
+            {
+                await transaction.RollbackAsync();
+                Log.Error($"Error during logout for user {userId}: {ex.Message}");
+                throw;
+            }
+
+            Log.Information($"User {userId} logged out");
+        }
+
+        public UserInfo GetCurrentUserAsync()
+        {
+            var userId = SessionInfo.GetUserId();
+            if (!userId.HasValue)
+            {
+                Log.Warning("Invalid session: User ID not found");
+                throw new UserNotFoundException("User not found");
+            }
+
+            var user = GetAllUserDataById(userId);
+
+            if (user == null)
+            {
+                Log.Warning($"User not found for userId {userId}");
+                throw new UserNotFoundException("User not found");
+            }
+
+            var profile = user.Profile;
+
+            if (profile == null)
+            {
+                Log.Warning($"User profile not found for userId {userId}");
+                throw new UserNotFoundException("User profile not found");
+            }
+
+            var userInfo = new UserInfo
+            {
+                Name = user.Name,
+                DisplayName = profile.DisplayName,
+                ProfilePictureBase64 = profile.ProfilePictureBase64,
+                TimeZone = profile.DefaultTimeZone.ToTimeZoneId(),
+                Language = profile.DefaultLanguage.ToLanguageCode(),
+                Currency = profile.DefaultCurrency.ToCurrencyCode()
+            };
+
+            return userInfo;
+        }
+        #endregion
+
+        #region Profile Management
+        public UserProfileResponse GetProfileAsync()
+        {
+            var userId = SessionInfo.GetUserId();
+            if (!userId.HasValue)
+            {
+                Log.Warning("Invalid session: User ID not found");
+                throw new UserNotFoundException("User not found");
+            }
+
+            var user = GetAllUserDataById(userId);
+
+            if (user == null)
+            {
+                Log.Warning($"User not found for userId {userId}");
+                throw new UserNotFoundException("User not found");
+            }
+
+            var profile = user.Profile;
+
+            if (profile == null)
+            {
+                Log.Warning($"User profile not found for userId {userId}");
+                throw new UserNotFoundException("User profile not found");
+            }
+
+            FamilyInfo? familyInfo = null;
+            if (user.FamilyId.HasValue)
+            {
+                var family = new FamilyFunctions().GetFamilyById(user.FamilyId.Value);
+                if (family != null)
+                {
+                    familyInfo = new FamilyInfo
+                    {
+                        Name = family.Name,
+                        ShareCode = family.ShareCode
+                    };
+                }
+            }
+
+            var profileResponse = new UserProfileResponse
+            {
+                Email = user.Email,
+                Name = user.Name,
+                DisplayName = profile.DisplayName,
+                ProfilePictureBase64 = profile.ProfilePictureBase64,
+                TimeZone = profile.DefaultTimeZone.ToTimeZoneId(),
+                Language = profile.DefaultLanguage.ToLanguageCode(),
+                Currency = profile.DefaultCurrency.ToCurrencyCode(),
+                Family = familyInfo
+            };
+
+            return profileResponse;
+        }
+
+        public async Task UpdateUserProfileAsync(UpdateUserSettingsRequest request)
+        {
+            var userId = SessionInfo.GetUserId();
+            if (!userId.HasValue)
+            {
+                Log.Warning("Invalid session: User ID not found");
+                throw new UserNotFoundException("User not found");
+            }
+
+            var user = GetUserById(userId);
+            if (user == null)
+            {
+                Log.Warning($"User not found for userId {userId}");
+                throw new UserNotFoundException("User not found");
+            }
+
+            if (!string.IsNullOrWhiteSpace(request.Email) && request.Email.ToLowerInvariant().Trim() != user.Email)
+            {
+                var normalizedNewEmail = request.Email.ToLowerInvariant().Trim();
+                var existingUser = GetUserByEmailAddress(normalizedNewEmail);
+                if (existingUser != null && existingUser.Id != userId)
+                {
+                    throw new BadRequestException("Email address is already in use");
+                }
+            }
+
+            var context = new HomassyDbContext();
+            await using var transaction = await context.Database.BeginTransactionAsync();
+            try
+            {
+                var userEntity = await context.Users.FindAsync(userId);
+                var profile = await context.Set<UserProfile>().FirstOrDefaultAsync(p => p.UserId == userId);
+
+                if (userEntity == null)
+                {
+                    throw new UserNotFoundException($"User not found: {userId}");
+                }
+
+                if (profile == null)
+                {
+                    throw new UserNotFoundException($"UserProfile not found for user {userId}");
+                }
+
+                if (!string.IsNullOrWhiteSpace(request.Email))
+                {
+                    userEntity.Email = request.Email.ToLowerInvariant().Trim();
+                }
+
+                if (!string.IsNullOrWhiteSpace(request.Name))
+                {
+                    userEntity.Name = request.Name.Trim();
+                }
+
+                if (!string.IsNullOrWhiteSpace(request.DisplayName))
+                {
+                    profile.DisplayName = request.DisplayName.Trim();
+                }
+
+                if (request.DefaultCurrency.HasValue)
+                {
+                    profile.DefaultCurrency = request.DefaultCurrency.Value;
+                }
+
+                if (request.DefaultTimeZone.HasValue)
+                {
+                    profile.DefaultTimeZone = request.DefaultTimeZone.Value;
+                }
+
+                if (request.DefaultLanguage.HasValue)
+                {
+                    profile.DefaultLanguage = request.DefaultLanguage.Value;
+                }
+
+                await context.SaveChangesAsync();
+                await transaction.CommitAsync();
+
+                Log.Information($"User {userId} updated their settings");
+            }
+            catch (Exception ex)
+            {
+                await transaction.RollbackAsync();
+                Log.Error($"Error updating settings for user {userId}: {ex.Message}");
                 throw;
             }
         }
+
+        public async Task UploadProfilePictureAsync(string profilePictureBase64)
+        {
+            var userId = SessionInfo.GetUserId();
+            if (!userId.HasValue)
+            {
+                Log.Warning("Invalid session: User ID not found");
+                throw new UserNotFoundException("User not found");
+            }
+
+            if (string.IsNullOrWhiteSpace(profilePictureBase64))
+            {
+                throw new BadRequestException("Profile picture data is required");
+            }
+
+            var context = new HomassyDbContext();
+            await using var transaction = await context.Database.BeginTransactionAsync();
+            try
+            {
+                var profile = await context.Set<UserProfile>().FirstOrDefaultAsync(p => p.UserId == userId);
+
+                if (profile == null)
+                {
+                    Log.Warning($"UserProfile not found for user {userId}");
+                    throw new UserNotFoundException($"UserProfile not found for user {userId}");
+                }
+
+                profile.ProfilePictureBase64 = profilePictureBase64;
+
+                await context.SaveChangesAsync();
+                await transaction.CommitAsync();
+
+                Log.Information($"User {userId} uploaded profile picture");
+            }
+            catch (Exception ex)
+            {
+                await transaction.RollbackAsync();
+                Log.Error($"Error uploading profile picture for user {userId}: {ex.Message}");
+                throw;
+            }
+        }
+
+        public async Task DeleteProfilePictureAsync()
+        {
+            var userId = SessionInfo.GetUserId();
+            if (!userId.HasValue)
+            {
+                Log.Warning("Invalid session: User ID not found");
+                throw new UserNotFoundException("User not found");
+            }
+
+            var context = new HomassyDbContext();
+            await using var transaction = await context.Database.BeginTransactionAsync();
+            try
+            {
+                var profile = await context.Set<UserProfile>().FirstOrDefaultAsync(p => p.UserId == userId);
+
+                if (profile == null)
+                {
+                    Log.Warning($"UserProfile not found for user {userId}");
+                    throw new UserNotFoundException($"UserProfile not found for user {userId}");
+                }
+
+                if (string.IsNullOrEmpty(profile.ProfilePictureBase64))
+                {
+                    throw new BadRequestException("No profile picture to delete");
+                }
+
+                profile.ProfilePictureBase64 = null;
+
+                await context.SaveChangesAsync();
+                await transaction.CommitAsync();
+
+                Log.Information($"User {userId} deleted profile picture");
+            }
+            catch (Exception ex)
+            {
+                await transaction.RollbackAsync();
+                Log.Error($"Error deleting profile picture for user {userId}: {ex.Message}");
+                throw;
+            }
+        }
+        #endregion
     }
 }

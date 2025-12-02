@@ -1,5 +1,7 @@
 ﻿using Homassy.API.Context;
-using Homassy.API.Entities;
+using Homassy.API.Entities.Product;
+using Homassy.API.Entities.User;
+using Homassy.API.Models.Product;
 using Microsoft.EntityFrameworkCore;
 using Serilog;
 using System.Collections.Concurrent;
@@ -249,6 +251,206 @@ namespace Homassy.API.Functions
                 .AsNoTracking()
                 .Where(pi => pi.ProductId == productId)
                 .ToList();
+        }
+
+        public List<Product> GetProductsByUserIdAndFamilyId(int userId, int? familyId)
+        {
+            if (Inited)
+            {
+                return _productCache.Values
+                    .Where(p => !p.IsDeleted && (p.UserId == userId || (familyId.HasValue && p.FamilyId == familyId.Value)))
+                    .ToList();
+            }
+
+            var context = new HomassyDbContext();
+            return context.Products
+                .AsNoTracking()
+                .Where(p => !p.IsDeleted && (p.UserId == userId || (familyId.HasValue && p.FamilyId == familyId.Value)))
+                .ToList();
+        }
+        #endregion
+
+        #region Product Management
+        public async Task<Product> CreateProductAsync(User user, CreateProductRequest request)
+        {
+            var product = new Product
+            {
+                Name = request.Name.Trim(),
+                Brand = request.Brand.Trim(),
+                Category = request.Category?.Trim(),
+                Barcode = request.Barcode?.Trim(),
+                IsEatable = request.IsEatable,
+                DefaultUnit = request.DefaultUnit,
+                UserId = user.Id
+            };
+
+            // Set FamilyId only if user has a family and saveOnlyPersonal is false
+            if (user.FamilyId.HasValue && !request.SaveOnlyPersonal)
+            {
+                product.FamilyId = user.FamilyId.Value;
+            }
+
+            var context = new HomassyDbContext();
+            await using var transaction = await context.Database.BeginTransactionAsync();
+            try
+            {
+                context.Products.Add(product);
+                await context.SaveChangesAsync();
+                await transaction.CommitAsync();
+            }
+            catch
+            {
+                await transaction.RollbackAsync();
+                throw;
+            }
+
+            return product;
+        }
+
+        public async Task UpdateProductAsync(Product product, UpdateProductRequest request, int modifiedBy)
+        {
+            if (!string.IsNullOrWhiteSpace(request.Name))
+            {
+                product.Name = request.Name.Trim();
+            }
+
+            if (!string.IsNullOrWhiteSpace(request.Brand))
+            {
+                product.Brand = request.Brand.Trim();
+            }
+
+            if (request.Category != null)
+            {
+                product.Category = string.IsNullOrWhiteSpace(request.Category)
+                    ? null
+                    : request.Category.Trim();
+            }
+
+            if (request.Barcode != null)
+            {
+                product.Barcode = string.IsNullOrWhiteSpace(request.Barcode)
+                    ? null
+                    : request.Barcode.Trim();
+            }
+
+            if (request.IsEatable.HasValue)
+            {
+                product.IsEatable = request.IsEatable.Value;
+            }
+
+            if (request.DefaultUnit.HasValue)
+            {
+                product.DefaultUnit = request.DefaultUnit.Value;
+            }
+
+            var context = new HomassyDbContext();
+            await using var transaction = await context.Database.BeginTransactionAsync();
+            try
+            {
+                context.Update(product);
+                await context.SaveChangesAsync();
+                await transaction.CommitAsync();
+            }
+            catch
+            {
+                await transaction.RollbackAsync();
+                throw;
+            }
+        }
+
+        public async Task UploadProductPictureAsync(Product product, string productPictureBase64, int modifiedBy)
+        {
+            product.ProductPictureBase64 = productPictureBase64;
+
+            var context = new HomassyDbContext();
+            await using var transaction = await context.Database.BeginTransactionAsync();
+            try
+            {
+                context.Update(product);
+                await context.SaveChangesAsync();
+                await transaction.CommitAsync();
+            }
+            catch
+            {
+                await transaction.RollbackAsync();
+                throw;
+            }
+        }
+
+        public async Task DeleteProductPictureAsync(Product product, int modifiedBy)
+        {
+            product.ProductPictureBase64 = null;
+
+            var context = new HomassyDbContext();
+            await using var transaction = await context.Database.BeginTransactionAsync();
+            try
+            {
+                context.Update(product);
+                await context.SaveChangesAsync();
+                await transaction.CommitAsync();
+            }
+            catch
+            {
+                await transaction.RollbackAsync();
+                throw;
+            }
+        }
+
+        public async Task MakeProductPersonalAsync(Product product, int modifiedBy)
+        {
+            product.FamilyId = null;
+
+            var context = new HomassyDbContext();
+            await using var transaction = await context.Database.BeginTransactionAsync();
+            try
+            {
+                context.Update(product);
+                await context.SaveChangesAsync();
+                await transaction.CommitAsync();
+            }
+            catch
+            {
+                await transaction.RollbackAsync();
+                throw;
+            }
+        }
+
+        public async Task AddProductToFamilyAsync(Product product, int familyId, int modifiedBy)
+        {
+            product.FamilyId = familyId;
+
+            var context = new HomassyDbContext();
+            await using var transaction = await context.Database.BeginTransactionAsync();
+            try
+            {
+                context.Update(product);
+                await context.SaveChangesAsync();
+                await transaction.CommitAsync();
+            }
+            catch
+            {
+                await transaction.RollbackAsync();
+                throw;
+            }
+        }
+
+        public async Task DeleteProductAsync(Product product, int modifiedBy)
+        {
+            product.DeleteRekord(modifiedBy);
+
+            var context = new HomassyDbContext();
+            await using var transaction = await context.Database.BeginTransactionAsync();
+            try
+            {
+                context.Update(product);
+                await context.SaveChangesAsync();
+                await transaction.CommitAsync();
+            }
+            catch
+            {
+                await transaction.RollbackAsync();
+                throw;
+            }
         }
         #endregion
     }

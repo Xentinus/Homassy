@@ -1,10 +1,10 @@
-﻿
+﻿using Homassy.API.Entities.Common;
 using Homassy.API.Enums;
 using System.ComponentModel.DataAnnotations;
 
-namespace Homassy.API.Entities
+namespace Homassy.API.Entities.ShoppingList
 {
-    public class ShoppingListItem : BaseEntity
+    public class ShoppingListItem : RecordChangeEntity
     {
         public int? FamilyId { get; set; }
         public int? UserId { get; set; }

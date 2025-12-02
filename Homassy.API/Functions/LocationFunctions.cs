@@ -1,5 +1,5 @@
 ﻿using Homassy.API.Context;
-using Homassy.API.Entities;
+using Homassy.API.Entities.Location;
 using Microsoft.EntityFrameworkCore;
 using Serilog;
 using System.Collections.Concurrent;

@@ -12,8 +12,8 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace Homassy.API.Migrations
 {
     [DbContext(typeof(HomassyDbContext))]
-    [Migration("20251127220822_AddStorageLocationToProductItem")]
-    partial class AddStorageLocationToProductItem
+    [Migration("20251128150257_Base")]
+    partial class Base
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -25,7 +25,35 @@ namespace Homassy.API.Migrations
 
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
 
-            modelBuilder.Entity("Homassy.API.Entities.Family", b =>
+            modelBuilder.Entity("Homassy.API.Entities.Common.TableRecordChange", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<bool>("IsDeleted")
+                        .HasColumnType("boolean");
+
+                    b.Property<Guid>("PublicId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasDefaultValueSql("gen_random_uuid()");
+
+                    b.Property<int>("RecordId")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("TableName")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("TableRecordChanges");
+                });
+
+            modelBuilder.Entity("Homassy.API.Entities.Family.Family", b =>
                 {
                     b.Property<int>("Id")
                         .ValueGeneratedOnAdd()
@@ -48,6 +76,11 @@ namespace Homassy.API.Migrations
                         .HasMaxLength(64)
                         .HasColumnType("character varying(64)");
 
+                    b.Property<Guid>("PublicId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasDefaultValueSql("gen_random_uuid()");
+
                     b.Property<string>("RecordChange")
                         .IsRequired()
                         .HasColumnType("text");
@@ -62,7 +95,109 @@ namespace Homassy.API.Migrations
                     b.ToTable("Families");
                 });
 
-            modelBuilder.Entity("Homassy.API.Entities.Product", b =>
+            modelBuilder.Entity("Homassy.API.Entities.Location.ShoppingLocation", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("Address")
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)");
+
+                    b.Property<string>("City")
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)");
+
+                    b.Property<string>("Country")
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Description")
+                        .HasMaxLength(255)
+                        .HasColumnType("character varying(255)");
+
+                    b.Property<int?>("FamilyId")
+                        .HasColumnType("integer");
+
+                    b.Property<bool>("IsDeleted")
+                        .HasColumnType("boolean");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(128)
+                        .HasColumnType("character varying(128)");
+
+                    b.Property<string>("PostalCode")
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)");
+
+                    b.Property<Guid>("PublicId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasDefaultValueSql("gen_random_uuid()");
+
+                    b.Property<string>("RecordChange")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<int?>("UserId")
+                        .HasColumnType("integer");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("ShoppingLocations");
+                });
+
+            modelBuilder.Entity("Homassy.API.Entities.Location.StorageLocation", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Description")
+                        .HasMaxLength(255)
+                        .HasColumnType("character varying(255)");
+
+                    b.Property<int?>("FamilyId")
+                        .HasColumnType("integer");
+
+                    b.Property<bool>("IsDeleted")
+                        .HasColumnType("boolean");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(128)
+                        .HasColumnType("character varying(128)");
+
+                    b.Property<Guid>("PublicId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasDefaultValueSql("gen_random_uuid()");
+
+                    b.Property<string>("RecordChange")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<int?>("UserId")
+                        .HasColumnType("integer");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("StorageLocations");
+                });
+
+            modelBuilder.Entity("Homassy.API.Entities.Product.Product", b =>
                 {
                     b.Property<int>("Id")
                         .ValueGeneratedOnAdd()
@@ -106,6 +241,11 @@ namespace Homassy.API.Migrations
                     b.Property<string>("ProductPictureBase64")
                         .HasColumnType("text");
 
+                    b.Property<Guid>("PublicId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasDefaultValueSql("gen_random_uuid()");
+
                     b.Property<string>("RecordChange")
                         .IsRequired()
                         .HasColumnType("text");
@@ -118,7 +258,7 @@ namespace Homassy.API.Migrations
                     b.ToTable("Products");
                 });
 
-            modelBuilder.Entity("Homassy.API.Entities.ProductItem", b =>
+            modelBuilder.Entity("Homassy.API.Entities.Product.ProductItem", b =>
                 {
                     b.Property<int>("Id")
                         .ValueGeneratedOnAdd()
@@ -147,6 +287,11 @@ namespace Homassy.API.Migrations
                     b.Property<int>("ProductId")
                         .HasColumnType("integer");
 
+                    b.Property<Guid>("PublicId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasDefaultValueSql("gen_random_uuid()");
+
                     b.Property<DateTime>("PurchaseAt")
                         .HasColumnType("timestamp with time zone");
 
@@ -174,7 +319,7 @@ namespace Homassy.API.Migrations
                     b.ToTable("ProductItems");
                 });
 
-            modelBuilder.Entity("Homassy.API.Entities.ShoppingListItem", b =>
+            modelBuilder.Entity("Homassy.API.Entities.ShoppingList.ShoppingListItem", b =>
                 {
                     b.Property<int>("Id")
                         .ValueGeneratedOnAdd()
@@ -208,6 +353,11 @@ namespace Homassy.API.Migrations
                     b.Property<int?>("ProductId")
                         .HasColumnType("integer");
 
+                    b.Property<Guid>("PublicId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasDefaultValueSql("gen_random_uuid()");
+
                     b.Property<DateTime?>("PurchasedAt")
                         .HasColumnType("timestamp with time zone");
 
@@ -232,61 +382,7 @@ namespace Homassy.API.Migrations
                     b.ToTable("ShoppingListItems");
                 });
 
-            modelBuilder.Entity("Homassy.API.Entities.ShoppingLocation", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("integer");
-
-                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
-
-                    b.Property<string>("Address")
-                        .HasMaxLength(64)
-                        .HasColumnType("character varying(64)");
-
-                    b.Property<string>("City")
-                        .HasMaxLength(64)
-                        .HasColumnType("character varying(64)");
-
-                    b.Property<string>("Country")
-                        .HasMaxLength(64)
-                        .HasColumnType("character varying(64)");
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<string>("Description")
-                        .HasMaxLength(255)
-                        .HasColumnType("character varying(255)");
-
-                    b.Property<int?>("FamilyId")
-                        .HasColumnType("integer");
-
-                    b.Property<bool>("IsDeleted")
-                        .HasColumnType("boolean");
-
-                    b.Property<string>("Name")
-                        .IsRequired()
-                        .HasMaxLength(128)
-                        .HasColumnType("character varying(128)");
-
-                    b.Property<string>("PostalCode")
-                        .HasMaxLength(20)
-                        .HasColumnType("character varying(20)");
-
-                    b.Property<string>("RecordChange")
-                        .IsRequired()
-                        .HasColumnType("text");
-
-                    b.Property<int?>("UserId")
-                        .HasColumnType("integer");
-
-                    b.HasKey("Id");
-
-                    b.ToTable("ShoppingLocations");
-                });
-
-            modelBuilder.Entity("Homassy.API.Entities.StorageLocation", b =>
+            modelBuilder.Entity("Homassy.API.Entities.User.User", b =>
                 {
                     b.Property<int>("Id")
                         .ValueGeneratedOnAdd()
@@ -297,9 +393,9 @@ namespace Homassy.API.Migrations
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("timestamp with time zone");
 
-                    b.Property<string>("Description")
-                        .HasMaxLength(255)
-                        .HasColumnType("character varying(255)");
+                    b.Property<string>("Email")
+                        .IsRequired()
+                        .HasColumnType("text");
 
                     b.Property<int?>("FamilyId")
                         .HasColumnType("integer");
@@ -307,24 +403,32 @@ namespace Homassy.API.Migrations
                     b.Property<bool>("IsDeleted")
                         .HasColumnType("boolean");
 
+                    b.Property<DateTime>("LastLoginAt")
+                        .HasColumnType("timestamp with time zone");
+
                     b.Property<string>("Name")
                         .IsRequired()
                         .HasMaxLength(128)
                         .HasColumnType("character varying(128)");
 
+                    b.Property<Guid>("PublicId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasDefaultValueSql("gen_random_uuid()");
+
                     b.Property<string>("RecordChange")
                         .IsRequired()
                         .HasColumnType("text");
 
-                    b.Property<int?>("UserId")
+                    b.Property<int>("Status")
                         .HasColumnType("integer");
 
                     b.HasKey("Id");
 
-                    b.ToTable("StorageLocations");
+                    b.ToTable("Users");
                 });
 
-            modelBuilder.Entity("Homassy.API.Entities.TableRecordChange", b =>
+            modelBuilder.Entity("Homassy.API.Entities.User.UserAuthentication", b =>
                 {
                     b.Property<int>("Id")
                         .ValueGeneratedOnAdd()
@@ -332,37 +436,114 @@ namespace Homassy.API.Migrations
 
                     NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
 
-                    b.Property<bool>("IsDeleted")
-                        .HasColumnType("boolean");
-
-                    b.Property<string>("RecordChange")
-                        .IsRequired()
+                    b.Property<string>("AccessToken")
                         .HasColumnType("text");
 
-                    b.Property<int>("RecordId")
-                        .HasColumnType("integer");
-
-                    b.Property<string>("TableName")
-                        .IsRequired()
-                        .HasColumnType("text");
-
-                    b.HasKey("Id");
-
-                    b.ToTable("TableRecordChanges");
-                });
-
-            modelBuilder.Entity("Homassy.API.Entities.User", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("integer");
-
-                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+                    b.Property<DateTime?>("AccessTokenExpiry")
+                        .HasColumnType("timestamp with time zone");
 
                     b.Property<DateTime?>("BanExpiresAt")
                         .HasColumnType("timestamp with time zone");
 
-                    b.Property<DateTime>("CreatedAt")
+                    b.Property<int>("FailedLoginAttempts")
+                        .HasColumnType("integer");
+
+                    b.Property<bool>("IsDeleted")
+                        .HasColumnType("boolean");
+
+                    b.Property<DateTime?>("LastFailedLoginAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTime?>("LockedOutUntil")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid>("PublicId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasDefaultValueSql("gen_random_uuid()");
+
+                    b.Property<string>("RecordChange")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("RefreshToken")
+                        .HasColumnType("text");
+
+                    b.Property<DateTime?>("RefreshTokenExpiry")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<int>("UserId")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("VerificationCode")
+                        .HasColumnType("text");
+
+                    b.Property<DateTime?>("VerificationCodeExpiry")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("UserId")
+                        .IsUnique();
+
+                    b.ToTable("UserAuthentications");
+                });
+
+            modelBuilder.Entity("Homassy.API.Entities.User.UserNotificationPreferences", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<bool>("EmailNotificationsEnabled")
+                        .HasColumnType("boolean");
+
+                    b.Property<bool>("EmailWeeklySummaryEnabled")
+                        .HasColumnType("boolean");
+
+                    b.Property<bool>("InAppNotificationsEnabled")
+                        .HasColumnType("boolean");
+
+                    b.Property<bool>("IsDeleted")
+                        .HasColumnType("boolean");
+
+                    b.Property<Guid>("PublicId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasDefaultValueSql("gen_random_uuid()");
+
+                    b.Property<bool>("PushNotificationsEnabled")
+                        .HasColumnType("boolean");
+
+                    b.Property<bool>("PushWeeklySummaryEnabled")
+                        .HasColumnType("boolean");
+
+                    b.Property<string>("RecordChange")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<int>("UserId")
+                        .HasColumnType("integer");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("UserId")
+                        .IsUnique();
+
+                    b.ToTable("UserNotificationPreferences");
+                });
+
+            modelBuilder.Entity("Homassy.API.Entities.User.UserProfile", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<DateTime?>("DateOfBirth")
                         .HasColumnType("timestamp with time zone");
 
                     b.Property<int>("DefaultCurrency")
@@ -379,52 +560,75 @@ namespace Homassy.API.Migrations
                         .HasMaxLength(128)
                         .HasColumnType("character varying(128)");
 
-                    b.Property<string>("Email")
-                        .IsRequired()
+                    b.Property<string>("Gender")
                         .HasColumnType("text");
-
-                    b.Property<int?>("FamilyId")
-                        .HasColumnType("integer");
 
                     b.Property<bool>("IsDeleted")
                         .HasColumnType("boolean");
-
-                    b.Property<bool>("IsEmailVerified")
-                        .HasColumnType("boolean");
-
-                    b.Property<DateTime>("LastLoginAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<string>("Name")
-                        .IsRequired()
-                        .HasMaxLength(128)
-                        .HasColumnType("character varying(128)");
 
                     b.Property<string>("ProfilePictureBase64")
                         .HasColumnType("text");
 
                     b.Property<Guid>("PublicId")
-                        .HasColumnType("uuid");
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasDefaultValueSql("gen_random_uuid()");
 
                     b.Property<string>("RecordChange")
                         .IsRequired()
                         .HasColumnType("text");
 
-                    b.Property<string>("RefreshToken")
-                        .HasColumnType("text");
-
-                    b.Property<DateTime?>("RefreshTokenExpiry")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<string>("VerificationCode")
-                        .HasColumnType("text");
-
-                    b.Property<DateTime?>("VerificationCodeExpiry")
-                        .HasColumnType("timestamp with time zone");
+                    b.Property<int>("UserId")
+                        .HasColumnType("integer");
 
                     b.HasKey("Id");
 
-                    b.ToTable("Users");
+                    b.HasIndex("UserId")
+                        .IsUnique();
+
+                    b.ToTable("UserProfiles");
+                });
+
+            modelBuilder.Entity("Homassy.API.Entities.User.UserAuthentication", b =>
+                {
+                    b.HasOne("Homassy.API.Entities.User.User", "User")
+                        .WithOne("Authentication")
+                        .HasForeignKey("Homassy.API.Entities.User.UserAuthentication", "UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("User");
+                });
+
+            modelBuilder.Entity("Homassy.API.Entities.User.UserNotificationPreferences", b =>
+                {
+                    b.HasOne("Homassy.API.Entities.User.User", "User")
+                        .WithOne("NotificationPreferences")
+                        .HasForeignKey("Homassy.API.Entities.User.UserNotificationPreferences", "UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("User");
+                });
+
+            modelBuilder.Entity("Homassy.API.Entities.User.UserProfile", b =>
+                {
+                    b.HasOne("Homassy.API.Entities.User.User", "User")
+                        .WithOne("Profile")
+                        .HasForeignKey("Homassy.API.Entities.User.UserProfile", "UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("User");
+                });
+
+            modelBuilder.Entity("Homassy.API.Entities.User.User", b =>
+                {
+                    b.Navigation("Authentication");
+
+                    b.Navigation("NotificationPreferences");
+
+                    b.Navigation("Profile");
                 });
 #pragma warning restore 612, 618
         }

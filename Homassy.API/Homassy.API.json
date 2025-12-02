@@ -317,6 +317,246 @@
         }
       }
     },
+    "/api/v1/Product": {
+      "get": {
+        "tags": [
+          "Product"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Product"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateProductRequest"
+              }
+            },
+            "text/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateProductRequest"
+              }
+            },
+            "application/*+json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateProductRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/api/v1/Product/{productId}": {
+      "put": {
+        "tags": [
+          "Product"
+        ],
+        "parameters": [
+          {
+            "name": "productId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "pattern": "^-?(?:0|[1-9]\\d*)$",
+              "type": [
+                "integer",
+                "string"
+              ],
+              "format": "int32"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateProductRequest"
+              }
+            },
+            "text/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateProductRequest"
+              }
+            },
+            "application/*+json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateProductRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "Product"
+        ],
+        "parameters": [
+          {
+            "name": "productId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "pattern": "^-?(?:0|[1-9]\\d*)$",
+              "type": [
+                "integer",
+                "string"
+              ],
+              "format": "int32"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/api/v1/Product/{productId}/picture": {
+      "post": {
+        "tags": [
+          "Product"
+        ],
+        "parameters": [
+          {
+            "name": "productId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "pattern": "^-?(?:0|[1-9]\\d*)$",
+              "type": [
+                "integer",
+                "string"
+              ],
+              "format": "int32"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UploadProductPictureRequest"
+              }
+            },
+            "text/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UploadProductPictureRequest"
+              }
+            },
+            "application/*+json": {
+              "schema": {
+                "$ref": "#/components/schemas/UploadProductPictureRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "Product"
+        ],
+        "parameters": [
+          {
+            "name": "productId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "pattern": "^-?(?:0|[1-9]\\d*)$",
+              "type": [
+                "integer",
+                "string"
+              ],
+              "format": "int32"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/api/v1/Product/{productId}/make-personal": {
+      "post": {
+        "tags": [
+          "Product"
+        ],
+        "parameters": [
+          {
+            "name": "productId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "pattern": "^-?(?:0|[1-9]\\d*)$",
+              "type": [
+                "integer",
+                "string"
+              ],
+              "format": "int32"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/api/v1/Product/{productId}/add-to-family": {
+      "post": {
+        "tags": [
+          "Product"
+        ],
+        "parameters": [
+          {
+            "name": "productId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "pattern": "^-?(?:0|[1-9]\\d*)$",
+              "type": [
+                "integer",
+                "string"
+              ],
+              "format": "int32"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
     "/api/v1/User/profile": {
       "get": {
         "tags": [
@@ -434,6 +674,52 @@
           }
         }
       },
+      "CreateProductRequest": {
+        "required": [
+          "name",
+          "brand",
+          "defaultUnit"
+        ],
+        "type": "object",
+        "properties": {
+          "name": {
+            "maxLength": 128,
+            "minLength": 2,
+            "type": "string"
+          },
+          "brand": {
+            "maxLength": 128,
+            "minLength": 2,
+            "type": "string"
+          },
+          "category": {
+            "maxLength": 128,
+            "minLength": 2,
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "barcode": {
+            "maxLength": 14,
+            "minLength": 0,
+            "pattern": "^\\d{4,14}$",
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "isEatable": {
+            "type": "boolean"
+          },
+          "defaultUnit": {
+            "$ref": "#/components/schemas/Unit"
+          },
+          "saveOnlyPersonal": {
+            "type": "boolean"
+          }
+        }
+      },
       "CreateUserRequest": {
         "required": [
           "email",
@@ -504,6 +790,9 @@
           }
         }
       },
+      "Unit": {
+        "type": "integer"
+      },
       "UpdateFamilyRequest": {
         "type": "object",
         "properties": {
@@ -521,6 +810,60 @@
             "type": [
               "null",
               "string"
+            ]
+          }
+        }
+      },
+      "UpdateProductRequest": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "maxLength": 128,
+            "minLength": 2,
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "brand": {
+            "maxLength": 128,
+            "minLength": 2,
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "category": {
+            "maxLength": 128,
+            "minLength": 2,
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "barcode": {
+            "maxLength": 14,
+            "minLength": 0,
+            "pattern": "^\\d{4,14}$",
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "isEatable": {
+            "type": [
+              "null",
+              "boolean"
+            ]
+          },
+          "defaultUnit": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/Unit"
+              }
             ]
           }
         }
@@ -594,6 +937,18 @@
           }
         }
       },
+      "UploadProductPictureRequest": {
+        "required": [
+          "productPictureBase64"
+        ],
+        "type": "object",
+        "properties": {
+          "productPictureBase64": {
+            "type": "string",
+            "format": "byte"
+          }
+        }
+      },
       "UploadProfilePictureRequest": {
         "required": [
           "profilePictureBase64"
@@ -632,6 +987,9 @@
     },
     {
       "name": "Family"
+    },
+    {
+      "name": "Product"
     },
     {
       "name": "User"

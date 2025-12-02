@@ -1,15 +1,15 @@
 ﻿using Asp.Versioning;
 using Homassy.API.Context;
+using Homassy.API.Exceptions;
 using Homassy.API.Extensions;
 using Homassy.API.Functions;
 using Homassy.API.Models.Common;
 using Homassy.API.Models.Family;
 using Homassy.API.Models.User;
 using Microsoft.AspNetCore.Authorization;
-using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 using Serilog;
-using System.Security.Claims;
 
 namespace Homassy.API.Controllers
 {
@@ -21,47 +21,22 @@ namespace Homassy.API.Controllers
     {
         [HttpGet("profile")]
         [MapToApiVersion(1.0)]
-        public async Task<IActionResult> GetProfile()
+        public IActionResult GetProfile()
         {
-            var userId = SessionInfo.GetUserId();
-            if (!userId.HasValue)
+            try
             {
-                return Unauthorized(ApiResponse.ErrorResponse("Invalid authentication"));
+                var profileResponse = new UserFunctions().GetProfileAsync();
+                return Ok(ApiResponse<UserProfileResponse>.SuccessResponse(profileResponse));
             }
-
-            var user = new UserFunctions().GetUserById(userId.Value);
-            if (user == null)
+            catch (UserNotFoundException ex)
             {
-                return NotFound(ApiResponse.ErrorResponse("User not found"));
+                return NotFound(ApiResponse.ErrorResponse(ex.Message));
             }
-
-            FamilyInfo? familyInfo = null;
-            if (user.FamilyId.HasValue)
+            catch (Exception ex)
             {
-                var family = new FamilyFunctions().GetFamilyById(user.FamilyId.Value);
-                if (family != null)
-                {
-                    familyInfo = new FamilyInfo
-                    {
-                        Name = family.Name,
-                        ShareCode = family.ShareCode
-                    };
-                }
+                Log.Error($"Unexpected error getting user profile: {ex.Message}");
+                return StatusCode(500, ApiResponse.ErrorResponse("An error occurred while retrieving user profile"));
             }
-
-            var profileResponse = new UserProfileResponse
-            {
-                Email = user.Email,
-                Name = user.Name,
-                DisplayName = user.DisplayName,
-                ProfilePictureBase64 = user.ProfilePictureBase64,
-                TimeZone = user.DefaultTimeZone.ToTimeZoneId(),
-                Language = user.DefaultLanguage.ToLanguageCode(),
-                Currency = user.DefaultCurrency.ToCurrencyCode(),
-                Family = familyInfo
-            };
-
-            return Ok(ApiResponse<UserProfileResponse>.SuccessResponse(profileResponse));
         }
 
         [HttpPut("settings")]
@@ -73,36 +48,22 @@ namespace Homassy.API.Controllers
                 return BadRequest(ApiResponse.ErrorResponse("Invalid request data"));
             }
 
-            var userId = SessionInfo.GetUserId();
-            if (!userId.HasValue)
-            {
-                return Unauthorized(ApiResponse.ErrorResponse("Invalid authentication"));
-            }
-
-            var user = new UserFunctions().GetUserById(userId.Value);
-            if (user == null)
-            {
-                return NotFound(ApiResponse.ErrorResponse("User not found"));
-            }
-
-            if (!string.IsNullOrWhiteSpace(request.Email) && request.Email != user.Email)
-            {
-                var existingUser = new UserFunctions().GetUserByEmailAddress(request.Email);
-                if (existingUser != null && existingUser.Id != userId.Value)
-                {
-                    return BadRequest(ApiResponse.ErrorResponse("Email address is already in use"));
-                }
-            }
-
             try
             {
-                await new UserFunctions().UpdateUserSettingsAsync(user, request);
-                Log.Information($"User {userId.Value} updated their settings");
+                await new UserFunctions().UpdateUserProfileAsync(request);
                 return Ok(ApiResponse.SuccessResponse("Settings updated successfully"));
+            }
+            catch (BadRequestException ex)
+            {
+                return BadRequest(ApiResponse.ErrorResponse(ex.Message));
+            }
+            catch (UserNotFoundException ex)
+            {
+                return NotFound(ApiResponse.ErrorResponse(ex.Message));
             }
             catch (Exception ex)
             {
-                Log.Error($"Error updating settings for user {userId.Value}: {ex.Message}");
+                Log.Error($"Unexpected error updating settings: {ex.Message}");
                 return StatusCode(500, ApiResponse.ErrorResponse("An error occurred while updating settings"));
             }
         }
@@ -116,27 +77,22 @@ namespace Homassy.API.Controllers
                 return BadRequest(ApiResponse.ErrorResponse("Invalid request data"));
             }
 
-            var userId = SessionInfo.GetUserId();
-            if (!userId.HasValue)
-            {
-                return Unauthorized(ApiResponse.ErrorResponse("Invalid authentication"));
-            }
-
-            var user = new UserFunctions().GetUserById(userId.Value);
-            if (user == null)
-            {
-                return NotFound(ApiResponse.ErrorResponse("User not found"));
-            }
-
             try
             {
-                await new UserFunctions().UploadProfilePictureAsync(user, request.ProfilePictureBase64);
-                Log.Information($"User {userId.Value} uploaded profile picture");
+                await new UserFunctions().UploadProfilePictureAsync(request.ProfilePictureBase64);
                 return Ok(ApiResponse.SuccessResponse("Profile picture uploaded successfully"));
+            }
+            catch (BadRequestException ex)
+            {
+                return BadRequest(ApiResponse.ErrorResponse(ex.Message));
+            }
+            catch (UserNotFoundException ex)
+            {
+                return NotFound(ApiResponse.ErrorResponse(ex.Message));
             }
             catch (Exception ex)
             {
-                Log.Error($"Error uploading profile picture for user {userId.Value}: {ex.Message}");
+                Log.Error($"Unexpected error uploading profile picture: {ex.Message}");
                 return StatusCode(500, ApiResponse.ErrorResponse("An error occurred while uploading the profile picture"));
             }
         }
@@ -145,32 +101,22 @@ namespace Homassy.API.Controllers
         [MapToApiVersion(1.0)]
         public async Task<IActionResult> DeleteProfilePicture()
         {
-            var userId = SessionInfo.GetUserId();
-            if (!userId.HasValue)
-            {
-                return Unauthorized(ApiResponse.ErrorResponse("Invalid authentication"));
-            }
-
-            var user = new UserFunctions().GetUserById(userId.Value);
-            if (user == null)
-            {
-                return NotFound(ApiResponse.ErrorResponse("User not found"));
-            }
-
-            if (string.IsNullOrEmpty(user.ProfilePictureBase64))
-            {
-                return BadRequest(ApiResponse.ErrorResponse("No profile picture to delete"));
-            }
-
             try
             {
-                await new UserFunctions().DeleteProfilePictureAsync(user);
-                Log.Information($"User {userId.Value} deleted profile picture");
+                await new UserFunctions().DeleteProfilePictureAsync();
                 return Ok(ApiResponse.SuccessResponse("Profile picture deleted successfully"));
+            }
+            catch (BadRequestException ex)
+            {
+                return BadRequest(ApiResponse.ErrorResponse(ex.Message));
+            }
+            catch (UserNotFoundException ex)
+            {
+                return NotFound(ApiResponse.ErrorResponse(ex.Message));
             }
             catch (Exception ex)
             {
-                Log.Error($"Error deleting profile picture for user {userId.Value}: {ex.Message}");
+                Log.Error($"Unexpected error deleting profile picture: {ex.Message}");
                 return StatusCode(500, ApiResponse.ErrorResponse("An error occurred while deleting the profile picture"));
             }
         }

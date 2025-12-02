@@ -14,10 +14,10 @@ namespace Homassy.API.Context
 
         public static void SetUser(Guid? publicId, int? familyId = null)
         {
-            _publicId.Value = publicId;
             var user = new UserFunctions().GetUserByPublicId(publicId);
             _userId.Value = user?.Id;
-            _familyId.Value = familyId;
+            _publicId.Value = publicId ?? user?.PublicId;
+            _familyId.Value = familyId ?? user?.FamilyId;
         }
 
         public static void Clear()

@@ -1,8 +1,9 @@
-﻿using System.ComponentModel.DataAnnotations;
+﻿using Homassy.API.Entities.Common;
+using System.ComponentModel.DataAnnotations;
 
-namespace Homassy.API.Entities
+namespace Homassy.API.Entities.Location
 {
-    public class StorageLocation : BaseEntity
+    public class StorageLocation : RecordChangeEntity
     {
         public int? FamilyId { get; set; }
         public int? UserId { get; set; }

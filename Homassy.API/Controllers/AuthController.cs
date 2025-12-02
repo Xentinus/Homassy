@@ -1,16 +1,14 @@
 ﻿using Asp.Versioning;
 using Homassy.API.Context;
-using Homassy.API.Extensions;
+using Homassy.API.Exceptions;
 using Homassy.API.Functions;
 using Homassy.API.Models.Auth;
 using Homassy.API.Models.Common;
 using Homassy.API.Models.User;
-using Homassy.API.Security;
 using Homassy.API.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Serilog;
-using System.Security.Claims;
 
 namespace Homassy.API.Controllers
 {
@@ -28,37 +26,23 @@ namespace Homassy.API.Controllers
                 return BadRequest(ApiResponse.ErrorResponse("Invalid request data"));
             }
 
-            if (string.IsNullOrWhiteSpace(request.Email) || !request.Email.Contains('@'))
-            {
-                return BadRequest(ApiResponse.ErrorResponse("Invalid email address"));
-            }
-
-            var email = request.Email.ToLowerInvariant().Trim();
             var genericMessage = "If this email is registered, a verification code will be sent.";
 
             try
             {
-                var user = new UserFunctions().GetUserByEmailAddress(email);
-
-                if (user == null)
-                {
-                    Log.Information($"User not found for {email}");
-                    await Task.Delay(Random.Shared.Next(100, 300));
-                    return Ok(ApiResponse.SuccessResponse(genericMessage));
-                }
-
-                var code = EmailService.GenerateVerificationCode();
-                var expirationMinutes = int.Parse(ConfigService.GetValue("EmailVerification:CodeExpirationMinutes"));
-                var expiry = DateTime.UtcNow.AddMinutes(expirationMinutes);
-
-                await new UserFunctions().SetVerificationCodeAsync(user, code, expiry);
-                await EmailService.SendVerificationCodeAsync(user.Email, code, user.DefaultTimeZone);
-
-                Log.Information($"Verification code sent to {email}");
+                await new UserFunctions().RequestVerificationCodeAsync(request.Email);
+            }
+            catch (BadRequestException ex)
+            {
+                return BadRequest(ApiResponse.ErrorResponse(ex.Message));
+            }
+            catch (AuthException ex)
+            {
+                Log.Warning($"Auth error during request-code: {ex.Message}");
             }
             catch (Exception ex)
             {
-                Log.Error($"Error processing request-code for {email}: {ex.Message}");
+                Log.Error($"Unexpected error during request-code: {ex.Message}");
             }
 
             await Task.Delay(Random.Shared.Next(100, 300));
@@ -74,71 +58,29 @@ namespace Homassy.API.Controllers
                 return BadRequest(ApiResponse.ErrorResponse("Invalid request data"));
             }
 
-            if (string.IsNullOrWhiteSpace(request.Email) || string.IsNullOrWhiteSpace(request.VerificationCode))
+            try
             {
-                return BadRequest(ApiResponse.ErrorResponse("Email and code are required"));
+                var authResponse = await new UserFunctions().VerifyCodeAsync(request.Email, request.VerificationCode);
+                return Ok(ApiResponse<AuthResponse>.SuccessResponse(authResponse, "Login successful"));
             }
-
-            var email = request.Email.ToLowerInvariant().Trim();
-            var code = request.VerificationCode.Trim();
-
-            var user = new UserFunctions().GetUserByEmailAddress(email);
-
-            if (user == null)
+            catch (AuthException ex)
             {
                 await Task.Delay(Random.Shared.Next(200, 400));
-                return Unauthorized(ApiResponse.ErrorResponse("Invalid email or code"));
-            }
 
-            if (user.VerificationCodeExpiry == null || user.VerificationCodeExpiry < DateTime.UtcNow)
-            {
-                Log.Warning($"Expired verification code for {email}");
-                await Task.Delay(Random.Shared.Next(200, 400));
-                return Unauthorized(ApiResponse.ErrorResponse("Invalid or expired code"));
-            }
-
-            if (!SecureCompare.ConstantTimeEquals(user.VerificationCode, code))
-            {
-                Log.Warning($"Invalid verification code for {email}");
-                await Task.Delay(Random.Shared.Next(200, 400));
-                return Unauthorized(ApiResponse.ErrorResponse("Invalid or expired code"));
-            }
-
-            var isFirstLogin = !user.IsEmailVerified;
-
-            if (isFirstLogin)
-            {
-                await new UserFunctions().SetEmailVerifiedAsync(user);
-                Log.Information($"Email verified for new user {email}");
-            }
-
-            var accessToken = JwtService.GenerateAccessToken(user);
-            var refreshToken = JwtService.GenerateRefreshToken();
-            var accessTokenExpiry = JwtService.GetAccessTokenExpiration();
-            var refreshTokenExpiry = JwtService.GetRefreshTokenExpiration();
-
-            await new UserFunctions().CompleteAuthenticationAsync(user, refreshToken, refreshTokenExpiry);
-
-            Log.Information($"User {email} successfully authenticated");
-
-            var authResponse = new AuthResponse
-            {
-                AccessToken = accessToken,
-                RefreshToken = refreshToken,
-                AccessTokenExpiresAt = accessTokenExpiry,
-                RefreshTokenExpiresAt = refreshTokenExpiry,
-                User = new UserInfo
+                return ex.StatusCode switch
                 {
-                    Name = user.Name,
-                    DisplayName = user.DisplayName,
-                    ProfilePictureBase64 = user.ProfilePictureBase64,
-                    TimeZone = user.DefaultTimeZone.ToTimeZoneId(),
-                    Language = user.DefaultLanguage.ToLanguageCode(),
-                    Currency = user.DefaultCurrency.ToCurrencyCode()
-                }
-            };
-
-            return Ok(ApiResponse<AuthResponse>.SuccessResponse(authResponse, "Login successful"));
+                    StatusCodes.Status400BadRequest => BadRequest(ApiResponse.ErrorResponse(ex.Message)),
+                    StatusCodes.Status401Unauthorized => Unauthorized(ApiResponse.ErrorResponse(ex.Message)),
+                    StatusCodes.Status403Forbidden => StatusCode(403, ApiResponse.ErrorResponse(ex.Message)),
+                    _ => StatusCode(500, ApiResponse.ErrorResponse("An error occurred during authentication"))
+                };
+            }
+            catch (Exception ex)
+            {
+                Log.Error($"Unexpected error during code verification: {ex.Message}");
+                await Task.Delay(Random.Shared.Next(200, 400));
+                return StatusCode(500, ApiResponse.ErrorResponse("An error occurred during authentication"));
+            }
         }
 
         [Authorize]
@@ -151,57 +93,29 @@ namespace Homassy.API.Controllers
                 return BadRequest(ApiResponse.ErrorResponse("Invalid request data"));
             }
 
-            if (string.IsNullOrWhiteSpace(request.AccessToken) || string.IsNullOrWhiteSpace(request.RefreshToken))
+            try
             {
-                return BadRequest(ApiResponse.ErrorResponse("Tokens are required"));
+                var refreshResponse = await new UserFunctions().RefreshTokenAsync(request.RefreshToken);
+                return Ok(ApiResponse<RefreshTokenResponse>.SuccessResponse(refreshResponse, "Token refreshed successfully"));
             }
-
-            var userId = SessionInfo.GetUserId();
-            if (!userId.HasValue)
+            catch (AuthException ex)
             {
                 await Task.Delay(Random.Shared.Next(100, 200));
-                return Unauthorized(ApiResponse.ErrorResponse("Invalid authentication"));
-            }
 
-            var user = new UserFunctions().GetUserById(userId.Value);
-            if (user == null)
+                return ex.StatusCode switch
+                {
+                    StatusCodes.Status400BadRequest => BadRequest(ApiResponse.ErrorResponse(ex.Message)),
+                    StatusCodes.Status401Unauthorized => Unauthorized(ApiResponse.ErrorResponse(ex.Message)),
+                    StatusCodes.Status403Forbidden => StatusCode(403, ApiResponse.ErrorResponse(ex.Message)),
+                    _ => StatusCode(500, ApiResponse.ErrorResponse("An error occurred during token refresh"))
+                };
+            }
+            catch (Exception ex)
             {
+                Log.Error($"Unexpected error during token refresh: {ex.Message}");
                 await Task.Delay(Random.Shared.Next(100, 200));
-                return Unauthorized(ApiResponse.ErrorResponse("User not found"));
+                return StatusCode(500, ApiResponse.ErrorResponse("An error occurred during token refresh"));
             }
-
-            if (!SecureCompare.ConstantTimeEquals(user.RefreshToken, request.RefreshToken))
-            {
-                Log.Warning($"Invalid refresh token for user {userId.Value}");
-                await Task.Delay(Random.Shared.Next(100, 200));
-                return Unauthorized(ApiResponse.ErrorResponse("Invalid refresh token"));
-            }
-
-            if (user.RefreshTokenExpiry == null || user.RefreshTokenExpiry < DateTime.UtcNow)
-            {
-                Log.Warning($"Expired refresh token for user {userId.Value}");
-                await Task.Delay(Random.Shared.Next(100, 200));
-                return Unauthorized(ApiResponse.ErrorResponse("Expired refresh token"));
-            }
-
-            var newAccessToken = JwtService.GenerateAccessToken(user);
-            var newRefreshToken = JwtService.GenerateRefreshToken();
-            var accessTokenExpiry = JwtService.GetAccessTokenExpiration();
-            var refreshTokenExpiry = JwtService.GetRefreshTokenExpiration();
-
-            await new UserFunctions().SetRefreshTokenAsync(user, newRefreshToken, refreshTokenExpiry);
-
-            Log.Information($"Token refreshed for user {userId.Value}");
-
-            var refreshResponse = new
-            {
-                AccessToken = newAccessToken,
-                RefreshToken = newRefreshToken,
-                AccessTokenExpiresAt = accessTokenExpiry,
-                RefreshTokenExpiresAt = refreshTokenExpiry
-            };
-
-            return Ok(ApiResponse<object>.SuccessResponse(refreshResponse, "Token refreshed successfully"));
         }
 
         [Authorize]
@@ -209,57 +123,54 @@ namespace Homassy.API.Controllers
         [MapToApiVersion(1.0)]
         public async Task<IActionResult> Logout()
         {
-            var userId = SessionInfo.GetUserId();
-            if (!userId.HasValue)
+            try
             {
-                return Unauthorized(ApiResponse.ErrorResponse("Invalid authentication"));
+                await new UserFunctions().LogoutAsync();
+                return Ok(ApiResponse.SuccessResponse("Logged out successfully"));
             }
-
-            var user = new UserFunctions().GetUserById(userId.Value);
-            if (user != null)
+            catch (UserNotFoundException ex)
             {
-                await new UserFunctions().ClearRefreshTokenAsync(user);
+                Log.Warning($"User not found during logout: {ex.Message}");
+                return Ok(ApiResponse.SuccessResponse("Logged out successfully"));
             }
-
-            Log.Information($"User {userId.Value} logged out");
-
-            return Ok(ApiResponse.SuccessResponse("Logged out successfully"));
+            catch (Exception ex)
+            {
+                Log.Error($"Unexpected error during logout: {ex.Message}");
+                return StatusCode(500, ApiResponse.ErrorResponse("An error occurred during logout"));
+            }
         }
 
         [Authorize]
         [HttpGet("me")]
         [MapToApiVersion(1.0)]
-        public async Task<IActionResult> GetCurrentUser()
+        public IActionResult GetCurrentUser()
         {
-            var userId = SessionInfo.GetUserId();
-            if (!userId.HasValue)
+            try
             {
-                return Unauthorized(ApiResponse.ErrorResponse("Invalid authentication"));
+                var userInfo = new UserFunctions().GetCurrentUserAsync();
+                return Ok(ApiResponse<UserInfo>.SuccessResponse(userInfo));
             }
-
-            var user = new UserFunctions().GetUserById(userId.Value);
-            if (user == null)
+            catch (UserNotFoundException ex)
             {
-                return NotFound(ApiResponse.ErrorResponse("User not found"));
+                return NotFound(ApiResponse.ErrorResponse(ex.Message));
             }
-
-            var userInfo = new UserInfo
+            catch (Exception ex)
             {
-                Name = user.Name,
-                DisplayName = user.DisplayName,
-                ProfilePictureBase64 = user.ProfilePictureBase64,
-                TimeZone = user.DefaultTimeZone.ToTimeZoneId(),
-                Language = user.DefaultLanguage.ToLanguageCode(),
-                Currency = user.DefaultCurrency.ToCurrencyCode()
-            };
-
-            return Ok(ApiResponse<UserInfo>.SuccessResponse(userInfo));
+                Log.Error($"Unexpected error getting current user: {ex.Message}");
+                return StatusCode(500, ApiResponse.ErrorResponse("An error occurred while retrieving user information"));
+            }
         }
 
         [HttpPost("register")]
         [MapToApiVersion(1.0)]
         public async Task<IActionResult> Register([FromBody] CreateUserRequest request)
         {
+            if (!ModelState.IsValid)
+            {
+                return BadRequest(ApiResponse.ErrorResponse("Invalid request data"));
+            }
+
+            // Check if registration is enabled
             var registrationEnabledValue = ConfigService.GetValueOrDefault("RegistrationEnabled", "false");
             var registrationEnabled = !string.IsNullOrEmpty(registrationEnabledValue) && bool.Parse(registrationEnabledValue);
 
@@ -269,47 +180,23 @@ namespace Homassy.API.Controllers
                 return StatusCode(403, ApiResponse.ErrorResponse("Registration is currently disabled"));
             }
 
-            if (!ModelState.IsValid)
-            {
-                return BadRequest(ApiResponse.ErrorResponse("Invalid request data"));
-            }
-
-            var email = request.Email.ToLowerInvariant().Trim();
             var genericMessage = "Registration request received. If the email is not already in use, a verification code will be sent.";
 
             try
             {
-                var existingUser = new UserFunctions().GetUserByEmailAddress(email);
-
-                if (existingUser != null)
-                {
-                    Log.Information($"Registration attempt for existing email {email}");
-                    await Task.Delay(Random.Shared.Next(100, 300));
-                    return Ok(ApiResponse.SuccessResponse(genericMessage));
-                }
-
-                if (string.IsNullOrWhiteSpace(request.Name))
-                {
-                    return BadRequest(ApiResponse.ErrorResponse("Name is required"));
-                }
-
-                var user = await new UserFunctions().CreateUserAsync(request);
-
-                var code = EmailService.GenerateVerificationCode();
-                var expirationMinutes = int.Parse(ConfigService.GetValue("EmailVerification:CodeExpirationMinutes"));
-                var expiry = DateTime.UtcNow.AddMinutes(expirationMinutes);
-
-                await new UserFunctions().SetVerificationCodeAsync(user, code, expiry);
-
-                // Regisztrációs email küldése a verification code-dal
-                await EmailService.SendRegistrationEmailAsync(user.Email, user.Name, code, user.DefaultTimeZone);
-
-                Log.Information($"New user registered: {email}, registration email with verification code sent");
+                await new UserFunctions().RegisterAsync(request);
+            }
+            catch (BadRequestException ex)
+            {
+                return BadRequest(ApiResponse.ErrorResponse(ex.Message));
+            }
+            catch (AuthException ex)
+            {
+                Log.Warning($"Auth error during registration: {ex.Message}");
             }
             catch (Exception ex)
             {
-                Log.Error($"Error during registration for {email}: {ex.Message}");
-                return StatusCode(500, ApiResponse.ErrorResponse("An error occurred during registration"));
+                Log.Error($"Unexpected error during registration: {ex.Message}");
             }
 
             await Task.Delay(Random.Shared.Next(100, 300));

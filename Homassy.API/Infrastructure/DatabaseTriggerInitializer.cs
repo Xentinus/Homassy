@@ -23,8 +23,8 @@ namespace Homassy.API.Infrastructure
                     CREATE OR REPLACE FUNCTION record_table_change()
                     RETURNS TRIGGER AS $$
                     BEGIN
-                        INSERT INTO ""TableRecordChanges"" (""TableName"", ""RecordId"", ""IsDeleted"", ""RecordChange"")
-                        VALUES (TG_TABLE_NAME, NEW.""Id"", false, NOW()::text);
+                        INSERT INTO ""TableRecordChanges"" (""TableName"", ""RecordId"", ""IsDeleted"")
+                        VALUES (TG_TABLE_NAME, NEW.""Id"", false);
                         RETURN NEW;
                     EXCEPTION
                         WHEN OTHERS THEN
@@ -35,7 +35,7 @@ namespace Homassy.API.Infrastructure
                 ");
 
                 var entityTypes = _context.Model.GetEntityTypes()
-                    .Where(t => t.ClrType.BaseType?.Name == "BaseEntity")
+                    .Where(t => t.ClrType.BaseType?.Name == "RecordChangeEntity")
                     .Select(t => t.GetTableName())
                     .Where(name => !string.IsNullOrEmpty(name)
                                 && name != "TableRecordChanges"

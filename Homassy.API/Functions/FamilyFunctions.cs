@@ -1,6 +1,8 @@
 ﻿using Homassy.API.Context;
-using Homassy.API.Entities;
+using Homassy.API.Entities.Family;
+using Homassy.API.Entities.User;
 using Homassy.API.Models.Family;
+using Homassy.API.Exceptions;
 using Microsoft.EntityFrameworkCore;
 using Serilog;
 using System.Collections.Concurrent;
@@ -16,7 +18,8 @@ namespace Homassy.API.Functions
         public async Task InitializeCacheAsync()
         {
             var context = new HomassyDbContext();
-            var families = await context.Families.AsNoTracking().ToListAsync();
+            var families = await context.Families
+                .ToListAsync();
 
             try
             {
@@ -39,7 +42,9 @@ namespace Homassy.API.Functions
             try
             {
                 var context = new HomassyDbContext();
-                var family = await context.Families.AsNoTracking().FirstOrDefaultAsync(f => f.Id == familyId);
+                var family = await context.Families
+                    .FirstOrDefaultAsync(f => f.Id == familyId);
+
                 var existsInCache = _familyCache.ContainsKey(familyId);
 
                 if (family != null && existsInCache)
@@ -82,7 +87,7 @@ namespace Homassy.API.Functions
             if (family == null)
             {
                 var context = new HomassyDbContext();
-                family = context.Families.AsNoTracking().FirstOrDefault(f => f.Id == familyId);
+                family = context.Families.FirstOrDefault(f => f.Id == familyId);
             }
 
             return family;
@@ -101,7 +106,8 @@ namespace Homassy.API.Functions
             if (family == null)
             {
                 var context = new HomassyDbContext();
-                family = context.Families.AsNoTracking().FirstOrDefault(f => f.ShareCode == shareCode);
+                family = context.Families
+                    .FirstOrDefault(f => f.ShareCode == shareCode);
             }
 
             return family;
@@ -140,7 +146,6 @@ namespace Homassy.API.Functions
             {
                 var context = new HomassyDbContext();
                 var dbFamilies = context.Families
-                    .AsNoTracking()
                     .Where(f => missingIds.Contains(f.Id))
                     .ToList();
 
@@ -151,135 +156,216 @@ namespace Homassy.API.Functions
         }
         #endregion
 
-        public async Task<Family> CreateFamilyAsync(CreateFamilyRequest request)
+        #region Family Management
+        public async Task<FamilyInfo> CreateFamilyAsync(CreateFamilyRequest request)
         {
-            var family = new Family
+            var userId = SessionInfo.GetUserId();
+            if (!userId.HasValue)
             {
-                Name = request.Name.Trim(),
-                Description = request.Description?.Trim(),
-                FamilyPictureBase64 = request.FamilyPictureBase64
-            };
+                Log.Warning("Invalid session: User ID not found");
+                throw new UnauthorizedException("Invalid authentication");
+            }
+
+            var user = new UserFunctions().GetUserById(userId.Value);
+            if (user == null)
+            {
+                Log.Warning($"User not found for userId {userId.Value}");
+                throw new UserNotFoundException("User not found");
+            }
+
+            if (user.FamilyId.HasValue)
+            {
+                throw new BadRequestException("You are already a member of a family. Please leave your current family first.");
+            }
 
             var context = new HomassyDbContext();
             await using var transaction = await context.Database.BeginTransactionAsync();
             try
             {
+                var family = new Family
+                {
+                    Name = request.Name.Trim(),
+                    Description = request.Description?.Trim(),
+                    FamilyPictureBase64 = request.FamilyPictureBase64
+                };
+
                 context.Families.Add(family);
                 await context.SaveChangesAsync();
+
+                user.FamilyId = family.Id;
+                context.Users.Update(user);
+                await context.SaveChangesAsync();
+
                 await transaction.CommitAsync();
+
+                Log.Information($"User {userId.Value} created family {family.Id} with share code {family.ShareCode}");
+
+                var response = new FamilyInfo
+                {
+                    Name = family.Name,
+                    ShareCode = family.ShareCode
+                };
+
+                return response;
             }
-            catch
+            catch (Exception ex)
             {
                 await transaction.RollbackAsync();
+                Log.Error($"Error creating family for user {userId.Value}: {ex.Message}");
                 throw;
             }
-
-            return family;
         }
 
-        public async Task AddUserToFamilyAsync(User user, int familyId)
+        public FamilyDetailsResponse GetFamilyAsync()
         {
-            user.FamilyId = familyId;
+            var familyId = SessionInfo.GetFamilyId();
+            if (!familyId.HasValue)
+            {
+                throw new FamilyNotFoundException("You are not a member of any family");
+            }
+
+            var family = GetFamilyById(familyId.Value);
+            if (family == null)
+            {
+                Log.Warning($"Family not found for familyId {familyId.Value}");
+                throw new FamilyNotFoundException("Family not found");
+            }
+
+            var response = new FamilyDetailsResponse
+            {
+                Name = family.Name,
+                Description = family.Description,
+                ShareCode = family.ShareCode,
+                FamilyPictureBase64 = family.FamilyPictureBase64
+            };
+
+            return response;
+        }
+
+        public async Task UpdateFamilyAsync(UpdateFamilyRequest request)
+        {
+            var familyId = SessionInfo.GetFamilyId();
+            if (!familyId.HasValue)
+            {
+                throw new FamilyNotFoundException("You are not a member of any family");
+            }
 
             var context = new HomassyDbContext();
             await using var transaction = await context.Database.BeginTransactionAsync();
             try
             {
-                context.Update(user);
+                var family = GetFamilyById(familyId.Value);
+
+                if (family == null)
+                {
+                    Log.Warning($"Family not found for familyId {familyId.Value}");
+                    throw new FamilyNotFoundException("Family not found");
+                }
+
+                if (!string.IsNullOrWhiteSpace(request.Name))
+                {
+                    family.Name = request.Name.Trim();
+                }
+
+                if (request.Description != null)
+                {
+                    family.Description = string.IsNullOrWhiteSpace(request.Description)
+                        ? null
+                        : request.Description.Trim();
+                }
+
                 await context.SaveChangesAsync();
                 await transaction.CommitAsync();
+
+                Log.Information($"User {SessionInfo.GetUserId()} updated family {family.Id}");
             }
-            catch
+            catch (Exception ex)
             {
                 await transaction.RollbackAsync();
+                Log.Error($"Error updating family for user {SessionInfo.GetUserId()}: {ex.Message}");
                 throw;
             }
         }
 
-        public async Task RemoveUserFromFamilyAsync(User user)
+        public async Task UploadFamilyPictureAsync(string familyPictureBase64)
         {
-            user.FamilyId = null;
+            if (string.IsNullOrWhiteSpace(familyPictureBase64))
+            {
+                throw new BadRequestException("Family picture data is required");
+            }
+
+            var familyId = SessionInfo.GetFamilyId();
+            if (!familyId.HasValue)
+            {
+                throw new FamilyNotFoundException("You are not a member of any family");
+            }
 
             var context = new HomassyDbContext();
             await using var transaction = await context.Database.BeginTransactionAsync();
             try
             {
-                context.Update(user);
+                var family = await context.Families.FindAsync(familyId.Value);
+
+                if (family == null)
+                {
+                    Log.Warning($"Family not found for familyId {familyId.Value}");
+                    throw new FamilyNotFoundException("Family not found");
+                }
+
+                family.FamilyPictureBase64 = familyPictureBase64;
+
                 await context.SaveChangesAsync();
                 await transaction.CommitAsync();
+
+                Log.Information($"User {SessionInfo.GetUserId()} uploaded picture for family {familyId.Value}");
             }
-            catch
+            catch (Exception ex)
             {
                 await transaction.RollbackAsync();
+                Log.Error($"Error uploading family picture: {ex.Message}");
                 throw;
             }
         }
 
-        public async Task UpdateFamilyAsync(Family family, UpdateFamilyRequest request)
+        public async Task DeleteFamilyPictureAsync()
         {
-            if (!string.IsNullOrWhiteSpace(request.Name))
+            var familyId = SessionInfo.GetFamilyId();
+            if (!familyId.HasValue)
             {
-                family.Name = request.Name.Trim();
-            }
-
-            if (request.Description != null)
-            {
-                family.Description = string.IsNullOrWhiteSpace(request.Description)
-                    ? null
-                    : request.Description.Trim();
+                throw new FamilyNotFoundException("You are not a member of any family");
             }
 
             var context = new HomassyDbContext();
             await using var transaction = await context.Database.BeginTransactionAsync();
             try
             {
-                context.Update(family);
+                var family = await context.Families.FindAsync(familyId.Value);
+
+                if (family == null)
+                {
+                    Log.Warning($"Family not found for familyId {familyId.Value}");
+                    throw new FamilyNotFoundException("Family not found");
+                }
+
+                if (string.IsNullOrEmpty(family.FamilyPictureBase64))
+                {
+                    throw new BadRequestException("No family picture to delete");
+                }
+
+                family.FamilyPictureBase64 = null;
+
                 await context.SaveChangesAsync();
                 await transaction.CommitAsync();
+
+                Log.Information($"User {SessionInfo.GetUserId()} deleted picture for family {familyId.Value}");
             }
-            catch
+            catch (Exception ex)
             {
                 await transaction.RollbackAsync();
+                Log.Error($"Error deleting family picture: {ex.Message}");
                 throw;
             }
         }
-
-        public async Task UploadFamilyPictureAsync(Family family, string familyPictureBase64)
-        {
-            family.FamilyPictureBase64 = familyPictureBase64;
-
-            var context = new HomassyDbContext();
-            await using var transaction = await context.Database.BeginTransactionAsync();
-            try
-            {
-                context.Update(family);
-                await context.SaveChangesAsync();
-                await transaction.CommitAsync();
-            }
-            catch
-            {
-                await transaction.RollbackAsync();
-                throw;
-            }
-        }
-
-        public async Task DeleteFamilyPictureAsync(Family family)
-        {
-            family.FamilyPictureBase64 = null;
-
-            var context = new HomassyDbContext();
-            await using var transaction = await context.Database.BeginTransactionAsync();
-            try
-            {
-                context.Update(family);
-                await context.SaveChangesAsync();
-                await transaction.CommitAsync();
-            }
-            catch
-            {
-                await transaction.RollbackAsync();
-                throw;
-            }
-        }
+        #endregion
     }
 }

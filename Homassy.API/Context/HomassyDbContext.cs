@@ -1,4 +1,9 @@
-using Homassy.API.Entities;
+using Homassy.API.Entities.Common;
+using Homassy.API.Entities.Family;
+using Homassy.API.Entities.Location;
+using Homassy.API.Entities.Product;
+using Homassy.API.Entities.ShoppingList;
+using Homassy.API.Entities.User;
 using Microsoft.EntityFrameworkCore;
 using System.Linq.Expressions;
 
@@ -46,18 +51,49 @@ namespace Homassy.API.Context
         {
             base.OnModelCreating(modelBuilder);
 
-            // Global query filter for soft delete - automatically applied to all BaseEntity types
+            // Configure PublicId for all BaseEntity types
             foreach (var entityType in modelBuilder.Model.GetEntityTypes())
             {
                 if (typeof(BaseEntity).IsAssignableFrom(entityType.ClrType))
                 {
+                    modelBuilder.Entity(entityType.ClrType)
+                        .Property("PublicId")
+                        .HasDefaultValueSql("gen_random_uuid()")
+                        .ValueGeneratedOnAdd();
+                }
+            }
+
+            // Global query filter for soft delete - automatically applied to all SoftDeleteEntity types
+            foreach (var entityType in modelBuilder.Model.GetEntityTypes())
+            {
+                if (typeof(SoftDeleteEntity).IsAssignableFrom(entityType.ClrType))
+                {
                     var parameter = Expression.Parameter(entityType.ClrType, "e");
-                    var property = Expression.Property(parameter, nameof(BaseEntity.IsDeleted));
+                    var property = Expression.Property(parameter, nameof(SoftDeleteEntity.IsDeleted));
                     var filter = Expression.Lambda(Expression.Not(property), parameter);
 
                     modelBuilder.Entity(entityType.ClrType).HasQueryFilter(filter);
                 }
             }
+
+            // Configure User relationships
+            modelBuilder.Entity<User>()
+                .HasOne(u => u.Profile)
+                .WithOne(p => p.User)
+                .HasForeignKey<UserProfile>(p => p.UserId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            modelBuilder.Entity<User>()
+                .HasOne(u => u.Authentication)
+                .WithOne(a => a.User)
+                .HasForeignKey<UserAuthentication>(a => a.UserId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            modelBuilder.Entity<User>()
+                .HasOne(u => u.NotificationPreferences)
+                .WithOne(n => n.User)
+                .HasForeignKey<UserNotificationPreferences>(n => n.UserId)
+                .OnDelete(DeleteBehavior.Cascade);
         }
 
         // Update record change tracking before saving
@@ -76,7 +112,7 @@ namespace Homassy.API.Context
         private void UpdateRecordChanges()
         {
             var userId = SessionInfo.GetUserId();
-            var entities = ChangeTracker.Entries<BaseEntity>()
+            var entities = ChangeTracker.Entries<RecordChangeEntity>()
                 .Where(e => e.State == EntityState.Added || e.State == EntityState.Modified);
 
             foreach (var entity in entities)
@@ -88,6 +124,9 @@ namespace Homassy.API.Context
         // DbSets
         public DbSet<Family> Families { get; set; }
         public DbSet<User> Users { get; set; }
+        public DbSet<UserProfile> UserProfiles { get; set; }
+        public DbSet<UserAuthentication> UserAuthentications { get; set; }
+        public DbSet<UserNotificationPreferences> UserNotificationPreferences { get; set; }
         public DbSet<Product> Products { get; set; }
         public DbSet<ProductItem> ProductItems { get; set; }
         public DbSet<ShoppingListItem> ShoppingListItems { get; set; }

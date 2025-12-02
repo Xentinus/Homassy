@@ -1,10 +1,11 @@
-﻿using Homassy.API.Enums;
+﻿using Homassy.API.Entities.Common;
+using Homassy.API.Enums;
 using System.ComponentModel;
 using System.ComponentModel.DataAnnotations;
 
-namespace Homassy.API.Entities
+namespace Homassy.API.Entities.Product
 {
-    public class Product : BaseEntity
+    public class Product : RecordChangeEntity
     {
         public int? FamilyId { get; set; }
         public int? UserId { get; set; }

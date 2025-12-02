@@ -1,5 +1,6 @@
 ﻿using Asp.Versioning;
 using Homassy.API.Context;
+using Homassy.API.Exceptions;
 using Homassy.API.Functions;
 using Homassy.API.Models.Common;
 using Homassy.API.Models.Family;
@@ -17,40 +18,30 @@ namespace Homassy.API.Controllers
     {
         [HttpGet]
         [MapToApiVersion(1.0)]
-        public async Task<IActionResult> GetFamily()
+        public IActionResult GetFamily()
         {
-            var userId = SessionInfo.GetUserId();
-            if (!userId.HasValue)
+            try
             {
-                return Unauthorized(ApiResponse.ErrorResponse("Invalid authentication"));
+                var response = new FamilyFunctions().GetFamilyAsync();
+                return Ok(ApiResponse<FamilyDetailsResponse>.SuccessResponse(response));
             }
-
-            var user = new UserFunctions().GetUserById(userId.Value);
-            if (user == null)
+            catch (UnauthorizedException ex)
             {
-                return NotFound(ApiResponse.ErrorResponse("User not found"));
+                return Unauthorized(ApiResponse.ErrorResponse(ex.Message));
             }
-
-            if (!user.FamilyId.HasValue)
+            catch (BadRequestException ex)
             {
-                return BadRequest(ApiResponse.ErrorResponse("You are not a member of any family"));
+                return BadRequest(ApiResponse.ErrorResponse(ex.Message));
             }
-
-            var family = new FamilyFunctions().GetFamilyById(user.FamilyId.Value);
-            if (family == null)
+            catch (UserNotFoundException ex)
             {
-                return NotFound(ApiResponse.ErrorResponse("Family not found"));
+                return NotFound(ApiResponse.ErrorResponse(ex.Message));
             }
-
-            var response = new FamilyDetailsResponse
+            catch (Exception ex)
             {
-                Name = family.Name,
-                Description = family.Description,
-                ShareCode = family.ShareCode,
-                FamilyPictureBase64 = family.FamilyPictureBase64
-            };
-
-            return Ok(ApiResponse<FamilyDetailsResponse>.SuccessResponse(response));
+                Log.Error($"Unexpected error getting family: {ex.Message}");
+                return StatusCode(500, ApiResponse.ErrorResponse("An error occurred while retrieving family information"));
+            }
         }
 
         [HttpPut]
@@ -62,38 +53,26 @@ namespace Homassy.API.Controllers
                 return BadRequest(ApiResponse.ErrorResponse("Invalid request data"));
             }
 
-            var userId = SessionInfo.GetUserId();
-            if (!userId.HasValue)
-            {
-                return Unauthorized(ApiResponse.ErrorResponse("Invalid authentication"));
-            }
-
-            var user = new UserFunctions().GetUserById(userId.Value);
-            if (user == null)
-            {
-                return NotFound(ApiResponse.ErrorResponse("User not found"));
-            }
-
-            if (!user.FamilyId.HasValue)
-            {
-                return BadRequest(ApiResponse.ErrorResponse("You are not a member of any family"));
-            }
-
-            var family = new FamilyFunctions().GetFamilyById(user.FamilyId.Value);
-            if (family == null)
-            {
-                return NotFound(ApiResponse.ErrorResponse("Family not found"));
-            }
-
             try
             {
-                await new FamilyFunctions().UpdateFamilyAsync(family, request);
-                Log.Information($"User {userId.Value} updated family {family.Id}");
+                await new FamilyFunctions().UpdateFamilyAsync(request);
                 return Ok(ApiResponse.SuccessResponse("Family updated successfully"));
+            }
+            catch (UnauthorizedException ex)
+            {
+                return Unauthorized(ApiResponse.ErrorResponse(ex.Message));
+            }
+            catch (BadRequestException ex)
+            {
+                return BadRequest(ApiResponse.ErrorResponse(ex.Message));
+            }
+            catch (UserNotFoundException ex)
+            {
+                return NotFound(ApiResponse.ErrorResponse(ex.Message));
             }
             catch (Exception ex)
             {
-                Log.Error($"Error updating family for user {userId.Value}: {ex.Message}");
+                Log.Error($"Unexpected error updating family: {ex.Message}");
                 return StatusCode(500, ApiResponse.ErrorResponse("An error occurred while updating the family"));
             }
         }
@@ -107,41 +86,26 @@ namespace Homassy.API.Controllers
                 return BadRequest(ApiResponse.ErrorResponse("Invalid request data"));
             }
 
-            var userId = SessionInfo.GetUserId();
-            if (!userId.HasValue)
-            {
-                return Unauthorized(ApiResponse.ErrorResponse("Invalid authentication"));
-            }
-
-            var user = new UserFunctions().GetUserById(userId.Value);
-            if (user == null)
-            {
-                return NotFound(ApiResponse.ErrorResponse("User not found"));
-            }
-
-            if (user.FamilyId.HasValue)
-            {
-                return BadRequest(ApiResponse.ErrorResponse("You are already a member of a family. Please leave your current family first."));
-            }
-
             try
             {
-                var family = await new FamilyFunctions().CreateFamilyAsync(request);
-                await new FamilyFunctions().AddUserToFamilyAsync(user, family.Id);
-
-                Log.Information($"User {userId.Value} created family {family.Id} with share code {family.ShareCode}");
-
-                var response = new FamilyInfo
-                {
-                    Name = family.Name,
-                    ShareCode = family.ShareCode
-                };
-
-                return Ok(ApiResponse<object>.SuccessResponse(response, "Family created successfully"));
+                var response = await new FamilyFunctions().CreateFamilyAsync(request);
+                return Ok(ApiResponse<FamilyInfo>.SuccessResponse(response, "Family created successfully"));
+            }
+            catch (UnauthorizedException ex)
+            {
+                return Unauthorized(ApiResponse.ErrorResponse(ex.Message));
+            }
+            catch (BadRequestException ex)
+            {
+                return BadRequest(ApiResponse.ErrorResponse(ex.Message));
+            }
+            catch (UserNotFoundException ex)
+            {
+                return NotFound(ApiResponse.ErrorResponse(ex.Message));
             }
             catch (Exception ex)
             {
-                Log.Error($"Error creating family for user {userId.Value}: {ex.Message}");
+                Log.Error($"Unexpected error creating family: {ex.Message}");
                 return StatusCode(500, ApiResponse.ErrorResponse("An error occurred while creating the family"));
             }
         }
@@ -155,45 +119,26 @@ namespace Homassy.API.Controllers
                 return BadRequest(ApiResponse.ErrorResponse("Invalid request data"));
             }
 
-            var userId = SessionInfo.GetUserId();
-            if (!userId.HasValue)
-            {
-                return Unauthorized(ApiResponse.ErrorResponse("Invalid authentication"));
-            }
-
-            var user = new UserFunctions().GetUserById(userId.Value);
-            if (user == null)
-            {
-                return NotFound(ApiResponse.ErrorResponse("User not found"));
-            }
-
-            if (user.FamilyId.HasValue)
-            {
-                return BadRequest(ApiResponse.ErrorResponse("You are already a member of a family. Please leave your current family first."));
-            }
-
-            var family = new FamilyFunctions().GetFamilyByShareCode(request.ShareCode);
-            if (family == null)
-            {
-                return NotFound(ApiResponse.ErrorResponse("Family not found with the provided share code"));
-            }
-
             try
             {
-                await new FamilyFunctions().AddUserToFamilyAsync(user, family.Id);
-                Log.Information($"User {userId.Value} joined family {family.Id}");
-
-                var response = new FamilyInfo
-                {
-                    Name = family.Name,
-                    ShareCode = family.ShareCode
-                };
-
-                return Ok(ApiResponse<object>.SuccessResponse(response, "Successfully joined the family"));
+                var response = await new UserFunctions().JoinFamilyAsync(request);
+                return Ok(ApiResponse<FamilyInfo>.SuccessResponse(response, "Successfully joined the family"));
+            }
+            catch (UnauthorizedException ex)
+            {
+                return Unauthorized(ApiResponse.ErrorResponse(ex.Message));
+            }
+            catch (BadRequestException ex)
+            {
+                return BadRequest(ApiResponse.ErrorResponse(ex.Message));
+            }
+            catch (FamilyNotFoundException ex)
+            {
+                return NotFound(ApiResponse.ErrorResponse(ex.Message));
             }
             catch (Exception ex)
             {
-                Log.Error($"Error joining family for user {userId.Value}: {ex.Message}");
+                Log.Error($"Unexpected error joining family: {ex.Message}");
                 return StatusCode(500, ApiResponse.ErrorResponse("An error occurred while joining the family"));
             }
         }
@@ -202,34 +147,26 @@ namespace Homassy.API.Controllers
         [MapToApiVersion(1.0)]
         public async Task<IActionResult> LeaveFamily()
         {
-            var userId = SessionInfo.GetUserId();
-            if (!userId.HasValue)
-            {
-                return Unauthorized(ApiResponse.ErrorResponse("Invalid authentication"));
-            }
-
-            var user = new UserFunctions().GetUserById(userId.Value);
-            if (user == null)
-            {
-                return NotFound(ApiResponse.ErrorResponse("User not found"));
-            }
-
-            if (!user.FamilyId.HasValue)
-            {
-                return BadRequest(ApiResponse.ErrorResponse("You are not a member of any family"));
-            }
-
             try
             {
-                var familyId = user.FamilyId.Value;
-                await new FamilyFunctions().RemoveUserFromFamilyAsync(user);
-                Log.Information($"User {userId.Value} left family {familyId}");
-
+                await new UserFunctions().RemoveUserFromFamilyAsync();
                 return Ok(ApiResponse.SuccessResponse("Successfully left the family"));
+            }
+            catch (UnauthorizedException ex)
+            {
+                return Unauthorized(ApiResponse.ErrorResponse(ex.Message));
+            }
+            catch (BadRequestException ex)
+            {
+                return BadRequest(ApiResponse.ErrorResponse(ex.Message));
+            }
+            catch (UserNotFoundException ex)
+            {
+                return NotFound(ApiResponse.ErrorResponse(ex.Message));
             }
             catch (Exception ex)
             {
-                Log.Error($"Error leaving family for user {userId.Value}: {ex.Message}");
+                Log.Error($"Unexpected error leaving family: {ex.Message}");
                 return StatusCode(500, ApiResponse.ErrorResponse("An error occurred while leaving the family"));
             }
         }
@@ -243,38 +180,22 @@ namespace Homassy.API.Controllers
                 return BadRequest(ApiResponse.ErrorResponse("Invalid request data"));
             }
 
-            var userId = SessionInfo.GetUserId();
-            if (!userId.HasValue)
-            {
-                return Unauthorized(ApiResponse.ErrorResponse("Invalid authentication"));
-            }
-
-            var user = new UserFunctions().GetUserById(userId.Value);
-            if (user == null)
-            {
-                return NotFound(ApiResponse.ErrorResponse("User not found"));
-            }
-
-            if (!user.FamilyId.HasValue)
-            {
-                return BadRequest(ApiResponse.ErrorResponse("You are not a member of any family"));
-            }
-
-            var family = new FamilyFunctions().GetFamilyById(user.FamilyId.Value);
-            if (family == null)
-            {
-                return NotFound(ApiResponse.ErrorResponse("Family not found"));
-            }
-
             try
             {
-                await new FamilyFunctions().UploadFamilyPictureAsync(family, request.FamilyPictureBase64);
-                Log.Information($"User {userId.Value} uploaded picture for family {family.Id}");
+                await new FamilyFunctions().UploadFamilyPictureAsync(request.FamilyPictureBase64);
                 return Ok(ApiResponse.SuccessResponse("Family picture uploaded successfully"));
+            }
+            catch (BadRequestException ex)
+            {
+                return BadRequest(ApiResponse.ErrorResponse(ex.Message));
+            }
+            catch (FamilyNotFoundException ex)
+            {
+                return NotFound(ApiResponse.ErrorResponse(ex.Message));
             }
             catch (Exception ex)
             {
-                Log.Error($"Error uploading family picture for user {userId.Value}: {ex.Message}");
+                Log.Error($"Unexpected error uploading family picture: {ex.Message}");
                 return StatusCode(500, ApiResponse.ErrorResponse("An error occurred while uploading the family picture"));
             }
         }
@@ -283,43 +204,22 @@ namespace Homassy.API.Controllers
         [MapToApiVersion(1.0)]
         public async Task<IActionResult> DeleteFamilyPicture()
         {
-            var userId = SessionInfo.GetUserId();
-            if (!userId.HasValue)
-            {
-                return Unauthorized(ApiResponse.ErrorResponse("Invalid authentication"));
-            }
-
-            var user = new UserFunctions().GetUserById(userId.Value);
-            if (user == null)
-            {
-                return NotFound(ApiResponse.ErrorResponse("User not found"));
-            }
-
-            if (!user.FamilyId.HasValue)
-            {
-                return BadRequest(ApiResponse.ErrorResponse("You are not a member of any family"));
-            }
-
-            var family = new FamilyFunctions().GetFamilyById(user.FamilyId.Value);
-            if (family == null)
-            {
-                return NotFound(ApiResponse.ErrorResponse("Family not found"));
-            }
-
-            if (string.IsNullOrEmpty(family.FamilyPictureBase64))
-            {
-                return BadRequest(ApiResponse.ErrorResponse("No family picture to delete"));
-            }
-
             try
             {
-                await new FamilyFunctions().DeleteFamilyPictureAsync(family);
-                Log.Information($"User {userId.Value} deleted picture for family {family.Id}");
+                await new FamilyFunctions().DeleteFamilyPictureAsync();
                 return Ok(ApiResponse.SuccessResponse("Family picture deleted successfully"));
+            }
+            catch (BadRequestException ex)
+            {
+                return BadRequest(ApiResponse.ErrorResponse(ex.Message));
+            }
+            catch (FamilyNotFoundException ex)
+            {
+                return NotFound(ApiResponse.ErrorResponse(ex.Message));
             }
             catch (Exception ex)
             {
-                Log.Error($"Error deleting family picture for user {userId.Value}: {ex.Message}");
+                Log.Error($"Unexpected error deleting family picture: {ex.Message}");
                 return StatusCode(500, ApiResponse.ErrorResponse("An error occurred while deleting the family picture"));
             }
         }

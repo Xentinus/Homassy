@@ -1,4 +1,4 @@
-﻿using Homassy.API.Entities;
+﻿using Homassy.API.Entities.User;
 using Homassy.API.Enums;
 using Homassy.API.Extensions;
 using Microsoft.IdentityModel.Tokens;
