@@ -94,6 +94,31 @@ namespace Homassy.API.Context
                 .WithOne(n => n.User)
                 .HasForeignKey<UserNotificationPreferences>(n => n.UserId)
                 .OnDelete(DeleteBehavior.Cascade);
+
+            // Configure Product relationships
+            modelBuilder.Entity<Product>()
+                .HasMany(p => p.Customizations)
+                .WithOne(c => c.Product)
+                .HasForeignKey(c => c.ProductId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            modelBuilder.Entity<Product>()
+                .HasMany(p => p.InventoryItems)
+                .WithOne(i => i.Product)
+                .HasForeignKey(i => i.ProductId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            modelBuilder.Entity<ProductInventoryItem>()
+                .HasOne(i => i.PurchaseInfo)
+                .WithOne(p => p.ProductInventoryItem)
+                .HasForeignKey<ProductPurchaseInfo>(p => p.ProductInventoryItemId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            modelBuilder.Entity<ProductInventoryItem>()
+                .HasMany(i => i.ConsumptionLogs)
+                .WithOne(l => l.ProductInventoryItem)
+                .HasForeignKey(l => l.ProductInventoryItemId)
+                .OnDelete(DeleteBehavior.Cascade);
         }
 
         // Update record change tracking before saving
@@ -127,8 +152,13 @@ namespace Homassy.API.Context
         public DbSet<UserProfile> UserProfiles { get; set; }
         public DbSet<UserAuthentication> UserAuthentications { get; set; }
         public DbSet<UserNotificationPreferences> UserNotificationPreferences { get; set; }
+
         public DbSet<Product> Products { get; set; }
-        public DbSet<ProductItem> ProductItems { get; set; }
+        public DbSet<ProductInventoryItem> ProductInventoryItems { get; set; }
+        public DbSet<ProductPurchaseInfo> ProductPurchaseInfos { get; set; }
+        public DbSet<ProductConsumptionLog> ProductConsumptionLogs { get; set; }
+        public DbSet<ProductCustomization> ProductCustomizations { get; set; }
+
         public DbSet<ShoppingListItem> ShoppingListItems { get; set; }
         public DbSet<ShoppingLocation> ShoppingLocations { get; set; }
         public DbSet<StorageLocation> StorageLocations { get; set; }

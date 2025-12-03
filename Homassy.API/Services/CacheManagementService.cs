@@ -148,8 +148,20 @@ namespace Homassy.API.Services
                     await new ProductFunctions().RefreshProductCacheAsync(change.RecordId);
                     break;
 
-                case TableNames.ProductItems:
-                    await new ProductFunctions().RefreshProductItemCacheAsync(change.RecordId);
+                case TableNames.ProductInventoryItems:
+                    await new ProductFunctions().RefreshInventoryItemCacheAsync(change.RecordId);
+                    break;
+
+                case TableNames.ProductPurchaseInfos:
+                    await new ProductFunctions().RefreshPurchaseInfoCacheAsync(change.RecordId);
+                    break;
+
+                case TableNames.ProductConsumptionLogs:
+                    await new ProductFunctions().RefreshConsumptionLogsCacheAsync(change.RecordId);
+                    break;
+
+                case TableNames.ProductCustomizations:
+                    await new ProductFunctions().RefreshProductCustomizationCacheAsync(change.RecordId);
                     break;
 
                 case TableNames.StorageLocations:
