@@ -14,8 +14,9 @@
         public const string ProductConsumptionLogs = "ProductConsumptionLogs";
         public const string ProductCustomizations = "ProductCustomizations";
 
-        public const string ShoppingListItems = "ShoppingListItems";
         public const string ShoppingLocations = "ShoppingLocations";
         public const string StorageLocations = "StorageLocations";
+
+        public const string ShoppingListItems = "ShoppingListItems";
     }
 }

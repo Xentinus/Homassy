@@ -47,4 +47,11 @@
 		<EmbeddedResource Include="EmailTemplates\**\*.html" />
 	</ItemGroup>
 
+	<ItemGroup>
+	  <Compile Remove="Models\Date\**" />
+	  <Content Remove="Models\Date\**" />
+	  <EmbeddedResource Remove="Models\Date\**" />
+	  <None Remove="Models\Date\**" />
+	</ItemGroup>
+
 </Project>

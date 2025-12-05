@@ -1,4 +1,5 @@
 ﻿using Homassy.API.Context;
+using Homassy.API.Entities.Common;
 using Microsoft.EntityFrameworkCore;
 using Serilog;
 
@@ -35,7 +36,7 @@ namespace Homassy.API.Infrastructure
                 ");
 
                 var entityTypes = _context.Model.GetEntityTypes()
-                    .Where(t => t.ClrType.BaseType?.Name == "RecordChangeEntity")
+                    .Where(t => typeof(RecordChangeEntity).IsAssignableFrom(t.ClrType) && !t.ClrType.IsAbstract)
                     .Select(t => t.GetTableName())
                     .Where(name => !string.IsNullOrEmpty(name)
                                 && name != "TableRecordChanges"

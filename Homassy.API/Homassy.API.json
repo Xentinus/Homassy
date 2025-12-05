@@ -317,6 +317,218 @@
         }
       }
     },
+    "/api/v1/Location/shopping": {
+      "get": {
+        "tags": [
+          "Location"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Location"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ShoppingLocationRequest"
+              }
+            },
+            "text/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ShoppingLocationRequest"
+              }
+            },
+            "application/*+json": {
+              "schema": {
+                "$ref": "#/components/schemas/ShoppingLocationRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/api/v1/Location/shopping/{shoppingLocationPublicId}": {
+      "put": {
+        "tags": [
+          "Location"
+        ],
+        "parameters": [
+          {
+            "name": "shoppingLocationPublicId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ShoppingLocationRequest"
+              }
+            },
+            "text/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ShoppingLocationRequest"
+              }
+            },
+            "application/*+json": {
+              "schema": {
+                "$ref": "#/components/schemas/ShoppingLocationRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "Location"
+        ],
+        "parameters": [
+          {
+            "name": "shoppingLocationPublicId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/api/v1/Location/storage": {
+      "get": {
+        "tags": [
+          "Location"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Location"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/StorageLocationRequest"
+              }
+            },
+            "text/json": {
+              "schema": {
+                "$ref": "#/components/schemas/StorageLocationRequest"
+              }
+            },
+            "application/*+json": {
+              "schema": {
+                "$ref": "#/components/schemas/StorageLocationRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/api/v1/Location/storage/{storageLocationPublicId}": {
+      "put": {
+        "tags": [
+          "Location"
+        ],
+        "parameters": [
+          {
+            "name": "storageLocationPublicId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/StorageLocationRequest"
+              }
+            },
+            "text/json": {
+              "schema": {
+                "$ref": "#/components/schemas/StorageLocationRequest"
+              }
+            },
+            "application/*+json": {
+              "schema": {
+                "$ref": "#/components/schemas/StorageLocationRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "Location"
+        ],
+        "parameters": [
+          {
+            "name": "storageLocationPublicId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
     "/api/v1/Product": {
       "get": {
         "tags": [
@@ -725,6 +937,134 @@
           }
         }
       },
+      "ShoppingLocationRequest": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "maxLength": 128,
+            "minLength": 2,
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "description": {
+            "maxLength": 500,
+            "minLength": 0,
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "color": {
+            "maxLength": 7,
+            "minLength": 0,
+            "pattern": "^#[0-9A-Fa-f]{6}$",
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "address": {
+            "maxLength": 128,
+            "minLength": 0,
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "city": {
+            "maxLength": 64,
+            "minLength": 0,
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "postalCode": {
+            "maxLength": 20,
+            "minLength": 0,
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "country": {
+            "maxLength": 64,
+            "minLength": 0,
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "website": {
+            "maxLength": 255,
+            "minLength": 0,
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "uri"
+          },
+          "googleMaps": {
+            "maxLength": 255,
+            "minLength": 0,
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "uri"
+          },
+          "isSharedWithFamily": {
+            "type": [
+              "null",
+              "boolean"
+            ]
+          }
+        }
+      },
+      "StorageLocationRequest": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "maxLength": 128,
+            "minLength": 2,
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "description": {
+            "maxLength": 500,
+            "minLength": 0,
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "color": {
+            "maxLength": 7,
+            "minLength": 0,
+            "pattern": "^#[0-9A-Fa-f]{6}$",
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "isFreezer": {
+            "type": [
+              "null",
+              "boolean"
+            ]
+          },
+          "isSharedWithFamily": {
+            "type": [
+              "null",
+              "boolean"
+            ]
+          }
+        }
+      },
       "UpdateFamilyRequest": {
         "type": "object",
         "properties": {
@@ -904,6 +1244,9 @@
     },
     {
       "name": "Family"
+    },
+    {
+      "name": "Location"
     },
     {
       "name": "Product"

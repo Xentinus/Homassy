@@ -1,4 +1,5 @@
 ﻿using Homassy.API.Entities.Common;
+using Homassy.API.Entities.Location;
 using Homassy.API.Enums;
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
@@ -28,6 +29,7 @@ namespace Homassy.API.Entities.Product
 
         // Navigation properties
         public Product Product { get; set; } = null!;
+        public StorageLocation? StorageLocation { get; set; }
         public ProductPurchaseInfo? PurchaseInfo { get; set; }
         public ICollection<ProductConsumptionLog>? ConsumptionLogs { get; set; }
     }

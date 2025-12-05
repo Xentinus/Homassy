@@ -1,5 +1,8 @@
 ﻿using Homassy.API.Context;
 using Homassy.API.Entities.Location;
+using Homassy.API.Exceptions;
+using Homassy.API.Models.Common;
+using Homassy.API.Models.Location;
 using Microsoft.EntityFrameworkCore;
 using Serilog;
 using System.Collections.Concurrent;
@@ -16,8 +19,8 @@ namespace Homassy.API.Functions
         public async Task InitializeCacheAsync()
         {
             var context = new HomassyDbContext();
-            var shoppingLocations = await context.ShoppingLocations.AsNoTracking().ToListAsync();
-            var storageLocations = await context.StorageLocations.AsNoTracking().ToListAsync();
+            var shoppingLocations = await context.ShoppingLocations.ToListAsync();
+            var storageLocations = await context.StorageLocations.ToListAsync();
 
             try
             {
@@ -46,7 +49,7 @@ namespace Homassy.API.Functions
             try
             {
                 var context = new HomassyDbContext();
-                var shoppingLocation = await context.ShoppingLocations.AsNoTracking().FirstOrDefaultAsync(sl => sl.Id == shoppingLocationId);
+                var shoppingLocation = await context.ShoppingLocations.FirstOrDefaultAsync(sl => sl.Id == shoppingLocationId);
                 var existsInCache = _shoppingLocationCache.ContainsKey(shoppingLocationId);
 
                 if (shoppingLocation != null && existsInCache)
@@ -81,7 +84,7 @@ namespace Homassy.API.Functions
             try
             {
                 var context = new HomassyDbContext();
-                var storageLocation = await context.StorageLocations.AsNoTracking().FirstOrDefaultAsync(sl => sl.Id == storageLocationId);
+                var storageLocation = await context.StorageLocations.FirstOrDefaultAsync(sl => sl.Id == storageLocationId);
                 var existsInCache = _storageLocationCache.ContainsKey(storageLocationId);
 
                 if (storageLocation != null && existsInCache)
@@ -110,45 +113,63 @@ namespace Homassy.API.Functions
                 throw;
             }
         }
+        #endregion
 
+        #region Cache Getters - By Internal Id
         public ShoppingLocation? GetShoppingLocationById(int? shoppingLocationId)
         {
             if (shoppingLocationId == null) return null;
-            ShoppingLocation? shoppingLocation = null;
 
-            if (Inited)
+            if (Inited && _shoppingLocationCache.TryGetValue((int)shoppingLocationId, out var shoppingLocation))
             {
-                _shoppingLocationCache.TryGetValue((int)shoppingLocationId, out shoppingLocation);
+                return shoppingLocation;
             }
 
-            if (shoppingLocation == null)
-            {
-                var context = new HomassyDbContext();
-                shoppingLocation = context.ShoppingLocations.AsNoTracking().FirstOrDefault(sl => sl.Id == shoppingLocationId);
-            }
-
-            return shoppingLocation;
+            var context = new HomassyDbContext();
+            return context.ShoppingLocations.FirstOrDefault(sl => sl.Id == shoppingLocationId);
         }
 
         public StorageLocation? GetStorageLocationById(int? storageLocationId)
         {
             if (storageLocationId == null) return null;
-            StorageLocation? storageLocation = null;
 
+            if (Inited && _storageLocationCache.TryGetValue((int)storageLocationId, out var storageLocation))
+            {
+                return storageLocation;
+            }
+
+            var context = new HomassyDbContext();
+            return context.StorageLocations.FirstOrDefault(sl => sl.Id == storageLocationId);
+        }
+        #endregion
+
+        #region Cache Getters - By PublicId
+        public ShoppingLocation? GetShoppingLocationByPublicId(Guid publicId)
+        {
             if (Inited)
             {
-                _storageLocationCache.TryGetValue((int)storageLocationId, out storageLocation);
+                var shoppingLocation = _shoppingLocationCache.Values.FirstOrDefault(sl => sl.PublicId == publicId);
+                if (shoppingLocation != null) return shoppingLocation;
             }
 
-            if (storageLocation == null)
-            {
-                var context = new HomassyDbContext();
-                storageLocation = context.StorageLocations.AsNoTracking().FirstOrDefault(sl => sl.Id == storageLocationId);
-            }
-
-            return storageLocation;
+            var context = new HomassyDbContext();
+            return context.ShoppingLocations.FirstOrDefault(sl => sl.PublicId == publicId);
         }
 
+        public StorageLocation? GetStorageLocationByPublicId(Guid publicId)
+        {
+            if (Inited)
+            {
+                var storageLocation = _storageLocationCache.Values.FirstOrDefault(sl => sl.PublicId == publicId);
+                if (storageLocation != null) return storageLocation;
+            }
+
+            var context = new HomassyDbContext();
+            return context.StorageLocations.FirstOrDefault(sl => sl.PublicId == publicId);
+        }
+        #endregion
+
+        #region Cache Getters - Multiple Items
         public List<ShoppingLocation> GetShoppingLocationsByIds(List<int?> shoppingLocationIds)
         {
             if (shoppingLocationIds == null || !shoppingLocationIds.Any()) return new List<ShoppingLocation>();
@@ -182,7 +203,6 @@ namespace Homassy.API.Functions
             {
                 var context = new HomassyDbContext();
                 var dbShoppingLocations = context.ShoppingLocations
-                    .AsNoTracking()
                     .Where(sl => missingIds.Contains(sl.Id))
                     .ToList();
 
@@ -225,7 +245,6 @@ namespace Homassy.API.Functions
             {
                 var context = new HomassyDbContext();
                 var dbStorageLocations = context.StorageLocations
-                    .AsNoTracking()
                     .Where(sl => missingIds.Contains(sl.Id))
                     .ToList();
 
@@ -235,36 +254,556 @@ namespace Homassy.API.Functions
             return result;
         }
 
-        public List<ShoppingLocation> GetShoppingLocationsByFamilyId(int familyId)
+        public List<ShoppingLocation> GetShoppingLocationsByUserAndFamily(int userId, int? familyId)
         {
             if (Inited)
             {
                 return _shoppingLocationCache.Values
-                    .Where(sl => sl.FamilyId == familyId)
+                    .Where(sl => sl.UserId == userId || (familyId.HasValue && sl.FamilyId == familyId))
                     .ToList();
             }
 
             var context = new HomassyDbContext();
             return context.ShoppingLocations
-                .AsNoTracking()
-                .Where(sl => sl.FamilyId == familyId)
+                .Where(sl => sl.UserId == userId || (familyId.HasValue && sl.FamilyId == familyId))
                 .ToList();
         }
 
-        public List<StorageLocation> GetStorageLocationsByFamilyId(int familyId)
+        public List<StorageLocation> GetStorageLocationsByUserAndFamily(int userId, int? familyId)
         {
             if (Inited)
             {
                 return _storageLocationCache.Values
-                    .Where(sl => sl.FamilyId == familyId)
+                    .Where(sl => sl.UserId == userId || (familyId.HasValue && sl.FamilyId == familyId))
                     .ToList();
             }
 
             var context = new HomassyDbContext();
             return context.StorageLocations
-                .AsNoTracking()
-                .Where(sl => sl.FamilyId == familyId)
+                .Where(sl => sl.UserId == userId || (familyId.HasValue && sl.FamilyId == familyId))
                 .ToList();
+        }
+        #endregion
+
+        #region Location Methods
+        public List<ShoppingLocationInfo> GetAllShoppingLocations()
+        {
+            var userId = SessionInfo.GetUserId();
+            if (!userId.HasValue)
+            {
+                Log.Warning("Invalid session: User ID not found");
+                throw new UserNotFoundException("User not found");
+            }
+
+            var familyId = SessionInfo.GetFamilyId();
+            var shoppingLocations = GetShoppingLocationsByUserAndFamily(userId.Value, familyId);
+
+            return shoppingLocations.Select(sl => new ShoppingLocationInfo
+            {
+                PublicId = sl.PublicId,
+                Name = sl.Name,
+                Description = sl.Description,
+                Color = sl.Color,
+                Address = sl.Address,
+                City = sl.City,
+                PostalCode = sl.PostalCode,
+                Country = sl.Country,
+                Website = sl.Website,
+                GoogleMaps = sl.GoogleMaps,
+                IsSharedWithFamily = sl.FamilyId.HasValue
+            }).ToList();
+        }
+
+        public List<StorageLocationInfo> GetAllStorageLocations()
+        {
+            var userId = SessionInfo.GetUserId();
+            if (!userId.HasValue)
+            {
+                Log.Warning("Invalid session: User ID not found");
+                throw new UserNotFoundException("User not found");
+            }
+
+            var familyId = SessionInfo.GetFamilyId();
+            var storageLocations = GetStorageLocationsByUserAndFamily(userId.Value, familyId);
+
+            return storageLocations.Select(sl => new StorageLocationInfo
+            {
+                PublicId = sl.PublicId,
+                Name = sl.Name,
+                Description = sl.Description,
+                Color = sl.Color,
+                IsFreezer = sl.IsFreezer,
+                IsSharedWithFamily = sl.FamilyId.HasValue
+            }).ToList();
+        }
+
+        public async Task<ShoppingLocationInfo> CreateShoppingLocationAsync(ShoppingLocationRequest request)
+        {
+            var userId = SessionInfo.GetUserId();
+            if (!userId.HasValue)
+            {
+                Log.Warning("Invalid session: User ID not found");
+                throw new UserNotFoundException("User not found");
+            }
+
+            if (string.IsNullOrWhiteSpace(request.Name))
+            {
+                throw new BadRequestException("Name is required");
+            }
+
+            var familyId = SessionInfo.GetFamilyId();
+
+            var context = new HomassyDbContext();
+            await using var transaction = await context.Database.BeginTransactionAsync();
+
+            try
+            {
+                var shoppingLocation = new ShoppingLocation
+                {
+                    Name = request.Name.Trim(),
+                    Description = request.Description?.Trim(),
+                    Color = request.Color?.Trim(),
+                    Address = request.Address?.Trim(),
+                    City = request.City?.Trim(),
+                    PostalCode = request.PostalCode?.Trim(),
+                    Country = request.Country?.Trim(),
+                    Website = request.Website?.Trim(),
+                    GoogleMaps = request.GoogleMaps?.Trim(),
+                    UserId = userId.Value,
+                    FamilyId = request.IsSharedWithFamily == true && familyId.HasValue ? familyId : null
+                };
+
+                context.ShoppingLocations.Add(shoppingLocation);
+                await context.SaveChangesAsync();
+
+                await transaction.CommitAsync();
+
+                Log.Information($"User {userId.Value} created shopping location {shoppingLocation.Id} (PublicId: {shoppingLocation.PublicId}), shared with family: {request.IsSharedWithFamily}");
+
+                return new ShoppingLocationInfo
+                {
+                    PublicId = shoppingLocation.PublicId,
+                    Name = shoppingLocation.Name,
+                    Description = shoppingLocation.Description,
+                    Color = shoppingLocation.Color,
+                    Address = shoppingLocation.Address,
+                    City = shoppingLocation.City,
+                    PostalCode = shoppingLocation.PostalCode,
+                    Country = shoppingLocation.Country,
+                    Website = shoppingLocation.Website,
+                    GoogleMaps = shoppingLocation.GoogleMaps,
+                    IsSharedWithFamily = shoppingLocation.FamilyId.HasValue
+                };
+            }
+            catch (Exception ex)
+            {
+                await transaction.RollbackAsync();
+                Log.Error(ex, $"Failed to create shopping location for user {userId.Value}");
+                throw;
+            }
+        }
+
+        public async Task<ShoppingLocationInfo> UpdateShoppingLocationAsync(Guid shoppingLocationPublicId, ShoppingLocationRequest request)
+        {
+            var userId = SessionInfo.GetUserId();
+            if (!userId.HasValue)
+            {
+                Log.Warning("Invalid session: User ID not found");
+                throw new UserNotFoundException("User not found");
+            }
+
+            var shoppingLocation = GetShoppingLocationByPublicId(shoppingLocationPublicId);
+            if (shoppingLocation == null)
+            {
+                throw new ShoppingLocationNotFoundException("Shopping location not found");
+            }
+
+            var familyId = SessionInfo.GetFamilyId();
+            if (shoppingLocation.UserId != userId.Value &&
+                (!familyId.HasValue || shoppingLocation.FamilyId != familyId.Value))
+            {
+                throw new UnauthorizedException("You don't have permission to update this shopping location");
+            }
+
+            var context = new HomassyDbContext();
+            await using var transaction = await context.Database.BeginTransactionAsync();
+
+            try
+            {
+                var trackedLocation = await context.ShoppingLocations.FindAsync(shoppingLocation.Id);
+                if (trackedLocation == null)
+                {
+                    throw new ShoppingLocationNotFoundException("Shopping location not found");
+                }
+
+                bool hasChanges = false;
+
+                if (!string.IsNullOrWhiteSpace(request.Name))
+                {
+                    trackedLocation.Name = request.Name.Trim();
+                    hasChanges = true;
+                }
+
+                if (request.Description != null)
+                {
+                    trackedLocation.Description = string.IsNullOrWhiteSpace(request.Description)
+                        ? null
+                        : request.Description.Trim();
+                    hasChanges = true;
+                }
+
+                if (request.Color != null)
+                {
+                    trackedLocation.Color = string.IsNullOrWhiteSpace(request.Color)
+                        ? null
+                        : request.Color.Trim();
+                    hasChanges = true;
+                }
+
+                if (request.Address != null)
+                {
+                    trackedLocation.Address = string.IsNullOrWhiteSpace(request.Address)
+                        ? null
+                        : request.Address.Trim();
+                    hasChanges = true;
+                }
+
+                if (request.City != null)
+                {
+                    trackedLocation.City = string.IsNullOrWhiteSpace(request.City)
+                        ? null
+                        : request.City.Trim();
+                    hasChanges = true;
+                }
+
+                if (request.PostalCode != null)
+                {
+                    trackedLocation.PostalCode = string.IsNullOrWhiteSpace(request.PostalCode)
+                        ? null
+                        : request.PostalCode.Trim();
+                    hasChanges = true;
+                }
+
+                if (request.Country != null)
+                {
+                    trackedLocation.Country = string.IsNullOrWhiteSpace(request.Country)
+                        ? null
+                        : request.Country.Trim();
+                    hasChanges = true;
+                }
+
+                if (request.Website != null)
+                {
+                    trackedLocation.Website = string.IsNullOrWhiteSpace(request.Website)
+                        ? null
+                        : request.Website.Trim();
+                    hasChanges = true;
+                }
+
+                if (request.GoogleMaps != null)
+                {
+                    trackedLocation.GoogleMaps = request.GoogleMaps;
+                    hasChanges = true;
+                }
+
+                if (request.IsSharedWithFamily.HasValue)
+                {
+                    trackedLocation.FamilyId = request.IsSharedWithFamily.Value && familyId.HasValue
+                        ? familyId
+                        : null;
+                    hasChanges = true;
+                }
+
+                if (hasChanges)
+                {
+                    await context.SaveChangesAsync();
+                    Log.Information($"User {userId.Value} updated shopping location {trackedLocation.Id} (PublicId: {trackedLocation.PublicId})");
+                }
+                else
+                {
+                    Log.Debug($"User {userId.Value} attempted to update shopping location {trackedLocation.Id} but no changes were made");
+                }
+
+                await transaction.CommitAsync();
+
+                return new ShoppingLocationInfo
+                {
+                    PublicId = trackedLocation.PublicId,
+                    Name = trackedLocation.Name,
+                    Description = trackedLocation.Description,
+                    Color = trackedLocation.Color,
+                    Address = trackedLocation.Address,
+                    City = trackedLocation.City,
+                    PostalCode = trackedLocation.PostalCode,
+                    Country = trackedLocation.Country,
+                    Website = trackedLocation.Website,
+                    GoogleMaps = trackedLocation.GoogleMaps,
+                    IsSharedWithFamily = trackedLocation.FamilyId.HasValue
+                };
+            }
+            catch (Exception ex)
+            {
+                await transaction.RollbackAsync();
+                Log.Error(ex, $"Failed to update shopping location {shoppingLocationPublicId} for user {userId.Value}");
+                throw;
+            }
+        }
+
+        public async Task<StorageLocationInfo> CreateStorageLocationAsync(StorageLocationRequest request)
+        {
+            var userId = SessionInfo.GetUserId();
+            if (!userId.HasValue)
+            {
+                Log.Warning("Invalid session: User ID not found");
+                throw new UserNotFoundException("User not found");
+            }
+
+            if (string.IsNullOrWhiteSpace(request.Name))
+            {
+                throw new BadRequestException("Name is required");
+            }
+
+            var familyId = SessionInfo.GetFamilyId();
+
+            var context = new HomassyDbContext();
+            await using var transaction = await context.Database.BeginTransactionAsync();
+
+            try
+            {
+                var storageLocation = new StorageLocation
+                {
+                    Name = request.Name.Trim(),
+                    Description = request.Description?.Trim(),
+                    Color = request.Color?.Trim(),
+                    IsFreezer = request.IsFreezer ?? false,
+                    UserId = userId.Value,
+                    FamilyId = request.IsSharedWithFamily == true && familyId.HasValue ? familyId : null
+                };
+
+                context.StorageLocations.Add(storageLocation);
+                await context.SaveChangesAsync();
+
+                await transaction.CommitAsync();
+
+                Log.Information($"User {userId.Value} created storage location {storageLocation.Id} (PublicId: {storageLocation.PublicId}), shared with family: {request.IsSharedWithFamily}");
+
+                return new StorageLocationInfo
+                {
+                    PublicId = storageLocation.PublicId,
+                    Name = storageLocation.Name,
+                    Description = storageLocation.Description,
+                    Color = storageLocation.Color,
+                    IsFreezer = storageLocation.IsFreezer,
+                    IsSharedWithFamily = storageLocation.FamilyId.HasValue
+                };
+            }
+            catch (Exception ex)
+            {
+                await transaction.RollbackAsync();
+                Log.Error(ex, $"Failed to create storage location for user {userId.Value}");
+                throw;
+            }
+        }
+
+        public async Task<StorageLocationInfo> UpdateStorageLocationAsync(Guid storageLocationPublicId, StorageLocationRequest request)
+        {
+            var userId = SessionInfo.GetUserId();
+            if (!userId.HasValue)
+            {
+                Log.Warning("Invalid session: User ID not found");
+                throw new UserNotFoundException("User not found");
+            }
+
+            var storageLocation = GetStorageLocationByPublicId(storageLocationPublicId);
+            if (storageLocation == null)
+            {
+                throw new StorageLocationNotFoundException("Storage location not found");
+            }
+
+            var familyId = SessionInfo.GetFamilyId();
+            if (storageLocation.UserId != userId.Value &&
+                (!familyId.HasValue || storageLocation.FamilyId != familyId.Value))
+            {
+                throw new UnauthorizedException("You don't have permission to update this storage location");
+            }
+
+            var context = new HomassyDbContext();
+            await using var transaction = await context.Database.BeginTransactionAsync();
+
+            try
+            {
+                var trackedLocation = await context.StorageLocations.FindAsync(storageLocation.Id);
+                if (trackedLocation == null)
+                {
+                    throw new StorageLocationNotFoundException("Storage location not found");
+                }
+
+                bool hasChanges = false;
+
+                if (!string.IsNullOrWhiteSpace(request.Name))
+                {
+                    trackedLocation.Name = request.Name.Trim();
+                    hasChanges = true;
+                }
+
+                if (request.Description != null)
+                {
+                    trackedLocation.Description = string.IsNullOrWhiteSpace(request.Description)
+                        ? null
+                        : request.Description.Trim();
+                    hasChanges = true;
+                }
+
+                if (request.Color != null)
+                {
+                    trackedLocation.Color = string.IsNullOrWhiteSpace(request.Color)
+                        ? null
+                        : request.Color.Trim();
+                    hasChanges = true;
+                }
+
+                if (request.IsFreezer.HasValue)
+                {
+                    trackedLocation.IsFreezer = request.IsFreezer.Value;
+                    hasChanges = true;
+                }
+
+                if (request.IsSharedWithFamily.HasValue)
+                {
+                    trackedLocation.FamilyId = request.IsSharedWithFamily.Value && familyId.HasValue
+                        ? familyId
+                        : null;
+                    hasChanges = true;
+                }
+
+                if (hasChanges)
+                {
+                    await context.SaveChangesAsync();
+                    Log.Information($"User {userId.Value} updated storage location {trackedLocation.Id} (PublicId: {trackedLocation.PublicId})");
+                }
+                else
+                {
+                    Log.Debug($"User {userId.Value} attempted to update storage location {trackedLocation.Id} but no changes were made");
+                }
+
+                await transaction.CommitAsync();
+
+                return new StorageLocationInfo
+                {
+                    PublicId = trackedLocation.PublicId,
+                    Name = trackedLocation.Name,
+                    Description = trackedLocation.Description,
+                    Color = trackedLocation.Color,
+                    IsFreezer = trackedLocation.IsFreezer,
+                    IsSharedWithFamily = trackedLocation.FamilyId.HasValue
+                };
+            }
+            catch (Exception ex)
+            {
+                await transaction.RollbackAsync();
+                Log.Error(ex, $"Failed to update storage location {storageLocationPublicId} for user {userId.Value}");
+                throw;
+            }
+        }
+
+        public async Task DeleteShoppingLocationAsync(Guid shoppingLocationPublicId)
+        {
+            var userId = SessionInfo.GetUserId();
+            if (!userId.HasValue)
+            {
+                Log.Warning("Invalid session: User ID not found");
+                throw new UserNotFoundException("User not found");
+            }
+
+            var shoppingLocation = GetShoppingLocationByPublicId(shoppingLocationPublicId);
+            if (shoppingLocation == null)
+            {
+                throw new ShoppingLocationNotFoundException("Shopping location not found");
+            }
+
+            var familyId = SessionInfo.GetFamilyId();
+            if (shoppingLocation.UserId != userId.Value &&
+                (!familyId.HasValue || shoppingLocation.FamilyId != familyId.Value))
+            {
+                throw new UnauthorizedException("You don't have permission to delete this shopping location");
+            }
+
+            var context = new HomassyDbContext();
+            await using var transaction = await context.Database.BeginTransactionAsync();
+
+            try
+            {
+                var trackedLocation = await context.ShoppingLocations.FindAsync(shoppingLocation.Id);
+                if (trackedLocation == null)
+                {
+                    throw new ShoppingLocationNotFoundException("Shopping location not found");
+                }
+
+                trackedLocation.DeleteRekord(userId.Value);
+
+                context.ShoppingLocations.Update(trackedLocation);
+                await context.SaveChangesAsync();
+
+                await transaction.CommitAsync();
+
+                Log.Information($"User {userId.Value} deleted shopping location {shoppingLocation.Id} (PublicId: {shoppingLocation.PublicId})");
+            }
+            catch (Exception ex)
+            {
+                await transaction.RollbackAsync();
+                Log.Error(ex, $"Failed to delete shopping location {shoppingLocationPublicId} for user {userId.Value}");
+                throw;
+            }
+        }
+
+        public async Task DeleteStorageLocationAsync(Guid storageLocationPublicId)
+        {
+            var userId = SessionInfo.GetUserId();
+            if (!userId.HasValue)
+            {
+                Log.Warning("Invalid session: User ID not found");
+                throw new UserNotFoundException("User not found");
+            }
+
+            var storageLocation = GetStorageLocationByPublicId(storageLocationPublicId);
+            if (storageLocation == null)
+            {
+                throw new StorageLocationNotFoundException("Storage location not found");
+            }
+
+            var familyId = SessionInfo.GetFamilyId();
+            if (storageLocation.UserId != userId.Value &&
+                (!familyId.HasValue || storageLocation.FamilyId != familyId.Value))
+            {
+                throw new UnauthorizedException("You don't have permission to delete this storage location");
+            }
+
+            var context = new HomassyDbContext();
+            await using var transaction = await context.Database.BeginTransactionAsync();
+
+            try
+            {
+                var trackedLocation = await context.StorageLocations.FindAsync(storageLocation.Id);
+                if (trackedLocation == null)
+                {
+                    throw new StorageLocationNotFoundException("Storage location not found");
+                }
+
+                trackedLocation.DeleteRekord(userId.Value);
+
+                context.StorageLocations.Update(trackedLocation);
+                await context.SaveChangesAsync();
+
+                await transaction.CommitAsync();
+
+                Log.Information($"User {userId.Value} deleted storage location {storageLocation.Id} (PublicId: {storageLocation.PublicId})");
+            }
+            catch (Exception ex)
+            {
+                await transaction.RollbackAsync();
+                Log.Error(ex, $"Failed to delete storage location {storageLocationPublicId} for user {userId.Value}");
+                throw;
+            }
         }
         #endregion
     }

@@ -1,4 +1,5 @@
 ﻿using Homassy.API.Entities.Common;
+using Homassy.API.Entities.Location;
 using Homassy.API.Enums;
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
@@ -23,7 +24,8 @@ namespace Homassy.API.Entities.Product
         public int? ShoppingLocationId { get; set; }
         public string? ReceiptNumber { get; set; }
 
-        // Navigation
+        // Navigation properties
+        public ShoppingLocation? ShoppingLocation { get; set; }
         public ProductInventoryItem ProductInventoryItem { get; set; } = null!;
     }
 }

@@ -1,4 +1,5 @@
 ﻿using Homassy.API.Context;
+using Homassy.API.Entities.Location;
 using Homassy.API.Entities.Product;
 using Homassy.API.Entities.User;
 using Homassy.API.Exceptions;
@@ -719,7 +720,7 @@ namespace Homassy.API.Functions
 
             try
             {
-                var customization = GetCustomizationByProductAndUser(product.Id, userId.Value);
+                var customization = GetCustomizationByProductAndUser(product.Id, userId.Value);                
 
                 bool newFavoriteStatus;
 

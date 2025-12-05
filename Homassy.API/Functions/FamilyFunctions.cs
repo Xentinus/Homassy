@@ -1,8 +1,9 @@
 ﻿using Homassy.API.Context;
 using Homassy.API.Entities.Family;
+using Homassy.API.Entities.Location;
 using Homassy.API.Entities.User;
-using Homassy.API.Models.Family;
 using Homassy.API.Exceptions;
+using Homassy.API.Models.Family;
 using Microsoft.EntityFrameworkCore;
 using Serilog;
 using System.Collections.Concurrent;
@@ -218,16 +219,23 @@ namespace Homassy.API.Functions
 
         public FamilyDetailsResponse GetFamilyAsync()
         {
-            var familyId = SessionInfo.GetFamilyId();
-            if (!familyId.HasValue)
+            var userId = SessionInfo.GetUserId();
+            if (!userId.HasValue)
+            {
+                Log.Warning("Invalid session: User ID not found");
+                throw new UserNotFoundException("User not found");
+            }
+
+            var user = new UserFunctions().GetUserById(userId.Value);
+            if (user == null || !user.FamilyId.HasValue)
             {
                 throw new FamilyNotFoundException("You are not a member of any family");
             }
 
-            var family = GetFamilyById(familyId.Value);
+            var family = GetFamilyById(user.FamilyId.Value);
             if (family == null)
             {
-                Log.Warning($"Family not found for familyId {familyId.Value}");
+                Log.Warning($"Family not found for familyId {user.FamilyId.Value}");
                 throw new FamilyNotFoundException("Family not found");
             }
 
@@ -244,8 +252,15 @@ namespace Homassy.API.Functions
 
         public async Task UpdateFamilyAsync(UpdateFamilyRequest request)
         {
-            var familyId = SessionInfo.GetFamilyId();
-            if (!familyId.HasValue)
+            var userId = SessionInfo.GetUserId();
+            if (!userId.HasValue)
+            {
+                Log.Warning("Invalid session: User ID not found");
+                throw new UserNotFoundException("User not found");
+            }
+
+            var user = new UserFunctions().GetUserById(userId.Value);
+            if (user == null || !user.FamilyId.HasValue)
             {
                 throw new FamilyNotFoundException("You are not a member of any family");
             }
@@ -254,11 +269,11 @@ namespace Homassy.API.Functions
             await using var transaction = await context.Database.BeginTransactionAsync();
             try
             {
-                var family = GetFamilyById(familyId.Value);
+                var family = GetFamilyById(user.FamilyId.Value);
 
                 if (family == null)
                 {
-                    Log.Warning($"Family not found for familyId {familyId.Value}");
+                    Log.Warning($"Family not found for familyId {user.FamilyId.Value}");
                     throw new FamilyNotFoundException("Family not found");
                 }
 
@@ -294,8 +309,15 @@ namespace Homassy.API.Functions
                 throw new BadRequestException("Family picture data is required");
             }
 
-            var familyId = SessionInfo.GetFamilyId();
-            if (!familyId.HasValue)
+            var userId = SessionInfo.GetUserId();
+            if (!userId.HasValue)
+            {
+                Log.Warning("Invalid session: User ID not found");
+                throw new UserNotFoundException("User not found");
+            }
+
+            var user = new UserFunctions().GetUserById(userId.Value);
+            if (user == null || !user.FamilyId.HasValue)
             {
                 throw new FamilyNotFoundException("You are not a member of any family");
             }
@@ -304,11 +326,11 @@ namespace Homassy.API.Functions
             await using var transaction = await context.Database.BeginTransactionAsync();
             try
             {
-                var family = await context.Families.FindAsync(familyId.Value);
+                var family = await context.Families.FindAsync(user.FamilyId);
 
                 if (family == null)
                 {
-                    Log.Warning($"Family not found for familyId {familyId.Value}");
+                    Log.Warning($"Family not found for familyId {user.FamilyId}");
                     throw new FamilyNotFoundException("Family not found");
                 }
 
@@ -317,7 +339,7 @@ namespace Homassy.API.Functions
                 await context.SaveChangesAsync();
                 await transaction.CommitAsync();
 
-                Log.Information($"User {SessionInfo.GetUserId()} uploaded picture for family {familyId.Value}");
+                Log.Information($"User {SessionInfo.GetUserId()} uploaded picture for family {user.FamilyId}");
             }
             catch (Exception ex)
             {
@@ -329,8 +351,15 @@ namespace Homassy.API.Functions
 
         public async Task DeleteFamilyPictureAsync()
         {
-            var familyId = SessionInfo.GetFamilyId();
-            if (!familyId.HasValue)
+            var userId = SessionInfo.GetUserId();
+            if (!userId.HasValue)
+            {
+                Log.Warning("Invalid session: User ID not found");
+                throw new UserNotFoundException("User not found");
+            }
+
+            var user = new UserFunctions().GetUserById(userId.Value);
+            if (user == null || !user.FamilyId.HasValue)
             {
                 throw new FamilyNotFoundException("You are not a member of any family");
             }
@@ -339,11 +368,11 @@ namespace Homassy.API.Functions
             await using var transaction = await context.Database.BeginTransactionAsync();
             try
             {
-                var family = await context.Families.FindAsync(familyId.Value);
+                var family = await context.Families.FindAsync(user.FamilyId.Value);
 
                 if (family == null)
                 {
-                    Log.Warning($"Family not found for familyId {familyId.Value}");
+                    Log.Warning($"Family not found for familyId {user.FamilyId.Value}");
                     throw new FamilyNotFoundException("Family not found");
                 }
 
@@ -357,7 +386,7 @@ namespace Homassy.API.Functions
                 await context.SaveChangesAsync();
                 await transaction.CommitAsync();
 
-                Log.Information($"User {SessionInfo.GetUserId()} deleted picture for family {familyId.Value}");
+                Log.Information($"User {SessionInfo.GetUserId()} deleted picture for family {user.FamilyId.Value}");
             }
             catch (Exception ex)
             {

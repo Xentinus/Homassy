@@ -1,16 +1,13 @@
-﻿using Homassy.API.Entities.Common;
+﻿using Homassy.API.Entities.Product;
 using System.ComponentModel.DataAnnotations;
 
 namespace Homassy.API.Entities.Location
 {
-    public class StorageLocation : RecordChangeEntity
+    public class StorageLocation  : LocationBase
     {
-        public int? FamilyId { get; set; }
-        public int? UserId { get; set; }
-        [StringLength(128, MinimumLength = 4)]
-        public required string Name { get; set; }
-        [StringLength(255)]
-        public string? Description { get; set; }
-        public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+        public bool IsFreezer { get; set; } = false;
+
+        // Navigation properties
+        public ICollection<ProductInventoryItem>? InventoryItems { get; set; }
     }
 }

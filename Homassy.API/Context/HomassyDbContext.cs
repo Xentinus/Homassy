@@ -4,8 +4,10 @@ using Homassy.API.Entities.Location;
 using Homassy.API.Entities.Product;
 using Homassy.API.Entities.ShoppingList;
 using Homassy.API.Entities.User;
+using Homassy.API.Models.Common;
 using Microsoft.EntityFrameworkCore;
 using System.Linq.Expressions;
+using System.Text.Json;
 
 namespace Homassy.API.Context
 {
@@ -76,7 +78,7 @@ namespace Homassy.API.Context
                 }
             }
 
-            // Configure User relationships
+            #region User Relationships
             modelBuilder.Entity<User>()
                 .HasOne(u => u.Profile)
                 .WithOne(p => p.User)
@@ -94,8 +96,9 @@ namespace Homassy.API.Context
                 .WithOne(n => n.User)
                 .HasForeignKey<UserNotificationPreferences>(n => n.UserId)
                 .OnDelete(DeleteBehavior.Cascade);
+            #endregion
 
-            // Configure Product relationships
+            #region Product Relationships
             modelBuilder.Entity<Product>()
                 .HasMany(p => p.Customizations)
                 .WithOne(c => c.Product)
@@ -119,9 +122,21 @@ namespace Homassy.API.Context
                 .WithOne(l => l.ProductInventoryItem)
                 .HasForeignKey(l => l.ProductInventoryItemId)
                 .OnDelete(DeleteBehavior.Cascade);
+
+            modelBuilder.Entity<ProductInventoryItem>()
+                .HasOne(i => i.StorageLocation)
+                .WithMany(s => s.InventoryItems)
+                .HasForeignKey(i => i.StorageLocationId)
+                .OnDelete(DeleteBehavior.SetNull);
+
+            modelBuilder.Entity<ProductPurchaseInfo>()
+                .HasOne(p => p.ShoppingLocation)
+                .WithMany(s => s.Purchases)
+                .HasForeignKey(p => p.ShoppingLocationId)
+                .OnDelete(DeleteBehavior.SetNull);
+            #endregion
         }
 
-        // Update record change tracking before saving
         public override Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)
         {
             UpdateRecordChanges();
@@ -147,21 +162,31 @@ namespace Homassy.API.Context
         }
 
         // DbSets
-        public DbSet<Family> Families { get; set; }
+        public DbSet<TableRecordChange> TableRecordChanges { get; set; }
+
+        #region User Related DbSets
         public DbSet<User> Users { get; set; }
         public DbSet<UserProfile> UserProfiles { get; set; }
         public DbSet<UserAuthentication> UserAuthentications { get; set; }
         public DbSet<UserNotificationPreferences> UserNotificationPreferences { get; set; }
+        public DbSet<Family> Families { get; set; }
+        #endregion
 
+        #region Product Related DbSets
         public DbSet<Product> Products { get; set; }
         public DbSet<ProductInventoryItem> ProductInventoryItems { get; set; }
         public DbSet<ProductPurchaseInfo> ProductPurchaseInfos { get; set; }
         public DbSet<ProductConsumptionLog> ProductConsumptionLogs { get; set; }
         public DbSet<ProductCustomization> ProductCustomizations { get; set; }
+        #endregion
 
-        public DbSet<ShoppingListItem> ShoppingListItems { get; set; }
+        #region Location Related DbSets
         public DbSet<ShoppingLocation> ShoppingLocations { get; set; }
         public DbSet<StorageLocation> StorageLocations { get; set; }
-        public DbSet<TableRecordChange> TableRecordChanges { get; set; }
+        #endregion
+
+        #region Shopping list Related DbSets
+        public DbSet<ShoppingListItem> ShoppingListItems { get; set; }
+        #endregion
     }
 }
