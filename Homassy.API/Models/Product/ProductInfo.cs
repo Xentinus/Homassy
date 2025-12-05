@@ -9,5 +9,6 @@
         public string? Barcode { get; set; }
         public string? ProductPictureBase64 { get; set; }
         public bool IsEatable { get; set; }
+        public bool IsFavorite { get; set; } = false;
     }
 }

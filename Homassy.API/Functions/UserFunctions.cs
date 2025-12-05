@@ -993,8 +993,6 @@ namespace Homassy.API.Functions
             var timezone = profile?.DefaultTimeZone ?? UserTimeZone.CentralEuropeStandardTime;
 
             await EmailService.SendVerificationCodeAsync(user.Email, code, timezone);
-
-            Log.Information($"Verification code sent to {normalizedEmail}");
         }
 
         public async Task<AuthResponse> VerifyCodeAsync(string email, string code)

@@ -457,6 +457,7 @@ namespace Homassy.API.Functions
         #region Product Methods
         public List<ProductInfo> GetAllProducts()
         {
+            var userId = SessionInfo.GetUserId();
             List<Product> products;
 
             if (Inited)
@@ -471,15 +472,21 @@ namespace Homassy.API.Functions
                     .ToList();
             }
 
-            return products.Select(p => new ProductInfo
+            return products.Select(p =>
             {
-                PublicId = p.PublicId,
-                Name = p.Name,
-                Brand = p.Brand,
-                Category = p.Category,
-                Barcode = p.Barcode,
-                ProductPictureBase64 = p.ProductPictureBase64,
-                IsEatable = p.IsEatable
+                var customization = userId.HasValue ? GetCustomizationByProductAndUser(p.Id, userId.Value) : null;
+
+                return new ProductInfo
+                {
+                    PublicId = p.PublicId,
+                    Name = p.Name,
+                    Brand = p.Brand,
+                    Category = p.Category,
+                    Barcode = p.Barcode,
+                    ProductPictureBase64 = p.ProductPictureBase64,
+                    IsEatable = p.IsEatable,
+                    IsFavorite = customization?.IsFavorite ?? false
+                };
             }).ToList();
         }
 
@@ -510,6 +517,8 @@ namespace Homassy.API.Functions
                 context.Products.Add(product);
                 await context.SaveChangesAsync();
 
+                bool isFavorite = false;
+
                 // Create ProductCustomization if Notes or IsFavorite are set
                 if (!string.IsNullOrWhiteSpace(request.Notes) || request.IsFavorite)
                 {
@@ -523,6 +532,8 @@ namespace Homassy.API.Functions
 
                     context.ProductCustomizations.Add(customization);
                     await context.SaveChangesAsync();
+
+                    isFavorite = request.IsFavorite;
 
                     Log.Information($"User {userId} created product {product.Id} (PublicId: {product.PublicId}) with customization");
                 }
@@ -541,7 +552,8 @@ namespace Homassy.API.Functions
                     Category = product.Category,
                     Barcode = product.Barcode,
                     ProductPictureBase64 = product.ProductPictureBase64,
-                    IsEatable = product.IsEatable
+                    IsEatable = product.IsEatable,
+                    IsFavorite = isFavorite
                 };
             }
             catch (Exception ex)
@@ -629,6 +641,8 @@ namespace Homassy.API.Functions
 
                 await transaction.CommitAsync();
 
+                var customization = GetCustomizationByProductAndUser(product.Id, userId.Value);
+
                 return new ProductInfo
                 {
                     PublicId = product.PublicId,
@@ -637,7 +651,8 @@ namespace Homassy.API.Functions
                     Category = product.Category,
                     Barcode = product.Barcode,
                     ProductPictureBase64 = product.ProductPictureBase64,
-                    IsEatable = product.IsEatable
+                    IsEatable = product.IsEatable,
+                    IsFavorite = customization?.IsFavorite ?? false
                 };
             }
             catch (Exception ex)
@@ -682,6 +697,218 @@ namespace Homassy.API.Functions
                 Log.Error(ex, $"Failed to delete product {productPublicId} for user {userId}");
                 throw;
             }
+        }
+
+        public async Task<ProductInfo> ToggleFavoriteAsync(Guid productPublicId)
+        {
+            var userId = SessionInfo.GetUserId();
+            if (!userId.HasValue)
+            {
+                Log.Warning("Invalid session: User ID not found");
+                throw new UserNotFoundException("User not found");
+            }
+
+            var product = GetProductByPublicId(productPublicId);
+            if (product == null)
+            {
+                throw new ProductNotFoundException();
+            }
+
+            var context = new HomassyDbContext();
+            await using var transaction = await context.Database.BeginTransactionAsync();
+
+            try
+            {
+                var customization = GetCustomizationByProductAndUser(product.Id, userId.Value);
+
+                bool newFavoriteStatus;
+
+                if (customization == null)
+                {
+                    customization = new ProductCustomization
+                    {
+                        ProductId = product.Id,
+                        UserId = userId.Value,
+                        IsFavorite = true
+                    };
+
+                    context.ProductCustomizations.Add(customization);
+                    newFavoriteStatus = true;
+
+                    Log.Information($"User {userId} created customization for product {product.Id} with favorite status true");
+                }
+                else
+                {
+                    customization.IsFavorite = !customization.IsFavorite;
+                    context.ProductCustomizations.Update(customization);
+                    newFavoriteStatus = customization.IsFavorite;
+
+                    Log.Information($"User {userId} toggled favorite status for product {product.Id} to {newFavoriteStatus}");
+                }
+
+                await context.SaveChangesAsync();
+                await transaction.CommitAsync();
+
+                return new ProductInfo
+                {
+                    PublicId = product.PublicId,
+                    Name = product.Name,
+                    Brand = product.Brand,
+                    Category = product.Category,
+                    Barcode = product.Barcode,
+                    ProductPictureBase64 = product.ProductPictureBase64,
+                    IsEatable = product.IsEatable,
+                    IsFavorite = newFavoriteStatus
+                };
+            }
+            catch (Exception ex)
+            {
+                await transaction.RollbackAsync();
+                Log.Error(ex, $"Failed to toggle favorite for product {productPublicId} for user {userId}");
+                throw;
+            }
+        }
+
+        public DetailedProductInfo? GetDetailedProductInfo(Guid productPublicId)
+        {
+            var userId = SessionInfo.GetUserId();
+            if (!userId.HasValue)
+            {
+                Log.Warning("Invalid session: User ID not found");
+                throw new UserNotFoundException("User not found");
+            }
+
+            var product = GetProductByPublicId(productPublicId);
+            if (product == null)
+            {
+                return null;
+            }
+
+            var customization = GetCustomizationByProductAndUser(product.Id, userId.Value);
+            var inventoryItems = GetInventoryItemsByProductId(product.Id, includeConsumed: false);
+
+            var inventoryItemInfos = inventoryItems.Select(item =>
+            {
+                var purchaseInfo = GetPurchaseInfoByInventoryItemId(item.Id);
+                var consumptionLogs = GetConsumptionLogsByInventoryItemId(item.Id);
+
+                return new InventoryItemInfo
+                {
+                    PublicId = item.PublicId,
+                    CurrentQuantity = item.CurrentQuantity,
+                    Unit = item.Unit,
+                    ExpirationAt = item.ExpirationAt,
+                    PurchaseInfo = purchaseInfo != null ? new PurchaseInfo
+                    {
+                        PublicId = purchaseInfo.PublicId,
+                        PurchasedAt = purchaseInfo.PurchasedAt,
+                        OriginalQuantity = purchaseInfo.OriginalQuantity,
+                        Price = purchaseInfo.Price,
+                        Currency = purchaseInfo.Currency,
+                        ShoppingLocationId = purchaseInfo.ShoppingLocationId
+                    } : null,
+                    ConsumptionLogs = consumptionLogs.Select(log =>
+                    {
+                        var user = log.UserId.HasValue ? new UserFunctions().GetUserById(log.UserId.Value) : null;
+
+                        return new ConsumptionLogInfo
+                        {
+                            PublicId = log.PublicId,
+                            UserName = user?.Name,
+                            ConsumedQuantity = log.ConsumedQuantity,
+                            RemainingQuantity = log.RemainingQuantity,
+                            ConsumedAt = log.ConsumedAt
+                        };
+                    }).ToList()
+                };
+            }).ToList();
+
+            return new DetailedProductInfo
+            {
+                PublicId = product.PublicId,
+                Name = product.Name,
+                Brand = product.Brand,
+                Category = product.Category,
+                Barcode = product.Barcode,
+                ProductPictureBase64 = product.ProductPictureBase64,
+                IsEatable = product.IsEatable,
+                IsFavorite = customization?.IsFavorite ?? false,
+                InventoryItems = inventoryItemInfos
+            };
+        }
+
+        public List<DetailedProductInfo> GetAllDetailedProductsForUser()
+        {
+            var userId = SessionInfo.GetUserId();
+            if (!userId.HasValue)
+            {
+                Log.Warning("Invalid session: User ID not found");
+                throw new UserNotFoundException("User not found");
+            }
+
+            var familyId = SessionInfo.GetFamilyId();
+
+            var products = GetProductsByUserAndFamily(userId.Value, familyId);
+
+            return products.Select(product =>
+            {
+                var customization = GetCustomizationByProductAndUser(product.Id, userId.Value);
+                var allInventoryItems = GetInventoryItemsByProductId(product.Id, includeConsumed: false);
+
+                var userInventoryItems = allInventoryItems
+                    .Where(item => item.UserId == userId.Value ||
+                                  (familyId.HasValue && item.FamilyId == familyId.Value))
+                    .ToList();
+
+                var inventoryItemInfos = userInventoryItems.Select(item =>
+                {
+                    var purchaseInfo = GetPurchaseInfoByInventoryItemId(item.Id);
+                    var consumptionLogs = GetConsumptionLogsByInventoryItemId(item.Id);
+
+                    return new InventoryItemInfo
+                    {
+                        PublicId = item.PublicId,
+                        CurrentQuantity = item.CurrentQuantity,
+                        Unit = item.Unit,
+                        ExpirationAt = item.ExpirationAt,
+                        PurchaseInfo = purchaseInfo != null ? new PurchaseInfo
+                        {
+                            PublicId = purchaseInfo.PublicId,
+                            PurchasedAt = purchaseInfo.PurchasedAt,
+                            OriginalQuantity = purchaseInfo.OriginalQuantity,
+                            Price = purchaseInfo.Price,
+                            Currency = purchaseInfo.Currency,
+                            ShoppingLocationId = purchaseInfo.ShoppingLocationId
+                        } : null,
+                        ConsumptionLogs = consumptionLogs.Select(log =>
+                        {
+                            var user = log.UserId.HasValue ? new UserFunctions().GetUserById(log.UserId.Value) : null;
+
+                            return new ConsumptionLogInfo
+                            {
+                                PublicId = log.PublicId,
+                                UserName = user?.Name,
+                                ConsumedQuantity = log.ConsumedQuantity,
+                                RemainingQuantity = log.RemainingQuantity,
+                                ConsumedAt = log.ConsumedAt
+                            };
+                        }).ToList()
+                    };
+                }).ToList();
+
+                return new DetailedProductInfo
+                {
+                    PublicId = product.PublicId,
+                    Name = product.Name,
+                    Brand = product.Brand,
+                    Category = product.Category,
+                    Barcode = product.Barcode,
+                    ProductPictureBase64 = product.ProductPictureBase64,
+                    IsEatable = product.IsEatable,
+                    IsFavorite = customization?.IsFavorite ?? false,
+                    InventoryItems = inventoryItemInfos
+                };
+            }).ToList();
         }
         #endregion
     }
