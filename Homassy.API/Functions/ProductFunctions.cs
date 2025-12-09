@@ -684,7 +684,7 @@ namespace Homassy.API.Functions
 
             try
             {
-                product.DeleteRekord(userId.Value);
+                product.DeleteRecord(userId.Value);
 
                 context.Products.Update(product);
                 await context.SaveChangesAsync();

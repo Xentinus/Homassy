@@ -739,7 +739,7 @@ namespace Homassy.API.Functions
                     throw new ShoppingLocationNotFoundException("Shopping location not found");
                 }
 
-                trackedLocation.DeleteRekord(userId.Value);
+                trackedLocation.DeleteRecord(userId.Value);
 
                 context.ShoppingLocations.Update(trackedLocation);
                 await context.SaveChangesAsync();
@@ -789,7 +789,7 @@ namespace Homassy.API.Functions
                     throw new StorageLocationNotFoundException("Storage location not found");
                 }
 
-                trackedLocation.DeleteRekord(userId.Value);
+                trackedLocation.DeleteRecord(userId.Value);
 
                 context.StorageLocations.Update(trackedLocation);
                 await context.SaveChangesAsync();

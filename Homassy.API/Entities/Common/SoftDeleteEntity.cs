@@ -3,7 +3,7 @@
     public class SoftDeleteEntity : BaseEntity
     {
         public bool IsDeleted { get; set; } = false;
-        public void DeleteRekord()
+        public void DeleteRecord()
         {
             IsDeleted = true;
         }

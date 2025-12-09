@@ -17,6 +17,7 @@
         public const string ShoppingLocations = "ShoppingLocations";
         public const string StorageLocations = "StorageLocations";
 
+        public const string ShoppingLists = "ShoppingLists";
         public const string ShoppingListItems = "ShoppingListItems";
     }
 }

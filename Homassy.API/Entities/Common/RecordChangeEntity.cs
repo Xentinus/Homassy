@@ -16,7 +16,7 @@ namespace Homassy.API.Entities.Common
             });
         }
 
-        public void DeleteRekord(int? modifiedBy = null)
+        public void DeleteRecord(int? modifiedBy = null)
         {
             IsDeleted = true;
             UpdateRecordChange(modifiedBy);

@@ -135,6 +135,14 @@ namespace Homassy.API.Context
                 .HasForeignKey(p => p.ShoppingLocationId)
                 .OnDelete(DeleteBehavior.SetNull);
             #endregion
+
+            #region ShoppingList Relationships
+            modelBuilder.Entity<ShoppingList>()
+                .HasMany(sl => sl.Items)
+                .WithOne(sli => sli.ShoppingList)
+                .HasForeignKey(sli => sli.ShoppingListId)
+                .OnDelete(DeleteBehavior.Cascade);
+            #endregion
         }
 
         public override Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)
@@ -186,6 +194,7 @@ namespace Homassy.API.Context
         #endregion
 
         #region Shopping list Related DbSets
+        public DbSet<ShoppingList> ShoppingLists { get; set; }
         public DbSet<ShoppingListItem> ShoppingListItems { get; set; }
         #endregion
     }
