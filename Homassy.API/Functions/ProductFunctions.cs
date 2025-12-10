@@ -912,5 +912,509 @@ namespace Homassy.API.Functions
             }).ToList();
         }
         #endregion
+
+        #region InventoryItem Methods
+        public async Task<InventoryItemInfo> CreateInventoryItemAsync(CreateInventoryItemRequest request)
+        {
+            var userId = SessionInfo.GetUserId();
+            if (!userId.HasValue)
+            {
+                Log.Warning("Invalid session: User ID not found");
+                throw new UserNotFoundException("User not found");
+            }
+
+            var familyId = SessionInfo.GetFamilyId();
+            var product = GetProductByPublicId(request.ProductPublicId);
+            if (product == null)
+            {
+                throw new ProductNotFoundException();
+            }
+
+            var locationFunctions = new LocationFunctions();
+            int? storageLocationId = null;
+            int? shoppingLocationId = null;
+
+            if (request.StorageLocationPublicId.HasValue)
+            {
+                var storageLocation = locationFunctions.GetStorageLocationByPublicId(request.StorageLocationPublicId.Value);
+                if (storageLocation == null)
+                {
+                    throw new StorageLocationNotFoundException("Storage location not found");
+                }
+                storageLocationId = storageLocation.Id;
+            }
+
+            if (request.ShoppingLocationPublicId.HasValue)
+            {
+                var shoppingLocation = locationFunctions.GetShoppingLocationByPublicId(request.ShoppingLocationPublicId.Value);
+                if (shoppingLocation == null)
+                {
+                    throw new ShoppingLocationNotFoundException("Shopping location not found");
+                }
+                shoppingLocationId = shoppingLocation.Id;
+            }
+
+            var userProfile = new UserFunctions().GetUserProfileByUserId(userId.Value);
+            var currency = request.Currency ?? userProfile?.DefaultCurrency;
+
+            var context = new HomassyDbContext();
+            await using var transaction = await context.Database.BeginTransactionAsync();
+
+            try
+            {
+                var inventoryItem = new ProductInventoryItem
+                {
+                    ProductId = product.Id,
+                    UserId = request.IsSharedWithFamily && familyId.HasValue ? null : userId.Value,
+                    FamilyId = request.IsSharedWithFamily && familyId.HasValue ? familyId : null,
+                    StorageLocationId = storageLocationId,
+                    CurrentQuantity = request.Quantity,
+                    Unit = request.Unit,
+                    ExpirationAt = request.ExpirationAt
+                };
+
+                context.ProductInventoryItems.Add(inventoryItem);
+                await context.SaveChangesAsync();
+
+                ProductPurchaseInfo? purchaseInfo = null;
+                if (request.Price.HasValue || request.ShoppingLocationPublicId.HasValue || !string.IsNullOrWhiteSpace(request.ReceiptNumber))
+                {
+                    purchaseInfo = new ProductPurchaseInfo
+                    {
+                        ProductInventoryItemId = inventoryItem.Id,
+                        OriginalQuantity = request.Quantity,
+                        Price = request.Price,
+                        Currency = currency,
+                        ShoppingLocationId = shoppingLocationId,
+                        ReceiptNumber = request.ReceiptNumber?.Trim()
+                    };
+
+                    context.ProductPurchaseInfos.Add(purchaseInfo);
+                    await context.SaveChangesAsync();
+                }
+
+                await transaction.CommitAsync();
+
+                Log.Information($"User {userId} created inventory item {inventoryItem.Id} (PublicId: {inventoryItem.PublicId}) for product {product.Id}");
+
+                return new InventoryItemInfo
+                {
+                    PublicId = inventoryItem.PublicId,
+                    CurrentQuantity = inventoryItem.CurrentQuantity,
+                    Unit = inventoryItem.Unit,
+                    ExpirationAt = inventoryItem.ExpirationAt,
+                    PurchaseInfo = purchaseInfo != null ? new PurchaseInfo
+                    {
+                        PublicId = purchaseInfo.PublicId,
+                        PurchasedAt = purchaseInfo.PurchasedAt,
+                        OriginalQuantity = purchaseInfo.OriginalQuantity,
+                        Price = purchaseInfo.Price,
+                        Currency = purchaseInfo.Currency,
+                        ShoppingLocationId = purchaseInfo.ShoppingLocationId
+                    } : null,
+                    ConsumptionLogs = new List<ConsumptionLogInfo>()
+                };
+            }
+            catch (Exception ex)
+            {
+                await transaction.RollbackAsync();
+                Log.Error(ex, $"Failed to create inventory item for user {userId}");
+                throw;
+            }
+        }
+
+        public async Task<InventoryItemInfo> QuickAddInventoryItemAsync(QuickAddInventoryItemRequest request)
+        {
+            var userId = SessionInfo.GetUserId();
+            if (!userId.HasValue)
+            {
+                Log.Warning("Invalid session: User ID not found");
+                throw new UserNotFoundException("User not found");
+            }
+
+            var familyId = SessionInfo.GetFamilyId();
+            var product = GetProductByPublicId(request.ProductPublicId);
+            if (product == null)
+            {
+                throw new ProductNotFoundException();
+            }
+
+            var context = new HomassyDbContext();
+            await using var transaction = await context.Database.BeginTransactionAsync();
+
+            try
+            {
+                var inventoryItem = new ProductInventoryItem
+                {
+                    ProductId = product.Id,
+                    UserId = request.IsSharedWithFamily && familyId.HasValue ? null : userId.Value,
+                    FamilyId = request.IsSharedWithFamily && familyId.HasValue ? familyId : null,
+                    CurrentQuantity = request.Quantity,
+                    Unit = request.Unit
+                };
+
+                context.ProductInventoryItems.Add(inventoryItem);
+                await context.SaveChangesAsync();
+                await transaction.CommitAsync();
+
+                Log.Information($"User {userId} quick-added inventory item {inventoryItem.Id} (PublicId: {inventoryItem.PublicId}) for product {product.Id}");
+
+                return new InventoryItemInfo
+                {
+                    PublicId = inventoryItem.PublicId,
+                    CurrentQuantity = inventoryItem.CurrentQuantity,
+                    Unit = inventoryItem.Unit,
+                    ExpirationAt = inventoryItem.ExpirationAt,
+                    PurchaseInfo = null,
+                    ConsumptionLogs = new List<ConsumptionLogInfo>()
+                };
+            }
+            catch (Exception ex)
+            {
+                await transaction.RollbackAsync();
+                Log.Error(ex, $"Failed to quick-add inventory item for user {userId}");
+                throw;
+            }
+        }
+
+        public async Task<InventoryItemInfo> UpdateInventoryItemAsync(Guid inventoryItemPublicId, UpdateInventoryItemRequest request)
+        {
+            var userId = SessionInfo.GetUserId();
+            if (!userId.HasValue)
+            {
+                Log.Warning("Invalid session: User ID not found");
+                throw new UserNotFoundException("User not found");
+            }
+
+            var familyId = SessionInfo.GetFamilyId();
+            var inventoryItem = GetInventoryItemByPublicId(inventoryItemPublicId);
+            if (inventoryItem == null)
+            {
+                throw new ProductInventoryItemNotFoundException();
+            }
+
+            if (inventoryItem.UserId != userId.Value && 
+                (!familyId.HasValue || inventoryItem.FamilyId != familyId.Value))
+            {
+                throw new UnauthorizedException("You don't have permission to update this inventory item");
+            }
+
+            var locationFunctions = new LocationFunctions();
+            var context = new HomassyDbContext();
+            await using var transaction = await context.Database.BeginTransactionAsync();
+
+            try
+            {
+                var trackedItem = await context.ProductInventoryItems.FindAsync(inventoryItem.Id);
+                if (trackedItem == null)
+                {
+                    throw new ProductInventoryItemNotFoundException();
+                }
+
+                bool hasChanges = false;
+
+                if (request.StorageLocationPublicId.HasValue)
+                {
+                    var storageLocation = locationFunctions.GetStorageLocationByPublicId(request.StorageLocationPublicId.Value);
+                    if (storageLocation == null)
+                    {
+                        throw new StorageLocationNotFoundException("Storage location not found");
+                    }
+                    trackedItem.StorageLocationId = storageLocation.Id;
+                    hasChanges = true;
+                }
+
+                if (request.Quantity.HasValue)
+                {
+                    trackedItem.CurrentQuantity = request.Quantity.Value;
+                    hasChanges = true;
+                }
+
+                if (request.Unit.HasValue)
+                {
+                    trackedItem.Unit = request.Unit.Value;
+                    hasChanges = true;
+                }
+
+                if (request.ExpirationAt.HasValue)
+                {
+                    trackedItem.ExpirationAt = request.ExpirationAt.Value;
+                    hasChanges = true;
+                }
+
+                if (request.IsSharedWithFamily.HasValue)
+                {
+                    if (request.IsSharedWithFamily.Value && familyId.HasValue)
+                    {
+                        trackedItem.UserId = null;
+                        trackedItem.FamilyId = familyId;
+                    }
+                    else
+                    {
+                        trackedItem.UserId = userId.Value;
+                        trackedItem.FamilyId = null;
+                    }
+                    hasChanges = true;
+                }
+
+                var purchaseInfo = GetPurchaseInfoByInventoryItemId(inventoryItem.Id);
+                bool hasPurchaseChanges = request.Price.HasValue || request.Currency.HasValue || 
+                                          request.ShoppingLocationPublicId.HasValue || request.ReceiptNumber != null;
+
+                if (hasPurchaseChanges)
+                {
+                    if (purchaseInfo == null)
+                    {
+                        var userProfile = new UserFunctions().GetUserProfileByUserId(userId.Value);
+                        purchaseInfo = new ProductPurchaseInfo
+                        {
+                            ProductInventoryItemId = inventoryItem.Id,
+                            OriginalQuantity = trackedItem.CurrentQuantity,
+                            Price = request.Price,
+                            Currency = request.Currency ?? userProfile?.DefaultCurrency,
+                            ReceiptNumber = request.ReceiptNumber?.Trim()
+                        };
+
+                        if (request.ShoppingLocationPublicId.HasValue)
+                        {
+                            var shoppingLocation = locationFunctions.GetShoppingLocationByPublicId(request.ShoppingLocationPublicId.Value);
+                            if (shoppingLocation == null)
+                            {
+                                throw new ShoppingLocationNotFoundException("Shopping location not found");
+                            }
+                            purchaseInfo.ShoppingLocationId = shoppingLocation.Id;
+                        }
+
+                        context.ProductPurchaseInfos.Add(purchaseInfo);
+                    }
+                    else
+                    {
+                        var trackedPurchase = await context.ProductPurchaseInfos.FindAsync(purchaseInfo.Id);
+                        if (trackedPurchase != null)
+                        {
+                            if (request.Price.HasValue)
+                                trackedPurchase.Price = request.Price.Value;
+                            if (request.Currency.HasValue)
+                                trackedPurchase.Currency = request.Currency.Value;
+                            if (request.ReceiptNumber != null)
+                                trackedPurchase.ReceiptNumber = string.IsNullOrWhiteSpace(request.ReceiptNumber) ? null : request.ReceiptNumber.Trim();
+                            if (request.ShoppingLocationPublicId.HasValue)
+                            {
+                                var shoppingLocation = locationFunctions.GetShoppingLocationByPublicId(request.ShoppingLocationPublicId.Value);
+                                if (shoppingLocation == null)
+                                {
+                                    throw new ShoppingLocationNotFoundException("Shopping location not found");
+                                }
+                                trackedPurchase.ShoppingLocationId = shoppingLocation.Id;
+                            }
+                            purchaseInfo = trackedPurchase;
+                        }
+                    }
+                    hasChanges = true;
+                }
+
+                if (hasChanges)
+                {
+                    await context.SaveChangesAsync();
+                    Log.Information($"User {userId} updated inventory item {trackedItem.Id} (PublicId: {trackedItem.PublicId})");
+                }
+
+                await transaction.CommitAsync();
+
+                var consumptionLogs = GetConsumptionLogsByInventoryItemId(trackedItem.Id);
+
+                return new InventoryItemInfo
+                {
+                    PublicId = trackedItem.PublicId,
+                    CurrentQuantity = trackedItem.CurrentQuantity,
+                    Unit = trackedItem.Unit,
+                    ExpirationAt = trackedItem.ExpirationAt,
+                    PurchaseInfo = purchaseInfo != null ? new PurchaseInfo
+                    {
+                        PublicId = purchaseInfo.PublicId,
+                        PurchasedAt = purchaseInfo.PurchasedAt,
+                        OriginalQuantity = purchaseInfo.OriginalQuantity,
+                        Price = purchaseInfo.Price,
+                        Currency = purchaseInfo.Currency,
+                        ShoppingLocationId = purchaseInfo.ShoppingLocationId
+                    } : null,
+                    ConsumptionLogs = consumptionLogs.Select(log =>
+                    {
+                        var user = log.UserId.HasValue ? new UserFunctions().GetUserById(log.UserId.Value) : null;
+                        return new ConsumptionLogInfo
+                        {
+                            PublicId = log.PublicId,
+                            UserName = user?.Name,
+                            ConsumedQuantity = log.ConsumedQuantity,
+                            RemainingQuantity = log.RemainingQuantity,
+                            ConsumedAt = log.ConsumedAt
+                        };
+                    }).ToList()
+                };
+            }
+            catch (Exception ex)
+            {
+                await transaction.RollbackAsync();
+                Log.Error(ex, $"Failed to update inventory item {inventoryItemPublicId} for user {userId}");
+                throw;
+            }
+        }
+
+        public async Task DeleteInventoryItemAsync(Guid inventoryItemPublicId)
+        {
+            var userId = SessionInfo.GetUserId();
+            if (!userId.HasValue)
+            {
+                Log.Warning("Invalid session: User ID not found");
+                throw new UserNotFoundException("User not found");
+            }
+
+            var familyId = SessionInfo.GetFamilyId();
+            var inventoryItem = GetInventoryItemByPublicId(inventoryItemPublicId);
+            if (inventoryItem == null)
+            {
+                throw new ProductInventoryItemNotFoundException();
+            }
+
+            if (inventoryItem.UserId != userId.Value && 
+                (!familyId.HasValue || inventoryItem.FamilyId != familyId.Value))
+            {
+                throw new UnauthorizedException("You don't have permission to delete this inventory item");
+            }
+
+            var context = new HomassyDbContext();
+            await using var transaction = await context.Database.BeginTransactionAsync();
+
+            try
+            {
+                var trackedItem = await context.ProductInventoryItems.FindAsync(inventoryItem.Id);
+                if (trackedItem == null)
+                {
+                    throw new ProductInventoryItemNotFoundException();
+                }
+
+                trackedItem.DeleteRecord(userId.Value);
+
+                context.ProductInventoryItems.Update(trackedItem);
+                await context.SaveChangesAsync();
+                await transaction.CommitAsync();
+
+                Log.Information($"User {userId} deleted inventory item {inventoryItem.Id} (PublicId: {inventoryItem.PublicId})");
+            }
+            catch (Exception ex)
+            {
+                await transaction.RollbackAsync();
+                Log.Error(ex, $"Failed to delete inventory item {inventoryItemPublicId} for user {userId}");
+                throw;
+            }
+        }
+
+        public async Task<InventoryItemInfo> ConsumeInventoryItemAsync(Guid inventoryItemPublicId, ConsumeInventoryItemRequest request)
+        {
+            var userId = SessionInfo.GetUserId();
+            if (!userId.HasValue)
+            {
+                Log.Warning("Invalid session: User ID not found");
+                throw new UserNotFoundException("User not found");
+            }
+
+            var familyId = SessionInfo.GetFamilyId();
+            var inventoryItem = GetInventoryItemByPublicId(inventoryItemPublicId);
+            if (inventoryItem == null)
+            {
+                throw new ProductInventoryItemNotFoundException();
+            }
+
+            if (inventoryItem.UserId != userId.Value && 
+                (!familyId.HasValue || inventoryItem.FamilyId != familyId.Value))
+            {
+                throw new UnauthorizedException("You don't have permission to consume this inventory item");
+            }
+
+            if (inventoryItem.IsFullyConsumed)
+            {
+                throw new BadRequestException("This inventory item is already fully consumed");
+            }
+
+            if (request.Quantity > inventoryItem.CurrentQuantity)
+            {
+                throw new BadRequestException($"Cannot consume more than available quantity ({inventoryItem.CurrentQuantity})");
+            }
+
+            var context = new HomassyDbContext();
+            await using var transaction = await context.Database.BeginTransactionAsync();
+
+            try
+            {
+                var trackedItem = await context.ProductInventoryItems.FindAsync(inventoryItem.Id);
+                if (trackedItem == null)
+                {
+                    throw new ProductInventoryItemNotFoundException();
+                }
+
+                var remainingQuantity = trackedItem.CurrentQuantity - request.Quantity;
+
+                var consumptionLog = new ProductConsumptionLog
+                {
+                    ProductInventoryItemId = trackedItem.Id,
+                    UserId = userId.Value,
+                    ConsumedQuantity = request.Quantity,
+                    RemainingQuantity = remainingQuantity
+                };
+
+                context.ProductConsumptionLogs.Add(consumptionLog);
+
+                trackedItem.CurrentQuantity = remainingQuantity;
+                if (remainingQuantity <= 0)
+                {
+                    trackedItem.IsFullyConsumed = true;
+                    trackedItem.FullyConsumedAt = DateTime.UtcNow;
+                }
+
+                await context.SaveChangesAsync();
+                await transaction.CommitAsync();
+
+                Log.Information($"User {userId} consumed {request.Quantity} from inventory item {trackedItem.Id} (PublicId: {trackedItem.PublicId}), remaining: {remainingQuantity}");
+
+                var purchaseInfo = GetPurchaseInfoByInventoryItemId(trackedItem.Id);
+                var consumptionLogs = GetConsumptionLogsByInventoryItemId(trackedItem.Id);
+
+                return new InventoryItemInfo
+                {
+                    PublicId = trackedItem.PublicId,
+                    CurrentQuantity = trackedItem.CurrentQuantity,
+                    Unit = trackedItem.Unit,
+                    ExpirationAt = trackedItem.ExpirationAt,
+                    PurchaseInfo = purchaseInfo != null ? new PurchaseInfo
+                    {
+                        PublicId = purchaseInfo.PublicId,
+                        PurchasedAt = purchaseInfo.PurchasedAt,
+                        OriginalQuantity = purchaseInfo.OriginalQuantity,
+                        Price = purchaseInfo.Price,
+                        Currency = purchaseInfo.Currency,
+                        ShoppingLocationId = purchaseInfo.ShoppingLocationId
+                    } : null,
+                    ConsumptionLogs = consumptionLogs.Select(log =>
+                    {
+                        var user = log.UserId.HasValue ? new UserFunctions().GetUserById(log.UserId.Value) : null;
+                        return new ConsumptionLogInfo
+                        {
+                            PublicId = log.PublicId,
+                            UserName = user?.Name,
+                            ConsumedQuantity = log.ConsumedQuantity,
+                            RemainingQuantity = log.RemainingQuantity,
+                            ConsumedAt = log.ConsumedAt
+                        };
+                    }).ToList()
+                };
+            }
+            catch (Exception ex)
+            {
+                await transaction.RollbackAsync();
+                Log.Error(ex, $"Failed to consume inventory item {inventoryItemPublicId} for user {userId}");
+                throw;
+            }
+        }
+        #endregion
     }
 }

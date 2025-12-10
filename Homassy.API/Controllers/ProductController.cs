@@ -1,6 +1,4 @@
 ﻿using Asp.Versioning;
-using Homassy.API.Context;
-using Homassy.API.Entities.Product;
 using Homassy.API.Exceptions;
 using Homassy.API.Functions;
 using Homassy.API.Models.Common;
@@ -27,6 +25,10 @@ namespace Homassy.API.Controllers
                 var products = new ProductFunctions().GetAllProducts();
                 return Ok(ApiResponse<List<ProductInfo>>.SuccessResponse(products));
             }
+            catch (UserNotFoundException ex)
+            {
+                return NotFound(ApiResponse.ErrorResponse(ex.Message));
+            }
             catch (Exception ex)
             {
                 Log.Error($"Unexpected error retrieving products: {ex.Message}");
@@ -47,6 +49,10 @@ namespace Homassy.API.Controllers
             {
                 var productInfo = await new ProductFunctions().CreateProductAsync(request);
                 return Ok(ApiResponse<ProductInfo>.SuccessResponse(productInfo, "Product created successfully"));
+            }
+            catch (UserNotFoundException ex)
+            {
+                return NotFound(ApiResponse.ErrorResponse(ex.Message));
             }
             catch (Exception ex)
             {
@@ -73,6 +79,10 @@ namespace Homassy.API.Controllers
             {
                 return NotFound(ApiResponse.ErrorResponse(ex.Message));
             }
+            catch (UserNotFoundException ex)
+            {
+                return NotFound(ApiResponse.ErrorResponse(ex.Message));
+            }
             catch (Exception ex)
             {
                 Log.Error($"Error updating product {productPublicId}: {ex.Message}");
@@ -92,6 +102,10 @@ namespace Homassy.API.Controllers
                 return Ok(ApiResponse.SuccessResponse("Product deleted successfully"));
             }
             catch (ProductNotFoundException ex)
+            {
+                return NotFound(ApiResponse.ErrorResponse(ex.Message));
+            }
+            catch (UserNotFoundException ex)
             {
                 return NotFound(ApiResponse.ErrorResponse(ex.Message));
             }
@@ -171,6 +185,182 @@ namespace Homassy.API.Controllers
             {
                 Log.Error($"Error retrieving detailed products: {ex.Message}");
                 return StatusCode(500, ApiResponse.ErrorResponse("An error occurred while retrieving detailed products"));
+            }
+        }
+        #endregion
+
+        #region InventoryItem
+        [HttpPost("inventory")]
+        [MapToApiVersion(1.0)]
+        public async Task<IActionResult> CreateInventoryItem([FromBody] CreateInventoryItemRequest request)
+        {
+            if (!ModelState.IsValid)
+            {
+                return BadRequest(ApiResponse.ErrorResponse("Invalid request data"));
+            }
+
+            try
+            {
+                var inventoryItemInfo = await new ProductFunctions().CreateInventoryItemAsync(request);
+                return Ok(ApiResponse<InventoryItemInfo>.SuccessResponse(inventoryItemInfo, "Inventory item created successfully"));
+            }
+            catch (ProductNotFoundException ex)
+            {
+                return NotFound(ApiResponse.ErrorResponse(ex.Message));
+            }
+            catch (StorageLocationNotFoundException ex)
+            {
+                return NotFound(ApiResponse.ErrorResponse(ex.Message));
+            }
+            catch (ShoppingLocationNotFoundException ex)
+            {
+                return NotFound(ApiResponse.ErrorResponse(ex.Message));
+            }
+            catch (UserNotFoundException ex)
+            {
+                return NotFound(ApiResponse.ErrorResponse(ex.Message));
+            }
+            catch (Exception ex)
+            {
+                Log.Error($"Error creating inventory item: {ex.Message}");
+                return StatusCode(500, ApiResponse.ErrorResponse("An error occurred while creating the inventory item"));
+            }
+        }
+
+        [HttpPost("inventory/quick")]
+        [MapToApiVersion(1.0)]
+        public async Task<IActionResult> QuickAddInventoryItem([FromBody] QuickAddInventoryItemRequest request)
+        {
+            if (!ModelState.IsValid)
+            {
+                return BadRequest(ApiResponse.ErrorResponse("Invalid request data"));
+            }
+
+            try
+            {
+                var inventoryItemInfo = await new ProductFunctions().QuickAddInventoryItemAsync(request);
+                return Ok(ApiResponse<InventoryItemInfo>.SuccessResponse(inventoryItemInfo, "Inventory item added successfully"));
+            }
+            catch (ProductNotFoundException ex)
+            {
+                return NotFound(ApiResponse.ErrorResponse(ex.Message));
+            }
+            catch (UserNotFoundException ex)
+            {
+                return NotFound(ApiResponse.ErrorResponse(ex.Message));
+            }
+            catch (Exception ex)
+            {
+                Log.Error($"Error quick-adding inventory item: {ex.Message}");
+                return StatusCode(500, ApiResponse.ErrorResponse("An error occurred while adding the inventory item"));
+            }
+        }
+
+        [HttpPut("inventory/{inventoryItemPublicId}")]
+        [MapToApiVersion(1.0)]
+        public async Task<IActionResult> UpdateInventoryItem(Guid inventoryItemPublicId, [FromBody] UpdateInventoryItemRequest request)
+        {
+            if (!ModelState.IsValid)
+            {
+                return BadRequest(ApiResponse.ErrorResponse("Invalid request data"));
+            }
+
+            try
+            {
+                var inventoryItemInfo = await new ProductFunctions().UpdateInventoryItemAsync(inventoryItemPublicId, request);
+                return Ok(ApiResponse<InventoryItemInfo>.SuccessResponse(inventoryItemInfo, "Inventory item updated successfully"));
+            }
+            catch (ProductInventoryItemNotFoundException ex)
+            {
+                return NotFound(ApiResponse.ErrorResponse(ex.Message));
+            }
+            catch (StorageLocationNotFoundException ex)
+            {
+                return NotFound(ApiResponse.ErrorResponse(ex.Message));
+            }
+            catch (ShoppingLocationNotFoundException ex)
+            {
+                return NotFound(ApiResponse.ErrorResponse(ex.Message));
+            }
+            catch (UnauthorizedException ex)
+            {
+                return Unauthorized(ApiResponse.ErrorResponse(ex.Message));
+            }
+            catch (UserNotFoundException ex)
+            {
+                return NotFound(ApiResponse.ErrorResponse(ex.Message));
+            }
+            catch (Exception ex)
+            {
+                Log.Error($"Error updating inventory item {inventoryItemPublicId}: {ex.Message}");
+                return StatusCode(500, ApiResponse.ErrorResponse("An error occurred while updating the inventory item"));
+            }
+        }
+
+        [HttpDelete("inventory/{inventoryItemPublicId}")]
+        [MapToApiVersion(1.0)]
+        public async Task<IActionResult> DeleteInventoryItem(Guid inventoryItemPublicId)
+        {
+            try
+            {
+                await new ProductFunctions().DeleteInventoryItemAsync(inventoryItemPublicId);
+
+                Log.Information($"Inventory item {inventoryItemPublicId} deleted successfully");
+                return Ok(ApiResponse.SuccessResponse("Inventory item deleted successfully"));
+            }
+            catch (ProductInventoryItemNotFoundException ex)
+            {
+                return NotFound(ApiResponse.ErrorResponse(ex.Message));
+            }
+            catch (UnauthorizedException ex)
+            {
+                return Unauthorized(ApiResponse.ErrorResponse(ex.Message));
+            }
+            catch (UserNotFoundException ex)
+            {
+                return NotFound(ApiResponse.ErrorResponse(ex.Message));
+            }
+            catch (Exception ex)
+            {
+                Log.Error($"Error deleting inventory item {inventoryItemPublicId}: {ex.Message}");
+                return StatusCode(500, ApiResponse.ErrorResponse("An error occurred while deleting the inventory item"));
+            }
+        }
+
+        [HttpPost("inventory/{inventoryItemPublicId}/consume")]
+        [MapToApiVersion(1.0)]
+        public async Task<IActionResult> ConsumeInventoryItem(Guid inventoryItemPublicId, [FromBody] ConsumeInventoryItemRequest request)
+        {
+            if (!ModelState.IsValid)
+            {
+                return BadRequest(ApiResponse.ErrorResponse("Invalid request data"));
+            }
+
+            try
+            {
+                var inventoryItemInfo = await new ProductFunctions().ConsumeInventoryItemAsync(inventoryItemPublicId, request);
+                return Ok(ApiResponse<InventoryItemInfo>.SuccessResponse(inventoryItemInfo, "Consumption recorded successfully"));
+            }
+            catch (ProductInventoryItemNotFoundException ex)
+            {
+                return NotFound(ApiResponse.ErrorResponse(ex.Message));
+            }
+            catch (UnauthorizedException ex)
+            {
+                return Unauthorized(ApiResponse.ErrorResponse(ex.Message));
+            }
+            catch (BadRequestException ex)
+            {
+                return BadRequest(ApiResponse.ErrorResponse(ex.Message));
+            }
+            catch (UserNotFoundException ex)
+            {
+                return NotFound(ApiResponse.ErrorResponse(ex.Message));
+            }
+            catch (Exception ex)
+            {
+                Log.Error($"Error consuming inventory item {inventoryItemPublicId}: {ex.Message}");
+                return StatusCode(500, ApiResponse.ErrorResponse("An error occurred while recording consumption"));
             }
         }
         #endregion
