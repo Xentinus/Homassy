@@ -749,6 +749,14 @@
               "type": "string",
               "format": "uuid"
             }
+          },
+          {
+            "name": "showPurchased",
+            "in": "query",
+            "schema": {
+              "type": "boolean",
+              "default": false
+            }
           }
         ],
         "responses": {

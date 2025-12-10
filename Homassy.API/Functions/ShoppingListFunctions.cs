@@ -283,7 +283,7 @@ namespace Homassy.API.Functions
             return result;
         }
 
-        public List<ShoppingListItem> GetShoppingListItemsByShoppingListId(int shoppingListId)
+        public List<ShoppingListItem> GetShoppingListItemsByShoppingListId(int shoppingListId, bool includePurchased = false)
         {
             var yesterday = DateTime.UtcNow.Date.AddDays(-1);
 
@@ -291,14 +291,14 @@ namespace Homassy.API.Functions
             {
                 return _shoppingListItemCache.Values
                     .Where(sli => sli.ShoppingListId == shoppingListId &&
-                                  (!sli.PurchasedAt.HasValue || sli.PurchasedAt >= yesterday))
+                                  (includePurchased || !sli.PurchasedAt.HasValue || sli.PurchasedAt >= yesterday))
                     .ToList();
             }
 
             var context = new HomassyDbContext();
             return context.ShoppingListItems
                 .Where(sli => sli.ShoppingListId == shoppingListId &&
-                              (!sli.PurchasedAt.HasValue || sli.PurchasedAt >= yesterday))
+                              (includePurchased || !sli.PurchasedAt.HasValue || sli.PurchasedAt >= yesterday))
                 .ToList();
         }
 
@@ -376,7 +376,7 @@ namespace Homassy.API.Functions
             }).ToList();
         }
 
-        public DetailedShoppingListInfo? GetDetailedShoppingList(Guid publicId)
+        public DetailedShoppingListInfo? GetDetailedShoppingList(Guid publicId, bool showPurchased = false)
         {
             var userId = SessionInfo.GetUserId();
             if (!userId.HasValue)
@@ -398,7 +398,7 @@ namespace Homassy.API.Functions
                 throw new ShoppingListAccessDeniedException();
             }
 
-            var items = GetShoppingListItemsByShoppingListId(shoppingList.Id);
+            var items = GetShoppingListItemsByShoppingListId(shoppingList.Id, showPurchased);
             var locationFunctions = new LocationFunctions();
             var productFunctions = new ProductFunctions();
 

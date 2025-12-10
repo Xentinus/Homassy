@@ -38,11 +38,11 @@ namespace Homassy.API.Controllers
 
         [HttpGet("{publicId}")]
         [MapToApiVersion(1.0)]
-        public IActionResult GetShoppingList(Guid publicId)
+        public IActionResult GetShoppingList(Guid publicId, [FromQuery] bool showPurchased = false)
         {
             try
             {
-                var shoppingList = new ShoppingListFunctions().GetDetailedShoppingList(publicId);
+                var shoppingList = new ShoppingListFunctions().GetDetailedShoppingList(publicId, showPurchased);
 
                 if (shoppingList == null)
                 {
