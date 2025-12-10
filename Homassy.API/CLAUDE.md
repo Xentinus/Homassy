@@ -76,7 +76,9 @@ Homassy.API/
 │   ├── AuthController.cs
 │   ├── UserController.cs
 │   ├── FamilyController.cs
-│   └── ProductController.cs (in development)
+│   ├── ProductController.cs
+│   ├── LocationController.cs
+│   └── ShoppingListController.cs
 ├── EmailTemplates/        HTML email templates (embedded resources)
 ├── Entities/              Database entity models
 │   ├── Common/           Base entities and shared models
@@ -93,12 +95,24 @@ Homassy.API/
 │   ├── AuthException.cs
 │   ├── BadRequestException.cs
 │   ├── UserNotFoundException.cs
-│   └── FamilyNotFoundException.cs
+│   ├── FamilyNotFoundException.cs
+│   ├── LocationException.cs
+│   ├── ProductException.cs
+│   └── ShoppingListException.cs
 ├── Extensions/           Extension methods
+│   ├── CurrencyExtensions.cs
+│   ├── HttpContextExtensions.cs
+│   ├── LanguageExtensions.cs
+│   ├── UnitExtensions.cs
+│   └── UserTimeZoneExtensions.cs
 ├── Functions/            Business logic layer (replaces traditional services)
 │   ├── UserFunctions.cs
 │   ├── FamilyFunctions.cs
-│   └── ProductFunctions.cs
+│   ├── ProductFunctions.cs
+│   ├── LocationFunctions.cs
+│   ├── ShoppingListFunctions.cs
+│   ├── UnitFunctions.cs
+│   └── TimeZoneFunctions.cs
 ├── Infrastructure/       Infrastructure components (triggers, etc.)
 │   └── DatabaseTriggerInitializer.cs
 ├── Middleware/           Custom middleware
@@ -110,6 +124,8 @@ Homassy.API/
 │   ├── Common/          Shared models (ApiResponse, etc.)
 │   ├── Family/          Family DTOs
 │   ├── Product/         Product DTOs
+│   ├── Location/        Location DTOs
+│   ├── ShoppingList/    Shopping list DTOs
 │   ├── RateLimit/       Rate limiting models
 │   └── User/            User DTOs
 ├── Security/            Security utilities
@@ -266,7 +282,7 @@ public class SoftDeleteEntity : BaseEntity
 {
     public bool IsDeleted { get; set; } = false;
 
-    public void DeleteRekord()
+    public void DeleteRecord()
     {
         IsDeleted = true;
     }
@@ -294,7 +310,7 @@ public class RecordChangeEntity : SoftDeleteEntity
         });
     }
 
-    public void DeleteRekord(int? modifiedBy = null)
+    public void DeleteRecord(int? modifiedBy = null)
     {
         IsDeleted = true;
         UpdateRecordChange(modifiedBy);
@@ -490,6 +506,13 @@ catch (Exception ex)
 - `UnauthorizedException` - Unauthorized access (401)
 - `InvalidCredentialsException` - Invalid credentials
 - `ExpiredCredentialsException` - Expired credentials
+- `ProductNotFoundException` - Product not found (404)
+- `ShoppingListNotFoundException` - Shopping list not found (404)
+- `ShoppingListItemNotFoundException` - Shopping list item not found (404)
+- `ShoppingListAccessDeniedException` - Access denied to shopping list (401)
+- `InvalidShoppingListItemException` - Invalid shopping list item (400)
+- `ShoppingLocationNotFoundException` - Shopping location not found (404)
+- `StorageLocationNotFoundException` - Storage location not found (404)
 
 ---
 
@@ -710,7 +733,74 @@ Manages family operations (all endpoints require `[Authorize]`).
 
 ### ProductController
 
-**Status:** Currently under development - patterns may evolve.
+Manages product catalog and inventory (all endpoints require `[Authorize]`).
+
+**Endpoints:**
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/` | Get all products |
+| POST | `/` | Create new product |
+| PUT | `/{productPublicId}` | Update product |
+| DELETE | `/{productPublicId}` | Delete product |
+| POST | `/{productPublicId}/favorite` | Toggle favorite status |
+| GET | `/{productPublicId}/detailed` | Get detailed product info with inventory |
+| GET | `/detailed` | Get all detailed products for user |
+
+**Key Patterns:**
+- Product customization per user (favorites, notes)
+- Inventory tracking with purchase info and consumption logs
+- Family-shared products support
+
+### LocationController
+
+Manages shopping and storage locations (all endpoints require `[Authorize]`).
+
+**Endpoints:**
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/shopping` | Get all shopping locations |
+| POST | `/shopping` | Create shopping location |
+| PUT | `/shopping/{publicId}` | Update shopping location |
+| DELETE | `/shopping/{publicId}` | Delete shopping location |
+| GET | `/storage` | Get all storage locations |
+| POST | `/storage` | Create storage location |
+| PUT | `/storage/{publicId}` | Update storage location |
+| DELETE | `/storage/{publicId}` | Delete storage location |
+
+**Key Patterns:**
+- Two location types: Shopping (stores) and Storage (home locations)
+- Color coding support for UI
+- Family sharing via `IsSharedWithFamily` flag
+- Ownership validation for modifications
+
+### ShoppingListController
+
+Manages shopping lists and items (all endpoints require `[Authorize]`).
+
+**Endpoints:**
+
+| Method | Endpoint | Query Params | Description |
+|--------|----------|--------------|-------------|
+| GET | `/` | - | Get all shopping lists |
+| GET | `/{publicId}` | `showPurchased` | Get detailed shopping list |
+| POST | `/` | - | Create shopping list |
+| PUT | `/{publicId}` | - | Update shopping list |
+| DELETE | `/{publicId}` | - | Delete shopping list |
+| POST | `/item` | - | Create shopping list item |
+| PUT | `/item/{publicId}` | - | Update shopping list item |
+| DELETE | `/item/{publicId}` | - | Delete shopping list item |
+
+**Query Parameters:**
+- `showPurchased` (bool, default: false) - Include purchased items older than 1 day
+
+**Key Patterns:**
+- Hierarchical structure: Lists contain Items
+- Items can reference Products or use custom names
+- Purchased items auto-hidden after 1 day (configurable via `showPurchased`)
+- Family sharing support
+- Shopping location assignment per item
 
 ---
 
