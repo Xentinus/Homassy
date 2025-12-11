@@ -162,3 +162,10 @@ finally
     Log.Information("Shutting down Homassy API");
     await Log.CloseAndFlushAsync();
 }
+
+
+
+/// <summary>
+/// Partial class to expose Program for integration testing with WebApplicationFactory.
+/// </summary>
+public partial class Program { }

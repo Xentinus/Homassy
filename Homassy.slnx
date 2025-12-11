@@ -1,3 +1,4 @@
 <Solution>
   <Project Path="Homassy.API/Homassy.API.csproj" />
+  <Project Path="Homassy.Tests/Homassy.Tests.csproj" />
 </Solution>

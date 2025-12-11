@@ -37,6 +37,10 @@ namespace Homassy.API.Controllers
             {
                 return NotFound(ApiResponse.ErrorResponse(ex.Message));
             }
+            catch (FamilyNotFoundException ex)
+            {
+                return BadRequest(ApiResponse.ErrorResponse(ex.Message));
+            }
             catch (Exception ex)
             {
                 Log.Error($"Unexpected error getting family: {ex.Message}");
