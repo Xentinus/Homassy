@@ -864,6 +864,28 @@
         }
       }
     },
+    "/api/v1/SelectValue/{type}": {
+      "get": {
+        "tags": [
+          "SelectValue"
+        ],
+        "parameters": [
+          {
+            "name": "type",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/SelectValueType"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
     "/api/v1/ShoppingList": {
       "get": {
         "tags": [
@@ -1566,6 +1588,9 @@
           }
         }
       },
+      "SelectValueType": {
+        "type": "integer"
+      },
       "ShoppingLocationRequest": {
         "type": "object",
         "properties": {
@@ -2073,6 +2098,9 @@
     },
     {
       "name": "Product"
+    },
+    {
+      "name": "SelectValue"
     },
     {
       "name": "ShoppingList"

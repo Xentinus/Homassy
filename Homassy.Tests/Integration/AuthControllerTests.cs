@@ -389,6 +389,9 @@ public class AuthControllerTests : IClassFixture<HomassyWebApplicationFactory>
             _output.WriteLine($"Access Token: {authContent.Data.AccessToken[..50]}...");
             _output.WriteLine($"Refresh Token: {authContent.Data.RefreshToken[..20]}...");
 
+            // Wait for cache to refresh (CacheManagementService refreshes every 5 seconds)
+            await Task.Delay(6000);
+
             // Step 4: Use access token to get current user
             _output.WriteLine("\n=== Step 4: Get Current User ===");
             _client.DefaultRequestHeaders.Authorization =
@@ -450,6 +453,9 @@ public class AuthControllerTests : IClassFixture<HomassyWebApplicationFactory>
             var authContent = await verifyResponse.Content.ReadFromJsonAsync<ApiResponse<AuthResponse>>();
 
             Assert.NotNull(authContent?.Data);
+
+            // Wait for cache to refresh (CacheManagementService refreshes every 5 seconds)
+            await Task.Delay(6000);
 
             // Set auth header
             _client.DefaultRequestHeaders.Authorization =

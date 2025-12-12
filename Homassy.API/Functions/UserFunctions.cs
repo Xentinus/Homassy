@@ -921,7 +921,7 @@ namespace Homassy.API.Functions
 
                 if (user == null)
                 {
-                    Log.Warning($"User not found for userId {userId.Value}");
+                    Log.Warning($"User not found for userId {userId}");
                     throw new UserNotFoundException("User not found");
                 }
 

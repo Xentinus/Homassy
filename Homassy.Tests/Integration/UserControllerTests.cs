@@ -303,6 +303,10 @@ public class UserControllerTests : IClassFixture<HomassyWebApplicationFactory>
             _output.WriteLine($"Upload Response: {uploadBody}");
             Assert.Equal(HttpStatusCode.OK, uploadResponse.StatusCode);
 
+            // Wait for cache to refresh (cache service refreshes every 5 seconds)
+            _output.WriteLine("Waiting 6 seconds for cache refresh...");
+            await Task.Delay(TimeSpan.FromSeconds(6));
+
             // Step 2: Verify in profile
             _output.WriteLine("\n=== Step 2: Verify in Profile ===");
             var profileResponse = await _client.GetAsync("/api/v1.0/user/profile");
