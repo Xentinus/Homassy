@@ -146,26 +146,26 @@ namespace Homassy.API.Controllers
         [MapToApiVersion(1.0)]
         public IActionResult GetDetailedProduct(Guid productPublicId)
         {
-            try
-            {
-                var detailedProduct = new ProductFunctions().GetDetailedProductInfo(productPublicId);
+        try
+        {
+            var detailedProduct = new ProductFunctions().GetDetailedProductInfo(productPublicId);
 
-                if (detailedProduct == null)
-                {
-                    return NotFound(ApiResponse.ErrorResponse("Product not found"));
-                }
+            if (detailedProduct == null)
+            {
+                return NotFound(ApiResponse.ErrorResponse("Product not found"));
+            }
 
-                return Ok(ApiResponse<DetailedProductInfo>.SuccessResponse(detailedProduct));
-            }
-            catch (UserNotFoundException ex)
-            {
-                return NotFound(ApiResponse.ErrorResponse(ex.Message));
-            }
-            catch (Exception ex)
-            {
-                Log.Error($"Error retrieving detailed product {productPublicId}: {ex.Message}");
-                return StatusCode(500, ApiResponse.ErrorResponse("An error occurred while retrieving product details"));
-            }
+            return Ok(ApiResponse<DetailedProductInfo>.SuccessResponse(detailedProduct));
+        }
+        catch (UserNotFoundException ex)
+        {
+            return NotFound(ApiResponse.ErrorResponse(ex.Message));
+        }
+        catch (Exception ex)
+        {
+            Log.Error($"Error retrieving detailed product {productPublicId}: {ex.Message}");
+            return StatusCode(500, ApiResponse.ErrorResponse("An error occurred while retrieving product details"));
+        }
         }
 
         [HttpGet("detailed")]
@@ -361,6 +361,76 @@ namespace Homassy.API.Controllers
             {
                 Log.Error($"Error consuming inventory item {inventoryItemPublicId}: {ex.Message}");
                 return StatusCode(500, ApiResponse.ErrorResponse("An error occurred while recording consumption"));
+            }
+        }
+
+        [HttpPost("inventory/quick/multiple")]
+        [MapToApiVersion(1.0)]
+        public async Task<IActionResult> QuickAddMultipleInventoryItems([FromBody] QuickAddMultipleInventoryItemsRequest request)
+        {
+            if (!ModelState.IsValid)
+            {
+                return BadRequest(ApiResponse.ErrorResponse("Invalid request data"));
+            }
+
+            try
+            {
+                var inventoryItems = await new ProductFunctions().QuickAddMultipleInventoryItemsAsync(request);
+                return Ok(ApiResponse<List<InventoryItemInfo>>.SuccessResponse(inventoryItems, "Inventory items added successfully"));
+            }
+            catch (ProductNotFoundException ex)
+            {
+                return NotFound(ApiResponse.ErrorResponse(ex.Message));
+            }
+            catch (StorageLocationNotFoundException ex)
+            {
+                return NotFound(ApiResponse.ErrorResponse(ex.Message));
+            }
+            catch (UserNotFoundException ex)
+            {
+                return NotFound(ApiResponse.ErrorResponse(ex.Message));
+            }
+            catch (Exception ex)
+            {
+                Log.Error($"Error quick-adding multiple inventory items: {ex.Message}");
+                return StatusCode(500, ApiResponse.ErrorResponse("An error occurred while adding the inventory items"));
+            }
+        }
+
+        [HttpPost("inventory/move")]
+        [MapToApiVersion(1.0)]
+        public async Task<IActionResult> MoveInventoryItems([FromBody] MoveInventoryItemsRequest request)
+        {
+            if (!ModelState.IsValid)
+            {
+                return BadRequest(ApiResponse.ErrorResponse("Invalid request data"));
+            }
+
+            try
+            {
+                var inventoryItems = await new ProductFunctions().MoveInventoryItemsAsync(request);
+                return Ok(ApiResponse<List<InventoryItemInfo>>.SuccessResponse(inventoryItems, "Inventory items moved successfully"));
+            }
+            catch (ProductInventoryItemNotFoundException ex)
+            {
+                return NotFound(ApiResponse.ErrorResponse(ex.Message));
+            }
+            catch (StorageLocationNotFoundException ex)
+            {
+                return NotFound(ApiResponse.ErrorResponse(ex.Message));
+            }
+            catch (UnauthorizedException ex)
+            {
+                return Unauthorized(ApiResponse.ErrorResponse(ex.Message));
+            }
+            catch (UserNotFoundException ex)
+            {
+                return NotFound(ApiResponse.ErrorResponse(ex.Message));
+            }
+            catch (Exception ex)
+            {
+                Log.Error($"Error moving inventory items: {ex.Message}");
+                return StatusCode(500, ApiResponse.ErrorResponse("An error occurred while moving the inventory items"));
             }
         }
         #endregion

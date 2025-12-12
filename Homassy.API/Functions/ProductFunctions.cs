@@ -1415,6 +1415,184 @@ namespace Homassy.API.Functions
                 throw;
             }
         }
+
+        /// <summary>
+        /// Quickly adds multiple inventory items at once, optionally to a specific storage location.
+        /// </summary>
+        public async Task<List<InventoryItemInfo>> QuickAddMultipleInventoryItemsAsync(QuickAddMultipleInventoryItemsRequest request)
+        {
+            var userId = SessionInfo.GetUserId();
+            if (!userId.HasValue)
+            {
+                Log.Warning("Invalid session: User ID not found");
+                throw new UserNotFoundException("User not found");
+            }
+
+            var familyId = SessionInfo.GetFamilyId();
+            var locationFunctions = new LocationFunctions();
+
+            int? storageLocationId = null;
+            if (request.StorageLocationPublicId.HasValue)
+            {
+                var storageLocation = locationFunctions.GetStorageLocationByPublicId(request.StorageLocationPublicId.Value);
+                if (storageLocation == null)
+                {
+                    throw new StorageLocationNotFoundException("Storage location not found");
+                }
+                storageLocationId = storageLocation.Id;
+            }
+
+            var context = new HomassyDbContext();
+            await using var transaction = await context.Database.BeginTransactionAsync();
+
+            try
+            {
+                var result = new List<InventoryItemInfo>();
+
+                foreach (var item in request.Items)
+                {
+                    var product = GetProductByPublicId(item.ProductPublicId);
+                    if (product == null)
+                    {
+                        throw new ProductNotFoundException($"Product with PublicId {item.ProductPublicId} not found");
+                    }
+
+                    var inventoryItem = new ProductInventoryItem
+                    {
+                        ProductId = product.Id,
+                        UserId = request.IsSharedWithFamily && familyId.HasValue ? null : userId.Value,
+                        FamilyId = request.IsSharedWithFamily && familyId.HasValue ? familyId : null,
+                        StorageLocationId = storageLocationId,
+                        CurrentQuantity = item.Quantity,
+                        Unit = item.Unit
+                    };
+
+                    context.ProductInventoryItems.Add(inventoryItem);
+                    await context.SaveChangesAsync();
+
+                    result.Add(new InventoryItemInfo
+                    {
+                        PublicId = inventoryItem.PublicId,
+                        CurrentQuantity = inventoryItem.CurrentQuantity,
+                        Unit = inventoryItem.Unit,
+                        ExpirationAt = inventoryItem.ExpirationAt,
+                        PurchaseInfo = null,
+                        ConsumptionLogs = new List<ConsumptionLogInfo>()
+                    });
+                }
+
+                await transaction.CommitAsync();
+
+                Log.Information($"User {userId} quick-added {request.Items.Count} inventory items" +
+                    (storageLocationId.HasValue ? $" to storage location {storageLocationId}" : ""));
+
+                return result;
+            }
+            catch (Exception ex)
+            {
+                await transaction.RollbackAsync();
+                Log.Error(ex, $"Failed to quick-add multiple inventory items for user {userId}");
+                throw;
+            }
+        }
+
+        /// <summary>
+        /// Moves multiple inventory items to a new storage location.
+        /// </summary>
+        public async Task<List<InventoryItemInfo>> MoveInventoryItemsAsync(MoveInventoryItemsRequest request)
+        {
+            var userId = SessionInfo.GetUserId();
+            if (!userId.HasValue)
+            {
+                Log.Warning("Invalid session: User ID not found");
+                throw new UserNotFoundException("User not found");
+            }
+
+            var familyId = SessionInfo.GetFamilyId();
+            var locationFunctions = new LocationFunctions();
+
+            var storageLocation = locationFunctions.GetStorageLocationByPublicId(request.StorageLocationPublicId);
+            if (storageLocation == null)
+            {
+                throw new StorageLocationNotFoundException("Storage location not found");
+            }
+
+            var context = new HomassyDbContext();
+            await using var transaction = await context.Database.BeginTransactionAsync();
+
+            try
+            {
+                var result = new List<InventoryItemInfo>();
+
+                foreach (var inventoryItemPublicId in request.InventoryItemPublicIds)
+                {
+                    var inventoryItem = GetInventoryItemByPublicId(inventoryItemPublicId);
+                    if (inventoryItem == null)
+                    {
+                        throw new ProductInventoryItemNotFoundException($"Inventory item with PublicId {inventoryItemPublicId} not found");
+                    }
+
+                    if (inventoryItem.UserId != userId.Value &&
+                        (!familyId.HasValue || inventoryItem.FamilyId != familyId.Value))
+                    {
+                        throw new UnauthorizedException($"You don't have permission to move inventory item {inventoryItemPublicId}");
+                    }
+
+                    var trackedItem = await context.ProductInventoryItems.FindAsync(inventoryItem.Id);
+                    if (trackedItem == null)
+                    {
+                        throw new ProductInventoryItemNotFoundException();
+                    }
+
+                    trackedItem.StorageLocationId = storageLocation.Id;
+
+                    var purchaseInfo = GetPurchaseInfoByInventoryItemId(trackedItem.Id);
+                    var consumptionLogs = GetConsumptionLogsByInventoryItemId(trackedItem.Id);
+
+                    result.Add(new InventoryItemInfo
+                    {
+                        PublicId = trackedItem.PublicId,
+                        CurrentQuantity = trackedItem.CurrentQuantity,
+                        Unit = trackedItem.Unit,
+                        ExpirationAt = trackedItem.ExpirationAt,
+                        PurchaseInfo = purchaseInfo != null ? new PurchaseInfo
+                        {
+                            PublicId = purchaseInfo.PublicId,
+                            PurchasedAt = purchaseInfo.PurchasedAt,
+                            OriginalQuantity = purchaseInfo.OriginalQuantity,
+                            Price = purchaseInfo.Price,
+                            Currency = purchaseInfo.Currency,
+                            ShoppingLocationId = purchaseInfo.ShoppingLocationId
+                        } : null,
+                        ConsumptionLogs = consumptionLogs.Select(log =>
+                        {
+                            var user = log.UserId.HasValue ? new UserFunctions().GetUserById(log.UserId.Value) : null;
+                            return new ConsumptionLogInfo
+                            {
+                                PublicId = log.PublicId,
+                                UserName = user?.Name,
+                                ConsumedQuantity = log.ConsumedQuantity,
+                                RemainingQuantity = log.RemainingQuantity,
+                                ConsumedAt = log.ConsumedAt
+                            };
+                        }).ToList()
+                    });
+                }
+
+                await context.SaveChangesAsync();
+                await transaction.CommitAsync();
+
+                Log.Information($"User {userId} moved {request.InventoryItemPublicIds.Count} inventory items to storage location {storageLocation.Id}");
+
+                return result;
+            }
+            catch (Exception ex)
+            {
+                await transaction.RollbackAsync();
+                Log.Error(ex, $"Failed to move inventory items for user {userId}");
+                throw;
+            }
+        }
         #endregion
     }
 }

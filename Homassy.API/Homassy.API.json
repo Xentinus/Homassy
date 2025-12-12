@@ -886,6 +886,70 @@
         }
       }
     },
+    "/api/v1/Product/inventory/quick/multiple": {
+      "post": {
+        "tags": [
+          "Product"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/QuickAddMultipleInventoryItemsRequest"
+              }
+            },
+            "text/json": {
+              "schema": {
+                "$ref": "#/components/schemas/QuickAddMultipleInventoryItemsRequest"
+              }
+            },
+            "application/*+json": {
+              "schema": {
+                "$ref": "#/components/schemas/QuickAddMultipleInventoryItemsRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/api/v1/Product/inventory/move": {
+      "post": {
+        "tags": [
+          "Product"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MoveInventoryItemsRequest"
+              }
+            },
+            "text/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MoveInventoryItemsRequest"
+              }
+            },
+            "application/*+json": {
+              "schema": {
+                "$ref": "#/components/schemas/MoveInventoryItemsRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
     "/api/v1/SelectValue/{type}": {
       "get": {
         "tags": [
@@ -1132,6 +1196,38 @@
             }
           }
         ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/api/v1/ShoppingList/item/quick-purchase": {
+      "post": {
+        "tags": [
+          "ShoppingList"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/QuickPurchaseFromShoppingListItemRequest"
+              }
+            },
+            "text/json": {
+              "schema": {
+                "$ref": "#/components/schemas/QuickPurchaseFromShoppingListItemRequest"
+              }
+            },
+            "application/*+json": {
+              "schema": {
+                "$ref": "#/components/schemas/QuickPurchaseFromShoppingListItemRequest"
+              }
+            }
+          },
+          "required": true
+        },
         "responses": {
           "200": {
             "description": "OK"
@@ -1567,6 +1663,27 @@
           }
         }
       },
+      "MoveInventoryItemsRequest": {
+        "required": [
+          "inventoryItemPublicIds",
+          "storageLocationPublicId"
+        ],
+        "type": "object",
+        "properties": {
+          "inventoryItemPublicIds": {
+            "minItems": 1,
+            "type": "array",
+            "items": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          "storageLocationPublicId": {
+            "type": "string",
+            "format": "uuid"
+          }
+        }
+      },
       "QuickAddInventoryItemRequest": {
         "required": [
           "productPublicId",
@@ -1589,6 +1706,119 @@
           },
           "unit": {
             "$ref": "#/components/schemas/Unit"
+          },
+          "isSharedWithFamily": {
+            "type": "boolean"
+          }
+        }
+      },
+      "QuickAddMultipleInventoryItemEntry": {
+        "required": [
+          "productPublicId",
+          "quantity"
+        ],
+        "type": "object",
+        "properties": {
+          "productPublicId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "quantity": {
+            "minimum": 0.001,
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d+)?$",
+            "type": [
+              "number",
+              "string"
+            ],
+            "format": "double"
+          },
+          "unit": {
+            "$ref": "#/components/schemas/Unit"
+          }
+        }
+      },
+      "QuickAddMultipleInventoryItemsRequest": {
+        "required": [
+          "items"
+        ],
+        "type": "object",
+        "properties": {
+          "items": {
+            "minItems": 1,
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/QuickAddMultipleInventoryItemEntry"
+            }
+          },
+          "storageLocationPublicId": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "uuid"
+          },
+          "isSharedWithFamily": {
+            "type": "boolean"
+          }
+        }
+      },
+      "QuickPurchaseFromShoppingListItemRequest": {
+        "required": [
+          "shoppingListItemPublicId",
+          "purchasedAt",
+          "quantity"
+        ],
+        "type": "object",
+        "properties": {
+          "shoppingListItemPublicId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "purchasedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "quantity": {
+            "minimum": 0.001,
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d+)?$",
+            "type": [
+              "number",
+              "string"
+            ],
+            "format": "double"
+          },
+          "price": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "currency": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/Currency"
+              }
+            ]
+          },
+          "storageLocationPublicId": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "uuid"
+          },
+          "expirationAt": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date-time"
           },
           "isSharedWithFamily": {
             "type": "boolean"

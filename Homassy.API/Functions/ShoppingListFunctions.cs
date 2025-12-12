@@ -929,6 +929,162 @@ namespace Homassy.API.Functions
                 throw;
             }
         }
+
+        /// <summary>
+        /// Purchases a shopping list item and creates a corresponding inventory item.
+        /// Only works for non-custom items (items with a ProductId).
+        /// </summary>
+        public async Task<(ShoppingListItemInfo ShoppingListItem, Models.Product.InventoryItemInfo InventoryItem)> QuickPurchaseFromShoppingListItemAsync(QuickPurchaseFromShoppingListItemRequest request)
+        {
+            var userId = SessionInfo.GetUserId();
+            if (!userId.HasValue)
+            {
+                Log.Warning("Invalid session: User ID not found");
+                throw new UserNotFoundException("User not found");
+            }
+
+            var shoppingListItem = GetShoppingListItemByPublicId(request.ShoppingListItemPublicId);
+            if (shoppingListItem == null)
+            {
+                throw new ShoppingListItemNotFoundException();
+            }
+
+            if (!shoppingListItem.ProductId.HasValue)
+            {
+                throw new InvalidShoppingListItemException("Cannot quick purchase a custom item. Only items with a product can be converted to inventory items.");
+            }
+
+            var shoppingList = GetShoppingListById(shoppingListItem.ShoppingListId);
+            if (shoppingList == null)
+            {
+                throw new ShoppingListNotFoundException();
+            }
+
+            var familyId = SessionInfo.GetFamilyId();
+            if (shoppingList.UserId != userId.Value &&
+                (!familyId.HasValue || shoppingList.FamilyId != familyId.Value))
+            {
+                throw new ShoppingListAccessDeniedException();
+            }
+
+            var locationFunctions = new LocationFunctions();
+            var productFunctions = new ProductFunctions();
+
+            var product = productFunctions.GetProductById(shoppingListItem.ProductId);
+            if (product == null)
+            {
+                throw new ProductNotFoundException("Product not found");
+            }
+
+            int? storageLocationId = null;
+            if (request.StorageLocationPublicId.HasValue)
+            {
+                var storageLocation = locationFunctions.GetStorageLocationByPublicId(request.StorageLocationPublicId.Value);
+                if (storageLocation == null)
+                {
+                    throw new StorageLocationNotFoundException("Storage location not found");
+                }
+                storageLocationId = storageLocation.Id;
+            }
+
+            int? shoppingLocationId = shoppingListItem.ShoppingLocationId;
+
+            var userProfile = new UserFunctions().GetUserProfileByUserId(userId.Value);
+            var currency = request.Currency ?? userProfile?.DefaultCurrency;
+
+            var context = new HomassyDbContext();
+            await using var transaction = await context.Database.BeginTransactionAsync();
+
+            try
+            {
+                // Update shopping list item with purchase date
+                var trackedShoppingListItem = await context.ShoppingListItems.FindAsync(shoppingListItem.Id);
+                if (trackedShoppingListItem == null)
+                {
+                    throw new ShoppingListItemNotFoundException();
+                }
+
+                trackedShoppingListItem.PurchasedAt = request.PurchasedAt;
+
+                // Create inventory item
+                var inventoryItem = new Entities.Product.ProductInventoryItem
+                {
+                    ProductId = product.Id,
+                    UserId = request.IsSharedWithFamily && familyId.HasValue ? null : userId.Value,
+                    FamilyId = request.IsSharedWithFamily && familyId.HasValue ? familyId : null,
+                    StorageLocationId = storageLocationId,
+                    CurrentQuantity = request.Quantity,
+                    Unit = shoppingListItem.Unit,
+                    ExpirationAt = request.ExpirationAt
+                };
+
+                context.ProductInventoryItems.Add(inventoryItem);
+                await context.SaveChangesAsync();
+
+                // Create purchase info
+                Entities.Product.ProductPurchaseInfo? purchaseInfo = null;
+                if (request.Price.HasValue || shoppingLocationId.HasValue)
+                {
+                    purchaseInfo = new Entities.Product.ProductPurchaseInfo
+                    {
+                        ProductInventoryItemId = inventoryItem.Id,
+                        PurchasedAt = request.PurchasedAt,
+                        OriginalQuantity = request.Quantity,
+                        Price = request.Price,
+                        Currency = currency,
+                        ShoppingLocationId = shoppingLocationId
+                    };
+
+                    context.ProductPurchaseInfos.Add(purchaseInfo);
+                    await context.SaveChangesAsync();
+                }
+
+                await transaction.CommitAsync();
+
+                Log.Information($"User {userId} quick purchased shopping list item {shoppingListItem.Id} (PublicId: {shoppingListItem.PublicId}) and created inventory item {inventoryItem.Id} (PublicId: {inventoryItem.PublicId})");
+
+                var shoppingListItemInfo = new ShoppingListItemInfo
+                {
+                    PublicId = trackedShoppingListItem.PublicId,
+                    ShoppingListPublicId = shoppingList.PublicId,
+                    ProductPublicId = product.PublicId,
+                    ShoppingLocationPublicId = shoppingLocationId.HasValue ? locationFunctions.GetShoppingLocationById(shoppingLocationId)?.PublicId : null,
+                    CustomName = trackedShoppingListItem.CustomName,
+                    Quantity = trackedShoppingListItem.Quantity,
+                    Unit = trackedShoppingListItem.Unit.ToUnitCode(),
+                    Note = trackedShoppingListItem.Note,
+                    PurchasedAt = trackedShoppingListItem.PurchasedAt,
+                    DeadlineAt = trackedShoppingListItem.DeadlineAt,
+                    DueAt = trackedShoppingListItem.DueAt
+                };
+
+                var inventoryItemInfo = new Models.Product.InventoryItemInfo
+                {
+                    PublicId = inventoryItem.PublicId,
+                    CurrentQuantity = inventoryItem.CurrentQuantity,
+                    Unit = inventoryItem.Unit,
+                    ExpirationAt = inventoryItem.ExpirationAt,
+                    PurchaseInfo = purchaseInfo != null ? new Models.Product.PurchaseInfo
+                    {
+                        PublicId = purchaseInfo.PublicId,
+                        PurchasedAt = purchaseInfo.PurchasedAt,
+                        OriginalQuantity = purchaseInfo.OriginalQuantity,
+                        Price = purchaseInfo.Price,
+                        Currency = purchaseInfo.Currency,
+                        ShoppingLocationId = purchaseInfo.ShoppingLocationId
+                    } : null,
+                    ConsumptionLogs = new List<Models.Product.ConsumptionLogInfo>()
+                };
+
+                return (shoppingListItemInfo, inventoryItemInfo);
+            }
+            catch (Exception ex)
+            {
+                await transaction.RollbackAsync();
+                Log.Error(ex, $"Failed to quick purchase shopping list item {request.ShoppingListItemPublicId} for user {userId}");
+                throw;
+            }
+        }
         #endregion
     }
 }

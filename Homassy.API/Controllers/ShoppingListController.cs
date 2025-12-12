@@ -2,6 +2,7 @@
 using Homassy.API.Exceptions;
 using Homassy.API.Functions;
 using Homassy.API.Models.Common;
+using Homassy.API.Models.Product;
 using Homassy.API.Models.ShoppingList;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -281,6 +282,61 @@ namespace Homassy.API.Controllers
             {
                 Log.Error($"Error deleting shopping list item {publicId}: {ex.Message}");
                 return StatusCode(500, ApiResponse.ErrorResponse("An error occurred while deleting the shopping list item"));
+            }
+        }
+
+        [HttpPost("item/quick-purchase")]
+        [MapToApiVersion(1.0)]
+        public async Task<IActionResult> QuickPurchaseFromShoppingListItem([FromBody] QuickPurchaseFromShoppingListItemRequest request)
+        {
+            if (!ModelState.IsValid)
+            {
+                return BadRequest(ApiResponse.ErrorResponse("Invalid request data"));
+            }
+
+            try
+            {
+                var (shoppingListItem, inventoryItem) = await new ShoppingListFunctions().QuickPurchaseFromShoppingListItemAsync(request);
+                return Ok(ApiResponse<QuickPurchaseFromShoppingListItemResponse>.SuccessResponse(
+                    new QuickPurchaseFromShoppingListItemResponse
+                    {
+                        ShoppingListItem = shoppingListItem,
+                        InventoryItem = inventoryItem
+                    },
+                    "Shopping list item purchased and inventory item created successfully"));
+            }
+            catch (ShoppingListItemNotFoundException ex)
+            {
+                return NotFound(ApiResponse.ErrorResponse(ex.Message));
+            }
+            catch (InvalidShoppingListItemException ex)
+            {
+                return BadRequest(ApiResponse.ErrorResponse(ex.Message));
+            }
+            catch (ShoppingListNotFoundException ex)
+            {
+                return NotFound(ApiResponse.ErrorResponse(ex.Message));
+            }
+            catch (ShoppingListAccessDeniedException ex)
+            {
+                return Unauthorized(ApiResponse.ErrorResponse(ex.Message));
+            }
+            catch (ProductNotFoundException ex)
+            {
+                return NotFound(ApiResponse.ErrorResponse(ex.Message));
+            }
+            catch (StorageLocationNotFoundException ex)
+            {
+                return NotFound(ApiResponse.ErrorResponse(ex.Message));
+            }
+            catch (UserNotFoundException ex)
+            {
+                return NotFound(ApiResponse.ErrorResponse(ex.Message));
+            }
+            catch (Exception ex)
+            {
+                Log.Error($"Error quick purchasing shopping list item: {ex.Message}");
+                return StatusCode(500, ApiResponse.ErrorResponse("An error occurred while processing the purchase"));
             }
         }
         #endregion

@@ -1,10 +1,12 @@
 using System.Net;
 using System.Net.Http.Json;
 using Homassy.API.Models.Common;
+using Homassy.API.Models.Product;
 using Homassy.API.Models.ShoppingList;
 using Homassy.Tests.Infrastructure;
 using Xunit.Abstractions;
 using ProductUnit = Homassy.API.Enums.Unit;
+using ProductCurrency = Homassy.API.Enums.Currency;
 
 namespace Homassy.Tests.Integration;
 
@@ -494,6 +496,398 @@ public class ShoppingListControllerTests : IClassFixture<HomassyWebApplicationFa
 
             // Cleanup
             await _client.DeleteAsync($"/api/v1.0/shoppinglist/{createdListId}");
+        }
+        finally
+        {
+            _authHelper.ClearAuthToken();
+            if (testEmail != null)
+                await _authHelper.CleanupUserAsync(testEmail);
+        }
+    }
+    #endregion
+
+    #region QuickPurchaseFromShoppingListItem Tests
+    [Fact]
+    public async Task QuickPurchaseFromShoppingListItem_WithoutToken_ReturnsUnauthorized()
+    {
+        var request = new QuickPurchaseFromShoppingListItemRequest
+        {
+            ShoppingListItemPublicId = Guid.NewGuid(),
+            PurchasedAt = DateTime.UtcNow,
+            Quantity = 1
+        };
+        var response = await _client.PostAsJsonAsync("/api/v1.0/shoppinglist/item/quick-purchase", request);
+        _output.WriteLine($"Status: {response.StatusCode}");
+        Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task QuickPurchaseFromShoppingListItem_NonExistentItem_ReturnsNotFound()
+    {
+        string? testEmail = null;
+        try
+        {
+            var (email, auth) = await _authHelper.CreateAndAuthenticateUserAsync("qp-notfound");
+            testEmail = email;
+            _authHelper.SetAuthToken(auth.AccessToken);
+
+            var request = new QuickPurchaseFromShoppingListItemRequest
+            {
+                ShoppingListItemPublicId = Guid.NewGuid(), // Non-existent
+                PurchasedAt = DateTime.UtcNow,
+                Quantity = 1
+            };
+
+            var response = await _client.PostAsJsonAsync("/api/v1.0/shoppinglist/item/quick-purchase", request);
+            var responseBody = await response.Content.ReadAsStringAsync();
+
+            _output.WriteLine($"Status: {response.StatusCode}");
+            _output.WriteLine($"Response: {responseBody}");
+
+            Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
+        }
+        finally
+        {
+            _authHelper.ClearAuthToken();
+            if (testEmail != null)
+                await _authHelper.CleanupUserAsync(testEmail);
+        }
+    }
+
+    [Fact]
+    public async Task QuickPurchaseFromShoppingListItem_InvalidQuantity_ReturnsBadRequest()
+    {
+        string? testEmail = null;
+        try
+        {
+            var (email, auth) = await _authHelper.CreateAndAuthenticateUserAsync("qp-bad-qty");
+            testEmail = email;
+            _authHelper.SetAuthToken(auth.AccessToken);
+
+            var request = new QuickPurchaseFromShoppingListItemRequest
+            {
+                ShoppingListItemPublicId = Guid.NewGuid(),
+                PurchasedAt = DateTime.UtcNow,
+                Quantity = 0 // Invalid - must be > 0
+            };
+
+            var response = await _client.PostAsJsonAsync("/api/v1.0/shoppinglist/item/quick-purchase", request);
+            var responseBody = await response.Content.ReadAsStringAsync();
+
+            _output.WriteLine($"Status: {response.StatusCode}");
+            _output.WriteLine($"Response: {responseBody}");
+
+            Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        }
+        finally
+        {
+            _authHelper.ClearAuthToken();
+            if (testEmail != null)
+                await _authHelper.CleanupUserAsync(testEmail);
+        }
+    }
+
+    [Fact]
+    public async Task QuickPurchaseFromShoppingListItem_CustomItem_ReturnsBadRequest()
+    {
+        string? testEmail = null;
+        Guid? listId = null;
+        Guid? itemId = null;
+        try
+        {
+            var (email, auth) = await _authHelper.CreateAndAuthenticateUserAsync("qp-custom");
+            testEmail = email;
+            _authHelper.SetAuthToken(auth.AccessToken);
+
+            // Step 1: Create shopping list
+            _output.WriteLine("=== Step 1: Create Shopping List ===");
+            var listRequest = new CreateShoppingListRequest { Name = "Test List" };
+            var listResponse = await _client.PostAsJsonAsync("/api/v1.0/shoppinglist", listRequest);
+            var listContent = await listResponse.Content.ReadFromJsonAsync<ApiResponse<ShoppingListInfo>>();
+            listId = listContent?.Data?.PublicId;
+            _output.WriteLine($"List created: {listId}");
+
+            // Step 2: Create custom shopping list item (without ProductPublicId)
+            _output.WriteLine("\n=== Step 2: Create Custom Item ===");
+            var itemRequest = new CreateShoppingListItemRequest
+            {
+                ShoppingListPublicId = listId!.Value,
+                CustomName = "Custom Milk", // Custom name, no product reference
+                Quantity = 2,
+                Unit = ProductUnit.Liter
+            };
+            var itemResponse = await _client.PostAsJsonAsync("/api/v1.0/shoppinglist/item", itemRequest);
+            var itemContent = await itemResponse.Content.ReadFromJsonAsync<ApiResponse<ShoppingListItemInfo>>();
+            itemId = itemContent?.Data?.PublicId;
+            _output.WriteLine($"Item created: {itemId}");
+
+            // Step 3: Try to quick purchase custom item - should fail
+            _output.WriteLine("\n=== Step 3: Try Quick Purchase (should fail) ===");
+            var purchaseRequest = new QuickPurchaseFromShoppingListItemRequest
+            {
+                ShoppingListItemPublicId = itemId!.Value,
+                PurchasedAt = DateTime.UtcNow,
+                Quantity = 2
+            };
+
+            var response = await _client.PostAsJsonAsync("/api/v1.0/shoppinglist/item/quick-purchase", purchaseRequest);
+            var responseBody = await response.Content.ReadAsStringAsync();
+
+            _output.WriteLine($"Status: {response.StatusCode}");
+            _output.WriteLine($"Response: {responseBody}");
+
+            // Should return BadRequest because custom items can't be converted to inventory
+            Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+            Assert.Contains("custom", responseBody, StringComparison.OrdinalIgnoreCase);
+
+            // Cleanup
+            if (itemId.HasValue)
+                await _client.DeleteAsync($"/api/v1.0/shoppinglist/item/{itemId}");
+            if (listId.HasValue)
+                await _client.DeleteAsync($"/api/v1.0/shoppinglist/{listId}");
+        }
+        finally
+        {
+            _authHelper.ClearAuthToken();
+            if (testEmail != null)
+                await _authHelper.CleanupUserAsync(testEmail);
+        }
+    }
+
+    [Fact]
+    public async Task QuickPurchaseFromShoppingListItem_NonExistentStorageLocation_ReturnsNotFound()
+    {
+        string? testEmail = null;
+        Guid? listId = null;
+        Guid? productId = null;
+        Guid? itemId = null;
+        try
+        {
+            var (email, auth) = await _authHelper.CreateAndAuthenticateUserAsync("qp-no-loc");
+            testEmail = email;
+            _authHelper.SetAuthToken(auth.AccessToken);
+
+            // Create product
+            var productRequest = new CreateProductRequest { Name = "Test Product", Brand = "Test Brand" };
+            var productResponse = await _client.PostAsJsonAsync("/api/v1.0/product", productRequest);
+            var productContent = await productResponse.Content.ReadFromJsonAsync<ApiResponse<ProductInfo>>();
+            productId = productContent?.Data?.PublicId;
+
+            // Create shopping list
+            var listRequest = new CreateShoppingListRequest { Name = "Test List" };
+            var listResponse = await _client.PostAsJsonAsync("/api/v1.0/shoppinglist", listRequest);
+            var listContent = await listResponse.Content.ReadFromJsonAsync<ApiResponse<ShoppingListInfo>>();
+            listId = listContent?.Data?.PublicId;
+
+            // Create item with product reference
+            var itemRequest = new CreateShoppingListItemRequest
+            {
+                ShoppingListPublicId = listId!.Value,
+                ProductPublicId = productId!.Value,
+                Quantity = 2,
+                Unit = ProductUnit.Piece
+            };
+            var itemResponse = await _client.PostAsJsonAsync("/api/v1.0/shoppinglist/item", itemRequest);
+            var itemContent = await itemResponse.Content.ReadFromJsonAsync<ApiResponse<ShoppingListItemInfo>>();
+            itemId = itemContent?.Data?.PublicId;
+
+            // Try quick purchase with non-existent storage location
+            var purchaseRequest = new QuickPurchaseFromShoppingListItemRequest
+            {
+                ShoppingListItemPublicId = itemId!.Value,
+                PurchasedAt = DateTime.UtcNow,
+                Quantity = 2,
+                StorageLocationPublicId = Guid.NewGuid() // Non-existent
+            };
+
+            var response = await _client.PostAsJsonAsync("/api/v1.0/shoppinglist/item/quick-purchase", purchaseRequest);
+            var responseBody = await response.Content.ReadAsStringAsync();
+
+            _output.WriteLine($"Status: {response.StatusCode}");
+            _output.WriteLine($"Response: {responseBody}");
+
+            Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
+
+            // Cleanup
+            if (itemId.HasValue)
+                await _client.DeleteAsync($"/api/v1.0/shoppinglist/item/{itemId}");
+            if (listId.HasValue)
+                await _client.DeleteAsync($"/api/v1.0/shoppinglist/{listId}");
+            if (productId.HasValue)
+                await _client.DeleteAsync($"/api/v1.0/product/{productId}");
+        }
+        finally
+        {
+            _authHelper.ClearAuthToken();
+            if (testEmail != null)
+                await _authHelper.CleanupUserAsync(testEmail);
+        }
+    }
+
+    [Fact]
+    public async Task QuickPurchaseFromShoppingListItem_FullFlow_ReturnsSuccess()
+    {
+        string? testEmail = null;
+        Guid? listId = null;
+        Guid? productId = null;
+        Guid? itemId = null;
+        try
+        {
+            var (email, auth) = await _authHelper.CreateAndAuthenticateUserAsync("qp-ok");
+            testEmail = email;
+            _authHelper.SetAuthToken(auth.AccessToken);
+
+            // Step 1: Create product
+            _output.WriteLine("=== Step 1: Create Product ===");
+            var productRequest = new CreateProductRequest
+            {
+                Name = "Organic Milk",
+                Brand = "Test Dairy",
+                IsEatable = true
+            };
+            var productResponse = await _client.PostAsJsonAsync("/api/v1.0/product", productRequest);
+            var productContent = await productResponse.Content.ReadFromJsonAsync<ApiResponse<ProductInfo>>();
+            productId = productContent?.Data?.PublicId;
+            _output.WriteLine($"Product created: {productId}");
+
+            // Step 2: Create shopping list
+            _output.WriteLine("\n=== Step 2: Create Shopping List ===");
+            var listRequest = new CreateShoppingListRequest { Name = "Grocery Shopping" };
+            var listResponse = await _client.PostAsJsonAsync("/api/v1.0/shoppinglist", listRequest);
+            var listContent = await listResponse.Content.ReadFromJsonAsync<ApiResponse<ShoppingListInfo>>();
+            listId = listContent?.Data?.PublicId;
+            _output.WriteLine($"List created: {listId}");
+
+            // Step 3: Create shopping list item with product reference
+            _output.WriteLine("\n=== Step 3: Create Shopping List Item ===");
+            var itemRequest = new CreateShoppingListItemRequest
+            {
+                ShoppingListPublicId = listId!.Value,
+                ProductPublicId = productId!.Value,
+                Quantity = 2,
+                Unit = ProductUnit.Liter,
+                Note = "Need for breakfast"
+            };
+            var itemResponse = await _client.PostAsJsonAsync("/api/v1.0/shoppinglist/item", itemRequest);
+            var itemContent = await itemResponse.Content.ReadFromJsonAsync<ApiResponse<ShoppingListItemInfo>>();
+            itemId = itemContent?.Data?.PublicId;
+            _output.WriteLine($"Item created: {itemId}");
+
+            // Step 4: Quick purchase the item
+            _output.WriteLine("\n=== Step 4: Quick Purchase ===");
+            var purchaseRequest = new QuickPurchaseFromShoppingListItemRequest
+            {
+                ShoppingListItemPublicId = itemId!.Value,
+                PurchasedAt = DateTime.UtcNow,
+                Quantity = 2,
+                Price = 500,
+                Currency = ProductCurrency.Huf,
+                ExpirationAt = DateTime.UtcNow.AddDays(7),
+                IsSharedWithFamily = false
+            };
+
+            var response = await _client.PostAsJsonAsync("/api/v1.0/shoppinglist/item/quick-purchase", purchaseRequest);
+            var responseBody = await response.Content.ReadAsStringAsync();
+
+            _output.WriteLine($"Status: {response.StatusCode}");
+            _output.WriteLine($"Response: {responseBody}");
+
+            Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+
+            var content = await response.Content.ReadFromJsonAsync<ApiResponse<QuickPurchaseFromShoppingListItemResponse>>();
+            Assert.NotNull(content?.Data);
+            Assert.NotNull(content.Data.ShoppingListItem);
+            Assert.NotNull(content.Data.InventoryItem);
+            Assert.NotNull(content.Data.ShoppingListItem.PurchasedAt);
+            Assert.Equal(2, content.Data.InventoryItem.CurrentQuantity);
+
+            _output.WriteLine($"\nShopping List Item PurchasedAt: {content.Data.ShoppingListItem.PurchasedAt}");
+            _output.WriteLine($"Inventory Item PublicId: {content.Data.InventoryItem.PublicId}");
+            _output.WriteLine($"Inventory Item Quantity: {content.Data.InventoryItem.CurrentQuantity}");
+
+            _output.WriteLine("\n=== Quick Purchase Flow Completed Successfully! ===");
+
+            // Cleanup
+            if (listId.HasValue)
+                await _client.DeleteAsync($"/api/v1.0/shoppinglist/{listId}");
+            if (productId.HasValue)
+                await _client.DeleteAsync($"/api/v1.0/product/{productId}");
+        }
+        finally
+        {
+            _authHelper.ClearAuthToken();
+            if (testEmail != null)
+                await _authHelper.CleanupUserAsync(testEmail);
+        }
+    }
+
+    [Fact]
+    public async Task QuickPurchaseFromShoppingListItem_WithPurchaseInfo_ReturnsSuccessWithPurchaseInfo()
+    {
+        string? testEmail = null;
+        Guid? listId = null;
+        Guid? productId = null;
+        Guid? itemId = null;
+        try
+        {
+            var (email, auth) = await _authHelper.CreateAndAuthenticateUserAsync("qp-purchase-info");
+            testEmail = email;
+            _authHelper.SetAuthToken(auth.AccessToken);
+
+            // Create product
+            var productRequest = new CreateProductRequest { Name = "Test Product", Brand = "Test Brand" };
+            var productResponse = await _client.PostAsJsonAsync("/api/v1.0/product", productRequest);
+            var productContent = await productResponse.Content.ReadFromJsonAsync<ApiResponse<ProductInfo>>();
+            productId = productContent?.Data?.PublicId;
+
+            // Create shopping list
+            var listRequest = new CreateShoppingListRequest { Name = "Test List" };
+            var listResponse = await _client.PostAsJsonAsync("/api/v1.0/shoppinglist", listRequest);
+            var listContent = await listResponse.Content.ReadFromJsonAsync<ApiResponse<ShoppingListInfo>>();
+            listId = listContent?.Data?.PublicId;
+
+            // Create item with product reference
+            var itemRequest = new CreateShoppingListItemRequest
+            {
+                ShoppingListPublicId = listId!.Value,
+                ProductPublicId = productId!.Value,
+                Quantity = 1,
+                Unit = ProductUnit.Piece
+            };
+            var itemResponse = await _client.PostAsJsonAsync("/api/v1.0/shoppinglist/item", itemRequest);
+            var itemContent = await itemResponse.Content.ReadFromJsonAsync<ApiResponse<ShoppingListItemInfo>>();
+            itemId = itemContent?.Data?.PublicId;
+
+            // Quick purchase with price
+            var purchaseDate = DateTime.UtcNow;
+            var purchaseRequest = new QuickPurchaseFromShoppingListItemRequest
+            {
+                ShoppingListItemPublicId = itemId!.Value,
+                PurchasedAt = purchaseDate,
+                Quantity = 3,
+                Price = 1500,
+                Currency = ProductCurrency.Huf
+            };
+
+            var response = await _client.PostAsJsonAsync("/api/v1.0/shoppinglist/item/quick-purchase", purchaseRequest);
+            var responseBody = await response.Content.ReadAsStringAsync();
+
+            _output.WriteLine($"Status: {response.StatusCode}");
+            _output.WriteLine($"Response: {responseBody}");
+
+            Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+
+            var content = await response.Content.ReadFromJsonAsync<ApiResponse<QuickPurchaseFromShoppingListItemResponse>>();
+            Assert.NotNull(content?.Data?.InventoryItem.PurchaseInfo);
+            Assert.Equal(1500, content.Data.InventoryItem.PurchaseInfo.Price);
+            Assert.Equal(ProductCurrency.Huf, content.Data.InventoryItem.PurchaseInfo.Currency);
+            Assert.Equal(3, content.Data.InventoryItem.PurchaseInfo.OriginalQuantity);
+
+            // Cleanup
+            if (listId.HasValue)
+                await _client.DeleteAsync($"/api/v1.0/shoppinglist/{listId}");
+            if (productId.HasValue)
+                await _client.DeleteAsync($"/api/v1.0/product/{productId}");
         }
         finally
         {
