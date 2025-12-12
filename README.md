@@ -34,9 +34,11 @@ Homassy is a modern full-stack system designed to simplify household inventory m
 ### 🎯 Functionality
 - 👤 **User Management** - Profiles, settings, profile pictures
 - 👨‍👩‍👧‍👦 **Family Management** - Create families, join via invite codes
-- 📦 **Product Management** - Track products and storage locations
-- 🛒 **Shopping Lists** - Collaborative family shopping lists
-- 📍 **Locations** - Manage stores and storage locations
+- 📦 **Product Management** - Complete product inventory with consumption tracking
+- 🛒 **Shopping Lists** - Collaborative family shopping lists with purchase tracking
+- 📍 **Locations** - Shopping locations (stores) and storage locations (home)
+- 🔍 **Product Lookup** - Barcode scanning via Open Food Facts API integration
+- 📊 **Select Values** - Dynamic dropdown options for forms
 
 ## 📁 Project Structure
 
@@ -51,6 +53,11 @@ Homassy/
 │   ├── Services/         ⚙️ Infrastructure services
 │   ├── Middleware/       🔧 Rate limiting, session info
 │   └── CLAUDE.md         📚 Detailed architecture documentation
+├── Homassy.Tests/        🧪 Test Suite (xUnit)
+│   ├── Integration/      ✅ Integration tests (100+ tests)
+│   ├── Unit/             🔬 Unit tests
+│   ├── Infrastructure/   🛠️ Test helpers and utilities
+│   └── CLAUDE.md         📖 Testing documentation
 ├── Homassy.Web/          🎨 Vue.js Web App (Frontend - Planned)
 │   └── (Coming soon)
 └── README.md             📖 This file
@@ -67,6 +74,8 @@ Homassy/
 | **Email** | MailKit 4.14.1 |
 | **Logging** | Serilog 9.0.0 |
 | **API Versioning** | Asp.Versioning 8.1.0 |
+| **Testing** | xUnit 2.9.3 + WebApplicationFactory |
+| **External APIs** | Open Food Facts API v2 |
 
 ### Frontend (Planned)
 | Category | Technology |
@@ -182,6 +191,101 @@ All API responses follow a standardized format:
 }
 ```
 
+### Available Endpoints
+
+**Authentication & User**
+- `POST /api/v1.0/auth/request-code` - Request verification code
+- `POST /api/v1.0/auth/verify-code` - Verify code and login
+- `POST /api/v1.0/auth/refresh` - Refresh access token
+- `POST /api/v1.0/auth/logout` - Logout
+- `GET /api/v1.0/auth/me` - Get current user info
+- `POST /api/v1.0/auth/register` - Register new user
+
+**Products & Inventory**
+- `GET /api/v1.0/product` - Get all products
+- `POST /api/v1.0/product` - Create product
+- `GET /api/v1.0/product/{publicId}` - Get detailed product with inventory
+- `PUT /api/v1.0/product/{publicId}` - Update product
+- `DELETE /api/v1.0/product/{publicId}` - Delete product
+- `POST /api/v1.0/product/{publicId}/favorite` - Toggle favorite
+- `POST /api/v1.0/product/{publicId}/inventory` - Add inventory item
+- `POST /api/v1.0/product/{publicId}/inventory/{itemId}/consume` - Mark as consumed
+
+**Open Food Facts Integration**
+- `GET /api/v1.0/openfoodfacts/{barcode}` - Look up product by barcode
+
+**Shopping Lists**
+- `GET /api/v1.0/shoppinglist` - Get all shopping lists
+- `POST /api/v1.0/shoppinglist` - Create shopping list
+- `GET /api/v1.0/shoppinglist/{publicId}` - Get detailed list with items
+- `PUT /api/v1.0/shoppinglist/{publicId}` - Update shopping list
+- `DELETE /api/v1.0/shoppinglist/{publicId}` - Delete shopping list
+- `POST /api/v1.0/shoppinglist/{listId}/item` - Add item to list
+- `PUT /api/v1.0/shoppinglist/{listId}/item/{itemId}` - Update item
+- `DELETE /api/v1.0/shoppinglist/{listId}/item/{itemId}` - Delete item
+
+**Locations**
+- `GET /api/v1.0/location/shopping` - Get shopping locations (stores)
+- `POST /api/v1.0/location/shopping` - Create shopping location
+- `PUT /api/v1.0/location/shopping/{publicId}` - Update shopping location
+- `DELETE /api/v1.0/location/shopping/{publicId}` - Delete shopping location
+- `GET /api/v1.0/location/storage` - Get storage locations
+- `POST /api/v1.0/location/storage` - Create storage location
+- `PUT /api/v1.0/location/storage/{publicId}` - Update storage location
+- `DELETE /api/v1.0/location/storage/{publicId}` - Delete storage location
+
+**Select Values (Dynamic Dropdowns)**
+- `GET /api/v1.0/selectvalue/{type}` - Get select options for entity type
+  - Types: `ShoppingLocation`, `StorageLocation`, `Product`, `ProductInventoryItem`, `ShoppingList`
+
+**Family Management**
+- `GET /api/v1.0/family` - Get family info
+- `POST /api/v1.0/family` - Create family
+- `POST /api/v1.0/family/join` - Join family with invite code
+- `POST /api/v1.0/family/leave` - Leave current family
+
+## 🧪 Testing
+
+The project includes comprehensive test coverage using xUnit and ASP.NET Core testing infrastructure.
+
+### Test Infrastructure
+- **Framework:** xUnit 2.9.3 with `Microsoft.AspNetCore.Mvc.Testing`
+- **Target:** .NET 10.0
+- **Test Database:** PostgreSQL (configured via `appsettings.Testing.json`)
+
+### Test Helpers
+- **`HomassyWebApplicationFactory`** - Custom test server with database access
+  - Direct database queries for verification
+  - User cleanup utilities
+  - Scoped DbContext creation
+- **`TestAuthHelper`** - Simplified authentication for tests
+  - Automatic user creation and token management
+  - Cleanup with cache handling
+
+### Running Tests
+```bash
+cd Homassy.Tests
+dotnet test
+```
+
+### Test Coverage
+- ✅ **Integration Tests** (100+ tests)
+  - AuthController - Authentication flow, registration, tokens
+  - OpenFoodFactsController - Barcode product lookup
+  - SelectValueController - Dynamic dropdown options
+  - LocationController - Shopping and storage locations CRUD
+  - ProductController - Product management with inventory
+  - ShoppingListController - List and item management
+  - FamilyController - Family operations
+  - UserController - User profile and settings
+
+- ✅ **Unit Tests**
+  - UserFunctions - User creation, email normalization
+  - TimeZoneFunctions - Timezone conversions
+  - UnitFunctions - Unit conversions
+
+For detailed testing documentation, see [Homassy.Tests/CLAUDE.md](Homassy.Tests/CLAUDE.md).
+
 ## 🧑‍💻 Development Guidelines
 
 Detailed architecture, patterns, and development guidelines are available in [Homassy.API/CLAUDE.md](Homassy.API/CLAUDE.md).
@@ -227,9 +331,12 @@ GitHub: [@Xentinus](https://github.com/Xentinus)
 - [x] Authentication system (passwordless)
 - [x] User management
 - [x] Family management
-- [ ] Product management (in progress)
-- [ ] Shopping list features
-- [ ] Location management
+- [x] Product management with inventory tracking
+- [x] Shopping list features with purchase tracking
+- [x] Location management (shopping + storage)
+- [x] Open Food Facts API integration
+- [x] Select value endpoints for dynamic dropdowns
+- [x] Comprehensive test infrastructure (100+ tests)
 - [ ] API documentation finalization
 
 ### 📋 Phase 2: Frontend Web App (Planned)
