@@ -456,7 +456,8 @@ public class SelectValueControllerTests : IClassFixture<HomassyWebApplicationFac
         string? testEmail = null;
         try
         {
-            var (email, auth) = await _authHelper.CreateAndAuthenticateUserAsync($"select-case-{enumName[..4]}");
+            // Use full enum name lowercased as suffix to ensure unique users per test case
+            var (email, auth) = await _authHelper.CreateAndAuthenticateUserAsync($"select-case-{enumName.ToLowerInvariant()}-{Guid.NewGuid().ToString()[..8]}");
             testEmail = email;
             _authHelper.SetAuthToken(auth.AccessToken);
 
