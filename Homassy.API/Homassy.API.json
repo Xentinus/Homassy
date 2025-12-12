@@ -529,6 +529,28 @@
         }
       }
     },
+    "/api/v1/OpenFoodFacts/{barcode}": {
+      "get": {
+        "tags": [
+          "OpenFoodFacts"
+        ],
+        "parameters": [
+          {
+            "name": "barcode",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
     "/api/v1/Product": {
       "get": {
         "tags": [
@@ -2095,6 +2117,9 @@
     },
     {
       "name": "Location"
+    },
+    {
+      "name": "OpenFoodFacts"
     },
     {
       "name": "Product"

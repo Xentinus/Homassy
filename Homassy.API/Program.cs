@@ -54,6 +54,9 @@ try
     builder.Services.AddHostedService<CacheManagementService>();
     builder.Services.AddHostedService<RateLimitCleanupService>();
 
+    // External API clients
+    builder.Services.AddHttpClient<OpenFoodFactsService>();
+
     // API Versioning
     builder.Services.AddApiVersioning(options =>
     {
