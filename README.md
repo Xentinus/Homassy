@@ -204,12 +204,17 @@ All API responses follow a standardized format:
 **Products & Inventory**
 - `GET /api/v1.0/product` - Get all products
 - `POST /api/v1.0/product` - Create product
+- `POST /api/v1.0/product/multiple` - Create multiple products
 - `GET /api/v1.0/product/{publicId}` - Get detailed product with inventory
 - `PUT /api/v1.0/product/{publicId}` - Update product
 - `DELETE /api/v1.0/product/{publicId}` - Delete product
 - `POST /api/v1.0/product/{publicId}/favorite` - Toggle favorite
 - `POST /api/v1.0/product/{publicId}/inventory` - Add inventory item
+- `POST /api/v1.0/product/inventory/quick/multiple` - Quick add multiple inventory items
+- `POST /api/v1.0/product/inventory/move` - Move inventory items between storage locations
+- `DELETE /api/v1.0/product/inventory/multiple` - Delete multiple inventory items
 - `POST /api/v1.0/product/{publicId}/inventory/{itemId}/consume` - Mark as consumed
+- `POST /api/v1.0/product/inventory/consume/multiple` - Consume multiple inventory items
 
 **Open Food Facts Integration**
 - `GET /api/v1.0/openfoodfacts/{barcode}` - Look up product by barcode
@@ -221,22 +226,33 @@ All API responses follow a standardized format:
 - `PUT /api/v1.0/shoppinglist/{publicId}` - Update shopping list
 - `DELETE /api/v1.0/shoppinglist/{publicId}` - Delete shopping list
 - `POST /api/v1.0/shoppinglist/{listId}/item` - Add item to list
+- `POST /api/v1.0/shoppinglist/item/multiple` - Create multiple shopping list items
 - `PUT /api/v1.0/shoppinglist/{listId}/item/{itemId}` - Update item
 - `DELETE /api/v1.0/shoppinglist/{listId}/item/{itemId}` - Delete item
+- `DELETE /api/v1.0/shoppinglist/item/multiple` - Delete multiple shopping list items
+- `POST /api/v1.0/shoppinglist/item/quick-purchase` - Quick purchase item (creates inventory)
+- `POST /api/v1.0/shoppinglist/item/quick-purchase/multiple` - Quick purchase multiple items
 
 **Locations**
 - `GET /api/v1.0/location/shopping` - Get shopping locations (stores)
 - `POST /api/v1.0/location/shopping` - Create shopping location
+- `POST /api/v1.0/location/shopping/multiple` - Create multiple shopping locations
 - `PUT /api/v1.0/location/shopping/{publicId}` - Update shopping location
 - `DELETE /api/v1.0/location/shopping/{publicId}` - Delete shopping location
+- `DELETE /api/v1.0/location/shopping/multiple` - Delete multiple shopping locations
 - `GET /api/v1.0/location/storage` - Get storage locations
 - `POST /api/v1.0/location/storage` - Create storage location
+- `POST /api/v1.0/location/storage/multiple` - Create multiple storage locations
 - `PUT /api/v1.0/location/storage/{publicId}` - Update storage location
 - `DELETE /api/v1.0/location/storage/{publicId}` - Delete storage location
+- `DELETE /api/v1.0/location/storage/multiple` - Delete multiple storage locations
 
 **Select Values (Dynamic Dropdowns)**
 - `GET /api/v1.0/selectvalue/{type}` - Get select options for entity type
   - Types: `ShoppingLocation`, `StorageLocation`, `Product`, `ProductInventoryItem`, `ShoppingList`
+
+**Version**
+- `GET /api/Version` - Get API version information (build version, type, and date)
 
 **Family Management**
 - `GET /api/v1.0/family` - Get family info
