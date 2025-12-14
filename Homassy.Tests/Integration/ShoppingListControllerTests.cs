@@ -870,4 +870,364 @@ public class ShoppingListControllerTests : IClassFixture<HomassyWebApplicationFa
         }
     }
     #endregion
+
+    #region CreateMultipleShoppingListItems Tests
+    [Fact]
+    public async Task CreateMultipleShoppingListItems_WithoutToken_ReturnsUnauthorized()
+    {
+        var request = new CreateMultipleShoppingListItemsRequest
+        {
+            ShoppingListPublicId = Guid.NewGuid(),
+            Items = [new CreateShoppingListItemEntry { CustomName = "Test", Quantity = 1, Unit = ProductUnit.Piece }]
+        };
+        var response = await _client.PostAsJsonAsync("/api/v1.0/shoppinglist/item/multiple", request);
+        Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task CreateMultipleShoppingListItems_EmptyList_ReturnsBadRequest()
+    {
+        string? testEmail = null;
+        try
+        {
+            var (email, auth) = await _authHelper.CreateAndAuthenticateUserAsync("list-item-empty");
+            testEmail = email;
+            _authHelper.SetAuthToken(auth.AccessToken);
+
+            var request = new CreateMultipleShoppingListItemsRequest
+            {
+                ShoppingListPublicId = Guid.NewGuid(),
+                Items = []
+            };
+            var response = await _client.PostAsJsonAsync("/api/v1.0/shoppinglist/item/multiple", request);
+            var responseBody = await response.Content.ReadAsStringAsync();
+
+            _output.WriteLine($"Status: {response.StatusCode}");
+            Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        }
+        finally
+        {
+            _authHelper.ClearAuthToken();
+            if (testEmail != null)
+                await _authHelper.CleanupUserAsync(testEmail);
+        }
+    }
+
+    [Fact]
+    public async Task CreateMultipleShoppingListItems_NonExistentList_ReturnsNotFound()
+    {
+        string? testEmail = null;
+        try
+        {
+            var (email, auth) = await _authHelper.CreateAndAuthenticateUserAsync("list-item-nf");
+            testEmail = email;
+            _authHelper.SetAuthToken(auth.AccessToken);
+
+            var request = new CreateMultipleShoppingListItemsRequest
+            {
+                ShoppingListPublicId = Guid.NewGuid(),
+                Items = [new CreateShoppingListItemEntry { CustomName = "Test Item", Quantity = 1, Unit = ProductUnit.Piece }]
+            };
+            var response = await _client.PostAsJsonAsync("/api/v1.0/shoppinglist/item/multiple", request);
+            var responseBody = await response.Content.ReadAsStringAsync();
+
+            _output.WriteLine($"Status: {response.StatusCode}");
+            Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
+        }
+        finally
+        {
+            _authHelper.ClearAuthToken();
+            if (testEmail != null)
+                await _authHelper.CleanupUserAsync(testEmail);
+        }
+    }
+
+    [Fact]
+    public async Task CreateMultipleShoppingListItems_ValidRequest_ReturnsSuccess()
+    {
+        string? testEmail = null;
+        Guid? listId = null;
+        try
+        {
+            var (email, auth) = await _authHelper.CreateAndAuthenticateUserAsync("list-item-multi-ok");
+            testEmail = email;
+            _authHelper.SetAuthToken(auth.AccessToken);
+
+            var listRequest = new CreateShoppingListRequest { Name = "Test List" };
+            var listResponse = await _client.PostAsJsonAsync("/api/v1.0/shoppinglist", listRequest);
+            var listContent = await listResponse.Content.ReadFromJsonAsync<ApiResponse<ShoppingListInfo>>();
+            listId = listContent?.Data?.PublicId;
+
+            var request = new CreateMultipleShoppingListItemsRequest
+            {
+                ShoppingListPublicId = listId!.Value,
+                Items =
+                [
+                    new CreateShoppingListItemEntry { CustomName = "Milk", Quantity = 2, Unit = ProductUnit.Liter },
+                    new CreateShoppingListItemEntry { CustomName = "Bread", Quantity = 1, Unit = ProductUnit.Piece },
+                    new CreateShoppingListItemEntry { CustomName = "Eggs", Quantity = 12, Unit = ProductUnit.Piece }
+                ]
+            };
+
+            var response = await _client.PostAsJsonAsync("/api/v1.0/shoppinglist/item/multiple", request);
+            var responseBody = await response.Content.ReadAsStringAsync();
+
+            _output.WriteLine($"Status: {response.StatusCode}");
+            _output.WriteLine($"Response: {responseBody}");
+
+            Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+
+            var content = await response.Content.ReadFromJsonAsync<ApiResponse<List<ShoppingListItemInfo>>>();
+            Assert.NotNull(content?.Data);
+            Assert.Equal(3, content.Data.Count);
+
+            if (listId.HasValue)
+                await _client.DeleteAsync($"/api/v1.0/shoppinglist/{listId}");
+        }
+        finally
+        {
+            _authHelper.ClearAuthToken();
+            if (testEmail != null)
+                await _authHelper.CleanupUserAsync(testEmail);
+        }
+    }
+    #endregion
+
+    #region DeleteMultipleShoppingListItems Tests
+    [Fact]
+    public async Task DeleteMultipleShoppingListItems_WithoutToken_ReturnsUnauthorized()
+    {
+        var request = new DeleteMultipleShoppingListItemsRequest { ItemPublicIds = [Guid.NewGuid()] };
+        var httpRequest = new HttpRequestMessage(HttpMethod.Delete, "/api/v1.0/shoppinglist/item/multiple")
+        {
+            Content = JsonContent.Create(request)
+        };
+        var response = await _client.SendAsync(httpRequest);
+        Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task DeleteMultipleShoppingListItems_EmptyList_ReturnsBadRequest()
+    {
+        string? testEmail = null;
+        try
+        {
+            var (email, auth) = await _authHelper.CreateAndAuthenticateUserAsync("list-del-empty");
+            testEmail = email;
+            _authHelper.SetAuthToken(auth.AccessToken);
+
+            var request = new DeleteMultipleShoppingListItemsRequest { ItemPublicIds = [] };
+            var httpRequest = new HttpRequestMessage(HttpMethod.Delete, "/api/v1.0/shoppinglist/item/multiple")
+            {
+                Content = JsonContent.Create(request)
+            };
+            var response = await _client.SendAsync(httpRequest);
+
+            _output.WriteLine($"Status: {response.StatusCode}");
+            Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        }
+        finally
+        {
+            _authHelper.ClearAuthToken();
+            if (testEmail != null)
+                await _authHelper.CleanupUserAsync(testEmail);
+        }
+    }
+
+    [Fact]
+    public async Task DeleteMultipleShoppingListItems_ValidRequest_ReturnsSuccess()
+    {
+        string? testEmail = null;
+        Guid? listId = null;
+        try
+        {
+            var (email, auth) = await _authHelper.CreateAndAuthenticateUserAsync("list-del-ok");
+            testEmail = email;
+            _authHelper.SetAuthToken(auth.AccessToken);
+
+            var listRequest = new CreateShoppingListRequest { Name = "Test List" };
+            var listResponse = await _client.PostAsJsonAsync("/api/v1.0/shoppinglist", listRequest);
+            var listContent = await listResponse.Content.ReadFromJsonAsync<ApiResponse<ShoppingListInfo>>();
+            listId = listContent?.Data?.PublicId;
+
+            var createRequest = new CreateMultipleShoppingListItemsRequest
+            {
+                ShoppingListPublicId = listId!.Value,
+                Items =
+                [
+                    new CreateShoppingListItemEntry { CustomName = "Item 1", Quantity = 1, Unit = ProductUnit.Piece },
+                    new CreateShoppingListItemEntry { CustomName = "Item 2", Quantity = 1, Unit = ProductUnit.Piece }
+                ]
+            };
+            var createResponse = await _client.PostAsJsonAsync("/api/v1.0/shoppinglist/item/multiple", createRequest);
+            var createContent = await createResponse.Content.ReadFromJsonAsync<ApiResponse<List<ShoppingListItemInfo>>>();
+            var createdIds = createContent?.Data?.Select(x => x.PublicId).ToList() ?? [];
+
+            var deleteRequest = new DeleteMultipleShoppingListItemsRequest { ItemPublicIds = createdIds };
+            var httpRequest = new HttpRequestMessage(HttpMethod.Delete, "/api/v1.0/shoppinglist/item/multiple")
+            {
+                Content = JsonContent.Create(deleteRequest)
+            };
+            var response = await _client.SendAsync(httpRequest);
+            var responseBody = await response.Content.ReadAsStringAsync();
+
+            _output.WriteLine($"Status: {response.StatusCode}");
+            _output.WriteLine($"Response: {responseBody}");
+
+            Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+
+            if (listId.HasValue)
+                await _client.DeleteAsync($"/api/v1.0/shoppinglist/{listId}");
+        }
+        finally
+        {
+            _authHelper.ClearAuthToken();
+            if (testEmail != null)
+                await _authHelper.CleanupUserAsync(testEmail);
+        }
+    }
+    #endregion
+
+    #region QuickPurchaseMultipleShoppingListItems Tests
+    [Fact]
+    public async Task QuickPurchaseMultipleShoppingListItems_WithoutToken_ReturnsUnauthorized()
+    {
+        var request = new QuickPurchaseMultipleShoppingListItemsRequest
+        {
+            Items = [new QuickPurchaseFromShoppingListItemRequest
+            {
+                ShoppingListItemPublicId = Guid.NewGuid(),
+                PurchasedAt = DateTime.UtcNow,
+                Quantity = 1
+            }]
+        };
+        var response = await _client.PostAsJsonAsync("/api/v1.0/shoppinglist/item/quick-purchase/multiple", request);
+        Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task QuickPurchaseMultipleShoppingListItems_EmptyList_ReturnsBadRequest()
+    {
+        string? testEmail = null;
+        try
+        {
+            var (email, auth) = await _authHelper.CreateAndAuthenticateUserAsync("qp-multi-empty");
+            testEmail = email;
+            _authHelper.SetAuthToken(auth.AccessToken);
+
+            var request = new QuickPurchaseMultipleShoppingListItemsRequest { Items = [] };
+            var response = await _client.PostAsJsonAsync("/api/v1.0/shoppinglist/item/quick-purchase/multiple", request);
+
+            _output.WriteLine($"Status: {response.StatusCode}");
+            Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        }
+        finally
+        {
+            _authHelper.ClearAuthToken();
+            if (testEmail != null)
+                await _authHelper.CleanupUserAsync(testEmail);
+        }
+    }
+
+    [Fact]
+    public async Task QuickPurchaseMultipleShoppingListItems_ValidRequest_ReturnsSuccess()
+    {
+        string? testEmail = null;
+        Guid? listId = null;
+        Guid? productId1 = null;
+        Guid? productId2 = null;
+        try
+        {
+            var (email, auth) = await _authHelper.CreateAndAuthenticateUserAsync("qp-multi-ok");
+            testEmail = email;
+            _authHelper.SetAuthToken(auth.AccessToken);
+
+            var product1Request = new CreateProductRequest { Name = "Product 1", Brand = "Brand" };
+            var product1Response = await _client.PostAsJsonAsync("/api/v1.0/product", product1Request);
+            var product1Content = await product1Response.Content.ReadFromJsonAsync<ApiResponse<ProductInfo>>();
+            productId1 = product1Content?.Data?.PublicId;
+
+            var product2Request = new CreateProductRequest { Name = "Product 2", Brand = "Brand" };
+            var product2Response = await _client.PostAsJsonAsync("/api/v1.0/product", product2Request);
+            var product2Content = await product2Response.Content.ReadFromJsonAsync<ApiResponse<ProductInfo>>();
+            productId2 = product2Content?.Data?.PublicId;
+
+            var listRequest = new CreateShoppingListRequest { Name = "Test List" };
+            var listResponse = await _client.PostAsJsonAsync("/api/v1.0/shoppinglist", listRequest);
+            var listContent = await listResponse.Content.ReadFromJsonAsync<ApiResponse<ShoppingListInfo>>();
+            listId = listContent?.Data?.PublicId;
+
+            var item1Request = new CreateShoppingListItemRequest
+            {
+                ShoppingListPublicId = listId!.Value,
+                ProductPublicId = productId1!.Value,
+                Quantity = 2,
+                Unit = ProductUnit.Piece
+            };
+            var item1Response = await _client.PostAsJsonAsync("/api/v1.0/shoppinglist/item", item1Request);
+            var item1Content = await item1Response.Content.ReadFromJsonAsync<ApiResponse<ShoppingListItemInfo>>();
+            var itemId1 = item1Content?.Data?.PublicId;
+
+            var item2Request = new CreateShoppingListItemRequest
+            {
+                ShoppingListPublicId = listId!.Value,
+                ProductPublicId = productId2!.Value,
+                Quantity = 3,
+                Unit = ProductUnit.Piece
+            };
+            var item2Response = await _client.PostAsJsonAsync("/api/v1.0/shoppinglist/item", item2Request);
+            var item2Content = await item2Response.Content.ReadFromJsonAsync<ApiResponse<ShoppingListItemInfo>>();
+            var itemId2 = item2Content?.Data?.PublicId;
+
+            var purchaseRequest = new QuickPurchaseMultipleShoppingListItemsRequest
+            {
+                Items =
+                [
+                    new QuickPurchaseFromShoppingListItemRequest
+                    {
+                        ShoppingListItemPublicId = itemId1!.Value,
+                        PurchasedAt = DateTime.UtcNow,
+                        Quantity = 2,
+                        Price = 500,
+                        Currency = ProductCurrency.Huf
+                    },
+                    new QuickPurchaseFromShoppingListItemRequest
+                    {
+                        ShoppingListItemPublicId = itemId2!.Value,
+                        PurchasedAt = DateTime.UtcNow,
+                        Quantity = 3,
+                        Price = 750,
+                        Currency = ProductCurrency.Huf
+                    }
+                ]
+            };
+
+            var response = await _client.PostAsJsonAsync("/api/v1.0/shoppinglist/item/quick-purchase/multiple", purchaseRequest);
+            var responseBody = await response.Content.ReadAsStringAsync();
+
+            _output.WriteLine($"Status: {response.StatusCode}");
+            _output.WriteLine($"Response: {responseBody}");
+
+            Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+
+            var content = await response.Content.ReadFromJsonAsync<ApiResponse<List<ShoppingListItemInfo>>>();
+            Assert.NotNull(content?.Data);
+            Assert.Equal(2, content.Data.Count);
+            Assert.All(content.Data, item => Assert.NotNull(item.PurchasedAt));
+
+            if (listId.HasValue)
+                await _client.DeleteAsync($"/api/v1.0/shoppinglist/{listId}");
+            if (productId1.HasValue)
+                await _client.DeleteAsync($"/api/v1.0/product/{productId1}");
+            if (productId2.HasValue)
+                await _client.DeleteAsync($"/api/v1.0/product/{productId2}");
+        }
+        finally
+        {
+            _authHelper.ClearAuthToken();
+            if (testEmail != null)
+                await _authHelper.CleanupUserAsync(testEmail);
+        }
+    }
+    #endregion
 }

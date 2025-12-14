@@ -127,6 +127,72 @@ namespace Homassy.API.Controllers
                 return StatusCode(500, ApiResponse.ErrorResponse("An error occurred while deleting the shopping location"));
             }
         }
+
+        [HttpPost("shopping/multiple")]
+        [MapToApiVersion(1.0)]
+        public async Task<IActionResult> CreateMultipleShoppingLocations([FromBody] CreateMultipleShoppingLocationsRequest request)
+        {
+            if (!ModelState.IsValid)
+            {
+                return BadRequest(ApiResponse.ErrorResponse("Invalid request data"));
+            }
+
+            try
+            {
+                var shoppingLocationInfos = await new LocationFunctions().CreateMultipleShoppingLocationsAsync(request.Locations);
+                return Ok(ApiResponse<List<ShoppingLocationInfo>>.SuccessResponse(shoppingLocationInfos, $"{shoppingLocationInfos.Count} shopping locations created successfully"));
+            }
+            catch (BadRequestException ex)
+            {
+                return BadRequest(ApiResponse.ErrorResponse(ex.Message));
+            }
+            catch (UserNotFoundException ex)
+            {
+                return NotFound(ApiResponse.ErrorResponse(ex.Message));
+            }
+            catch (Exception ex)
+            {
+                Log.Error($"Error creating multiple shopping locations: {ex.Message}");
+                return StatusCode(500, ApiResponse.ErrorResponse("An error occurred while creating the shopping locations"));
+            }
+        }
+
+        [HttpDelete("shopping/multiple")]
+        [MapToApiVersion(1.0)]
+        public async Task<IActionResult> DeleteMultipleShoppingLocations([FromBody] DeleteMultipleShoppingLocationsRequest request)
+        {
+            if (!ModelState.IsValid)
+            {
+                return BadRequest(ApiResponse.ErrorResponse("Invalid request data"));
+            }
+
+            try
+            {
+                await new LocationFunctions().DeleteMultipleShoppingLocationsAsync(request);
+                return Ok(ApiResponse.SuccessResponse($"{request.LocationPublicIds.Count} shopping locations deleted successfully"));
+            }
+            catch (ShoppingLocationNotFoundException ex)
+            {
+                return NotFound(ApiResponse.ErrorResponse(ex.Message));
+            }
+            catch (UnauthorizedException ex)
+            {
+                return Unauthorized(ApiResponse.ErrorResponse(ex.Message));
+            }
+            catch (BadRequestException ex)
+            {
+                return BadRequest(ApiResponse.ErrorResponse(ex.Message));
+            }
+            catch (UserNotFoundException ex)
+            {
+                return NotFound(ApiResponse.ErrorResponse(ex.Message));
+            }
+            catch (Exception ex)
+            {
+                Log.Error($"Error deleting multiple shopping locations: {ex.Message}");
+                return StatusCode(500, ApiResponse.ErrorResponse("An error occurred while deleting the shopping locations"));
+            }
+        }
         #endregion
 
         #region Storage Locations
@@ -238,6 +304,72 @@ namespace Homassy.API.Controllers
             {
                 Log.Error($"Error deleting storage location {storageLocationPublicId}: {ex.Message}");
                 return StatusCode(500, ApiResponse.ErrorResponse("An error occurred while deleting the storage location"));
+            }
+        }
+
+        [HttpPost("storage/multiple")]
+        [MapToApiVersion(1.0)]
+        public async Task<IActionResult> CreateMultipleStorageLocations([FromBody] CreateMultipleStorageLocationsRequest request)
+        {
+            if (!ModelState.IsValid)
+            {
+                return BadRequest(ApiResponse.ErrorResponse("Invalid request data"));
+            }
+
+            try
+            {
+                var storageLocationInfos = await new LocationFunctions().CreateMultipleStorageLocationsAsync(request.Locations);
+                return Ok(ApiResponse<List<StorageLocationInfo>>.SuccessResponse(storageLocationInfos, $"{storageLocationInfos.Count} storage locations created successfully"));
+            }
+            catch (BadRequestException ex)
+            {
+                return BadRequest(ApiResponse.ErrorResponse(ex.Message));
+            }
+            catch (UserNotFoundException ex)
+            {
+                return NotFound(ApiResponse.ErrorResponse(ex.Message));
+            }
+            catch (Exception ex)
+            {
+                Log.Error($"Error creating multiple storage locations: {ex.Message}");
+                return StatusCode(500, ApiResponse.ErrorResponse("An error occurred while creating the storage locations"));
+            }
+        }
+
+        [HttpDelete("storage/multiple")]
+        [MapToApiVersion(1.0)]
+        public async Task<IActionResult> DeleteMultipleStorageLocations([FromBody] DeleteMultipleStorageLocationsRequest request)
+        {
+            if (!ModelState.IsValid)
+            {
+                return BadRequest(ApiResponse.ErrorResponse("Invalid request data"));
+            }
+
+            try
+            {
+                await new LocationFunctions().DeleteMultipleStorageLocationsAsync(request);
+                return Ok(ApiResponse.SuccessResponse($"{request.LocationPublicIds.Count} storage locations deleted successfully"));
+            }
+            catch (StorageLocationNotFoundException ex)
+            {
+                return NotFound(ApiResponse.ErrorResponse(ex.Message));
+            }
+            catch (UnauthorizedException ex)
+            {
+                return Unauthorized(ApiResponse.ErrorResponse(ex.Message));
+            }
+            catch (BadRequestException ex)
+            {
+                return BadRequest(ApiResponse.ErrorResponse(ex.Message));
+            }
+            catch (UserNotFoundException ex)
+            {
+                return NotFound(ApiResponse.ErrorResponse(ex.Message));
+            }
+            catch (Exception ex)
+            {
+                Log.Error($"Error deleting multiple storage locations: {ex.Message}");
+                return StatusCode(500, ApiResponse.ErrorResponse("An error occurred while deleting the storage locations"));
             }
         }
         #endregion

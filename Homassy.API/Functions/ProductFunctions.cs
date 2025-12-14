@@ -1416,9 +1416,6 @@ namespace Homassy.API.Functions
             }
         }
 
-        /// <summary>
-        /// Quickly adds multiple inventory items at once, optionally to a specific storage location.
-        /// </summary>
         public async Task<List<InventoryItemInfo>> QuickAddMultipleInventoryItemsAsync(QuickAddMultipleInventoryItemsRequest request)
         {
             var userId = SessionInfo.GetUserId();
@@ -1496,9 +1493,6 @@ namespace Homassy.API.Functions
             }
         }
 
-        /// <summary>
-        /// Moves multiple inventory items to a new storage location.
-        /// </summary>
         public async Task<List<InventoryItemInfo>> MoveInventoryItemsAsync(MoveInventoryItemsRequest request)
         {
             var userId = SessionInfo.GetUserId();
@@ -1590,6 +1584,252 @@ namespace Homassy.API.Functions
             {
                 await transaction.RollbackAsync();
                 Log.Error(ex, $"Failed to move inventory items for user {userId}");
+                throw;
+            }
+        }
+
+        public async Task DeleteMultipleInventoryItemsAsync(DeleteMultipleInventoryItemsRequest request)
+        {
+            var userId = SessionInfo.GetUserId();
+            if (!userId.HasValue)
+            {
+                Log.Warning("Invalid session: User ID not found");
+                throw new UserNotFoundException("User not found");
+            }
+
+            if (request.ItemPublicIds == null || request.ItemPublicIds.Count == 0)
+            {
+                throw new BadRequestException("At least one item is required");
+            }
+
+            var familyId = SessionInfo.GetFamilyId();
+
+            var context = new HomassyDbContext();
+            await using var transaction = await context.Database.BeginTransactionAsync();
+
+            try
+            {
+                foreach (var itemPublicId in request.ItemPublicIds)
+                {
+                    var inventoryItem = GetInventoryItemByPublicId(itemPublicId);
+                    if (inventoryItem == null)
+                    {
+                        throw new ProductInventoryItemNotFoundException($"Inventory item not found: {itemPublicId}");
+                    }
+
+                    if (inventoryItem.UserId != userId.Value &&
+                        (!familyId.HasValue || inventoryItem.FamilyId != familyId.Value))
+                    {
+                        throw new UnauthorizedException($"You don't have permission to delete inventory item {itemPublicId}");
+                    }
+
+                    var trackedItem = await context.ProductInventoryItems.FindAsync(inventoryItem.Id);
+                    if (trackedItem == null)
+                    {
+                        throw new ProductInventoryItemNotFoundException();
+                    }
+
+                    trackedItem.DeleteRecord(userId.Value);
+                    context.ProductInventoryItems.Update(trackedItem);
+                }
+
+                await context.SaveChangesAsync();
+                await transaction.CommitAsync();
+
+                Log.Information($"User {userId.Value} deleted {request.ItemPublicIds.Count} inventory items");
+            }
+            catch (Exception ex)
+            {
+                await transaction.RollbackAsync();
+                Log.Error(ex, $"Failed to delete multiple inventory items for user {userId.Value}");
+                throw;
+            }
+        }
+
+        public async Task<List<InventoryItemInfo>> ConsumeMultipleInventoryItemsAsync(ConsumeMultipleInventoryItemsRequest request)
+        {
+            var userId = SessionInfo.GetUserId();
+            if (!userId.HasValue)
+            {
+                Log.Warning("Invalid session: User ID not found");
+                throw new UserNotFoundException("User not found");
+            }
+
+            if (request.Items == null || request.Items.Count == 0)
+            {
+                throw new BadRequestException("At least one item is required");
+            }
+
+            var familyId = SessionInfo.GetFamilyId();
+
+            var context = new HomassyDbContext();
+            await using var transaction = await context.Database.BeginTransactionAsync();
+
+            try
+            {
+                var results = new List<InventoryItemInfo>();
+
+                foreach (var itemRequest in request.Items)
+                {
+                    var inventoryItem = GetInventoryItemByPublicId(itemRequest.InventoryItemPublicId);
+                    if (inventoryItem == null)
+                    {
+                        throw new ProductInventoryItemNotFoundException($"Inventory item not found: {itemRequest.InventoryItemPublicId}");
+                    }
+
+                    if (inventoryItem.UserId != userId.Value &&
+                        (!familyId.HasValue || inventoryItem.FamilyId != familyId.Value))
+                    {
+                        throw new UnauthorizedException($"You don't have permission to consume inventory item {itemRequest.InventoryItemPublicId}");
+                    }
+
+                    if (inventoryItem.IsFullyConsumed)
+                    {
+                        throw new BadRequestException($"Inventory item {itemRequest.InventoryItemPublicId} is already fully consumed");
+                    }
+
+                    if (itemRequest.Quantity > inventoryItem.CurrentQuantity)
+                    {
+                        throw new BadRequestException($"Cannot consume more than available quantity ({inventoryItem.CurrentQuantity}) for item {itemRequest.InventoryItemPublicId}");
+                    }
+
+                    var trackedItem = await context.ProductInventoryItems.FindAsync(inventoryItem.Id);
+                    if (trackedItem == null)
+                    {
+                        throw new ProductInventoryItemNotFoundException();
+                    }
+
+                    var remainingQuantity = trackedItem.CurrentQuantity - itemRequest.Quantity;
+
+                    var consumptionLog = new ProductConsumptionLog
+                    {
+                        ProductInventoryItemId = trackedItem.Id,
+                        UserId = userId.Value,
+                        ConsumedQuantity = itemRequest.Quantity,
+                        RemainingQuantity = remainingQuantity
+                    };
+
+                    context.ProductConsumptionLogs.Add(consumptionLog);
+
+                    trackedItem.CurrentQuantity = remainingQuantity;
+                    if (remainingQuantity <= 0)
+                    {
+                        trackedItem.IsFullyConsumed = true;
+                        trackedItem.FullyConsumedAt = DateTime.UtcNow;
+                    }
+
+                    var purchaseInfo = GetPurchaseInfoByInventoryItemId(trackedItem.Id);
+
+                    results.Add(new InventoryItemInfo
+                    {
+                        PublicId = trackedItem.PublicId,
+                        CurrentQuantity = trackedItem.CurrentQuantity,
+                        Unit = trackedItem.Unit,
+                        ExpirationAt = trackedItem.ExpirationAt,
+                        PurchaseInfo = purchaseInfo != null ? new PurchaseInfo
+                        {
+                            PublicId = purchaseInfo.PublicId,
+                            PurchasedAt = purchaseInfo.PurchasedAt,
+                            OriginalQuantity = purchaseInfo.OriginalQuantity,
+                            Price = purchaseInfo.Price,
+                            Currency = purchaseInfo.Currency,
+                            ShoppingLocationId = purchaseInfo.ShoppingLocationId
+                        } : null,
+                        ConsumptionLogs = new List<ConsumptionLogInfo>()
+                    });
+                }
+
+                await context.SaveChangesAsync();
+                await transaction.CommitAsync();
+
+                Log.Information($"User {userId.Value} consumed {request.Items.Count} inventory items");
+
+                return results;
+            }
+            catch (Exception ex)
+            {
+                await transaction.RollbackAsync();
+                Log.Error(ex, $"Failed to consume multiple inventory items for user {userId.Value}");
+                throw;
+            }
+        }
+
+        public async Task<List<ProductInfo>> CreateMultipleProductsAsync(CreateMultipleProductsRequest request)
+        {
+            var userId = SessionInfo.GetUserId();
+            if (!userId.HasValue)
+            {
+                Log.Warning("Invalid session: User ID not found");
+                throw new UserNotFoundException("User not found");
+            }
+
+            if (request.Products == null || request.Products.Count == 0)
+            {
+                throw new BadRequestException("At least one product is required");
+            }
+
+            var context = new HomassyDbContext();
+            await using var transaction = await context.Database.BeginTransactionAsync();
+
+            try
+            {
+                var results = new List<ProductInfo>();
+
+                foreach (var productRequest in request.Products)
+                {
+                    var product = new Product
+                    {
+                        Name = productRequest.Name.Trim(),
+                        Brand = productRequest.Brand.Trim(),
+                        Category = productRequest.Category?.Trim(),
+                        Barcode = productRequest.Barcode?.Trim(),
+                        ProductPictureBase64 = productRequest.ProductPictureBase64,
+                        IsEatable = productRequest.IsEatable
+                    };
+
+                    context.Products.Add(product);
+                    await context.SaveChangesAsync();
+
+                    bool isFavorite = false;
+
+                    if (!string.IsNullOrWhiteSpace(productRequest.Notes) || productRequest.IsFavorite)
+                    {
+                        var customization = new ProductCustomization
+                        {
+                            ProductId = product.Id,
+                            UserId = userId,
+                            Notes = productRequest.Notes?.Trim(),
+                            IsFavorite = productRequest.IsFavorite
+                        };
+
+                        context.ProductCustomizations.Add(customization);
+                        isFavorite = productRequest.IsFavorite;
+                    }
+
+                    results.Add(new ProductInfo
+                    {
+                        PublicId = product.PublicId,
+                        Name = product.Name,
+                        Brand = product.Brand,
+                        Category = product.Category,
+                        Barcode = product.Barcode,
+                        ProductPictureBase64 = product.ProductPictureBase64,
+                        IsEatable = product.IsEatable,
+                        IsFavorite = isFavorite
+                    });
+                }
+
+                await context.SaveChangesAsync();
+                await transaction.CommitAsync();
+
+                Log.Information($"User {userId.Value} created {results.Count} products");
+
+                return results;
+            }
+            catch (Exception ex)
+            {
+                await transaction.RollbackAsync();
+                Log.Error(ex, $"Failed to create multiple products for user {userId.Value}");
                 throw;
             }
         }

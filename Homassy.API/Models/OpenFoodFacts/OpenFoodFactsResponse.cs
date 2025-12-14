@@ -2,18 +2,12 @@ using System.Text.Json.Serialization;
 
 namespace Homassy.API.Models.OpenFoodFacts;
 
-/// <summary>
-/// Response from Open Food Facts API.
-/// </summary>
 public record OpenFoodFactsResponse(
     [property: JsonPropertyName("status")] int Status,
     [property: JsonPropertyName("status_verbose")] string? StatusVerbose,
     [property: JsonPropertyName("product")] OpenFoodFactsProduct? Product
 );
 
-/// <summary>
-/// Product data from Open Food Facts.
-/// </summary>
 public record OpenFoodFactsProduct(
     [property: JsonPropertyName("code")] string? Code,
     [property: JsonPropertyName("product_name")] string? ProductName,
@@ -39,17 +33,9 @@ public record OpenFoodFactsProduct(
     [property: JsonPropertyName("nutriments")] OpenFoodFactsNutriments? Nutriments
 )
 {
-    /// <summary>
-    /// Base64 encoded image data (populated after fetching the image).
-    /// Format: "data:{contentType};base64,{base64Data}"
-    /// </summary>
     [JsonPropertyName("image_base64")]
     public string? ImageBase64 { get; init; }
 };
-
-/// <summary>
-/// Nutritional information from Open Food Facts.
-/// </summary>
 public record OpenFoodFactsNutriments(
     [property: JsonPropertyName("energy-kcal_100g")] double? EnergyKcal100g,
     [property: JsonPropertyName("energy-kj_100g")] double? EnergyKj100g,

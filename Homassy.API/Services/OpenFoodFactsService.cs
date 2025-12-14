@@ -3,9 +3,6 @@ using Homassy.API.Models.OpenFoodFacts;
 
 namespace Homassy.API.Services;
 
-/// <summary>
-/// Service for interacting with Open Food Facts API.
-/// </summary>
 public class OpenFoodFactsService
 {
     private readonly HttpClient _httpClient;
@@ -21,13 +18,6 @@ public class OpenFoodFactsService
             new ProductInfoHeaderValue("(https://github.com/Xentinus/Homassy)"));
     }
 
-    /// <summary>
-    /// Gets product information by barcode from Open Food Facts.
-    /// The world database includes products from all countries, including Hungary.
-    /// </summary>
-    /// <param name="barcode">Product barcode (EAN-13, UPC-A, etc.)</param>
-    /// <param name="cancellationToken">Cancellation token</param>
-    /// <returns>Product information or null if not found</returns>
     public async Task<OpenFoodFactsResponse?> GetProductByBarcodeAsync(
         string barcode, 
         CancellationToken cancellationToken = default)
@@ -64,9 +54,6 @@ public class OpenFoodFactsService
         return result;
     }
 
-    /// <summary>
-    /// Fetches an image from URL and converts it to Base64 data URI.
-    /// </summary>
     private async Task<string?> FetchImageAsBase64Async(string imageUrl, CancellationToken cancellationToken)
     {
         try

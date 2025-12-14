@@ -5,20 +5,11 @@ using Homassy.API.Models.Common;
 using Homassy.API.Models.User;
 
 namespace Homassy.Tests.Infrastructure;
-
-/// <summary>
-/// Helper class for authentication in integration tests.
-/// Provides methods to create test users and authenticate them.
-/// </summary>
 public class TestAuthHelper
 {
     private readonly HomassyWebApplicationFactory _factory;
     private readonly HttpClient _client;
 
-    /// <summary>
-    /// Delay in milliseconds to wait for cache refresh after authentication.
-    /// CacheManagementService refreshes every 5 seconds, so we wait 6 seconds to ensure data is available.
-    /// </summary>
     private const int CacheRefreshDelayMs = 6000;
 
     public TestAuthHelper(HomassyWebApplicationFactory factory, HttpClient client)
@@ -27,10 +18,6 @@ public class TestAuthHelper
         _client = client;
     }
 
-    /// <summary>
-    /// Creates a test user and authenticates them, returning the auth response.
-    /// Includes a delay to wait for cache refresh (CacheManagementService refreshes every 5 seconds).
-    /// </summary>
     public async Task<(string Email, AuthResponse Auth)> CreateAndAuthenticateUserAsync(string? nameSuffix = null)
     {
         var uniqueEmail = $"test-{nameSuffix ?? Guid.NewGuid().ToString()[..8]}@example.com";
@@ -99,25 +86,16 @@ public class TestAuthHelper
         return (uniqueEmail, authContent.Data);
     }
 
-    /// <summary>
-    /// Sets the authorization header on the client with the given access token.
-    /// </summary>
     public void SetAuthToken(string accessToken)
     {
         _client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", accessToken);
     }
 
-    /// <summary>
-    /// Clears the authorization header from the client.
-    /// </summary>
     public void ClearAuthToken()
     {
         _client.DefaultRequestHeaders.Authorization = null;
     }
 
-    /// <summary>
-    /// Cleans up a test user by email.
-    /// </summary>
     public async Task CleanupUserAsync(string email)
     {
         await _factory.CleanupTestUserAsync(email);

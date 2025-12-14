@@ -332,6 +332,149 @@ namespace Homassy.API.Controllers
                 return StatusCode(500, ApiResponse.ErrorResponse("An error occurred while processing the purchase"));
             }
         }
+
+        [HttpPost("item/multiple")]
+        [MapToApiVersion(1.0)]
+        public async Task<IActionResult> CreateMultipleShoppingListItems([FromBody] CreateMultipleShoppingListItemsRequest request)
+        {
+            if (!ModelState.IsValid)
+            {
+                return BadRequest(ApiResponse.ErrorResponse("Invalid request data"));
+            }
+
+            try
+            {
+                var items = await new ShoppingListFunctions().CreateMultipleShoppingListItemsAsync(request);
+                return Ok(ApiResponse<List<ShoppingListItemInfo>>.SuccessResponse(items, $"{items.Count} shopping list items created successfully"));
+            }
+            catch (ShoppingListNotFoundException ex)
+            {
+                return NotFound(ApiResponse.ErrorResponse(ex.Message));
+            }
+            catch (ShoppingListAccessDeniedException ex)
+            {
+                return Unauthorized(ApiResponse.ErrorResponse(ex.Message));
+            }
+            catch (InvalidShoppingListItemException ex)
+            {
+                return BadRequest(ApiResponse.ErrorResponse(ex.Message));
+            }
+            catch (ProductNotFoundException ex)
+            {
+                return NotFound(ApiResponse.ErrorResponse(ex.Message));
+            }
+            catch (ShoppingLocationNotFoundException ex)
+            {
+                return NotFound(ApiResponse.ErrorResponse(ex.Message));
+            }
+            catch (BadRequestException ex)
+            {
+                return BadRequest(ApiResponse.ErrorResponse(ex.Message));
+            }
+            catch (UserNotFoundException ex)
+            {
+                return NotFound(ApiResponse.ErrorResponse(ex.Message));
+            }
+            catch (Exception ex)
+            {
+                Log.Error($"Error creating multiple shopping list items: {ex.Message}");
+                return StatusCode(500, ApiResponse.ErrorResponse("An error occurred while creating the shopping list items"));
+            }
+        }
+
+        [HttpDelete("item/multiple")]
+        [MapToApiVersion(1.0)]
+        public async Task<IActionResult> DeleteMultipleShoppingListItems([FromBody] DeleteMultipleShoppingListItemsRequest request)
+        {
+            if (!ModelState.IsValid)
+            {
+                return BadRequest(ApiResponse.ErrorResponse("Invalid request data"));
+            }
+
+            try
+            {
+                await new ShoppingListFunctions().DeleteMultipleShoppingListItemsAsync(request);
+                return Ok(ApiResponse.SuccessResponse($"{request.ItemPublicIds.Count} shopping list items deleted successfully"));
+            }
+            catch (ShoppingListItemNotFoundException ex)
+            {
+                return NotFound(ApiResponse.ErrorResponse(ex.Message));
+            }
+            catch (ShoppingListNotFoundException ex)
+            {
+                return NotFound(ApiResponse.ErrorResponse(ex.Message));
+            }
+            catch (ShoppingListAccessDeniedException ex)
+            {
+                return Unauthorized(ApiResponse.ErrorResponse(ex.Message));
+            }
+            catch (BadRequestException ex)
+            {
+                return BadRequest(ApiResponse.ErrorResponse(ex.Message));
+            }
+            catch (UserNotFoundException ex)
+            {
+                return NotFound(ApiResponse.ErrorResponse(ex.Message));
+            }
+            catch (Exception ex)
+            {
+                Log.Error($"Error deleting multiple shopping list items: {ex.Message}");
+                return StatusCode(500, ApiResponse.ErrorResponse("An error occurred while deleting the shopping list items"));
+            }
+        }
+
+        [HttpPost("item/quick-purchase/multiple")]
+        [MapToApiVersion(1.0)]
+        public async Task<IActionResult> QuickPurchaseMultipleShoppingListItems([FromBody] QuickPurchaseMultipleShoppingListItemsRequest request)
+        {
+            if (!ModelState.IsValid)
+            {
+                return BadRequest(ApiResponse.ErrorResponse("Invalid request data"));
+            }
+
+            try
+            {
+                var items = await new ShoppingListFunctions().QuickPurchaseMultipleShoppingListItemsAsync(request);
+                return Ok(ApiResponse<List<ShoppingListItemInfo>>.SuccessResponse(items, $"{items.Count} shopping list items purchased successfully"));
+            }
+            catch (ShoppingListItemNotFoundException ex)
+            {
+                return NotFound(ApiResponse.ErrorResponse(ex.Message));
+            }
+            catch (InvalidShoppingListItemException ex)
+            {
+                return BadRequest(ApiResponse.ErrorResponse(ex.Message));
+            }
+            catch (ShoppingListNotFoundException ex)
+            {
+                return NotFound(ApiResponse.ErrorResponse(ex.Message));
+            }
+            catch (ShoppingListAccessDeniedException ex)
+            {
+                return Unauthorized(ApiResponse.ErrorResponse(ex.Message));
+            }
+            catch (ProductNotFoundException ex)
+            {
+                return NotFound(ApiResponse.ErrorResponse(ex.Message));
+            }
+            catch (StorageLocationNotFoundException ex)
+            {
+                return NotFound(ApiResponse.ErrorResponse(ex.Message));
+            }
+            catch (BadRequestException ex)
+            {
+                return BadRequest(ApiResponse.ErrorResponse(ex.Message));
+            }
+            catch (UserNotFoundException ex)
+            {
+                return NotFound(ApiResponse.ErrorResponse(ex.Message));
+            }
+            catch (Exception ex)
+            {
+                Log.Error($"Error quick purchasing multiple shopping list items: {ex.Message}");
+                return StatusCode(500, ApiResponse.ErrorResponse("An error occurred while processing the purchases"));
+            }
+        }
         #endregion
     }
 }

@@ -433,6 +433,109 @@ namespace Homassy.API.Controllers
                 return StatusCode(500, ApiResponse.ErrorResponse("An error occurred while moving the inventory items"));
             }
         }
+
+        [HttpDelete("inventory/multiple")]
+        [MapToApiVersion(1.0)]
+        public async Task<IActionResult> DeleteMultipleInventoryItems([FromBody] DeleteMultipleInventoryItemsRequest request)
+        {
+            if (!ModelState.IsValid)
+            {
+                return BadRequest(ApiResponse.ErrorResponse("Invalid request data"));
+            }
+
+            try
+            {
+                await new ProductFunctions().DeleteMultipleInventoryItemsAsync(request);
+                return Ok(ApiResponse.SuccessResponse($"{request.ItemPublicIds.Count} inventory items deleted successfully"));
+            }
+            catch (ProductInventoryItemNotFoundException ex)
+            {
+                return NotFound(ApiResponse.ErrorResponse(ex.Message));
+            }
+            catch (UnauthorizedException ex)
+            {
+                return Unauthorized(ApiResponse.ErrorResponse(ex.Message));
+            }
+            catch (BadRequestException ex)
+            {
+                return BadRequest(ApiResponse.ErrorResponse(ex.Message));
+            }
+            catch (UserNotFoundException ex)
+            {
+                return NotFound(ApiResponse.ErrorResponse(ex.Message));
+            }
+            catch (Exception ex)
+            {
+                Log.Error($"Error deleting multiple inventory items: {ex.Message}");
+                return StatusCode(500, ApiResponse.ErrorResponse("An error occurred while deleting the inventory items"));
+            }
+        }
+
+        [HttpPost("inventory/consume/multiple")]
+        [MapToApiVersion(1.0)]
+        public async Task<IActionResult> ConsumeMultipleInventoryItems([FromBody] ConsumeMultipleInventoryItemsRequest request)
+        {
+            if (!ModelState.IsValid)
+            {
+                return BadRequest(ApiResponse.ErrorResponse("Invalid request data"));
+            }
+
+            try
+            {
+                var items = await new ProductFunctions().ConsumeMultipleInventoryItemsAsync(request);
+                return Ok(ApiResponse<List<InventoryItemInfo>>.SuccessResponse(items, $"{items.Count} inventory items consumed successfully"));
+            }
+            catch (ProductInventoryItemNotFoundException ex)
+            {
+                return NotFound(ApiResponse.ErrorResponse(ex.Message));
+            }
+            catch (UnauthorizedException ex)
+            {
+                return Unauthorized(ApiResponse.ErrorResponse(ex.Message));
+            }
+            catch (BadRequestException ex)
+            {
+                return BadRequest(ApiResponse.ErrorResponse(ex.Message));
+            }
+            catch (UserNotFoundException ex)
+            {
+                return NotFound(ApiResponse.ErrorResponse(ex.Message));
+            }
+            catch (Exception ex)
+            {
+                Log.Error($"Error consuming multiple inventory items: {ex.Message}");
+                return StatusCode(500, ApiResponse.ErrorResponse("An error occurred while consuming the inventory items"));
+            }
+        }
+
+        [HttpPost("multiple")]
+        [MapToApiVersion(1.0)]
+        public async Task<IActionResult> CreateMultipleProducts([FromBody] CreateMultipleProductsRequest request)
+        {
+            if (!ModelState.IsValid)
+            {
+                return BadRequest(ApiResponse.ErrorResponse("Invalid request data"));
+            }
+
+            try
+            {
+                var products = await new ProductFunctions().CreateMultipleProductsAsync(request);
+                return Ok(ApiResponse<List<ProductInfo>>.SuccessResponse(products, $"{products.Count} products created successfully"));
+            }
+            catch (BadRequestException ex)
+            {
+                return BadRequest(ApiResponse.ErrorResponse(ex.Message));
+            }
+            catch (UserNotFoundException ex)
+            {
+                return NotFound(ApiResponse.ErrorResponse(ex.Message));
+            }
+            catch (Exception ex)
+            {
+                Log.Error($"Error creating multiple products: {ex.Message}");
+                return StatusCode(500, ApiResponse.ErrorResponse("An error occurred while creating the products"));
+            }
+        }
         #endregion
     }
 }

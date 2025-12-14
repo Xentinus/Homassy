@@ -8,12 +8,6 @@ namespace Homassy.API.Functions
 {
     public class SelectValueFunctions
     {
-        /// <summary>
-        /// Retrieves a list of SelectValue items for the specified entity type.
-        /// Results are filtered to entities accessible by the current user (by userId or familyId).
-        /// </summary>
-        /// <param name="type">The type of entity to retrieve select values for.</param>
-        /// <returns>A list of SelectValue containing PublicId and display text.</returns>
         public List<SelectValue> GetSelectValues(SelectValueType type)
         {
             var userId = SessionInfo.GetUserId();

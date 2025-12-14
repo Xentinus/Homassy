@@ -930,10 +930,6 @@ namespace Homassy.API.Functions
             }
         }
 
-        /// <summary>
-        /// Purchases a shopping list item and creates a corresponding inventory item.
-        /// Only works for non-custom items (items with a ProductId).
-        /// </summary>
         public async Task<ShoppingListItemInfo> QuickPurchaseFromShoppingListItemAsync(QuickPurchaseFromShoppingListItemRequest request)
         {
             var userId = SessionInfo.GetUserId();
@@ -1064,6 +1060,325 @@ namespace Homassy.API.Functions
             {
                 await transaction.RollbackAsync();
                 Log.Error(ex, $"Failed to quick purchase shopping list item {request.ShoppingListItemPublicId} for user {userId}");
+                throw;
+            }
+        }
+
+        public async Task<List<ShoppingListItemInfo>> CreateMultipleShoppingListItemsAsync(CreateMultipleShoppingListItemsRequest request)
+        {
+            var userId = SessionInfo.GetUserId();
+            if (!userId.HasValue)
+            {
+                Log.Warning("Invalid session: User ID not found");
+                throw new UserNotFoundException("User not found");
+            }
+
+            var shoppingList = GetShoppingListByPublicId(request.ShoppingListPublicId);
+            if (shoppingList == null)
+            {
+                throw new ShoppingListNotFoundException();
+            }
+
+            var familyId = SessionInfo.GetFamilyId();
+            if (shoppingList.UserId != userId.Value &&
+                (!familyId.HasValue || shoppingList.FamilyId != familyId.Value))
+            {
+                throw new ShoppingListAccessDeniedException();
+            }
+
+            if (request.Items == null || request.Items.Count == 0)
+            {
+                throw new BadRequestException("At least one item is required");
+            }
+
+            foreach (var item in request.Items)
+            {
+                if (string.IsNullOrWhiteSpace(item.CustomName) && !item.ProductPublicId.HasValue)
+                {
+                    throw new InvalidShoppingListItemException("Either CustomName or ProductPublicId must be provided for all items");
+                }
+            }
+
+            var locationFunctions = new LocationFunctions();
+            var productFunctions = new ProductFunctions();
+
+            var context = new HomassyDbContext();
+            await using var transaction = await context.Database.BeginTransactionAsync();
+
+            try
+            {
+                var createdItems = new List<ShoppingListItem>();
+
+                foreach (var item in request.Items)
+                {
+                    int? productId = null;
+                    int? shoppingLocationId = null;
+
+                    if (item.ProductPublicId.HasValue)
+                    {
+                        var product = productFunctions.GetProductByPublicId(item.ProductPublicId.Value);
+                        if (product == null)
+                        {
+                            throw new ProductNotFoundException($"Product not found: {item.ProductPublicId}");
+                        }
+                        productId = product.Id;
+                    }
+
+                    if (item.ShoppingLocationPublicId.HasValue)
+                    {
+                        var shoppingLocation = locationFunctions.GetShoppingLocationByPublicId(item.ShoppingLocationPublicId.Value);
+                        if (shoppingLocation == null)
+                        {
+                            throw new ShoppingLocationNotFoundException($"Shopping location not found: {item.ShoppingLocationPublicId}");
+                        }
+                        shoppingLocationId = shoppingLocation.Id;
+                    }
+
+                    var shoppingListItem = new ShoppingListItem
+                    {
+                        ShoppingListId = shoppingList.Id,
+                        ProductId = productId,
+                        ShoppingLocationId = shoppingLocationId,
+                        CustomName = item.CustomName?.Trim(),
+                        Quantity = item.Quantity,
+                        Unit = item.Unit,
+                        Note = item.Note?.Trim(),
+                        DeadlineAt = item.DeadlineAt,
+                        DueAt = item.DueAt
+                    };
+
+                    createdItems.Add(shoppingListItem);
+                }
+
+                context.ShoppingListItems.AddRange(createdItems);
+                await context.SaveChangesAsync();
+
+                await transaction.CommitAsync();
+
+                Log.Information($"User {userId.Value} created {createdItems.Count} shopping list items in shopping list {shoppingList.Id}");
+
+                return createdItems.Select(sli => new ShoppingListItemInfo
+                {
+                    PublicId = sli.PublicId,
+                    ShoppingListPublicId = shoppingList.PublicId,
+                    ProductPublicId = sli.ProductId.HasValue ? productFunctions.GetProductById(sli.ProductId)?.PublicId : null,
+                    ShoppingLocationPublicId = sli.ShoppingLocationId.HasValue ? locationFunctions.GetShoppingLocationById(sli.ShoppingLocationId)?.PublicId : null,
+                    CustomName = sli.CustomName,
+                    Quantity = sli.Quantity,
+                    Unit = sli.Unit.ToUnitCode(),
+                    Note = sli.Note,
+                    PurchasedAt = sli.PurchasedAt,
+                    DeadlineAt = sli.DeadlineAt,
+                    DueAt = sli.DueAt
+                }).ToList();
+            }
+            catch (Exception ex)
+            {
+                await transaction.RollbackAsync();
+                Log.Error(ex, $"Failed to create multiple shopping list items for user {userId.Value}");
+                throw;
+            }
+        }
+
+        public async Task DeleteMultipleShoppingListItemsAsync(DeleteMultipleShoppingListItemsRequest request)
+        {
+            var userId = SessionInfo.GetUserId();
+            if (!userId.HasValue)
+            {
+                Log.Warning("Invalid session: User ID not found");
+                throw new UserNotFoundException("User not found");
+            }
+
+            if (request.ItemPublicIds == null || request.ItemPublicIds.Count == 0)
+            {
+                throw new BadRequestException("At least one item is required");
+            }
+
+            var familyId = SessionInfo.GetFamilyId();
+
+            var context = new HomassyDbContext();
+            await using var transaction = await context.Database.BeginTransactionAsync();
+
+            try
+            {
+                foreach (var itemPublicId in request.ItemPublicIds)
+                {
+                    var shoppingListItem = GetShoppingListItemByPublicId(itemPublicId);
+                    if (shoppingListItem == null)
+                    {
+                        throw new ShoppingListItemNotFoundException($"Shopping list item not found: {itemPublicId}");
+                    }
+
+                    var shoppingList = GetShoppingListById(shoppingListItem.ShoppingListId);
+                    if (shoppingList == null)
+                    {
+                        throw new ShoppingListNotFoundException();
+                    }
+
+                    if (shoppingList.UserId != userId.Value &&
+                        (!familyId.HasValue || shoppingList.FamilyId != familyId.Value))
+                    {
+                        throw new ShoppingListAccessDeniedException();
+                    }
+
+                    var trackedItem = await context.ShoppingListItems.FindAsync(shoppingListItem.Id);
+                    if (trackedItem == null)
+                    {
+                        throw new ShoppingListItemNotFoundException();
+                    }
+
+                    trackedItem.DeleteRecord(userId.Value);
+                    context.ShoppingListItems.Update(trackedItem);
+                }
+
+                await context.SaveChangesAsync();
+                await transaction.CommitAsync();
+
+                Log.Information($"User {userId.Value} deleted {request.ItemPublicIds.Count} shopping list items");
+            }
+            catch (Exception ex)
+            {
+                await transaction.RollbackAsync();
+                Log.Error(ex, $"Failed to delete multiple shopping list items for user {userId.Value}");
+                throw;
+            }
+        }
+
+        public async Task<List<ShoppingListItemInfo>> QuickPurchaseMultipleShoppingListItemsAsync(QuickPurchaseMultipleShoppingListItemsRequest request)
+        {
+            var userId = SessionInfo.GetUserId();
+            if (!userId.HasValue)
+            {
+                Log.Warning("Invalid session: User ID not found");
+                throw new UserNotFoundException("User not found");
+            }
+
+            if (request.Items == null || request.Items.Count == 0)
+            {
+                throw new BadRequestException("At least one item is required");
+            }
+
+            var familyId = SessionInfo.GetFamilyId();
+            var locationFunctions = new LocationFunctions();
+            var productFunctions = new ProductFunctions();
+            var userProfile = new UserFunctions().GetUserProfileByUserId(userId.Value);
+
+            var context = new HomassyDbContext();
+            await using var transaction = await context.Database.BeginTransactionAsync();
+
+            try
+            {
+                var results = new List<ShoppingListItemInfo>();
+
+                foreach (var itemRequest in request.Items)
+                {
+                    var shoppingListItem = GetShoppingListItemByPublicId(itemRequest.ShoppingListItemPublicId);
+                    if (shoppingListItem == null)
+                    {
+                        throw new ShoppingListItemNotFoundException($"Shopping list item not found: {itemRequest.ShoppingListItemPublicId}");
+                    }
+
+                    if (!shoppingListItem.ProductId.HasValue)
+                    {
+                        throw new InvalidShoppingListItemException($"Cannot quick purchase a custom item: {itemRequest.ShoppingListItemPublicId}");
+                    }
+
+                    var shoppingList = GetShoppingListById(shoppingListItem.ShoppingListId);
+                    if (shoppingList == null)
+                    {
+                        throw new ShoppingListNotFoundException();
+                    }
+
+                    if (shoppingList.UserId != userId.Value &&
+                        (!familyId.HasValue || shoppingList.FamilyId != familyId.Value))
+                    {
+                        throw new ShoppingListAccessDeniedException();
+                    }
+
+                    var product = productFunctions.GetProductById(shoppingListItem.ProductId);
+                    if (product == null)
+                    {
+                        throw new ProductNotFoundException("Product not found");
+                    }
+
+                    int? storageLocationId = null;
+                    if (itemRequest.StorageLocationPublicId.HasValue)
+                    {
+                        var storageLocation = locationFunctions.GetStorageLocationByPublicId(itemRequest.StorageLocationPublicId.Value);
+                        if (storageLocation == null)
+                        {
+                            throw new StorageLocationNotFoundException($"Storage location not found: {itemRequest.StorageLocationPublicId}");
+                        }
+                        storageLocationId = storageLocation.Id;
+                    }
+
+                    int? shoppingLocationId = shoppingListItem.ShoppingLocationId;
+                    var currency = itemRequest.Currency ?? userProfile?.DefaultCurrency;
+
+                    var trackedShoppingListItem = await context.ShoppingListItems.FindAsync(shoppingListItem.Id);
+                    if (trackedShoppingListItem == null)
+                    {
+                        throw new ShoppingListItemNotFoundException();
+                    }
+
+                    trackedShoppingListItem.PurchasedAt = itemRequest.PurchasedAt;
+
+                    var inventoryItem = new Entities.Product.ProductInventoryItem
+                    {
+                        ProductId = product.Id,
+                        UserId = itemRequest.IsSharedWithFamily && familyId.HasValue ? null : userId.Value,
+                        FamilyId = itemRequest.IsSharedWithFamily && familyId.HasValue ? familyId : null,
+                        StorageLocationId = storageLocationId,
+                        CurrentQuantity = itemRequest.Quantity,
+                        Unit = shoppingListItem.Unit,
+                        ExpirationAt = itemRequest.ExpirationAt
+                    };
+
+                    context.ProductInventoryItems.Add(inventoryItem);
+                    await context.SaveChangesAsync();
+
+                    if (itemRequest.Price.HasValue || shoppingLocationId.HasValue)
+                    {
+                        var purchaseInfo = new Entities.Product.ProductPurchaseInfo
+                        {
+                            ProductInventoryItemId = inventoryItem.Id,
+                            PurchasedAt = itemRequest.PurchasedAt,
+                            OriginalQuantity = itemRequest.Quantity,
+                            Price = itemRequest.Price,
+                            Currency = currency,
+                            ShoppingLocationId = shoppingLocationId
+                        };
+
+                        context.ProductPurchaseInfos.Add(purchaseInfo);
+                    }
+
+                    results.Add(new ShoppingListItemInfo
+                    {
+                        PublicId = trackedShoppingListItem.PublicId,
+                        ShoppingListPublicId = shoppingList.PublicId,
+                        ProductPublicId = product.PublicId,
+                        ShoppingLocationPublicId = shoppingLocationId.HasValue ? locationFunctions.GetShoppingLocationById(shoppingLocationId)?.PublicId : null,
+                        CustomName = trackedShoppingListItem.CustomName,
+                        Quantity = trackedShoppingListItem.Quantity,
+                        Unit = trackedShoppingListItem.Unit.ToUnitCode(),
+                        Note = trackedShoppingListItem.Note,
+                        PurchasedAt = trackedShoppingListItem.PurchasedAt,
+                        DeadlineAt = trackedShoppingListItem.DeadlineAt,
+                        DueAt = trackedShoppingListItem.DueAt
+                    });
+                }
+
+                await context.SaveChangesAsync();
+                await transaction.CommitAsync();
+
+                Log.Information($"User {userId.Value} quick purchased {results.Count} shopping list items");
+
+                return results;
+            }
+            catch (Exception ex)
+            {
+                await transaction.RollbackAsync();
+                Log.Error(ex, $"Failed to quick purchase multiple shopping list items for user {userId.Value}");
                 throw;
             }
         }

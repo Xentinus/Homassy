@@ -401,4 +401,427 @@ public class LocationControllerTests : IClassFixture<HomassyWebApplicationFactor
         }
     }
     #endregion
+
+    #region CreateMultipleStorageLocations Tests
+    [Fact]
+    public async Task CreateMultipleStorageLocations_WithoutToken_ReturnsUnauthorized()
+    {
+        var request = new CreateMultipleStorageLocationsRequest
+        {
+            Locations = [new StorageLocationRequest { Name = "Test" }]
+        };
+        var response = await _client.PostAsJsonAsync("/api/v1.0/location/storage/multiple", request);
+        Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task CreateMultipleStorageLocations_EmptyList_ReturnsBadRequest()
+    {
+        string? testEmail = null;
+        try
+        {
+            var (email, auth) = await _authHelper.CreateAndAuthenticateUserAsync("loc-stor-empty");
+            testEmail = email;
+            _authHelper.SetAuthToken(auth.AccessToken);
+
+            var request = new CreateMultipleStorageLocationsRequest { Locations = [] };
+            var response = await _client.PostAsJsonAsync("/api/v1.0/location/storage/multiple", request);
+            var responseBody = await response.Content.ReadAsStringAsync();
+
+            _output.WriteLine($"Status: {response.StatusCode}");
+            _output.WriteLine($"Response: {responseBody}");
+
+            Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        }
+        finally
+        {
+            _authHelper.ClearAuthToken();
+            if (testEmail != null)
+                await _authHelper.CleanupUserAsync(testEmail);
+        }
+    }
+
+    [Fact]
+    public async Task CreateMultipleStorageLocations_MissingName_ReturnsBadRequest()
+    {
+        string? testEmail = null;
+        try
+        {
+            var (email, auth) = await _authHelper.CreateAndAuthenticateUserAsync("loc-stor-noname");
+            testEmail = email;
+            _authHelper.SetAuthToken(auth.AccessToken);
+
+            var request = new CreateMultipleStorageLocationsRequest
+            {
+                Locations = [new StorageLocationRequest { Description = "No name" }]
+            };
+            var response = await _client.PostAsJsonAsync("/api/v1.0/location/storage/multiple", request);
+            var responseBody = await response.Content.ReadAsStringAsync();
+
+            _output.WriteLine($"Status: {response.StatusCode}");
+            _output.WriteLine($"Response: {responseBody}");
+
+            Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        }
+        finally
+        {
+            _authHelper.ClearAuthToken();
+            if (testEmail != null)
+                await _authHelper.CleanupUserAsync(testEmail);
+        }
+    }
+
+    [Fact]
+    public async Task CreateMultipleStorageLocations_ValidRequest_ReturnsSuccess()
+    {
+        string? testEmail = null;
+        var createdIds = new List<Guid>();
+        try
+        {
+            var (email, auth) = await _authHelper.CreateAndAuthenticateUserAsync("loc-stor-multi-ok");
+            testEmail = email;
+            _authHelper.SetAuthToken(auth.AccessToken);
+
+            var request = new CreateMultipleStorageLocationsRequest
+            {
+                Locations =
+                [
+                    new StorageLocationRequest { Name = "Fridge", Color = "#0000FF", IsFreezer = false },
+                    new StorageLocationRequest { Name = "Freezer", Color = "#00FFFF", IsFreezer = true },
+                    new StorageLocationRequest { Name = "Pantry", Description = "Dry goods" }
+                ]
+            };
+
+            var response = await _client.PostAsJsonAsync("/api/v1.0/location/storage/multiple", request);
+            var responseBody = await response.Content.ReadAsStringAsync();
+
+            _output.WriteLine($"Status: {response.StatusCode}");
+            _output.WriteLine($"Response: {responseBody}");
+
+            Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+
+            var content = await response.Content.ReadFromJsonAsync<ApiResponse<List<StorageLocationInfo>>>();
+            Assert.NotNull(content?.Data);
+            Assert.Equal(3, content.Data.Count);
+
+            foreach (var loc in content.Data)
+            {
+                createdIds.Add(loc.PublicId);
+            }
+
+            foreach (var id in createdIds)
+            {
+                await _client.DeleteAsync($"/api/v1.0/location/storage/{id}");
+            }
+        }
+        finally
+        {
+            _authHelper.ClearAuthToken();
+            if (testEmail != null)
+                await _authHelper.CleanupUserAsync(testEmail);
+        }
+    }
+    #endregion
+
+    #region CreateMultipleShoppingLocations Tests
+    [Fact]
+    public async Task CreateMultipleShoppingLocations_WithoutToken_ReturnsUnauthorized()
+    {
+        var request = new CreateMultipleShoppingLocationsRequest
+        {
+            Locations = [new ShoppingLocationRequest { Name = "Test" }]
+        };
+        var response = await _client.PostAsJsonAsync("/api/v1.0/location/shopping/multiple", request);
+        Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task CreateMultipleShoppingLocations_EmptyList_ReturnsBadRequest()
+    {
+        string? testEmail = null;
+        try
+        {
+            var (email, auth) = await _authHelper.CreateAndAuthenticateUserAsync("loc-shop-empty");
+            testEmail = email;
+            _authHelper.SetAuthToken(auth.AccessToken);
+
+            var request = new CreateMultipleShoppingLocationsRequest { Locations = [] };
+            var response = await _client.PostAsJsonAsync("/api/v1.0/location/shopping/multiple", request);
+            var responseBody = await response.Content.ReadAsStringAsync();
+
+            _output.WriteLine($"Status: {response.StatusCode}");
+            _output.WriteLine($"Response: {responseBody}");
+
+            Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        }
+        finally
+        {
+            _authHelper.ClearAuthToken();
+            if (testEmail != null)
+                await _authHelper.CleanupUserAsync(testEmail);
+        }
+    }
+
+    [Fact]
+    public async Task CreateMultipleShoppingLocations_ValidRequest_ReturnsSuccess()
+    {
+        string? testEmail = null;
+        var createdIds = new List<Guid>();
+        try
+        {
+            var (email, auth) = await _authHelper.CreateAndAuthenticateUserAsync("loc-shop-multi-ok");
+            testEmail = email;
+            _authHelper.SetAuthToken(auth.AccessToken);
+
+            var request = new CreateMultipleShoppingLocationsRequest
+            {
+                Locations =
+                [
+                    new ShoppingLocationRequest { Name = "Tesco", City = "Budapest" },
+                    new ShoppingLocationRequest { Name = "Aldi", Address = "Main Street 1" },
+                    new ShoppingLocationRequest { Name = "Lidl", Website = "https://lidl.hu" }
+                ]
+            };
+
+            var response = await _client.PostAsJsonAsync("/api/v1.0/location/shopping/multiple", request);
+            var responseBody = await response.Content.ReadAsStringAsync();
+
+            _output.WriteLine($"Status: {response.StatusCode}");
+            _output.WriteLine($"Response: {responseBody}");
+
+            Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+
+            var content = await response.Content.ReadFromJsonAsync<ApiResponse<List<ShoppingLocationInfo>>>();
+            Assert.NotNull(content?.Data);
+            Assert.Equal(3, content.Data.Count);
+
+            foreach (var loc in content.Data)
+            {
+                createdIds.Add(loc.PublicId);
+            }
+
+            foreach (var id in createdIds)
+            {
+                await _client.DeleteAsync($"/api/v1.0/location/shopping/{id}");
+            }
+        }
+        finally
+        {
+            _authHelper.ClearAuthToken();
+            if (testEmail != null)
+                await _authHelper.CleanupUserAsync(testEmail);
+        }
+    }
+    #endregion
+
+    #region DeleteMultipleStorageLocations Tests
+    [Fact]
+    public async Task DeleteMultipleStorageLocations_WithoutToken_ReturnsUnauthorized()
+    {
+        var request = new DeleteMultipleStorageLocationsRequest { LocationPublicIds = [Guid.NewGuid()] };
+        var httpRequest = new HttpRequestMessage(HttpMethod.Delete, "/api/v1.0/location/storage/multiple")
+        {
+            Content = JsonContent.Create(request)
+        };
+        var response = await _client.SendAsync(httpRequest);
+        Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task DeleteMultipleStorageLocations_EmptyList_ReturnsBadRequest()
+    {
+        string? testEmail = null;
+        try
+        {
+            var (email, auth) = await _authHelper.CreateAndAuthenticateUserAsync("loc-stor-del-empty");
+            testEmail = email;
+            _authHelper.SetAuthToken(auth.AccessToken);
+
+            var request = new DeleteMultipleStorageLocationsRequest { LocationPublicIds = [] };
+            var httpRequest = new HttpRequestMessage(HttpMethod.Delete, "/api/v1.0/location/storage/multiple")
+            {
+                Content = JsonContent.Create(request)
+            };
+            var response = await _client.SendAsync(httpRequest);
+            var responseBody = await response.Content.ReadAsStringAsync();
+
+            _output.WriteLine($"Status: {response.StatusCode}");
+            _output.WriteLine($"Response: {responseBody}");
+
+            Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        }
+        finally
+        {
+            _authHelper.ClearAuthToken();
+            if (testEmail != null)
+                await _authHelper.CleanupUserAsync(testEmail);
+        }
+    }
+
+    [Fact]
+    public async Task DeleteMultipleStorageLocations_NonExistent_ReturnsNotFound()
+    {
+        string? testEmail = null;
+        try
+        {
+            var (email, auth) = await _authHelper.CreateAndAuthenticateUserAsync("loc-stor-del-nf");
+            testEmail = email;
+            _authHelper.SetAuthToken(auth.AccessToken);
+
+            var request = new DeleteMultipleStorageLocationsRequest { LocationPublicIds = [Guid.NewGuid()] };
+            var httpRequest = new HttpRequestMessage(HttpMethod.Delete, "/api/v1.0/location/storage/multiple")
+            {
+                Content = JsonContent.Create(request)
+            };
+            var response = await _client.SendAsync(httpRequest);
+            var responseBody = await response.Content.ReadAsStringAsync();
+
+            _output.WriteLine($"Status: {response.StatusCode}");
+            _output.WriteLine($"Response: {responseBody}");
+
+            Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
+        }
+        finally
+        {
+            _authHelper.ClearAuthToken();
+            if (testEmail != null)
+                await _authHelper.CleanupUserAsync(testEmail);
+        }
+    }
+
+    [Fact]
+    public async Task DeleteMultipleStorageLocations_ValidRequest_ReturnsSuccess()
+    {
+        string? testEmail = null;
+        try
+        {
+            var (email, auth) = await _authHelper.CreateAndAuthenticateUserAsync("loc-stor-del-ok");
+            testEmail = email;
+            _authHelper.SetAuthToken(auth.AccessToken);
+
+            var createRequest = new CreateMultipleStorageLocationsRequest
+            {
+                Locations =
+                [
+                    new StorageLocationRequest { Name = "Storage 1" },
+                    new StorageLocationRequest { Name = "Storage 2" }
+                ]
+            };
+            var createResponse = await _client.PostAsJsonAsync("/api/v1.0/location/storage/multiple", createRequest);
+            var createContent = await createResponse.Content.ReadFromJsonAsync<ApiResponse<List<StorageLocationInfo>>>();
+            var createdIds = createContent?.Data?.Select(x => x.PublicId).ToList() ?? [];
+
+            _output.WriteLine($"Created {createdIds.Count} storage locations");
+
+            var deleteRequest = new DeleteMultipleStorageLocationsRequest { LocationPublicIds = createdIds };
+            var httpRequest = new HttpRequestMessage(HttpMethod.Delete, "/api/v1.0/location/storage/multiple")
+            {
+                Content = JsonContent.Create(deleteRequest)
+            };
+            var response = await _client.SendAsync(httpRequest);
+            var responseBody = await response.Content.ReadAsStringAsync();
+
+            _output.WriteLine($"Status: {response.StatusCode}");
+            _output.WriteLine($"Response: {responseBody}");
+
+            Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        }
+        finally
+        {
+            _authHelper.ClearAuthToken();
+            if (testEmail != null)
+                await _authHelper.CleanupUserAsync(testEmail);
+        }
+    }
+    #endregion
+
+    #region DeleteMultipleShoppingLocations Tests
+    [Fact]
+    public async Task DeleteMultipleShoppingLocations_WithoutToken_ReturnsUnauthorized()
+    {
+        var request = new DeleteMultipleShoppingLocationsRequest { LocationPublicIds = [Guid.NewGuid()] };
+        var httpRequest = new HttpRequestMessage(HttpMethod.Delete, "/api/v1.0/location/shopping/multiple")
+        {
+            Content = JsonContent.Create(request)
+        };
+        var response = await _client.SendAsync(httpRequest);
+        Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task DeleteMultipleShoppingLocations_EmptyList_ReturnsBadRequest()
+    {
+        string? testEmail = null;
+        try
+        {
+            var (email, auth) = await _authHelper.CreateAndAuthenticateUserAsync("loc-shop-del-empty");
+            testEmail = email;
+            _authHelper.SetAuthToken(auth.AccessToken);
+
+            var request = new DeleteMultipleShoppingLocationsRequest { LocationPublicIds = [] };
+            var httpRequest = new HttpRequestMessage(HttpMethod.Delete, "/api/v1.0/location/shopping/multiple")
+            {
+                Content = JsonContent.Create(request)
+            };
+            var response = await _client.SendAsync(httpRequest);
+            var responseBody = await response.Content.ReadAsStringAsync();
+
+            _output.WriteLine($"Status: {response.StatusCode}");
+            _output.WriteLine($"Response: {responseBody}");
+
+            Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        }
+        finally
+        {
+            _authHelper.ClearAuthToken();
+            if (testEmail != null)
+                await _authHelper.CleanupUserAsync(testEmail);
+        }
+    }
+
+    [Fact]
+    public async Task DeleteMultipleShoppingLocations_ValidRequest_ReturnsSuccess()
+    {
+        string? testEmail = null;
+        try
+        {
+            var (email, auth) = await _authHelper.CreateAndAuthenticateUserAsync("loc-shop-del-ok");
+            testEmail = email;
+            _authHelper.SetAuthToken(auth.AccessToken);
+
+            var createRequest = new CreateMultipleShoppingLocationsRequest
+            {
+                Locations =
+                [
+                    new ShoppingLocationRequest { Name = "Shop 1" },
+                    new ShoppingLocationRequest { Name = "Shop 2" }
+                ]
+            };
+            var createResponse = await _client.PostAsJsonAsync("/api/v1.0/location/shopping/multiple", createRequest);
+            var createContent = await createResponse.Content.ReadFromJsonAsync<ApiResponse<List<ShoppingLocationInfo>>>();
+            var createdIds = createContent?.Data?.Select(x => x.PublicId).ToList() ?? [];
+
+            _output.WriteLine($"Created {createdIds.Count} shopping locations");
+
+            var deleteRequest = new DeleteMultipleShoppingLocationsRequest { LocationPublicIds = createdIds };
+            var httpRequest = new HttpRequestMessage(HttpMethod.Delete, "/api/v1.0/location/shopping/multiple")
+            {
+                Content = JsonContent.Create(deleteRequest)
+            };
+            var response = await _client.SendAsync(httpRequest);
+            var responseBody = await response.Content.ReadAsStringAsync();
+
+            _output.WriteLine($"Status: {response.StatusCode}");
+            _output.WriteLine($"Response: {responseBody}");
+
+            Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        }
+        finally
+        {
+            _authHelper.ClearAuthToken();
+            if (testEmail != null)
+                await _authHelper.CleanupUserAsync(testEmail);
+        }
+    }
+    #endregion
 }

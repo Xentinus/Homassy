@@ -805,6 +805,274 @@ namespace Homassy.API.Functions
                 throw;
             }
         }
+
+        public async Task<List<StorageLocationInfo>> CreateMultipleStorageLocationsAsync(List<StorageLocationRequest> requests)
+        {
+            var userId = SessionInfo.GetUserId();
+            if (!userId.HasValue)
+            {
+                Log.Warning("Invalid session: User ID not found");
+                throw new UserNotFoundException("User not found");
+            }
+
+            if (requests == null || requests.Count == 0)
+            {
+                throw new BadRequestException("At least one storage location is required");
+            }
+
+            foreach (var request in requests)
+            {
+                if (string.IsNullOrWhiteSpace(request.Name))
+                {
+                    throw new BadRequestException("Name is required for all storage locations");
+                }
+            }
+
+            var familyId = SessionInfo.GetFamilyId();
+
+            var context = new HomassyDbContext();
+            await using var transaction = await context.Database.BeginTransactionAsync();
+
+            try
+            {
+                var storageLocations = new List<StorageLocation>();
+
+                foreach (var request in requests)
+                {
+                    var storageLocation = new StorageLocation
+                    {
+                        Name = request.Name!.Trim(),
+                        Description = request.Description?.Trim(),
+                        Color = request.Color?.Trim(),
+                        IsFreezer = request.IsFreezer ?? false,
+                        UserId = userId.Value,
+                        FamilyId = request.IsSharedWithFamily == true && familyId.HasValue ? familyId : null
+                    };
+
+                    storageLocations.Add(storageLocation);
+                }
+
+                context.StorageLocations.AddRange(storageLocations);
+                await context.SaveChangesAsync();
+
+                await transaction.CommitAsync();
+
+                Log.Information($"User {userId.Value} created {storageLocations.Count} storage locations");
+
+                return storageLocations.Select(sl => new StorageLocationInfo
+                {
+                    PublicId = sl.PublicId,
+                    Name = sl.Name,
+                    Description = sl.Description,
+                    Color = sl.Color,
+                    IsFreezer = sl.IsFreezer,
+                    IsSharedWithFamily = sl.FamilyId.HasValue
+                }).ToList();
+            }
+            catch (Exception ex)
+            {
+                await transaction.RollbackAsync();
+                Log.Error(ex, $"Failed to create multiple storage locations for user {userId.Value}");
+                throw;
+            }
+        }
+
+        public async Task<List<ShoppingLocationInfo>> CreateMultipleShoppingLocationsAsync(List<ShoppingLocationRequest> requests)
+        {
+            var userId = SessionInfo.GetUserId();
+            if (!userId.HasValue)
+            {
+                Log.Warning("Invalid session: User ID not found");
+                throw new UserNotFoundException("User not found");
+            }
+
+            if (requests == null || requests.Count == 0)
+            {
+                throw new BadRequestException("At least one shopping location is required");
+            }
+
+            foreach (var request in requests)
+            {
+                if (string.IsNullOrWhiteSpace(request.Name))
+                {
+                    throw new BadRequestException("Name is required for all shopping locations");
+                }
+            }
+
+            var familyId = SessionInfo.GetFamilyId();
+
+            var context = new HomassyDbContext();
+            await using var transaction = await context.Database.BeginTransactionAsync();
+
+            try
+            {
+                var shoppingLocations = new List<ShoppingLocation>();
+
+                foreach (var request in requests)
+                {
+                    var shoppingLocation = new ShoppingLocation
+                    {
+                        Name = request.Name!.Trim(),
+                        Description = request.Description?.Trim(),
+                        Color = request.Color?.Trim(),
+                        Address = request.Address?.Trim(),
+                        City = request.City?.Trim(),
+                        PostalCode = request.PostalCode?.Trim(),
+                        Country = request.Country?.Trim(),
+                        Website = request.Website?.Trim(),
+                        GoogleMaps = request.GoogleMaps?.Trim(),
+                        UserId = userId.Value,
+                        FamilyId = request.IsSharedWithFamily == true && familyId.HasValue ? familyId : null
+                    };
+
+                    shoppingLocations.Add(shoppingLocation);
+                }
+
+                context.ShoppingLocations.AddRange(shoppingLocations);
+                await context.SaveChangesAsync();
+
+                await transaction.CommitAsync();
+
+                Log.Information($"User {userId.Value} created {shoppingLocations.Count} shopping locations");
+
+                return shoppingLocations.Select(sl => new ShoppingLocationInfo
+                {
+                    PublicId = sl.PublicId,
+                    Name = sl.Name,
+                    Description = sl.Description,
+                    Color = sl.Color,
+                    Address = sl.Address,
+                    City = sl.City,
+                    PostalCode = sl.PostalCode,
+                    Country = sl.Country,
+                    Website = sl.Website,
+                    GoogleMaps = sl.GoogleMaps,
+                    IsSharedWithFamily = sl.FamilyId.HasValue
+                }).ToList();
+            }
+            catch (Exception ex)
+            {
+                await transaction.RollbackAsync();
+                Log.Error(ex, $"Failed to create multiple shopping locations for user {userId.Value}");
+                throw;
+            }
+        }
+
+        public async Task DeleteMultipleStorageLocationsAsync(DeleteMultipleStorageLocationsRequest request)
+        {
+            var userId = SessionInfo.GetUserId();
+            if (!userId.HasValue)
+            {
+                Log.Warning("Invalid session: User ID not found");
+                throw new UserNotFoundException("User not found");
+            }
+
+            if (request.LocationPublicIds == null || request.LocationPublicIds.Count == 0)
+            {
+                throw new BadRequestException("At least one location is required");
+            }
+
+            var familyId = SessionInfo.GetFamilyId();
+
+            var context = new HomassyDbContext();
+            await using var transaction = await context.Database.BeginTransactionAsync();
+
+            try
+            {
+                foreach (var locationPublicId in request.LocationPublicIds)
+                {
+                    var storageLocation = GetStorageLocationByPublicId(locationPublicId);
+                    if (storageLocation == null)
+                    {
+                        throw new StorageLocationNotFoundException($"Storage location not found: {locationPublicId}");
+                    }
+
+                    if (storageLocation.UserId != userId.Value &&
+                        (!familyId.HasValue || storageLocation.FamilyId != familyId.Value))
+                    {
+                        throw new UnauthorizedException($"You don't have permission to delete storage location {locationPublicId}");
+                    }
+
+                    var trackedLocation = await context.StorageLocations.FindAsync(storageLocation.Id);
+                    if (trackedLocation == null)
+                    {
+                        throw new StorageLocationNotFoundException("Storage location not found");
+                    }
+
+                    trackedLocation.DeleteRecord(userId.Value);
+                    context.StorageLocations.Update(trackedLocation);
+                }
+
+                await context.SaveChangesAsync();
+                await transaction.CommitAsync();
+
+                Log.Information($"User {userId.Value} deleted {request.LocationPublicIds.Count} storage locations");
+            }
+            catch (Exception ex)
+            {
+                await transaction.RollbackAsync();
+                Log.Error(ex, $"Failed to delete multiple storage locations for user {userId.Value}");
+                throw;
+            }
+        }
+
+        public async Task DeleteMultipleShoppingLocationsAsync(DeleteMultipleShoppingLocationsRequest request)
+        {
+            var userId = SessionInfo.GetUserId();
+            if (!userId.HasValue)
+            {
+                Log.Warning("Invalid session: User ID not found");
+                throw new UserNotFoundException("User not found");
+            }
+
+            if (request.LocationPublicIds == null || request.LocationPublicIds.Count == 0)
+            {
+                throw new BadRequestException("At least one location is required");
+            }
+
+            var familyId = SessionInfo.GetFamilyId();
+
+            var context = new HomassyDbContext();
+            await using var transaction = await context.Database.BeginTransactionAsync();
+
+            try
+            {
+                foreach (var locationPublicId in request.LocationPublicIds)
+                {
+                    var shoppingLocation = GetShoppingLocationByPublicId(locationPublicId);
+                    if (shoppingLocation == null)
+                    {
+                        throw new ShoppingLocationNotFoundException($"Shopping location not found: {locationPublicId}");
+                    }
+
+                    if (shoppingLocation.UserId != userId.Value &&
+                        (!familyId.HasValue || shoppingLocation.FamilyId != familyId.Value))
+                    {
+                        throw new UnauthorizedException($"You don't have permission to delete shopping location {locationPublicId}");
+                    }
+
+                    var trackedLocation = await context.ShoppingLocations.FindAsync(shoppingLocation.Id);
+                    if (trackedLocation == null)
+                    {
+                        throw new ShoppingLocationNotFoundException("Shopping location not found");
+                    }
+
+                    trackedLocation.DeleteRecord(userId.Value);
+                    context.ShoppingLocations.Update(trackedLocation);
+                }
+
+                await context.SaveChangesAsync();
+                await transaction.CommitAsync();
+
+                Log.Information($"User {userId.Value} deleted {request.LocationPublicIds.Count} shopping locations");
+            }
+            catch (Exception ex)
+            {
+                await transaction.RollbackAsync();
+                Log.Error(ex, $"Failed to delete multiple shopping locations for user {userId.Value}");
+                throw;
+            }
+        }
         #endregion
     }
 }

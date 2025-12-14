@@ -873,4 +873,313 @@ public class ProductControllerTests : IClassFixture<HomassyWebApplicationFactory
         }
     }
     #endregion
+
+    #region DeleteMultipleInventoryItems Tests
+    [Fact]
+    public async Task DeleteMultipleInventoryItems_WithoutToken_ReturnsUnauthorized()
+    {
+        var request = new DeleteMultipleInventoryItemsRequest { ItemPublicIds = [Guid.NewGuid()] };
+        var httpRequest = new HttpRequestMessage(HttpMethod.Delete, "/api/v1.0/product/inventory/multiple")
+        {
+            Content = JsonContent.Create(request)
+        };
+        var response = await _client.SendAsync(httpRequest);
+        Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task DeleteMultipleInventoryItems_EmptyList_ReturnsBadRequest()
+    {
+        string? testEmail = null;
+        try
+        {
+            var (email, auth) = await _authHelper.CreateAndAuthenticateUserAsync("inv-del-empty");
+            testEmail = email;
+            _authHelper.SetAuthToken(auth.AccessToken);
+
+            var request = new DeleteMultipleInventoryItemsRequest { ItemPublicIds = [] };
+            var httpRequest = new HttpRequestMessage(HttpMethod.Delete, "/api/v1.0/product/inventory/multiple")
+            {
+                Content = JsonContent.Create(request)
+            };
+            var response = await _client.SendAsync(httpRequest);
+
+            _output.WriteLine($"Status: {response.StatusCode}");
+            Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        }
+        finally
+        {
+            _authHelper.ClearAuthToken();
+            if (testEmail != null)
+                await _authHelper.CleanupUserAsync(testEmail);
+        }
+    }
+
+    [Fact]
+    public async Task DeleteMultipleInventoryItems_NonExistent_ReturnsNotFound()
+    {
+        string? testEmail = null;
+        try
+        {
+            var (email, auth) = await _authHelper.CreateAndAuthenticateUserAsync("inv-del-nf");
+            testEmail = email;
+            _authHelper.SetAuthToken(auth.AccessToken);
+
+            var request = new DeleteMultipleInventoryItemsRequest { ItemPublicIds = [Guid.NewGuid()] };
+            var httpRequest = new HttpRequestMessage(HttpMethod.Delete, "/api/v1.0/product/inventory/multiple")
+            {
+                Content = JsonContent.Create(request)
+            };
+            var response = await _client.SendAsync(httpRequest);
+
+            _output.WriteLine($"Status: {response.StatusCode}");
+            Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
+        }
+        finally
+        {
+            _authHelper.ClearAuthToken();
+            if (testEmail != null)
+                await _authHelper.CleanupUserAsync(testEmail);
+        }
+    }
+
+    [Fact]
+    public async Task DeleteMultipleInventoryItems_ValidRequest_ReturnsSuccess()
+    {
+        string? testEmail = null;
+        Guid? productId = null;
+        try
+        {
+            var (email, auth) = await _authHelper.CreateAndAuthenticateUserAsync("inv-del-ok");
+            testEmail = email;
+            _authHelper.SetAuthToken(auth.AccessToken);
+
+            var productRequest = new CreateProductRequest { Name = "Test Product", Brand = "Brand" };
+            var productResponse = await _client.PostAsJsonAsync("/api/v1.0/product", productRequest);
+            var productContent = await productResponse.Content.ReadFromJsonAsync<ApiResponse<ProductInfo>>();
+            productId = productContent?.Data?.PublicId;
+
+            var addRequest = new QuickAddMultipleInventoryItemsRequest
+            {
+                Items =
+                [
+                    new QuickAddMultipleInventoryItemEntry { ProductPublicId = productId!.Value, Quantity = 1, Unit = ProductUnit.Piece },
+                    new QuickAddMultipleInventoryItemEntry { ProductPublicId = productId!.Value, Quantity = 2, Unit = ProductUnit.Piece }
+                ]
+            };
+            var addResponse = await _client.PostAsJsonAsync("/api/v1.0/product/inventory/quick/multiple", addRequest);
+            var addContent = await addResponse.Content.ReadFromJsonAsync<ApiResponse<List<InventoryItemInfo>>>();
+            var createdIds = addContent?.Data?.Select(x => x.PublicId).ToList() ?? [];
+
+            var deleteRequest = new DeleteMultipleInventoryItemsRequest { ItemPublicIds = createdIds };
+            var httpRequest = new HttpRequestMessage(HttpMethod.Delete, "/api/v1.0/product/inventory/multiple")
+            {
+                Content = JsonContent.Create(deleteRequest)
+            };
+            var response = await _client.SendAsync(httpRequest);
+            var responseBody = await response.Content.ReadAsStringAsync();
+
+            _output.WriteLine($"Status: {response.StatusCode}");
+            _output.WriteLine($"Response: {responseBody}");
+
+            Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+
+            if (productId.HasValue)
+                await _client.DeleteAsync($"/api/v1.0/product/{productId}");
+        }
+        finally
+        {
+            _authHelper.ClearAuthToken();
+            if (testEmail != null)
+                await _authHelper.CleanupUserAsync(testEmail);
+        }
+    }
+    #endregion
+
+    #region ConsumeMultipleInventoryItems Tests
+    [Fact]
+    public async Task ConsumeMultipleInventoryItems_WithoutToken_ReturnsUnauthorized()
+    {
+        var request = new ConsumeMultipleInventoryItemsRequest
+        {
+            Items = [new ConsumeInventoryItemEntry { InventoryItemPublicId = Guid.NewGuid(), Quantity = 1 }]
+        };
+        var response = await _client.PostAsJsonAsync("/api/v1.0/product/inventory/consume/multiple", request);
+        Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task ConsumeMultipleInventoryItems_EmptyList_ReturnsBadRequest()
+    {
+        string? testEmail = null;
+        try
+        {
+            var (email, auth) = await _authHelper.CreateAndAuthenticateUserAsync("inv-cons-empty");
+            testEmail = email;
+            _authHelper.SetAuthToken(auth.AccessToken);
+
+            var request = new ConsumeMultipleInventoryItemsRequest { Items = [] };
+            var response = await _client.PostAsJsonAsync("/api/v1.0/product/inventory/consume/multiple", request);
+
+            _output.WriteLine($"Status: {response.StatusCode}");
+            Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        }
+        finally
+        {
+            _authHelper.ClearAuthToken();
+            if (testEmail != null)
+                await _authHelper.CleanupUserAsync(testEmail);
+        }
+    }
+
+    [Fact]
+    public async Task ConsumeMultipleInventoryItems_ValidRequest_ReturnsSuccess()
+    {
+        string? testEmail = null;
+        Guid? productId = null;
+        try
+        {
+            var (email, auth) = await _authHelper.CreateAndAuthenticateUserAsync("inv-cons-ok");
+            testEmail = email;
+            _authHelper.SetAuthToken(auth.AccessToken);
+
+            var productRequest = new CreateProductRequest { Name = "Test Product", Brand = "Brand" };
+            var productResponse = await _client.PostAsJsonAsync("/api/v1.0/product", productRequest);
+            var productContent = await productResponse.Content.ReadFromJsonAsync<ApiResponse<ProductInfo>>();
+            productId = productContent?.Data?.PublicId;
+
+            var addRequest = new QuickAddMultipleInventoryItemsRequest
+            {
+                Items =
+                [
+                    new QuickAddMultipleInventoryItemEntry { ProductPublicId = productId!.Value, Quantity = 10, Unit = ProductUnit.Piece },
+                    new QuickAddMultipleInventoryItemEntry { ProductPublicId = productId!.Value, Quantity = 5, Unit = ProductUnit.Piece }
+                ]
+            };
+            var addResponse = await _client.PostAsJsonAsync("/api/v1.0/product/inventory/quick/multiple", addRequest);
+            var addContent = await addResponse.Content.ReadFromJsonAsync<ApiResponse<List<InventoryItemInfo>>>();
+            var createdItems = addContent?.Data ?? [];
+
+            var consumeRequest = new ConsumeMultipleInventoryItemsRequest
+            {
+                Items =
+                [
+                    new ConsumeInventoryItemEntry { InventoryItemPublicId = createdItems[0].PublicId, Quantity = 3 },
+                    new ConsumeInventoryItemEntry { InventoryItemPublicId = createdItems[1].PublicId, Quantity = 2 }
+                ]
+            };
+            var response = await _client.PostAsJsonAsync("/api/v1.0/product/inventory/consume/multiple", consumeRequest);
+            var responseBody = await response.Content.ReadAsStringAsync();
+
+            _output.WriteLine($"Status: {response.StatusCode}");
+            _output.WriteLine($"Response: {responseBody}");
+
+            Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+
+            var content = await response.Content.ReadFromJsonAsync<ApiResponse<List<InventoryItemInfo>>>();
+            Assert.NotNull(content?.Data);
+            Assert.Equal(2, content.Data.Count);
+            Assert.Equal(7, content.Data[0].CurrentQuantity);
+            Assert.Equal(3, content.Data[1].CurrentQuantity);
+
+            if (productId.HasValue)
+                await _client.DeleteAsync($"/api/v1.0/product/{productId}");
+        }
+        finally
+        {
+            _authHelper.ClearAuthToken();
+            if (testEmail != null)
+                await _authHelper.CleanupUserAsync(testEmail);
+        }
+    }
+    #endregion
+
+    #region CreateMultipleProducts Tests
+    [Fact]
+    public async Task CreateMultipleProducts_WithoutToken_ReturnsUnauthorized()
+    {
+        var request = new CreateMultipleProductsRequest
+        {
+            Products = [new CreateProductRequest { Name = "Test", Brand = "Brand" }]
+        };
+        var response = await _client.PostAsJsonAsync("/api/v1.0/product/multiple", request);
+        Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task CreateMultipleProducts_EmptyList_ReturnsBadRequest()
+    {
+        string? testEmail = null;
+        try
+        {
+            var (email, auth) = await _authHelper.CreateAndAuthenticateUserAsync("prod-multi-empty");
+            testEmail = email;
+            _authHelper.SetAuthToken(auth.AccessToken);
+
+            var request = new CreateMultipleProductsRequest { Products = [] };
+            var response = await _client.PostAsJsonAsync("/api/v1.0/product/multiple", request);
+
+            _output.WriteLine($"Status: {response.StatusCode}");
+            Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        }
+        finally
+        {
+            _authHelper.ClearAuthToken();
+            if (testEmail != null)
+                await _authHelper.CleanupUserAsync(testEmail);
+        }
+    }
+
+    [Fact]
+    public async Task CreateMultipleProducts_ValidRequest_ReturnsSuccess()
+    {
+        string? testEmail = null;
+        var createdIds = new List<Guid>();
+        try
+        {
+            var (email, auth) = await _authHelper.CreateAndAuthenticateUserAsync("prod-multi-ok");
+            testEmail = email;
+            _authHelper.SetAuthToken(auth.AccessToken);
+
+            var request = new CreateMultipleProductsRequest
+            {
+                Products =
+                [
+                    new CreateProductRequest { Name = "Product 1", Brand = "Brand A", Category = "Food" },
+                    new CreateProductRequest { Name = "Product 2", Brand = "Brand B", IsEatable = false },
+                    new CreateProductRequest { Name = "Product 3", Brand = "Brand C", IsFavorite = true }
+                ]
+            };
+
+            var response = await _client.PostAsJsonAsync("/api/v1.0/product/multiple", request);
+            var responseBody = await response.Content.ReadAsStringAsync();
+
+            _output.WriteLine($"Status: {response.StatusCode}");
+            _output.WriteLine($"Response: {responseBody}");
+
+            Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+
+            var content = await response.Content.ReadFromJsonAsync<ApiResponse<List<ProductInfo>>>();
+            Assert.NotNull(content?.Data);
+            Assert.Equal(3, content.Data.Count);
+            Assert.True(content.Data[2].IsFavorite);
+
+            foreach (var product in content.Data)
+            {
+                createdIds.Add(product.PublicId);
+            }
+
+            foreach (var id in createdIds)
+            {
+                await _client.DeleteAsync($"/api/v1.0/product/{id}");
+            }
+        }
+        finally
+        {
+            _authHelper.ClearAuthToken();
+            if (testEmail != null)
+                await _authHelper.CleanupUserAsync(testEmail);
+        }
+    }
+    #endregion
 }

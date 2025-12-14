@@ -4,9 +4,6 @@ using Microsoft.Extensions.Configuration;
 
 namespace Homassy.API.Context;
 
-/// <summary>
-/// Design-time factory for HomassyDbContext to support EF Core migrations.
-/// </summary>
 public class HomassyDbContextFactory : IDesignTimeDbContextFactory<HomassyDbContext>
 {
     public HomassyDbContext CreateDbContext(string[] args)

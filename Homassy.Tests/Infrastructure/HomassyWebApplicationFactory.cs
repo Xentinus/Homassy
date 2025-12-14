@@ -8,10 +8,6 @@ using Microsoft.Extensions.Hosting;
 
 namespace Homassy.Tests.Infrastructure;
 
-/// <summary>
-/// Custom WebApplicationFactory for integration testing with real database.
-/// Provides methods to access verification codes directly from DB for authentication tests.
-/// </summary>
 public class HomassyWebApplicationFactory : WebApplicationFactory<Program>
 {
     protected override void ConfigureWebHost(IWebHostBuilder builder)
@@ -56,10 +52,6 @@ public class HomassyWebApplicationFactory : WebApplicationFactory<Program>
         return base.CreateHost(builder);
     }
 
-    /// <summary>
-    /// Gets the verification code for a user by email directly from the database.
-    /// Use this to complete authentication flow in tests without email.
-    /// </summary>
     public string? GetVerificationCodeForEmail(string email)
     {
         using var scope = Services.CreateScope();
@@ -74,9 +66,6 @@ public class HomassyWebApplicationFactory : WebApplicationFactory<Program>
         return auth?.VerificationCode;
     }
 
-    /// <summary>
-    /// Gets a user's internal ID by email for test setup/cleanup.
-    /// </summary>
     public int? GetUserIdByEmail(string email)
     {
         using var scope = Services.CreateScope();
@@ -86,10 +75,6 @@ public class HomassyWebApplicationFactory : WebApplicationFactory<Program>
         return context.Users.FirstOrDefault(u => u.Email == normalizedEmail)?.Id;
     }
 
-    /// <summary>
-    /// Creates a scoped DbContext for test operations.
-    /// Remember to dispose the scope after use.
-    /// </summary>
     public (IServiceScope Scope, HomassyDbContext Context) CreateScopedDbContext()
     {
         var scope = Services.CreateScope();
@@ -97,9 +82,6 @@ public class HomassyWebApplicationFactory : WebApplicationFactory<Program>
         return (scope, context);
     }
 
-    /// <summary>
-    /// Cleans up a test user by email. Use in test cleanup.
-    /// </summary>
     public async Task CleanupTestUserAsync(string email)
     {
         var (scope, context) = CreateScopedDbContext();

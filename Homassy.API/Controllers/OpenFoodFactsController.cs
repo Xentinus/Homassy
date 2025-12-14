@@ -8,9 +8,6 @@ using Serilog;
 
 namespace Homassy.API.Controllers;
 
-/// <summary>
-/// Controller for Open Food Facts API integration.
-/// </summary>
 [ApiVersion(1.0)]
 [Route("api/v{version:apiVersion}/[controller]")]
 [ApiController]
@@ -24,12 +21,6 @@ public class OpenFoodFactsController : ControllerBase
         _openFoodFactsService = openFoodFactsService;
     }
 
-    /// <summary>
-    /// Gets product information from Open Food Facts by barcode.
-    /// The world database includes products from all countries, including Hungarian products.
-    /// </summary>
-    /// <param name="barcode">Product barcode (EAN-13, UPC-A, etc.)</param>
-    /// <returns>Product information from Open Food Facts</returns>
     [HttpGet("{barcode}")]
     [MapToApiVersion(1.0)]
     public async Task<IActionResult> GetProductByBarcode(string barcode)

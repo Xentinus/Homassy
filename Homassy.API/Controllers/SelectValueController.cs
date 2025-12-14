@@ -15,12 +15,6 @@ namespace Homassy.API.Controllers
     [Authorize]
     public class SelectValueController : ControllerBase
     {
-        /// <summary>
-        /// Retrieves select values for the specified entity type.
-        /// Returns items accessible by the current user (by userId or familyId).
-        /// </summary>
-        /// <param name="type">The type of entity to retrieve select values for.</param>
-        /// <returns>A list of SelectValue containing PublicId and display text.</returns>
         [HttpGet("{type}")]
         [MapToApiVersion(1.0)]
         public IActionResult GetSelectValues(SelectValueType type)

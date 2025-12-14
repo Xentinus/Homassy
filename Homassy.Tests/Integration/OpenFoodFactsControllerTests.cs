@@ -7,10 +7,6 @@ using Xunit.Abstractions;
 
 namespace Homassy.Tests.Integration;
 
-/// <summary>
-/// Integration tests for OpenFoodFactsController.
-/// Tests product lookup by barcode from Open Food Facts API.
-/// </summary>
 public class OpenFoodFactsControllerTests : IClassFixture<HomassyWebApplicationFactory>
 {
     private readonly HttpClient _client;
