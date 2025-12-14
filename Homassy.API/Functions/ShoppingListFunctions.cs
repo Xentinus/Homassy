@@ -934,7 +934,7 @@ namespace Homassy.API.Functions
         /// Purchases a shopping list item and creates a corresponding inventory item.
         /// Only works for non-custom items (items with a ProductId).
         /// </summary>
-        public async Task<(ShoppingListItemInfo ShoppingListItem, Models.Product.InventoryItemInfo InventoryItem)> QuickPurchaseFromShoppingListItemAsync(QuickPurchaseFromShoppingListItemRequest request)
+        public async Task<ShoppingListItemInfo> QuickPurchaseFromShoppingListItemAsync(QuickPurchaseFromShoppingListItemRequest request)
         {
             var userId = SessionInfo.GetUserId();
             if (!userId.HasValue)
@@ -1058,25 +1058,7 @@ namespace Homassy.API.Functions
                     DueAt = trackedShoppingListItem.DueAt
                 };
 
-                var inventoryItemInfo = new Models.Product.InventoryItemInfo
-                {
-                    PublicId = inventoryItem.PublicId,
-                    CurrentQuantity = inventoryItem.CurrentQuantity,
-                    Unit = inventoryItem.Unit,
-                    ExpirationAt = inventoryItem.ExpirationAt,
-                    PurchaseInfo = purchaseInfo != null ? new Models.Product.PurchaseInfo
-                    {
-                        PublicId = purchaseInfo.PublicId,
-                        PurchasedAt = purchaseInfo.PurchasedAt,
-                        OriginalQuantity = purchaseInfo.OriginalQuantity,
-                        Price = purchaseInfo.Price,
-                        Currency = purchaseInfo.Currency,
-                        ShoppingLocationId = purchaseInfo.ShoppingLocationId
-                    } : null,
-                    ConsumptionLogs = new List<Models.Product.ConsumptionLogInfo>()
-                };
-
-                return (shoppingListItemInfo, inventoryItemInfo);
+                return shoppingListItemInfo;
             }
             catch (Exception ex)
             {

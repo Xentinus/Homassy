@@ -2,7 +2,6 @@
 using Homassy.API.Exceptions;
 using Homassy.API.Functions;
 using Homassy.API.Models.Common;
-using Homassy.API.Models.Product;
 using Homassy.API.Models.ShoppingList;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -296,14 +295,8 @@ namespace Homassy.API.Controllers
 
             try
             {
-                var (shoppingListItem, inventoryItem) = await new ShoppingListFunctions().QuickPurchaseFromShoppingListItemAsync(request);
-                return Ok(ApiResponse<QuickPurchaseFromShoppingListItemResponse>.SuccessResponse(
-                    new QuickPurchaseFromShoppingListItemResponse
-                    {
-                        ShoppingListItem = shoppingListItem,
-                        InventoryItem = inventoryItem
-                    },
-                    "Shopping list item purchased and inventory item created successfully"));
+                var shoppingListItem = await new ShoppingListFunctions().QuickPurchaseFromShoppingListItemAsync(request);
+                return Ok(ApiResponse<ShoppingListItemInfo>.SuccessResponse(shoppingListItem, "Shopping list item purchased and inventory item created successfully"));
             }
             catch (ShoppingListItemNotFoundException ex)
             {
