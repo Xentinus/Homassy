@@ -1,0 +1,23 @@
+<Project>
+  <PropertyGroup>
+    <!-- Date-based versioning: YY.MMDD.HHmm -->
+    <VersionYear>$([System.DateTime]::Now.ToString("yy"))</VersionYear>
+    <VersionDate>$([System.DateTime]::Now.ToString("MMdd"))</VersionDate>
+    <VersionTime>$([System.DateTime]::Now.ToString("HHmm"))</VersionTime>
+    
+    <!-- Build type: prod or dev based on Configuration -->
+    <BuildType Condition="'$(Configuration)' == 'Release'">prod</BuildType>
+    <BuildType Condition="'$(Configuration)' != 'Release'">dev</BuildType>
+    
+    <!-- Final version: YY.MMDD.HHmm (e.g., 25.1214.2132) -->
+    <Version>$(VersionYear).$(VersionDate).$(VersionTime)</Version>
+    <AssemblyVersion>$(VersionYear).$(VersionDate).$(VersionTime)</AssemblyVersion>
+    <FileVersion>$(VersionYear).$(VersionDate).$(VersionTime)</FileVersion>
+    
+    <!-- Informational version includes build type: YY.MMDD.HHmm-dev/prod -->
+    <InformationalVersion>$(Version)-$(BuildType)</InformationalVersion>
+    
+    <!-- Disable source revision ID (git commit hash) being appended -->
+    <IncludeSourceRevisionInInformationalVersion>false</IncludeSourceRevisionInInformationalVersion>
+  </PropertyGroup>
+</Project>

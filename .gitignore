@@ -383,6 +383,10 @@ coverage*.info
 # Windows Store app package directories and files
 *.appx
 *.appxbundle
+
+# Windows Store app package directories and files
+*.appx
+*.appxbundle
 *.appxupload
 
 # Visual Studio cache files
