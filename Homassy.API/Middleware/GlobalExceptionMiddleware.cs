@@ -32,18 +32,18 @@ namespace Homassy.API.Middleware
 
         private static async Task HandleExceptionAsync(HttpContext context, Exception exception)
         {
-            var requestId = context.Items["RequestId"]?.ToString() ?? Guid.NewGuid().ToString();
+            var correlationId = context.Items[CorrelationIdMiddleware.CorrelationIdItemKey]?.ToString() 
+                ?? Guid.NewGuid().ToString();
             var (statusCode, message) = MapExceptionToResponse(exception);
 
             // Log based on severity
             if (statusCode >= 500)
             {
-                Log.Error(exception, "Unhandled exception [RequestId: {RequestId}]: {Message}", requestId, exception.Message);
+                Log.Error(exception, $"Unhandled exception [CorrelationId: {correlationId}]: {exception.Message}");
             }
             else
             {
-                Log.Warning("Handled exception [RequestId: {RequestId}]: {ExceptionType} - {Message}",
-                    requestId, exception.GetType().Name, exception.Message);
+                Log.Warning($"Handled exception [CorrelationId: {correlationId}]: {exception.GetType().Name} - {exception.Message}");
             }
 
             context.Response.StatusCode = statusCode;

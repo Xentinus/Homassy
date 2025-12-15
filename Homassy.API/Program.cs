@@ -7,10 +7,10 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using Serilog;
 using Serilog.Events;
+using System.Net.Http.Headers;
 using System.Reflection;
 using System.Text;
 
-// Serilog Configuration
 Log.Logger = new LoggerConfiguration()
     .MinimumLevel.Debug()
     .MinimumLevel.Override("Microsoft", LogEventLevel.Information)
@@ -35,29 +35,36 @@ try
 
     var builder = WebApplication.CreateBuilder(args);
 
-    // Serilog integrálása ASP.NET Core-ba
     builder.Host.UseSerilog();
 
-    // Set configuration for HomassyDbContext
     HomassyDbContext.SetConfiguration(builder.Configuration);
 
-    // Initialize static services
     ConfigService.Initialize(builder.Configuration);
     EmailService.Initialize(builder.Configuration);
     JwtService.Initialize(builder.Configuration);
 
-    // PostgreSQL Database
     builder.Services.AddDbContext<HomassyDbContext>(options =>
         options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection")));
 
-    // Background services
+    builder.Services.AddHttpContextAccessor();
+
     builder.Services.AddHostedService<CacheManagementService>();
     builder.Services.AddHostedService<RateLimitCleanupService>();
 
-    // External API clients
-    builder.Services.AddHttpClient<OpenFoodFactsService>();
+    var version = Assembly.GetExecutingAssembly()
+        .GetCustomAttribute<AssemblyInformationalVersionAttribute>()?.InformationalVersion
+        ?? Assembly.GetExecutingAssembly().GetName().Version?.ToString()
+        ?? "1.0.0";
 
-    // API Versioning
+    builder.Services.AddHttpClient<OpenFoodFactsService>(client =>
+    {
+        client.DefaultRequestHeaders.UserAgent.Clear();
+        client.DefaultRequestHeaders.UserAgent.Add(
+            new ProductInfoHeaderValue("Homassy", version));
+        client.DefaultRequestHeaders.UserAgent.Add(
+            new ProductInfoHeaderValue("(https://github.com/Xentinus/Homassy)"));
+    });
+
     builder.Services.AddApiVersioning(options =>
     {
         options.DefaultApiVersion = new Asp.Versioning.ApiVersion(1, 0);
@@ -73,7 +80,6 @@ try
         options.SubstituteApiVersionInUrl = true;
     });
 
-    // JWT Authentication
     builder.Services.AddAuthentication(options =>
     {
         options.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
@@ -97,7 +103,6 @@ try
 
     builder.Services.AddAuthorization();
 
-    // CORS Configuration
     var allowedOrigins = builder.Configuration.GetSection("Cors:AllowedOrigins").Get<string[]>() ?? [];
 
     builder.Services.AddCors(options =>
@@ -106,11 +111,9 @@ try
         {
             policy.SetIsOriginAllowed(origin =>
                 {
-                    // Allow localhost on any port (for development)
                     if (new Uri(origin).Host == "localhost")
                         return true;
                     
-                    // Check configured origins
                     return allowedOrigins.Contains(origin);
                 })
                 .AllowAnyHeader()
@@ -124,7 +127,6 @@ try
 
     var app = builder.Build();
 
-    // Trigger inicializálás induláskor
     using (var scope = app.Services.CreateScope())
     {
         var dbContext = scope.ServiceProvider.GetRequiredService<HomassyDbContext>();
@@ -132,20 +134,10 @@ try
         await triggerInitializer.InitializeTriggersAsync();
     }
 
-    // Get application version from assembly
-    var version = Assembly.GetExecutingAssembly()
-        .GetCustomAttribute<AssemblyInformationalVersionAttribute>()?.InformationalVersion
-        ?? Assembly.GetExecutingAssembly().GetName().Version?.ToString()
-        ?? "1.0.0";
-
     Log.Information($"Homassy API version {version}");
 
-    // Response headers middleware
     app.Use(async (context, next) =>
     {
-        var requestId = Guid.NewGuid().ToString();
-        context.Items["RequestId"] = requestId;
-        
         context.Response.Headers.Append("X-Application-Name", "Homassy");
         context.Response.Headers.Append("X-Application-Version", version);
         context.Response.Headers.Append("X-Application-Description", "Home storage management system");
@@ -157,12 +149,11 @@ try
         context.Response.Headers.Append("Content-Security-Policy", "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self'; connect-src 'self'; frame-ancestors 'none'");
         context.Response.Headers.Remove("Server");
         context.Response.Headers.Remove("X-Powered-By");
-        context.Response.Headers.Append("X-Request-ID", requestId);
         
         await next();
     });
 
-    // Global exception handler (should be early in the pipeline to catch all exceptions)
+    app.UseMiddleware<CorrelationIdMiddleware>();
     app.UseMiddleware<GlobalExceptionMiddleware>();
 
     if (app.Environment.IsDevelopment())
@@ -171,9 +162,7 @@ try
     }
 
     app.UseHttpsRedirection();
-    
     app.UseCors("HomassyPolicy");
-  
     app.UseMiddleware<RateLimitingMiddleware>();
     app.UseAuthorization();
     app.UseMiddleware<SessionInfoMiddleware>();

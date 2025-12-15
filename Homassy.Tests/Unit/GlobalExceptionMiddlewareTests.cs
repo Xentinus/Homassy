@@ -22,7 +22,7 @@ public class GlobalExceptionMiddlewareTests
     {
         var context = new DefaultHttpContext();
         context.Response.Body = new MemoryStream();
-        context.Items["RequestId"] = Guid.NewGuid().ToString();
+        context.Items[CorrelationIdMiddleware.CorrelationIdItemKey] = Guid.NewGuid().ToString();
         return context;
     }
 

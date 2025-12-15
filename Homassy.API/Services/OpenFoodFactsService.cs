@@ -1,4 +1,5 @@
 using System.Net.Http.Headers;
+using Homassy.API.Middleware;
 using Homassy.API.Models.OpenFoodFacts;
 
 namespace Homassy.API.Services;
@@ -6,16 +7,13 @@ namespace Homassy.API.Services;
 public class OpenFoodFactsService
 {
     private readonly HttpClient _httpClient;
+    private readonly IHttpContextAccessor _httpContextAccessor;
     private const string BaseUrl = "https://world.openfoodfacts.org/api/v2";
 
-    public OpenFoodFactsService(HttpClient httpClient)
+    public OpenFoodFactsService(HttpClient httpClient, IHttpContextAccessor httpContextAccessor)
     {
         _httpClient = httpClient;
-        _httpClient.DefaultRequestHeaders.UserAgent.Clear();
-        _httpClient.DefaultRequestHeaders.UserAgent.Add(
-            new ProductInfoHeaderValue("Homassy", "1.0"));
-        _httpClient.DefaultRequestHeaders.UserAgent.Add(
-            new ProductInfoHeaderValue("(https://github.com/Xentinus/Homassy)"));
+        _httpContextAccessor = httpContextAccessor;
     }
 
     public async Task<OpenFoodFactsResponse?> GetProductByBarcodeAsync(
@@ -24,8 +22,11 @@ public class OpenFoodFactsService
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(barcode);
 
-        var response = await _httpClient.GetAsync(
-            $"{BaseUrl}/product/{barcode}",
+        using var request = new HttpRequestMessage(HttpMethod.Get, $"{BaseUrl}/product/{barcode}");
+        AddCorrelationIdHeader(request);
+
+        var response = await _httpClient.SendAsync(
+            request,
             HttpCompletionOption.ResponseHeadersRead,
             cancellationToken);
 
@@ -58,8 +59,11 @@ public class OpenFoodFactsService
     {
         try
         {
-            var response = await _httpClient.GetAsync(
-                imageUrl,
+            using var request = new HttpRequestMessage(HttpMethod.Get, imageUrl);
+            AddCorrelationIdHeader(request);
+
+            var response = await _httpClient.SendAsync(
+                request,
                 HttpCompletionOption.ResponseHeadersRead,
                 cancellationToken);
 
@@ -77,6 +81,15 @@ public class OpenFoodFactsService
         catch
         {
             return null;
+        }
+    }
+
+    private void AddCorrelationIdHeader(HttpRequestMessage request)
+    {
+        var correlationId = _httpContextAccessor.HttpContext?.Items[CorrelationIdMiddleware.CorrelationIdItemKey]?.ToString();
+        if (!string.IsNullOrEmpty(correlationId))
+        {
+            request.Headers.TryAddWithoutValidation(CorrelationIdMiddleware.CorrelationIdHeaderName, correlationId);
         }
     }
 }
