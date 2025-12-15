@@ -96,6 +96,29 @@ try
     });
 
     builder.Services.AddAuthorization();
+
+    // CORS Configuration
+    var allowedOrigins = builder.Configuration.GetSection("Cors:AllowedOrigins").Get<string[]>() ?? [];
+
+    builder.Services.AddCors(options =>
+    {
+        options.AddPolicy("HomassyPolicy", policy =>
+        {
+            policy.SetIsOriginAllowed(origin =>
+                {
+                    // Allow localhost on any port (for development)
+                    if (new Uri(origin).Host == "localhost")
+                        return true;
+                    
+                    // Check configured origins
+                    return allowedOrigins.Contains(origin);
+                })
+                .AllowAnyHeader()
+                .AllowAnyMethod()
+                .AllowCredentials();
+        });
+    });
+
     builder.Services.AddControllers();
     builder.Services.AddOpenApi();
 
@@ -149,6 +172,7 @@ try
 
     app.UseHttpsRedirection();
     
+    app.UseCors("HomassyPolicy");
   
     app.UseMiddleware<RateLimitingMiddleware>();
     app.UseAuthorization();
