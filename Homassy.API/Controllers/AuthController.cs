@@ -11,13 +11,21 @@ using Serilog;
 
 namespace Homassy.API.Controllers
 {
+    /// <summary>
+    /// Authentication and authorization endpoints.
+    /// </summary>
     [ApiVersion(1.0)]
     [Route("api/v{version:apiVersion}/[controller]")]
     [ApiController]
     public class AuthController : ControllerBase
     {
+        /// <summary>
+        /// Requests a verification code to be sent to the user's email address.
+        /// </summary>
         [HttpPost("request-code")]
         [MapToApiVersion(1.0)]
+        [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status200OK)]
+        [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status400BadRequest)]
         public async Task<IActionResult> RequestVerificationCode([FromBody] LoginRequest request)
         {
             if (!ModelState.IsValid)
@@ -49,8 +57,13 @@ namespace Homassy.API.Controllers
             return Ok(ApiResponse.SuccessResponse(genericMessage));
         }
 
+        /// <summary>
+        /// Verifies the email verification code and returns authentication tokens.
+        /// </summary>
         [HttpPost("verify-code")]
         [MapToApiVersion(1.0)]
+        [ProducesResponseType(typeof(ApiResponse<AuthResponse>), StatusCodes.Status200OK)]
+        [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status400BadRequest)]
         public async Task<IActionResult> VerifyCode([FromBody] VerifyLoginRequest request)
         {
             if (!ModelState.IsValid)
@@ -62,9 +75,15 @@ namespace Homassy.API.Controllers
             return Ok(ApiResponse<AuthResponse>.SuccessResponse(authResponse, "Login successful"));
         }
 
+        /// <summary>
+        /// Refreshes the access token using a valid refresh token.
+        /// </summary>
         [Authorize]
         [HttpPost("refresh")]
         [MapToApiVersion(1.0)]
+        [ProducesResponseType(typeof(ApiResponse<RefreshTokenResponse>), StatusCodes.Status200OK)]
+        [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status401Unauthorized)]
         public async Task<IActionResult> RefreshToken([FromBody] RefreshTokenRequest request)
         {
             if (!ModelState.IsValid)
@@ -76,9 +95,14 @@ namespace Homassy.API.Controllers
             return Ok(ApiResponse<RefreshTokenResponse>.SuccessResponse(refreshResponse, "Token refreshed successfully"));
         }
 
+        /// <summary>
+        /// Logs out the current user and invalidates their refresh token.
+        /// </summary>
         [Authorize]
         [HttpPost("logout")]
         [MapToApiVersion(1.0)]
+        [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status200OK)]
+        [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status401Unauthorized)]
         public async Task<IActionResult> Logout()
         {
             try
@@ -94,17 +118,28 @@ namespace Homassy.API.Controllers
             return Ok(ApiResponse.SuccessResponse("Logged out successfully"));
         }
 
+        /// <summary>
+        /// Gets the current authenticated user's information.
+        /// </summary>
         [Authorize]
         [HttpGet("me")]
         [MapToApiVersion(1.0)]
+        [ProducesResponseType(typeof(ApiResponse<UserInfo>), StatusCodes.Status200OK)]
+        [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status401Unauthorized)]
         public IActionResult GetCurrentUser()
         {
             var userInfo = new UserFunctions().GetCurrentUserAsync();
             return Ok(ApiResponse<UserInfo>.SuccessResponse(userInfo));
         }
 
+        /// <summary>
+        /// Registers a new user account.
+        /// </summary>
         [HttpPost("register")]
         [MapToApiVersion(1.0)]
+        [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status200OK)]
+        [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status403Forbidden)]
         public async Task<IActionResult> Register([FromBody] CreateUserRequest request)
         {
             if (!ModelState.IsValid)

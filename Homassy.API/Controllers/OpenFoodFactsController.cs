@@ -7,6 +7,9 @@ using Microsoft.AspNetCore.Mvc;
 
 namespace Homassy.API.Controllers;
 
+/// <summary>
+/// Open Food Facts integration endpoints.
+/// </summary>
 [ApiVersion(1.0)]
 [Route("api/v{version:apiVersion}/[controller]")]
 [ApiController]
@@ -20,8 +23,16 @@ public class OpenFoodFactsController : ControllerBase
         _openFoodFactsService = openFoodFactsService;
     }
 
+    /// <summary>
+    /// Gets product information from Open Food Facts database by barcode.
+    /// </summary>
+    /// <param name="barcode">The barcode of the product.</param>
+    /// <returns>An IActionResult containing the product information or an error response.</returns>
     [HttpGet("{barcode}")]
     [MapToApiVersion(1.0)]
+    [ProducesResponseType(typeof(ApiResponse<OpenFoodFactsProduct>), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status404NotFound)]
     public async Task<IActionResult> GetProductByBarcode(string barcode)
     {
         if (string.IsNullOrWhiteSpace(barcode))

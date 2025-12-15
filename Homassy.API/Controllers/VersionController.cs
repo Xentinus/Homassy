@@ -5,12 +5,19 @@ using Microsoft.AspNetCore.Mvc;
 
 namespace Homassy.API.Controllers;
 
+/// <summary>
+/// Version information endpoint.
+/// </summary>
 [Route("api/[controller]")]
 [ApiController]
 [AllowAnonymous]
 public class VersionController : ControllerBase
 {
+    /// <summary>
+    /// Gets the current API version information including build details.
+    /// </summary>
     [HttpGet]
+    [ProducesResponseType(typeof(ApiResponse<VersionInfo>), StatusCodes.Status200OK)]
     public IActionResult GetVersion()
     {
         var assembly = Assembly.GetExecutingAssembly();

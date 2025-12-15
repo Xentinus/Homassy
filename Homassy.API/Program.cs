@@ -4,6 +4,7 @@ using Homassy.API.Infrastructure;
 using Homassy.API.Middleware;
 using Homassy.API.Services;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.OpenApi;
 using Microsoft.AspNetCore.ResponseCompression;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
@@ -126,7 +127,29 @@ try
     });
 
     builder.Services.AddControllers();
-    builder.Services.AddOpenApi();
+    builder.Services.AddOpenApi(options =>
+    {
+        options.AddDocumentTransformer((document, context, cancellationToken) =>
+        {
+            document.Info = new()
+            {
+                Title = "Homassy API",
+                Version = version,
+                Description = "Home storage management system API - Manage products, inventory, shopping lists, and family sharing.",
+                Contact = new()
+                {
+                    Name = "Homassy",
+                    Url = new Uri("https://github.com/Xentinus/Homassy")
+                },
+                License = new()
+                {
+                    Name = "MIT License",
+                    Url = new Uri("https://github.com/Xentinus/Homassy/blob/master/LICENSE")
+                }
+            };
+            return Task.CompletedTask;
+        });
+    });
 
     builder.Services.AddResponseCompression(options =>
     {
