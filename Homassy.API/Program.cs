@@ -1,4 +1,5 @@
 ﻿using Homassy.API.Context;
+using Homassy.API.Extensions;
 using Homassy.API.Infrastructure;
 using Homassy.API.Middleware;
 using Homassy.API.Services;
@@ -181,6 +182,7 @@ try
     });
 
     app.UseMiddleware<CorrelationIdMiddleware>();
+    app.UseRequestLogging(builder.Configuration);
     app.UseMiddleware<GlobalExceptionMiddleware>();
 
     if (app.Environment.IsDevelopment())
