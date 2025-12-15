@@ -37,14 +37,14 @@ namespace Homassy.API.Controllers
         [MapToApiVersion(1.0)]
         [ProducesResponseType(typeof(ApiResponse<ShoppingLocationInfo>), StatusCodes.Status200OK)]
         [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status400BadRequest)]
-        public async Task<IActionResult> CreateShoppingLocation([FromBody] ShoppingLocationRequest request)
+        public async Task<IActionResult> CreateShoppingLocation([FromBody] ShoppingLocationRequest request, CancellationToken cancellationToken)
         {
             if (!ModelState.IsValid)
             {
                 return BadRequest(ApiResponse.ErrorResponse("Invalid request data"));
             }
 
-            var shoppingLocationInfo = await new LocationFunctions().CreateShoppingLocationAsync(request);
+            var shoppingLocationInfo = await new LocationFunctions().CreateShoppingLocationAsync(request, cancellationToken);
             return Ok(ApiResponse<ShoppingLocationInfo>.SuccessResponse(shoppingLocationInfo, "Shopping location created successfully"));
         }
 
@@ -56,14 +56,14 @@ namespace Homassy.API.Controllers
         [ProducesResponseType(typeof(ApiResponse<ShoppingLocationInfo>), StatusCodes.Status200OK)]
         [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status400BadRequest)]
         [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status404NotFound)]
-        public async Task<IActionResult> UpdateShoppingLocation(Guid shoppingLocationPublicId, [FromBody] ShoppingLocationRequest request)
+        public async Task<IActionResult> UpdateShoppingLocation(Guid shoppingLocationPublicId, [FromBody] ShoppingLocationRequest request, CancellationToken cancellationToken)
         {
             if (!ModelState.IsValid)
             {
                 return BadRequest(ApiResponse.ErrorResponse("Invalid request data"));
             }
 
-            var shoppingLocationInfo = await new LocationFunctions().UpdateShoppingLocationAsync(shoppingLocationPublicId, request);
+            var shoppingLocationInfo = await new LocationFunctions().UpdateShoppingLocationAsync(shoppingLocationPublicId, request, cancellationToken);
             return Ok(ApiResponse<ShoppingLocationInfo>.SuccessResponse(shoppingLocationInfo, "Shopping location updated successfully"));
         }
 
@@ -74,9 +74,9 @@ namespace Homassy.API.Controllers
         [MapToApiVersion(1.0)]
         [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status200OK)]
         [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status404NotFound)]
-        public async Task<IActionResult> DeleteShoppingLocation(Guid shoppingLocationPublicId)
+        public async Task<IActionResult> DeleteShoppingLocation(Guid shoppingLocationPublicId, CancellationToken cancellationToken)
         {
-            await new LocationFunctions().DeleteShoppingLocationAsync(shoppingLocationPublicId);
+            await new LocationFunctions().DeleteShoppingLocationAsync(shoppingLocationPublicId, cancellationToken);
             Log.Information("Shopping location {ShoppingLocationPublicId} deleted successfully", shoppingLocationPublicId);
             return Ok(ApiResponse.SuccessResponse("Shopping location deleted successfully"));
         }
@@ -88,14 +88,14 @@ namespace Homassy.API.Controllers
         [MapToApiVersion(1.0)]
         [ProducesResponseType(typeof(ApiResponse<List<ShoppingLocationInfo>>), StatusCodes.Status200OK)]
         [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status400BadRequest)]
-        public async Task<IActionResult> CreateMultipleShoppingLocations([FromBody] CreateMultipleShoppingLocationsRequest request)
+        public async Task<IActionResult> CreateMultipleShoppingLocations([FromBody] CreateMultipleShoppingLocationsRequest request, CancellationToken cancellationToken)
         {
             if (!ModelState.IsValid)
             {
                 return BadRequest(ApiResponse.ErrorResponse("Invalid request data"));
             }
 
-            var shoppingLocationInfos = await new LocationFunctions().CreateMultipleShoppingLocationsAsync(request.Locations);
+            var shoppingLocationInfos = await new LocationFunctions().CreateMultipleShoppingLocationsAsync(request.Locations, cancellationToken);
             return Ok(ApiResponse<List<ShoppingLocationInfo>>.SuccessResponse(shoppingLocationInfos, $"{shoppingLocationInfos.Count} shopping locations created successfully"));
         }
 
@@ -106,14 +106,14 @@ namespace Homassy.API.Controllers
         [MapToApiVersion(1.0)]
         [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status200OK)]
         [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status400BadRequest)]
-        public async Task<IActionResult> DeleteMultipleShoppingLocations([FromBody] DeleteMultipleShoppingLocationsRequest request)
+        public async Task<IActionResult> DeleteMultipleShoppingLocations([FromBody] DeleteMultipleShoppingLocationsRequest request, CancellationToken cancellationToken)
         {
             if (!ModelState.IsValid)
             {
                 return BadRequest(ApiResponse.ErrorResponse("Invalid request data"));
             }
 
-            await new LocationFunctions().DeleteMultipleShoppingLocationsAsync(request);
+            await new LocationFunctions().DeleteMultipleShoppingLocationsAsync(request, cancellationToken);
             return Ok(ApiResponse.SuccessResponse($"{request.LocationPublicIds.Count} shopping locations deleted successfully"));
         }
         #endregion
@@ -138,14 +138,14 @@ namespace Homassy.API.Controllers
         [MapToApiVersion(1.0)]
         [ProducesResponseType(typeof(ApiResponse<StorageLocationInfo>), StatusCodes.Status200OK)]
         [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status400BadRequest)]
-        public async Task<IActionResult> CreateStorageLocation([FromBody] StorageLocationRequest request)
+        public async Task<IActionResult> CreateStorageLocation([FromBody] StorageLocationRequest request, CancellationToken cancellationToken)
         {
             if (!ModelState.IsValid)
             {
                 return BadRequest(ApiResponse.ErrorResponse("Invalid request data"));
             }
 
-            var storageLocationInfo = await new LocationFunctions().CreateStorageLocationAsync(request);
+            var storageLocationInfo = await new LocationFunctions().CreateStorageLocationAsync(request, cancellationToken);
             return Ok(ApiResponse<StorageLocationInfo>.SuccessResponse(storageLocationInfo, "Storage location created successfully"));
         }
 
@@ -157,14 +157,14 @@ namespace Homassy.API.Controllers
         [ProducesResponseType(typeof(ApiResponse<StorageLocationInfo>), StatusCodes.Status200OK)]
         [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status400BadRequest)]
         [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status404NotFound)]
-        public async Task<IActionResult> UpdateStorageLocation(Guid storageLocationPublicId, [FromBody] StorageLocationRequest request)
+        public async Task<IActionResult> UpdateStorageLocation(Guid storageLocationPublicId, [FromBody] StorageLocationRequest request, CancellationToken cancellationToken)
         {
             if (!ModelState.IsValid)
             {
                 return BadRequest(ApiResponse.ErrorResponse("Invalid request data"));
             }
 
-            var storageLocationInfo = await new LocationFunctions().UpdateStorageLocationAsync(storageLocationPublicId, request);
+            var storageLocationInfo = await new LocationFunctions().UpdateStorageLocationAsync(storageLocationPublicId, request, cancellationToken);
             return Ok(ApiResponse<StorageLocationInfo>.SuccessResponse(storageLocationInfo, "Storage location updated successfully"));
         }
 
@@ -175,9 +175,9 @@ namespace Homassy.API.Controllers
         [MapToApiVersion(1.0)]
         [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status200OK)]
         [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status404NotFound)]
-        public async Task<IActionResult> DeleteStorageLocation(Guid storageLocationPublicId)
+        public async Task<IActionResult> DeleteStorageLocation(Guid storageLocationPublicId, CancellationToken cancellationToken)
         {
-            await new LocationFunctions().DeleteStorageLocationAsync(storageLocationPublicId);
+            await new LocationFunctions().DeleteStorageLocationAsync(storageLocationPublicId, cancellationToken);
             Log.Information("Storage location {StorageLocationPublicId} deleted successfully", storageLocationPublicId);
             return Ok(ApiResponse.SuccessResponse("Storage location deleted successfully"));
         }
@@ -189,14 +189,14 @@ namespace Homassy.API.Controllers
         [MapToApiVersion(1.0)]
         [ProducesResponseType(typeof(ApiResponse<List<StorageLocationInfo>>), StatusCodes.Status200OK)]
         [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status400BadRequest)]
-        public async Task<IActionResult> CreateMultipleStorageLocations([FromBody] CreateMultipleStorageLocationsRequest request)
+        public async Task<IActionResult> CreateMultipleStorageLocations([FromBody] CreateMultipleStorageLocationsRequest request, CancellationToken cancellationToken)
         {
             if (!ModelState.IsValid)
             {
                 return BadRequest(ApiResponse.ErrorResponse("Invalid request data"));
             }
 
-            var storageLocationInfos = await new LocationFunctions().CreateMultipleStorageLocationsAsync(request.Locations);
+            var storageLocationInfos = await new LocationFunctions().CreateMultipleStorageLocationsAsync(request.Locations, cancellationToken);
             return Ok(ApiResponse<List<StorageLocationInfo>>.SuccessResponse(storageLocationInfos, $"{storageLocationInfos.Count} storage locations created successfully"));
         }
 
@@ -207,14 +207,14 @@ namespace Homassy.API.Controllers
         [MapToApiVersion(1.0)]
         [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status200OK)]
         [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status400BadRequest)]
-        public async Task<IActionResult> DeleteMultipleStorageLocations([FromBody] DeleteMultipleStorageLocationsRequest request)
+        public async Task<IActionResult> DeleteMultipleStorageLocations([FromBody] DeleteMultipleStorageLocationsRequest request, CancellationToken cancellationToken)
         {
             if (!ModelState.IsValid)
             {
                 return BadRequest(ApiResponse.ErrorResponse("Invalid request data"));
             }
 
-            await new LocationFunctions().DeleteMultipleStorageLocationsAsync(request);
+            await new LocationFunctions().DeleteMultipleStorageLocationsAsync(request, cancellationToken);
             return Ok(ApiResponse.SuccessResponse($"{request.LocationPublicIds.Count} storage locations deleted successfully"));
         }
         #endregion

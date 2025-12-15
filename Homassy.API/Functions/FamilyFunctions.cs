@@ -16,11 +16,11 @@ namespace Homassy.API.Functions
         public static bool Inited = false;
 
         #region Cache Management
-        public async Task InitializeCacheAsync()
+        public async Task InitializeCacheAsync(CancellationToken cancellationToken = default)
         {
             var context = new HomassyDbContext();
             var families = await context.Families
-                .ToListAsync();
+                .ToListAsync(cancellationToken);
 
             try
             {
@@ -38,13 +38,13 @@ namespace Homassy.API.Functions
             }
         }
 
-        public async Task RefreshCacheAsync(int familyId)
+        public async Task RefreshCacheAsync(int familyId, CancellationToken cancellationToken = default)
         {
             try
             {
                 var context = new HomassyDbContext();
                 var family = await context.Families
-                    .FirstOrDefaultAsync(f => f.Id == familyId);
+                    .FirstOrDefaultAsync(f => f.Id == familyId, cancellationToken);
 
                 var existsInCache = _familyCache.ContainsKey(familyId);
 
@@ -158,7 +158,7 @@ namespace Homassy.API.Functions
         #endregion
 
         #region Family Management
-        public async Task<FamilyInfo> CreateFamilyAsync(CreateFamilyRequest request)
+        public async Task<FamilyInfo> CreateFamilyAsync(CreateFamilyRequest request, CancellationToken cancellationToken = default)
         {
             var userId = SessionInfo.GetUserId();
             if (!userId.HasValue)
@@ -180,7 +180,7 @@ namespace Homassy.API.Functions
             }
 
             var context = new HomassyDbContext();
-            await using var transaction = await context.Database.BeginTransactionAsync();
+            await using var transaction = await context.Database.BeginTransactionAsync(cancellationToken);
             try
             {
                 var family = new Family
@@ -191,13 +191,13 @@ namespace Homassy.API.Functions
                 };
 
                 context.Families.Add(family);
-                await context.SaveChangesAsync();
+                await context.SaveChangesAsync(cancellationToken);
 
                 user.FamilyId = family.Id;
                 context.Users.Update(user);
-                await context.SaveChangesAsync();
+                await context.SaveChangesAsync(cancellationToken);
 
-                await transaction.CommitAsync();
+                await transaction.CommitAsync(cancellationToken);
 
                 Log.Information($"User {userId.Value} created family {family.Id} with share code {family.ShareCode}");
 
@@ -211,7 +211,7 @@ namespace Homassy.API.Functions
             }
             catch (Exception ex)
             {
-                await transaction.RollbackAsync();
+                await transaction.RollbackAsync(cancellationToken);
                 Log.Error($"Error creating family for user {userId.Value}: {ex.Message}");
                 throw;
             }
@@ -250,7 +250,7 @@ namespace Homassy.API.Functions
             return response;
         }
 
-        public async Task UpdateFamilyAsync(UpdateFamilyRequest request)
+        public async Task UpdateFamilyAsync(UpdateFamilyRequest request, CancellationToken cancellationToken = default)
         {
             var userId = SessionInfo.GetUserId();
             if (!userId.HasValue)
@@ -266,7 +266,7 @@ namespace Homassy.API.Functions
             }
 
             var context = new HomassyDbContext();
-            await using var transaction = await context.Database.BeginTransactionAsync();
+            await using var transaction = await context.Database.BeginTransactionAsync(cancellationToken);
             try
             {
                 var family = GetFamilyById(user.FamilyId.Value);
@@ -289,20 +289,20 @@ namespace Homassy.API.Functions
                         : request.Description.Trim();
                 }
 
-                await context.SaveChangesAsync();
-                await transaction.CommitAsync();
+                await context.SaveChangesAsync(cancellationToken);
+                await transaction.CommitAsync(cancellationToken);
 
                 Log.Information($"User {SessionInfo.GetUserId()} updated family {family.Id}");
             }
             catch (Exception ex)
             {
-                await transaction.RollbackAsync();
+                await transaction.RollbackAsync(cancellationToken);
                 Log.Error($"Error updating family for user {SessionInfo.GetUserId()}: {ex.Message}");
                 throw;
             }
         }
 
-        public async Task UploadFamilyPictureAsync(string familyPictureBase64)
+        public async Task UploadFamilyPictureAsync(string familyPictureBase64, CancellationToken cancellationToken = default)
         {
             if (string.IsNullOrWhiteSpace(familyPictureBase64))
             {
@@ -323,10 +323,10 @@ namespace Homassy.API.Functions
             }
 
             var context = new HomassyDbContext();
-            await using var transaction = await context.Database.BeginTransactionAsync();
+            await using var transaction = await context.Database.BeginTransactionAsync(cancellationToken);
             try
             {
-                var family = await context.Families.FindAsync(user.FamilyId);
+                var family = await context.Families.FindAsync(user.FamilyId, cancellationToken);
 
                 if (family == null)
                 {
@@ -336,20 +336,20 @@ namespace Homassy.API.Functions
 
                 family.FamilyPictureBase64 = familyPictureBase64;
 
-                await context.SaveChangesAsync();
-                await transaction.CommitAsync();
+                await context.SaveChangesAsync(cancellationToken);
+                await transaction.CommitAsync(cancellationToken);
 
                 Log.Information($"User {SessionInfo.GetUserId()} uploaded picture for family {user.FamilyId}");
             }
             catch (Exception ex)
             {
-                await transaction.RollbackAsync();
+                await transaction.RollbackAsync(cancellationToken);
                 Log.Error($"Error uploading family picture: {ex.Message}");
                 throw;
             }
         }
 
-        public async Task DeleteFamilyPictureAsync()
+        public async Task DeleteFamilyPictureAsync(CancellationToken cancellationToken = default)
         {
             var userId = SessionInfo.GetUserId();
             if (!userId.HasValue)
@@ -365,10 +365,10 @@ namespace Homassy.API.Functions
             }
 
             var context = new HomassyDbContext();
-            await using var transaction = await context.Database.BeginTransactionAsync();
+            await using var transaction = await context.Database.BeginTransactionAsync(cancellationToken);
             try
             {
-                var family = await context.Families.FindAsync(user.FamilyId.Value);
+                var family = await context.Families.FindAsync(user.FamilyId.Value, cancellationToken);
 
                 if (family == null)
                 {
@@ -383,14 +383,14 @@ namespace Homassy.API.Functions
 
                 family.FamilyPictureBase64 = null;
 
-                await context.SaveChangesAsync();
-                await transaction.CommitAsync();
+                await context.SaveChangesAsync(cancellationToken);
+                await transaction.CommitAsync(cancellationToken);
 
                 Log.Information($"User {SessionInfo.GetUserId()} deleted picture for family {user.FamilyId.Value}");
             }
             catch (Exception ex)
             {
-                await transaction.RollbackAsync();
+                await transaction.RollbackAsync(cancellationToken);
                 Log.Error($"Error deleting family picture: {ex.Message}");
                 throw;
             }

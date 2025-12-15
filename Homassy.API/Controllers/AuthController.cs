@@ -26,7 +26,7 @@ namespace Homassy.API.Controllers
         [MapToApiVersion(1.0)]
         [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status200OK)]
         [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status400BadRequest)]
-        public async Task<IActionResult> RequestVerificationCode([FromBody] LoginRequest request)
+        public async Task<IActionResult> RequestVerificationCode([FromBody] LoginRequest request, CancellationToken cancellationToken)
         {
             if (!ModelState.IsValid)
             {
@@ -37,7 +37,7 @@ namespace Homassy.API.Controllers
 
             try
             {
-                await new UserFunctions().RequestVerificationCodeAsync(request.Email);
+                await new UserFunctions().RequestVerificationCodeAsync(request.Email, cancellationToken);
             }
             catch (BadRequestException ex)
             {
@@ -53,7 +53,7 @@ namespace Homassy.API.Controllers
             }
 
             // Security: constant time response to prevent user enumeration
-            await Task.Delay(Random.Shared.Next(100, 300));
+            await Task.Delay(Random.Shared.Next(100, 300), cancellationToken);
             return Ok(ApiResponse.SuccessResponse(genericMessage));
         }
 
@@ -64,14 +64,14 @@ namespace Homassy.API.Controllers
         [MapToApiVersion(1.0)]
         [ProducesResponseType(typeof(ApiResponse<AuthResponse>), StatusCodes.Status200OK)]
         [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status400BadRequest)]
-        public async Task<IActionResult> VerifyCode([FromBody] VerifyLoginRequest request)
+        public async Task<IActionResult> VerifyCode([FromBody] VerifyLoginRequest request, CancellationToken cancellationToken)
         {
             if (!ModelState.IsValid)
             {
                 return BadRequest(ApiResponse.ErrorResponse("Invalid request data"));
             }
 
-            var authResponse = await new UserFunctions().VerifyCodeAsync(request.Email, request.VerificationCode);
+            var authResponse = await new UserFunctions().VerifyCodeAsync(request.Email, request.VerificationCode, cancellationToken);
             return Ok(ApiResponse<AuthResponse>.SuccessResponse(authResponse, "Login successful"));
         }
 
@@ -84,14 +84,14 @@ namespace Homassy.API.Controllers
         [ProducesResponseType(typeof(ApiResponse<RefreshTokenResponse>), StatusCodes.Status200OK)]
         [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status400BadRequest)]
         [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status401Unauthorized)]
-        public async Task<IActionResult> RefreshToken([FromBody] RefreshTokenRequest request)
+        public async Task<IActionResult> RefreshToken([FromBody] RefreshTokenRequest request, CancellationToken cancellationToken)
         {
             if (!ModelState.IsValid)
             {
                 return BadRequest(ApiResponse.ErrorResponse("Invalid request data"));
             }
 
-            var refreshResponse = await new UserFunctions().RefreshTokenAsync(request.RefreshToken);
+            var refreshResponse = await new UserFunctions().RefreshTokenAsync(request.RefreshToken, cancellationToken);
             return Ok(ApiResponse<RefreshTokenResponse>.SuccessResponse(refreshResponse, "Token refreshed successfully"));
         }
 
@@ -103,11 +103,11 @@ namespace Homassy.API.Controllers
         [MapToApiVersion(1.0)]
         [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status200OK)]
         [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status401Unauthorized)]
-        public async Task<IActionResult> Logout()
+        public async Task<IActionResult> Logout(CancellationToken cancellationToken)
         {
             try
             {
-                await new UserFunctions().LogoutAsync();
+                await new UserFunctions().LogoutAsync(cancellationToken);
             }
             catch (UserNotFoundException ex)
             {
@@ -140,7 +140,7 @@ namespace Homassy.API.Controllers
         [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status200OK)]
         [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status400BadRequest)]
         [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status403Forbidden)]
-        public async Task<IActionResult> Register([FromBody] CreateUserRequest request)
+        public async Task<IActionResult> Register([FromBody] CreateUserRequest request, CancellationToken cancellationToken)
         {
             if (!ModelState.IsValid)
             {
@@ -161,7 +161,7 @@ namespace Homassy.API.Controllers
 
             try
             {
-                await new UserFunctions().RegisterAsync(request);
+                await new UserFunctions().RegisterAsync(request, cancellationToken);
             }
             catch (BadRequestException ex)
             {
@@ -177,7 +177,7 @@ namespace Homassy.API.Controllers
             }
 
             // Security: constant time response to prevent user enumeration
-            await Task.Delay(Random.Shared.Next(100, 300));
+            await Task.Delay(Random.Shared.Next(100, 300), cancellationToken);
             return Ok(ApiResponse.SuccessResponse(genericMessage));
         }
     }

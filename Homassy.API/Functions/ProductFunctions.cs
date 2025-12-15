@@ -21,18 +21,18 @@ namespace Homassy.API.Functions
 
         #region Cache Management
         #region Cache Initialization
-        public async Task InitializeCacheAsync()
+        public async Task InitializeCacheAsync(CancellationToken cancellationToken = default)
         {
             var context = new HomassyDbContext();
 
             try
             {
                 // Load all product-related data
-                var products = await context.Products.ToListAsync();
-                var customizations = await context.ProductCustomizations.ToListAsync();
-                var inventoryItems = await context.ProductInventoryItems.ToListAsync();
-                var purchaseInfos = await context.ProductPurchaseInfos.ToListAsync();
-                var consumptionLogs = await context.ProductConsumptionLogs.ToListAsync();
+                var products = await context.Products.ToListAsync(cancellationToken);
+                var customizations = await context.ProductCustomizations.ToListAsync(cancellationToken);
+                var inventoryItems = await context.ProductInventoryItems.ToListAsync(cancellationToken);
+                var purchaseInfos = await context.ProductPurchaseInfos.ToListAsync(cancellationToken);
+                var consumptionLogs = await context.ProductConsumptionLogs.ToListAsync(cancellationToken);
 
                 foreach (var product in products)
                 {
@@ -73,12 +73,12 @@ namespace Homassy.API.Functions
         #endregion
 
         #region Cache Refreshing
-        public async Task RefreshProductCacheAsync(int productId)
+        public async Task RefreshProductCacheAsync(int productId, CancellationToken cancellationToken = default)
         {
             try
             {
                 var context = new HomassyDbContext();
-                var product = await context.Products.FirstOrDefaultAsync(p => p.Id == productId);
+                var product = await context.Products.FirstOrDefaultAsync(p => p.Id == productId, cancellationToken);
                 var existsInCache = _productCache.ContainsKey(productId);
 
                 if (product != null && existsInCache)
@@ -104,12 +104,12 @@ namespace Homassy.API.Functions
             }
         }
 
-        public async Task RefreshProductCustomizationCacheAsync(int customizationId)
+        public async Task RefreshProductCustomizationCacheAsync(int customizationId, CancellationToken cancellationToken = default)
         {
             try
             {
                 var context = new HomassyDbContext();
-                var customization = await context.ProductCustomizations.FirstOrDefaultAsync(c => c.Id == customizationId);
+                var customization = await context.ProductCustomizations.FirstOrDefaultAsync(c => c.Id == customizationId, cancellationToken);
                 var existsInCache = _customizationCache.ContainsKey(customizationId);
 
                 if (customization != null && existsInCache)
@@ -135,12 +135,12 @@ namespace Homassy.API.Functions
             }
         }
 
-        public async Task RefreshInventoryItemCacheAsync(int inventoryItemId)
+        public async Task RefreshInventoryItemCacheAsync(int inventoryItemId, CancellationToken cancellationToken = default)
         {
             try
             {
                 var context = new HomassyDbContext();
-                var item = await context.ProductInventoryItems.FirstOrDefaultAsync(i => i.Id == inventoryItemId);
+                var item = await context.ProductInventoryItems.FirstOrDefaultAsync(i => i.Id == inventoryItemId, cancellationToken);
                 var existsInCache = _inventoryItemCache.ContainsKey(inventoryItemId);
 
                 if (item != null && existsInCache)
@@ -166,12 +166,12 @@ namespace Homassy.API.Functions
             }
         }
 
-        public async Task RefreshPurchaseInfoCacheAsync(int purchaseInfoId)
+        public async Task RefreshPurchaseInfoCacheAsync(int purchaseInfoId, CancellationToken cancellationToken = default)
         {
             try
             {
                 var context = new HomassyDbContext();
-                var purchase = await context.ProductPurchaseInfos.FirstOrDefaultAsync(p => p.Id == purchaseInfoId);
+                var purchase = await context.ProductPurchaseInfos.FirstOrDefaultAsync(p => p.Id == purchaseInfoId, cancellationToken);
                 var existsInCache = _purchaseInfoCache.ContainsKey(purchaseInfoId);
 
                 if (purchase != null && existsInCache)
@@ -197,14 +197,14 @@ namespace Homassy.API.Functions
             }
         }
 
-        public async Task RefreshConsumptionLogsCacheAsync(int inventoryItemId)
+        public async Task RefreshConsumptionLogsCacheAsync(int inventoryItemId, CancellationToken cancellationToken = default)
         {
             try
             {
                 var context = new HomassyDbContext();
                 var logs = await context.ProductConsumptionLogs
                     .Where(log => log.ProductInventoryItemId == inventoryItemId)
-                    .ToListAsync();
+                    .ToListAsync(cancellationToken);
 
                 if (logs.Any())
                 {
@@ -491,7 +491,7 @@ namespace Homassy.API.Functions
             }).ToList();
         }
 
-        public async Task<ProductInfo> CreateProductAsync(CreateProductRequest request)
+        public async Task<ProductInfo> CreateProductAsync(CreateProductRequest request, CancellationToken cancellationToken = default)
         {
             var userId = SessionInfo.GetUserId();
             if (!userId.HasValue)
@@ -501,7 +501,7 @@ namespace Homassy.API.Functions
             }
 
             var context = new HomassyDbContext();
-            await using var transaction = await context.Database.BeginTransactionAsync();
+            await using var transaction = await context.Database.BeginTransactionAsync(cancellationToken);
 
             try
             {
@@ -516,7 +516,7 @@ namespace Homassy.API.Functions
                 };
 
                 context.Products.Add(product);
-                await context.SaveChangesAsync();
+                await context.SaveChangesAsync(cancellationToken);
 
                 bool isFavorite = false;
 
@@ -532,7 +532,7 @@ namespace Homassy.API.Functions
                     };
 
                     context.ProductCustomizations.Add(customization);
-                    await context.SaveChangesAsync();
+                    await context.SaveChangesAsync(cancellationToken);
 
                     isFavorite = request.IsFavorite;
 
@@ -543,7 +543,7 @@ namespace Homassy.API.Functions
                     Log.Information($"User {userId} created product {product.Id} (PublicId: {product.PublicId}) without customization");
                 }
 
-                await transaction.CommitAsync();
+                await transaction.CommitAsync(cancellationToken);
 
                 return new ProductInfo
                 {
@@ -559,13 +559,13 @@ namespace Homassy.API.Functions
             }
             catch (Exception ex)
             {
-                await transaction.RollbackAsync();
+                await transaction.RollbackAsync(cancellationToken);
                 Log.Error(ex, $"Failed to create product for user {userId}");
                 throw;
             }
         }
 
-        public async Task<ProductInfo> UpdateProductAsync(Guid productPublicId, UpdateProductRequest request)
+        public async Task<ProductInfo> UpdateProductAsync(Guid productPublicId, UpdateProductRequest request, CancellationToken cancellationToken = default)
         {
             var userId = SessionInfo.GetUserId();
             if (!userId.HasValue)
@@ -581,7 +581,7 @@ namespace Homassy.API.Functions
             }
 
             var context = new HomassyDbContext();
-            await using var transaction = await context.Database.BeginTransactionAsync();
+            await using var transaction = await context.Database.BeginTransactionAsync(cancellationToken);
 
             try
             {
@@ -632,7 +632,7 @@ namespace Homassy.API.Functions
                 if (hasChanges)
                 {
                     context.Products.Update(product);
-                    await context.SaveChangesAsync();
+                    await context.SaveChangesAsync(cancellationToken);
                     Log.Information($"User {userId} updated product {product.Id} (PublicId: {product.PublicId})");
                 }
                 else
@@ -640,7 +640,7 @@ namespace Homassy.API.Functions
                     Log.Debug($"User {userId} attempted to update product {product.Id} but no changes were made");
                 }
 
-                await transaction.CommitAsync();
+                await transaction.CommitAsync(cancellationToken);
 
                 var customization = GetCustomizationByProductAndUser(product.Id, userId.Value);
 
@@ -658,13 +658,13 @@ namespace Homassy.API.Functions
             }
             catch (Exception ex)
             {
-                await transaction.RollbackAsync();
+                await transaction.RollbackAsync(cancellationToken);
                 Log.Error(ex, $"Failed to update product {productPublicId} for user {userId}");
                 throw;
             }
         }
 
-        public async Task DeleteProductAsync(Guid productPublicId)
+        public async Task DeleteProductAsync(Guid productPublicId, CancellationToken cancellationToken = default)
         {
             var userId = SessionInfo.GetUserId();
             if (!userId.HasValue)
@@ -680,27 +680,27 @@ namespace Homassy.API.Functions
             }
 
             var context = new HomassyDbContext();
-            await using var transaction = await context.Database.BeginTransactionAsync();
+            await using var transaction = await context.Database.BeginTransactionAsync(cancellationToken);
 
             try
             {
                 product.DeleteRecord(userId.Value);
 
                 context.Products.Update(product);
-                await context.SaveChangesAsync();
+                await context.SaveChangesAsync(cancellationToken);
 
                 Log.Information($"User {userId} deleted product {product.Id} (PublicId: {product.PublicId})");
-                await transaction.CommitAsync();
+                await transaction.CommitAsync(cancellationToken);
             }
             catch (Exception ex)
             {
-                await transaction.RollbackAsync();
+                await transaction.RollbackAsync(cancellationToken);
                 Log.Error(ex, $"Failed to delete product {productPublicId} for user {userId}");
                 throw;
             }
         }
 
-        public async Task<ProductInfo> ToggleFavoriteAsync(Guid productPublicId)
+        public async Task<ProductInfo> ToggleFavoriteAsync(Guid productPublicId, CancellationToken cancellationToken = default)
         {
             var userId = SessionInfo.GetUserId();
             if (!userId.HasValue)
@@ -716,7 +716,7 @@ namespace Homassy.API.Functions
             }
 
             var context = new HomassyDbContext();
-            await using var transaction = await context.Database.BeginTransactionAsync();
+            await using var transaction = await context.Database.BeginTransactionAsync(cancellationToken);
 
             try
             {
@@ -747,8 +747,8 @@ namespace Homassy.API.Functions
                     Log.Information($"User {userId} toggled favorite status for product {product.Id} to {newFavoriteStatus}");
                 }
 
-                await context.SaveChangesAsync();
-                await transaction.CommitAsync();
+                await context.SaveChangesAsync(cancellationToken);
+                await transaction.CommitAsync(cancellationToken);
 
                 return new ProductInfo
                 {
@@ -764,7 +764,7 @@ namespace Homassy.API.Functions
             }
             catch (Exception ex)
             {
-                await transaction.RollbackAsync();
+                await transaction.RollbackAsync(cancellationToken);
                 Log.Error(ex, $"Failed to toggle favorite for product {productPublicId} for user {userId}");
                 throw;
             }
@@ -914,7 +914,7 @@ namespace Homassy.API.Functions
         #endregion
 
         #region InventoryItem Methods
-        public async Task<InventoryItemInfo> CreateInventoryItemAsync(CreateInventoryItemRequest request)
+        public async Task<InventoryItemInfo> CreateInventoryItemAsync(CreateInventoryItemRequest request, CancellationToken cancellationToken = default)
         {
             var userId = SessionInfo.GetUserId();
             if (!userId.HasValue)
@@ -958,7 +958,7 @@ namespace Homassy.API.Functions
             var currency = request.Currency ?? userProfile?.DefaultCurrency;
 
             var context = new HomassyDbContext();
-            await using var transaction = await context.Database.BeginTransactionAsync();
+            await using var transaction = await context.Database.BeginTransactionAsync(cancellationToken);
 
             try
             {
@@ -974,7 +974,7 @@ namespace Homassy.API.Functions
                 };
 
                 context.ProductInventoryItems.Add(inventoryItem);
-                await context.SaveChangesAsync();
+                await context.SaveChangesAsync(cancellationToken);
 
                 ProductPurchaseInfo? purchaseInfo = null;
                 if (request.Price.HasValue || request.ShoppingLocationPublicId.HasValue || !string.IsNullOrWhiteSpace(request.ReceiptNumber))
@@ -990,10 +990,10 @@ namespace Homassy.API.Functions
                     };
 
                     context.ProductPurchaseInfos.Add(purchaseInfo);
-                    await context.SaveChangesAsync();
+                    await context.SaveChangesAsync(cancellationToken);
                 }
 
-                await transaction.CommitAsync();
+                await transaction.CommitAsync(cancellationToken);
 
                 Log.Information($"User {userId} created inventory item {inventoryItem.Id} (PublicId: {inventoryItem.PublicId}) for product {product.Id}");
 
@@ -1017,13 +1017,13 @@ namespace Homassy.API.Functions
             }
             catch (Exception ex)
             {
-                await transaction.RollbackAsync();
+                await transaction.RollbackAsync(cancellationToken);
                 Log.Error(ex, $"Failed to create inventory item for user {userId}");
                 throw;
             }
         }
 
-        public async Task<InventoryItemInfo> QuickAddInventoryItemAsync(QuickAddInventoryItemRequest request)
+        public async Task<InventoryItemInfo> QuickAddInventoryItemAsync(QuickAddInventoryItemRequest request, CancellationToken cancellationToken = default)
         {
             var userId = SessionInfo.GetUserId();
             if (!userId.HasValue)
@@ -1040,7 +1040,7 @@ namespace Homassy.API.Functions
             }
 
             var context = new HomassyDbContext();
-            await using var transaction = await context.Database.BeginTransactionAsync();
+            await using var transaction = await context.Database.BeginTransactionAsync(cancellationToken);
 
             try
             {
@@ -1054,8 +1054,8 @@ namespace Homassy.API.Functions
                 };
 
                 context.ProductInventoryItems.Add(inventoryItem);
-                await context.SaveChangesAsync();
-                await transaction.CommitAsync();
+                await context.SaveChangesAsync(cancellationToken);
+                await transaction.CommitAsync(cancellationToken);
 
                 Log.Information($"User {userId} quick-added inventory item {inventoryItem.Id} (PublicId: {inventoryItem.PublicId}) for product {product.Id}");
 
@@ -1071,13 +1071,13 @@ namespace Homassy.API.Functions
             }
             catch (Exception ex)
             {
-                await transaction.RollbackAsync();
+                await transaction.RollbackAsync(cancellationToken);
                 Log.Error(ex, $"Failed to quick-add inventory item for user {userId}");
                 throw;
             }
         }
 
-        public async Task<InventoryItemInfo> UpdateInventoryItemAsync(Guid inventoryItemPublicId, UpdateInventoryItemRequest request)
+        public async Task<InventoryItemInfo> UpdateInventoryItemAsync(Guid inventoryItemPublicId, UpdateInventoryItemRequest request, CancellationToken cancellationToken = default)
         {
             var userId = SessionInfo.GetUserId();
             if (!userId.HasValue)
@@ -1101,11 +1101,11 @@ namespace Homassy.API.Functions
 
             var locationFunctions = new LocationFunctions();
             var context = new HomassyDbContext();
-            await using var transaction = await context.Database.BeginTransactionAsync();
+            await using var transaction = await context.Database.BeginTransactionAsync(cancellationToken);
 
             try
             {
-                var trackedItem = await context.ProductInventoryItems.FindAsync(inventoryItem.Id);
+                var trackedItem = await context.ProductInventoryItems.FindAsync([inventoryItem.Id], cancellationToken);
                 if (trackedItem == null)
                 {
                     throw new ProductInventoryItemNotFoundException();
@@ -1189,7 +1189,7 @@ namespace Homassy.API.Functions
                     }
                     else
                     {
-                        var trackedPurchase = await context.ProductPurchaseInfos.FindAsync(purchaseInfo.Id);
+                        var trackedPurchase = await context.ProductPurchaseInfos.FindAsync([purchaseInfo.Id], cancellationToken);
                         if (trackedPurchase != null)
                         {
                             if (request.Price.HasValue)
@@ -1215,11 +1215,11 @@ namespace Homassy.API.Functions
 
                 if (hasChanges)
                 {
-                    await context.SaveChangesAsync();
+                    await context.SaveChangesAsync(cancellationToken);
                     Log.Information($"User {userId} updated inventory item {trackedItem.Id} (PublicId: {trackedItem.PublicId})");
                 }
 
-                await transaction.CommitAsync();
+                await transaction.CommitAsync(cancellationToken);
 
                 var consumptionLogs = GetConsumptionLogsByInventoryItemId(trackedItem.Id);
 
@@ -1254,13 +1254,13 @@ namespace Homassy.API.Functions
             }
             catch (Exception ex)
             {
-                await transaction.RollbackAsync();
+                await transaction.RollbackAsync(cancellationToken);
                 Log.Error(ex, $"Failed to update inventory item {inventoryItemPublicId} for user {userId}");
                 throw;
             }
         }
 
-        public async Task DeleteInventoryItemAsync(Guid inventoryItemPublicId)
+        public async Task DeleteInventoryItemAsync(Guid inventoryItemPublicId, CancellationToken cancellationToken = default)
         {
             var userId = SessionInfo.GetUserId();
             if (!userId.HasValue)
@@ -1283,11 +1283,11 @@ namespace Homassy.API.Functions
             }
 
             var context = new HomassyDbContext();
-            await using var transaction = await context.Database.BeginTransactionAsync();
+            await using var transaction = await context.Database.BeginTransactionAsync(cancellationToken);
 
             try
             {
-                var trackedItem = await context.ProductInventoryItems.FindAsync(inventoryItem.Id);
+                var trackedItem = await context.ProductInventoryItems.FindAsync([inventoryItem.Id], cancellationToken);
                 if (trackedItem == null)
                 {
                     throw new ProductInventoryItemNotFoundException();
@@ -1296,20 +1296,20 @@ namespace Homassy.API.Functions
                 trackedItem.DeleteRecord(userId.Value);
 
                 context.ProductInventoryItems.Update(trackedItem);
-                await context.SaveChangesAsync();
-                await transaction.CommitAsync();
+                await context.SaveChangesAsync(cancellationToken);
+                await transaction.CommitAsync(cancellationToken);
 
                 Log.Information($"User {userId} deleted inventory item {inventoryItem.Id} (PublicId: {inventoryItem.PublicId})");
             }
             catch (Exception ex)
             {
-                await transaction.RollbackAsync();
+                await transaction.RollbackAsync(cancellationToken);
                 Log.Error(ex, $"Failed to delete inventory item {inventoryItemPublicId} for user {userId}");
                 throw;
             }
         }
 
-        public async Task<InventoryItemInfo> ConsumeInventoryItemAsync(Guid inventoryItemPublicId, ConsumeInventoryItemRequest request)
+        public async Task<InventoryItemInfo> ConsumeInventoryItemAsync(Guid inventoryItemPublicId, ConsumeInventoryItemRequest request, CancellationToken cancellationToken = default)
         {
             var userId = SessionInfo.GetUserId();
             if (!userId.HasValue)
@@ -1342,11 +1342,11 @@ namespace Homassy.API.Functions
             }
 
             var context = new HomassyDbContext();
-            await using var transaction = await context.Database.BeginTransactionAsync();
+            await using var transaction = await context.Database.BeginTransactionAsync(cancellationToken);
 
             try
             {
-                var trackedItem = await context.ProductInventoryItems.FindAsync(inventoryItem.Id);
+                var trackedItem = await context.ProductInventoryItems.FindAsync([inventoryItem.Id], cancellationToken);
                 if (trackedItem == null)
                 {
                     throw new ProductInventoryItemNotFoundException();
@@ -1371,8 +1371,8 @@ namespace Homassy.API.Functions
                     trackedItem.FullyConsumedAt = DateTime.UtcNow;
                 }
 
-                await context.SaveChangesAsync();
-                await transaction.CommitAsync();
+                await context.SaveChangesAsync(cancellationToken);
+                await transaction.CommitAsync(cancellationToken);
 
                 Log.Information($"User {userId} consumed {request.Quantity} from inventory item {trackedItem.Id} (PublicId: {trackedItem.PublicId}), remaining: {remainingQuantity}");
 
@@ -1410,13 +1410,13 @@ namespace Homassy.API.Functions
             }
             catch (Exception ex)
             {
-                await transaction.RollbackAsync();
+                await transaction.RollbackAsync(cancellationToken);
                 Log.Error(ex, $"Failed to consume inventory item {inventoryItemPublicId} for user {userId}");
                 throw;
             }
         }
 
-        public async Task<List<InventoryItemInfo>> QuickAddMultipleInventoryItemsAsync(QuickAddMultipleInventoryItemsRequest request)
+        public async Task<List<InventoryItemInfo>> QuickAddMultipleInventoryItemsAsync(QuickAddMultipleInventoryItemsRequest request, CancellationToken cancellationToken = default)
         {
             var userId = SessionInfo.GetUserId();
             if (!userId.HasValue)
@@ -1440,7 +1440,7 @@ namespace Homassy.API.Functions
             }
 
             var context = new HomassyDbContext();
-            await using var transaction = await context.Database.BeginTransactionAsync();
+            await using var transaction = await context.Database.BeginTransactionAsync(cancellationToken);
 
             try
             {
@@ -1448,6 +1448,8 @@ namespace Homassy.API.Functions
 
                 foreach (var item in request.Items)
                 {
+                    cancellationToken.ThrowIfCancellationRequested();
+
                     var product = GetProductByPublicId(item.ProductPublicId);
                     if (product == null)
                     {
@@ -1465,7 +1467,7 @@ namespace Homassy.API.Functions
                     };
 
                     context.ProductInventoryItems.Add(inventoryItem);
-                    await context.SaveChangesAsync();
+                    await context.SaveChangesAsync(cancellationToken);
 
                     result.Add(new InventoryItemInfo
                     {
@@ -1478,7 +1480,7 @@ namespace Homassy.API.Functions
                     });
                 }
 
-                await transaction.CommitAsync();
+                await transaction.CommitAsync(cancellationToken);
 
                 Log.Information($"User {userId} quick-added {request.Items.Count} inventory items" +
                     (storageLocationId.HasValue ? $" to storage location {storageLocationId}" : ""));
@@ -1487,13 +1489,13 @@ namespace Homassy.API.Functions
             }
             catch (Exception ex)
             {
-                await transaction.RollbackAsync();
+                await transaction.RollbackAsync(cancellationToken);
                 Log.Error(ex, $"Failed to quick-add multiple inventory items for user {userId}");
                 throw;
             }
         }
 
-        public async Task<List<InventoryItemInfo>> MoveInventoryItemsAsync(MoveInventoryItemsRequest request)
+        public async Task<List<InventoryItemInfo>> MoveInventoryItemsAsync(MoveInventoryItemsRequest request, CancellationToken cancellationToken = default)
         {
             var userId = SessionInfo.GetUserId();
             if (!userId.HasValue)
@@ -1512,7 +1514,7 @@ namespace Homassy.API.Functions
             }
 
             var context = new HomassyDbContext();
-            await using var transaction = await context.Database.BeginTransactionAsync();
+            await using var transaction = await context.Database.BeginTransactionAsync(cancellationToken);
 
             try
             {
@@ -1520,6 +1522,8 @@ namespace Homassy.API.Functions
 
                 foreach (var inventoryItemPublicId in request.InventoryItemPublicIds)
                 {
+                    cancellationToken.ThrowIfCancellationRequested();
+
                     var inventoryItem = GetInventoryItemByPublicId(inventoryItemPublicId);
                     if (inventoryItem == null)
                     {
@@ -1532,7 +1536,7 @@ namespace Homassy.API.Functions
                         throw new UnauthorizedException($"You don't have permission to move inventory item {inventoryItemPublicId}");
                     }
 
-                    var trackedItem = await context.ProductInventoryItems.FindAsync(inventoryItem.Id);
+                    var trackedItem = await context.ProductInventoryItems.FindAsync([inventoryItem.Id], cancellationToken);
                     if (trackedItem == null)
                     {
                         throw new ProductInventoryItemNotFoundException();
@@ -1573,8 +1577,8 @@ namespace Homassy.API.Functions
                     });
                 }
 
-                await context.SaveChangesAsync();
-                await transaction.CommitAsync();
+                await context.SaveChangesAsync(cancellationToken);
+                await transaction.CommitAsync(cancellationToken);
 
                 Log.Information($"User {userId} moved {request.InventoryItemPublicIds.Count} inventory items to storage location {storageLocation.Id}");
 
@@ -1582,13 +1586,13 @@ namespace Homassy.API.Functions
             }
             catch (Exception ex)
             {
-                await transaction.RollbackAsync();
+                await transaction.RollbackAsync(cancellationToken);
                 Log.Error(ex, $"Failed to move inventory items for user {userId}");
                 throw;
             }
         }
 
-        public async Task DeleteMultipleInventoryItemsAsync(DeleteMultipleInventoryItemsRequest request)
+        public async Task DeleteMultipleInventoryItemsAsync(DeleteMultipleInventoryItemsRequest request, CancellationToken cancellationToken = default)
         {
             var userId = SessionInfo.GetUserId();
             if (!userId.HasValue)
@@ -1605,12 +1609,14 @@ namespace Homassy.API.Functions
             var familyId = SessionInfo.GetFamilyId();
 
             var context = new HomassyDbContext();
-            await using var transaction = await context.Database.BeginTransactionAsync();
+            await using var transaction = await context.Database.BeginTransactionAsync(cancellationToken);
 
             try
             {
                 foreach (var itemPublicId in request.ItemPublicIds)
                 {
+                    cancellationToken.ThrowIfCancellationRequested();
+
                     var inventoryItem = GetInventoryItemByPublicId(itemPublicId);
                     if (inventoryItem == null)
                     {
@@ -1623,7 +1629,7 @@ namespace Homassy.API.Functions
                         throw new UnauthorizedException($"You don't have permission to delete inventory item {itemPublicId}");
                     }
 
-                    var trackedItem = await context.ProductInventoryItems.FindAsync(inventoryItem.Id);
+                    var trackedItem = await context.ProductInventoryItems.FindAsync([inventoryItem.Id], cancellationToken);
                     if (trackedItem == null)
                     {
                         throw new ProductInventoryItemNotFoundException();
@@ -1633,20 +1639,20 @@ namespace Homassy.API.Functions
                     context.ProductInventoryItems.Update(trackedItem);
                 }
 
-                await context.SaveChangesAsync();
-                await transaction.CommitAsync();
+                await context.SaveChangesAsync(cancellationToken);
+                await transaction.CommitAsync(cancellationToken);
 
                 Log.Information($"User {userId.Value} deleted {request.ItemPublicIds.Count} inventory items");
             }
             catch (Exception ex)
             {
-                await transaction.RollbackAsync();
+                await transaction.RollbackAsync(cancellationToken);
                 Log.Error(ex, $"Failed to delete multiple inventory items for user {userId.Value}");
                 throw;
             }
         }
 
-        public async Task<List<InventoryItemInfo>> ConsumeMultipleInventoryItemsAsync(ConsumeMultipleInventoryItemsRequest request)
+        public async Task<List<InventoryItemInfo>> ConsumeMultipleInventoryItemsAsync(ConsumeMultipleInventoryItemsRequest request, CancellationToken cancellationToken = default)
         {
             var userId = SessionInfo.GetUserId();
             if (!userId.HasValue)
@@ -1663,7 +1669,7 @@ namespace Homassy.API.Functions
             var familyId = SessionInfo.GetFamilyId();
 
             var context = new HomassyDbContext();
-            await using var transaction = await context.Database.BeginTransactionAsync();
+            await using var transaction = await context.Database.BeginTransactionAsync(cancellationToken);
 
             try
             {
@@ -1671,6 +1677,8 @@ namespace Homassy.API.Functions
 
                 foreach (var itemRequest in request.Items)
                 {
+                    cancellationToken.ThrowIfCancellationRequested();
+
                     var inventoryItem = GetInventoryItemByPublicId(itemRequest.InventoryItemPublicId);
                     if (inventoryItem == null)
                     {
@@ -1693,7 +1701,7 @@ namespace Homassy.API.Functions
                         throw new BadRequestException($"Cannot consume more than available quantity ({inventoryItem.CurrentQuantity}) for item {itemRequest.InventoryItemPublicId}");
                     }
 
-                    var trackedItem = await context.ProductInventoryItems.FindAsync(inventoryItem.Id);
+                    var trackedItem = await context.ProductInventoryItems.FindAsync([inventoryItem.Id], cancellationToken);
                     if (trackedItem == null)
                     {
                         throw new ProductInventoryItemNotFoundException();
@@ -1739,8 +1747,8 @@ namespace Homassy.API.Functions
                     });
                 }
 
-                await context.SaveChangesAsync();
-                await transaction.CommitAsync();
+                await context.SaveChangesAsync(cancellationToken);
+                await transaction.CommitAsync(cancellationToken);
 
                 Log.Information($"User {userId.Value} consumed {request.Items.Count} inventory items");
 
@@ -1748,13 +1756,13 @@ namespace Homassy.API.Functions
             }
             catch (Exception ex)
             {
-                await transaction.RollbackAsync();
+                await transaction.RollbackAsync(cancellationToken);
                 Log.Error(ex, $"Failed to consume multiple inventory items for user {userId.Value}");
                 throw;
             }
         }
 
-        public async Task<List<ProductInfo>> CreateMultipleProductsAsync(CreateMultipleProductsRequest request)
+        public async Task<List<ProductInfo>> CreateMultipleProductsAsync(CreateMultipleProductsRequest request, CancellationToken cancellationToken = default)
         {
             var userId = SessionInfo.GetUserId();
             if (!userId.HasValue)
@@ -1769,7 +1777,7 @@ namespace Homassy.API.Functions
             }
 
             var context = new HomassyDbContext();
-            await using var transaction = await context.Database.BeginTransactionAsync();
+            await using var transaction = await context.Database.BeginTransactionAsync(cancellationToken);
 
             try
             {
@@ -1777,6 +1785,8 @@ namespace Homassy.API.Functions
 
                 foreach (var productRequest in request.Products)
                 {
+                    cancellationToken.ThrowIfCancellationRequested();
+
                     var product = new Product
                     {
                         Name = productRequest.Name.Trim(),
@@ -1788,7 +1798,7 @@ namespace Homassy.API.Functions
                     };
 
                     context.Products.Add(product);
-                    await context.SaveChangesAsync();
+                    await context.SaveChangesAsync(cancellationToken);
 
                     bool isFavorite = false;
 
@@ -1819,8 +1829,8 @@ namespace Homassy.API.Functions
                     });
                 }
 
-                await context.SaveChangesAsync();
-                await transaction.CommitAsync();
+                await context.SaveChangesAsync(cancellationToken);
+                await transaction.CommitAsync(cancellationToken);
 
                 Log.Information($"User {userId.Value} created {results.Count} products");
 
@@ -1828,7 +1838,7 @@ namespace Homassy.API.Functions
             }
             catch (Exception ex)
             {
-                await transaction.RollbackAsync();
+                await transaction.RollbackAsync(cancellationToken);
                 Log.Error(ex, $"Failed to create multiple products for user {userId.Value}");
                 throw;
             }

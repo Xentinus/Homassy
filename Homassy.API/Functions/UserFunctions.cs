@@ -26,20 +26,20 @@ namespace Homassy.API.Functions
         public static bool Inited = false;
 
         #region Cache Management
-        public async Task InitializeCacheAsync()
+        public async Task InitializeCacheAsync(CancellationToken cancellationToken = default)
         {
             var context = new HomassyDbContext();
             var users =  await context.Users
-                .ToListAsync();
+                .ToListAsync(cancellationToken);
 
             var profiles = await context.UserProfiles
-                .ToListAsync();
+                .ToListAsync(cancellationToken);
 
             var authentications = await context.UserAuthentications
-                .ToListAsync();
+                .ToListAsync(cancellationToken);
 
             var notificationPreferences = await context.UserNotificationPreferences
-                .ToListAsync();
+                .ToListAsync(cancellationToken);
 
             try
             {
@@ -73,13 +73,13 @@ namespace Homassy.API.Functions
             }
         }
 
-        public async Task RefreshUserCacheAsync(int userId)
+        public async Task RefreshUserCacheAsync(int userId, CancellationToken cancellationToken = default)
         {
             try
             {
                 var context = new HomassyDbContext();
                 var user = await context.Users
-                    .FirstOrDefaultAsync(u => u.Id == userId);
+                    .FirstOrDefaultAsync(u => u.Id == userId, cancellationToken);
 
                 var existsInCache = _userCache.ContainsKey(userId);
 
@@ -110,13 +110,13 @@ namespace Homassy.API.Functions
             }
         }
 
-        public async Task RefreshUserProfileCacheAsync(int recordId)
+        public async Task RefreshUserProfileCacheAsync(int recordId, CancellationToken cancellationToken = default)
         {
             try
             {
                 var context = new HomassyDbContext();
                 var userProfile = await context.UserProfiles
-                    .FirstOrDefaultAsync(u => u.Id == recordId);
+                    .FirstOrDefaultAsync(u => u.Id == recordId, cancellationToken);
 
                 if (userProfile != null)
                 {
@@ -154,13 +154,13 @@ namespace Homassy.API.Functions
             }
         }
 
-        public async Task RefreshUserAuthCacheAsync(int recordId)
+        public async Task RefreshUserAuthCacheAsync(int recordId, CancellationToken cancellationToken = default)
         {
             try
             {
                 var context = new HomassyDbContext();
                 var userAuth = await context.UserAuthentications
-                    .FirstOrDefaultAsync(u => u.Id == recordId);
+                    .FirstOrDefaultAsync(u => u.Id == recordId, cancellationToken);
 
                 if (userAuth != null)
                 {
@@ -198,13 +198,13 @@ namespace Homassy.API.Functions
             }
         }
 
-        public async Task RefreshUserNotificationCacheAsync(int recordId)
+        public async Task RefreshUserNotificationCacheAsync(int recordId, CancellationToken cancellationToken = default)
         {
             try
             {
                 var context = new HomassyDbContext();
                 var userPrefs = await context.UserNotificationPreferences
-                    .FirstOrDefaultAsync(u => u.Id == recordId);
+                    .FirstOrDefaultAsync(u => u.Id == recordId, cancellationToken);
 
                 if (userPrefs != null)
                 {
@@ -730,7 +730,7 @@ namespace Homassy.API.Functions
         #endregion
 
         #region User Management
-        public async Task<User> CreateUserAsync(CreateUserRequest request)
+        public async Task<User> CreateUserAsync(CreateUserRequest request, CancellationToken cancellationToken = default)
         {
             var normalizedEmail = request.Email.ToLowerInvariant().Trim();
 
@@ -757,27 +757,27 @@ namespace Homassy.API.Functions
             };
 
             var context = new HomassyDbContext();
-            await using var transaction = await context.Database.BeginTransactionAsync();
+            await using var transaction = await context.Database.BeginTransactionAsync(cancellationToken);
             try
             {
                 context.Users.Add(user);
                 context.Set<UserProfile>().Add(profile);
                 context.Set<UserAuthentication>().Add(authentication);
                 context.Set<UserNotificationPreferences>().Add(notificationPreferences);
-                await context.SaveChangesAsync();
-                await transaction.CommitAsync();
+                await context.SaveChangesAsync(cancellationToken);
+                await transaction.CommitAsync(cancellationToken);
             }
             catch (Exception ex)
             {
                 Log.Error($"Error occurred while creating user: {ex}");
-                await transaction.RollbackAsync();
+                await transaction.RollbackAsync(cancellationToken);
                 throw;
             }
 
             return user;
         }
 
-        public async Task RegisterAsync(CreateUserRequest request)
+        public async Task RegisterAsync(CreateUserRequest request, CancellationToken cancellationToken = default)
         {
             if (string.IsNullOrWhiteSpace(request.Email) || !request.Email.Contains('@'))
             {
@@ -798,17 +798,17 @@ namespace Homassy.API.Functions
                 return;
             }
 
-            var user = await CreateUserAsync(request);
+            var user = await CreateUserAsync(request, cancellationToken);
 
             var code = EmailService.GenerateVerificationCode();
             var expirationMinutes = int.Parse(ConfigService.GetValue("EmailVerification:CodeExpirationMinutes"));
             var expiry = DateTime.UtcNow.AddMinutes(expirationMinutes);
 
             var context = new HomassyDbContext();
-            await using var transaction = await context.Database.BeginTransactionAsync();
+            await using var transaction = await context.Database.BeginTransactionAsync(cancellationToken);
             try
             {
-                var userAuth = await context.Set<UserAuthentication>().FirstOrDefaultAsync(a => a.UserId == user.Id);
+                var userAuth = await context.Set<UserAuthentication>().FirstOrDefaultAsync(a => a.UserId == user.Id, cancellationToken);
 
                 if (userAuth == null)
                 {
@@ -819,12 +819,12 @@ namespace Homassy.API.Functions
                 userAuth.VerificationCode = code;
                 userAuth.VerificationCodeExpiry = expiry;
 
-                await context.SaveChangesAsync();
-                await transaction.CommitAsync();
+                await context.SaveChangesAsync(cancellationToken);
+                await transaction.CommitAsync(cancellationToken);
             }
             catch (Exception ex)
             {
-                await transaction.RollbackAsync();
+                await transaction.RollbackAsync(cancellationToken);
                 Log.Error($"Error setting verification code for user {user.Id}: {ex.Message}");
                 throw;
             }
@@ -837,7 +837,7 @@ namespace Homassy.API.Functions
             Log.Information($"New user registered: {normalizedEmail}, registration email with verification code sent");
         }
 
-        public async Task<FamilyInfo> JoinFamilyAsync(JoinFamilyRequest request)
+        public async Task<FamilyInfo> JoinFamilyAsync(JoinFamilyRequest request, CancellationToken cancellationToken = default)
         {
             var userId = SessionInfo.GetUserId();
             if (!userId.HasValue)
@@ -864,7 +864,7 @@ namespace Homassy.API.Functions
             }
 
             var context = new HomassyDbContext();
-            await using var transaction = await context.Database.BeginTransactionAsync();
+            await using var transaction = await context.Database.BeginTransactionAsync(cancellationToken);
             try
             {
                 var user = GetUserById(userId);
@@ -877,14 +877,14 @@ namespace Homassy.API.Functions
 
                 user.FamilyId = family.Id;
 
-                await context.SaveChangesAsync();
-                await transaction.CommitAsync();
+                await context.SaveChangesAsync(cancellationToken);
+                await transaction.CommitAsync(cancellationToken);
 
                 Log.Information($"User {userId.Value} joined family {family.Id}");
             }
             catch (Exception ex)
             {
-                await transaction.RollbackAsync();
+                await transaction.RollbackAsync(cancellationToken);
                 Log.Error($"Error joining family for user {userId.Value}: {ex.Message}");
                 throw;
             }
@@ -898,7 +898,7 @@ namespace Homassy.API.Functions
             return response;
         }
 
-        public async Task RemoveUserFromFamilyAsync()
+        public async Task RemoveUserFromFamilyAsync(CancellationToken cancellationToken = default)
         {
             var userId = SessionInfo.GetUserId();
             if (!userId.HasValue)
@@ -914,7 +914,7 @@ namespace Homassy.API.Functions
             }
 
             var context = new HomassyDbContext();
-            await using var transaction = await context.Database.BeginTransactionAsync();
+            await using var transaction = await context.Database.BeginTransactionAsync(cancellationToken);
             try
             {
                 var user = GetUserById(userId);
@@ -928,14 +928,14 @@ namespace Homassy.API.Functions
                 var familyIdToLog = user.FamilyId;
                 user.FamilyId = null;
 
-                await context.SaveChangesAsync();
-                await transaction.CommitAsync();
+                await context.SaveChangesAsync(cancellationToken);
+                await transaction.CommitAsync(cancellationToken);
 
                 Log.Information($"User {userId.Value} left family {familyIdToLog}");
             }
             catch (Exception ex)
             {
-                await transaction.RollbackAsync();
+                await transaction.RollbackAsync(cancellationToken);
                 Log.Error($"Error leaving family for user {userId.Value}: {ex.Message}");
                 throw;
             }
@@ -943,7 +943,7 @@ namespace Homassy.API.Functions
         #endregion
 
         #region Authentication Management
-        public async Task RequestVerificationCodeAsync(string email)
+        public async Task RequestVerificationCodeAsync(string email, CancellationToken cancellationToken = default)
         {
             if (string.IsNullOrWhiteSpace(email) || !email.Contains('@'))
             {
@@ -965,10 +965,10 @@ namespace Homassy.API.Functions
             var expiry = DateTime.UtcNow.AddMinutes(expirationMinutes);
 
             var context = new HomassyDbContext();
-            await using var transaction = await context.Database.BeginTransactionAsync();
+            await using var transaction = await context.Database.BeginTransactionAsync(cancellationToken);
             try
             {
-                var userAuth = await context.Set<UserAuthentication>().FirstOrDefaultAsync(a => a.UserId == user.Id);
+                var userAuth = await context.Set<UserAuthentication>().FirstOrDefaultAsync(a => a.UserId == user.Id, cancellationToken);
 
                 if (userAuth == null)
                 {
@@ -979,12 +979,12 @@ namespace Homassy.API.Functions
                 userAuth.VerificationCode = code;
                 userAuth.VerificationCodeExpiry = expiry;
 
-                await context.SaveChangesAsync();
-                await transaction.CommitAsync();
+                await context.SaveChangesAsync(cancellationToken);
+                await transaction.CommitAsync(cancellationToken);
             }
             catch (Exception ex)
             {
-                await transaction.RollbackAsync();
+                await transaction.RollbackAsync(cancellationToken);
                 Log.Error($"Error setting verification code for user {user.Id}: {ex.Message}");
                 throw;
             }
@@ -995,7 +995,7 @@ namespace Homassy.API.Functions
             await EmailService.SendVerificationCodeAsync(user.Email, code, timezone);
         }
 
-        public async Task<AuthResponse> VerifyCodeAsync(string email, string code)
+        public async Task<AuthResponse> VerifyCodeAsync(string email, string code, CancellationToken cancellationToken = default)
         {
             if (string.IsNullOrWhiteSpace(email) || string.IsNullOrWhiteSpace(code))
             {
@@ -1035,11 +1035,11 @@ namespace Homassy.API.Functions
             var refreshTokenExpiry = JwtService.GetRefreshTokenExpiration();
 
             var context = new HomassyDbContext();
-            await using var transaction = await context.Database.BeginTransactionAsync();
+            await using var transaction = await context.Database.BeginTransactionAsync(cancellationToken);
             try
             {
-                var userAuth = await context.Set<UserAuthentication>().FirstOrDefaultAsync(a => a.UserId == user.Id);
-                var userEntity = await context.Users.FindAsync(user.Id);
+                var userAuth = await context.Set<UserAuthentication>().FirstOrDefaultAsync(a => a.UserId == user.Id, cancellationToken);
+                var userEntity = await context.Users.FindAsync([user.Id], cancellationToken);
 
                 if (userAuth == null || userEntity == null)
                 {
@@ -1061,12 +1061,12 @@ namespace Homassy.API.Functions
                 userAuth.VerificationCodeExpiry = null;
                 userEntity.LastLoginAt = DateTime.UtcNow;
 
-                await context.SaveChangesAsync();
-                await transaction.CommitAsync();
+                await context.SaveChangesAsync(cancellationToken);
+                await transaction.CommitAsync(cancellationToken);
             }
             catch (Exception ex)
             {
-                await transaction.RollbackAsync();
+                await transaction.RollbackAsync(cancellationToken);
                 Log.Error($"Error completing authentication for user {user.Id}: {ex.Message}");
                 throw;
             }
@@ -1095,7 +1095,7 @@ namespace Homassy.API.Functions
             return authResponse;
         }
 
-        public async Task<RefreshTokenResponse> RefreshTokenAsync(string currentRefreshToken)
+        public async Task<RefreshTokenResponse> RefreshTokenAsync(string currentRefreshToken, CancellationToken cancellationToken = default)
         {
             var userId = SessionInfo.GetUserId();
             if (!userId.HasValue)
@@ -1137,10 +1137,10 @@ namespace Homassy.API.Functions
             var refreshTokenExpiry = JwtService.GetRefreshTokenExpiration();
 
             var context = new HomassyDbContext();
-            await using var transaction = await context.Database.BeginTransactionAsync();
+            await using var transaction = await context.Database.BeginTransactionAsync(cancellationToken);
             try
             {
-                var userAuth = await context.Set<UserAuthentication>().FirstOrDefaultAsync(a => a.UserId == userId);
+                var userAuth = await context.Set<UserAuthentication>().FirstOrDefaultAsync(a => a.UserId == userId, cancellationToken);
 
                 if (userAuth == null)
                 {
@@ -1153,12 +1153,12 @@ namespace Homassy.API.Functions
                 userAuth.RefreshToken = newRefreshToken;
                 userAuth.RefreshTokenExpiry = refreshTokenExpiry;
 
-                await context.SaveChangesAsync();
-                await transaction.CommitAsync();
+                await context.SaveChangesAsync(cancellationToken);
+                await transaction.CommitAsync(cancellationToken);
             }
             catch (Exception ex)
             {
-                await transaction.RollbackAsync();
+                await transaction.RollbackAsync(cancellationToken);
                 Log.Error($"Error refreshing token for user {userId}: {ex.Message}");
                 throw;
             }
@@ -1176,7 +1176,7 @@ namespace Homassy.API.Functions
             return refreshResponse;
         }
 
-        public async Task LogoutAsync()
+        public async Task LogoutAsync(CancellationToken cancellationToken = default)
         {
             var userId = SessionInfo.GetUserId();
             if (!userId.HasValue)
@@ -1186,10 +1186,10 @@ namespace Homassy.API.Functions
             }
 
             var context = new HomassyDbContext();
-            await using var transaction = await context.Database.BeginTransactionAsync();
+            await using var transaction = await context.Database.BeginTransactionAsync(cancellationToken);
             try
             {
-                var userAuth = await context.Set<UserAuthentication>().FirstOrDefaultAsync(a => a.UserId == userId);
+                var userAuth = await context.Set<UserAuthentication>().FirstOrDefaultAsync(a => a.UserId == userId, cancellationToken);
 
                 if (userAuth == null)
                 {
@@ -1202,12 +1202,12 @@ namespace Homassy.API.Functions
                 userAuth.RefreshToken = null;
                 userAuth.RefreshTokenExpiry = null;
 
-                await context.SaveChangesAsync();
-                await transaction.CommitAsync();
+                await context.SaveChangesAsync(cancellationToken);
+                await transaction.CommitAsync(cancellationToken);
             }
             catch (Exception ex)
             {
-                await transaction.RollbackAsync();
+                await transaction.RollbackAsync(cancellationToken);
                 Log.Error($"Error during logout for user {userId}: {ex.Message}");
                 throw;
             }
@@ -1309,7 +1309,7 @@ namespace Homassy.API.Functions
             return profileResponse;
         }
 
-        public async Task UpdateUserProfileAsync(UpdateUserSettingsRequest request)
+        public async Task UpdateUserProfileAsync(UpdateUserSettingsRequest request, CancellationToken cancellationToken = default)
         {
             var userId = SessionInfo.GetUserId();
             if (!userId.HasValue)
@@ -1336,11 +1336,11 @@ namespace Homassy.API.Functions
             }
 
             var context = new HomassyDbContext();
-            await using var transaction = await context.Database.BeginTransactionAsync();
+            await using var transaction = await context.Database.BeginTransactionAsync(cancellationToken);
             try
             {
-                var userEntity = await context.Users.FindAsync(userId);
-                var profile = await context.Set<UserProfile>().FirstOrDefaultAsync(p => p.UserId == userId);
+                var userEntity = await context.Users.FindAsync([userId], cancellationToken);
+                var profile = await context.Set<UserProfile>().FirstOrDefaultAsync(p => p.UserId == userId, cancellationToken);
 
                 if (userEntity == null)
                 {
@@ -1382,20 +1382,20 @@ namespace Homassy.API.Functions
                     profile.DefaultLanguage = request.DefaultLanguage.Value;
                 }
 
-                await context.SaveChangesAsync();
-                await transaction.CommitAsync();
+                await context.SaveChangesAsync(cancellationToken);
+                await transaction.CommitAsync(cancellationToken);
 
                 Log.Information($"User {userId} updated their settings");
             }
             catch (Exception ex)
             {
-                await transaction.RollbackAsync();
+                await transaction.RollbackAsync(cancellationToken);
                 Log.Error($"Error updating settings for user {userId}: {ex.Message}");
                 throw;
             }
         }
 
-        public async Task UploadProfilePictureAsync(string profilePictureBase64)
+        public async Task UploadProfilePictureAsync(string profilePictureBase64, CancellationToken cancellationToken = default)
         {
             var userId = SessionInfo.GetUserId();
             if (!userId.HasValue)
@@ -1410,10 +1410,10 @@ namespace Homassy.API.Functions
             }
 
             var context = new HomassyDbContext();
-            await using var transaction = await context.Database.BeginTransactionAsync();
+            await using var transaction = await context.Database.BeginTransactionAsync(cancellationToken);
             try
             {
-                var profile = await context.Set<UserProfile>().FirstOrDefaultAsync(p => p.UserId == userId);
+                var profile = await context.Set<UserProfile>().FirstOrDefaultAsync(p => p.UserId == userId, cancellationToken);
 
                 if (profile == null)
                 {
@@ -1423,20 +1423,20 @@ namespace Homassy.API.Functions
 
                 profile.ProfilePictureBase64 = profilePictureBase64;
 
-                await context.SaveChangesAsync();
-                await transaction.CommitAsync();
+                await context.SaveChangesAsync(cancellationToken);
+                await transaction.CommitAsync(cancellationToken);
 
                 Log.Information($"User {userId} uploaded profile picture");
             }
             catch (Exception ex)
             {
-                await transaction.RollbackAsync();
+                await transaction.RollbackAsync(cancellationToken);
                 Log.Error($"Error uploading profile picture for user {userId}: {ex.Message}");
                 throw;
             }
         }
 
-        public async Task DeleteProfilePictureAsync()
+        public async Task DeleteProfilePictureAsync(CancellationToken cancellationToken = default)
         {
             var userId = SessionInfo.GetUserId();
             if (!userId.HasValue)
@@ -1446,10 +1446,10 @@ namespace Homassy.API.Functions
             }
 
             var context = new HomassyDbContext();
-            await using var transaction = await context.Database.BeginTransactionAsync();
+            await using var transaction = await context.Database.BeginTransactionAsync(cancellationToken);
             try
             {
-                var profile = await context.Set<UserProfile>().FirstOrDefaultAsync(p => p.UserId == userId);
+                var profile = await context.Set<UserProfile>().FirstOrDefaultAsync(p => p.UserId == userId, cancellationToken);
 
                 if (profile == null)
                 {
@@ -1464,14 +1464,14 @@ namespace Homassy.API.Functions
 
                 profile.ProfilePictureBase64 = null;
 
-                await context.SaveChangesAsync();
-                await transaction.CommitAsync();
+                await context.SaveChangesAsync(cancellationToken);
+                await transaction.CommitAsync(cancellationToken);
 
                 Log.Information($"User {userId} deleted profile picture");
             }
             catch (Exception ex)
             {
-                await transaction.RollbackAsync();
+                await transaction.RollbackAsync(cancellationToken);
                 Log.Error($"Error deleting profile picture for user {userId}: {ex.Message}");
                 throw;
             }

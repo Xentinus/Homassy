@@ -35,14 +35,14 @@ namespace Homassy.API.Controllers
         [MapToApiVersion(1.0)]
         [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status200OK)]
         [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status400BadRequest)]
-        public async Task<IActionResult> UpdateSettings([FromBody] UpdateUserSettingsRequest request)
+        public async Task<IActionResult> UpdateSettings([FromBody] UpdateUserSettingsRequest request, CancellationToken cancellationToken)
         {
             if (!ModelState.IsValid)
             {
                 return BadRequest(ApiResponse.ErrorResponse("Invalid request data"));
             }
 
-            await new UserFunctions().UpdateUserProfileAsync(request);
+            await new UserFunctions().UpdateUserProfileAsync(request, cancellationToken);
             return Ok(ApiResponse.SuccessResponse("Settings updated successfully"));
         }
 
@@ -53,14 +53,14 @@ namespace Homassy.API.Controllers
         [MapToApiVersion(1.0)]
         [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status200OK)]
         [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status400BadRequest)]
-        public async Task<IActionResult> UploadProfilePicture([FromBody] UploadProfilePictureRequest request)
+        public async Task<IActionResult> UploadProfilePicture([FromBody] UploadProfilePictureRequest request, CancellationToken cancellationToken)
         {
             if (!ModelState.IsValid)
             {
                 return BadRequest(ApiResponse.ErrorResponse("Invalid request data"));
             }
 
-            await new UserFunctions().UploadProfilePictureAsync(request.ProfilePictureBase64);
+            await new UserFunctions().UploadProfilePictureAsync(request.ProfilePictureBase64, cancellationToken);
             return Ok(ApiResponse.SuccessResponse("Profile picture uploaded successfully"));
         }
 
@@ -70,9 +70,9 @@ namespace Homassy.API.Controllers
         [HttpDelete("profile-picture")]
         [MapToApiVersion(1.0)]
         [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status200OK)]
-        public async Task<IActionResult> DeleteProfilePicture()
+        public async Task<IActionResult> DeleteProfilePicture(CancellationToken cancellationToken)
         {
-            await new UserFunctions().DeleteProfilePictureAsync();
+            await new UserFunctions().DeleteProfilePictureAsync(cancellationToken);
             return Ok(ApiResponse.SuccessResponse("Profile picture deleted successfully"));
         }
     }

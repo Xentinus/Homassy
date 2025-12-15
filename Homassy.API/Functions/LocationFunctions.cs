@@ -16,11 +16,11 @@ namespace Homassy.API.Functions
         public static bool Inited = false;
 
         #region Cache Management
-        public async Task InitializeCacheAsync()
+        public async Task InitializeCacheAsync(CancellationToken cancellationToken = default)
         {
             var context = new HomassyDbContext();
-            var shoppingLocations = await context.ShoppingLocations.ToListAsync();
-            var storageLocations = await context.StorageLocations.ToListAsync();
+            var shoppingLocations = await context.ShoppingLocations.ToListAsync(cancellationToken);
+            var storageLocations = await context.StorageLocations.ToListAsync(cancellationToken);
 
             try
             {
@@ -44,12 +44,12 @@ namespace Homassy.API.Functions
             }
         }
 
-        public async Task RefreshShoppingLocationCacheAsync(int shoppingLocationId)
+        public async Task RefreshShoppingLocationCacheAsync(int shoppingLocationId, CancellationToken cancellationToken = default)
         {
             try
             {
                 var context = new HomassyDbContext();
-                var shoppingLocation = await context.ShoppingLocations.FirstOrDefaultAsync(sl => sl.Id == shoppingLocationId);
+                var shoppingLocation = await context.ShoppingLocations.FirstOrDefaultAsync(sl => sl.Id == shoppingLocationId, cancellationToken);
                 var existsInCache = _shoppingLocationCache.ContainsKey(shoppingLocationId);
 
                 if (shoppingLocation != null && existsInCache)
@@ -79,12 +79,12 @@ namespace Homassy.API.Functions
             }
         }
 
-        public async Task RefreshStorageLocationCacheAsync(int storageLocationId)
+        public async Task RefreshStorageLocationCacheAsync(int storageLocationId, CancellationToken cancellationToken = default)
         {
             try
             {
                 var context = new HomassyDbContext();
-                var storageLocation = await context.StorageLocations.FirstOrDefaultAsync(sl => sl.Id == storageLocationId);
+                var storageLocation = await context.StorageLocations.FirstOrDefaultAsync(sl => sl.Id == storageLocationId, cancellationToken);
                 var existsInCache = _storageLocationCache.ContainsKey(storageLocationId);
 
                 if (storageLocation != null && existsInCache)
@@ -337,7 +337,7 @@ namespace Homassy.API.Functions
             }).ToList();
         }
 
-        public async Task<ShoppingLocationInfo> CreateShoppingLocationAsync(ShoppingLocationRequest request)
+        public async Task<ShoppingLocationInfo> CreateShoppingLocationAsync(ShoppingLocationRequest request, CancellationToken cancellationToken = default)
         {
             var userId = SessionInfo.GetUserId();
             if (!userId.HasValue)
@@ -354,7 +354,7 @@ namespace Homassy.API.Functions
             var familyId = SessionInfo.GetFamilyId();
 
             var context = new HomassyDbContext();
-            await using var transaction = await context.Database.BeginTransactionAsync();
+            await using var transaction = await context.Database.BeginTransactionAsync(cancellationToken);
 
             try
             {
@@ -374,9 +374,9 @@ namespace Homassy.API.Functions
                 };
 
                 context.ShoppingLocations.Add(shoppingLocation);
-                await context.SaveChangesAsync();
+                await context.SaveChangesAsync(cancellationToken);
 
-                await transaction.CommitAsync();
+                await transaction.CommitAsync(cancellationToken);
 
                 Log.Information($"User {userId.Value} created shopping location {shoppingLocation.Id} (PublicId: {shoppingLocation.PublicId}), shared with family: {request.IsSharedWithFamily}");
 
@@ -397,13 +397,13 @@ namespace Homassy.API.Functions
             }
             catch (Exception ex)
             {
-                await transaction.RollbackAsync();
+                await transaction.RollbackAsync(cancellationToken);
                 Log.Error(ex, $"Failed to create shopping location for user {userId.Value}");
                 throw;
             }
         }
 
-        public async Task<ShoppingLocationInfo> UpdateShoppingLocationAsync(Guid shoppingLocationPublicId, ShoppingLocationRequest request)
+        public async Task<ShoppingLocationInfo> UpdateShoppingLocationAsync(Guid shoppingLocationPublicId, ShoppingLocationRequest request, CancellationToken cancellationToken = default)
         {
             var userId = SessionInfo.GetUserId();
             if (!userId.HasValue)
@@ -426,11 +426,11 @@ namespace Homassy.API.Functions
             }
 
             var context = new HomassyDbContext();
-            await using var transaction = await context.Database.BeginTransactionAsync();
+            await using var transaction = await context.Database.BeginTransactionAsync(cancellationToken);
 
             try
             {
-                var trackedLocation = await context.ShoppingLocations.FindAsync(shoppingLocation.Id);
+                var trackedLocation = await context.ShoppingLocations.FindAsync([shoppingLocation.Id], cancellationToken);
                 if (trackedLocation == null)
                 {
                     throw new ShoppingLocationNotFoundException("Shopping location not found");
@@ -516,7 +516,7 @@ namespace Homassy.API.Functions
 
                 if (hasChanges)
                 {
-                    await context.SaveChangesAsync();
+                    await context.SaveChangesAsync(cancellationToken);
                     Log.Information($"User {userId.Value} updated shopping location {trackedLocation.Id} (PublicId: {trackedLocation.PublicId})");
                 }
                 else
@@ -524,7 +524,7 @@ namespace Homassy.API.Functions
                     Log.Debug($"User {userId.Value} attempted to update shopping location {trackedLocation.Id} but no changes were made");
                 }
 
-                await transaction.CommitAsync();
+                await transaction.CommitAsync(cancellationToken);
 
                 return new ShoppingLocationInfo
                 {
@@ -543,13 +543,13 @@ namespace Homassy.API.Functions
             }
             catch (Exception ex)
             {
-                await transaction.RollbackAsync();
+                await transaction.RollbackAsync(cancellationToken);
                 Log.Error(ex, $"Failed to update shopping location {shoppingLocationPublicId} for user {userId.Value}");
                 throw;
             }
         }
 
-        public async Task<StorageLocationInfo> CreateStorageLocationAsync(StorageLocationRequest request)
+        public async Task<StorageLocationInfo> CreateStorageLocationAsync(StorageLocationRequest request, CancellationToken cancellationToken = default)
         {
             var userId = SessionInfo.GetUserId();
             if (!userId.HasValue)
@@ -566,7 +566,7 @@ namespace Homassy.API.Functions
             var familyId = SessionInfo.GetFamilyId();
 
             var context = new HomassyDbContext();
-            await using var transaction = await context.Database.BeginTransactionAsync();
+            await using var transaction = await context.Database.BeginTransactionAsync(cancellationToken);
 
             try
             {
@@ -581,9 +581,9 @@ namespace Homassy.API.Functions
                 };
 
                 context.StorageLocations.Add(storageLocation);
-                await context.SaveChangesAsync();
+                await context.SaveChangesAsync(cancellationToken);
 
-                await transaction.CommitAsync();
+                await transaction.CommitAsync(cancellationToken);
 
                 Log.Information($"User {userId.Value} created storage location {storageLocation.Id} (PublicId: {storageLocation.PublicId}), shared with family: {request.IsSharedWithFamily}");
 
@@ -599,13 +599,13 @@ namespace Homassy.API.Functions
             }
             catch (Exception ex)
             {
-                await transaction.RollbackAsync();
+                await transaction.RollbackAsync(cancellationToken);
                 Log.Error(ex, $"Failed to create storage location for user {userId.Value}");
                 throw;
             }
         }
 
-        public async Task<StorageLocationInfo> UpdateStorageLocationAsync(Guid storageLocationPublicId, StorageLocationRequest request)
+        public async Task<StorageLocationInfo> UpdateStorageLocationAsync(Guid storageLocationPublicId, StorageLocationRequest request, CancellationToken cancellationToken = default)
         {
             var userId = SessionInfo.GetUserId();
             if (!userId.HasValue)
@@ -628,11 +628,11 @@ namespace Homassy.API.Functions
             }
 
             var context = new HomassyDbContext();
-            await using var transaction = await context.Database.BeginTransactionAsync();
+            await using var transaction = await context.Database.BeginTransactionAsync(cancellationToken);
 
             try
             {
-                var trackedLocation = await context.StorageLocations.FindAsync(storageLocation.Id);
+                var trackedLocation = await context.StorageLocations.FindAsync([storageLocation.Id], cancellationToken);
                 if (trackedLocation == null)
                 {
                     throw new StorageLocationNotFoundException("Storage location not found");
@@ -678,7 +678,7 @@ namespace Homassy.API.Functions
 
                 if (hasChanges)
                 {
-                    await context.SaveChangesAsync();
+                    await context.SaveChangesAsync(cancellationToken);
                     Log.Information($"User {userId.Value} updated storage location {trackedLocation.Id} (PublicId: {trackedLocation.PublicId})");
                 }
                 else
@@ -686,7 +686,7 @@ namespace Homassy.API.Functions
                     Log.Debug($"User {userId.Value} attempted to update storage location {trackedLocation.Id} but no changes were made");
                 }
 
-                await transaction.CommitAsync();
+                await transaction.CommitAsync(cancellationToken);
 
                 return new StorageLocationInfo
                 {
@@ -700,13 +700,13 @@ namespace Homassy.API.Functions
             }
             catch (Exception ex)
             {
-                await transaction.RollbackAsync();
+                await transaction.RollbackAsync(cancellationToken);
                 Log.Error(ex, $"Failed to update storage location {storageLocationPublicId} for user {userId.Value}");
                 throw;
             }
         }
 
-        public async Task DeleteShoppingLocationAsync(Guid shoppingLocationPublicId)
+        public async Task DeleteShoppingLocationAsync(Guid shoppingLocationPublicId, CancellationToken cancellationToken = default)
         {
             var userId = SessionInfo.GetUserId();
             if (!userId.HasValue)
@@ -729,11 +729,11 @@ namespace Homassy.API.Functions
             }
 
             var context = new HomassyDbContext();
-            await using var transaction = await context.Database.BeginTransactionAsync();
+            await using var transaction = await context.Database.BeginTransactionAsync(cancellationToken);
 
             try
             {
-                var trackedLocation = await context.ShoppingLocations.FindAsync(shoppingLocation.Id);
+                var trackedLocation = await context.ShoppingLocations.FindAsync([shoppingLocation.Id], cancellationToken);
                 if (trackedLocation == null)
                 {
                     throw new ShoppingLocationNotFoundException("Shopping location not found");
@@ -742,21 +742,21 @@ namespace Homassy.API.Functions
                 trackedLocation.DeleteRecord(userId.Value);
 
                 context.ShoppingLocations.Update(trackedLocation);
-                await context.SaveChangesAsync();
+                await context.SaveChangesAsync(cancellationToken);
 
-                await transaction.CommitAsync();
+                await transaction.CommitAsync(cancellationToken);
 
                 Log.Information($"User {userId.Value} deleted shopping location {shoppingLocation.Id} (PublicId: {shoppingLocation.PublicId})");
             }
             catch (Exception ex)
             {
-                await transaction.RollbackAsync();
+                await transaction.RollbackAsync(cancellationToken);
                 Log.Error(ex, $"Failed to delete shopping location {shoppingLocationPublicId} for user {userId.Value}");
                 throw;
             }
         }
 
-        public async Task DeleteStorageLocationAsync(Guid storageLocationPublicId)
+        public async Task DeleteStorageLocationAsync(Guid storageLocationPublicId, CancellationToken cancellationToken = default)
         {
             var userId = SessionInfo.GetUserId();
             if (!userId.HasValue)
@@ -779,11 +779,11 @@ namespace Homassy.API.Functions
             }
 
             var context = new HomassyDbContext();
-            await using var transaction = await context.Database.BeginTransactionAsync();
+            await using var transaction = await context.Database.BeginTransactionAsync(cancellationToken);
 
             try
             {
-                var trackedLocation = await context.StorageLocations.FindAsync(storageLocation.Id);
+                var trackedLocation = await context.StorageLocations.FindAsync([storageLocation.Id], cancellationToken);
                 if (trackedLocation == null)
                 {
                     throw new StorageLocationNotFoundException("Storage location not found");
@@ -792,21 +792,21 @@ namespace Homassy.API.Functions
                 trackedLocation.DeleteRecord(userId.Value);
 
                 context.StorageLocations.Update(trackedLocation);
-                await context.SaveChangesAsync();
+                await context.SaveChangesAsync(cancellationToken);
 
-                await transaction.CommitAsync();
+                await transaction.CommitAsync(cancellationToken);
 
                 Log.Information($"User {userId.Value} deleted storage location {storageLocation.Id} (PublicId: {storageLocation.PublicId})");
             }
             catch (Exception ex)
             {
-                await transaction.RollbackAsync();
+                await transaction.RollbackAsync(cancellationToken);
                 Log.Error(ex, $"Failed to delete storage location {storageLocationPublicId} for user {userId.Value}");
                 throw;
             }
         }
 
-        public async Task<List<StorageLocationInfo>> CreateMultipleStorageLocationsAsync(List<StorageLocationRequest> requests)
+        public async Task<List<StorageLocationInfo>> CreateMultipleStorageLocationsAsync(List<StorageLocationRequest> requests, CancellationToken cancellationToken = default)
         {
             var userId = SessionInfo.GetUserId();
             if (!userId.HasValue)
@@ -831,7 +831,7 @@ namespace Homassy.API.Functions
             var familyId = SessionInfo.GetFamilyId();
 
             var context = new HomassyDbContext();
-            await using var transaction = await context.Database.BeginTransactionAsync();
+            await using var transaction = await context.Database.BeginTransactionAsync(cancellationToken);
 
             try
             {
@@ -839,6 +839,8 @@ namespace Homassy.API.Functions
 
                 foreach (var request in requests)
                 {
+                    cancellationToken.ThrowIfCancellationRequested();
+
                     var storageLocation = new StorageLocation
                     {
                         Name = request.Name!.Trim(),
@@ -853,9 +855,9 @@ namespace Homassy.API.Functions
                 }
 
                 context.StorageLocations.AddRange(storageLocations);
-                await context.SaveChangesAsync();
+                await context.SaveChangesAsync(cancellationToken);
 
-                await transaction.CommitAsync();
+                await transaction.CommitAsync(cancellationToken);
 
                 Log.Information($"User {userId.Value} created {storageLocations.Count} storage locations");
 
@@ -871,13 +873,13 @@ namespace Homassy.API.Functions
             }
             catch (Exception ex)
             {
-                await transaction.RollbackAsync();
+                await transaction.RollbackAsync(cancellationToken);
                 Log.Error(ex, $"Failed to create multiple storage locations for user {userId.Value}");
                 throw;
             }
         }
 
-        public async Task<List<ShoppingLocationInfo>> CreateMultipleShoppingLocationsAsync(List<ShoppingLocationRequest> requests)
+        public async Task<List<ShoppingLocationInfo>> CreateMultipleShoppingLocationsAsync(List<ShoppingLocationRequest> requests, CancellationToken cancellationToken = default)
         {
             var userId = SessionInfo.GetUserId();
             if (!userId.HasValue)
@@ -902,7 +904,7 @@ namespace Homassy.API.Functions
             var familyId = SessionInfo.GetFamilyId();
 
             var context = new HomassyDbContext();
-            await using var transaction = await context.Database.BeginTransactionAsync();
+            await using var transaction = await context.Database.BeginTransactionAsync(cancellationToken);
 
             try
             {
@@ -910,6 +912,8 @@ namespace Homassy.API.Functions
 
                 foreach (var request in requests)
                 {
+                    cancellationToken.ThrowIfCancellationRequested();
+
                     var shoppingLocation = new ShoppingLocation
                     {
                         Name = request.Name!.Trim(),
@@ -929,9 +933,9 @@ namespace Homassy.API.Functions
                 }
 
                 context.ShoppingLocations.AddRange(shoppingLocations);
-                await context.SaveChangesAsync();
+                await context.SaveChangesAsync(cancellationToken);
 
-                await transaction.CommitAsync();
+                await transaction.CommitAsync(cancellationToken);
 
                 Log.Information($"User {userId.Value} created {shoppingLocations.Count} shopping locations");
 
@@ -952,13 +956,13 @@ namespace Homassy.API.Functions
             }
             catch (Exception ex)
             {
-                await transaction.RollbackAsync();
+                await transaction.RollbackAsync(cancellationToken);
                 Log.Error(ex, $"Failed to create multiple shopping locations for user {userId.Value}");
                 throw;
             }
         }
 
-        public async Task DeleteMultipleStorageLocationsAsync(DeleteMultipleStorageLocationsRequest request)
+        public async Task DeleteMultipleStorageLocationsAsync(DeleteMultipleStorageLocationsRequest request, CancellationToken cancellationToken = default)
         {
             var userId = SessionInfo.GetUserId();
             if (!userId.HasValue)
@@ -975,12 +979,14 @@ namespace Homassy.API.Functions
             var familyId = SessionInfo.GetFamilyId();
 
             var context = new HomassyDbContext();
-            await using var transaction = await context.Database.BeginTransactionAsync();
+            await using var transaction = await context.Database.BeginTransactionAsync(cancellationToken);
 
             try
             {
                 foreach (var locationPublicId in request.LocationPublicIds)
                 {
+                    cancellationToken.ThrowIfCancellationRequested();
+
                     var storageLocation = GetStorageLocationByPublicId(locationPublicId);
                     if (storageLocation == null)
                     {
@@ -993,7 +999,7 @@ namespace Homassy.API.Functions
                         throw new UnauthorizedException($"You don't have permission to delete storage location {locationPublicId}");
                     }
 
-                    var trackedLocation = await context.StorageLocations.FindAsync(storageLocation.Id);
+                    var trackedLocation = await context.StorageLocations.FindAsync([storageLocation.Id], cancellationToken);
                     if (trackedLocation == null)
                     {
                         throw new StorageLocationNotFoundException("Storage location not found");
@@ -1003,20 +1009,20 @@ namespace Homassy.API.Functions
                     context.StorageLocations.Update(trackedLocation);
                 }
 
-                await context.SaveChangesAsync();
-                await transaction.CommitAsync();
+                await context.SaveChangesAsync(cancellationToken);
+                await transaction.CommitAsync(cancellationToken);
 
                 Log.Information($"User {userId.Value} deleted {request.LocationPublicIds.Count} storage locations");
             }
             catch (Exception ex)
             {
-                await transaction.RollbackAsync();
+                await transaction.RollbackAsync(cancellationToken);
                 Log.Error(ex, $"Failed to delete multiple storage locations for user {userId.Value}");
                 throw;
             }
         }
 
-        public async Task DeleteMultipleShoppingLocationsAsync(DeleteMultipleShoppingLocationsRequest request)
+        public async Task DeleteMultipleShoppingLocationsAsync(DeleteMultipleShoppingLocationsRequest request, CancellationToken cancellationToken = default)
         {
             var userId = SessionInfo.GetUserId();
             if (!userId.HasValue)
@@ -1033,12 +1039,14 @@ namespace Homassy.API.Functions
             var familyId = SessionInfo.GetFamilyId();
 
             var context = new HomassyDbContext();
-            await using var transaction = await context.Database.BeginTransactionAsync();
+            await using var transaction = await context.Database.BeginTransactionAsync(cancellationToken);
 
             try
             {
                 foreach (var locationPublicId in request.LocationPublicIds)
                 {
+                    cancellationToken.ThrowIfCancellationRequested();
+
                     var shoppingLocation = GetShoppingLocationByPublicId(locationPublicId);
                     if (shoppingLocation == null)
                     {
@@ -1051,7 +1059,7 @@ namespace Homassy.API.Functions
                         throw new UnauthorizedException($"You don't have permission to delete shopping location {locationPublicId}");
                     }
 
-                    var trackedLocation = await context.ShoppingLocations.FindAsync(shoppingLocation.Id);
+                    var trackedLocation = await context.ShoppingLocations.FindAsync([shoppingLocation.Id], cancellationToken);
                     if (trackedLocation == null)
                     {
                         throw new ShoppingLocationNotFoundException("Shopping location not found");
@@ -1061,14 +1069,14 @@ namespace Homassy.API.Functions
                     context.ShoppingLocations.Update(trackedLocation);
                 }
 
-                await context.SaveChangesAsync();
-                await transaction.CommitAsync();
+                await context.SaveChangesAsync(cancellationToken);
+                await transaction.CommitAsync(cancellationToken);
 
                 Log.Information($"User {userId.Value} deleted {request.LocationPublicIds.Count} shopping locations");
             }
             catch (Exception ex)
             {
-                await transaction.RollbackAsync();
+                await transaction.RollbackAsync(cancellationToken);
                 Log.Error(ex, $"Failed to delete multiple shopping locations for user {userId.Value}");
                 throw;
             }

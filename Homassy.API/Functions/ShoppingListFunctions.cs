@@ -16,15 +16,15 @@ namespace Homassy.API.Functions
         public static bool Inited = false;
 
         #region Cache Management
-        public async Task InitializeCacheAsync()
+        public async Task InitializeCacheAsync(CancellationToken cancellationToken = default)
         {
             var context = new HomassyDbContext();
             var shoppingLists = await context.ShoppingLists
-                .ToListAsync();
+                .ToListAsync(cancellationToken);
 
             var shoppingListItems = await context.ShoppingListItems
                 .Where(w => !w.PurchasedAt.HasValue || w.PurchasedAt >= DateTime.UtcNow.Date.AddDays(-1))
-                .ToListAsync();
+                .ToListAsync(cancellationToken);
 
             try
             {
@@ -48,12 +48,12 @@ namespace Homassy.API.Functions
             }
         }
 
-        public async Task RefreshShoppingListCacheAsync(int shoppingListId)
+        public async Task RefreshShoppingListCacheAsync(int shoppingListId, CancellationToken cancellationToken = default)
         {
             try
             {
                 var context = new HomassyDbContext();
-                var shoppingList = await context.ShoppingLists.FirstOrDefaultAsync(sl => sl.Id == shoppingListId);
+                var shoppingList = await context.ShoppingLists.FirstOrDefaultAsync(sl => sl.Id == shoppingListId, cancellationToken);
                 var existsInCache = _shoppingListCache.ContainsKey(shoppingListId);
 
                 if (shoppingList != null && existsInCache)
@@ -83,12 +83,12 @@ namespace Homassy.API.Functions
             }
         }
 
-        public async Task RefreshShoppingListItemCacheAsync(int shoppingListItemId)
+        public async Task RefreshShoppingListItemCacheAsync(int shoppingListItemId, CancellationToken cancellationToken = default)
         {
             try
             {
                 var context = new HomassyDbContext();
-                var shoppingListItem = await context.ShoppingListItems.FirstOrDefaultAsync(sli => sli.Id == shoppingListItemId);
+                var shoppingListItem = await context.ShoppingListItems.FirstOrDefaultAsync(sli => sli.Id == shoppingListItemId, cancellationToken);
                 var existsInCache = _shoppingListItemCache.ContainsKey(shoppingListItemId);
 
                 if (shoppingListItem != null && existsInCache)
@@ -426,7 +426,7 @@ namespace Homassy.API.Functions
             };
         }
 
-        public async Task<ShoppingListInfo> CreateShoppingListAsync(CreateShoppingListRequest request)
+        public async Task<ShoppingListInfo> CreateShoppingListAsync(CreateShoppingListRequest request, CancellationToken cancellationToken = default)
         {
             var userId = SessionInfo.GetUserId();
             if (!userId.HasValue)
@@ -443,7 +443,7 @@ namespace Homassy.API.Functions
             var familyId = SessionInfo.GetFamilyId();
 
             var context = new HomassyDbContext();
-            await using var transaction = await context.Database.BeginTransactionAsync();
+            await using var transaction = await context.Database.BeginTransactionAsync(cancellationToken);
 
             try
             {
@@ -457,9 +457,9 @@ namespace Homassy.API.Functions
                 };
 
                 context.ShoppingLists.Add(shoppingList);
-                await context.SaveChangesAsync();
+                await context.SaveChangesAsync(cancellationToken);
 
-                await transaction.CommitAsync();
+                await transaction.CommitAsync(cancellationToken);
 
                 Log.Information($"User {userId.Value} created shopping list {shoppingList.Id} (PublicId: {shoppingList.PublicId}), shared with family: {request.IsSharedWithFamily}");
 
@@ -474,13 +474,13 @@ namespace Homassy.API.Functions
             }
             catch (Exception ex)
             {
-                await transaction.RollbackAsync();
+                await transaction.RollbackAsync(cancellationToken);
                 Log.Error(ex, $"Failed to create shopping list for user {userId.Value}");
                 throw;
             }
         }
 
-        public async Task<ShoppingListInfo> UpdateShoppingListAsync(Guid publicId, UpdateShoppingListRequest request)
+        public async Task<ShoppingListInfo> UpdateShoppingListAsync(Guid publicId, UpdateShoppingListRequest request, CancellationToken cancellationToken = default)
         {
             var userId = SessionInfo.GetUserId();
             if (!userId.HasValue)
@@ -503,11 +503,11 @@ namespace Homassy.API.Functions
             }
 
             var context = new HomassyDbContext();
-            await using var transaction = await context.Database.BeginTransactionAsync();
+            await using var transaction = await context.Database.BeginTransactionAsync(cancellationToken);
 
             try
             {
-                var trackedList = await context.ShoppingLists.FindAsync(shoppingList.Id);
+                var trackedList = await context.ShoppingLists.FindAsync([shoppingList.Id], cancellationToken);
                 if (trackedList == null)
                 {
                     throw new ShoppingListNotFoundException();
@@ -547,7 +547,7 @@ namespace Homassy.API.Functions
 
                 if (hasChanges)
                 {
-                    await context.SaveChangesAsync();
+                    await context.SaveChangesAsync(cancellationToken);
                     Log.Information($"User {userId.Value} updated shopping list {trackedList.Id} (PublicId: {trackedList.PublicId})");
                 }
                 else
@@ -555,7 +555,7 @@ namespace Homassy.API.Functions
                     Log.Debug($"User {userId.Value} attempted to update shopping list {trackedList.Id} but no changes were made");
                 }
 
-                await transaction.CommitAsync();
+                await transaction.CommitAsync(cancellationToken);
 
                 return new ShoppingListInfo
                 {
@@ -568,13 +568,13 @@ namespace Homassy.API.Functions
             }
             catch (Exception ex)
             {
-                await transaction.RollbackAsync();
+                await transaction.RollbackAsync(cancellationToken);
                 Log.Error(ex, $"Failed to update shopping list {publicId} for user {userId.Value}");
                 throw;
             }
         }
 
-        public async Task DeleteShoppingListAsync(Guid publicId)
+        public async Task DeleteShoppingListAsync(Guid publicId, CancellationToken cancellationToken = default)
         {
             var userId = SessionInfo.GetUserId();
             if (!userId.HasValue)
@@ -597,11 +597,11 @@ namespace Homassy.API.Functions
             }
 
             var context = new HomassyDbContext();
-            await using var transaction = await context.Database.BeginTransactionAsync();
+            await using var transaction = await context.Database.BeginTransactionAsync(cancellationToken);
 
             try
             {
-                var trackedList = await context.ShoppingLists.FindAsync(shoppingList.Id);
+                var trackedList = await context.ShoppingLists.FindAsync([shoppingList.Id], cancellationToken);
                 if (trackedList == null)
                 {
                     throw new ShoppingListNotFoundException();
@@ -610,15 +610,15 @@ namespace Homassy.API.Functions
                 trackedList.DeleteRecord(userId.Value);
 
                 context.ShoppingLists.Update(trackedList);
-                await context.SaveChangesAsync();
+                await context.SaveChangesAsync(cancellationToken);
 
-                await transaction.CommitAsync();
+                await transaction.CommitAsync(cancellationToken);
 
                 Log.Information($"User {userId.Value} deleted shopping list {shoppingList.Id} (PublicId: {shoppingList.PublicId})");
             }
             catch (Exception ex)
             {
-                await transaction.RollbackAsync();
+                await transaction.RollbackAsync(cancellationToken);
                 Log.Error(ex, $"Failed to delete shopping list {publicId} for user {userId.Value}");
                 throw;
             }
@@ -626,7 +626,7 @@ namespace Homassy.API.Functions
         #endregion
 
         #region ShoppingListItem CRUD Methods
-        public async Task<ShoppingListItemInfo> CreateShoppingListItemAsync(CreateShoppingListItemRequest request)
+        public async Task<ShoppingListItemInfo> CreateShoppingListItemAsync(CreateShoppingListItemRequest request, CancellationToken cancellationToken = default)
         {
             var userId = SessionInfo.GetUserId();
             if (!userId.HasValue)
@@ -680,7 +680,7 @@ namespace Homassy.API.Functions
             }
 
             var context = new HomassyDbContext();
-            await using var transaction = await context.Database.BeginTransactionAsync();
+            await using var transaction = await context.Database.BeginTransactionAsync(cancellationToken);
 
             try
             {
@@ -698,9 +698,9 @@ namespace Homassy.API.Functions
                 };
 
                 context.ShoppingListItems.Add(shoppingListItem);
-                await context.SaveChangesAsync();
+                await context.SaveChangesAsync(cancellationToken);
 
-                await transaction.CommitAsync();
+                await transaction.CommitAsync(cancellationToken);
 
                 Log.Information($"User {userId.Value} created shopping list item {shoppingListItem.Id} (PublicId: {shoppingListItem.PublicId}) in shopping list {shoppingList.Id}");
 
@@ -721,13 +721,13 @@ namespace Homassy.API.Functions
             }
             catch (Exception ex)
             {
-                await transaction.RollbackAsync();
+                await transaction.RollbackAsync(cancellationToken);
                 Log.Error(ex, $"Failed to create shopping list item for user {userId.Value}");
                 throw;
             }
         }
 
-        public async Task<ShoppingListItemInfo> UpdateShoppingListItemAsync(Guid publicId, UpdateShoppingListItemRequest request)
+        public async Task<ShoppingListItemInfo> UpdateShoppingListItemAsync(Guid publicId, UpdateShoppingListItemRequest request, CancellationToken cancellationToken = default)
         {
             var userId = SessionInfo.GetUserId();
             if (!userId.HasValue)
@@ -759,11 +759,11 @@ namespace Homassy.API.Functions
             var productFunctions = new ProductFunctions();
 
             var context = new HomassyDbContext();
-            await using var transaction = await context.Database.BeginTransactionAsync();
+            await using var transaction = await context.Database.BeginTransactionAsync(cancellationToken);
 
             try
             {
-                var trackedItem = await context.ShoppingListItems.FindAsync(shoppingListItem.Id);
+                var trackedItem = await context.ShoppingListItems.FindAsync([shoppingListItem.Id], cancellationToken);
                 if (trackedItem == null)
                 {
                     throw new ShoppingListItemNotFoundException();
@@ -841,7 +841,7 @@ namespace Homassy.API.Functions
 
                 if (hasChanges)
                 {
-                    await context.SaveChangesAsync();
+                    await context.SaveChangesAsync(cancellationToken);
                     Log.Information($"User {userId.Value} updated shopping list item {trackedItem.Id} (PublicId: {trackedItem.PublicId})");
                 }
                 else
@@ -849,7 +849,7 @@ namespace Homassy.API.Functions
                     Log.Debug($"User {userId.Value} attempted to update shopping list item {trackedItem.Id} but no changes were made");
                 }
 
-                await transaction.CommitAsync();
+                await transaction.CommitAsync(cancellationToken);
 
                 return new ShoppingListItemInfo
                 {
@@ -868,13 +868,13 @@ namespace Homassy.API.Functions
             }
             catch (Exception ex)
             {
-                await transaction.RollbackAsync();
+                await transaction.RollbackAsync(cancellationToken);
                 Log.Error(ex, $"Failed to update shopping list item {publicId} for user {userId.Value}");
                 throw;
             }
         }
 
-        public async Task DeleteShoppingListItemAsync(Guid publicId)
+        public async Task DeleteShoppingListItemAsync(Guid publicId, CancellationToken cancellationToken = default)
         {
             var userId = SessionInfo.GetUserId();
             if (!userId.HasValue)
@@ -903,11 +903,11 @@ namespace Homassy.API.Functions
             }
 
             var context = new HomassyDbContext();
-            await using var transaction = await context.Database.BeginTransactionAsync();
+            await using var transaction = await context.Database.BeginTransactionAsync(cancellationToken);
 
             try
             {
-                var trackedItem = await context.ShoppingListItems.FindAsync(shoppingListItem.Id);
+                var trackedItem = await context.ShoppingListItems.FindAsync([shoppingListItem.Id], cancellationToken);
                 if (trackedItem == null)
                 {
                     throw new ShoppingListItemNotFoundException();
@@ -916,21 +916,21 @@ namespace Homassy.API.Functions
                 trackedItem.DeleteRecord(userId.Value);
 
                 context.ShoppingListItems.Update(trackedItem);
-                await context.SaveChangesAsync();
+                await context.SaveChangesAsync(cancellationToken);
 
-                await transaction.CommitAsync();
+                await transaction.CommitAsync(cancellationToken);
 
                 Log.Information($"User {userId.Value} deleted shopping list item {shoppingListItem.Id} (PublicId: {shoppingListItem.PublicId})");
             }
             catch (Exception ex)
             {
-                await transaction.RollbackAsync();
+                await transaction.RollbackAsync(cancellationToken);
                 Log.Error(ex, $"Failed to delete shopping list item {publicId} for user {userId.Value}");
                 throw;
             }
         }
 
-        public async Task<ShoppingListItemInfo> QuickPurchaseFromShoppingListItemAsync(QuickPurchaseFromShoppingListItemRequest request)
+        public async Task<ShoppingListItemInfo> QuickPurchaseFromShoppingListItemAsync(QuickPurchaseFromShoppingListItemRequest request, CancellationToken cancellationToken = default)
         {
             var userId = SessionInfo.GetUserId();
             if (!userId.HasValue)
@@ -989,12 +989,12 @@ namespace Homassy.API.Functions
             var currency = request.Currency ?? userProfile?.DefaultCurrency;
 
             var context = new HomassyDbContext();
-            await using var transaction = await context.Database.BeginTransactionAsync();
+            await using var transaction = await context.Database.BeginTransactionAsync(cancellationToken);
 
             try
             {
                 // Update shopping list item with purchase date
-                var trackedShoppingListItem = await context.ShoppingListItems.FindAsync(shoppingListItem.Id);
+                var trackedShoppingListItem = await context.ShoppingListItems.FindAsync([shoppingListItem.Id], cancellationToken);
                 if (trackedShoppingListItem == null)
                 {
                     throw new ShoppingListItemNotFoundException();
@@ -1015,7 +1015,7 @@ namespace Homassy.API.Functions
                 };
 
                 context.ProductInventoryItems.Add(inventoryItem);
-                await context.SaveChangesAsync();
+                await context.SaveChangesAsync(cancellationToken);
 
                 // Create purchase info
                 Entities.Product.ProductPurchaseInfo? purchaseInfo = null;
@@ -1032,10 +1032,10 @@ namespace Homassy.API.Functions
                     };
 
                     context.ProductPurchaseInfos.Add(purchaseInfo);
-                    await context.SaveChangesAsync();
+                    await context.SaveChangesAsync(cancellationToken);
                 }
 
-                await transaction.CommitAsync();
+                await transaction.CommitAsync(cancellationToken);
 
                 Log.Information($"User {userId} quick purchased shopping list item {shoppingListItem.Id} (PublicId: {shoppingListItem.PublicId}) and created inventory item {inventoryItem.Id} (PublicId: {inventoryItem.PublicId})");
 
@@ -1058,13 +1058,13 @@ namespace Homassy.API.Functions
             }
             catch (Exception ex)
             {
-                await transaction.RollbackAsync();
+                await transaction.RollbackAsync(cancellationToken);
                 Log.Error(ex, $"Failed to quick purchase shopping list item {request.ShoppingListItemPublicId} for user {userId}");
                 throw;
             }
         }
 
-        public async Task<List<ShoppingListItemInfo>> CreateMultipleShoppingListItemsAsync(CreateMultipleShoppingListItemsRequest request)
+        public async Task<List<ShoppingListItemInfo>> CreateMultipleShoppingListItemsAsync(CreateMultipleShoppingListItemsRequest request, CancellationToken cancellationToken = default)
         {
             var userId = SessionInfo.GetUserId();
             if (!userId.HasValue)
@@ -1103,7 +1103,7 @@ namespace Homassy.API.Functions
             var productFunctions = new ProductFunctions();
 
             var context = new HomassyDbContext();
-            await using var transaction = await context.Database.BeginTransactionAsync();
+            await using var transaction = await context.Database.BeginTransactionAsync(cancellationToken);
 
             try
             {
@@ -1111,6 +1111,8 @@ namespace Homassy.API.Functions
 
                 foreach (var item in request.Items)
                 {
+                    cancellationToken.ThrowIfCancellationRequested();
+
                     int? productId = null;
                     int? shoppingLocationId = null;
 
@@ -1151,9 +1153,9 @@ namespace Homassy.API.Functions
                 }
 
                 context.ShoppingListItems.AddRange(createdItems);
-                await context.SaveChangesAsync();
+                await context.SaveChangesAsync(cancellationToken);
 
-                await transaction.CommitAsync();
+                await transaction.CommitAsync(cancellationToken);
 
                 Log.Information($"User {userId.Value} created {createdItems.Count} shopping list items in shopping list {shoppingList.Id}");
 
@@ -1174,13 +1176,13 @@ namespace Homassy.API.Functions
             }
             catch (Exception ex)
             {
-                await transaction.RollbackAsync();
+                await transaction.RollbackAsync(cancellationToken);
                 Log.Error(ex, $"Failed to create multiple shopping list items for user {userId.Value}");
                 throw;
             }
         }
 
-        public async Task DeleteMultipleShoppingListItemsAsync(DeleteMultipleShoppingListItemsRequest request)
+        public async Task DeleteMultipleShoppingListItemsAsync(DeleteMultipleShoppingListItemsRequest request, CancellationToken cancellationToken = default)
         {
             var userId = SessionInfo.GetUserId();
             if (!userId.HasValue)
@@ -1197,12 +1199,14 @@ namespace Homassy.API.Functions
             var familyId = SessionInfo.GetFamilyId();
 
             var context = new HomassyDbContext();
-            await using var transaction = await context.Database.BeginTransactionAsync();
+            await using var transaction = await context.Database.BeginTransactionAsync(cancellationToken);
 
             try
             {
                 foreach (var itemPublicId in request.ItemPublicIds)
                 {
+                    cancellationToken.ThrowIfCancellationRequested();
+
                     var shoppingListItem = GetShoppingListItemByPublicId(itemPublicId);
                     if (shoppingListItem == null)
                     {
@@ -1221,7 +1225,7 @@ namespace Homassy.API.Functions
                         throw new ShoppingListAccessDeniedException();
                     }
 
-                    var trackedItem = await context.ShoppingListItems.FindAsync(shoppingListItem.Id);
+                    var trackedItem = await context.ShoppingListItems.FindAsync([shoppingListItem.Id], cancellationToken);
                     if (trackedItem == null)
                     {
                         throw new ShoppingListItemNotFoundException();
@@ -1231,20 +1235,20 @@ namespace Homassy.API.Functions
                     context.ShoppingListItems.Update(trackedItem);
                 }
 
-                await context.SaveChangesAsync();
-                await transaction.CommitAsync();
+                await context.SaveChangesAsync(cancellationToken);
+                await transaction.CommitAsync(cancellationToken);
 
                 Log.Information($"User {userId.Value} deleted {request.ItemPublicIds.Count} shopping list items");
             }
             catch (Exception ex)
             {
-                await transaction.RollbackAsync();
+                await transaction.RollbackAsync(cancellationToken);
                 Log.Error(ex, $"Failed to delete multiple shopping list items for user {userId.Value}");
                 throw;
             }
         }
 
-        public async Task<List<ShoppingListItemInfo>> QuickPurchaseMultipleShoppingListItemsAsync(QuickPurchaseMultipleShoppingListItemsRequest request)
+        public async Task<List<ShoppingListItemInfo>> QuickPurchaseMultipleShoppingListItemsAsync(QuickPurchaseMultipleShoppingListItemsRequest request, CancellationToken cancellationToken = default)
         {
             var userId = SessionInfo.GetUserId();
             if (!userId.HasValue)
@@ -1264,7 +1268,7 @@ namespace Homassy.API.Functions
             var userProfile = new UserFunctions().GetUserProfileByUserId(userId.Value);
 
             var context = new HomassyDbContext();
-            await using var transaction = await context.Database.BeginTransactionAsync();
+            await using var transaction = await context.Database.BeginTransactionAsync(cancellationToken);
 
             try
             {
@@ -1272,6 +1276,8 @@ namespace Homassy.API.Functions
 
                 foreach (var itemRequest in request.Items)
                 {
+                    cancellationToken.ThrowIfCancellationRequested();
+
                     var shoppingListItem = GetShoppingListItemByPublicId(itemRequest.ShoppingListItemPublicId);
                     if (shoppingListItem == null)
                     {
@@ -1315,7 +1321,7 @@ namespace Homassy.API.Functions
                     int? shoppingLocationId = shoppingListItem.ShoppingLocationId;
                     var currency = itemRequest.Currency ?? userProfile?.DefaultCurrency;
 
-                    var trackedShoppingListItem = await context.ShoppingListItems.FindAsync(shoppingListItem.Id);
+                    var trackedShoppingListItem = await context.ShoppingListItems.FindAsync([shoppingListItem.Id], cancellationToken);
                     if (trackedShoppingListItem == null)
                     {
                         throw new ShoppingListItemNotFoundException();
@@ -1335,7 +1341,7 @@ namespace Homassy.API.Functions
                     };
 
                     context.ProductInventoryItems.Add(inventoryItem);
-                    await context.SaveChangesAsync();
+                    await context.SaveChangesAsync(cancellationToken);
 
                     if (itemRequest.Price.HasValue || shoppingLocationId.HasValue)
                     {
@@ -1368,8 +1374,8 @@ namespace Homassy.API.Functions
                     });
                 }
 
-                await context.SaveChangesAsync();
-                await transaction.CommitAsync();
+                await context.SaveChangesAsync(cancellationToken);
+                await transaction.CommitAsync(cancellationToken);
 
                 Log.Information($"User {userId.Value} quick purchased {results.Count} shopping list items");
 
@@ -1377,7 +1383,7 @@ namespace Homassy.API.Functions
             }
             catch (Exception ex)
             {
-                await transaction.RollbackAsync();
+                await transaction.RollbackAsync(cancellationToken);
                 Log.Error(ex, $"Failed to quick purchase multiple shopping list items for user {userId.Value}");
                 throw;
             }

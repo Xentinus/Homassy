@@ -37,14 +37,14 @@ namespace Homassy.API.Controllers
         [MapToApiVersion(1.0)]
         [ProducesResponseType(typeof(ApiResponse<ProductInfo>), StatusCodes.Status200OK)]
         [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status400BadRequest)]
-        public async Task<IActionResult> CreateProduct([FromBody] CreateProductRequest request)
+        public async Task<IActionResult> CreateProduct([FromBody] CreateProductRequest request, CancellationToken cancellationToken)
         {
             if (!ModelState.IsValid)
             {
                 return BadRequest(ApiResponse.ErrorResponse("Invalid request data"));
             }
 
-            var productInfo = await new ProductFunctions().CreateProductAsync(request);
+            var productInfo = await new ProductFunctions().CreateProductAsync(request, cancellationToken);
             return Ok(ApiResponse<ProductInfo>.SuccessResponse(productInfo, "Product created successfully"));
         }
 
@@ -56,14 +56,14 @@ namespace Homassy.API.Controllers
         [ProducesResponseType(typeof(ApiResponse<ProductInfo>), StatusCodes.Status200OK)]
         [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status400BadRequest)]
         [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status404NotFound)]
-        public async Task<IActionResult> UpdateProduct(Guid productPublicId, [FromBody] UpdateProductRequest request)
+        public async Task<IActionResult> UpdateProduct(Guid productPublicId, [FromBody] UpdateProductRequest request, CancellationToken cancellationToken)
         {
             if (!ModelState.IsValid)
             {
                 return BadRequest(ApiResponse.ErrorResponse("Invalid request data"));
             }
 
-            var productInfo = await new ProductFunctions().UpdateProductAsync(productPublicId, request);
+            var productInfo = await new ProductFunctions().UpdateProductAsync(productPublicId, request, cancellationToken);
             return Ok(ApiResponse<ProductInfo>.SuccessResponse(productInfo, "Product updated successfully"));
         }
 
@@ -74,9 +74,9 @@ namespace Homassy.API.Controllers
         [MapToApiVersion(1.0)]
         [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status200OK)]
         [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status404NotFound)]
-        public async Task<IActionResult> DeleteProduct(Guid productPublicId)
+        public async Task<IActionResult> DeleteProduct(Guid productPublicId, CancellationToken cancellationToken)
         {
-            await new ProductFunctions().DeleteProductAsync(productPublicId);
+            await new ProductFunctions().DeleteProductAsync(productPublicId, cancellationToken);
 
             Log.Information($"Product {productPublicId} deleted successfully");
             return Ok(ApiResponse.SuccessResponse("Product deleted successfully"));
@@ -89,9 +89,9 @@ namespace Homassy.API.Controllers
         [MapToApiVersion(1.0)]
         [ProducesResponseType(typeof(ApiResponse<ProductInfo>), StatusCodes.Status200OK)]
         [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status404NotFound)]
-        public async Task<IActionResult> ToggleFavorite(Guid productPublicId)
+        public async Task<IActionResult> ToggleFavorite(Guid productPublicId, CancellationToken cancellationToken)
         {
-            var productInfo = await new ProductFunctions().ToggleFavoriteAsync(productPublicId);
+            var productInfo = await new ProductFunctions().ToggleFavoriteAsync(productPublicId, cancellationToken);
             return Ok(ApiResponse<ProductInfo>.SuccessResponse(productInfo, "Favorite status updated successfully"));
         }
         #endregion
@@ -137,14 +137,14 @@ namespace Homassy.API.Controllers
         [MapToApiVersion(1.0)]
         [ProducesResponseType(typeof(ApiResponse<InventoryItemInfo>), StatusCodes.Status200OK)]
         [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status400BadRequest)]
-        public async Task<IActionResult> CreateInventoryItem([FromBody] CreateInventoryItemRequest request)
+        public async Task<IActionResult> CreateInventoryItem([FromBody] CreateInventoryItemRequest request, CancellationToken cancellationToken)
         {
             if (!ModelState.IsValid)
             {
                 return BadRequest(ApiResponse.ErrorResponse("Invalid request data"));
             }
 
-            var inventoryItemInfo = await new ProductFunctions().CreateInventoryItemAsync(request);
+            var inventoryItemInfo = await new ProductFunctions().CreateInventoryItemAsync(request, cancellationToken);
             return Ok(ApiResponse<InventoryItemInfo>.SuccessResponse(inventoryItemInfo, "Inventory item created successfully"));
         }
 
@@ -155,14 +155,14 @@ namespace Homassy.API.Controllers
         [MapToApiVersion(1.0)]
         [ProducesResponseType(typeof(ApiResponse<InventoryItemInfo>), StatusCodes.Status200OK)]
         [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status400BadRequest)]
-        public async Task<IActionResult> QuickAddInventoryItem([FromBody] QuickAddInventoryItemRequest request)
+        public async Task<IActionResult> QuickAddInventoryItem([FromBody] QuickAddInventoryItemRequest request, CancellationToken cancellationToken)
         {
             if (!ModelState.IsValid)
             {
                 return BadRequest(ApiResponse.ErrorResponse("Invalid request data"));
             }
 
-            var inventoryItemInfo = await new ProductFunctions().QuickAddInventoryItemAsync(request);
+            var inventoryItemInfo = await new ProductFunctions().QuickAddInventoryItemAsync(request, cancellationToken);
             return Ok(ApiResponse<InventoryItemInfo>.SuccessResponse(inventoryItemInfo, "Inventory item added successfully"));
         }
 
@@ -174,14 +174,14 @@ namespace Homassy.API.Controllers
         [ProducesResponseType(typeof(ApiResponse<InventoryItemInfo>), StatusCodes.Status200OK)]
         [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status400BadRequest)]
         [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status404NotFound)]
-        public async Task<IActionResult> UpdateInventoryItem(Guid inventoryItemPublicId, [FromBody] UpdateInventoryItemRequest request)
+        public async Task<IActionResult> UpdateInventoryItem(Guid inventoryItemPublicId, [FromBody] UpdateInventoryItemRequest request, CancellationToken cancellationToken)
         {
             if (!ModelState.IsValid)
             {
                 return BadRequest(ApiResponse.ErrorResponse("Invalid request data"));
             }
 
-            var inventoryItemInfo = await new ProductFunctions().UpdateInventoryItemAsync(inventoryItemPublicId, request);
+            var inventoryItemInfo = await new ProductFunctions().UpdateInventoryItemAsync(inventoryItemPublicId, request, cancellationToken);
             return Ok(ApiResponse<InventoryItemInfo>.SuccessResponse(inventoryItemInfo, "Inventory item updated successfully"));
         }
 
@@ -192,9 +192,9 @@ namespace Homassy.API.Controllers
         [MapToApiVersion(1.0)]
         [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status200OK)]
         [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status404NotFound)]
-        public async Task<IActionResult> DeleteInventoryItem(Guid inventoryItemPublicId)
+        public async Task<IActionResult> DeleteInventoryItem(Guid inventoryItemPublicId, CancellationToken cancellationToken)
         {
-            await new ProductFunctions().DeleteInventoryItemAsync(inventoryItemPublicId);
+            await new ProductFunctions().DeleteInventoryItemAsync(inventoryItemPublicId, cancellationToken);
 
             Log.Information($"Inventory item {inventoryItemPublicId} deleted successfully");
             return Ok(ApiResponse.SuccessResponse("Inventory item deleted successfully"));
@@ -208,14 +208,14 @@ namespace Homassy.API.Controllers
         [ProducesResponseType(typeof(ApiResponse<InventoryItemInfo>), StatusCodes.Status200OK)]
         [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status400BadRequest)]
         [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status404NotFound)]
-        public async Task<IActionResult> ConsumeInventoryItem(Guid inventoryItemPublicId, [FromBody] ConsumeInventoryItemRequest request)
+        public async Task<IActionResult> ConsumeInventoryItem(Guid inventoryItemPublicId, [FromBody] ConsumeInventoryItemRequest request, CancellationToken cancellationToken)
         {
             if (!ModelState.IsValid)
             {
                 return BadRequest(ApiResponse.ErrorResponse("Invalid request data"));
             }
 
-            var inventoryItemInfo = await new ProductFunctions().ConsumeInventoryItemAsync(inventoryItemPublicId, request);
+            var inventoryItemInfo = await new ProductFunctions().ConsumeInventoryItemAsync(inventoryItemPublicId, request, cancellationToken);
             return Ok(ApiResponse<InventoryItemInfo>.SuccessResponse(inventoryItemInfo, "Consumption recorded successfully"));
         }
 
@@ -226,14 +226,14 @@ namespace Homassy.API.Controllers
         [MapToApiVersion(1.0)]
         [ProducesResponseType(typeof(ApiResponse<List<InventoryItemInfo>>), StatusCodes.Status200OK)]
         [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status400BadRequest)]
-        public async Task<IActionResult> QuickAddMultipleInventoryItems([FromBody] QuickAddMultipleInventoryItemsRequest request)
+        public async Task<IActionResult> QuickAddMultipleInventoryItems([FromBody] QuickAddMultipleInventoryItemsRequest request, CancellationToken cancellationToken)
         {
             if (!ModelState.IsValid)
             {
                 return BadRequest(ApiResponse.ErrorResponse("Invalid request data"));
             }
 
-            var inventoryItems = await new ProductFunctions().QuickAddMultipleInventoryItemsAsync(request);
+            var inventoryItems = await new ProductFunctions().QuickAddMultipleInventoryItemsAsync(request, cancellationToken);
             return Ok(ApiResponse<List<InventoryItemInfo>>.SuccessResponse(inventoryItems, "Inventory items added successfully"));
         }
 
@@ -244,14 +244,14 @@ namespace Homassy.API.Controllers
         [MapToApiVersion(1.0)]
         [ProducesResponseType(typeof(ApiResponse<List<InventoryItemInfo>>), StatusCodes.Status200OK)]
         [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status400BadRequest)]
-        public async Task<IActionResult> MoveInventoryItems([FromBody] MoveInventoryItemsRequest request)
+        public async Task<IActionResult> MoveInventoryItems([FromBody] MoveInventoryItemsRequest request, CancellationToken cancellationToken)
         {
             if (!ModelState.IsValid)
             {
                 return BadRequest(ApiResponse.ErrorResponse("Invalid request data"));
             }
 
-            var inventoryItems = await new ProductFunctions().MoveInventoryItemsAsync(request);
+            var inventoryItems = await new ProductFunctions().MoveInventoryItemsAsync(request, cancellationToken);
             return Ok(ApiResponse<List<InventoryItemInfo>>.SuccessResponse(inventoryItems, "Inventory items moved successfully"));
         }
 
@@ -262,14 +262,14 @@ namespace Homassy.API.Controllers
         [MapToApiVersion(1.0)]
         [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status200OK)]
         [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status400BadRequest)]
-        public async Task<IActionResult> DeleteMultipleInventoryItems([FromBody] DeleteMultipleInventoryItemsRequest request)
+        public async Task<IActionResult> DeleteMultipleInventoryItems([FromBody] DeleteMultipleInventoryItemsRequest request, CancellationToken cancellationToken)
         {
             if (!ModelState.IsValid)
             {
                 return BadRequest(ApiResponse.ErrorResponse("Invalid request data"));
             }
 
-            await new ProductFunctions().DeleteMultipleInventoryItemsAsync(request);
+            await new ProductFunctions().DeleteMultipleInventoryItemsAsync(request, cancellationToken);
             return Ok(ApiResponse.SuccessResponse($"{request.ItemPublicIds.Count} inventory items deleted successfully"));
         }
 
@@ -280,14 +280,14 @@ namespace Homassy.API.Controllers
         [MapToApiVersion(1.0)]
         [ProducesResponseType(typeof(ApiResponse<List<InventoryItemInfo>>), StatusCodes.Status200OK)]
         [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status400BadRequest)]
-        public async Task<IActionResult> ConsumeMultipleInventoryItems([FromBody] ConsumeMultipleInventoryItemsRequest request)
+        public async Task<IActionResult> ConsumeMultipleInventoryItems([FromBody] ConsumeMultipleInventoryItemsRequest request, CancellationToken cancellationToken)
         {
             if (!ModelState.IsValid)
             {
                 return BadRequest(ApiResponse.ErrorResponse("Invalid request data"));
             }
 
-            var items = await new ProductFunctions().ConsumeMultipleInventoryItemsAsync(request);
+            var items = await new ProductFunctions().ConsumeMultipleInventoryItemsAsync(request, cancellationToken);
             return Ok(ApiResponse<List<InventoryItemInfo>>.SuccessResponse(items, $"{items.Count} inventory items consumed successfully"));
         }
 
@@ -298,14 +298,14 @@ namespace Homassy.API.Controllers
         [MapToApiVersion(1.0)]
         [ProducesResponseType(typeof(ApiResponse<List<ProductInfo>>), StatusCodes.Status200OK)]
         [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status400BadRequest)]
-        public async Task<IActionResult> CreateMultipleProducts([FromBody] CreateMultipleProductsRequest request)
+        public async Task<IActionResult> CreateMultipleProducts([FromBody] CreateMultipleProductsRequest request, CancellationToken cancellationToken)
         {
             if (!ModelState.IsValid)
             {
                 return BadRequest(ApiResponse.ErrorResponse("Invalid request data"));
             }
 
-            var products = await new ProductFunctions().CreateMultipleProductsAsync(request);
+            var products = await new ProductFunctions().CreateMultipleProductsAsync(request, cancellationToken);
             return Ok(ApiResponse<List<ProductInfo>>.SuccessResponse(products, $"{products.Count} products created successfully"));
         }
         #endregion
