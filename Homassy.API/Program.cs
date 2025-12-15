@@ -3,10 +3,12 @@ using Homassy.API.Infrastructure;
 using Homassy.API.Middleware;
 using Homassy.API.Services;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.ResponseCompression;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using Serilog;
 using Serilog.Events;
+using System.IO.Compression;
 using System.Net.Http.Headers;
 using System.Reflection;
 using System.Text;
@@ -125,6 +127,29 @@ try
     builder.Services.AddControllers();
     builder.Services.AddOpenApi();
 
+    builder.Services.AddResponseCompression(options =>
+    {
+        options.EnableForHttps = true;
+        options.Providers.Add<BrotliCompressionProvider>();
+        options.Providers.Add<GzipCompressionProvider>();
+        options.MimeTypes = ResponseCompressionDefaults.MimeTypes.Concat(
+        [
+            "application/json",
+            "application/problem+json",
+            "text/json"
+        ]);
+    });
+
+    builder.Services.Configure<BrotliCompressionProviderOptions>(options =>
+    {
+        options.Level = CompressionLevel.Optimal;
+    });
+
+    builder.Services.Configure<GzipCompressionProviderOptions>(options =>
+    {
+        options.Level = CompressionLevel.Optimal;
+    });
+
     var app = builder.Build();
 
     using (var scope = app.Services.CreateScope())
@@ -135,6 +160,8 @@ try
     }
 
     Log.Information($"Homassy API version {version}");
+
+    app.UseResponseCompression();
 
     app.Use(async (context, next) =>
     {
