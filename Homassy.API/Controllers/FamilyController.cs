@@ -1,12 +1,9 @@
 ﻿using Asp.Versioning;
-using Homassy.API.Context;
-using Homassy.API.Exceptions;
 using Homassy.API.Functions;
 using Homassy.API.Models.Common;
 using Homassy.API.Models.Family;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using Serilog;
 
 namespace Homassy.API.Controllers
 {
@@ -20,32 +17,8 @@ namespace Homassy.API.Controllers
         [MapToApiVersion(1.0)]
         public IActionResult GetFamily()
         {
-            try
-            {
-                var response = new FamilyFunctions().GetFamilyAsync();
-                return Ok(ApiResponse<FamilyDetailsResponse>.SuccessResponse(response));
-            }
-            catch (UnauthorizedException ex)
-            {
-                return Unauthorized(ApiResponse.ErrorResponse(ex.Message));
-            }
-            catch (BadRequestException ex)
-            {
-                return BadRequest(ApiResponse.ErrorResponse(ex.Message));
-            }
-            catch (UserNotFoundException ex)
-            {
-                return NotFound(ApiResponse.ErrorResponse(ex.Message));
-            }
-            catch (FamilyNotFoundException ex)
-            {
-                return BadRequest(ApiResponse.ErrorResponse(ex.Message));
-            }
-            catch (Exception ex)
-            {
-                Log.Error($"Unexpected error getting family: {ex.Message}");
-                return StatusCode(500, ApiResponse.ErrorResponse("An error occurred while retrieving family information"));
-            }
+            var response = new FamilyFunctions().GetFamilyAsync();
+            return Ok(ApiResponse<FamilyDetailsResponse>.SuccessResponse(response));
         }
 
         [HttpPut]
@@ -57,28 +30,8 @@ namespace Homassy.API.Controllers
                 return BadRequest(ApiResponse.ErrorResponse("Invalid request data"));
             }
 
-            try
-            {
-                await new FamilyFunctions().UpdateFamilyAsync(request);
-                return Ok(ApiResponse.SuccessResponse("Family updated successfully"));
-            }
-            catch (UnauthorizedException ex)
-            {
-                return Unauthorized(ApiResponse.ErrorResponse(ex.Message));
-            }
-            catch (BadRequestException ex)
-            {
-                return BadRequest(ApiResponse.ErrorResponse(ex.Message));
-            }
-            catch (UserNotFoundException ex)
-            {
-                return NotFound(ApiResponse.ErrorResponse(ex.Message));
-            }
-            catch (Exception ex)
-            {
-                Log.Error($"Unexpected error updating family: {ex.Message}");
-                return StatusCode(500, ApiResponse.ErrorResponse("An error occurred while updating the family"));
-            }
+            await new FamilyFunctions().UpdateFamilyAsync(request);
+            return Ok(ApiResponse.SuccessResponse("Family updated successfully"));
         }
 
         [HttpPost("create")]
@@ -90,28 +43,8 @@ namespace Homassy.API.Controllers
                 return BadRequest(ApiResponse.ErrorResponse("Invalid request data"));
             }
 
-            try
-            {
-                var response = await new FamilyFunctions().CreateFamilyAsync(request);
-                return Ok(ApiResponse<FamilyInfo>.SuccessResponse(response, "Family created successfully"));
-            }
-            catch (UnauthorizedException ex)
-            {
-                return Unauthorized(ApiResponse.ErrorResponse(ex.Message));
-            }
-            catch (BadRequestException ex)
-            {
-                return BadRequest(ApiResponse.ErrorResponse(ex.Message));
-            }
-            catch (UserNotFoundException ex)
-            {
-                return NotFound(ApiResponse.ErrorResponse(ex.Message));
-            }
-            catch (Exception ex)
-            {
-                Log.Error($"Unexpected error creating family: {ex.Message}");
-                return StatusCode(500, ApiResponse.ErrorResponse("An error occurred while creating the family"));
-            }
+            var response = await new FamilyFunctions().CreateFamilyAsync(request);
+            return Ok(ApiResponse<FamilyInfo>.SuccessResponse(response, "Family created successfully"));
         }
 
         [HttpPost("join")]
@@ -123,56 +56,16 @@ namespace Homassy.API.Controllers
                 return BadRequest(ApiResponse.ErrorResponse("Invalid request data"));
             }
 
-            try
-            {
-                var response = await new UserFunctions().JoinFamilyAsync(request);
-                return Ok(ApiResponse<FamilyInfo>.SuccessResponse(response, "Successfully joined the family"));
-            }
-            catch (UnauthorizedException ex)
-            {
-                return Unauthorized(ApiResponse.ErrorResponse(ex.Message));
-            }
-            catch (BadRequestException ex)
-            {
-                return BadRequest(ApiResponse.ErrorResponse(ex.Message));
-            }
-            catch (FamilyNotFoundException ex)
-            {
-                return NotFound(ApiResponse.ErrorResponse(ex.Message));
-            }
-            catch (Exception ex)
-            {
-                Log.Error($"Unexpected error joining family: {ex.Message}");
-                return StatusCode(500, ApiResponse.ErrorResponse("An error occurred while joining the family"));
-            }
+            var response = await new UserFunctions().JoinFamilyAsync(request);
+            return Ok(ApiResponse<FamilyInfo>.SuccessResponse(response, "Successfully joined the family"));
         }
 
         [HttpPost("leave")]
         [MapToApiVersion(1.0)]
         public async Task<IActionResult> LeaveFamily()
         {
-            try
-            {
-                await new UserFunctions().RemoveUserFromFamilyAsync();
-                return Ok(ApiResponse.SuccessResponse("Successfully left the family"));
-            }
-            catch (UnauthorizedException ex)
-            {
-                return Unauthorized(ApiResponse.ErrorResponse(ex.Message));
-            }
-            catch (BadRequestException ex)
-            {
-                return BadRequest(ApiResponse.ErrorResponse(ex.Message));
-            }
-            catch (UserNotFoundException ex)
-            {
-                return NotFound(ApiResponse.ErrorResponse(ex.Message));
-            }
-            catch (Exception ex)
-            {
-                Log.Error($"Unexpected error leaving family: {ex.Message}");
-                return StatusCode(500, ApiResponse.ErrorResponse("An error occurred while leaving the family"));
-            }
+            await new UserFunctions().RemoveUserFromFamilyAsync();
+            return Ok(ApiResponse.SuccessResponse("Successfully left the family"));
         }
 
         [HttpPost("picture")]
@@ -184,48 +77,16 @@ namespace Homassy.API.Controllers
                 return BadRequest(ApiResponse.ErrorResponse("Invalid request data"));
             }
 
-            try
-            {
-                await new FamilyFunctions().UploadFamilyPictureAsync(request.FamilyPictureBase64);
-                return Ok(ApiResponse.SuccessResponse("Family picture uploaded successfully"));
-            }
-            catch (BadRequestException ex)
-            {
-                return BadRequest(ApiResponse.ErrorResponse(ex.Message));
-            }
-            catch (FamilyNotFoundException ex)
-            {
-                return NotFound(ApiResponse.ErrorResponse(ex.Message));
-            }
-            catch (Exception ex)
-            {
-                Log.Error($"Unexpected error uploading family picture: {ex.Message}");
-                return StatusCode(500, ApiResponse.ErrorResponse("An error occurred while uploading the family picture"));
-            }
+            await new FamilyFunctions().UploadFamilyPictureAsync(request.FamilyPictureBase64);
+            return Ok(ApiResponse.SuccessResponse("Family picture uploaded successfully"));
         }
 
         [HttpDelete("picture")]
         [MapToApiVersion(1.0)]
         public async Task<IActionResult> DeleteFamilyPicture()
         {
-            try
-            {
-                await new FamilyFunctions().DeleteFamilyPictureAsync();
-                return Ok(ApiResponse.SuccessResponse("Family picture deleted successfully"));
-            }
-            catch (BadRequestException ex)
-            {
-                return BadRequest(ApiResponse.ErrorResponse(ex.Message));
-            }
-            catch (FamilyNotFoundException ex)
-            {
-                return NotFound(ApiResponse.ErrorResponse(ex.Message));
-            }
-            catch (Exception ex)
-            {
-                Log.Error($"Unexpected error deleting family picture: {ex.Message}");
-                return StatusCode(500, ApiResponse.ErrorResponse("An error occurred while deleting the family picture"));
-            }
+            await new FamilyFunctions().DeleteFamilyPictureAsync();
+            return Ok(ApiResponse.SuccessResponse("Family picture deleted successfully"));
         }
     }
 }

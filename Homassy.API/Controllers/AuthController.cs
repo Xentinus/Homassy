@@ -1,5 +1,4 @@
 ﻿using Asp.Versioning;
-using Homassy.API.Context;
 using Homassy.API.Exceptions;
 using Homassy.API.Functions;
 using Homassy.API.Models.Auth;
@@ -38,13 +37,14 @@ namespace Homassy.API.Controllers
             }
             catch (AuthException ex)
             {
-                Log.Warning($"Auth error during request-code: {ex.Message}");
+                Log.Warning("Auth error during request-code: {Message}", ex.Message);
             }
             catch (Exception ex)
             {
-                Log.Error($"Unexpected error during request-code: {ex.Message}");
+                Log.Error(ex, "Unexpected error during request-code");
             }
 
+            // Security: constant time response to prevent user enumeration
             await Task.Delay(Random.Shared.Next(100, 300));
             return Ok(ApiResponse.SuccessResponse(genericMessage));
         }
@@ -58,29 +58,8 @@ namespace Homassy.API.Controllers
                 return BadRequest(ApiResponse.ErrorResponse("Invalid request data"));
             }
 
-            try
-            {
-                var authResponse = await new UserFunctions().VerifyCodeAsync(request.Email, request.VerificationCode);
-                return Ok(ApiResponse<AuthResponse>.SuccessResponse(authResponse, "Login successful"));
-            }
-            catch (AuthException ex)
-            {
-                await Task.Delay(Random.Shared.Next(200, 400));
-
-                return ex.StatusCode switch
-                {
-                    StatusCodes.Status400BadRequest => BadRequest(ApiResponse.ErrorResponse(ex.Message)),
-                    StatusCodes.Status401Unauthorized => Unauthorized(ApiResponse.ErrorResponse(ex.Message)),
-                    StatusCodes.Status403Forbidden => StatusCode(403, ApiResponse.ErrorResponse(ex.Message)),
-                    _ => StatusCode(500, ApiResponse.ErrorResponse("An error occurred during authentication"))
-                };
-            }
-            catch (Exception ex)
-            {
-                Log.Error($"Unexpected error during code verification: {ex.Message}");
-                await Task.Delay(Random.Shared.Next(200, 400));
-                return StatusCode(500, ApiResponse.ErrorResponse("An error occurred during authentication"));
-            }
+            var authResponse = await new UserFunctions().VerifyCodeAsync(request.Email, request.VerificationCode);
+            return Ok(ApiResponse<AuthResponse>.SuccessResponse(authResponse, "Login successful"));
         }
 
         [Authorize]
@@ -93,29 +72,8 @@ namespace Homassy.API.Controllers
                 return BadRequest(ApiResponse.ErrorResponse("Invalid request data"));
             }
 
-            try
-            {
-                var refreshResponse = await new UserFunctions().RefreshTokenAsync(request.RefreshToken);
-                return Ok(ApiResponse<RefreshTokenResponse>.SuccessResponse(refreshResponse, "Token refreshed successfully"));
-            }
-            catch (AuthException ex)
-            {
-                await Task.Delay(Random.Shared.Next(100, 200));
-
-                return ex.StatusCode switch
-                {
-                    StatusCodes.Status400BadRequest => BadRequest(ApiResponse.ErrorResponse(ex.Message)),
-                    StatusCodes.Status401Unauthorized => Unauthorized(ApiResponse.ErrorResponse(ex.Message)),
-                    StatusCodes.Status403Forbidden => StatusCode(403, ApiResponse.ErrorResponse(ex.Message)),
-                    _ => StatusCode(500, ApiResponse.ErrorResponse("An error occurred during token refresh"))
-                };
-            }
-            catch (Exception ex)
-            {
-                Log.Error($"Unexpected error during token refresh: {ex.Message}");
-                await Task.Delay(Random.Shared.Next(100, 200));
-                return StatusCode(500, ApiResponse.ErrorResponse("An error occurred during token refresh"));
-            }
+            var refreshResponse = await new UserFunctions().RefreshTokenAsync(request.RefreshToken);
+            return Ok(ApiResponse<RefreshTokenResponse>.SuccessResponse(refreshResponse, "Token refreshed successfully"));
         }
 
         [Authorize]
@@ -126,18 +84,14 @@ namespace Homassy.API.Controllers
             try
             {
                 await new UserFunctions().LogoutAsync();
-                return Ok(ApiResponse.SuccessResponse("Logged out successfully"));
             }
             catch (UserNotFoundException ex)
             {
-                Log.Warning($"User not found during logout: {ex.Message}");
-                return Ok(ApiResponse.SuccessResponse("Logged out successfully"));
+                // User already logged out or deleted - still return success
+                Log.Warning("User not found during logout: {Message}", ex.Message);
             }
-            catch (Exception ex)
-            {
-                Log.Error($"Unexpected error during logout: {ex.Message}");
-                return StatusCode(500, ApiResponse.ErrorResponse("An error occurred during logout"));
-            }
+            
+            return Ok(ApiResponse.SuccessResponse("Logged out successfully"));
         }
 
         [Authorize]
@@ -145,20 +99,8 @@ namespace Homassy.API.Controllers
         [MapToApiVersion(1.0)]
         public IActionResult GetCurrentUser()
         {
-            try
-            {
-                var userInfo = new UserFunctions().GetCurrentUserAsync();
-                return Ok(ApiResponse<UserInfo>.SuccessResponse(userInfo));
-            }
-            catch (UserNotFoundException ex)
-            {
-                return NotFound(ApiResponse.ErrorResponse(ex.Message));
-            }
-            catch (Exception ex)
-            {
-                Log.Error($"Unexpected error getting current user: {ex.Message}");
-                return StatusCode(500, ApiResponse.ErrorResponse("An error occurred while retrieving user information"));
-            }
+            var userInfo = new UserFunctions().GetCurrentUserAsync();
+            return Ok(ApiResponse<UserInfo>.SuccessResponse(userInfo));
         }
 
         [HttpPost("register")]
@@ -192,13 +134,14 @@ namespace Homassy.API.Controllers
             }
             catch (AuthException ex)
             {
-                Log.Warning($"Auth error during registration: {ex.Message}");
+                Log.Warning("Auth error during registration: {Message}", ex.Message);
             }
             catch (Exception ex)
             {
-                Log.Error($"Unexpected error during registration: {ex.Message}");
+                Log.Error(ex, "Unexpected error during registration");
             }
 
+            // Security: constant time response to prevent user enumeration
             await Task.Delay(Random.Shared.Next(100, 300));
             return Ok(ApiResponse.SuccessResponse(genericMessage));
         }

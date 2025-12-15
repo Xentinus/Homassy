@@ -1,5 +1,4 @@
 ﻿using Asp.Versioning;
-using Homassy.API.Exceptions;
 using Homassy.API.Functions;
 using Homassy.API.Models.Common;
 using Homassy.API.Models.ShoppingList;
@@ -20,50 +19,22 @@ namespace Homassy.API.Controllers
         [MapToApiVersion(1.0)]
         public IActionResult GetShoppingLists()
         {
-            try
-            {
-                var shoppingLists = new ShoppingListFunctions().GetAllShoppingLists();
-                return Ok(ApiResponse<List<ShoppingListInfo>>.SuccessResponse(shoppingLists));
-            }
-            catch (UserNotFoundException ex)
-            {
-                return NotFound(ApiResponse.ErrorResponse(ex.Message));
-            }
-            catch (Exception ex)
-            {
-                Log.Error($"Unexpected error retrieving shopping lists: {ex.Message}");
-                return StatusCode(500, ApiResponse.ErrorResponse("An error occurred while retrieving shopping lists"));
-            }
+            var shoppingLists = new ShoppingListFunctions().GetAllShoppingLists();
+            return Ok(ApiResponse<List<ShoppingListInfo>>.SuccessResponse(shoppingLists));
         }
 
         [HttpGet("{publicId}")]
         [MapToApiVersion(1.0)]
         public IActionResult GetShoppingList(Guid publicId, [FromQuery] bool showPurchased = false)
         {
-            try
-            {
-                var shoppingList = new ShoppingListFunctions().GetDetailedShoppingList(publicId, showPurchased);
+            var shoppingList = new ShoppingListFunctions().GetDetailedShoppingList(publicId, showPurchased);
 
-                if (shoppingList == null)
-                {
-                    return NotFound(ApiResponse.ErrorResponse("Shopping list not found"));
-                }
+            if (shoppingList == null)
+            {
+                return NotFound(ApiResponse.ErrorResponse("Shopping list not found"));
+            }
 
-                return Ok(ApiResponse<DetailedShoppingListInfo>.SuccessResponse(shoppingList));
-            }
-            catch (ShoppingListAccessDeniedException ex)
-            {
-                return Unauthorized(ApiResponse.ErrorResponse(ex.Message));
-            }
-            catch (UserNotFoundException ex)
-            {
-                return NotFound(ApiResponse.ErrorResponse(ex.Message));
-            }
-            catch (Exception ex)
-            {
-                Log.Error($"Error retrieving shopping list {publicId}: {ex.Message}");
-                return StatusCode(500, ApiResponse.ErrorResponse("An error occurred while retrieving the shopping list"));
-            }
+            return Ok(ApiResponse<DetailedShoppingListInfo>.SuccessResponse(shoppingList));
         }
 
         [HttpPost]
@@ -75,24 +46,8 @@ namespace Homassy.API.Controllers
                 return BadRequest(ApiResponse.ErrorResponse("Invalid request data"));
             }
 
-            try
-            {
-                var shoppingListInfo = await new ShoppingListFunctions().CreateShoppingListAsync(request);
-                return Ok(ApiResponse<ShoppingListInfo>.SuccessResponse(shoppingListInfo, "Shopping list created successfully"));
-            }
-            catch (BadRequestException ex)
-            {
-                return BadRequest(ApiResponse.ErrorResponse(ex.Message));
-            }
-            catch (UserNotFoundException ex)
-            {
-                return NotFound(ApiResponse.ErrorResponse(ex.Message));
-            }
-            catch (Exception ex)
-            {
-                Log.Error($"Error creating shopping list: {ex.Message}");
-                return StatusCode(500, ApiResponse.ErrorResponse("An error occurred while creating the shopping list"));
-            }
+            var shoppingListInfo = await new ShoppingListFunctions().CreateShoppingListAsync(request);
+            return Ok(ApiResponse<ShoppingListInfo>.SuccessResponse(shoppingListInfo, "Shopping list created successfully"));
         }
 
         [HttpPut("{publicId}")]
@@ -104,58 +59,18 @@ namespace Homassy.API.Controllers
                 return BadRequest(ApiResponse.ErrorResponse("Invalid request data"));
             }
 
-            try
-            {
-                var shoppingListInfo = await new ShoppingListFunctions().UpdateShoppingListAsync(publicId, request);
-                return Ok(ApiResponse<ShoppingListInfo>.SuccessResponse(shoppingListInfo, "Shopping list updated successfully"));
-            }
-            catch (ShoppingListNotFoundException ex)
-            {
-                return NotFound(ApiResponse.ErrorResponse(ex.Message));
-            }
-            catch (ShoppingListAccessDeniedException ex)
-            {
-                return Unauthorized(ApiResponse.ErrorResponse(ex.Message));
-            }
-            catch (UserNotFoundException ex)
-            {
-                return NotFound(ApiResponse.ErrorResponse(ex.Message));
-            }
-            catch (Exception ex)
-            {
-                Log.Error($"Error updating shopping list {publicId}: {ex.Message}");
-                return StatusCode(500, ApiResponse.ErrorResponse("An error occurred while updating the shopping list"));
-            }
+            var shoppingListInfo = await new ShoppingListFunctions().UpdateShoppingListAsync(publicId, request);
+            return Ok(ApiResponse<ShoppingListInfo>.SuccessResponse(shoppingListInfo, "Shopping list updated successfully"));
         }
 
         [HttpDelete("{publicId}")]
         [MapToApiVersion(1.0)]
         public async Task<IActionResult> DeleteShoppingList(Guid publicId)
         {
-            try
-            {
-                await new ShoppingListFunctions().DeleteShoppingListAsync(publicId);
+            await new ShoppingListFunctions().DeleteShoppingListAsync(publicId);
 
-                Log.Information($"Shopping list {publicId} deleted successfully");
-                return Ok(ApiResponse.SuccessResponse("Shopping list deleted successfully"));
-            }
-            catch (ShoppingListNotFoundException ex)
-            {
-                return NotFound(ApiResponse.ErrorResponse(ex.Message));
-            }
-            catch (ShoppingListAccessDeniedException ex)
-            {
-                return Unauthorized(ApiResponse.ErrorResponse(ex.Message));
-            }
-            catch (UserNotFoundException ex)
-            {
-                return NotFound(ApiResponse.ErrorResponse(ex.Message));
-            }
-            catch (Exception ex)
-            {
-                Log.Error($"Error deleting shopping list {publicId}: {ex.Message}");
-                return StatusCode(500, ApiResponse.ErrorResponse("An error occurred while deleting the shopping list"));
-            }
+            Log.Information("Shopping list {PublicId} deleted successfully", publicId);
+            return Ok(ApiResponse.SuccessResponse("Shopping list deleted successfully"));
         }
         #endregion
 
@@ -169,40 +84,8 @@ namespace Homassy.API.Controllers
                 return BadRequest(ApiResponse.ErrorResponse("Invalid request data"));
             }
 
-            try
-            {
-                var shoppingListItemInfo = await new ShoppingListFunctions().CreateShoppingListItemAsync(request);
-                return Ok(ApiResponse<ShoppingListItemInfo>.SuccessResponse(shoppingListItemInfo, "Shopping list item created successfully"));
-            }
-            catch (ShoppingListNotFoundException ex)
-            {
-                return NotFound(ApiResponse.ErrorResponse(ex.Message));
-            }
-            catch (ShoppingListAccessDeniedException ex)
-            {
-                return Unauthorized(ApiResponse.ErrorResponse(ex.Message));
-            }
-            catch (InvalidShoppingListItemException ex)
-            {
-                return BadRequest(ApiResponse.ErrorResponse(ex.Message));
-            }
-            catch (ProductNotFoundException ex)
-            {
-                return NotFound(ApiResponse.ErrorResponse(ex.Message));
-            }
-            catch (ShoppingLocationNotFoundException ex)
-            {
-                return NotFound(ApiResponse.ErrorResponse(ex.Message));
-            }
-            catch (UserNotFoundException ex)
-            {
-                return NotFound(ApiResponse.ErrorResponse(ex.Message));
-            }
-            catch (Exception ex)
-            {
-                Log.Error($"Error creating shopping list item: {ex.Message}");
-                return StatusCode(500, ApiResponse.ErrorResponse("An error occurred while creating the shopping list item"));
-            }
+            var shoppingListItemInfo = await new ShoppingListFunctions().CreateShoppingListItemAsync(request);
+            return Ok(ApiResponse<ShoppingListItemInfo>.SuccessResponse(shoppingListItemInfo, "Shopping list item created successfully"));
         }
 
         [HttpPut("item/{publicId}")]
@@ -214,74 +97,18 @@ namespace Homassy.API.Controllers
                 return BadRequest(ApiResponse.ErrorResponse("Invalid request data"));
             }
 
-            try
-            {
-                var shoppingListItemInfo = await new ShoppingListFunctions().UpdateShoppingListItemAsync(publicId, request);
-                return Ok(ApiResponse<ShoppingListItemInfo>.SuccessResponse(shoppingListItemInfo, "Shopping list item updated successfully"));
-            }
-            catch (ShoppingListItemNotFoundException ex)
-            {
-                return NotFound(ApiResponse.ErrorResponse(ex.Message));
-            }
-            catch (ShoppingListNotFoundException ex)
-            {
-                return NotFound(ApiResponse.ErrorResponse(ex.Message));
-            }
-            catch (ShoppingListAccessDeniedException ex)
-            {
-                return Unauthorized(ApiResponse.ErrorResponse(ex.Message));
-            }
-            catch (ProductNotFoundException ex)
-            {
-                return NotFound(ApiResponse.ErrorResponse(ex.Message));
-            }
-            catch (ShoppingLocationNotFoundException ex)
-            {
-                return NotFound(ApiResponse.ErrorResponse(ex.Message));
-            }
-            catch (UserNotFoundException ex)
-            {
-                return NotFound(ApiResponse.ErrorResponse(ex.Message));
-            }
-            catch (Exception ex)
-            {
-                Log.Error($"Error updating shopping list item {publicId}: {ex.Message}");
-                return StatusCode(500, ApiResponse.ErrorResponse("An error occurred while updating the shopping list item"));
-            }
+            var shoppingListItemInfo = await new ShoppingListFunctions().UpdateShoppingListItemAsync(publicId, request);
+            return Ok(ApiResponse<ShoppingListItemInfo>.SuccessResponse(shoppingListItemInfo, "Shopping list item updated successfully"));
         }
 
         [HttpDelete("item/{publicId}")]
         [MapToApiVersion(1.0)]
         public async Task<IActionResult> DeleteShoppingListItem(Guid publicId)
         {
-            try
-            {
-                await new ShoppingListFunctions().DeleteShoppingListItemAsync(publicId);
+            await new ShoppingListFunctions().DeleteShoppingListItemAsync(publicId);
 
-                Log.Information($"Shopping list item {publicId} deleted successfully");
-                return Ok(ApiResponse.SuccessResponse("Shopping list item deleted successfully"));
-            }
-            catch (ShoppingListItemNotFoundException ex)
-            {
-                return NotFound(ApiResponse.ErrorResponse(ex.Message));
-            }
-            catch (ShoppingListNotFoundException ex)
-            {
-                return NotFound(ApiResponse.ErrorResponse(ex.Message));
-            }
-            catch (ShoppingListAccessDeniedException ex)
-            {
-                return Unauthorized(ApiResponse.ErrorResponse(ex.Message));
-            }
-            catch (UserNotFoundException ex)
-            {
-                return NotFound(ApiResponse.ErrorResponse(ex.Message));
-            }
-            catch (Exception ex)
-            {
-                Log.Error($"Error deleting shopping list item {publicId}: {ex.Message}");
-                return StatusCode(500, ApiResponse.ErrorResponse("An error occurred while deleting the shopping list item"));
-            }
+            Log.Information("Shopping list item {PublicId} deleted successfully", publicId);
+            return Ok(ApiResponse.SuccessResponse("Shopping list item deleted successfully"));
         }
 
         [HttpPost("item/quick-purchase")]
@@ -293,44 +120,8 @@ namespace Homassy.API.Controllers
                 return BadRequest(ApiResponse.ErrorResponse("Invalid request data"));
             }
 
-            try
-            {
-                var shoppingListItem = await new ShoppingListFunctions().QuickPurchaseFromShoppingListItemAsync(request);
-                return Ok(ApiResponse<ShoppingListItemInfo>.SuccessResponse(shoppingListItem, "Shopping list item purchased and inventory item created successfully"));
-            }
-            catch (ShoppingListItemNotFoundException ex)
-            {
-                return NotFound(ApiResponse.ErrorResponse(ex.Message));
-            }
-            catch (InvalidShoppingListItemException ex)
-            {
-                return BadRequest(ApiResponse.ErrorResponse(ex.Message));
-            }
-            catch (ShoppingListNotFoundException ex)
-            {
-                return NotFound(ApiResponse.ErrorResponse(ex.Message));
-            }
-            catch (ShoppingListAccessDeniedException ex)
-            {
-                return Unauthorized(ApiResponse.ErrorResponse(ex.Message));
-            }
-            catch (ProductNotFoundException ex)
-            {
-                return NotFound(ApiResponse.ErrorResponse(ex.Message));
-            }
-            catch (StorageLocationNotFoundException ex)
-            {
-                return NotFound(ApiResponse.ErrorResponse(ex.Message));
-            }
-            catch (UserNotFoundException ex)
-            {
-                return NotFound(ApiResponse.ErrorResponse(ex.Message));
-            }
-            catch (Exception ex)
-            {
-                Log.Error($"Error quick purchasing shopping list item: {ex.Message}");
-                return StatusCode(500, ApiResponse.ErrorResponse("An error occurred while processing the purchase"));
-            }
+            var shoppingListItem = await new ShoppingListFunctions().QuickPurchaseFromShoppingListItemAsync(request);
+            return Ok(ApiResponse<ShoppingListItemInfo>.SuccessResponse(shoppingListItem, "Shopping list item purchased and inventory item created successfully"));
         }
 
         [HttpPost("item/multiple")]
@@ -342,44 +133,8 @@ namespace Homassy.API.Controllers
                 return BadRequest(ApiResponse.ErrorResponse("Invalid request data"));
             }
 
-            try
-            {
-                var items = await new ShoppingListFunctions().CreateMultipleShoppingListItemsAsync(request);
-                return Ok(ApiResponse<List<ShoppingListItemInfo>>.SuccessResponse(items, $"{items.Count} shopping list items created successfully"));
-            }
-            catch (ShoppingListNotFoundException ex)
-            {
-                return NotFound(ApiResponse.ErrorResponse(ex.Message));
-            }
-            catch (ShoppingListAccessDeniedException ex)
-            {
-                return Unauthorized(ApiResponse.ErrorResponse(ex.Message));
-            }
-            catch (InvalidShoppingListItemException ex)
-            {
-                return BadRequest(ApiResponse.ErrorResponse(ex.Message));
-            }
-            catch (ProductNotFoundException ex)
-            {
-                return NotFound(ApiResponse.ErrorResponse(ex.Message));
-            }
-            catch (ShoppingLocationNotFoundException ex)
-            {
-                return NotFound(ApiResponse.ErrorResponse(ex.Message));
-            }
-            catch (BadRequestException ex)
-            {
-                return BadRequest(ApiResponse.ErrorResponse(ex.Message));
-            }
-            catch (UserNotFoundException ex)
-            {
-                return NotFound(ApiResponse.ErrorResponse(ex.Message));
-            }
-            catch (Exception ex)
-            {
-                Log.Error($"Error creating multiple shopping list items: {ex.Message}");
-                return StatusCode(500, ApiResponse.ErrorResponse("An error occurred while creating the shopping list items"));
-            }
+            var items = await new ShoppingListFunctions().CreateMultipleShoppingListItemsAsync(request);
+            return Ok(ApiResponse<List<ShoppingListItemInfo>>.SuccessResponse(items, $"{items.Count} shopping list items created successfully"));
         }
 
         [HttpDelete("item/multiple")]
@@ -391,36 +146,8 @@ namespace Homassy.API.Controllers
                 return BadRequest(ApiResponse.ErrorResponse("Invalid request data"));
             }
 
-            try
-            {
-                await new ShoppingListFunctions().DeleteMultipleShoppingListItemsAsync(request);
-                return Ok(ApiResponse.SuccessResponse($"{request.ItemPublicIds.Count} shopping list items deleted successfully"));
-            }
-            catch (ShoppingListItemNotFoundException ex)
-            {
-                return NotFound(ApiResponse.ErrorResponse(ex.Message));
-            }
-            catch (ShoppingListNotFoundException ex)
-            {
-                return NotFound(ApiResponse.ErrorResponse(ex.Message));
-            }
-            catch (ShoppingListAccessDeniedException ex)
-            {
-                return Unauthorized(ApiResponse.ErrorResponse(ex.Message));
-            }
-            catch (BadRequestException ex)
-            {
-                return BadRequest(ApiResponse.ErrorResponse(ex.Message));
-            }
-            catch (UserNotFoundException ex)
-            {
-                return NotFound(ApiResponse.ErrorResponse(ex.Message));
-            }
-            catch (Exception ex)
-            {
-                Log.Error($"Error deleting multiple shopping list items: {ex.Message}");
-                return StatusCode(500, ApiResponse.ErrorResponse("An error occurred while deleting the shopping list items"));
-            }
+            await new ShoppingListFunctions().DeleteMultipleShoppingListItemsAsync(request);
+            return Ok(ApiResponse.SuccessResponse($"{request.ItemPublicIds.Count} shopping list items deleted successfully"));
         }
 
         [HttpPost("item/quick-purchase/multiple")]
@@ -432,48 +159,8 @@ namespace Homassy.API.Controllers
                 return BadRequest(ApiResponse.ErrorResponse("Invalid request data"));
             }
 
-            try
-            {
-                var items = await new ShoppingListFunctions().QuickPurchaseMultipleShoppingListItemsAsync(request);
-                return Ok(ApiResponse<List<ShoppingListItemInfo>>.SuccessResponse(items, $"{items.Count} shopping list items purchased successfully"));
-            }
-            catch (ShoppingListItemNotFoundException ex)
-            {
-                return NotFound(ApiResponse.ErrorResponse(ex.Message));
-            }
-            catch (InvalidShoppingListItemException ex)
-            {
-                return BadRequest(ApiResponse.ErrorResponse(ex.Message));
-            }
-            catch (ShoppingListNotFoundException ex)
-            {
-                return NotFound(ApiResponse.ErrorResponse(ex.Message));
-            }
-            catch (ShoppingListAccessDeniedException ex)
-            {
-                return Unauthorized(ApiResponse.ErrorResponse(ex.Message));
-            }
-            catch (ProductNotFoundException ex)
-            {
-                return NotFound(ApiResponse.ErrorResponse(ex.Message));
-            }
-            catch (StorageLocationNotFoundException ex)
-            {
-                return NotFound(ApiResponse.ErrorResponse(ex.Message));
-            }
-            catch (BadRequestException ex)
-            {
-                return BadRequest(ApiResponse.ErrorResponse(ex.Message));
-            }
-            catch (UserNotFoundException ex)
-            {
-                return NotFound(ApiResponse.ErrorResponse(ex.Message));
-            }
-            catch (Exception ex)
-            {
-                Log.Error($"Error quick purchasing multiple shopping list items: {ex.Message}");
-                return StatusCode(500, ApiResponse.ErrorResponse("An error occurred while processing the purchases"));
-            }
+            var items = await new ShoppingListFunctions().QuickPurchaseMultipleShoppingListItemsAsync(request);
+            return Ok(ApiResponse<List<ShoppingListItemInfo>>.SuccessResponse(items, $"{items.Count} shopping list items purchased successfully"));
         }
         #endregion
     }

@@ -139,6 +139,9 @@ try
         await next();
     });
 
+    // Global exception handler (should be early in the pipeline to catch all exceptions)
+    app.UseMiddleware<GlobalExceptionMiddleware>();
+
     if (app.Environment.IsDevelopment())
     {
         app.MapOpenApi();

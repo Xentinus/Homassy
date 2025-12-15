@@ -4,7 +4,6 @@ using Homassy.API.Models.OpenFoodFacts;
 using Homassy.API.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using Serilog;
 
 namespace Homassy.API.Controllers;
 
@@ -30,21 +29,13 @@ public class OpenFoodFactsController : ControllerBase
             return BadRequest(ApiResponse.ErrorResponse("Barcode is required"));
         }
 
-        try
-        {
-            var result = await _openFoodFactsService.GetProductByBarcodeAsync(barcode);
+        var result = await _openFoodFactsService.GetProductByBarcodeAsync(barcode);
 
-            if (result == null || result.Status != 1 || result.Product == null)
-            {
-                return NotFound(ApiResponse.ErrorResponse("Product not found in Open Food Facts database"));
-            }
-
-            return Ok(ApiResponse<OpenFoodFactsProduct>.SuccessResponse(result.Product));
-        }
-        catch (Exception ex)
+        if (result == null || result.Status != 1 || result.Product == null)
         {
-            Log.Error($"Error retrieving product from Open Food Facts for barcode {barcode}: {ex.Message}");
-            return StatusCode(500, ApiResponse.ErrorResponse("An error occurred while retrieving product from Open Food Facts"));
+            return NotFound(ApiResponse.ErrorResponse("Product not found in Open Food Facts database"));
         }
+
+        return Ok(ApiResponse<OpenFoodFactsProduct>.SuccessResponse(result.Product));
     }
 }

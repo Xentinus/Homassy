@@ -229,7 +229,7 @@ namespace Homassy.API.Functions
             var user = new UserFunctions().GetUserById(userId.Value);
             if (user == null || !user.FamilyId.HasValue)
             {
-                throw new FamilyNotFoundException("You are not a member of any family");
+                throw new InvalidOperationException("You are not a member of any family");
             }
 
             var family = GetFamilyById(user.FamilyId.Value);
