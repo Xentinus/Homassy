@@ -4,11 +4,13 @@ using Homassy.API.Enums;
 using Homassy.API.Exceptions;
 using Homassy.API.Extensions;
 using Homassy.API.Models.Auth;
+using Homassy.API.Models.Background;
 using Homassy.API.Models.Common;
 using Homassy.API.Models.Family;
 using Homassy.API.Models.User;
 using Homassy.API.Security;
 using Homassy.API.Services;
+using Homassy.API.Services.Background;
 using Microsoft.EntityFrameworkCore;
 using Serilog;
 using System.Collections.Concurrent;
@@ -22,7 +24,14 @@ namespace Homassy.API.Functions
         private static readonly ConcurrentDictionary<int, UserAuthentication> _userAuthCache = new();
         private static readonly ConcurrentDictionary<int, UserNotificationPreferences> _userNotificationPrefsCache = new();
 
+        private static IEmailQueueService? _emailQueueService;
+
         public static bool Inited = false;
+
+        public static void SetEmailQueueService(IEmailQueueService emailQueueService)
+        {
+            _emailQueueService = emailQueueService;
+        }
 
         #region Cache Management
         public async Task InitializeCacheAsync(CancellationToken cancellationToken = default)
@@ -831,7 +840,7 @@ namespace Homassy.API.Functions
             var profile = GetUserProfileByUserId(user.Id);
             var timezone = profile?.DefaultTimeZone ?? UserTimeZone.CentralEuropeStandardTime;
 
-            await EmailService.SendRegistrationEmailAsync(user.Email, user.Name, code, timezone);
+            await SendEmailAsync(new EmailTask(user.Email, code, timezone, EmailType.Registration));
 
             Log.Information($"New user registered: {normalizedEmail}, registration email with verification code sent");
         }
@@ -991,7 +1000,7 @@ namespace Homassy.API.Functions
             var profile = user.Profile ?? GetUserProfileByUserId(user.Id);
             var timezone = profile?.DefaultTimeZone ?? UserTimeZone.CentralEuropeStandardTime;
 
-            await EmailService.SendVerificationCodeAsync(user.Email, code, timezone);
+            await SendEmailAsync(new EmailTask(user.Email, code, timezone, EmailType.Verification));
         }
 
         public async Task<AuthResponse> VerifyCodeAsync(string email, string code, CancellationToken cancellationToken = default)
@@ -1541,6 +1550,32 @@ namespace Homassy.API.Functions
             };
 
             return userInfo;
+        }
+        #endregion
+
+        #region Email Helpers
+        private static async Task SendEmailAsync(EmailTask task)
+        {
+            var queued = false;
+
+            if (_emailQueueService != null)
+            {
+                queued = await _emailQueueService.TryQueueEmailAsync(task);
+            }
+
+            if (!queued)
+            {
+                Log.Debug($"Sending email synchronously to {task.Email} (queue unavailable or full)");
+                switch (task.Type)
+                {
+                    case EmailType.Verification:
+                        await EmailService.SendVerificationCodeAsync(task.Email, task.Code, task.TimeZone);
+                        break;
+                    case EmailType.Registration:
+                        await EmailService.SendRegistrationEmailAsync(task.Email, task.Email, task.Code, task.TimeZone);
+                        break;
+                }
+            }
         }
         #endregion
     }

@@ -381,6 +381,37 @@ public class GlobalExceptionMiddlewareTests
     }
     #endregion
 
+    #region Timeout Exception Tests
+    [Fact]
+    public async Task InvokeAsync_WhenRequestTimeoutException_Returns504()
+    {
+        var middleware = CreateMiddleware(_ => throw new RequestTimeoutException("Request timed out"));
+        var context = CreateHttpContext();
+
+        // Act
+        await middleware.InvokeAsync(context);
+
+        // Assert
+        Assert.Equal(StatusCodes.Status504GatewayTimeout, context.Response.StatusCode);
+    }
+
+    [Fact]
+    public async Task InvokeAsync_WhenRequestTimeoutException_ReturnsExceptionMessage()
+    {
+        var middleware = CreateMiddleware(_ => throw new RequestTimeoutException("Request timed out after 30 seconds"));
+        var context = CreateHttpContext();
+
+        // Act
+        await middleware.InvokeAsync(context);
+        var response = await GetResponseAsync(context);
+
+        // Assert
+        Assert.NotNull(response);
+        Assert.False(response.Success);
+        Assert.Contains("Request timed out after 30 seconds", response.Errors?.FirstOrDefault());
+    }
+    #endregion
+
     #region Unknown Exception Tests
     [Fact]
     public async Task InvokeAsync_WhenUnknownException_Returns500()

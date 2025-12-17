@@ -79,6 +79,9 @@ namespace Homassy.API.Middleware
                 ShoppingListAccessDeniedException => (StatusCodes.Status403Forbidden, exception.Message),
                 InvalidShoppingListItemException => (StatusCodes.Status400BadRequest, exception.Message),
 
+                // Timeout exceptions
+                RequestTimeoutException => (StatusCodes.Status504GatewayTimeout, exception.Message),
+
                 // Standard exceptions
                 ArgumentNullException => (StatusCodes.Status400BadRequest, "Required parameter is missing"),
                 ArgumentException => (StatusCodes.Status400BadRequest, exception.Message),

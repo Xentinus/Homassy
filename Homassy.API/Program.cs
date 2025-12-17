@@ -1,9 +1,11 @@
 ﻿using Homassy.API.Context;
 using Homassy.API.Extensions;
+using Homassy.API.Functions;
 using Homassy.API.Infrastructure;
 using Homassy.API.Middleware;
 using Homassy.API.Models.ApplicationSettings;
 using Homassy.API.Services;
+using Homassy.API.Services.Background;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.OpenApi;
 using Microsoft.AspNetCore.ResponseCompression;
@@ -56,7 +58,13 @@ try
     builder.Services.AddHostedService<CacheManagementService>();
     builder.Services.AddHostedService<RateLimitCleanupService>();
 
+    builder.Services.AddSingleton<EmailQueueService>();
+    builder.Services.AddSingleton<IEmailQueueService>(sp => sp.GetRequiredService<EmailQueueService>());
+    builder.Services.AddHostedService<EmailBackgroundService>();
+    builder.Services.AddHostedService<TokenCleanupService>();
+
     builder.Services.Configure<HttpsSettings>(builder.Configuration.GetSection("Https"));
+    builder.Services.Configure<RequestTimeoutSettings>(builder.Configuration.GetSection("RequestTimeout"));
     var httpsSettings = builder.Configuration.GetSection("Https").Get<HttpsSettings>() ?? new HttpsSettings();
 
     if (httpsSettings.Enabled && httpsSettings.Hsts.Enabled)
@@ -198,6 +206,9 @@ try
 
     var app = builder.Build();
 
+    var emailQueueService = app.Services.GetRequiredService<IEmailQueueService>();
+    UserFunctions.SetEmailQueueService(emailQueueService);
+
     using (var scope = app.Services.CreateScope())
     {
         var dbContext = scope.ServiceProvider.GetRequiredService<HomassyDbContext>();
@@ -226,6 +237,7 @@ try
     });
 
     app.UseMiddleware<CorrelationIdMiddleware>();
+    app.UseMiddleware<RequestTimeoutMiddleware>();
     app.UseRequestLogging(builder.Configuration);
     app.UseMiddleware<GlobalExceptionMiddleware>();
 
