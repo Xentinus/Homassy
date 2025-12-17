@@ -35,6 +35,52 @@ namespace Homassy.API.Services
             return false;
         }
 
+        public static RateLimitStatus GetRateLimitStatus(string key, int maxAttempts, TimeSpan window)
+        {
+            var now = DateTime.UtcNow;
+            
+            if (_attempts.TryGetValue(key, out var info))
+            {
+                var elapsed = now - info.FirstAttempt;
+                
+                if (elapsed > window)
+                {
+                    return new RateLimitStatus
+                    {
+                        Limit = maxAttempts,
+                        Remaining = maxAttempts,
+                        ResetTimestamp = new DateTimeOffset(now.Add(window)).ToUnixTimeSeconds()
+                    };
+                }
+
+                var remaining = Math.Max(0, maxAttempts - info.Attempts);
+                var resetTime = info.FirstAttempt.Add(window);
+                var resetTimestamp = new DateTimeOffset(resetTime, TimeSpan.Zero).ToUnixTimeSeconds();
+
+                var status = new RateLimitStatus
+                {
+                    Limit = maxAttempts,
+                    Remaining = remaining,
+                    ResetTimestamp = resetTimestamp
+                };
+
+                if (remaining == 0)
+                {
+                    var retryAfter = (int)Math.Ceiling((resetTime - now).TotalSeconds);
+                    status.RetryAfterSeconds = Math.Max(1, retryAfter);
+                }
+
+                return status;
+            }
+
+            return new RateLimitStatus
+            {
+                Limit = maxAttempts,
+                Remaining = maxAttempts,
+                ResetTimestamp = new DateTimeOffset(now.Add(window)).ToUnixTimeSeconds()
+            };
+        }
+
         public static void ResetAttempts(string key)
         {
             _attempts.TryRemove(key, out _);
