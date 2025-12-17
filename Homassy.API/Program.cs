@@ -1,9 +1,11 @@
 ﻿using Homassy.API.Context;
 using Homassy.API.Extensions;
 using Homassy.API.Functions;
+using Homassy.API.HealthChecks;
 using Homassy.API.Infrastructure;
 using Homassy.API.Middleware;
 using Homassy.API.Models.ApplicationSettings;
+using Homassy.API.Models.HealthCheck;
 using Homassy.API.Services;
 using Homassy.API.Services.Background;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
@@ -65,6 +67,7 @@ try
 
     builder.Services.Configure<HttpsSettings>(builder.Configuration.GetSection("Https"));
     builder.Services.Configure<RequestTimeoutSettings>(builder.Configuration.GetSection("RequestTimeout"));
+    builder.Services.Configure<HealthCheckOptions>(builder.Configuration.GetSection("HealthChecks"));
     var httpsSettings = builder.Configuration.GetSection("Https").Get<HttpsSettings>() ?? new HttpsSettings();
 
     if (httpsSettings.Enabled && httpsSettings.Hsts.Enabled)
@@ -203,6 +206,20 @@ try
     {
         options.Level = CompressionLevel.Optimal;
     });
+
+    builder.Services.AddHttpClient("OpenFoodFactsHealthCheck");
+
+    builder.Services.AddHealthChecks()
+        .AddNpgSql(
+            builder.Configuration.GetConnectionString("DefaultConnection")!,
+            name: "database",
+            tags: ["db", "ready"])
+        .AddCheck<OpenFoodFactsHealthCheck>(
+            "openfoodfacts",
+            tags: ["external"])
+        .AddCheck<EmailServiceHealthCheck>(
+            "email",
+            tags: ["external"]);
 
     var app = builder.Build();
 

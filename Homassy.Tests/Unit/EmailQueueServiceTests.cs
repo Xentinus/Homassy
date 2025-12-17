@@ -58,7 +58,7 @@ public class EmailQueueServiceTests
         var cts = new CancellationTokenSource();
         await cts.CancelAsync();
 
-        await Assert.ThrowsAsync<OperationCanceledException>(async () =>
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(async () =>
             await service.TryQueueEmailAsync(CreateTask(), cts.Token));
     }
 

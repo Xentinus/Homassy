@@ -11,7 +11,7 @@
       "name": "MIT License",
       "url": "https://github.com/Xentinus/Homassy/blob/master/LICENSE"
     },
-    "version": "25.1217.1842-dev"
+    "version": "25.1217.2224-dev"
   },
   "paths": {
     "/api/v1/Auth/request-code": {
@@ -813,6 +813,136 @@
               "text/json": {
                 "schema": {
                   "$ref": "#/components/schemas/ApiResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/Health": {
+      "get": {
+        "tags": [
+          "Health"
+        ],
+        "summary": "Basic health check endpoint. Returns overall application status.",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponseOfHealthCheckResponse"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponseOfHealthCheckResponse"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponseOfHealthCheckResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Service Unavailable",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponseOfHealthCheckResponse"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponseOfHealthCheckResponse"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponseOfHealthCheckResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/Health/ready": {
+      "get": {
+        "tags": [
+          "Health"
+        ],
+        "summary": "Readiness probe endpoint. Checks if application is ready to receive traffic (database).",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponseOfHealthCheckResponse"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponseOfHealthCheckResponse"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponseOfHealthCheckResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Service Unavailable",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponseOfHealthCheckResponse"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponseOfHealthCheckResponse"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponseOfHealthCheckResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/Health/live": {
+      "get": {
+        "tags": [
+          "Health"
+        ],
+        "summary": "Liveness probe endpoint. Simple check to verify the application process is running.",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponseOfHealthCheckResponse"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponseOfHealthCheckResponse"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponseOfHealthCheckResponse"
                 }
               }
             }
@@ -4171,6 +4301,43 @@
           }
         }
       },
+      "ApiResponseOfHealthCheckResponse": {
+        "type": "object",
+        "properties": {
+          "success": {
+            "type": "boolean"
+          },
+          "data": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/HealthCheckResponse"
+              }
+            ]
+          },
+          "message": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "errors": {
+            "type": [
+              "null",
+              "array"
+            ],
+            "items": {
+              "type": "string"
+            }
+          },
+          "timestamp": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
       "ApiResponseOfInventoryItemInfo": {
         "type": "object",
         "properties": {
@@ -5473,6 +5640,33 @@
           }
         }
       },
+      "DependencyHealth": {
+        "required": [
+          "status",
+          "duration"
+        ],
+        "type": "object",
+        "properties": {
+          "status": {
+            "type": "string"
+          },
+          "duration": {
+            "type": "string"
+          },
+          "description": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "data": {
+            "type": [
+              "null",
+              "object"
+            ]
+          }
+        }
+      },
       "DetailedProductInfo": {
         "type": "object",
         "properties": {
@@ -5582,6 +5776,28 @@
           },
           "shareCode": {
             "type": "string"
+          }
+        }
+      },
+      "HealthCheckResponse": {
+        "required": [
+          "status",
+          "duration",
+          "dependencies"
+        ],
+        "type": "object",
+        "properties": {
+          "status": {
+            "type": "string"
+          },
+          "duration": {
+            "type": "string"
+          },
+          "dependencies": {
+            "type": "object",
+            "additionalProperties": {
+              "$ref": "#/components/schemas/DependencyHealth"
+            }
           }
         }
       },
@@ -7050,6 +7266,9 @@
     },
     {
       "name": "Family"
+    },
+    {
+      "name": "Health"
     },
     {
       "name": "Location"
