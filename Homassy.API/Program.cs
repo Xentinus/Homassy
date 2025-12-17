@@ -2,6 +2,7 @@
 using Homassy.API.Extensions;
 using Homassy.API.Infrastructure;
 using Homassy.API.Middleware;
+using Homassy.API.Models.ApplicationSettings;
 using Homassy.API.Services;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.OpenApi;
@@ -54,6 +55,27 @@ try
 
     builder.Services.AddHostedService<CacheManagementService>();
     builder.Services.AddHostedService<RateLimitCleanupService>();
+
+    builder.Services.Configure<HttpsSettings>(builder.Configuration.GetSection("Https"));
+    var httpsSettings = builder.Configuration.GetSection("Https").Get<HttpsSettings>() ?? new HttpsSettings();
+
+    if (httpsSettings.Enabled && httpsSettings.Hsts.Enabled)
+    {
+        builder.Services.AddHsts(options =>
+        {
+            options.MaxAge = TimeSpan.FromDays(httpsSettings.Hsts.MaxAgeDays);
+            options.IncludeSubDomains = httpsSettings.Hsts.IncludeSubDomains;
+            options.Preload = httpsSettings.Hsts.Preload;
+        });
+    }
+
+    if (httpsSettings.Enabled && httpsSettings.HttpsPort.HasValue)
+    {
+        builder.Services.AddHttpsRedirection(options =>
+        {
+            options.HttpsPort = httpsSettings.HttpsPort.Value;
+        });
+    }
 
     var version = Assembly.GetExecutingAssembly()
         .GetCustomAttribute<AssemblyInformationalVersionAttribute>()?.InformationalVersion
@@ -196,7 +218,6 @@ try
         context.Response.Headers.Append("X-Frame-Options", "DENY");
         context.Response.Headers.Append("X-XSS-Protection", "1; mode=block");
         context.Response.Headers.Append("Referrer-Policy", "strict-origin-when-cross-origin");
-        context.Response.Headers.Append("Strict-Transport-Security", "max-age=31536000; includeSubDomains");
         context.Response.Headers.Append("Content-Security-Policy", "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self'; connect-src 'self'; frame-ancestors 'none'");
         context.Response.Headers.Remove("Server");
         context.Response.Headers.Remove("X-Powered-By");
@@ -213,7 +234,16 @@ try
         app.MapOpenApi();
     }
 
-    app.UseHttpsRedirection();
+    if (httpsSettings.Enabled && httpsSettings.Hsts.Enabled && !app.Environment.IsDevelopment())
+    {
+        app.UseHsts();
+    }
+
+    if (httpsSettings.Enabled)
+    {
+        app.UseHttpsRedirection();
+    }
+
     app.UseCors("HomassyPolicy");
     app.UseMiddleware<RateLimitingMiddleware>();
     app.UseAuthorization();
