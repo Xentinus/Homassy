@@ -814,3 +814,4 @@ $RECYCLE.BIN/
 
 # End of https://www.toptal.com/developers/gitignore/api/visualstudio,visualstudiocode,csharp,vue,vuejs,macos,linux,windows,aspnetcore,dotnetcore
 appsettings.json
+/Tasks
