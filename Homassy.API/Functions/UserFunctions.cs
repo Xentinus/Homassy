@@ -12,7 +12,6 @@ using Homassy.API.Services;
 using Microsoft.EntityFrameworkCore;
 using Serilog;
 using System.Collections.Concurrent;
-using static Org.BouncyCastle.Crypto.Engines.SM2Engine;
 
 namespace Homassy.API.Functions
 {
@@ -1031,6 +1030,7 @@ namespace Homassy.API.Functions
 
             var accessToken = JwtService.GenerateAccessToken(user);
             var refreshToken = JwtService.GenerateRefreshToken();
+            var tokenFamily = JwtService.GenerateTokenFamily();
             var accessTokenExpiry = JwtService.GetAccessTokenExpiration();
             var refreshTokenExpiry = JwtService.GetRefreshTokenExpiration();
 
@@ -1057,6 +1057,9 @@ namespace Homassy.API.Functions
                 userAuth.AccessTokenExpiry = accessTokenExpiry;
                 userAuth.RefreshToken = refreshToken;
                 userAuth.RefreshTokenExpiry = refreshTokenExpiry;
+                userAuth.TokenFamily = tokenFamily;
+                userAuth.PreviousRefreshToken = null;
+                userAuth.PreviousRefreshTokenExpiry = null;
                 userAuth.VerificationCode = null;
                 userAuth.VerificationCodeExpiry = null;
                 userEntity.LastLoginAt = DateTime.UtcNow;
@@ -1071,7 +1074,7 @@ namespace Homassy.API.Functions
                 throw;
             }
 
-            Log.Information($"User {normalizedEmail} successfully authenticated");
+            Log.Information($"User {normalizedEmail} successfully authenticated with new token family");
 
             var profile = user.Profile ?? GetUserProfileByUserId(user.Id);
 
@@ -1119,13 +1122,27 @@ namespace Homassy.API.Functions
 
             var auth = user.Authentication;
 
-            if (!SecureCompare.ConstantTimeEquals(auth.RefreshToken, currentRefreshToken))
+            var isCurrentToken = SecureCompare.ConstantTimeEquals(auth.RefreshToken, currentRefreshToken);
+            
+            var isPreviousToken = !string.IsNullOrEmpty(auth.PreviousRefreshToken) &&
+                                  SecureCompare.ConstantTimeEquals(auth.PreviousRefreshToken, currentRefreshToken) &&
+                                  auth.PreviousRefreshTokenExpiry != null &&
+                                  auth.PreviousRefreshTokenExpiry > DateTime.UtcNow;
+
+            if (!isCurrentToken && !isPreviousToken)
             {
+                if (auth.TokenFamily.HasValue)
+                {
+                    Log.Warning($"Potential token theft detected for user {userId}. Token reuse attempted. Invalidating all tokens.");
+                    await InvalidateAllUserTokensAsync(userId.Value, cancellationToken);
+                    throw new InvalidCredentialsException("Invalid refresh token. All sessions invalidated for security.");
+                }
+
                 Log.Warning($"Invalid refresh token for user {userId}");
                 throw new InvalidCredentialsException("Invalid refresh token");
             }
 
-            if (auth.RefreshTokenExpiry == null || auth.RefreshTokenExpiry < DateTime.UtcNow)
+            if (isCurrentToken && (auth.RefreshTokenExpiry == null || auth.RefreshTokenExpiry < DateTime.UtcNow))
             {
                 Log.Warning($"Expired refresh token for user {userId}");
                 throw new ExpiredCredentialsException("Expired refresh token");
@@ -1135,6 +1152,7 @@ namespace Homassy.API.Functions
             var newRefreshToken = JwtService.GenerateRefreshToken();
             var accessTokenExpiry = JwtService.GetAccessTokenExpiration();
             var refreshTokenExpiry = JwtService.GetRefreshTokenExpiration();
+            var previousTokenGracePeriod = JwtService.GetPreviousRefreshTokenGracePeriod();
 
             var context = new HomassyDbContext();
             await using var transaction = await context.Database.BeginTransactionAsync(cancellationToken);
@@ -1148,10 +1166,21 @@ namespace Homassy.API.Functions
                     throw new UserNotFoundException("User authentication data not found");
                 }
 
+                if (isCurrentToken)
+                {
+                    userAuth.PreviousRefreshToken = auth.RefreshToken;
+                    userAuth.PreviousRefreshTokenExpiry = previousTokenGracePeriod;
+                }
+
                 userAuth.AccessToken = newAccessToken;
                 userAuth.AccessTokenExpiry = accessTokenExpiry;
                 userAuth.RefreshToken = newRefreshToken;
                 userAuth.RefreshTokenExpiry = refreshTokenExpiry;
+
+                if (userAuth.TokenFamily == null)
+                {
+                    userAuth.TokenFamily = JwtService.GenerateTokenFamily();
+                }
 
                 await context.SaveChangesAsync(cancellationToken);
                 await transaction.CommitAsync(cancellationToken);
@@ -1163,7 +1192,7 @@ namespace Homassy.API.Functions
                 throw;
             }
 
-            Log.Information($"Token refreshed for user {userId}");
+            Log.Information($"Token rotated for user {userId}");
 
             var refreshResponse = new RefreshTokenResponse
             {
@@ -1176,81 +1205,36 @@ namespace Homassy.API.Functions
             return refreshResponse;
         }
 
-        public async Task LogoutAsync(CancellationToken cancellationToken = default)
+        private async Task InvalidateAllUserTokensAsync(int userId, CancellationToken cancellationToken = default)
         {
-            var userId = SessionInfo.GetUserId();
-            if (!userId.HasValue)
-            {
-                Log.Warning("Invalid session: User ID not found");
-                throw new UserNotFoundException("User not found");
-            }
-
             var context = new HomassyDbContext();
             await using var transaction = await context.Database.BeginTransactionAsync(cancellationToken);
             try
             {
                 var userAuth = await context.Set<UserAuthentication>().FirstOrDefaultAsync(a => a.UserId == userId, cancellationToken);
 
-                if (userAuth == null)
+                if (userAuth != null)
                 {
-                    Log.Warning($"UserAuthentication not found for user {userId}");
-                    throw new UserNotFoundException("User authentication data not found");
+                    userAuth.AccessToken = null;
+                    userAuth.AccessTokenExpiry = null;
+                    userAuth.RefreshToken = null;
+                    userAuth.RefreshTokenExpiry = null;
+                    userAuth.PreviousRefreshToken = null;
+                    userAuth.PreviousRefreshTokenExpiry = null;
+                    userAuth.TokenFamily = null;
+
+                    await context.SaveChangesAsync(cancellationToken);
+                    await transaction.CommitAsync(cancellationToken);
+
+                    Log.Warning($"All tokens invalidated for user {userId} due to potential token theft");
                 }
-
-                userAuth.AccessToken = null;
-                userAuth.AccessTokenExpiry = null;
-                userAuth.RefreshToken = null;
-                userAuth.RefreshTokenExpiry = null;
-
-                await context.SaveChangesAsync(cancellationToken);
-                await transaction.CommitAsync(cancellationToken);
             }
             catch (Exception ex)
             {
                 await transaction.RollbackAsync(cancellationToken);
-                Log.Error($"Error during logout for user {userId}: {ex.Message}");
+                Log.Error($"Error invalidating tokens for user {userId}: {ex.Message}");
                 throw;
             }
-
-            Log.Information($"User {userId} logged out");
-        }
-
-        public UserInfo GetCurrentUserAsync()
-        {
-            var userId = SessionInfo.GetUserId();
-            if (!userId.HasValue)
-            {
-                Log.Warning("Invalid session: User ID not found");
-                throw new UserNotFoundException("User not found");
-            }
-
-            var user = GetAllUserDataById(userId);
-
-            if (user == null)
-            {
-                Log.Warning($"User not found for userId {userId}");
-                throw new UserNotFoundException("User not found");
-            }
-
-            var profile = user.Profile;
-
-            if (profile == null)
-            {
-                Log.Warning($"User profile not found for userId {userId}");
-                throw new UserNotFoundException("User profile not found");
-            }
-
-            var userInfo = new UserInfo
-            {
-                Name = user.Name,
-                DisplayName = profile.DisplayName,
-                ProfilePictureBase64 = profile.ProfilePictureBase64,
-                TimeZone = profile.DefaultTimeZone.ToTimeZoneId(),
-                Language = profile.DefaultLanguage.ToLanguageCode(),
-                Currency = profile.DefaultCurrency.ToCurrencyCode()
-            };
-
-            return userInfo;
         }
         #endregion
 
@@ -1475,6 +1459,88 @@ namespace Homassy.API.Functions
                 Log.Error($"Error deleting profile picture for user {userId}: {ex.Message}");
                 throw;
             }
+        }
+        #endregion
+
+        #region Logout
+        public async Task LogoutAsync(CancellationToken cancellationToken = default)
+        {
+            var userId = SessionInfo.GetUserId();
+            if (!userId.HasValue)
+            {
+                Log.Warning("Invalid session: User ID not found");
+                throw new UserNotFoundException("User not found");
+            }
+
+            var context = new HomassyDbContext();
+            await using var transaction = await context.Database.BeginTransactionAsync(cancellationToken);
+            try
+            {
+                var userAuth = await context.Set<UserAuthentication>().FirstOrDefaultAsync(a => a.UserId == userId, cancellationToken);
+
+                if (userAuth == null)
+                {
+                    Log.Warning($"UserAuthentication not found for user {userId}");
+                    throw new UserNotFoundException("User authentication data not found");
+                }
+
+                userAuth.AccessToken = null;
+                userAuth.AccessTokenExpiry = null;
+                userAuth.RefreshToken = null;
+                userAuth.RefreshTokenExpiry = null;
+                userAuth.TokenFamily = null;
+                userAuth.PreviousRefreshToken = null;
+                userAuth.PreviousRefreshTokenExpiry = null;
+
+                await context.SaveChangesAsync(cancellationToken);
+                await transaction.CommitAsync(cancellationToken);
+            }
+            catch (Exception ex)
+            {
+                await transaction.RollbackAsync(cancellationToken);
+                Log.Error($"Error during logout for user {userId}: {ex.Message}");
+                throw;
+            }
+
+            Log.Information($"User {userId} logged out");
+        }
+
+        public UserInfo GetCurrentUser()
+        {
+            var userId = SessionInfo.GetUserId();
+            if (!userId.HasValue)
+            {
+                Log.Warning("Invalid session: User ID not found");
+                throw new UserNotFoundException("User not found");
+            }
+
+            var user = GetAllUserDataById(userId);
+
+            if (user == null)
+            {
+                Log.Warning($"User not found for userId {userId}");
+                throw new UserNotFoundException("User not found");
+            }
+
+            var profile = user.Profile;
+
+            if (profile == null)
+            {
+                Log.Warning($"User profile not found for userId {userId}");
+                throw new UserNotFoundException("User profile not found");
+            }
+
+            var userInfo = new UserInfo
+            {
+                Name = user.Name,
+                DisplayName = profile.DisplayName,
+                ProfilePictureBase64 = profile.ProfilePictureBase64,
+                TimeZone = profile.DefaultTimeZone.ToTimeZoneId(),
+                Language = profile.DefaultLanguage.ToLanguageCode(),
+                Currency = profile.DefaultCurrency.ToCurrencyCode()
+            };
+
+            return userInfo;
         }
         #endregion
     }

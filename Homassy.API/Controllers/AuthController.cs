@@ -128,7 +128,7 @@ namespace Homassy.API.Controllers
         [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status401Unauthorized)]
         public IActionResult GetCurrentUser()
         {
-            var userInfo = new UserFunctions().GetCurrentUserAsync();
+            var userInfo = new UserFunctions().GetCurrentUser();
             return Ok(ApiResponse<UserInfo>.SuccessResponse(userInfo));
         }
 

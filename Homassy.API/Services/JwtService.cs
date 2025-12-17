@@ -52,6 +52,11 @@ namespace Homassy.API.Services
             return Convert.ToBase64String(randomNumber);
         }
 
+        public static Guid GenerateTokenFamily()
+        {
+            return Guid.NewGuid();
+        }
+
         public static DateTime GetAccessTokenExpiration()
         {
             return DateTime.UtcNow.AddMinutes(int.Parse(_configuration!["Jwt:AccessTokenExpirationMinutes"]!));
@@ -60,6 +65,12 @@ namespace Homassy.API.Services
         public static DateTime GetRefreshTokenExpiration()
         {
             return DateTime.UtcNow.AddDays(int.Parse(_configuration!["Jwt:RefreshTokenExpirationDays"]!));
+        }
+
+        public static DateTime GetPreviousRefreshTokenGracePeriod()
+        {
+            var gracePeriodSeconds = int.Parse(_configuration!["Jwt:RefreshTokenGracePeriodSeconds"] ?? "30");
+            return DateTime.UtcNow.AddSeconds(gracePeriodSeconds);
         }
 
         public static ClaimsPrincipal? GetPrincipalFromExpiredToken(string token)
