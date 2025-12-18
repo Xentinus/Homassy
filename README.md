@@ -15,9 +15,15 @@ Homassy is a modern full-stack system designed to simplify household inventory m
 **Backend (Current Focus):**
 - **.NET 10.0** Web API with modern C# patterns
 - **PostgreSQL** database with Entity Framework Core
-- **JWT-based authentication** with passwordless email verification
+- **JWT-based authentication** with passwordless email verification and token rotation
 - **In-memory caching** with database trigger-based invalidation
 - **Controller → Functions** pattern (no traditional repository layer)
+- **Production-ready middleware** - Exception handling, CORS, compression, logging
+- **Response compression** - Brotli and Gzip for optimized bandwidth
+- **Request correlation** - X-Correlation-ID tracking across all requests
+- **Background services** - Email queue, token cleanup with automated maintenance
+- **Health monitoring** - Endpoint health checks with dependency monitoring
+- **Full async cancellation** - CancellationToken support across all operations
 
 **Frontend (Planned):**
 - **Vue.js 3** with Nuxt framework
@@ -26,10 +32,14 @@ Homassy is a modern full-stack system designed to simplify household inventory m
 
 ### 🔐 Security
 - 🔑 Passwordless authentication (6-digit email codes)
-- 🎫 JWT access and refresh tokens
-- 🚦 Two-tier rate limiting (global + endpoint-specific)
+- 🎫 JWT access and refresh tokens with rotation and theft detection
+- 🔄 Refresh token rotation with grace period for improved security
+- 🚦 Two-tier rate limiting (global + endpoint-specific) with standard headers
 - 🛡️ Comprehensive security headers (CSP, HSTS, X-Frame-Options, etc.)
+- 🌐 CORS support with configurable allowed origins
 - ⏱️ Timing attack protection with constant-time comparisons
+- ⏳ Request timeout protection with per-endpoint configuration
+- 🛑 Global exception handling with standardized error responses
 
 ### 🎯 Functionality
 - 👤 **User Management** - Profiles, settings, profile pictures
@@ -51,7 +61,7 @@ Homassy/
 │   ├── Models/           📋 DTOs and request/response objects
 │   ├── Context/          🔄 DbContext and session management
 │   ├── Services/         ⚙️ Infrastructure services
-│   ├── Middleware/       🔧 Rate limiting, session info
+│   ├── Middleware/       🔧 Exception handling, CORS, compression, logging, rate limiting
 │   └── CLAUDE.md         📚 Detailed architecture documentation
 ├── Homassy.Tests/        🧪 Test Suite (xUnit)
 │   ├── Integration/      ✅ Integration tests (100+ tests)
@@ -70,10 +80,13 @@ Homassy/
 |----------|------------|
 | **Framework** | ASP.NET Core 10.0 |
 | **Database** | PostgreSQL + EF Core 10.0 |
-| **Authentication** | JWT Bearer Tokens |
-| **Email** | MailKit 4.14.1 |
-| **Logging** | Serilog 9.0.0 |
+| **Authentication** | JWT Bearer Tokens (with rotation) |
+| **Email** | MailKit 4.14.1 (async queue) |
+| **Logging** | Serilog 9.0.0 (structured) |
 | **API Versioning** | Asp.Versioning 8.1.0 |
+| **Health Checks** | Microsoft.Extensions.Diagnostics.HealthChecks |
+| **Compression** | Brotli + Gzip (built-in) |
+| **Background Services** | IHostedService (email queue, token cleanup) |
 | **Testing** | xUnit 2.9.3 + WebApplicationFactory |
 | **External APIs** | Open Food Facts API v2 |
 
@@ -90,108 +103,11 @@ Homassy/
 |----------|-------|
 | **License** | MIT |
 
-## 🚀 Getting Started
-
-> **Note:** Currently, only the backend API is available for setup. Frontend setup instructions will be added once development begins.
-
-### Prerequisites
-- ✅ .NET 10 SDK
-- ✅ PostgreSQL 14+
-- ✅ SMTP server (for email delivery)
-
-### Backend Installation
-
-**1. Clone the repository**
-```bash
-git clone https://github.com/Xentinus/Homassy.git
-cd Homassy
-```
-
-**2. Configure database connection**
-
-Create an `appsettings.Development.json` file in the `Homassy.API` folder:
-```json
-{
-  "ConnectionStrings": {
-    "DefaultConnection": "Host=localhost;Database=homassy;Username=postgres;Password=yourpassword"
-  },
-  "Jwt": {
-    "SecretKey": "your-secret-key-min-32-characters",
-    "Issuer": "HomassyAPI",
-    "Audience": "HomassyClient",
-    "AccessTokenExpirationMinutes": 15,
-    "RefreshTokenExpirationDays": 30
-  },
-  "Email": {
-    "SmtpServer": "smtp.gmail.com",
-    "SmtpPort": 587,
-    "SmtpUsername": "your-email@gmail.com",
-    "SmtpPassword": "your-app-password",
-    "FromEmail": "your-email@gmail.com",
-    "FromName": "Homassy"
-  }
-}
-```
-
-**3. Run database migrations**
-```bash
-cd Homassy.API
-dotnet ef database update
-```
-
-**4. Start the application**
-```bash
-dotnet run
-```
-
-The API will be available at: `https://localhost:5001` 🎉
-
-### 📚 API Documentation
+## 📚 API Documentation
 
 In development mode, OpenAPI (Swagger) documentation is available at `/openapi/v1.json`
 
-## 🔌 API Examples
-
-### Authentication Flow
-
-**1. Request verification code**
-```bash
-POST /api/v1.0/auth/request-code
-{
-  "email": "user@example.com"
-}
-```
-
-**2. Verify code and login**
-```bash
-POST /api/v1.0/auth/verify-code
-{
-  "email": "user@example.com",
-  "verificationCode": "123456"
-}
-```
-
-**3. Use the token**
-```bash
-GET /api/v1.0/auth/me
-Authorization: Bearer <access-token>
-```
-
-### Response Format
-
-All API responses follow a standardized format:
-
-```json
-{
-  "success": true,
-  "data": { ... },
-  "message": "Operation successful",
-  "errors": null,
-  "timestamp": "2025-12-02T10:30:00Z"
-}
-```
-
-### Available Endpoints
+## 🔌 Available Endpoints
 
 **Authentication & User**
 - `POST /api/v1.0/auth/request-code` - Request verification code
@@ -254,53 +170,16 @@ All API responses follow a standardized format:
 **Version**
 - `GET /api/Version` - Get API version information (build version, type, and date)
 
+**Health Checks**
+- `GET /health` - Overall health status with dependency checks
+- `GET /health/ready` - Readiness check (database, cache, dependencies)
+- `GET /health/live` - Liveness check (basic API availability)
+
 **Family Management**
 - `GET /api/v1.0/family` - Get family info
 - `POST /api/v1.0/family` - Create family
 - `POST /api/v1.0/family/join` - Join family with invite code
 - `POST /api/v1.0/family/leave` - Leave current family
-
-## 🧪 Testing
-
-The project includes comprehensive test coverage using xUnit and ASP.NET Core testing infrastructure.
-
-### Test Infrastructure
-- **Framework:** xUnit 2.9.3 with `Microsoft.AspNetCore.Mvc.Testing`
-- **Target:** .NET 10.0
-- **Test Database:** PostgreSQL (configured via `appsettings.Testing.json`)
-
-### Test Helpers
-- **`HomassyWebApplicationFactory`** - Custom test server with database access
-  - Direct database queries for verification
-  - User cleanup utilities
-  - Scoped DbContext creation
-- **`TestAuthHelper`** - Simplified authentication for tests
-  - Automatic user creation and token management
-  - Cleanup with cache handling
-
-### Running Tests
-```bash
-cd Homassy.Tests
-dotnet test
-```
-
-### Test Coverage
-- ✅ **Integration Tests** (100+ tests)
-  - AuthController - Authentication flow, registration, tokens
-  - OpenFoodFactsController - Barcode product lookup
-  - SelectValueController - Dynamic dropdown options
-  - LocationController - Shopping and storage locations CRUD
-  - ProductController - Product management with inventory
-  - ShoppingListController - List and item management
-  - FamilyController - Family operations
-  - UserController - User profile and settings
-
-- ✅ **Unit Tests**
-  - UserFunctions - User creation, email normalization
-  - TimeZoneFunctions - Timezone conversions
-  - UnitFunctions - Unit conversions
-
-For detailed testing documentation, see [Homassy.Tests/CLAUDE.md](Homassy.Tests/CLAUDE.md).
 
 ## 🧑‍💻 Development Guidelines
 
@@ -337,39 +216,6 @@ Copyright (c) 2025 Béla Kellner
 ## 📧 Contact
 
 GitHub: [@Xentinus](https://github.com/Xentinus)
-
----
-
-## 🗺️ Roadmap
-
-### ✅ Phase 1: Backend API (Current)
-- [x] Core architecture setup
-- [x] Authentication system (passwordless)
-- [x] User management
-- [x] Family management
-- [x] Product management with inventory tracking
-- [x] Shopping list features with purchase tracking
-- [x] Location management (shopping + storage)
-- [x] Open Food Facts API integration
-- [x] Select value endpoints for dynamic dropdowns
-- [x] Comprehensive test infrastructure (100+ tests)
-- [ ] API documentation finalization
-
-### 📋 Phase 2: Frontend Web App (Planned)
-- [ ] Nuxt + Vue.js 3 setup
-- [ ] Nuxt UI integration
-- [ ] Authentication UI
-- [ ] User profile management
-- [ ] Family dashboard
-- [ ] Product inventory UI
-- [ ] Shopping list interface
-- [ ] PWA capabilities
-
-### 🚀 Phase 3: Deployment & Production (Future)
-- [ ] CI/CD pipeline
-- [ ] Docker containerization
-- [ ] Production deployment
-- [ ] Mobile app consideration
 
 ---
 
