@@ -1,0 +1,39 @@
+﻿Homassy
+Copyright (C) 2025 Béla Kellner
+
+Homassy is free software; You can redistribute it and/or modify it under the terms of:
+  - the GNU Affero General Public License version 3 as published by the Free Software Foundation.
+You don't have to do anything special to accept the license and you don't have to notify anyone which that you have made that decision.
+
+Homassy is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY;
+without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+See your chosen license for more details.
+
+You should have received a copy of the license along with Homassy.
+If not, see <https://www.gnu.org/licenses/>.
+
+
+There is a strong belief within us that the license we have chosen provides not only the best solution for providing you with the essential freedom necessary to use Homassy within your projects, but also for maintaining enough copyleft strength for us to feel confident and secure with releasing our hard work to the public. For your convenience we've included our own interpretation of the license we chose, which can be seen below.
+
+This is our interpretation of the GNU Affero General Public License version 3: (Quoted words are words in which there exists a definition within the license to avoid ambiguity.)
+  1. You must always provide the source code, copyright and license information of Homassy whenever you "convey" any part of Homassy;
+       be it a verbatim copy or a modified copy.
+  2. Homassy was developed as a full-stack web application for household inventory management.
+     If you "modify", "adapt" or "extend" Homassy and make it available as a network service (e.g., hosting it on a server),
+     you must make the complete source code of your modified version available to all users interacting with it remotely through a computer network.
+     This provides the following implications:
+       a) If you have "modified", "adapted" or "extended" Homassy then any of those modifications/extensions/adaptations which you have made
+            are indeed bound by this license; as you are using Homassy under the definition of a "based on" work.
+       b) If you deploy Homassy or a modified version as a web service, API, or any network-accessible application,
+            you must provide access to the complete source code to all users of that service.
+       c) You are free to use Homassy for personal, educational, or commercial purposes as long as you comply with the license terms.
+  3. Any derivative work or modified version must also be licensed under AGPL-3.0.
+  4. You must retain all copyright notices and license information in any distribution.
+
+Our dearest hopes are that your own interpretation, values and goals for using our work freely and yet securely align with the license chosen as well as our interpretation of it. If you have any questions about the license chosen for Homassy you can always email us directly at the repository or you can get in contact with the license authors (the Free Software Foundation) at licensing@fsf.org to gain their opinion too.
+
+Alternatively you can provide feedback and acquire the support you need through GitHub Issues or Discussions. We'll definitely try and help you as soon as possible and to the best of our ability; we understand that user experience is everything, so we want to make you as happy as possible!  So feel free to get in touch via GitHub at: 
+https://github.com/Xentinus/Homassy
+
+
+Thanks, and we hope you enjoy using Homassy and that it's everything you ever hoped it could be.

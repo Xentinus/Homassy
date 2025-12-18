@@ -32,6 +32,15 @@ Homassy.API is a home storage management system built with ASP.NET Core. The pro
 - **Session via AsyncLocal**: User context stored in thread-local storage for easy access throughout the application
 - **Static Service Initialization**: Services like JwtService, EmailService, ConfigService use static initialization
 - **Standardized API Responses**: All endpoints return consistent `ApiResponse<T>` structure
+- **Async Email Queue**: Background email processing with retry logic for improved reliability
+- **Correlation ID Tracking**: Request tracing across the application for distributed systems
+- **Health Check Integration**: Kubernetes-compatible health probes for monitoring and orchestration
+- **Refresh Token Rotation**: Token theft detection and prevention through automatic rotation
+- **Centralized Exception Handling**: GlobalExceptionMiddleware for consistent error responses
+- **Per-Endpoint Timeouts**: Configurable timeout enforcement to prevent long-running requests
+- **Request/Response Logging**: Sanitized logging with sensitive data filtering for observability
+- **CORS Support**: Configurable cross-origin resource sharing for web clients
+- **Response Compression**: Brotli and Gzip for improved performance
 
 ---
 
@@ -61,6 +70,8 @@ Homassy.API is a home storage management system built with ASP.NET Core. The pro
 ### API Features
 - **Asp.Versioning 8.1.0** - API versioning
 - **OpenAPI** - API documentation (built-in)
+- **Microsoft.AspNetCore.Diagnostics.HealthChecks** - Health monitoring
+- **Response Compression** - Brotli and Gzip support
 
 ---
 
@@ -78,7 +89,11 @@ Homassy.API/
 │   ├── FamilyController.cs
 │   ├── ProductController.cs
 │   ├── LocationController.cs
-│   └── ShoppingListController.cs
+│   ├── ShoppingListController.cs
+│   ├── HealthController.cs
+│   ├── VersionController.cs
+│   ├── OpenFoodFactsController.cs
+│   └── SelectValueController.cs
 ├── EmailTemplates/        HTML email templates (embedded resources)
 ├── Entities/              Database entity models
 │   ├── Common/           Base entities and shared models
@@ -91,6 +106,8 @@ Homassy.API/
 │   ├── ShoppingList/     Shopping list entities
 │   └── User/             User-related entities
 ├── Enums/                Application enumerations
+│   ├── EmailType.cs
+│   └── SelectValueType.cs
 ├── Exceptions/           Custom exception classes
 │   ├── AuthException.cs
 │   ├── BadRequestException.cs
@@ -98,7 +115,8 @@ Homassy.API/
 │   ├── FamilyNotFoundException.cs
 │   ├── LocationException.cs
 │   ├── ProductException.cs
-│   └── ShoppingListException.cs
+│   ├── ShoppingListException.cs
+│   └── RequestTimeoutException.cs
 ├── Extensions/           Extension methods
 │   ├── CurrencyExtensions.cs
 │   ├── HttpContextExtensions.cs
@@ -111,31 +129,50 @@ Homassy.API/
 │   ├── ProductFunctions.cs
 │   ├── LocationFunctions.cs
 │   ├── ShoppingListFunctions.cs
+│   ├── SelectValueFunctions.cs
 │   ├── UnitFunctions.cs
 │   └── TimeZoneFunctions.cs
 ├── Infrastructure/       Infrastructure components (triggers, etc.)
 │   └── DatabaseTriggerInitializer.cs
 ├── Middleware/           Custom middleware
+│   ├── CorrelationIdMiddleware.cs
+│   ├── GlobalExceptionMiddleware.cs
 │   ├── RateLimitingMiddleware.cs
+│   ├── RequestLoggingMiddleware.cs
+│   ├── RequestTimeoutMiddleware.cs
 │   └── SessionInfoMiddleware.cs
 ├── Migrations/           EF Core database migrations
 ├── Models/               DTOs and request/response models
+│   ├── ApplicationSettings/  Application settings (HTTPS, HSTS, Timeouts)
 │   ├── Auth/            Authentication models
-│   ├── Common/          Shared models (ApiResponse, etc.)
+│   ├── Background/      Background service models (EmailTask)
+│   ├── Common/          Shared models (ApiResponse, SelectValue, VersionInfo)
 │   ├── Family/          Family DTOs
-│   ├── Product/         Product DTOs
+│   ├── HealthCheck/     Health check models
 │   ├── Location/        Location DTOs
-│   ├── ShoppingList/    Shopping list DTOs
+│   ├── OpenFoodFacts/   Open Food Facts API models
+│   ├── Product/         Product DTOs
 │   ├── RateLimit/       Rate limiting models
+│   ├── ShoppingList/    Shopping list DTOs
 │   └── User/            User DTOs
 ├── Security/            Security utilities
 │   └── SecureCompare.cs
 └── Services/            Application services
+    ├── Background/      Background services
+    │   ├── EmailBackgroundService.cs
+    │   ├── EmailQueueService.cs
+    │   ├── IEmailQueueService.cs
+    │   └── TokenCleanupService.cs
+    ├── HealthChecks/    Health check implementations
+    │   ├── EmailServiceHealthCheck.cs
+    │   └── OpenFoodFactsHealthCheck.cs
     ├── CacheManagementService.cs
     ├── ConfigService.cs
     ├── EmailService.cs
     ├── JwtService.cs
-    └── RateLimitCleanupService.cs
+    ├── OpenFoodFactsService.cs
+    ├── RateLimitCleanupService.cs
+    └── RateLimitService.cs
 ```
 
 ---
@@ -513,6 +550,9 @@ catch (Exception ex)
 - `InvalidShoppingListItemException` - Invalid shopping list item (400)
 - `ShoppingLocationNotFoundException` - Shopping location not found (404)
 - `StorageLocationNotFoundException` - Storage location not found (404)
+- `RequestTimeoutException` - Request timeout (504)
+
+**Note:** Most exception mapping is handled by `GlobalExceptionMiddleware`, which catches unhandled exceptions and maps them to appropriate HTTP status codes. `OperationCanceledException` is handled separately (499 for client cancellation).
 
 ---
 
@@ -610,6 +650,32 @@ public async Task<IActionResult> RefreshToken([FromBody] RefreshTokenRequest req
     }
 }
 ```
+
+#### Refresh Token Rotation
+
+The system implements refresh token rotation for enhanced security against token theft:
+
+**How It Works:**
+- When a refresh token is used, it's immediately invalidated
+- A new refresh token is issued with each refresh operation
+- The previous token is stored temporarily with an expiry date
+- If an old token is reused, it indicates potential token theft
+- On theft detection: All tokens for that user are invalidated (forced logout)
+
+**Database Fields:**
+- `RefreshToken` - Current valid refresh token
+- `RefreshTokenExpiry` - Current token expiration
+- `PreviousRefreshToken` - Last used token (for grace period detection)
+- `PreviousRefreshTokenExpiry` - Grace period expiration
+
+**Benefits:**
+- Detects and prevents token replay attacks
+- Limits damage if a refresh token is compromised
+- Provides automatic cleanup via `TokenCleanupService`
+- Follows OAuth 2.0 security best practices
+
+**Cleanup:**
+The `TokenCleanupService` background service runs hourly to clean up expired tokens, preventing database bloat.
 
 ### Authorization
 
@@ -802,6 +868,145 @@ Manages shopping lists and items (all endpoints require `[Authorize]`).
 - Family sharing support
 - Shopping location assignment per item
 
+### HealthController
+
+Provides health check endpoints for monitoring and orchestration (all endpoints have no authentication requirement).
+
+**Endpoints:**
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/health` | Comprehensive health check with all dependencies |
+| GET | `/health/ready` | Readiness probe (database only) |
+| GET | `/health/live` | Liveness probe (always returns 200) |
+
+**Response Format:**
+```json
+{
+  "Status": "Healthy",
+  "Duration": "45ms",
+  "Dependencies": {
+    "npgsql": {
+      "Status": "Healthy",
+      "Duration": "12ms",
+      "Description": null
+    },
+    "openfoodfacts": {
+      "Status": "Healthy",
+      "Duration": "150ms"
+    }
+  }
+}
+```
+
+**Status Codes:**
+- 200 OK - All checks healthy
+- 503 Service Unavailable - One or more checks degraded/unhealthy
+
+**Key Patterns:**
+- Kubernetes-compatible probes (ready/live)
+- Tagged health checks for selective monitoring
+- Dependency health with timing information
+- `/health` - Full comprehensive check
+- `/health/ready` - Only checks tagged with "ready" (database)
+- `/health/live` - Lightweight check (no external dependencies)
+
+### VersionController
+
+Returns application version information (no authentication required).
+
+**Endpoints:**
+
+| Method | Endpoint | Auth | Description |
+|--------|----------|------|-------------|
+| GET | `/api/version` | No | Get application version info |
+
+**Response:**
+```json
+{
+  "Success": true,
+  "Data": {
+    "Version": "1.1.1225183000-beta",
+    "ShortVersion": "1.1",
+    "BuildType": "beta",
+    "BuildDate": "2025-12-12T18:30:00Z"
+  }
+}
+```
+
+**Key Patterns:**
+- Semantic versioning support
+- Build date extraction from version string
+- Public endpoint (no auth required)
+- Useful for deployment tracking
+
+### OpenFoodFactsController
+
+Provides barcode lookup integration with Open Food Facts database (all endpoints require `[Authorize]`).
+
+**Endpoints:**
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/{barcode}` | Look up product by barcode |
+
+**Response Includes:**
+- Product name, brand, categories
+- Nutrition information (energy, proteins, carbs, fats, fiber, salt, sugars)
+- Nutrition grades (Nutriscore, Ecoscore, NOVA group)
+- Allergens and ingredients
+- Product image (Base64 encoded)
+
+**Error Responses:**
+- 404 Not Found - Product not found in Open Food Facts database
+- 400 Bad Request - Invalid barcode format
+
+**Key Patterns:**
+- External API integration with graceful error handling
+- Automatic image downloading and Base64 encoding
+- Rich nutrition data for product enrichment
+- Timeout handling for external service calls
+
+### SelectValueController
+
+Provides dropdown/select list values for UI components (all endpoints require `[Authorize]`).
+
+**Endpoints:**
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/{type}` | Get select values for specified type |
+
+**Type Parameter Values:**
+- `ShoppingLocation` - User's shopping locations
+- `StorageLocation` - User's storage locations
+- `Product` - User's products
+- `ProductInventoryItem` - User's inventory items
+- `ShoppingList` - User's shopping lists
+
+**Response Format:**
+```json
+{
+  "Success": true,
+  "Data": [
+    {
+      "PublicId": "123e4567-e89b-12d3-a456-426614174000",
+      "Text": "Aldi - Main Street"
+    },
+    {
+      "PublicId": "223e4567-e89b-12d3-a456-426614174001",
+      "Text": "Walmart - Downtown"
+    }
+  ]
+}
+```
+
+**Key Patterns:**
+- Simplified data structure for dropdowns (PublicId + Text)
+- Respects family sharing (includes family-shared entities)
+- Alphabetically ordered for better UX
+- User/family context from SessionInfo
+
 ---
 
 ## Cross-Cutting Concerns
@@ -811,21 +1016,178 @@ Manages shopping lists and items (all endpoints require `[Authorize]`).
 The middleware pipeline is configured in a specific order in `Program.cs`:
 
 ```csharp
+app.UseResponseCompression();
 app.Use(async (context, next) => { /* Response Headers Middleware */ });
+app.UseMiddleware<CorrelationIdMiddleware>();
+app.UseMiddleware<RequestTimeoutMiddleware>();
+app.UseMiddleware<RequestLoggingMiddleware>();
+app.UseMiddleware<GlobalExceptionMiddleware>();
 app.UseHttpsRedirection();
+app.UseHsts(); // If configured
+app.UseCors();
 app.UseMiddleware<RateLimitingMiddleware>();
-app.UseAuthorization();
+app.UseAuthentication();
 app.UseMiddleware<SessionInfoMiddleware>();
 app.MapControllers();
 ```
 
 **Order matters:**
-1. **Response Headers** - Adds security headers (CSP, X-Frame-Options, HSTS, etc.)
-2. **HTTPS Redirection** - Forces HTTPS
-3. **Rate Limiting** - Throttles requests
-4. **Authorization** - JWT validation
-5. **Session Info** - Extracts user context from JWT claims
-6. **Controllers** - Route to endpoints
+1. **Response Compression** - Brotli and Gzip compression for responses
+2. **Response Headers** - Adds security headers (CSP, X-Frame-Options, HSTS, etc.) and app metadata
+3. **Correlation ID** - Generates/propagates X-Correlation-ID for request tracing
+4. **Request Timeout** - Enforces per-endpoint timeout limits
+5. **Request Logging** - Logs HTTP requests/responses (sanitized)
+6. **Global Exception Handler** - Catches and maps all unhandled exceptions
+7. **HTTPS Redirection** - Forces HTTPS
+8. **HSTS** - HTTP Strict Transport Security (if enabled)
+9. **CORS** - Cross-Origin Resource Sharing (configurable origins)
+10. **Rate Limiting** - Global and per-endpoint request throttling
+11. **Authentication** - JWT token validation
+12. **Session Info** - Extracts user context from JWT claims
+13. **Controllers** - Route to endpoints
+
+### Response Compression
+
+Automatic response compression for improved performance:
+
+**Supported Algorithms:**
+- **Brotli** - Modern compression (higher ratio, slightly slower)
+- **Gzip** - Universal compression (broad compatibility)
+
+**Configuration:**
+- Compression level: Optimal
+- Automatically selects best algorithm based on client Accept-Encoding header
+- Reduces bandwidth usage for large JSON responses
+
+### CORS (Cross-Origin Resource Sharing)
+
+Configurable CORS support for web clients:
+
+**Configuration:**
+```csharp
+AllowedOrigins = ["https://example.com", "http://localhost:3000"]
+```
+
+**Features:**
+- Configurable allowed origins
+- Supports credentials
+- Configured via `appsettings.json`
+- Enables web browser clients to access the API
+
+### Correlation ID Middleware
+
+Request tracing for distributed systems:
+
+**Features:**
+- Generates unique correlation ID for each request (GUID)
+- Propagates existing `X-Correlation-ID` header if provided
+- Adds correlation ID to response headers
+- Integrates with Serilog for structured logging
+- Enables end-to-end request tracing
+
+**Usage:**
+```
+Client Request → X-Correlation-ID: <guid>
+Server Response → X-Correlation-ID: <same-guid>
+All logs for request tagged with correlation ID
+```
+
+### Request Timeout Middleware
+
+Per-endpoint timeout enforcement:
+
+**Features:**
+- Default timeout: 30 seconds (configurable)
+- Per-endpoint override timeouts using regex patterns
+- Cancellation tokens propagated through request pipeline
+- Throws `RequestTimeoutException` on timeout
+- Logs warnings when timeouts occur
+
+**Configuration Example:**
+```json
+{
+  "RequestTimeout": {
+    "DefaultTimeoutSeconds": 30,
+    "Endpoints": [
+      {
+        "PathPattern": "^/api/v1.0/product/import$",
+        "TimeoutSeconds": 120
+      }
+    ]
+  }
+}
+```
+
+**Benefits:**
+- Prevents long-running requests from tying up resources
+- Different timeouts for different endpoint types
+- Graceful handling with appropriate error responses
+
+### Request Logging Middleware
+
+Configurable HTTP request/response logging:
+
+**Features:**
+- Logs HTTP method, path, query string, status code, and duration
+- Optional detailed logging for specific paths
+- **Sanitizes sensitive data:**
+  - Query parameters: `password`, `token`, `secret`, `apikey`, `api_key`, `access_token`, `refresh_token`
+  - Headers: `Authorization`, `Cookie`, `Set-Cookie`, `X-Api-Key`, `X-Auth-Token`
+- Can exclude specific paths from logging
+- Log level based on status code (500+ = Error, 400+ = Warning, 2xx = Information)
+- Integrates correlation ID with logs
+
+**Configuration:**
+```json
+{
+  "RequestLogging": {
+    "Enabled": true,
+    "ExcludedPaths": ["/health/live", "/health/ready"],
+    "DetailedPaths": ["/api/v1.0/auth/login"]
+  }
+}
+```
+
+**Example Log Output:**
+```
+[2025-12-18 10:30:00 INF] HTTP GET /api/v1.0/products completed with 200 in 45ms (Correlation: 123e4567-...)
+```
+
+### Global Exception Middleware
+
+Centralized exception handling for consistent error responses:
+
+**Features:**
+- Catches all unhandled exceptions from the application
+- Maps custom exceptions to appropriate HTTP status codes
+- Prevents exception details from leaking to clients
+- Logs with appropriate severity levels
+- Returns consistent `ApiResponse` format
+
+**Exception Mapping:**
+- `AuthException` → Custom status code from exception
+- `ProductNotFoundException`, `LocationNotFoundException` → 404
+- `ProductAccessDeniedException`, `LocationAccessDeniedException` → 403
+- `RequestTimeoutException` → 504 Gateway Timeout
+- `OperationCanceledException` → 499 Client Closed Request
+- Generic exceptions → 500 Internal Server Error
+
+**Benefits:**
+- Controllers can be simplified (less try-catch boilerplate)
+- Consistent error response format
+- Security: No stack traces or sensitive details exposed
+- Proper logging with correlation IDs
+
+**Example Controller (Simplified):**
+```csharp
+[HttpGet("{id}")]
+public async Task<IActionResult> GetProduct(Guid id, CancellationToken cancellationToken)
+{
+    // No try-catch needed - GlobalExceptionMiddleware handles it
+    var product = await new ProductFunctions().GetProductAsync(id, cancellationToken);
+    return Ok(ApiResponse<ProductResponse>.SuccessResponse(product));
+}
+```
 
 ### Rate Limiting
 
@@ -914,18 +1276,257 @@ Log.Error($"Unexpected error: {ex.Message}");
 
 ### Background Services
 
-Two background services run continuously:
+Four background services run continuously as hosted services:
 
 **1. CacheManagementService**
 - Monitors `TableRecordChanges` for database changes
-- Invalidates affected caches
-- Periodically refreshes caches
-- Ensures cache consistency
+- Invalidates affected caches when data is modified
+- Periodically refreshes caches to maintain consistency
+- Ensures cache synchronization with database state
 
 **2. RateLimitCleanupService**
 - Periodically cleans up expired rate limit entries
-- Prevents memory leaks
+- Prevents memory leaks from abandoned rate limit buckets
 - Configurable cleanup interval
+- Maintains rate limiting performance
+
+**3. EmailBackgroundService**
+- Async email queue processor for non-blocking email delivery
+- **Retry logic with exponential backoff:**
+  - Maximum 3 retry attempts per email
+  - Delays: 1 second, 5 seconds, 15 seconds
+- Handles two email types:
+  - `EmailType.Verification` - Verification code emails
+  - `EmailType.Registration` - Registration confirmation emails
+- Gracefully handles cancellation on shutdown
+- Detailed logging for troubleshooting delivery issues
+- Consumes from `EmailQueueService`
+
+**4. TokenCleanupService**
+- Runs hourly to clean expired authentication tokens
+- Cleans up expired verification codes from `UserAuthentication` table
+- Cleans up expired previous refresh tokens (refresh token rotation)
+- Prevents accumulation of stale security data
+- Uses EF Core bulk updates for efficiency
+- Scoped database access per execution
+
+**Registration:**
+All services are registered as `IHostedService` in `Program.cs` and run continuously until application shutdown.
+
+### Application Services
+
+The project includes several application-level services for core functionality:
+
+#### OpenFoodFactsService
+
+Barcode lookup integration with Open Food Facts API:
+
+**Features:**
+- Base URL: `https://world.openfoodfacts.org/api/v2`
+- `GetProductByBarcodeAsync()` - Look up product by barcode
+- `FetchImageAsBase64Async()` - Download and encode product images
+- Returns null on API errors (graceful degradation)
+- Auto-encodes images as Base64 with media type prefix (`data:image/jpeg;base64,...`)
+- Propagates correlation ID to external requests for tracing
+- Custom user agent header for API compliance
+
+**Response Model:**
+```csharp
+record OpenFoodFactsProduct(
+    string Code,                // Barcode
+    string ProductName,
+    string Brands,
+    List<string> CategoriesTags,
+    string NutritionGrades,
+    string NutriscoreGrade,
+    string EcoscoreGrade,
+    int NovaGroup,
+    string IngredientsText,
+    List<string> AllergensTags,
+    OpenFoodFactsNutriments Nutriments,
+    string ImageBase64           // Auto-populated
+);
+```
+
+**Usage:**
+```csharp
+var service = new OpenFoodFactsService();
+var response = await service.GetProductByBarcodeAsync("3017620422003", cancellationToken);
+```
+
+#### RateLimitService
+
+In-memory rate limiting tracking using thread-safe data structures:
+
+**Features:**
+- Static service with `ConcurrentDictionary` for thread-safe storage
+- Tracks attempts per key with timestamp windows
+- Automatic cleanup of expired entries
+- Returns detailed status information
+
+**Key Methods:**
+```csharp
+bool IsRateLimited(string key, int maxAttempts, TimeSpan window)
+RateLimitStatus GetRateLimitStatus(string key, int maxAttempts, TimeSpan window)
+void ResetAttempts(string key)
+TimeSpan? GetLockoutRemaining(string key, TimeSpan window)
+void CleanupExpiredEntries(TimeSpan maxAge)
+```
+
+**RateLimitStatus Model:**
+```csharp
+class RateLimitStatus {
+    int Limit;                     // Max attempts allowed
+    int Remaining;                 // Remaining attempts
+    long ResetTimestamp;           // Unix epoch seconds when limit resets
+    int? RetryAfterSeconds;        // Seconds to wait if rate limited
+}
+```
+
+**Usage:**
+Used by `RateLimitingMiddleware` to track and enforce rate limits per IP address.
+
+#### EmailQueueService
+
+Email task queue using System.Threading.Channels for efficient async processing:
+
+**Features:**
+- Bounded channel with capacity (default: 200 tasks)
+- Thread-safe queue operations
+- Non-blocking enqueue with timeout (5 seconds)
+- Blocking dequeue for background service consumption
+- Returns success/failure status on enqueue
+- Integrates with correlation ID for tracing
+
+**Methods:**
+```csharp
+Task<bool> TryQueueEmailAsync(EmailTask task)  // Non-blocking enqueue
+ValueTask<EmailTask> DequeueAsync(CancellationToken ct)  // Blocking dequeue
+int Count { get; }  // Current queue size
+```
+
+**EmailTask Model:**
+```csharp
+record EmailTask(
+    string Email,
+    string Code,
+    string TimeZone,
+    EmailType Type  // Verification or Registration
+);
+```
+
+**Usage:**
+```csharp
+var success = await emailQueue.TryQueueEmailAsync(new EmailTask(
+    "user@example.com",
+    "123456",
+    "America/New_York",
+    EmailType.Verification
+));
+```
+
+**Benefits:**
+- Non-blocking email delivery (doesn't slow down API responses)
+- Retry logic for failed deliveries
+- Queue overflow protection
+- Monitoring via queue count
+
+### Health Checks
+
+The application implements ASP.NET Core Health Checks for monitoring and orchestration:
+
+#### Registered Health Checks
+
+**1. Database (PostgreSQL)**
+- Check type: `AddNpgSql()`
+- Tags: `["db", "ready"]`
+- Tests database connectivity
+- Part of readiness probe for deployment orchestration
+
+**2. EmailServiceHealthCheck**
+- Check type: Custom implementation
+- Tags: `["external"]`
+- Tests SMTP server connectivity
+- Attempts to connect and disconnect from configured SMTP server
+- Uses StartTls security
+- Returns health status based on connection success
+
+**3. OpenFoodFactsHealthCheck**
+- Check type: Custom implementation
+- Tags: `["external"]`
+- Tests external API connectivity
+- Hits Open Food Facts API with test barcode
+- Configurable timeout (default: 10 seconds)
+- Status: Healthy (2xx), Degraded (error response), or Unhealthy (timeout/exception)
+
+#### Health Check Endpoints
+
+Three health endpoints provided by `HealthController`:
+
+**`GET /api/v1.0/health`** - Full health check
+- Runs all registered health checks
+- Returns comprehensive dependency status
+- HTTP 200 if all healthy, 503 if any degraded/unhealthy
+- Includes timing information per check
+
+**`GET /api/v1.0/health/ready`** - Readiness probe
+- Only runs checks tagged with "ready" (database)
+- Used by Kubernetes/orchestrators to determine if pod is ready for traffic
+- Lightweight check for deployment decisions
+
+**`GET /api/v1.0/health/live`** - Liveness probe
+- Always returns 200 OK
+- Confirms application process is running
+- No external dependency checks
+- Used by Kubernetes/orchestrators to determine if pod should be restarted
+
+#### Response Format
+
+```json
+{
+  "Status": "Healthy",
+  "Duration": "45ms",
+  "Dependencies": {
+    "npgsql": {
+      "Status": "Healthy",
+      "Duration": "12ms",
+      "Description": null,
+      "Data": {}
+    },
+    "openfoodfacts": {
+      "Status": "Healthy",
+      "Duration": "150ms"
+    },
+    "emailservice": {
+      "Status": "Healthy",
+      "Duration": "80ms"
+    }
+  }
+}
+```
+
+**Status Values:**
+- `Healthy` - Check passed
+- `Degraded` - Check passed with warnings
+- `Unhealthy` - Check failed
+
+#### Configuration
+
+```json
+{
+  "HealthCheck": {
+    "OpenFoodFactsTestBarcode": "3017620422003",
+    "TimeoutSeconds": 10
+  }
+}
+```
+
+**Benefits:**
+- Kubernetes-compatible probes for container orchestration
+- Monitoring system integration (Prometheus, Datadog, etc.)
+- Automated health status tracking
+- Dependency monitoring (database, SMTP, external APIs)
+- Early detection of infrastructure issues
 
 ---
 
@@ -1132,21 +1733,100 @@ public class ResourceResponse
    - `DatabaseTriggerInitializer` will create triggers for `RecordChangeEntity` descendants
    - No manual trigger creation needed
 
+### Using CancellationTokens
+
+All async controller endpoints now support `CancellationToken` for proper async operation handling:
+
+**Pattern:**
+```csharp
+[HttpGet("resource")]
+[MapToApiVersion(1.0)]
+public async Task<IActionResult> GetResource(CancellationToken cancellationToken)
+{
+    try
+    {
+        var result = await new MyFunctions().GetResourceAsync(cancellationToken);
+        return Ok(ApiResponse<ResourceResponse>.SuccessResponse(result));
+    }
+    catch (OperationCanceledException)
+    {
+        // Client closed connection - log and return 499
+        Log.Warning("Request cancelled by client");
+        return StatusCode(499, ApiResponse.ErrorResponse("Request cancelled"));
+    }
+    catch (Exception ex)
+    {
+        Log.Error($"Unexpected error: {ex.Message}");
+        return StatusCode(500, ApiResponse.ErrorResponse("An error occurred"));
+    }
+}
+```
+
+**Propagate to Functions:**
+```csharp
+public class MyFunctions
+{
+    public async Task<MyResponse> GetResourceAsync(CancellationToken cancellationToken)
+    {
+        // Pass cancellationToken to async operations
+        var data = await _context.MyEntities
+            .Where(e => e.UserId == userId)
+            .ToListAsync(cancellationToken);
+
+        // Check cancellation between operations
+        cancellationToken.ThrowIfCancellationRequested();
+
+        // Pass to external service calls
+        var externalData = await externalService.FetchAsync(cancellationToken);
+
+        return MapToResponse(data);
+    }
+}
+```
+
+**Benefits:**
+- **Proper request cancellation** when client disconnects
+- **Resource cleanup** on timeout via `RequestTimeoutMiddleware`
+- **Better async operation handling** throughout the stack
+- **Prevents wasted work** if client is no longer waiting
+- **Timeout enforcement** at the middleware level
+
+**Important Notes:**
+- Always accept `CancellationToken` in async controller methods
+- Propagate the token to all async operations (EF Core queries, HTTP calls, etc.)
+- `GlobalExceptionMiddleware` handles `OperationCanceledException` automatically (499 status)
+- `RequestTimeoutMiddleware` creates a timeout-bound cancellation token per request
+- Don't catch `OperationCanceledException` unless you have a specific reason
+
 ---
 
 ## Summary
 
-Homassy.API is a modern ASP.NET Core Web API with a unique architecture optimized for performance and developer productivity. Key takeaways:
+Homassy.API is a modern ASP.NET Core Web API with a unique architecture optimized for performance, observability, and developer productivity. Key takeaways:
 
 - **Controller → Functions** pattern simplifies architecture
 - **In-memory caching** with database triggers provides excellent performance
 - **Passwordless authentication** improves security and user experience
 - **Entity inheritance** provides soft delete and change tracking automatically
 - **Standardized responses** ensure API consistency
-- **Comprehensive middleware** provides rate limiting, security headers, and session management
+- **Comprehensive middleware** provides rate limiting, security headers, request tracing, and session management
+- **Background email queue** with retry logic improves reliability and non-blocking delivery
+- **Correlation ID tracking** enables distributed tracing across the application
+- **Health checks** provide monitoring and Kubernetes-compatible orchestration support
+- **Refresh token rotation** enhances security against token theft and replay attacks
+- **Centralized exception handling** simplifies controller code and ensures consistent error responses
+- **Request/response logging** with sensitive data filtering improves observability
+- **Per-endpoint timeouts** prevent long-running requests from consuming resources
+- **Open Food Facts integration** enriches product data with barcode lookup and nutrition information
+- **CancellationToken support** throughout for proper async operation handling and timeouts
+- **Response compression** (Brotli/Gzip) improves performance for large payloads
+- **CORS support** enables web client integration
 
 This architecture prioritizes:
-- **Performance**: Aggressive caching reduces database load
-- **Security**: JWT authentication, rate limiting, security headers, constant-time comparisons
-- **Maintainability**: Clear separation of concerns, consistent patterns
-- **Developer Experience**: Simple patterns, minimal boilerplate, easy to extend
+- **Performance**: Aggressive caching, response compression, efficient async operations
+- **Security**: JWT authentication with token rotation, rate limiting, security headers, constant-time comparisons, sanitized logging
+- **Observability**: Correlation IDs, request logging, health checks, structured logging with Serilog
+- **Resilience**: Retry logic, timeout enforcement, graceful degradation, health monitoring
+- **Maintainability**: Clear separation of concerns, consistent patterns, centralized error handling
+- **Developer Experience**: Simple patterns, minimal boilerplate, easy to extend, comprehensive documentation
+- **DevOps Readiness**: Kubernetes-compatible health probes, version endpoint, configurable timeouts, container-friendly design

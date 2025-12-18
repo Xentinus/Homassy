@@ -101,7 +101,7 @@ Homassy/
 ### General
 | Category | Value |
 |----------|-------|
-| **License** | MIT |
+| **License** | AGPL-3.0 |
 
 ## 📚 API Documentation
 
@@ -185,6 +185,8 @@ In development mode, OpenAPI (Swagger) documentation is available at `/openapi/v
 
 Detailed architecture, patterns, and development guidelines are available in [Homassy.API/CLAUDE.md](Homassy.API/CLAUDE.md).
 
+> **Note:** The CLAUDE.md documentation is Claude-generated for Claude developers and is occasionally updated by the project maintainer.
+
 ### Core Principles
 - 🎯 **Thin controllers**: Only HTTP handling, validation, and response formatting
 - 💼 **Functions classes**: Complete business logic and data access
@@ -209,7 +211,7 @@ All entities inherit a common base with:
 
 ## 📄 License
 
-MIT License - see [LICENSE.txt](LICENSE.txt)
+AGPL-3.0 License - see [LICENSE.txt](LICENSE.txt) and [COPYING.TXT](COPYING.TXT)
 
 Copyright (c) 2025 Béla Kellner
 
