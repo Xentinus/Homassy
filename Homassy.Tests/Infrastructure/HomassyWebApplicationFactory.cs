@@ -115,4 +115,32 @@ public class HomassyWebApplicationFactory : WebApplicationFactory<Program>
             await context.SaveChangesAsync();
         }
     }
+
+    public int GetFailedLoginAttempts(string email)
+    {
+        using var scope = Services.CreateScope();
+        var context = scope.ServiceProvider.GetRequiredService<HomassyDbContext>();
+
+        var normalizedEmail = email.ToLowerInvariant().Trim();
+        var user = context.Users.FirstOrDefault(u => u.Email == normalizedEmail);
+
+        if (user == null) return 0;
+
+        var auth = context.UserAuthentications.FirstOrDefault(a => a.UserId == user.Id);
+        return auth?.FailedLoginAttempts ?? 0;
+    }
+
+    public DateTime? GetLockedOutUntil(string email)
+    {
+        using var scope = Services.CreateScope();
+        var context = scope.ServiceProvider.GetRequiredService<HomassyDbContext>();
+
+        var normalizedEmail = email.ToLowerInvariant().Trim();
+        var user = context.Users.FirstOrDefault(u => u.Email == normalizedEmail);
+
+        if (user == null) return null;
+
+        var auth = context.UserAuthentications.FirstOrDefault(a => a.UserId == user.Id);
+        return auth?.LockedOutUntil;
+    }
 }

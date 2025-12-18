@@ -68,6 +68,7 @@ try
     builder.Services.Configure<HttpsSettings>(builder.Configuration.GetSection("Https"));
     builder.Services.Configure<RequestTimeoutSettings>(builder.Configuration.GetSection("RequestTimeout"));
     builder.Services.Configure<HealthCheckOptions>(builder.Configuration.GetSection("HealthChecks"));
+    builder.Services.Configure<AccountLockoutSettings>(builder.Configuration.GetSection("Security:AccountLockout"));
     var httpsSettings = builder.Configuration.GetSection("Https").Get<HttpsSettings>() ?? new HttpsSettings();
 
     if (httpsSettings.Enabled && httpsSettings.Hsts.Enabled)

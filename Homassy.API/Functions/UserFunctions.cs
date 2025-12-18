@@ -25,8 +25,19 @@ namespace Homassy.API.Functions
         private static readonly ConcurrentDictionary<int, UserNotificationPreferences> _userNotificationPrefsCache = new();
 
         private static IEmailQueueService? _emailQueueService;
+        private readonly AccountLockoutService _lockoutService;
 
         public static bool Inited = false;
+
+        public UserFunctions()
+        {
+            _lockoutService = new AccountLockoutService();
+        }
+
+        public UserFunctions(AccountLockoutService lockoutService)
+        {
+            _lockoutService = lockoutService;
+        }
 
         public static void SetEmailQueueService(IEmailQueueService emailQueueService)
         {
@@ -1023,6 +1034,12 @@ namespace Homassy.API.Functions
 
             var auth = user.Authentication;
 
+            if (_lockoutService.IsLockedOut(auth.LockedOutUntil))
+            {
+                Log.Warning($"Account locked for {normalizedEmail} until {auth.LockedOutUntil}");
+                throw new AccountLockedException(auth.LockedOutUntil!.Value);
+            }
+
             if (auth.VerificationCodeExpiry == null || auth.VerificationCodeExpiry < DateTime.UtcNow)
             {
                 Log.Warning($"Expired verification code for {normalizedEmail}");
@@ -1031,6 +1048,7 @@ namespace Homassy.API.Functions
 
             if (!SecureCompare.ConstantTimeEquals(auth.VerificationCode, trimmedCode))
             {
+                await RecordFailedLoginAttemptAsync(user.Id, auth.FailedLoginAttempts + 1, cancellationToken);
                 Log.Warning($"Invalid verification code for {normalizedEmail}");
                 throw new InvalidCredentialsException("Invalid or expired code");
             }
@@ -1071,6 +1089,9 @@ namespace Homassy.API.Functions
                 userAuth.PreviousRefreshTokenExpiry = null;
                 userAuth.VerificationCode = null;
                 userAuth.VerificationCodeExpiry = null;
+                userAuth.FailedLoginAttempts = 0;
+                userAuth.LastFailedLoginAt = null;
+                userAuth.LockedOutUntil = null;
                 userEntity.LastLoginAt = DateTime.UtcNow;
 
                 await context.SaveChangesAsync(cancellationToken);
@@ -1107,6 +1128,38 @@ namespace Homassy.API.Functions
             return authResponse;
         }
 
+        private async Task RecordFailedLoginAttemptAsync(int userId, int newFailedAttempts, CancellationToken cancellationToken)
+        {
+            var context = new HomassyDbContext();
+            await using var transaction = await context.Database.BeginTransactionAsync(cancellationToken);
+            try
+            {
+                var userAuth = await context.Set<UserAuthentication>().FirstOrDefaultAsync(a => a.UserId == userId, cancellationToken);
+
+                if (userAuth == null)
+                {
+                    return;
+                }
+
+                userAuth.FailedLoginAttempts = newFailedAttempts;
+                userAuth.LastFailedLoginAt = DateTime.UtcNow;
+
+                if (_lockoutService.ShouldLockout(newFailedAttempts))
+                {
+                    userAuth.LockedOutUntil = _lockoutService.CalculateLockoutExpiry(newFailedAttempts);
+                    Log.Warning($"Account locked for user {userId} until {userAuth.LockedOutUntil} after {newFailedAttempts} failed attempts");
+                }
+
+                await context.SaveChangesAsync(cancellationToken);
+                await transaction.CommitAsync(cancellationToken);
+            }
+            catch (Exception ex)
+            {
+                await transaction.RollbackAsync(cancellationToken);
+                Log.Error($"Error recording failed login attempt for user {userId}: {ex.Message}");
+            }
+        }
+
         public async Task<RefreshTokenResponse> RefreshTokenAsync(string currentRefreshToken, CancellationToken cancellationToken = default)
         {
             var userId = SessionInfo.GetUserId();
@@ -1132,7 +1185,7 @@ namespace Homassy.API.Functions
             var auth = user.Authentication;
 
             var isCurrentToken = SecureCompare.ConstantTimeEquals(auth.RefreshToken, currentRefreshToken);
-            
+
             var isPreviousToken = !string.IsNullOrEmpty(auth.PreviousRefreshToken) &&
                                   SecureCompare.ConstantTimeEquals(auth.PreviousRefreshToken, currentRefreshToken) &&
                                   auth.PreviousRefreshTokenExpiry != null &&
