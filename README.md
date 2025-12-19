@@ -212,7 +212,7 @@ All entities inherit a common base with:
 
 ## 📄 License
 
-AGPL-3.0 License - see [LICENSE.txt](LICENSE.txt) and [COPYING.TXT](COPYING.TXT)
+AGPL-3.0 License - see [LICENSE.txt](LICENSE.txt)
 
 Copyright (c) 2025 Béla Kellner
 
