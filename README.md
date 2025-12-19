@@ -51,6 +51,11 @@ Homassy is a modern full-stack system designed to simplify household inventory m
 - 🔍 **Product Lookup** - Barcode scanning via Open Food Facts API integration
 - 📊 **Select Values** - Dynamic dropdown options for forms
 
+### 📊 Data Quality
+- ✅ Advanced barcode validation with checksum verification (EAN-13, EAN-8, UPC-A, UPC-E, Code-128)
+- 🔍 Automatic format detection and validation at API boundary
+- 🌍 International barcode standard support (European and North American formats)
+
 ## 📁 Project Structure
 
 ```

@@ -11,7 +11,7 @@
       "name": "MIT License",
       "url": "https://github.com/Xentinus/Homassy/blob/master/LICENSE"
     },
-    "version": "25.1219.2206-dev"
+    "version": "25.1219.2239-dev"
   },
   "paths": {
     "/api/v1/Auth/request-code": {
@@ -5347,8 +5347,7 @@
           },
           "barcode": {
             "maxLength": 14,
-            "minLength": 4,
-            "pattern": "^\\d{4,14}$",
+            "minLength": 6,
             "type": [
               "null",
               "string"
@@ -6937,8 +6936,7 @@
           },
           "barcode": {
             "maxLength": 14,
-            "minLength": 4,
-            "pattern": "^\\d{4,14}$",
+            "minLength": 6,
             "type": [
               "null",
               "string"

@@ -1182,4 +1182,377 @@ public class ProductControllerTests : IClassFixture<HomassyWebApplicationFactory
         }
     }
     #endregion
+
+    #region Barcode Validation Tests
+    [Theory]
+    [InlineData("4006381333931")]
+    [InlineData("5901234123457")]
+    [InlineData("9780201379624")]
+    public async Task CreateProduct_WithValidEan13Barcode_ReturnsSuccess(string barcode)
+    {
+        string? testEmail = null;
+        Guid? productId = null;
+        try
+        {
+            var (email, auth) = await _authHelper.CreateAndAuthenticateUserAsync($"barcode-ean13-{barcode[..6]}");
+            testEmail = email;
+            _authHelper.SetAuthToken(auth.AccessToken);
+
+            var request = new CreateProductRequest
+            {
+                Name = "Test Product",
+                Brand = "Test Brand",
+                Barcode = barcode
+            };
+
+            var response = await _client.PostAsJsonAsync("/api/v1.0/product", request);
+            var responseBody = await response.Content.ReadAsStringAsync();
+
+            _output.WriteLine($"Status: {response.StatusCode}");
+            _output.WriteLine($"Response: {responseBody}");
+
+            Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+
+            var content = await response.Content.ReadFromJsonAsync<ApiResponse<ProductInfo>>();
+            Assert.NotNull(content?.Data);
+            productId = content.Data.PublicId;
+
+            if (productId.HasValue)
+                await _client.DeleteAsync($"/api/v1.0/product/{productId}");
+        }
+        finally
+        {
+            _authHelper.ClearAuthToken();
+            if (testEmail != null)
+                await _authHelper.CleanupUserAsync(testEmail);
+        }
+    }
+
+    [Theory]
+    [InlineData("96385074")]
+    [InlineData("55123457")]
+    [InlineData("12345670")]
+    public async Task CreateProduct_WithValidEan8Barcode_ReturnsSuccess(string barcode)
+    {
+        string? testEmail = null;
+        Guid? productId = null;
+        try
+        {
+            var (email, auth) = await _authHelper.CreateAndAuthenticateUserAsync($"barcode-ean8-{barcode}");
+            testEmail = email;
+            _authHelper.SetAuthToken(auth.AccessToken);
+
+            var request = new CreateProductRequest
+            {
+                Name = "Test Product",
+                Brand = "Test Brand",
+                Barcode = barcode
+            };
+
+            var response = await _client.PostAsJsonAsync("/api/v1.0/product", request);
+            var responseBody = await response.Content.ReadAsStringAsync();
+
+            _output.WriteLine($"Status: {response.StatusCode}");
+            _output.WriteLine($"Response: {responseBody}");
+
+            Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+
+            var content = await response.Content.ReadFromJsonAsync<ApiResponse<ProductInfo>>();
+            Assert.NotNull(content?.Data);
+            productId = content.Data.PublicId;
+
+            if (productId.HasValue)
+                await _client.DeleteAsync($"/api/v1.0/product/{productId}");
+        }
+        finally
+        {
+            _authHelper.ClearAuthToken();
+            if (testEmail != null)
+                await _authHelper.CleanupUserAsync(testEmail);
+        }
+    }
+
+    [Theory]
+    [InlineData("012345678905")]
+    [InlineData("042100005264")]
+    [InlineData("614141000036")]
+    public async Task CreateProduct_WithValidUpcABarcode_ReturnsSuccess(string barcode)
+    {
+        string? testEmail = null;
+        Guid? productId = null;
+        try
+        {
+            var (email, auth) = await _authHelper.CreateAndAuthenticateUserAsync($"barcode-upca-{barcode[..6]}");
+            testEmail = email;
+            _authHelper.SetAuthToken(auth.AccessToken);
+
+            var request = new CreateProductRequest
+            {
+                Name = "Test Product",
+                Brand = "Test Brand",
+                Barcode = barcode
+            };
+
+            var response = await _client.PostAsJsonAsync("/api/v1.0/product", request);
+            var responseBody = await response.Content.ReadAsStringAsync();
+
+            _output.WriteLine($"Status: {response.StatusCode}");
+            _output.WriteLine($"Response: {responseBody}");
+
+            Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+
+            var content = await response.Content.ReadFromJsonAsync<ApiResponse<ProductInfo>>();
+            Assert.NotNull(content?.Data);
+            productId = content.Data.PublicId;
+
+            if (productId.HasValue)
+                await _client.DeleteAsync($"/api/v1.0/product/{productId}");
+        }
+        finally
+        {
+            _authHelper.ClearAuthToken();
+            if (testEmail != null)
+                await _authHelper.CleanupUserAsync(testEmail);
+        }
+    }
+
+    [Theory]
+    [InlineData("4006381333930")]
+    [InlineData("5901234123456")]
+    [InlineData("1234567890123")]
+    public async Task CreateProduct_WithInvalidEan13Checksum_ReturnsBadRequest(string barcode)
+    {
+        string? testEmail = null;
+        try
+        {
+            var (email, auth) = await _authHelper.CreateAndAuthenticateUserAsync($"barcode-bad-ean13-{barcode[..6]}");
+            testEmail = email;
+            _authHelper.SetAuthToken(auth.AccessToken);
+
+            var request = new CreateProductRequest
+            {
+                Name = "Test Product",
+                Brand = "Test Brand",
+                Barcode = barcode
+            };
+
+            var response = await _client.PostAsJsonAsync("/api/v1.0/product", request);
+            var responseBody = await response.Content.ReadAsStringAsync();
+
+            _output.WriteLine($"Status: {response.StatusCode}");
+            _output.WriteLine($"Response: {responseBody}");
+
+            Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+            Assert.Contains("checksum", responseBody.ToLowerInvariant());
+        }
+        finally
+        {
+            _authHelper.ClearAuthToken();
+            if (testEmail != null)
+                await _authHelper.CleanupUserAsync(testEmail);
+        }
+    }
+
+    [Theory]
+    [InlineData("ABC123456789")]
+    [InlineData("123-456-7890")]
+    [InlineData("12345ABC")]
+    public async Task CreateProduct_WithInvalidBarcodeCharacters_ReturnsBadRequest(string barcode)
+    {
+        string? testEmail = null;
+        try
+        {
+            var (email, auth) = await _authHelper.CreateAndAuthenticateUserAsync($"barcode-chars-{Guid.NewGuid().ToString()[..8]}");
+            testEmail = email;
+            _authHelper.SetAuthToken(auth.AccessToken);
+
+            var request = new CreateProductRequest
+            {
+                Name = "Test Product",
+                Brand = "Test Brand",
+                Barcode = barcode
+            };
+
+            var response = await _client.PostAsJsonAsync("/api/v1.0/product", request);
+            var responseBody = await response.Content.ReadAsStringAsync();
+
+            _output.WriteLine($"Status: {response.StatusCode}");
+            _output.WriteLine($"Response: {responseBody}");
+
+            Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        }
+        finally
+        {
+            _authHelper.ClearAuthToken();
+            if (testEmail != null)
+                await _authHelper.CleanupUserAsync(testEmail);
+        }
+    }
+
+    [Theory]
+    [InlineData("12345")]
+    [InlineData("123456789")]
+    [InlineData("12345678901")]
+    public async Task CreateProduct_WithInvalidBarcodeLength_ReturnsBadRequest(string barcode)
+    {
+        string? testEmail = null;
+        try
+        {
+            var (email, auth) = await _authHelper.CreateAndAuthenticateUserAsync($"barcode-len-{barcode.Length}");
+            testEmail = email;
+            _authHelper.SetAuthToken(auth.AccessToken);
+
+            var request = new CreateProductRequest
+            {
+                Name = "Test Product",
+                Brand = "Test Brand",
+                Barcode = barcode
+            };
+
+            var response = await _client.PostAsJsonAsync("/api/v1.0/product", request);
+            var responseBody = await response.Content.ReadAsStringAsync();
+
+            _output.WriteLine($"Status: {response.StatusCode}");
+            _output.WriteLine($"Response: {responseBody}");
+
+            Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        }
+        finally
+        {
+            _authHelper.ClearAuthToken();
+            if (testEmail != null)
+                await _authHelper.CleanupUserAsync(testEmail);
+        }
+    }
+
+    [Fact]
+    public async Task UpdateProduct_WithValidBarcode_ReturnsSuccess()
+    {
+        string? testEmail = null;
+        Guid? productId = null;
+        try
+        {
+            var (email, auth) = await _authHelper.CreateAndAuthenticateUserAsync("barcode-update-valid");
+            testEmail = email;
+            _authHelper.SetAuthToken(auth.AccessToken);
+
+            var createRequest = new CreateProductRequest
+            {
+                Name = "Test Product",
+                Brand = "Test Brand"
+            };
+            var createResponse = await _client.PostAsJsonAsync("/api/v1.0/product", createRequest);
+            var createContent = await createResponse.Content.ReadFromJsonAsync<ApiResponse<ProductInfo>>();
+            productId = createContent?.Data?.PublicId;
+
+            var updateRequest = new UpdateProductRequest
+            {
+                Barcode = "4006381333931"
+            };
+
+            var response = await _client.PutAsJsonAsync($"/api/v1.0/product/{productId}", updateRequest);
+            var responseBody = await response.Content.ReadAsStringAsync();
+
+            _output.WriteLine($"Status: {response.StatusCode}");
+            _output.WriteLine($"Response: {responseBody}");
+
+            Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+
+            if (productId.HasValue)
+                await _client.DeleteAsync($"/api/v1.0/product/{productId}");
+        }
+        finally
+        {
+            _authHelper.ClearAuthToken();
+            if (testEmail != null)
+                await _authHelper.CleanupUserAsync(testEmail);
+        }
+    }
+
+    [Fact]
+    public async Task UpdateProduct_WithInvalidBarcodeChecksum_ReturnsBadRequest()
+    {
+        string? testEmail = null;
+        Guid? productId = null;
+        try
+        {
+            var (email, auth) = await _authHelper.CreateAndAuthenticateUserAsync("barcode-update-invalid");
+            testEmail = email;
+            _authHelper.SetAuthToken(auth.AccessToken);
+
+            var createRequest = new CreateProductRequest
+            {
+                Name = "Test Product",
+                Brand = "Test Brand"
+            };
+            var createResponse = await _client.PostAsJsonAsync("/api/v1.0/product", createRequest);
+            var createContent = await createResponse.Content.ReadFromJsonAsync<ApiResponse<ProductInfo>>();
+            productId = createContent?.Data?.PublicId;
+
+            var updateRequest = new UpdateProductRequest
+            {
+                Barcode = "4006381333930"
+            };
+
+            var response = await _client.PutAsJsonAsync($"/api/v1.0/product/{productId}", updateRequest);
+            var responseBody = await response.Content.ReadAsStringAsync();
+
+            _output.WriteLine($"Status: {response.StatusCode}");
+            _output.WriteLine($"Response: {responseBody}");
+
+            Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+            Assert.Contains("checksum", responseBody.ToLowerInvariant());
+
+            if (productId.HasValue)
+                await _client.DeleteAsync($"/api/v1.0/product/{productId}");
+        }
+        finally
+        {
+            _authHelper.ClearAuthToken();
+            if (testEmail != null)
+                await _authHelper.CleanupUserAsync(testEmail);
+        }
+    }
+
+    [Fact]
+    public async Task CreateProduct_WithRealWorldCocaColaBarcode_ReturnsSuccess()
+    {
+        string? testEmail = null;
+        Guid? productId = null;
+        try
+        {
+            var (email, auth) = await _authHelper.CreateAndAuthenticateUserAsync("barcode-cocacola");
+            testEmail = email;
+            _authHelper.SetAuthToken(auth.AccessToken);
+
+            var request = new CreateProductRequest
+            {
+                Name = "Coca-Cola",
+                Brand = "Coca-Cola",
+                Barcode = "5449000000996"
+            };
+
+            var response = await _client.PostAsJsonAsync("/api/v1.0/product", request);
+            var responseBody = await response.Content.ReadAsStringAsync();
+
+            _output.WriteLine($"Status: {response.StatusCode}");
+            _output.WriteLine($"Response: {responseBody}");
+
+            Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+
+            var content = await response.Content.ReadFromJsonAsync<ApiResponse<ProductInfo>>();
+            Assert.NotNull(content?.Data);
+            productId = content.Data.PublicId;
+
+            if (productId.HasValue)
+                await _client.DeleteAsync($"/api/v1.0/product/{productId}");
+        }
+        finally
+        {
+            _authHelper.ClearAuthToken();
+            if (testEmail != null)
+                await _authHelper.CleanupUserAsync(testEmail);
+        }
+    }
+    #endregion
 }

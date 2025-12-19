@@ -40,6 +40,7 @@ Homassy.API is a home storage management system built with ASP.NET Core. The pro
 - **Per-Endpoint Timeouts**: Configurable timeout enforcement to prevent long-running requests
 - **Request/Response Logging**: Sanitized logging with sensitive data filtering for observability
 - **Input Sanitization**: Automatic XSS protection via `[SanitizedString]` validation attribute
+- **Barcode Validation**: Multi-format barcode validation with checksum verification (EAN-13, EAN-8, UPC-A, UPC-E, Code-128)
 - **CORS Support**: Configurable cross-origin resource sharing for web clients
 - **Response Compression**: Brotli and Gzip for improved performance
 
@@ -1387,6 +1388,251 @@ public class CreateResourceRequest
 - Validation happens automatically during model binding
 - No need to manually call sanitization service in controllers
 
+### Barcode Validation
+
+The application implements comprehensive barcode validation to ensure data quality and support international product standards.
+
+#### Supported Barcode Formats
+
+The system validates five major barcode formats with proper checksum algorithms:
+
+| Format | Length | Description | Example |
+|--------|--------|-------------|---------|
+| **EAN-13** | 13 digits | European Article Number (international standard) | `5449000000996` |
+| **EAN-8** | 8 digits | Short European Article Number | `96385074` |
+| **UPC-A** | 12 digits | Universal Product Code (North America) | `042100005264` |
+| **UPC-E** | 6-8 digits | Compressed UPC format | `01234565` |
+| **Code-128** | Variable | High-density alphanumeric barcode | Any length |
+
+#### ValidBarcode Validation Attribute
+
+A custom validation attribute that automatically validates barcodes at the model binding layer:
+
+```csharp
+[ValidBarcode]
+[StringLength(14, MinimumLength = 6)]
+public string? Barcode { get; set; }
+```
+
+**Features:**
+- **Automatic format detection** - Identifies barcode type based on length and pattern
+- **Checksum validation** - Validates check digit using format-specific algorithms
+- **Character validation** - Ensures only digits for EAN/UPC formats
+- **Whitespace normalization** - Trims leading and trailing spaces
+- **Integration with DI** - Uses `IBarcodeValidationService` via `ValidationContext`
+- **Detailed error messages** - Specific feedback for different validation failures
+
+**Example - Product Model:**
+```csharp
+public class CreateProductRequest
+{
+    [Required]
+    [StringLength(128, MinimumLength = 2)]
+    [SanitizedString]
+    public required string Name { get; set; }
+
+    [ValidBarcode]  // Barcode validation with checksum
+    [StringLength(14, MinimumLength = 6)]
+    public string? Barcode { get; set; }
+}
+```
+
+**Validation Flow:**
+1. Client submits product with barcode
+2. Model binding validates the request
+3. `ValidBarcodeAttribute` normalizes and validates barcode
+4. Format is auto-detected (EAN-13, EAN-8, UPC-A, UPC-E, Code-128)
+5. Checksum is validated using format-specific algorithm
+6. If invalid, returns `400 Bad Request` with specific error
+7. If valid, request proceeds to controller
+
+**Error Responses:**
+
+Invalid characters:
+```json
+{
+  "Success": false,
+  "Errors": ["Barcode 'ABC123' contains invalid characters. Only digits are allowed for EAN/UPC formats."],
+  "Timestamp": "2025-12-19T10:30:00Z"
+}
+```
+
+Invalid length:
+```json
+{
+  "Success": false,
+  "Errors": ["Barcode '12345' has invalid length. Supported formats: EAN-13 (13 digits), EAN-8 (8 digits), UPC-A (12 digits), UPC-E (6-8 digits)."],
+  "Timestamp": "2025-12-19T10:30:00Z"
+}
+```
+
+Invalid checksum:
+```json
+{
+  "Success": false,
+  "Errors": ["Barcode '4006381333930' has invalid checksum for EAN-13 format."],
+  "Timestamp": "2025-12-19T10:30:00Z"
+}
+```
+
+#### BarcodeValidationService
+
+Provides comprehensive barcode validation with format detection and checksum verification:
+
+**Interface:**
+```csharp
+public interface IBarcodeValidationService
+{
+    BarcodeValidationResult Validate(string? barcode);
+    BarcodeFormat DetectFormat(string barcode);
+    bool ValidateChecksum(string barcode, BarcodeFormat format);
+}
+```
+
+**Implementation Features:**
+- **Format Detection**: Identifies barcode type from length and pattern
+- **Checksum Algorithms**: Implements standard algorithms for each format
+- **UPC-E Expansion**: Converts compressed UPC-E to UPC-A for validation
+- **Normalization**: Trims whitespace before validation
+- **Detailed Results**: Returns structured `BarcodeValidationResult`
+
+**Checksum Algorithms:**
+
+**EAN-13 Algorithm:**
+```csharp
+// Weighted sum: alternating 1x and 3x multipliers
+// Check digit = (10 - (sum % 10)) % 10
+// Example: 5449000000996
+//   5*1 + 4*3 + 4*1 + 9*3 + 0*1 + 0*3 + 0*1 + 0*3 + 0*1 + 0*3 + 9*1 + 9*3 = 74
+//   Check digit = (10 - 74 % 10) % 10 = 6 ✓
+```
+
+**EAN-8 Algorithm:**
+```csharp
+// Weighted sum: alternating 3x and 1x multipliers
+// Check digit = (10 - (sum % 10)) % 10
+// Example: 96385074
+//   9*3 + 6*1 + 3*3 + 8*1 + 5*3 + 0*1 + 7*3 = 84
+//   Check digit = (10 - 84 % 10) % 10 = 6 (actual: 4) ✗
+```
+
+**UPC-A Algorithm:**
+```csharp
+// Weighted sum: alternating 3x and 1x multipliers
+// Check digit = (10 - (sum % 10)) % 10
+// Example: 042100005264
+//   0*3 + 4*1 + 2*3 + 1*1 + 0*3 + 0*1 + 0*3 + 0*1 + 5*3 + 2*1 + 6*3 = 46
+//   Check digit = (10 - 46 % 10) % 10 = 4 ✓
+```
+
+**UPC-E Algorithm:**
+```csharp
+// Expands UPC-E to UPC-A first, then validates UPC-A checksum
+// Example: 01234565 → 012000003455 (expanded) → validates checksum
+```
+
+**Service Registration:**
+```csharp
+builder.Services.AddSingleton<IBarcodeValidationService, BarcodeValidationService>();
+```
+
+**Usage Example:**
+```csharp
+var validationService = new BarcodeValidationService();
+var result = validationService.Validate("5449000000996");
+
+if (result.IsValid)
+{
+    Console.WriteLine($"Valid {result.Format} barcode: {result.NormalizedBarcode}");
+}
+else
+{
+    Console.WriteLine($"Error: {result.ErrorMessage}");
+}
+```
+
+#### BarcodeValidationResult Model
+
+Structured result returned by the validation service:
+
+```csharp
+public class BarcodeValidationResult
+{
+    public bool IsValid { get; init; }
+    public BarcodeFormat Format { get; init; }
+    public string? ErrorMessage { get; init; }
+    public string? NormalizedBarcode { get; init; }
+
+    public static BarcodeValidationResult Success(BarcodeFormat format, string normalizedBarcode);
+    public static BarcodeValidationResult Failure(string errorMessage);
+}
+```
+
+**BarcodeFormat Enum:**
+```csharp
+public enum BarcodeFormat
+{
+    Unknown = 0,
+    EAN13 = 1,
+    EAN8 = 2,
+    UPCA = 3,
+    UPCE = 4,
+    Code128 = 5
+}
+```
+
+#### Benefits
+
+1. **Data Quality**
+   - Prevents invalid barcodes from entering the database
+   - Ensures only valid, scannable barcodes are stored
+   - Automatic format detection eliminates user errors
+
+2. **International Support**
+   - Supports both European (EAN) and North American (UPC) standards
+   - Handles compressed formats (UPC-E)
+   - Future-proof with Code-128 support
+
+3. **User Experience**
+   - Clear, specific error messages
+   - Automatic whitespace trimming
+   - Validation happens at API boundary (fail fast)
+
+4. **Comprehensive Testing**
+   - 70+ unit tests covering all formats
+   - Real-world barcode tests (Coca-Cola, etc.)
+   - Integration tests for end-to-end validation
+   - Tests for checksum edge cases and bypass attempts
+   - Located in `Homassy.Tests/Unit/BarcodeValidationServiceTests.cs` and `ValidBarcodeAttributeTests.cs`
+
+**Applied To:**
+- Product entity barcode field
+- CreateProductRequest barcode property
+- UpdateProductRequest barcode property
+
+#### Adding to New Models
+
+When creating new models with barcode fields, apply `[ValidBarcode]` attribute:
+
+```csharp
+using Homassy.API.Attributes.Validation;
+using System.ComponentModel.DataAnnotations;
+
+public class ProductBarcodeRequest
+{
+    [ValidBarcode]  // Add this attribute
+    [StringLength(14, MinimumLength = 6)]
+    public string? Barcode { get; init; }
+}
+```
+
+**Important Notes:**
+- Minimum barcode length is 6 digits (UPC-E short format)
+- Maximum barcode length is 14 digits (EAN-13 with potential padding)
+- Validation is automatic during model binding
+- No need to manually call validation service in controllers
+- Null/empty barcodes are allowed (use `[Required]` if mandatory)
+
 ### Logging with Serilog
 
 Structured logging with console and file sinks:
@@ -1831,6 +2077,10 @@ public class CreateResourceRequest
     [SanitizedString]  // XSS protection
     public string Name { get; set; }
 
+    [ValidBarcode]  // Barcode validation with checksum
+    [StringLength(14, MinimumLength = 6)]
+    public string? Barcode { get; set; }
+
     [Range(1, 1000)]
     public int Quantity { get; set; }
 }
@@ -1968,6 +2218,7 @@ Homassy.API is a modern ASP.NET Core Web API with a unique architecture optimize
 - **Request/response logging** with sensitive data filtering improves observability
 - **Per-endpoint timeouts** prevent long-running requests from consuming resources
 - **Input sanitization** with automatic XSS protection via validation attributes
+- **Barcode validation** with multi-format support and checksum verification (EAN-13, EAN-8, UPC-A, UPC-E, Code-128)
 - **Open Food Facts integration** enriches product data with barcode lookup and nutrition information
 - **CancellationToken support** throughout for proper async operation handling and timeouts
 - **Response compression** (Brotli/Gzip) improves performance for large payloads
@@ -1976,6 +2227,7 @@ Homassy.API is a modern ASP.NET Core Web API with a unique architecture optimize
 This architecture prioritizes:
 - **Performance**: Aggressive caching, response compression, efficient async operations
 - **Security**: JWT authentication with token rotation, rate limiting, security headers, input sanitization, constant-time comparisons, sanitized logging
+- **Data Quality**: Barcode validation with checksum verification, input sanitization, comprehensive validation attributes
 - **Observability**: Correlation IDs, request logging, health checks, structured logging with Serilog
 - **Resilience**: Retry logic, timeout enforcement, graceful degradation, health monitoring
 - **Maintainability**: Clear separation of concerns, consistent patterns, centralized error handling

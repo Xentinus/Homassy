@@ -19,8 +19,8 @@ namespace Homassy.API.Models.Product
         [SanitizedString]
         public string? Category { get; set; }
 
-        [RegularExpression(@"^\d{4,14}$", ErrorMessage = "Barcode must be 4-14 digits")]
-        [StringLength(14, MinimumLength = 4)]
+        [ValidBarcode]
+        [StringLength(14, MinimumLength = 6)]
         public string? Barcode { get; set; }
 
         [Base64String]
