@@ -1,13 +1,16 @@
-﻿using System.ComponentModel.DataAnnotations;
+﻿using Homassy.API.Attributes.Validation;
+using System.ComponentModel.DataAnnotations;
 
 namespace Homassy.API.Models.Location
 {
     public class StorageLocationRequest
     {
         [StringLength(128, MinimumLength = 2)]
+        [SanitizedString]
         public string? Name { get; set; }
 
         [StringLength(500)]
+        [SanitizedString]
         public string? Description { get; set; }
 
         [StringLength(7)]

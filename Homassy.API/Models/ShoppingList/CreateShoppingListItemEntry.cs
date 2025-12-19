@@ -1,3 +1,4 @@
+using Homassy.API.Attributes.Validation;
 using Homassy.API.Enums;
 using System.ComponentModel.DataAnnotations;
 
@@ -10,6 +11,7 @@ namespace Homassy.API.Models.ShoppingList
         public Guid? ShoppingLocationPublicId { get; set; }
 
         [StringLength(255, MinimumLength = 4)]
+        [SanitizedString]
         public string? CustomName { get; set; }
 
         [Required]
@@ -21,6 +23,7 @@ namespace Homassy.API.Models.ShoppingList
         public required Unit Unit { get; set; } = Unit.Piece;
 
         [StringLength(255)]
+        [SanitizedString]
         public string? Note { get; set; }
 
         public DateTime? DeadlineAt { get; set; }

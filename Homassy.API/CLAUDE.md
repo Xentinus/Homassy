@@ -39,6 +39,7 @@ Homassy.API is a home storage management system built with ASP.NET Core. The pro
 - **Centralized Exception Handling**: GlobalExceptionMiddleware for consistent error responses
 - **Per-Endpoint Timeouts**: Configurable timeout enforcement to prevent long-running requests
 - **Request/Response Logging**: Sanitized logging with sensitive data filtering for observability
+- **Input Sanitization**: Automatic XSS protection via `[SanitizedString]` validation attribute
 - **CORS Support**: Configurable cross-origin resource sharing for web clients
 - **Response Compression**: Brotli and Gzip for improved performance
 
@@ -1241,6 +1242,151 @@ X-Application-Version: <version>
 - Content Security Policy protection
 - Request tracing (X-Request-ID)
 
+### Input Sanitization & XSS Protection
+
+The application implements a comprehensive input sanitization system to protect against XSS (Cross-Site Scripting) attacks and malicious input.
+
+#### SanitizedString Validation Attribute
+
+A custom validation attribute that automatically validates and sanitizes string inputs at the model binding layer:
+
+```csharp
+[SanitizedString]
+public string? Name { get; set; }
+```
+
+**Features:**
+- **Automatic validation** - Applied via attribute to request model properties
+- **Dangerous pattern detection** - Rejects input containing XSS attack vectors
+- **Case-insensitive matching** - Prevents bypass attempts with mixed-case input
+- **Integration with DI** - Uses `IInputSanitizationService` via `ValidationContext`
+
+**Detected Dangerous Patterns:**
+- Script tags: `<script`
+- JavaScript URIs: `javascript:`
+- Event handlers: `onerror=`, `onload=`, `onclick=`, `onmouseover=`, `onfocus=`, `onblur=`
+- Code evaluation: `eval(`, `expression(`
+- VBScript: `vbscript:`
+- Data URIs: `data:text/html`
+
+**Example - Request Model:**
+```csharp
+public class CreateProductRequest
+{
+    [Required]
+    [StringLength(128, MinimumLength = 2)]
+    [SanitizedString]  // XSS protection
+    public required string Name { get; set; }
+
+    [StringLength(128)]
+    [SanitizedString]  // XSS protection
+    public string? Notes { get; set; }
+}
+```
+
+**Validation Flow:**
+1. Client submits request with input data
+2. Model binding validates the request
+3. `SanitizedStringAttribute` checks for dangerous patterns
+4. If patterns detected, returns `400 Bad Request` with error message
+5. If clean, request proceeds to controller
+
+**Error Response:**
+```json
+{
+  "Success": false,
+  "Errors": ["The field Name contains potentially dangerous content."],
+  "Timestamp": "2025-12-19T10:30:00Z"
+}
+```
+
+#### InputSanitizationService
+
+Provides HTML encoding and whitespace normalization for string inputs:
+
+**Interface:**
+```csharp
+public interface IInputSanitizationService
+{
+    string SanitizePlainText(string? input);
+    string? SanitizePlainTextOrNull(string? input);
+}
+```
+
+**Implementation:**
+- **HTML Encoding**: Uses `HttpUtility.HtmlEncode()` to encode dangerous characters
+- **Whitespace Normalization**: Collapses multiple spaces and trims input
+- **Null Handling**: Returns empty string or null depending on method
+
+**Usage Example:**
+```csharp
+var sanitized = _sanitizationService.SanitizePlainText(userInput);
+// "<script>alert('xss')</script>" becomes "&lt;script&gt;alert('xss')&lt;/script&gt;"
+```
+
+**Service Registration:**
+```csharp
+builder.Services.AddSingleton<IInputSanitizationService, InputSanitizationService>();
+```
+
+#### Security Benefits
+
+1. **Defense in Depth**
+   - Validation layer rejects dangerous patterns
+   - Encoding layer neutralizes any bypasses
+   - Two-layer protection strategy
+
+2. **Automatic Application**
+   - `[SanitizedString]` attribute applied to all user input strings
+   - No developer action needed for protection
+   - Consistent across entire API
+
+3. **XSS Attack Prevention**
+   - Blocks common XSS payloads
+   - Prevents stored XSS attacks
+   - Protects against reflected XSS
+
+4. **Comprehensive Testing**
+   - 30+ unit tests covering various attack vectors
+   - Tests for bypass attempts (mixed-case, encoding, etc.)
+   - Located in `Homassy.Tests/Unit/InputSanitizationServiceTests.cs` and `SanitizedStringAttributeTests.cs`
+
+**Applied To:**
+All user-facing string properties in request models including:
+- User names, display names, emails
+- Product names, brands, categories, notes
+- Family names and descriptions
+- Location names, addresses, cities, postal codes
+- Shopping list names, descriptions, notes
+- Custom item names
+
+#### Adding to New Models
+
+When creating new request models, apply `[SanitizedString]` to all user input string properties:
+
+```csharp
+using Homassy.API.Attributes.Validation;
+using System.ComponentModel.DataAnnotations;
+
+public class CreateResourceRequest
+{
+    [Required]
+    [StringLength(100)]
+    [SanitizedString]  // Add this attribute
+    public required string Name { get; init; }
+
+    [StringLength(500)]
+    [SanitizedString]  // Add this attribute
+    public string? Description { get; init; }
+}
+```
+
+**Important Notes:**
+- Only apply to user input strings (not system-generated values)
+- Combine with existing validation attributes (`[Required]`, `[StringLength]`, etc.)
+- Validation happens automatically during model binding
+- No need to manually call sanitization service in controllers
+
 ### Logging with Serilog
 
 Structured logging with console and file sinks:
@@ -1675,10 +1821,14 @@ catch (MyResourceNotFoundException ex)
 
 **Request Models:**
 ```csharp
+using Homassy.API.Attributes.Validation;
+using System.ComponentModel.DataAnnotations;
+
 public class CreateResourceRequest
 {
     [Required]
     [StringLength(100)]
+    [SanitizedString]  // XSS protection
     public string Name { get; set; }
 
     [Range(1, 1000)]
@@ -1817,6 +1967,7 @@ Homassy.API is a modern ASP.NET Core Web API with a unique architecture optimize
 - **Centralized exception handling** simplifies controller code and ensures consistent error responses
 - **Request/response logging** with sensitive data filtering improves observability
 - **Per-endpoint timeouts** prevent long-running requests from consuming resources
+- **Input sanitization** with automatic XSS protection via validation attributes
 - **Open Food Facts integration** enriches product data with barcode lookup and nutrition information
 - **CancellationToken support** throughout for proper async operation handling and timeouts
 - **Response compression** (Brotli/Gzip) improves performance for large payloads
@@ -1824,7 +1975,7 @@ Homassy.API is a modern ASP.NET Core Web API with a unique architecture optimize
 
 This architecture prioritizes:
 - **Performance**: Aggressive caching, response compression, efficient async operations
-- **Security**: JWT authentication with token rotation, rate limiting, security headers, constant-time comparisons, sanitized logging
+- **Security**: JWT authentication with token rotation, rate limiting, security headers, input sanitization, constant-time comparisons, sanitized logging
 - **Observability**: Correlation IDs, request logging, health checks, structured logging with Serilog
 - **Resilience**: Retry logic, timeout enforcement, graceful degradation, health monitoring
 - **Maintainability**: Clear separation of concerns, consistent patterns, centralized error handling

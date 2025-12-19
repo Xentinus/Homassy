@@ -36,6 +36,7 @@ Homassy is a modern full-stack system designed to simplify household inventory m
 - 🔄 Refresh token rotation with grace period for improved security
 - 🚦 Two-tier rate limiting (global + endpoint-specific) with standard headers
 - 🛡️ Comprehensive security headers (CSP, HSTS, X-Frame-Options, etc.)
+- 🧹 Input sanitization with automatic XSS attack prevention
 - 🌐 CORS support with configurable allowed origins
 - ⏱️ Timing attack protection with constant-time comparisons
 - ⏳ Request timeout protection with per-endpoint configuration

@@ -1,4 +1,5 @@
-﻿using System.ComponentModel.DataAnnotations;
+﻿using Homassy.API.Attributes.Validation;
+using System.ComponentModel.DataAnnotations;
 
 namespace Homassy.API.Models.Product
 {
@@ -6,13 +7,16 @@ namespace Homassy.API.Models.Product
     {
         [Required]
         [StringLength(128, MinimumLength = 2)]
+        [SanitizedString]
         public required string Name { get; set; }
 
         [Required]
         [StringLength(128, MinimumLength = 2)]
+        [SanitizedString]
         public required string Brand { get; set; }
 
         [StringLength(128, MinimumLength = 2)]
+        [SanitizedString]
         public string? Category { get; set; }
 
         [RegularExpression(@"^\d{4,14}$", ErrorMessage = "Barcode must be 4-14 digits")]
@@ -26,6 +30,7 @@ namespace Homassy.API.Models.Product
 
         // Customization properties
         [StringLength(128)]
+        [SanitizedString]
         public string? Notes { get; set; }
 
         public bool IsFavorite { get; set; } = false;

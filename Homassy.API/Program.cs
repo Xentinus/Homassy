@@ -8,6 +8,7 @@ using Homassy.API.Models.ApplicationSettings;
 using Homassy.API.Models.HealthCheck;
 using Homassy.API.Services;
 using Homassy.API.Services.Background;
+using Homassy.API.Services.Sanitization;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.OpenApi;
 using Microsoft.AspNetCore.ResponseCompression;
@@ -59,6 +60,8 @@ try
 
     builder.Services.AddHostedService<CacheManagementService>();
     builder.Services.AddHostedService<RateLimitCleanupService>();
+
+    builder.Services.AddSingleton<IInputSanitizationService, InputSanitizationService>();
 
     builder.Services.AddSingleton<EmailQueueService>();
     builder.Services.AddSingleton<IEmailQueueService>(sp => sp.GetRequiredService<EmailQueueService>());

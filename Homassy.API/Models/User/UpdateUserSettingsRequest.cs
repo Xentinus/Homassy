@@ -1,4 +1,5 @@
-﻿using Homassy.API.Enums;
+﻿using Homassy.API.Attributes.Validation;
+using Homassy.API.Enums;
 using System.ComponentModel.DataAnnotations;
 
 namespace Homassy.API.Models.User
@@ -9,9 +10,11 @@ namespace Homassy.API.Models.User
         public string? Email { get; init; }
 
         [StringLength(128, MinimumLength = 2)]
+        [SanitizedString]
         public string? Name { get; init; }
 
         [StringLength(128, MinimumLength = 2)]
+        [SanitizedString]
         public string? DisplayName { get; init; }
 
         [EnumDataType(typeof(Currency))]

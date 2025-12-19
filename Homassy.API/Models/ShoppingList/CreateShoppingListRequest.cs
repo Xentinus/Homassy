@@ -1,3 +1,4 @@
+using Homassy.API.Attributes.Validation;
 using System.ComponentModel.DataAnnotations;
 
 namespace Homassy.API.Models.ShoppingList
@@ -6,9 +7,11 @@ namespace Homassy.API.Models.ShoppingList
     {
         [Required]
         [StringLength(128, MinimumLength = 2)]
+        [SanitizedString]
         public required string Name { get; set; }
 
         [StringLength(500)]
+        [SanitizedString]
         public string? Description { get; set; }
 
         [StringLength(7)]
