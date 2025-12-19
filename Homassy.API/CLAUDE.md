@@ -41,6 +41,7 @@ Homassy.API is a home storage management system built with ASP.NET Core. The pro
 - **Request/Response Logging**: Sanitized logging with sensitive data filtering for observability
 - **Input Sanitization**: Automatic XSS protection via `[SanitizedString]` validation attribute
 - **Barcode Validation**: Multi-format barcode validation with checksum verification (EAN-13, EAN-8, UPC-A, UPC-E, Code-128)
+- **Image Processing**: Secure image upload with magic number validation, format detection, and dimension constraints
 - **CORS Support**: Configurable cross-origin resource sharing for web clients
 - **Response Compression**: Brotli and Gzip for improved performance
 
@@ -1633,6 +1634,409 @@ public class ProductBarcodeRequest
 - No need to manually call validation service in controllers
 - Null/empty barcodes are allowed (use `[Required]` if mandatory)
 
+### Image Processing & Upload
+
+The application implements a comprehensive image processing and upload system for product images and user profile pictures with validation, format detection, and security measures.
+
+#### Supported Image Formats
+
+The system supports three major image formats with magic number validation:
+
+| Format | Magic Number | MIME Type | Description |
+|--------|--------------|-----------|-------------|
+| **JPEG** | `0xFF 0xD8 0xFF` | `image/jpeg` | Most common, good compression |
+| **PNG** | `0x89 0x50 0x4E 0x47...` | `image/png` | Lossless, supports transparency |
+| **WebP** | `0x52 0x49 0x46 0x46` + `0x57 0x45 0x42 0x50` | `image/webp` | Modern format, excellent compression |
+
+#### ImageProcessingService
+
+A specialized service for validating and processing uploaded images:
+
+**Interface:**
+```csharp
+public interface IImageProcessingService
+{
+    ImageValidationResult ValidateImage(string base64Image, ImageProcessingOptions? options = null);
+    ProcessedImage? ProcessImage(string base64Image, ImageProcessingOptions? options = null);
+    Task<ProcessedImage?> ProcessImageAsync(string base64Image, ImageProcessingOptions? options = null, CancellationToken cancellationToken = default);
+}
+```
+
+**Validation Features:**
+1. **Base64 Validation** - Decodes and validates Base64 strings, strips data URL prefixes (`data:image/jpeg;base64,`)
+2. **Magic Number Detection** - Validates actual file content by checking first bytes (prevents format spoofing)
+3. **Format Detection** - Automatically identifies JPEG, PNG, or WebP from binary signature
+4. **Dimension Extraction** - Parses image binary structure to extract width and height without full decode
+5. **File Size Limits** - Enforces configurable maximum file size
+6. **Dimension Limits** - Validates minimum and maximum width/height
+7. **Integrity Checks** - Detects corrupted or maliciously crafted images
+8. **Aspect Ratio Preservation** - Calculates resize dimensions while maintaining proportions
+
+**Magic Number Validation:**
+```csharp
+// JPEG: Checks for FF D8 FF at start
+if (StartsWith(data, JpegMagic))
+    return ImageFormat.Jpeg;
+
+// PNG: Checks for 89 50 4E 47 0D 0A 1A 0A signature
+if (StartsWith(data, PngMagic))
+    return ImageFormat.Png;
+
+// WebP: Checks for RIFF header + WEBP signature
+if (StartsWith(data, WebPMagic) && HasWebPSignature(data))
+    return ImageFormat.WebP;
+```
+
+**Dimension Extraction Examples:**
+```csharp
+// JPEG: Parses SOF (Start of Frame) markers
+private static (int width, int height) GetJpegDimensions(byte[] data)
+{
+    // Scans for 0xFFCx markers (except C4, C8, CC)
+    // Dimensions at offsets +5-6 (height) and +7-8 (width)
+    return (width, height);
+}
+
+// PNG: Reads IHDR chunk
+private static (int width, int height) GetPngDimensions(byte[] data)
+{
+    // Width at bytes 16-19, height at bytes 20-23 (big-endian)
+    var width = (data[16] << 24) | (data[17] << 16) | (data[18] << 8) | data[19];
+    var height = (data[20] << 24) | (data[21] << 16) | (data[22] << 8) | data[23];
+    return (width, height);
+}
+
+// WebP: Handles VP8, VP8L, VP8X variants
+private static (int width, int height) GetWebPDimensions(byte[] data)
+{
+    // Different extraction logic based on VP8 variant
+    return (width, height);
+}
+```
+
+**ImageProcessingOptions (Configuration):**
+```csharp
+public record ImageProcessingOptions
+{
+    public int MaxWidth { get; init; } = 800;
+    public int MaxHeight { get; init; } = 800;
+    public int MinWidth { get; init; } = 50;
+    public int MinHeight { get; init; } = 50;
+    public long MaxFileSizeBytes { get; init; } = 5 * 1024 * 1024;  // 5 MB
+    public int JpegQuality { get; init; } = 80;
+    public ImageFormat OutputFormat { get; init; } = ImageFormat.Jpeg;
+    public HashSet<ImageFormat> AllowedFormats { get; init; } = [ImageFormat.Jpeg, ImageFormat.Png, ImageFormat.WebP];
+}
+```
+
+**Service Registration:**
+```csharp
+builder.Services.AddSingleton<IImageProcessingService, ImageProcessingService>();
+```
+
+#### Image Upload Endpoints
+
+**Product Image Upload:**
+```csharp
+POST /api/v1/product/{productPublicId}/image
+Content-Type: application/json
+
+{
+  "imageBase64": "base64-encoded-image-data"
+}
+```
+
+**Configuration:**
+- Max dimensions: 800x800 pixels
+- Max file size: 5 MB
+- JPEG quality: 80
+- Allowed formats: JPEG, PNG, WebP
+- Storage: Base64 in `Product.ProductPictureBase64` column
+
+**Response:**
+```json
+{
+  "success": true,
+  "data": {
+    "productPublicId": "3fa85f64-5717-4562-b3fc-2c963f66afa6",
+    "imageBase64": "processed-base64-data",
+    "format": 1,
+    "width": 800,
+    "height": 600,
+    "fileSizeBytes": 45678
+  },
+  "message": "Product image uploaded successfully",
+  "timestamp": "2025-12-19T10:30:00Z"
+}
+```
+
+**Profile Picture Upload:**
+```csharp
+POST /api/v1/user/profile-picture
+Content-Type: application/json
+
+{
+  "imageBase64": "base64-encoded-image-data"
+}
+```
+
+**Configuration:**
+- Max dimensions: 400x400 pixels
+- Max file size: 2 MB
+- JPEG quality: 85
+- Allowed formats: JPEG, PNG, WebP
+- Storage: Base64 in `UserProfile.ProfilePictureBase64` column
+
+**Image Deletion:**
+```csharp
+DELETE /api/v1/product/{productPublicId}/image  // Deletes product image
+DELETE /api/v1/user/profile-picture              // Deletes profile picture
+```
+
+Both endpoints set the Base64 field to null with database transaction support.
+
+#### Validation Errors
+
+**ImageValidationError Enum:**
+- **None** (0) - No error, validation passed
+- **EmptyFile** (1) - Empty or null input
+- **InvalidBase64** (2) - Invalid Base64 encoding
+- **InvalidFormat** (3) - Unable to detect image format from magic numbers
+- **FileTooLarge** (4) - File exceeds maximum size limit
+- **DimensionsTooSmall** (5) - Image below minimum width or height
+- **DimensionsTooLarge** (6) - Image exceeds 4x max dimensions (processing limit)
+- **UnsupportedFormat** (7) - Image format not in allowed list
+- **MaliciousContent** (8) - Corrupted or invalid image data detected
+- **ProcessingFailed** (9) - General processing error
+
+**Error Response Examples:**
+
+Invalid format:
+```json
+{
+  "success": false,
+  "errors": ["Image validation failed: Unable to detect image format. Only JPEG, PNG, and WebP are supported."],
+  "timestamp": "2025-12-19T10:30:00Z"
+}
+```
+
+File too large:
+```json
+{
+  "success": false,
+  "errors": ["Image validation failed: File size (6000000 bytes) exceeds maximum allowed size (5242880 bytes)"],
+  "timestamp": "2025-12-19T10:30:00Z"
+}
+```
+
+Dimensions too small:
+```json
+{
+  "success": false,
+  "errors": ["Image validation failed: Image dimensions (30x30) are smaller than minimum required (50x50)"],
+  "timestamp": "2025-12-19T10:30:00Z"
+}
+```
+
+#### ImageFunctions
+
+Business logic layer for image uploads with transaction support:
+
+```csharp
+public class ImageFunctions
+{
+    private readonly IImageProcessingService _imageProcessingService;
+
+    public async Task<ProductImageInfo> UploadProductImageAsync(UploadProductImageRequest request, CancellationToken cancellationToken)
+    {
+        // 1. Validate user authentication
+        // 2. Verify product exists and user has access
+        // 3. Validate image with ImageProcessingService
+        // 4. Process image (validate + calculate dimensions)
+        // 5. Begin database transaction
+        // 6. Update product with new image Base64
+        // 7. Commit transaction
+        // 8. Log upload event
+        // 9. Return image metadata
+    }
+}
+```
+
+**Transaction Handling:**
+```csharp
+var context = new HomassyDbContext();
+await using var transaction = await context.Database.BeginTransactionAsync(cancellationToken);
+
+try
+{
+    var product = await context.Products.FirstOrDefaultAsync(p => p.Id == productId, cancellationToken);
+    product.ProductPictureBase64 = processedImage.Base64;
+    await context.SaveChangesAsync(cancellationToken);
+    await transaction.CommitAsync(cancellationToken);
+
+    Log.Information($"User {userId} uploaded image for product {productId}");
+}
+catch (Exception ex)
+{
+    await transaction.RollbackAsync(cancellationToken);
+    Log.Error(ex, $"Failed to upload image for product {productId}");
+    throw;
+}
+```
+
+#### Security Benefits
+
+1. **Magic Number Validation**
+   - Validates actual file content, not just file extension or MIME type
+   - Prevents uploading executables disguised as images
+   - Detects file format spoofing attacks
+   - Example: Rejects `.exe` files renamed to `.jpg`
+
+2. **File Size Limits**
+   - Prevents denial-of-service attacks with extremely large files
+   - Configurable per endpoint (5MB products, 2MB profiles)
+   - Protects server resources and storage
+
+3. **Dimension Limits**
+   - Prevents processing extremely large images (memory exhaustion)
+   - 4x max dimension limit prevents processing attacks
+   - Minimum dimensions ensure quality
+
+4. **Integrity Checks**
+   - Validates image structure integrity
+   - Detects corrupted files before processing
+   - Prevents malformed images from causing crashes
+   - Checks for valid JPEG/PNG/WebP structure
+
+5. **Base64 Database Storage**
+   - Stores images in database, not file system
+   - Eliminates path traversal vulnerabilities
+   - No file name injection risks
+   - No directory listing exploits
+   - Automatic cleanup on record deletion
+
+6. **Transaction Safety**
+   - All uploads wrapped in database transactions
+   - Automatic rollback on errors
+   - Ensures data consistency
+   - Prevents partial uploads
+
+#### API Changes (Breaking)
+
+**Old Approach (Removed in this update):**
+```csharp
+// Product images were uploaded inline with product creation/update
+public class CreateProductRequest
+{
+    [Base64String]
+    public string? ProductPictureBase64 { get; set; }  // ❌ Removed
+}
+
+POST /api/v1/product
+{
+  "name": "Product Name",
+  "productPictureBase64": "base64-data"  // ❌ No longer accepted
+}
+```
+
+**New Approach (Current):**
+```csharp
+// Separate dedicated endpoint for image uploads
+POST /api/v1/product/{productPublicId}/image
+{
+  "imageBase64": "base64-encoded-image"  // ✅ Now required
+}
+
+// Product creation no longer includes image
+POST /api/v1/product
+{
+  "name": "Product Name"  // ✅ Image uploaded separately
+}
+```
+
+**Benefits of Separation:**
+- Clearer API design (single responsibility)
+- Better error handling for image uploads
+- Allows updating product without re-uploading image
+- Simpler product creation workflow
+- More detailed image metadata in response
+- Dedicated validation rules per endpoint
+
+#### Testing Coverage
+
+**Unit Tests (20+ tests):**
+- Empty/null input validation
+- Invalid Base64 string detection
+- JPEG validation with data URL prefixes (`data:image/jpeg;base64,`)
+- PNG validation with dimension parsing
+- WebP validation with signature check
+- Unsupported format rejection (GIF example)
+- File size limit enforcement
+- Dimension validation (too small/too large)
+- Magic number detection accuracy
+- Format-specific content type generation
+- Async processing with CancellationToken
+- Default options validation
+- ImageValidationResult factory methods
+
+**Test Location:**
+- `Homassy.Tests/Unit/ImageProcessingServiceTests.cs` - Comprehensive unit tests with real binary data
+
+#### Usage Examples
+
+**Uploading Product Image:**
+```csharp
+// Controller receives Base64-encoded image from client
+var request = new UploadProductImageRequest
+{
+    ProductPublicId = productId,
+    ImageBase64 = "iVBORw0KGgoAAAANSUhEUgAAAAUA..."  // PNG image
+};
+
+var imageFunctions = new ImageFunctions(_imageProcessingService);
+var imageInfo = await imageFunctions.UploadProductImageAsync(request, cancellationToken);
+
+// Returns: ProductImageInfo with format, dimensions, file size
+```
+
+**Validating Image Before Upload:**
+```csharp
+var options = new ImageProcessingOptions
+{
+    MaxWidth = 800,
+    MaxHeight = 800,
+    MaxFileSizeBytes = 5 * 1024 * 1024
+};
+
+var result = _imageProcessingService.ValidateImage(base64Image, options);
+
+if (!result.IsValid)
+{
+    throw new BadRequestException($"Validation failed: {result.ErrorMessage}");
+}
+```
+
+**Processing Image:**
+```csharp
+var processedImage = await _imageProcessingService.ProcessImageAsync(base64Image, options, cancellationToken);
+
+Console.WriteLine($"Format: {processedImage.Format}");           // Jpeg, Png, or WebP
+Console.WriteLine($"Dimensions: {processedImage.Width}x{processedImage.Height}");
+Console.WriteLine($"Size: {processedImage.FileSizeBytes} bytes");
+Console.WriteLine($"Content-Type: {processedImage.ContentType}"); // image/jpeg
+```
+
+#### Important Notes
+
+- **Resizing Not Implemented**: Line 336-339 in `ImageProcessingService.cs` - `ResizeImage()` currently returns original bytes (stub)
+- **Base64 Storage**: Images stored as Base64 in database columns, not as separate files
+- **Transaction Required**: All upload/delete operations must use database transactions
+- **Authentication Required**: User must be authenticated to upload/delete images
+- **Null Allowed**: Images are optional - deletion sets field to null
+- **Separate Endpoints**: Product creation/update no longer accepts inline image uploads
+- **Dimension Calculation**: Service calculates resize dimensions but doesn't actually resize yet
+- **Format Preservation**: Currently preserves original format (resizing stub would allow format conversion)
+
 ### Logging with Serilog
 
 Structured logging with console and file sinks:
@@ -2219,6 +2623,7 @@ Homassy.API is a modern ASP.NET Core Web API with a unique architecture optimize
 - **Per-endpoint timeouts** prevent long-running requests from consuming resources
 - **Input sanitization** with automatic XSS protection via validation attributes
 - **Barcode validation** with multi-format support and checksum verification (EAN-13, EAN-8, UPC-A, UPC-E, Code-128)
+- **Image processing** with magic number validation, format detection, and secure upload system
 - **Open Food Facts integration** enriches product data with barcode lookup and nutrition information
 - **CancellationToken support** throughout for proper async operation handling and timeouts
 - **Response compression** (Brotli/Gzip) improves performance for large payloads
@@ -2226,8 +2631,8 @@ Homassy.API is a modern ASP.NET Core Web API with a unique architecture optimize
 
 This architecture prioritizes:
 - **Performance**: Aggressive caching, response compression, efficient async operations
-- **Security**: JWT authentication with token rotation, rate limiting, security headers, input sanitization, constant-time comparisons, sanitized logging
-- **Data Quality**: Barcode validation with checksum verification, input sanitization, comprehensive validation attributes
+- **Security**: JWT authentication with token rotation, rate limiting, security headers, input sanitization, magic number validation, constant-time comparisons, sanitized logging
+- **Data Quality**: Barcode validation with checksum verification, image format validation, input sanitization, comprehensive validation attributes
 - **Observability**: Correlation IDs, request logging, health checks, structured logging with Serilog
 - **Resilience**: Retry logic, timeout enforcement, graceful degradation, health monitoring
 - **Maintainability**: Clear separation of concerns, consistent patterns, centralized error handling

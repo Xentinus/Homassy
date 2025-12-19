@@ -2,6 +2,8 @@
 using Homassy.API.Functions;
 using Homassy.API.Models.Common;
 using Homassy.API.Models.User;
+using Homassy.API.Models.ImageUpload;
+using Homassy.API.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
@@ -16,6 +18,13 @@ namespace Homassy.API.Controllers
     [Authorize]
     public class UserController : ControllerBase
     {
+        private readonly IImageProcessingService _imageProcessingService;
+
+        public UserController(IImageProcessingService imageProcessingService)
+        {
+            _imageProcessingService = imageProcessingService;
+        }
+
         /// <summary>
         /// Gets the current user's profile information.
         /// </summary>
@@ -47,21 +56,21 @@ namespace Homassy.API.Controllers
         }
 
         /// <summary>
-        /// Uploads a new profile picture for the current user.
+        /// Uploads and processes a new profile picture for the current user.
         /// </summary>
         [HttpPost("profile-picture")]
         [MapToApiVersion(1.0)]
-        [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status200OK)]
+        [ProducesResponseType(typeof(ApiResponse<UserProfileImageInfo>), StatusCodes.Status200OK)]
         [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status400BadRequest)]
-        public async Task<IActionResult> UploadProfilePicture([FromBody] UploadProfilePictureRequest request, CancellationToken cancellationToken)
+        public async Task<IActionResult> UploadProfilePicture([FromBody] UploadUserProfileImageRequest request, CancellationToken cancellationToken)
         {
             if (!ModelState.IsValid)
             {
                 return BadRequest(ApiResponse.ErrorResponse("Invalid request data"));
             }
 
-            await new UserFunctions().UploadProfilePictureAsync(request.ProfilePictureBase64, cancellationToken);
-            return Ok(ApiResponse.SuccessResponse("Profile picture uploaded successfully"));
+            var imageInfo = await new ImageFunctions(_imageProcessingService).UploadUserProfileImageAsync(request, cancellationToken);
+            return Ok(ApiResponse<UserProfileImageInfo>.SuccessResponse(imageInfo, "Profile picture uploaded successfully"));
         }
 
         /// <summary>
@@ -70,9 +79,10 @@ namespace Homassy.API.Controllers
         [HttpDelete("profile-picture")]
         [MapToApiVersion(1.0)]
         [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status200OK)]
+        [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status400BadRequest)]
         public async Task<IActionResult> DeleteProfilePicture(CancellationToken cancellationToken)
         {
-            await new UserFunctions().DeleteProfilePictureAsync(cancellationToken);
+            await new ImageFunctions(_imageProcessingService).DeleteUserProfileImageAsync(cancellationToken);
             return Ok(ApiResponse.SuccessResponse("Profile picture deleted successfully"));
         }
     }

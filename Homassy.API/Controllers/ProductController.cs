@@ -2,6 +2,8 @@
 using Homassy.API.Functions;
 using Homassy.API.Models.Common;
 using Homassy.API.Models.Product;
+using Homassy.API.Models.ImageUpload;
+using Homassy.API.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Serilog;
@@ -17,6 +19,13 @@ namespace Homassy.API.Controllers
     [Authorize]
     public class ProductController : ControllerBase
     {
+        private readonly IImageProcessingService _imageProcessingService;
+
+        public ProductController(IImageProcessingService imageProcessingService)
+        {
+            _imageProcessingService = imageProcessingService;
+        }
+
         #region Product
         /// <summary>
         /// Gets all products for the current user's family.
@@ -307,6 +316,46 @@ namespace Homassy.API.Controllers
 
             var products = await new ProductFunctions().CreateMultipleProductsAsync(request, cancellationToken);
             return Ok(ApiResponse<List<ProductInfo>>.SuccessResponse(products, $"{products.Count} products created successfully"));
+        }
+        #endregion
+
+        #region Product Image
+        /// <summary>
+        /// Uploads and processes an image for a product.
+        /// </summary>
+        [HttpPost("{productPublicId}/image")]
+        [MapToApiVersion(1.0)]
+        [ProducesResponseType(typeof(ApiResponse<ProductImageInfo>), StatusCodes.Status200OK)]
+        [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status404NotFound)]
+        public async Task<IActionResult> UploadProductImage(Guid productPublicId, [FromBody] UploadProductImageRequest request, CancellationToken cancellationToken)
+        {
+            if (!ModelState.IsValid)
+            {
+                return BadRequest(ApiResponse.ErrorResponse("Invalid request data"));
+            }
+
+            var uploadRequest = new UploadProductImageRequest
+            {
+                ProductPublicId = productPublicId,
+                ImageBase64 = request.ImageBase64
+            };
+
+            var imageInfo = await new ImageFunctions(_imageProcessingService).UploadProductImageAsync(uploadRequest, cancellationToken);
+            return Ok(ApiResponse<ProductImageInfo>.SuccessResponse(imageInfo, "Product image uploaded successfully"));
+        }
+
+        /// <summary>
+        /// Deletes the image of a product.
+        /// </summary>
+        [HttpDelete("{productPublicId}/image")]
+        [MapToApiVersion(1.0)]
+        [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status200OK)]
+        [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status404NotFound)]
+        public async Task<IActionResult> DeleteProductImage(Guid productPublicId, CancellationToken cancellationToken)
+        {
+            await new ImageFunctions(_imageProcessingService).DeleteProductImageAsync(productPublicId, cancellationToken);
+            return Ok(ApiResponse.SuccessResponse("Product image deleted successfully"));
         }
         #endregion
     }

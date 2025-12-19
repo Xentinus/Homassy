@@ -511,7 +511,6 @@ namespace Homassy.API.Functions
                     Brand = request.Brand.Trim(),
                     Category = request.Category?.Trim(),
                     Barcode = request.Barcode?.Trim(),
-                    ProductPictureBase64 = request.ProductPictureBase64,
                     IsEatable = request.IsEatable
                 };
 
@@ -612,14 +611,6 @@ namespace Homassy.API.Functions
                     product.Barcode = string.IsNullOrWhiteSpace(request.Barcode)
                         ? null
                         : request.Barcode.Trim();
-                    hasChanges = true;
-                }
-
-                if (request.ProductPictureBase64 != null)
-                {
-                    product.ProductPictureBase64 = string.IsNullOrWhiteSpace(request.ProductPictureBase64)
-                        ? null
-                        : request.ProductPictureBase64;
                     hasChanges = true;
                 }
 
@@ -1793,7 +1784,6 @@ namespace Homassy.API.Functions
                         Brand = productRequest.Brand.Trim(),
                         Category = productRequest.Category?.Trim(),
                         Barcode = productRequest.Barcode?.Trim(),
-                        ProductPictureBase64 = productRequest.ProductPictureBase64,
                         IsEatable = productRequest.IsEatable
                     };
 

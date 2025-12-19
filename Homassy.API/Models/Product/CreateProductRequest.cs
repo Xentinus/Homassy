@@ -23,9 +23,6 @@ namespace Homassy.API.Models.Product
         [StringLength(14, MinimumLength = 6)]
         public string? Barcode { get; set; }
 
-        [Base64String]
-        public string? ProductPictureBase64 { get; set; }
-
         public bool IsEatable { get; set; } = true;
 
         // Customization properties

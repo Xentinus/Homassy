@@ -37,6 +37,7 @@ Homassy is a modern full-stack system designed to simplify household inventory m
 - 🚦 Two-tier rate limiting (global + endpoint-specific) with standard headers
 - 🛡️ Comprehensive security headers (CSP, HSTS, X-Frame-Options, etc.)
 - 🧹 Input sanitization with automatic XSS attack prevention
+- 🖼️ Secure image upload with magic number validation and integrity checks
 - 🌐 CORS support with configurable allowed origins
 - ⏱️ Timing attack protection with constant-time comparisons
 - ⏳ Request timeout protection with per-endpoint configuration
@@ -55,6 +56,7 @@ Homassy is a modern full-stack system designed to simplify household inventory m
 - ✅ Advanced barcode validation with checksum verification (EAN-13, EAN-8, UPC-A, UPC-E, Code-128)
 - 🔍 Automatic format detection and validation at API boundary
 - 🌍 International barcode standard support (European and North American formats)
+- 📸 Image validation with format detection (JPEG, PNG, WebP) and dimension constraints
 
 ## 📁 Project Structure
 
