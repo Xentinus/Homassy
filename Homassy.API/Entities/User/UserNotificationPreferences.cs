@@ -9,15 +9,15 @@ namespace Homassy.API.Entities.User
         public int UserId { get; set; }
 
         // Email notifications
-        public bool EmailNotificationsEnabled { get; set; } = true;
-        public bool EmailWeeklySummaryEnabled { get; set; } = true;
+        public bool EmailNotificationsEnabled { get; set; } = false;
+        public bool EmailWeeklySummaryEnabled { get; set; } = false;
 
         // Push notifications
-        public bool PushNotificationsEnabled { get; set; } = true;
-        public bool PushWeeklySummaryEnabled { get; set; } = true;
+        public bool PushNotificationsEnabled { get; set; } = false;
+        public bool PushWeeklySummaryEnabled { get; set; } = false;
 
         // In-app notifications
-        public bool InAppNotificationsEnabled { get; set; } = true;
+        public bool InAppNotificationsEnabled { get; set; } = false;
 
         // Navigation
         public User User { get; set; } = null!;
