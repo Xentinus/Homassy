@@ -107,6 +107,7 @@ namespace Homassy.API.Services
                 var formattedCode = $"{code[..halfLength]} - {code[halfLength..]}";
 
                 var htmlBody = _verificationTemplate
+                    .Replace("{{APP_NAME}}", EmailTemplateService.GetAppName())
                     .Replace("{{CODE}}", formattedCode)
                     .Replace("{{EXPIRY_TIME}}", expirationTimeFormatted)
                     .Replace("{{YEAR}}", currentYear.ToString())
@@ -175,6 +176,7 @@ namespace Homassy.API.Services
                 var formattedCode = $"{code[..halfLength]} - {code[halfLength..]}";
 
                 var htmlBody = _registrationTemplate
+                    .Replace("{{APP_NAME}}", EmailTemplateService.GetAppName())
                     .Replace("{{USERNAME}}", username)
                     .Replace("{{EMAIL}}", email)
                     .Replace("{{CODE}}", formattedCode)

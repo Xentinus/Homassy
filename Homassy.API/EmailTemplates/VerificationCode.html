@@ -4,6 +4,7 @@
     <meta charset='UTF-8'>
     <meta name='viewport' content='width=device-width, initial-scale=1.0'>
     <meta http-equiv='X-UA-Compatible' content='IE=edge'>
+    <link href='https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap' rel='stylesheet'>
     <style>
         * {
             margin: 0;
@@ -12,187 +13,305 @@
         }
 
         body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
-            background-color: #f9fafb;
-            padding: 20px 16px;
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(145deg, #f8fafc 0%, #f1f5f9 100%);
+            min-height: 100vh;
+            padding: 40px 16px;
             line-height: 1.6;
             -webkit-font-smoothing: antialiased;
-            -moz-osx-font-smoothing: grayscale;
         }
 
         .email-wrapper {
-            max-width: 600px;
+            max-width: 480px;
             margin: 0 auto;
-            width: 100%;
         }
 
-        .container {
-            background-color: #ffffff;
-            border: 1px solid #e5e7eb;
-            border-radius: 12px;
+        /* Main Card */
+        .card {
+            background: #ffffff;
+            border: 1px solid #e2e8f0;
+            border-radius: 24px;
             overflow: hidden;
-            box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06);
+            box-shadow: 
+                0 4px 6px -1px rgba(0, 0, 0, 0.05),
+                0 10px 15px -3px rgba(0, 0, 0, 0.05),
+                0 20px 25px -5px rgba(0, 0, 0, 0.03);
         }
 
+        /* Header */
         .header {
-            background: linear-gradient(135deg, #18181b 0%, #27272a 100%);
-            padding: 32px 20px;
+            padding: 32px 32px 28px;
             text-align: center;
+            position: relative;
+            border-bottom: 1px solid #f1f5f9;
+            background: linear-gradient(180deg, #ffffff 0%, #fafbfc 100%);
         }
 
-        .header-title {
-            color: #ffffff;
-            font-size: 24px;
+        .logo {
+            display: inline-flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .logo-icon {
+            width: 44px;
+            height: 44px;
+            background: linear-gradient(135deg, #00DC82 0%, #00b368 100%);
+            border-radius: 14px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 22px;
+            box-shadow: 
+                0 4px 12px -2px rgba(0, 220, 130, 0.4),
+                inset 0 1px 1px rgba(255, 255, 255, 0.2);
+        }
+
+        .logo-text {
+            color: #0f172a;
+            font-size: 26px;
             font-weight: 700;
-            margin: 0;
             letter-spacing: -0.5px;
         }
 
-        .header-subtitle {
-            color: #a1a1aa;
+        .subtitle {
+            color: #64748b;
             font-size: 13px;
-            margin-top: 8px;
-            font-weight: 400;
-        }
-
-        .content {
-            padding: 32px 24px;
-        }
-
-        .greeting {
-            color: #18181b;
-            font-size: 18px;
-            font-weight: 600;
-            margin-bottom: 12px;
-            letter-spacing: -0.3px;
-        }
-
-        .message {
-            color: #52525b;
-            font-size: 15px;
-            margin-bottom: 28px;
-            line-height: 1.6;
-        }
-
-        .code-container {
-            background: linear-gradient(135deg, #18181b 0%, #27272a 100%);
-            border-radius: 12px;
-            padding: 28px 20px;
-            text-align: center;
-            margin: 28px 0;
-            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
-        }
-
-        .code-label {
-            color: #a1a1aa;
-            font-size: 11px;
-            text-transform: uppercase;
-            letter-spacing: 1.2px;
-            margin-bottom: 14px;
-            font-weight: 600;
-        }
-
-        .code {
-            color: #ffffff;
-            font-size: clamp(28px, 8vw, 36px);
-            font-weight: 700;
-            letter-spacing: 0.3em;
-            font-family: 'Courier New', Courier, monospace;
-            margin: 0;
-            user-select: all;
-            word-break: keep-all;
-            white-space: nowrap;
-            overflow: hidden;
-            text-overflow: clip;
-            padding: 0 10px;
-        }
-
-        .expiry-info {
-            display: inline-flex;
-            align-items: center;
-            gap: 6px;
-            background-color: #3f3f46;
-            color: #fafafa;
-            padding: 8px 14px;
-            border-radius: 8px;
-            font-size: 12px;
-            margin-top: 18px;
+            margin-top: 12px;
             font-weight: 500;
         }
 
-        .divider {
-            height: 1px;
-            background-color: #e5e7eb;
-            margin: 28px 0;
+        /* Content */
+        .content {
+            padding: 36px 32px 32px;
         }
 
-        .footer {
-            background-color: #f9fafb;
-            padding: 20px 24px;
+        .greeting {
+            color: #0f172a;
+            font-size: 24px;
+            font-weight: 700;
+            margin-bottom: 12px;
+            letter-spacing: -0.5px;
+        }
+
+        .message {
+            color: #64748b;
+            font-size: 15px;
+            margin-bottom: 28px;
+            line-height: 1.7;
+        }
+
+        /* Code Card */
+        .code-card {
+            background: linear-gradient(145deg, #f8fafc 0%, #f1f5f9 100%);
+            border: 1px solid #e2e8f0;
+            border-radius: 16px;
+            padding: 28px 24px;
             text-align: center;
-            border-top: 1px solid #e5e7eb;
+            margin-bottom: 24px;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .code-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 50%;
+            height: 3px;
+            background: linear-gradient(90deg, transparent, #00DC82, transparent);
+            border-radius: 0 0 4px 4px;
+        }
+
+        .code-label {
+            color: #94a3b8;
+            font-size: 10px;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            margin-bottom: 16px;
+            font-weight: 600;
+        }
+
+        .code-display {
+            display: flex;
+            justify-content: center;
+            gap: 8px;
+            margin-bottom: 20px;
+        }
+
+        .code {
+            color: #0f172a;
+            font-size: 34px;
+            font-weight: 700;
+            letter-spacing: 0.4em;
+            font-family: 'SF Mono', 'Fira Code', 'JetBrains Mono', monospace;
+        }
+
+        .expiry-chip {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            background: #ffffff;
+            border: 1px solid #e2e8f0;
+            color: #64748b;
+            padding: 10px 16px;
+            border-radius: 100px;
+            font-size: 12px;
+            font-weight: 500;
+            box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+        }
+
+        .expiry-chip svg {
+            width: 14px;
+            height: 14px;
+            color: #00DC82;
+        }
+
+        /* Divider */
+        .divider {
+            height: 1px;
+            background: linear-gradient(90deg, transparent, #e2e8f0, transparent);
+            margin: 24px 0;
+        }
+
+        /* Security Note */
+        .security-note {
+            background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
+            border: 1px solid #e2e8f0;
+            border-radius: 12px;
+            padding: 16px 20px;
+            display: flex;
+            gap: 12px;
+            align-items: flex-start;
+        }
+
+        .security-icon {
+            width: 20px;
+            height: 20px;
+            color: #00DC82;
+            flex-shrink: 0;
+            margin-top: 2px;
+        }
+
+        .security-text {
+            color: #64748b;
+            font-size: 13px;
+            line-height: 1.6;
+        }
+
+        /* Footer */
+        .footer {
+            padding: 24px 32px;
+            text-align: center;
+            border-top: 1px solid #f1f5f9;
+            background: #fafbfc;
         }
 
         .footer-text {
-            color: #71717a;
+            color: #94a3b8;
             font-size: 12px;
-            margin: 0;
-            line-height: 1.5;
+            line-height: 1.6;
         }
 
-            .footer-text + .footer-text {
-                margin-top: 6px;
-            }
+        .footer-text + .footer-text {
+            margin-top: 4px;
+        }
 
-        @media only screen and (max-width: 600px) {
+        /* Responsive */
+        @media only screen and (max-width: 520px) {
             body {
-                padding: 12px 8px;
-            }
-
-            .header {
-                padding: 28px 16px;
-            }
-
-            .header-title {
-                font-size: 22px;
-            }
-
-            .content {
-                padding: 24px 16px;
-            }
-
-            .code-container {
                 padding: 24px 12px;
             }
 
+            .card {
+                border-radius: 20px;
+            }
+
+            .header {
+                padding: 28px 24px 24px;
+            }
+
+            .logo-icon {
+                width: 40px;
+                height: 40px;
+                font-size: 20px;
+            }
+
+            .logo-text {
+                font-size: 24px;
+            }
+
+            .content {
+                padding: 28px 24px;
+            }
+
+            .greeting {
+                font-size: 22px;
+            }
+
+            .message {
+                font-size: 14px;
+            }
+
+            .code-card {
+                padding: 24px 16px;
+            }
+
             .code {
-                font-size: clamp(24px, 7vw, 32px);
-                letter-spacing: 0.25em;
+                font-size: 28px;
+                letter-spacing: 0.3em;
+            }
+
+            .security-note {
+                padding: 14px 16px;
+            }
+
+            .footer {
+                padding: 20px 24px;
             }
         }
     </style>
 </head>
 <body>
     <div class='email-wrapper'>
-        <div class='container'>
+        <div class='card'>
             <div class='header'>
-                <h1 class='header-title'>Homassy</h1>
-                <p class='header-subtitle'>{{APP_SUBTITLE}}</p>
+                <div class='logo'>
+                    <span class='logo-text'>{{APP_NAME}}</span>
+                </div>
+                <p class='subtitle'>{{APP_SUBTITLE}}</p>
             </div>
+            
             <div class='content'>
-                <h2 class='greeting'>{{GREETING}}</h2>
+                <h1 class='greeting'>{{GREETING}}</h1>
                 <p class='message'>{{MESSAGE}}</p>
-                <div class='code-container'>
+                
+                <div class='code-card'>
                     <div class='code-label'>{{CODE_LABEL}}</div>
-                    <div class='code'>{{CODE}}</div>
-                    <div class='expiry-info'>
-                        <span>⏱️</span>
+                    <div class='code-display'>
+                        <span class='code'>{{CODE}}</span>
+                    </div>
+                    <div class='expiry-chip'>
+                        <svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'>
+                            <circle cx='12' cy='12' r='10'></circle>
+                            <polyline points='12 6 12 12 16 14'></polyline>
+                        </svg>
                         <span>{{EXPIRES_AT}}</span>
                     </div>
                 </div>
+                
                 <div class='divider'></div>
-                <p class='message' style='margin-bottom: 0; font-size: 14px;'>{{SECURITY_NOTE}}</p>
+                
+                <div class='security-note'>
+                    <svg class='security-icon' xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'>
+                        <path d='M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z'></path>
+                    </svg>
+                    <p class='security-text'>{{SECURITY_NOTE}}</p>
+                </div>
             </div>
+            
             <div class='footer'>
                 <p class='footer-text'>{{FOOTER_COPYRIGHT}}</p>
                 <p class='footer-text'>{{FOOTER_AUTO_MESSAGE}}</p>
