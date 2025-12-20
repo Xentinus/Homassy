@@ -11,9 +11,9 @@ public class EmailQueueServiceTests
         return new EmailQueueService(capacity);
     }
 
-    private static EmailTask CreateTask(string email = "test@example.com", EmailType type = EmailType.Verification)
+    private static EmailTask CreateTask(string email = "test@example.com", EmailType type = EmailType.Verification, Language language = Language.English)
     {
-        return new EmailTask(email, "123456", UserTimeZone.UTC, type);
+        return new EmailTask(email, "123456", UserTimeZone.UTC, language, type);
     }
 
     #region TryQueueEmailAsync Tests
@@ -72,7 +72,7 @@ public class EmailQueueServiceTests
     public async Task TryQueueEmailAsync_WhenDifferentEmailTypes_ReturnsTrue(EmailType type)
     {
         var service = CreateService();
-        var task = new EmailTask("test@example.com", "123456", UserTimeZone.UTC, type);
+        var task = new EmailTask("test@example.com", "123456", UserTimeZone.UTC, Language.English, type);
 
         var result = await service.TryQueueEmailAsync(task);
 
@@ -90,7 +90,7 @@ public class EmailQueueServiceTests
     public async Task TryQueueEmailAsync_WhenDifferentTimeZones_ReturnsTrue(UserTimeZone timeZone)
     {
         var service = CreateService();
-        var task = new EmailTask("test@example.com", "123456", timeZone, EmailType.Verification);
+        var task = new EmailTask("test@example.com", "123456", timeZone, Language.English, EmailType.Verification);
 
         var result = await service.TryQueueEmailAsync(task);
 
@@ -101,7 +101,25 @@ public class EmailQueueServiceTests
     public async Task TryQueueEmailAsync_WhenNullTimeZone_ReturnsTrue()
     {
         var service = CreateService();
-        var task = new EmailTask("test@example.com", "123456", null, EmailType.Verification);
+        var task = new EmailTask("test@example.com", "123456", null, Language.English, EmailType.Verification);
+
+        var result = await service.TryQueueEmailAsync(task);
+
+        Assert.True(result);
+    }
+
+    #endregion
+
+    #region Language Tests
+
+    [Theory]
+    [InlineData(Language.English)]
+    [InlineData(Language.Hungarian)]
+    [InlineData(Language.German)]
+    public async Task TryQueueEmailAsync_WhenDifferentLanguages_ReturnsTrue(Language language)
+    {
+        var service = CreateService();
+        var task = new EmailTask("test@example.com", "123456", UserTimeZone.UTC, language, EmailType.Verification);
 
         var result = await service.TryQueueEmailAsync(task);
 

@@ -32,7 +32,7 @@ public class EmailBackgroundServiceTests
     public async Task TryQueueEmailAsync_WhenTaskQueued_ReturnsTrue()
     {
         var queueService = CreateQueueService();
-        var emailTask = new EmailTask("test@example.com", "123456", UserTimeZone.UTC, EmailType.Verification);
+        var emailTask = new EmailTask("test@example.com", "123456", UserTimeZone.UTC, Language.English, EmailType.Verification);
 
         var result = await queueService.TryQueueEmailAsync(emailTask);
 
@@ -44,9 +44,9 @@ public class EmailBackgroundServiceTests
     {
         var queueService = CreateQueueService();
 
-        var result1 = await queueService.TryQueueEmailAsync(new EmailTask("test1@example.com", "111111", UserTimeZone.UTC, EmailType.Verification));
-        var result2 = await queueService.TryQueueEmailAsync(new EmailTask("test2@example.com", "222222", UserTimeZone.UTC, EmailType.Registration));
-        var result3 = await queueService.TryQueueEmailAsync(new EmailTask("test3@example.com", "333333", UserTimeZone.CentralEuropeStandardTime, EmailType.Verification));
+        var result1 = await queueService.TryQueueEmailAsync(new EmailTask("test1@example.com", "111111", UserTimeZone.UTC, Language.English, EmailType.Verification));
+        var result2 = await queueService.TryQueueEmailAsync(new EmailTask("test2@example.com", "222222", UserTimeZone.UTC, Language.Hungarian, EmailType.Registration));
+        var result3 = await queueService.TryQueueEmailAsync(new EmailTask("test3@example.com", "333333", UserTimeZone.CentralEuropeStandardTime, Language.German, EmailType.Verification));
 
         Assert.True(result1);
         Assert.True(result2);

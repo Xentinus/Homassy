@@ -857,8 +857,9 @@ namespace Homassy.API.Functions
 
             var profile = GetUserProfileByUserId(user.Id);
             var timezone = profile?.DefaultTimeZone ?? UserTimeZone.CentralEuropeStandardTime;
+            var language = profile?.DefaultLanguage ?? browserLanguage ?? Language.English;
 
-            await SendEmailAsync(new EmailTask(user.Email, code, timezone, EmailType.Registration));
+            await SendEmailAsync(new EmailTask(user.Email, code, timezone, language, EmailType.Registration));
 
             Log.Information($"New user registered: {normalizedEmail}, registration email with verification code sent");
         }
@@ -1017,8 +1018,9 @@ namespace Homassy.API.Functions
 
             var profile = user.Profile ?? GetUserProfileByUserId(user.Id);
             var timezone = profile?.DefaultTimeZone ?? UserTimeZone.CentralEuropeStandardTime;
+            var language = profile?.DefaultLanguage ?? Language.English;
 
-            await SendEmailAsync(new EmailTask(user.Email, code, timezone, EmailType.Verification));
+            await SendEmailAsync(new EmailTask(user.Email, code, timezone, language, EmailType.Verification));
         }
 
         public async Task<AuthResponse> VerifyCodeAsync(string email, string code, CancellationToken cancellationToken = default)
@@ -1629,10 +1631,10 @@ namespace Homassy.API.Functions
                 switch (task.Type)
                 {
                     case EmailType.Verification:
-                        await EmailService.SendVerificationCodeAsync(task.Email, task.Code, task.TimeZone);
+                        await EmailService.SendVerificationCodeAsync(task.Email, task.Code, task.TimeZone, task.Language);
                         break;
                     case EmailType.Registration:
-                        await EmailService.SendRegistrationEmailAsync(task.Email, task.Email, task.Code, task.TimeZone);
+                        await EmailService.SendRegistrationEmailAsync(task.Email, task.Email, task.Code, task.TimeZone, task.Language);
                         break;
                 }
             }

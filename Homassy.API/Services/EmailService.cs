@@ -1,10 +1,12 @@
 ﻿using MailKit.Net.Smtp;
 using MailKit.Security;
 using MimeKit;
+using MimeKit.Text;
 using Homassy.API.Enums;
 using Homassy.API.Functions;
 using Serilog;
 using System.Reflection;
+using System.Text;
 
 namespace Homassy.API.Services
 {
@@ -26,13 +28,13 @@ namespace Homassy.API.Services
             {
                 var assembly = Assembly.GetExecutingAssembly();
 
-                // Load verification template
+                // Load verification template with UTF-8 encoding
                 var verificationResourceName = "Homassy.API.EmailTemplates.VerificationCode.html";
                 using (var stream = assembly.GetManifestResourceStream(verificationResourceName))
                 {
                     if (stream != null)
                     {
-                        using var reader = new StreamReader(stream);
+                        using var reader = new StreamReader(stream, Encoding.UTF8);
                         _verificationTemplate = reader.ReadToEnd();
                         Log.Information("Verification email template loaded successfully");
                     }
@@ -42,13 +44,13 @@ namespace Homassy.API.Services
                     }
                 }
 
-                // Load registration template (with verification code)
+                // Load registration template with UTF-8 encoding
                 var registrationResourceName = "Homassy.API.EmailTemplates.SuccessfulRegistration.html";
                 using (var stream = assembly.GetManifestResourceStream(registrationResourceName))
                 {
                     if (stream != null)
                     {
-                        using var reader = new StreamReader(stream);
+                        using var reader = new StreamReader(stream, Encoding.UTF8);
                         _registrationTemplate = reader.ReadToEnd();
                         Log.Information("Registration email template loaded successfully");
                     }
@@ -74,7 +76,7 @@ namespace Homassy.API.Services
                 .Select(_ => random.Next(0, 10).ToString()));
         }
 
-        public static async Task SendVerificationCodeAsync(string email, string code, UserTimeZone? userTimeZone = null)
+        public static async Task SendVerificationCodeAsync(string email, string code, UserTimeZone? userTimeZone = null, Language language = Language.English)
         {
             try
             {
@@ -89,7 +91,7 @@ namespace Homassy.API.Services
                     _configuration!["Email:SenderName"],
                     _configuration["Email:SenderEmail"]));
                 message.To.Add(new MailboxAddress("", email));
-                message.Subject = "Your Homassy Verification Code";
+                message.Subject = EmailTemplateService.GetVerificationSubject(language);
 
                 var expirationMinutes = int.Parse(_configuration["EmailVerification:CodeExpirationMinutes"]!);
                 var expirationTimeUtc = DateTime.UtcNow.AddMinutes(expirationMinutes);
@@ -107,22 +109,33 @@ namespace Homassy.API.Services
                 var htmlBody = _verificationTemplate
                     .Replace("{{CODE}}", formattedCode)
                     .Replace("{{EXPIRY_TIME}}", expirationTimeFormatted)
-                    .Replace("{{YEAR}}", currentYear.ToString());
+                    .Replace("{{YEAR}}", currentYear.ToString())
+                    .Replace("{{APP_SUBTITLE}}", EmailTemplateService.GetAppSubtitle(language))
+                    .Replace("{{GREETING}}", EmailTemplateService.GetVerificationGreeting(language))
+                    .Replace("{{MESSAGE}}", EmailTemplateService.GetVerificationMessage(language))
+                    .Replace("{{CODE_LABEL}}", EmailTemplateService.GetVerificationCodeLabel(language))
+                    .Replace("{{EXPIRES_AT}}", EmailTemplateService.GetExpiresAt(language, expirationTimeFormatted))
+                    .Replace("{{SECURITY_NOTE}}", EmailTemplateService.GetVerificationSecurityNote(language))
+                    .Replace("{{FOOTER_COPYRIGHT}}", EmailTemplateService.GetFooterCopyright(language, currentYear))
+                    .Replace("{{FOOTER_AUTO_MESSAGE}}", EmailTemplateService.GetFooterAutoMessage(language));
 
-                var bodyBuilder = new BodyBuilder
-                {
-                    HtmlBody = htmlBody,
-                    TextBody = $"Welcome to Homassy!\n\n" +
-                              $"Your verification code is: {formattedCode}\n\n" +
-                              $"This code will expire at {expirationTimeFormatted}.\n\n" +
-                              $"© {currentYear} Homassy - Home Storage Management System"
-                };
+                var plainText = EmailTemplateService.GetVerificationPlainText(language, formattedCode, expirationTimeFormatted, currentYear);
+
+                var bodyBuilder = new BodyBuilder();
+                bodyBuilder.HtmlBody = htmlBody;
+                bodyBuilder.TextBody = plainText;
 
                 message.Body = bodyBuilder.ToMessageBody();
 
+                // Ensure UTF-8 encoding for all text parts
+                foreach (var part in message.BodyParts.OfType<TextPart>())
+                {
+                    part.ContentType.Charset = "utf-8";
+                }
+
                 await SendEmailAsync(message);
 
-                Log.Information($"Verification code sent to {email}");
+                Log.Information($"Verification code sent to {email} in {language} language");
             }
             catch (Exception ex)
             {
@@ -131,7 +144,7 @@ namespace Homassy.API.Services
             }
         }
 
-        public static async Task SendRegistrationEmailAsync(string email, string username, string code, UserTimeZone? userTimeZone = null)
+        public static async Task SendRegistrationEmailAsync(string email, string username, string code, UserTimeZone? userTimeZone = null, Language language = Language.English)
         {
             try
             {
@@ -146,7 +159,7 @@ namespace Homassy.API.Services
                     _configuration!["Email:SenderName"],
                     _configuration["Email:SenderEmail"]));
                 message.To.Add(new MailboxAddress(username, email));
-                message.Subject = "Welcome to Homassy - Complete Your Registration";
+                message.Subject = EmailTemplateService.GetRegistrationSubject(language);
 
                 var expirationMinutes = int.Parse(_configuration["EmailVerification:CodeExpirationMinutes"]!);
                 var expirationTimeUtc = DateTime.UtcNow.AddMinutes(expirationMinutes);
@@ -166,23 +179,34 @@ namespace Homassy.API.Services
                     .Replace("{{EMAIL}}", email)
                     .Replace("{{CODE}}", formattedCode)
                     .Replace("{{EXPIRY_TIME}}", expirationTimeFormatted)
-                    .Replace("{{YEAR}}", currentYear.ToString());
+                    .Replace("{{YEAR}}", currentYear.ToString())
+                    .Replace("{{APP_SUBTITLE}}", EmailTemplateService.GetAppSubtitle(language))
+                    .Replace("{{GREETING}}", EmailTemplateService.GetRegistrationGreeting(language, username))
+                    .Replace("{{MESSAGE}}", EmailTemplateService.GetRegistrationMessage(language, email))
+                    .Replace("{{COMPLETE_TITLE}}", EmailTemplateService.GetRegistrationCompleteTitle(language))
+                    .Replace("{{COMPLETE_MESSAGE}}", EmailTemplateService.GetRegistrationCompleteMessage(language))
+                    .Replace("{{CODE_LABEL}}", EmailTemplateService.GetVerificationCodeLabel(language))
+                    .Replace("{{EXPIRES_AT}}", EmailTemplateService.GetExpiresAt(language, expirationTimeFormatted))
+                    .Replace("{{FOOTER_COPYRIGHT}}", EmailTemplateService.GetFooterCopyright(language, currentYear))
+                    .Replace("{{FOOTER_AUTO_MESSAGE}}", EmailTemplateService.GetFooterAutoMessage(language));
 
-                var bodyBuilder = new BodyBuilder
-                {
-                    HtmlBody = htmlBody,
-                    TextBody = $"Welcome to Homassy, {username}!\n\n" +
-                              $"Congratulations! You have successfully registered with the email: {email}\n\n" +
-                              $"To complete your registration, please log in with this verification code: {formattedCode}\n\n" +
-                              $"This code will expire at {expirationTimeFormatted}.\n\n" +
-                              $"© {currentYear} Homassy - Home Storage Management System"
-                };
+                var plainText = EmailTemplateService.GetRegistrationPlainText(language, username, email, formattedCode, expirationTimeFormatted, currentYear);
+
+                var bodyBuilder = new BodyBuilder();
+                bodyBuilder.HtmlBody = htmlBody;
+                bodyBuilder.TextBody = plainText;
 
                 message.Body = bodyBuilder.ToMessageBody();
 
+                // Ensure UTF-8 encoding for all text parts
+                foreach (var part in message.BodyParts.OfType<TextPart>())
+                {
+                    part.ContentType.Charset = "utf-8";
+                }
+
                 await SendEmailAsync(message);
 
-                Log.Information($"Registration email sent to {email}");
+                Log.Information($"Registration email sent to {email} in {language} language");
             }
             catch (Exception ex)
             {

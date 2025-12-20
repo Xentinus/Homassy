@@ -51,17 +51,17 @@ public sealed class EmailBackgroundService : BackgroundService
                 switch (task.Type)
                 {
                     case EmailType.Verification:
-                        await EmailService.SendVerificationCodeAsync(task.Email, task.Code, task.TimeZone);
+                        await EmailService.SendVerificationCodeAsync(task.Email, task.Code, task.TimeZone, task.Language);
                         break;
                     case EmailType.Registration:
-                        await EmailService.SendRegistrationEmailAsync(task.Email, task.Email, task.Code, task.TimeZone);
+                        await EmailService.SendRegistrationEmailAsync(task.Email, task.Email, task.Code, task.TimeZone, task.Language);
                         break;
                     default:
                         Log.Warning($"Unknown email type: {task.Type}");
                         return;
                 }
 
-                Log.Debug($"Email sent successfully to {task.Email}, type: {task.Type}");
+                Log.Debug($"Email sent successfully to {task.Email}, type: {task.Type}, language: {task.Language}");
                 return;
             }
             catch (Exception ex) when (attempt < MaxRetryAttempts)

@@ -213,33 +213,28 @@
         <div class='container'>
             <div class='header'>
                 <h1 class='header-title'>Homassy</h1>
-                <p class='header-subtitle'>Home Storage Management System</p>
+                <p class='header-subtitle'>{{APP_SUBTITLE}}</p>
             </div>
             <div class='content'>
                 <div class='success-icon'>🎉</div>
-                <h2 class='greeting'>Welcome, {{USERNAME}}!</h2>
-                <p class='message'>
-                    Congratulations! You have successfully registered to Homassy with the email address <strong>{{EMAIL}}</strong>.
-                </p>
+                <h2 class='greeting'>{{GREETING}}</h2>
+                <p class='message'>{{MESSAGE}}</p>
                 <div class='info-container'>
-                    <div class='info-title'>⚠️ Complete Your Registration</div>
-                    <div class='info-text'>
-                        To finish the registration process and activate your account,
-                        please log in using the verification code below.
-                    </div>
+                    <div class='info-title'>{{COMPLETE_TITLE}}</div>
+                    <div class='info-text'>{{COMPLETE_MESSAGE}}</div>
                 </div>
                 <div class='code-container'>
-                    <div class='code-label'>Your Verification Code</div>
+                    <div class='code-label'>{{CODE_LABEL}}</div>
                     <div class='code'>{{CODE}}</div>
                     <div class='expiry-info'>
                         <span>⏱️</span>
-                        <span>Expires at {{EXPIRY_TIME}}</span>
+                        <span>{{EXPIRES_AT}}</span>
                     </div>
                 </div>
             </div>
             <div class='footer'>
-                <p class='footer-text'>© {{YEAR}} Homassy. All rights reserved.</p>
-                <p class='footer-text'>This is an automated message, please do not reply to this email.</p>
+                <p class='footer-text'>{{FOOTER_COPYRIGHT}}</p>
+                <p class='footer-text'>{{FOOTER_AUTO_MESSAGE}}</p>
             </div>
         </div>
     </div>
