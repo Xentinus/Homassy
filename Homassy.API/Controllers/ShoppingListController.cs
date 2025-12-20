@@ -1,4 +1,5 @@
-﻿using Asp.Versioning;
+using Asp.Versioning;
+using Homassy.API.Enums;
 using Homassy.API.Functions;
 using Homassy.API.Models.Common;
 using Homassy.API.Models.ShoppingList;
@@ -43,7 +44,7 @@ namespace Homassy.API.Controllers
 
             if (shoppingList == null)
             {
-                return NotFound(ApiResponse.ErrorResponse("Shopping list not found"));
+                return NotFound(ApiResponse.ErrorResponse(ErrorCodes.ShoppingListNotFound));
             }
 
             return Ok(ApiResponse<DetailedShoppingListInfo>.SuccessResponse(shoppingList));
@@ -60,11 +61,11 @@ namespace Homassy.API.Controllers
         {
             if (!ModelState.IsValid)
             {
-                return BadRequest(ApiResponse.ErrorResponse("Invalid request data"));
+                return BadRequest(ApiResponse.ErrorResponse(ErrorCodes.ValidationInvalidRequest));
             }
 
             var shoppingListInfo = await new ShoppingListFunctions().CreateShoppingListAsync(request, cancellationToken);
-            return Ok(ApiResponse<ShoppingListInfo>.SuccessResponse(shoppingListInfo, "Shopping list created successfully"));
+            return Ok(ApiResponse<ShoppingListInfo>.SuccessResponse(shoppingListInfo));
         }
 
         /// <summary>
@@ -79,11 +80,11 @@ namespace Homassy.API.Controllers
         {
             if (!ModelState.IsValid)
             {
-                return BadRequest(ApiResponse.ErrorResponse("Invalid request data"));
+                return BadRequest(ApiResponse.ErrorResponse(ErrorCodes.ValidationInvalidRequest));
             }
 
             var shoppingListInfo = await new ShoppingListFunctions().UpdateShoppingListAsync(publicId, request, cancellationToken);
-            return Ok(ApiResponse<ShoppingListInfo>.SuccessResponse(shoppingListInfo, "Shopping list updated successfully"));
+            return Ok(ApiResponse<ShoppingListInfo>.SuccessResponse(shoppingListInfo));
         }
 
         /// <summary>
@@ -97,8 +98,8 @@ namespace Homassy.API.Controllers
         {
             await new ShoppingListFunctions().DeleteShoppingListAsync(publicId, cancellationToken);
 
-            Log.Information("Shopping list {PublicId} deleted successfully", publicId);
-            return Ok(ApiResponse.SuccessResponse("Shopping list deleted successfully"));
+            Log.Information($"Shopping list {publicId} deleted successfully");
+            return Ok(ApiResponse.SuccessResponse());
         }
         #endregion
 
@@ -114,11 +115,11 @@ namespace Homassy.API.Controllers
         {
             if (!ModelState.IsValid)
             {
-                return BadRequest(ApiResponse.ErrorResponse("Invalid request data"));
+                return BadRequest(ApiResponse.ErrorResponse(ErrorCodes.ValidationInvalidRequest));
             }
 
             var shoppingListItemInfo = await new ShoppingListFunctions().CreateShoppingListItemAsync(request, cancellationToken);
-            return Ok(ApiResponse<ShoppingListItemInfo>.SuccessResponse(shoppingListItemInfo, "Shopping list item created successfully"));
+            return Ok(ApiResponse<ShoppingListItemInfo>.SuccessResponse(shoppingListItemInfo));
         }
 
         /// <summary>
@@ -133,11 +134,11 @@ namespace Homassy.API.Controllers
         {
             if (!ModelState.IsValid)
             {
-                return BadRequest(ApiResponse.ErrorResponse("Invalid request data"));
+                return BadRequest(ApiResponse.ErrorResponse(ErrorCodes.ValidationInvalidRequest));
             }
 
             var shoppingListItemInfo = await new ShoppingListFunctions().UpdateShoppingListItemAsync(publicId, request, cancellationToken);
-            return Ok(ApiResponse<ShoppingListItemInfo>.SuccessResponse(shoppingListItemInfo, "Shopping list item updated successfully"));
+            return Ok(ApiResponse<ShoppingListItemInfo>.SuccessResponse(shoppingListItemInfo));
         }
 
         /// <summary>
@@ -151,8 +152,8 @@ namespace Homassy.API.Controllers
         {
             await new ShoppingListFunctions().DeleteShoppingListItemAsync(publicId, cancellationToken);
 
-            Log.Information("Shopping list item {PublicId} deleted successfully", publicId);
-            return Ok(ApiResponse.SuccessResponse("Shopping list item deleted successfully"));
+            Log.Information($"Shopping list item {publicId} deleted successfully");
+            return Ok(ApiResponse.SuccessResponse());
         }
 
         /// <summary>
@@ -166,11 +167,11 @@ namespace Homassy.API.Controllers
         {
             if (!ModelState.IsValid)
             {
-                return BadRequest(ApiResponse.ErrorResponse("Invalid request data"));
+                return BadRequest(ApiResponse.ErrorResponse(ErrorCodes.ValidationInvalidRequest));
             }
 
             var shoppingListItem = await new ShoppingListFunctions().QuickPurchaseFromShoppingListItemAsync(request, cancellationToken);
-            return Ok(ApiResponse<ShoppingListItemInfo>.SuccessResponse(shoppingListItem, "Shopping list item purchased and inventory item created successfully"));
+            return Ok(ApiResponse<ShoppingListItemInfo>.SuccessResponse(shoppingListItem));
         }
 
         /// <summary>
@@ -184,11 +185,11 @@ namespace Homassy.API.Controllers
         {
             if (!ModelState.IsValid)
             {
-                return BadRequest(ApiResponse.ErrorResponse("Invalid request data"));
+                return BadRequest(ApiResponse.ErrorResponse(ErrorCodes.ValidationInvalidRequest));
             }
 
             var items = await new ShoppingListFunctions().CreateMultipleShoppingListItemsAsync(request, cancellationToken);
-            return Ok(ApiResponse<List<ShoppingListItemInfo>>.SuccessResponse(items, $"{items.Count} shopping list items created successfully"));
+            return Ok(ApiResponse<List<ShoppingListItemInfo>>.SuccessResponse(items));
         }
 
         /// <summary>
@@ -202,11 +203,11 @@ namespace Homassy.API.Controllers
         {
             if (!ModelState.IsValid)
             {
-                return BadRequest(ApiResponse.ErrorResponse("Invalid request data"));
+                return BadRequest(ApiResponse.ErrorResponse(ErrorCodes.ValidationInvalidRequest));
             }
 
             await new ShoppingListFunctions().DeleteMultipleShoppingListItemsAsync(request, cancellationToken);
-            return Ok(ApiResponse.SuccessResponse($"{request.ItemPublicIds.Count} shopping list items deleted successfully"));
+            return Ok(ApiResponse.SuccessResponse());
         }
 
         /// <summary>
@@ -220,11 +221,11 @@ namespace Homassy.API.Controllers
         {
             if (!ModelState.IsValid)
             {
-                return BadRequest(ApiResponse.ErrorResponse("Invalid request data"));
+                return BadRequest(ApiResponse.ErrorResponse(ErrorCodes.ValidationInvalidRequest));
             }
 
             var items = await new ShoppingListFunctions().QuickPurchaseMultipleShoppingListItemsAsync(request, cancellationToken);
-            return Ok(ApiResponse<List<ShoppingListItemInfo>>.SuccessResponse(items, $"{items.Count} shopping list items purchased successfully"));
+            return Ok(ApiResponse<List<ShoppingListItemInfo>>.SuccessResponse(items));
         }
         #endregion
     }

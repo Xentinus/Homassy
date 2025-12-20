@@ -1,4 +1,4 @@
-﻿using Homassy.API.Context;
+using Homassy.API.Context;
 using Homassy.API.Entities.User;
 using Homassy.API.Enums;
 using Homassy.API.Exceptions;
@@ -795,7 +795,7 @@ namespace Homassy.API.Functions
             }
             catch (Exception ex)
             {
-                Log.Error($"Error occurred while creating user: {ex}");
+                Log.Error(ex, $"Error occurred while creating user");
                 await transaction.RollbackAsync(cancellationToken);
                 throw;
             }
@@ -807,12 +807,12 @@ namespace Homassy.API.Functions
         {
             if (string.IsNullOrWhiteSpace(request.Email) || !request.Email.Contains('@'))
             {
-                throw new BadRequestException("Invalid email address");
+                throw new BadRequestException("Invalid email address", ErrorCodes.ValidationInvalidEmail);
             }
 
             if (string.IsNullOrWhiteSpace(request.Name))
             {
-                throw new BadRequestException("Name is required");
+                throw new BadRequestException("Name is required", ErrorCodes.ValidationNameRequired);
             }
 
             var normalizedEmail = request.Email.ToLowerInvariant().Trim();
@@ -839,7 +839,7 @@ namespace Homassy.API.Functions
                 if (userAuth == null)
                 {
                     Log.Warning($"UserAuthentication not found for user {user.Id}");
-                    throw new UserNotFoundException("User authentication data not found");
+                    throw new UserNotFoundException("User authentication data not found", ErrorCodes.UserAuthNotFound);
                 }
 
                 userAuth.VerificationCode = code;
@@ -851,7 +851,7 @@ namespace Homassy.API.Functions
             catch (Exception ex)
             {
                 await transaction.RollbackAsync(cancellationToken);
-                Log.Error($"Error setting verification code for user {user.Id}: {ex.Message}");
+                Log.Error(ex, $"Error setting verification code for user {user.Id}");
                 throw;
             }
 
@@ -869,24 +869,24 @@ namespace Homassy.API.Functions
             if (!userId.HasValue)
             {
                 Log.Warning("Invalid session: User ID not found");
-                throw new UnauthorizedException("Invalid authentication");
+                throw new UnauthorizedException("Invalid authentication", ErrorCodes.AuthUnauthorized);
             }
 
             var familyId = SessionInfo.GetFamilyId();
             if (familyId.HasValue)
             {
-                throw new BadRequestException("You are already a member of a family. Please leave your current family first.");
+                throw new BadRequestException("You are already a member of a family. Please leave your current family first.", ErrorCodes.FamilyAlreadyMember);
             }
 
             if (string.IsNullOrWhiteSpace(request.ShareCode))
             {
-                throw new BadRequestException("Share code is required");
+                throw new BadRequestException("Share code is required", ErrorCodes.ValidationShareCodeRequired);
             }
 
             var family = new FamilyFunctions().GetFamilyByShareCode(request.ShareCode);
             if (family == null)
             {
-                throw new FamilyNotFoundException("Family not found with the provided share code");
+                throw new FamilyNotFoundException("Family not found with the provided share code", ErrorCodes.FamilyInvalidShareCode);
             }
 
             var context = new HomassyDbContext();
@@ -898,7 +898,7 @@ namespace Homassy.API.Functions
                 if (user == null)
                 {
                     Log.Warning($"User not found for userId {userId.Value}");
-                    throw new UserNotFoundException("User not found");
+                    throw new UserNotFoundException("User not found", ErrorCodes.UserNotFound);
                 }
 
                 user.FamilyId = family.Id;
@@ -911,7 +911,7 @@ namespace Homassy.API.Functions
             catch (Exception ex)
             {
                 await transaction.RollbackAsync(cancellationToken);
-                Log.Error($"Error joining family for user {userId.Value}: {ex.Message}");
+                Log.Error(ex, $"Error joining family for user {userId.Value}");
                 throw;
             }
 
@@ -930,13 +930,13 @@ namespace Homassy.API.Functions
             if (!userId.HasValue)
             {
                 Log.Warning("Invalid session: User ID not found");
-                throw new UnauthorizedException("Invalid authentication");
+                throw new UnauthorizedException("Invalid authentication", ErrorCodes.AuthUnauthorized);
             }
 
             var familyId = SessionInfo.GetFamilyId();
             if (!familyId.HasValue)
             {
-                throw new BadRequestException("You are not a member of any family");
+                throw new BadRequestException("You are not a member of any family", ErrorCodes.FamilyNotMember);
             }
 
             var context = new HomassyDbContext();
@@ -948,7 +948,7 @@ namespace Homassy.API.Functions
                 if (user == null)
                 {
                     Log.Warning($"User not found for userId {userId}");
-                    throw new UserNotFoundException("User not found");
+                    throw new UserNotFoundException("User not found", ErrorCodes.UserNotFound);
                 }
 
                 var familyIdToLog = user.FamilyId;
@@ -962,7 +962,7 @@ namespace Homassy.API.Functions
             catch (Exception ex)
             {
                 await transaction.RollbackAsync(cancellationToken);
-                Log.Error($"Error leaving family for user {userId.Value}: {ex.Message}");
+                Log.Error(ex, $"Error leaving family for user {userId.Value}");
                 throw;
             }
         }
@@ -973,7 +973,7 @@ namespace Homassy.API.Functions
         {
             if (string.IsNullOrWhiteSpace(email) || !email.Contains('@'))
             {
-                throw new BadRequestException("Invalid email address");
+                throw new BadRequestException("Invalid email address", ErrorCodes.ValidationInvalidEmail);
             }
 
             var normalizedEmail = email.ToLowerInvariant().Trim();
@@ -999,7 +999,7 @@ namespace Homassy.API.Functions
                 if (userAuth == null)
                 {
                     Log.Warning($"UserAuthentication not found for user {user.Id}");
-                    throw new UserNotFoundException("User authentication data not found");
+                    throw new UserNotFoundException("User authentication data not found", ErrorCodes.UserAuthNotFound);
                 }
 
                 userAuth.VerificationCode = code;
@@ -1011,7 +1011,7 @@ namespace Homassy.API.Functions
             catch (Exception ex)
             {
                 await transaction.RollbackAsync(cancellationToken);
-                Log.Error($"Error setting verification code for user {user.Id}: {ex.Message}");
+                Log.Error(ex, $"Error setting verification code for user {user.Id}");
                 throw;
             }
 
@@ -1025,7 +1025,7 @@ namespace Homassy.API.Functions
         {
             if (string.IsNullOrWhiteSpace(email) || string.IsNullOrWhiteSpace(code))
             {
-                throw new BadRequestException("Email and code are required");
+                throw new BadRequestException("Email and code are required", ErrorCodes.ValidationEmailCodeRequired);
             }
 
             var normalizedEmail = email.ToLowerInvariant().Trim();
@@ -1036,7 +1036,7 @@ namespace Homassy.API.Functions
             if (user == null || user.Authentication == null)
             {
                 Log.Warning($"User not found for email {normalizedEmail}");
-                throw new InvalidCredentialsException("Invalid email or code");
+                throw new InvalidCredentialsException("Invalid email or code", ErrorCodes.AuthInvalidCredentials);
             }
 
             var auth = user.Authentication;
@@ -1050,14 +1050,14 @@ namespace Homassy.API.Functions
             if (auth.VerificationCodeExpiry == null || auth.VerificationCodeExpiry < DateTime.UtcNow)
             {
                 Log.Warning($"Expired verification code for {normalizedEmail}");
-                throw new ExpiredCredentialsException("Invalid or expired code");
+                throw new ExpiredCredentialsException("Invalid or expired code", ErrorCodes.AuthExpiredCredentials);
             }
 
             if (!SecureCompare.ConstantTimeEquals(auth.VerificationCode, trimmedCode))
             {
                 await RecordFailedLoginAttemptAsync(user.Id, auth.FailedLoginAttempts + 1, cancellationToken);
                 Log.Warning($"Invalid verification code for {normalizedEmail}");
-                throw new InvalidCredentialsException("Invalid or expired code");
+                throw new InvalidCredentialsException("Invalid or expired code", ErrorCodes.AuthInvalidCredentials);
             }
 
             var isFirstLogin = user.Status == UserStatus.PendingVerification;
@@ -1078,7 +1078,7 @@ namespace Homassy.API.Functions
                 if (userAuth == null || userEntity == null)
                 {
                     Log.Warning($"User or UserAuthentication not found for user {user.Id}");
-                    throw new UserNotFoundException("User authentication data not found");
+                    throw new UserNotFoundException("User authentication data not found", ErrorCodes.UserAuthNotFound);
                 }
 
                 if (isFirstLogin)
@@ -1107,7 +1107,7 @@ namespace Homassy.API.Functions
             catch (Exception ex)
             {
                 await transaction.RollbackAsync(cancellationToken);
-                Log.Error($"Error completing authentication for user {user.Id}: {ex.Message}");
+                Log.Error(ex, $"Error completing authentication for user {user.Id}");
                 throw;
             }
 
@@ -1163,7 +1163,7 @@ namespace Homassy.API.Functions
             catch (Exception ex)
             {
                 await transaction.RollbackAsync(cancellationToken);
-                Log.Error($"Error recording failed login attempt for user {userId}: {ex.Message}");
+                Log.Error(ex, $"Error recording failed login attempt for user {userId}");
             }
         }
 
@@ -1173,12 +1173,12 @@ namespace Homassy.API.Functions
             if (!userId.HasValue)
             {
                 Log.Warning("Invalid session: User ID not found");
-                throw new UserNotFoundException("User not found");
+                throw new UserNotFoundException("User not found", ErrorCodes.UserNotFound);
             }
 
             if (string.IsNullOrWhiteSpace(currentRefreshToken))
             {
-                throw new BadRequestException("Refresh token is required");
+                throw new BadRequestException("Refresh token is required", ErrorCodes.ValidationRefreshTokenRequired);
             }
 
             var user = GetAllUserDataById(userId);
@@ -1186,7 +1186,7 @@ namespace Homassy.API.Functions
             if (user == null || user.Authentication == null)
             {
                 Log.Warning($"User not found for userId {userId}");
-                throw new UserNotFoundException("User not found");
+                throw new UserNotFoundException("User not found", ErrorCodes.UserNotFound);
             }
 
             var auth = user.Authentication;
@@ -1204,17 +1204,17 @@ namespace Homassy.API.Functions
                 {
                     Log.Warning($"Potential token theft detected for user {userId}. Token reuse attempted. Invalidating all tokens.");
                     await InvalidateAllUserTokensAsync(userId.Value, cancellationToken);
-                    throw new InvalidCredentialsException("Invalid refresh token. All sessions invalidated for security.");
+                    throw new InvalidCredentialsException("Invalid refresh token. All sessions invalidated for security.", ErrorCodes.AuthTokenTheftDetected);
                 }
 
                 Log.Warning($"Invalid refresh token for user {userId}");
-                throw new InvalidCredentialsException("Invalid refresh token");
+                throw new InvalidCredentialsException("Invalid refresh token", ErrorCodes.AuthInvalidRefreshToken);
             }
 
             if (isCurrentToken && (auth.RefreshTokenExpiry == null || auth.RefreshTokenExpiry < DateTime.UtcNow))
             {
                 Log.Warning($"Expired refresh token for user {userId}");
-                throw new ExpiredCredentialsException("Expired refresh token");
+                throw new ExpiredCredentialsException("Expired refresh token", ErrorCodes.AuthExpiredCredentials);
             }
 
             var newAccessToken = JwtService.GenerateAccessToken(user);
@@ -1232,7 +1232,7 @@ namespace Homassy.API.Functions
                 if (userAuth == null)
                 {
                     Log.Warning($"UserAuthentication not found for user {userId}");
-                    throw new UserNotFoundException("User authentication data not found");
+                    throw new UserNotFoundException("User authentication data not found", ErrorCodes.UserAuthNotFound);
                 }
 
                 if (isCurrentToken)
@@ -1257,7 +1257,7 @@ namespace Homassy.API.Functions
             catch (Exception ex)
             {
                 await transaction.RollbackAsync(cancellationToken);
-                Log.Error($"Error refreshing token for user {userId}: {ex.Message}");
+                Log.Error(ex, $"Error refreshing token for user {userId}");
                 throw;
             }
 
@@ -1301,7 +1301,7 @@ namespace Homassy.API.Functions
             catch (Exception ex)
             {
                 await transaction.RollbackAsync(cancellationToken);
-                Log.Error($"Error invalidating tokens for user {userId}: {ex.Message}");
+                Log.Error(ex, $"Error invalidating tokens for user {userId}");
                 throw;
             }
         }
@@ -1314,7 +1314,7 @@ namespace Homassy.API.Functions
             if (!userId.HasValue)
             {
                 Log.Warning("Invalid session: User ID not found");
-                throw new UserNotFoundException("User not found");
+                throw new UserNotFoundException("User not found", ErrorCodes.UserNotFound);
             }
 
             var user = GetAllUserDataById(userId);
@@ -1322,7 +1322,7 @@ namespace Homassy.API.Functions
             if (user == null)
             {
                 Log.Warning($"User not found for userId {userId}");
-                throw new UserNotFoundException("User not found");
+                throw new UserNotFoundException("User not found", ErrorCodes.UserNotFound);
             }
 
             var profile = user.Profile;
@@ -1330,7 +1330,7 @@ namespace Homassy.API.Functions
             if (profile == null)
             {
                 Log.Warning($"User profile not found for userId {userId}");
-                throw new UserNotFoundException("User profile not found");
+                throw new UserNotFoundException("User profile not found", ErrorCodes.UserProfileNotFound);
             }
 
             FamilyInfo? familyInfo = null;
@@ -1368,14 +1368,14 @@ namespace Homassy.API.Functions
             if (!userId.HasValue)
             {
                 Log.Warning("Invalid session: User ID not found");
-                throw new UserNotFoundException("User not found");
+                throw new UserNotFoundException("User not found", ErrorCodes.UserNotFound);
             }
 
             var user = GetUserById(userId);
             if (user == null)
             {
                 Log.Warning($"User not found for userId {userId}");
-                throw new UserNotFoundException("User not found");
+                throw new UserNotFoundException("User not found", ErrorCodes.UserNotFound);
             }
 
             if (!string.IsNullOrWhiteSpace(request.Email) && request.Email.ToLowerInvariant().Trim() != user.Email)
@@ -1384,7 +1384,7 @@ namespace Homassy.API.Functions
                 var existingUser = GetUserByEmailAddress(normalizedNewEmail);
                 if (existingUser != null && existingUser.Id != userId)
                 {
-                    throw new BadRequestException("Email address is already in use");
+                    throw new BadRequestException("Email address is already in use", ErrorCodes.UserEmailInUse);
                 }
             }
 
@@ -1443,7 +1443,7 @@ namespace Homassy.API.Functions
             catch (Exception ex)
             {
                 await transaction.RollbackAsync(cancellationToken);
-                Log.Error($"Error updating settings for user {userId}: {ex.Message}");
+                Log.Error(ex, $"Error updating settings for user {userId}");
                 throw;
             }
         }
@@ -1454,12 +1454,12 @@ namespace Homassy.API.Functions
             if (!userId.HasValue)
             {
                 Log.Warning("Invalid session: User ID not found");
-                throw new UserNotFoundException("User not found");
+                throw new UserNotFoundException("User not found", ErrorCodes.UserNotFound);
             }
 
             if (string.IsNullOrWhiteSpace(profilePictureBase64))
             {
-                throw new BadRequestException("Profile picture data is required");
+                throw new BadRequestException("Profile picture data is required", ErrorCodes.ValidationProfilePictureRequired);
             }
 
             var context = new HomassyDbContext();
@@ -1471,7 +1471,7 @@ namespace Homassy.API.Functions
                 if (profile == null)
                 {
                     Log.Warning($"UserProfile not found for user {userId}");
-                    throw new UserNotFoundException($"UserProfile not found for user {userId}");
+                    throw new UserNotFoundException("UserProfile not found", ErrorCodes.UserProfileNotFound);
                 }
 
                 profile.ProfilePictureBase64 = profilePictureBase64;
@@ -1484,7 +1484,7 @@ namespace Homassy.API.Functions
             catch (Exception ex)
             {
                 await transaction.RollbackAsync(cancellationToken);
-                Log.Error($"Error uploading profile picture for user {userId}: {ex.Message}");
+                Log.Error(ex, $"Error uploading profile picture for user {userId}");
                 throw;
             }
         }
@@ -1495,7 +1495,7 @@ namespace Homassy.API.Functions
             if (!userId.HasValue)
             {
                 Log.Warning("Invalid session: User ID not found");
-                throw new UserNotFoundException("User not found");
+                throw new UserNotFoundException("User not found", ErrorCodes.UserNotFound);
             }
 
             var context = new HomassyDbContext();
@@ -1507,12 +1507,12 @@ namespace Homassy.API.Functions
                 if (profile == null)
                 {
                     Log.Warning($"UserProfile not found for user {userId}");
-                    throw new UserNotFoundException($"UserProfile not found for user {userId}");
+                    throw new UserNotFoundException("UserProfile not found", ErrorCodes.UserProfileNotFound);
                 }
 
                 if (string.IsNullOrEmpty(profile.ProfilePictureBase64))
                 {
-                    throw new BadRequestException("No profile picture to delete");
+                    throw new BadRequestException("No profile picture to delete", ErrorCodes.UserNoProfilePicture);
                 }
 
                 profile.ProfilePictureBase64 = null;
@@ -1525,7 +1525,7 @@ namespace Homassy.API.Functions
             catch (Exception ex)
             {
                 await transaction.RollbackAsync(cancellationToken);
-                Log.Error($"Error deleting profile picture for user {userId}: {ex.Message}");
+                Log.Error(ex, $"Error deleting profile picture for user {userId}");
                 throw;
             }
         }
@@ -1538,7 +1538,7 @@ namespace Homassy.API.Functions
             if (!userId.HasValue)
             {
                 Log.Warning("Invalid session: User ID not found");
-                throw new UserNotFoundException("User not found");
+                throw new UserNotFoundException("User not found", ErrorCodes.UserNotFound);
             }
 
             var context = new HomassyDbContext();
@@ -1550,7 +1550,7 @@ namespace Homassy.API.Functions
                 if (userAuth == null)
                 {
                     Log.Warning($"UserAuthentication not found for user {userId}");
-                    throw new UserNotFoundException("User authentication data not found");
+                    throw new UserNotFoundException("User authentication data not found", ErrorCodes.UserAuthNotFound);
                 }
 
                 userAuth.AccessToken = null;
@@ -1567,7 +1567,7 @@ namespace Homassy.API.Functions
             catch (Exception ex)
             {
                 await transaction.RollbackAsync(cancellationToken);
-                Log.Error($"Error during logout for user {userId}: {ex.Message}");
+                Log.Error(ex, $"Error during logout for user {userId}");
                 throw;
             }
 
@@ -1580,7 +1580,7 @@ namespace Homassy.API.Functions
             if (!userId.HasValue)
             {
                 Log.Warning("Invalid session: User ID not found");
-                throw new UserNotFoundException("User not found");
+                throw new UserNotFoundException("User not found", ErrorCodes.UserNotFound);
             }
 
             var user = GetAllUserDataById(userId);
@@ -1588,7 +1588,7 @@ namespace Homassy.API.Functions
             if (user == null)
             {
                 Log.Warning($"User not found for userId {userId}");
-                throw new UserNotFoundException("User not found");
+                throw new UserNotFoundException("User not found", ErrorCodes.UserNotFound);
             }
 
             var profile = user.Profile;
@@ -1596,7 +1596,7 @@ namespace Homassy.API.Functions
             if (profile == null)
             {
                 Log.Warning($"User profile not found for userId {userId}");
-                throw new UserNotFoundException("User profile not found");
+                throw new UserNotFoundException("User profile not found", ErrorCodes.UserProfileNotFound);
             }
 
             var userInfo = new UserInfo

@@ -306,7 +306,7 @@ public class ProductControllerTests : IClassFixture<HomassyWebApplicationFactory
                 Name = "Test Milk",
                 Brand = "Test Dairy",
                 Category = "Dairy",
-                Barcode = "1234567890123",
+                Barcode = "1234567890128", // Valid EAN-13 barcode with correct checksum
                 IsEatable = true,
                 Notes = "Test notes",
                 IsFavorite = false

@@ -297,7 +297,7 @@ public class RateLimitingMiddlewareTests : IDisposable
         var body = await reader.ReadToEndAsync();
 
         Assert.NotEmpty(body);
-        Assert.Contains("Success", body);
+        Assert.Contains("success", body);
     }
 
     [Fact]

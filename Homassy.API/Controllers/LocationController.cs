@@ -1,4 +1,5 @@
-﻿using Asp.Versioning;
+using Asp.Versioning;
+using Homassy.API.Enums;
 using Homassy.API.Functions;
 using Homassy.API.Models.Common;
 using Homassy.API.Models.Location;
@@ -41,11 +42,11 @@ namespace Homassy.API.Controllers
         {
             if (!ModelState.IsValid)
             {
-                return BadRequest(ApiResponse.ErrorResponse("Invalid request data"));
+                return BadRequest(ApiResponse.ErrorResponse(ErrorCodes.ValidationInvalidRequest));
             }
 
             var shoppingLocationInfo = await new LocationFunctions().CreateShoppingLocationAsync(request, cancellationToken);
-            return Ok(ApiResponse<ShoppingLocationInfo>.SuccessResponse(shoppingLocationInfo, "Shopping location created successfully"));
+            return Ok(ApiResponse<ShoppingLocationInfo>.SuccessResponse(shoppingLocationInfo));
         }
 
         /// <summary>
@@ -60,11 +61,11 @@ namespace Homassy.API.Controllers
         {
             if (!ModelState.IsValid)
             {
-                return BadRequest(ApiResponse.ErrorResponse("Invalid request data"));
+                return BadRequest(ApiResponse.ErrorResponse(ErrorCodes.ValidationInvalidRequest));
             }
 
             var shoppingLocationInfo = await new LocationFunctions().UpdateShoppingLocationAsync(shoppingLocationPublicId, request, cancellationToken);
-            return Ok(ApiResponse<ShoppingLocationInfo>.SuccessResponse(shoppingLocationInfo, "Shopping location updated successfully"));
+            return Ok(ApiResponse<ShoppingLocationInfo>.SuccessResponse(shoppingLocationInfo));
         }
 
         /// <summary>
@@ -77,8 +78,8 @@ namespace Homassy.API.Controllers
         public async Task<IActionResult> DeleteShoppingLocation(Guid shoppingLocationPublicId, CancellationToken cancellationToken)
         {
             await new LocationFunctions().DeleteShoppingLocationAsync(shoppingLocationPublicId, cancellationToken);
-            Log.Information("Shopping location {ShoppingLocationPublicId} deleted successfully", shoppingLocationPublicId);
-            return Ok(ApiResponse.SuccessResponse("Shopping location deleted successfully"));
+            Log.Information($"Shopping location {shoppingLocationPublicId} deleted successfully");
+            return Ok(ApiResponse.SuccessResponse());
         }
 
         /// <summary>
@@ -92,11 +93,11 @@ namespace Homassy.API.Controllers
         {
             if (!ModelState.IsValid)
             {
-                return BadRequest(ApiResponse.ErrorResponse("Invalid request data"));
+                return BadRequest(ApiResponse.ErrorResponse(ErrorCodes.ValidationInvalidRequest));
             }
 
             var shoppingLocationInfos = await new LocationFunctions().CreateMultipleShoppingLocationsAsync(request.Locations, cancellationToken);
-            return Ok(ApiResponse<List<ShoppingLocationInfo>>.SuccessResponse(shoppingLocationInfos, $"{shoppingLocationInfos.Count} shopping locations created successfully"));
+            return Ok(ApiResponse<List<ShoppingLocationInfo>>.SuccessResponse(shoppingLocationInfos));
         }
 
         /// <summary>
@@ -110,11 +111,11 @@ namespace Homassy.API.Controllers
         {
             if (!ModelState.IsValid)
             {
-                return BadRequest(ApiResponse.ErrorResponse("Invalid request data"));
+                return BadRequest(ApiResponse.ErrorResponse(ErrorCodes.ValidationInvalidRequest));
             }
 
             await new LocationFunctions().DeleteMultipleShoppingLocationsAsync(request, cancellationToken);
-            return Ok(ApiResponse.SuccessResponse($"{request.LocationPublicIds.Count} shopping locations deleted successfully"));
+            return Ok(ApiResponse.SuccessResponse());
         }
         #endregion
 
@@ -142,11 +143,11 @@ namespace Homassy.API.Controllers
         {
             if (!ModelState.IsValid)
             {
-                return BadRequest(ApiResponse.ErrorResponse("Invalid request data"));
+                return BadRequest(ApiResponse.ErrorResponse(ErrorCodes.ValidationInvalidRequest));
             }
 
             var storageLocationInfo = await new LocationFunctions().CreateStorageLocationAsync(request, cancellationToken);
-            return Ok(ApiResponse<StorageLocationInfo>.SuccessResponse(storageLocationInfo, "Storage location created successfully"));
+            return Ok(ApiResponse<StorageLocationInfo>.SuccessResponse(storageLocationInfo));
         }
 
         /// <summary>
@@ -161,11 +162,11 @@ namespace Homassy.API.Controllers
         {
             if (!ModelState.IsValid)
             {
-                return BadRequest(ApiResponse.ErrorResponse("Invalid request data"));
+                return BadRequest(ApiResponse.ErrorResponse(ErrorCodes.ValidationInvalidRequest));
             }
 
             var storageLocationInfo = await new LocationFunctions().UpdateStorageLocationAsync(storageLocationPublicId, request, cancellationToken);
-            return Ok(ApiResponse<StorageLocationInfo>.SuccessResponse(storageLocationInfo, "Storage location updated successfully"));
+            return Ok(ApiResponse<StorageLocationInfo>.SuccessResponse(storageLocationInfo));
         }
 
         /// <summary>
@@ -178,8 +179,8 @@ namespace Homassy.API.Controllers
         public async Task<IActionResult> DeleteStorageLocation(Guid storageLocationPublicId, CancellationToken cancellationToken)
         {
             await new LocationFunctions().DeleteStorageLocationAsync(storageLocationPublicId, cancellationToken);
-            Log.Information("Storage location {StorageLocationPublicId} deleted successfully", storageLocationPublicId);
-            return Ok(ApiResponse.SuccessResponse("Storage location deleted successfully"));
+            Log.Information($"Storage location {storageLocationPublicId} deleted successfully");
+            return Ok(ApiResponse.SuccessResponse());
         }
 
         /// <summary>
@@ -193,11 +194,11 @@ namespace Homassy.API.Controllers
         {
             if (!ModelState.IsValid)
             {
-                return BadRequest(ApiResponse.ErrorResponse("Invalid request data"));
+                return BadRequest(ApiResponse.ErrorResponse(ErrorCodes.ValidationInvalidRequest));
             }
 
             var storageLocationInfos = await new LocationFunctions().CreateMultipleStorageLocationsAsync(request.Locations, cancellationToken);
-            return Ok(ApiResponse<List<StorageLocationInfo>>.SuccessResponse(storageLocationInfos, $"{storageLocationInfos.Count} storage locations created successfully"));
+            return Ok(ApiResponse<List<StorageLocationInfo>>.SuccessResponse(storageLocationInfos));
         }
 
         /// <summary>
@@ -211,11 +212,11 @@ namespace Homassy.API.Controllers
         {
             if (!ModelState.IsValid)
             {
-                return BadRequest(ApiResponse.ErrorResponse("Invalid request data"));
+                return BadRequest(ApiResponse.ErrorResponse(ErrorCodes.ValidationInvalidRequest));
             }
 
             await new LocationFunctions().DeleteMultipleStorageLocationsAsync(request, cancellationToken);
-            return Ok(ApiResponse.SuccessResponse($"{request.LocationPublicIds.Count} storage locations deleted successfully"));
+            return Ok(ApiResponse.SuccessResponse());
         }
         #endregion
     }

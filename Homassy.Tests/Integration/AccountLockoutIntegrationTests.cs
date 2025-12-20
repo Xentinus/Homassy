@@ -1,5 +1,6 @@
 using System.Net;
 using System.Net.Http.Json;
+using Homassy.API.Enums;
 using Homassy.API.Models.Auth;
 using Homassy.API.Models.Common;
 using Homassy.API.Models.User;
@@ -191,7 +192,7 @@ public class AccountLockoutIntegrationTests : IClassFixture<HomassyWebApplicatio
     }
 
     [Fact]
-    public async Task VerifyCode_LockedAccount_ShowsLockoutMessage()
+    public async Task VerifyCode_LockedAccount_ShowsLockoutErrorCode()
     {
         var uniqueEmail = $"test-lockout-message-{Guid.NewGuid()}@example.com";
         var registerRequest = new CreateUserRequest
@@ -218,15 +219,14 @@ public class AccountLockoutIntegrationTests : IClassFixture<HomassyWebApplicatio
             var response = await _client.PostAsJsonAsync("/api/v1.0/auth/verify-code", verifyRequest);
             var content = await response.Content.ReadFromJsonAsync<ApiResponse>();
 
-            _output.WriteLine($"Response message: {content?.Message}");
-            _output.WriteLine($"Response errors: {string.Join(", ", content?.Errors ?? [])}");
+            _output.WriteLine($"Response error codes: {string.Join(", ", content?.ErrorCodes ?? [])}");
 
             Assert.NotNull(content);
             Assert.False(content.Success);
-            // The error message is in Errors, not Message (as per ApiResponse.ErrorResponse implementation)
-            Assert.NotNull(content.Errors);
-            Assert.NotEmpty(content.Errors);
-            Assert.Contains("locked", content.Errors[0], StringComparison.OrdinalIgnoreCase);
+            // The error code for account locked is AUTH-0004
+            Assert.NotNull(content.ErrorCodes);
+            Assert.NotEmpty(content.ErrorCodes);
+            Assert.Equal(ErrorCodes.AuthAccountLocked, content.ErrorCodes[0]);
         }
         finally
         {

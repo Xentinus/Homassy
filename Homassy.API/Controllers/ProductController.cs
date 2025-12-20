@@ -1,4 +1,5 @@
-﻿using Asp.Versioning;
+using Asp.Versioning;
+using Homassy.API.Enums;
 using Homassy.API.Functions;
 using Homassy.API.Models.Common;
 using Homassy.API.Models.Product;
@@ -50,11 +51,11 @@ namespace Homassy.API.Controllers
         {
             if (!ModelState.IsValid)
             {
-                return BadRequest(ApiResponse.ErrorResponse("Invalid request data"));
+                return BadRequest(ApiResponse.ErrorResponse(ErrorCodes.ValidationInvalidRequest));
             }
 
             var productInfo = await new ProductFunctions().CreateProductAsync(request, cancellationToken);
-            return Ok(ApiResponse<ProductInfo>.SuccessResponse(productInfo, "Product created successfully"));
+            return Ok(ApiResponse<ProductInfo>.SuccessResponse(productInfo));
         }
 
         /// <summary>
@@ -69,11 +70,11 @@ namespace Homassy.API.Controllers
         {
             if (!ModelState.IsValid)
             {
-                return BadRequest(ApiResponse.ErrorResponse("Invalid request data"));
+                return BadRequest(ApiResponse.ErrorResponse(ErrorCodes.ValidationInvalidRequest));
             }
 
             var productInfo = await new ProductFunctions().UpdateProductAsync(productPublicId, request, cancellationToken);
-            return Ok(ApiResponse<ProductInfo>.SuccessResponse(productInfo, "Product updated successfully"));
+            return Ok(ApiResponse<ProductInfo>.SuccessResponse(productInfo));
         }
 
         /// <summary>
@@ -88,7 +89,7 @@ namespace Homassy.API.Controllers
             await new ProductFunctions().DeleteProductAsync(productPublicId, cancellationToken);
 
             Log.Information($"Product {productPublicId} deleted successfully");
-            return Ok(ApiResponse.SuccessResponse("Product deleted successfully"));
+            return Ok(ApiResponse.SuccessResponse());
         }
 
         /// <summary>
@@ -101,7 +102,7 @@ namespace Homassy.API.Controllers
         public async Task<IActionResult> ToggleFavorite(Guid productPublicId, CancellationToken cancellationToken)
         {
             var productInfo = await new ProductFunctions().ToggleFavoriteAsync(productPublicId, cancellationToken);
-            return Ok(ApiResponse<ProductInfo>.SuccessResponse(productInfo, "Favorite status updated successfully"));
+            return Ok(ApiResponse<ProductInfo>.SuccessResponse(productInfo));
         }
         #endregion
 
@@ -119,7 +120,7 @@ namespace Homassy.API.Controllers
 
             if (detailedProduct == null)
             {
-                return NotFound(ApiResponse.ErrorResponse("Product not found"));
+                return NotFound(ApiResponse.ErrorResponse(ErrorCodes.ProductNotFound));
             }
 
             return Ok(ApiResponse<DetailedProductInfo>.SuccessResponse(detailedProduct));
@@ -150,11 +151,11 @@ namespace Homassy.API.Controllers
         {
             if (!ModelState.IsValid)
             {
-                return BadRequest(ApiResponse.ErrorResponse("Invalid request data"));
+                return BadRequest(ApiResponse.ErrorResponse(ErrorCodes.ValidationInvalidRequest));
             }
 
             var inventoryItemInfo = await new ProductFunctions().CreateInventoryItemAsync(request, cancellationToken);
-            return Ok(ApiResponse<InventoryItemInfo>.SuccessResponse(inventoryItemInfo, "Inventory item created successfully"));
+            return Ok(ApiResponse<InventoryItemInfo>.SuccessResponse(inventoryItemInfo));
         }
 
         /// <summary>
@@ -168,11 +169,11 @@ namespace Homassy.API.Controllers
         {
             if (!ModelState.IsValid)
             {
-                return BadRequest(ApiResponse.ErrorResponse("Invalid request data"));
+                return BadRequest(ApiResponse.ErrorResponse(ErrorCodes.ValidationInvalidRequest));
             }
 
             var inventoryItemInfo = await new ProductFunctions().QuickAddInventoryItemAsync(request, cancellationToken);
-            return Ok(ApiResponse<InventoryItemInfo>.SuccessResponse(inventoryItemInfo, "Inventory item added successfully"));
+            return Ok(ApiResponse<InventoryItemInfo>.SuccessResponse(inventoryItemInfo));
         }
 
         /// <summary>
@@ -187,11 +188,11 @@ namespace Homassy.API.Controllers
         {
             if (!ModelState.IsValid)
             {
-                return BadRequest(ApiResponse.ErrorResponse("Invalid request data"));
+                return BadRequest(ApiResponse.ErrorResponse(ErrorCodes.ValidationInvalidRequest));
             }
 
             var inventoryItemInfo = await new ProductFunctions().UpdateInventoryItemAsync(inventoryItemPublicId, request, cancellationToken);
-            return Ok(ApiResponse<InventoryItemInfo>.SuccessResponse(inventoryItemInfo, "Inventory item updated successfully"));
+            return Ok(ApiResponse<InventoryItemInfo>.SuccessResponse(inventoryItemInfo));
         }
 
         /// <summary>
@@ -206,7 +207,7 @@ namespace Homassy.API.Controllers
             await new ProductFunctions().DeleteInventoryItemAsync(inventoryItemPublicId, cancellationToken);
 
             Log.Information($"Inventory item {inventoryItemPublicId} deleted successfully");
-            return Ok(ApiResponse.SuccessResponse("Inventory item deleted successfully"));
+            return Ok(ApiResponse.SuccessResponse());
         }
 
         /// <summary>
@@ -221,11 +222,11 @@ namespace Homassy.API.Controllers
         {
             if (!ModelState.IsValid)
             {
-                return BadRequest(ApiResponse.ErrorResponse("Invalid request data"));
+                return BadRequest(ApiResponse.ErrorResponse(ErrorCodes.ValidationInvalidRequest));
             }
 
             var inventoryItemInfo = await new ProductFunctions().ConsumeInventoryItemAsync(inventoryItemPublicId, request, cancellationToken);
-            return Ok(ApiResponse<InventoryItemInfo>.SuccessResponse(inventoryItemInfo, "Consumption recorded successfully"));
+            return Ok(ApiResponse<InventoryItemInfo>.SuccessResponse(inventoryItemInfo));
         }
 
         /// <summary>
@@ -239,11 +240,11 @@ namespace Homassy.API.Controllers
         {
             if (!ModelState.IsValid)
             {
-                return BadRequest(ApiResponse.ErrorResponse("Invalid request data"));
+                return BadRequest(ApiResponse.ErrorResponse(ErrorCodes.ValidationInvalidRequest));
             }
 
             var inventoryItems = await new ProductFunctions().QuickAddMultipleInventoryItemsAsync(request, cancellationToken);
-            return Ok(ApiResponse<List<InventoryItemInfo>>.SuccessResponse(inventoryItems, "Inventory items added successfully"));
+            return Ok(ApiResponse<List<InventoryItemInfo>>.SuccessResponse(inventoryItems));
         }
 
         /// <summary>
@@ -257,11 +258,11 @@ namespace Homassy.API.Controllers
         {
             if (!ModelState.IsValid)
             {
-                return BadRequest(ApiResponse.ErrorResponse("Invalid request data"));
+                return BadRequest(ApiResponse.ErrorResponse(ErrorCodes.ValidationInvalidRequest));
             }
 
             var inventoryItems = await new ProductFunctions().MoveInventoryItemsAsync(request, cancellationToken);
-            return Ok(ApiResponse<List<InventoryItemInfo>>.SuccessResponse(inventoryItems, "Inventory items moved successfully"));
+            return Ok(ApiResponse<List<InventoryItemInfo>>.SuccessResponse(inventoryItems));
         }
 
         /// <summary>
@@ -275,11 +276,11 @@ namespace Homassy.API.Controllers
         {
             if (!ModelState.IsValid)
             {
-                return BadRequest(ApiResponse.ErrorResponse("Invalid request data"));
+                return BadRequest(ApiResponse.ErrorResponse(ErrorCodes.ValidationInvalidRequest));
             }
 
             await new ProductFunctions().DeleteMultipleInventoryItemsAsync(request, cancellationToken);
-            return Ok(ApiResponse.SuccessResponse($"{request.ItemPublicIds.Count} inventory items deleted successfully"));
+            return Ok(ApiResponse.SuccessResponse());
         }
 
         /// <summary>
@@ -293,11 +294,11 @@ namespace Homassy.API.Controllers
         {
             if (!ModelState.IsValid)
             {
-                return BadRequest(ApiResponse.ErrorResponse("Invalid request data"));
+                return BadRequest(ApiResponse.ErrorResponse(ErrorCodes.ValidationInvalidRequest));
             }
 
             var items = await new ProductFunctions().ConsumeMultipleInventoryItemsAsync(request, cancellationToken);
-            return Ok(ApiResponse<List<InventoryItemInfo>>.SuccessResponse(items, $"{items.Count} inventory items consumed successfully"));
+            return Ok(ApiResponse<List<InventoryItemInfo>>.SuccessResponse(items));
         }
 
         /// <summary>
@@ -311,11 +312,11 @@ namespace Homassy.API.Controllers
         {
             if (!ModelState.IsValid)
             {
-                return BadRequest(ApiResponse.ErrorResponse("Invalid request data"));
+                return BadRequest(ApiResponse.ErrorResponse(ErrorCodes.ValidationInvalidRequest));
             }
 
             var products = await new ProductFunctions().CreateMultipleProductsAsync(request, cancellationToken);
-            return Ok(ApiResponse<List<ProductInfo>>.SuccessResponse(products, $"{products.Count} products created successfully"));
+            return Ok(ApiResponse<List<ProductInfo>>.SuccessResponse(products));
         }
         #endregion
 
@@ -332,7 +333,7 @@ namespace Homassy.API.Controllers
         {
             if (!ModelState.IsValid)
             {
-                return BadRequest(ApiResponse.ErrorResponse("Invalid request data"));
+                return BadRequest(ApiResponse.ErrorResponse(ErrorCodes.ValidationInvalidRequest));
             }
 
             var uploadRequest = new UploadProductImageRequest
@@ -342,7 +343,7 @@ namespace Homassy.API.Controllers
             };
 
             var imageInfo = await new ImageFunctions(_imageProcessingService).UploadProductImageAsync(uploadRequest, cancellationToken);
-            return Ok(ApiResponse<ProductImageInfo>.SuccessResponse(imageInfo, "Product image uploaded successfully"));
+            return Ok(ApiResponse<ProductImageInfo>.SuccessResponse(imageInfo));
         }
 
         /// <summary>
@@ -355,7 +356,7 @@ namespace Homassy.API.Controllers
         public async Task<IActionResult> DeleteProductImage(Guid productPublicId, CancellationToken cancellationToken)
         {
             await new ImageFunctions(_imageProcessingService).DeleteProductImageAsync(productPublicId, cancellationToken);
-            return Ok(ApiResponse.SuccessResponse("Product image deleted successfully"));
+            return Ok(ApiResponse.SuccessResponse());
         }
         #endregion
     }

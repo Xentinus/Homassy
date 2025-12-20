@@ -42,7 +42,6 @@ public class AuthControllerTests : IClassFixture<HomassyWebApplicationFactory>
         var content = await response.Content.ReadFromJsonAsync<ApiResponse<string>>();
         Assert.NotNull(content);
         Assert.True(content.Success);
-        Assert.Contains("verification code", content.Message, StringComparison.OrdinalIgnoreCase);
     }
 
     [Fact]

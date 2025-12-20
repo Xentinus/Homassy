@@ -1,3 +1,4 @@
+using Homassy.API.Enums;
 using Homassy.API.Exceptions;
 using Homassy.API.Models.Common;
 using Serilog;
@@ -34,7 +35,7 @@ namespace Homassy.API.Middleware
         {
             var correlationId = context.Items[CorrelationIdMiddleware.CorrelationIdItemKey]?.ToString() 
                 ?? Guid.NewGuid().ToString();
-            var (statusCode, message) = MapExceptionToResponse(exception);
+            var (statusCode, errorCode) = MapExceptionToResponse(exception);
 
             // Log based on severity
             if (statusCode >= 500)
@@ -43,54 +44,54 @@ namespace Homassy.API.Middleware
             }
             else
             {
-                Log.Warning($"Handled exception [CorrelationId: {correlationId}]: {exception.GetType().Name} - {exception.Message}");
+                Log.Warning($"Handled exception [CorrelationId: {correlationId}]: {exception.GetType().Name} - {exception.Message} - ErrorCode: {errorCode}");
             }
 
             context.Response.StatusCode = statusCode;
             context.Response.ContentType = "application/json";
 
-            var response = ApiResponse.ErrorResponse(message);
+            var response = ApiResponse.ErrorResponse(errorCode);
             var jsonResponse = JsonSerializer.Serialize(response, JsonOptions);
 
             await context.Response.WriteAsync(jsonResponse);
         }
 
-        private static (int StatusCode, string Message) MapExceptionToResponse(Exception exception)
+        private static (int StatusCode, string ErrorCode) MapExceptionToResponse(Exception exception)
         {
             return exception switch
             {
-                // Auth exceptions with built-in status code
-                AuthException authEx => (authEx.StatusCode, authEx.Message),
+                // Auth exceptions with built-in status code and error code
+                AuthException authEx => (authEx.StatusCode, authEx.ErrorCode),
 
                 // Product exceptions
-                ProductNotFoundException => (StatusCodes.Status404NotFound, exception.Message),
-                ProductInventoryItemNotFoundException => (StatusCodes.Status404NotFound, exception.Message),
-                ProductAccessDeniedException => (StatusCodes.Status403Forbidden, exception.Message),
+                ProductNotFoundException ex => (StatusCodes.Status404NotFound, ex.ErrorCode),
+                ProductInventoryItemNotFoundException ex => (StatusCodes.Status404NotFound, ex.ErrorCode),
+                ProductAccessDeniedException ex => (StatusCodes.Status403Forbidden, ex.ErrorCode),
 
                 // Location exceptions
-                LocationNotFoundException => (StatusCodes.Status404NotFound, exception.Message),
-                ShoppingLocationNotFoundException => (StatusCodes.Status404NotFound, exception.Message),
-                StorageLocationNotFoundException => (StatusCodes.Status404NotFound, exception.Message),
-                LocationAccessDeniedException => (StatusCodes.Status403Forbidden, exception.Message),
+                LocationNotFoundException ex => (StatusCodes.Status404NotFound, ex.ErrorCode),
+                ShoppingLocationNotFoundException ex => (StatusCodes.Status404NotFound, ex.ErrorCode),
+                StorageLocationNotFoundException ex => (StatusCodes.Status404NotFound, ex.ErrorCode),
+                LocationAccessDeniedException ex => (StatusCodes.Status403Forbidden, ex.ErrorCode),
 
                 // Shopping list exceptions
-                ShoppingListNotFoundException => (StatusCodes.Status404NotFound, exception.Message),
-                ShoppingListItemNotFoundException => (StatusCodes.Status404NotFound, exception.Message),
-                ShoppingListAccessDeniedException => (StatusCodes.Status403Forbidden, exception.Message),
-                InvalidShoppingListItemException => (StatusCodes.Status400BadRequest, exception.Message),
+                ShoppingListNotFoundException ex => (StatusCodes.Status404NotFound, ex.ErrorCode),
+                ShoppingListItemNotFoundException ex => (StatusCodes.Status404NotFound, ex.ErrorCode),
+                ShoppingListAccessDeniedException ex => (StatusCodes.Status403Forbidden, ex.ErrorCode),
+                InvalidShoppingListItemException ex => (StatusCodes.Status400BadRequest, ex.ErrorCode),
 
                 // Timeout exceptions
-                RequestTimeoutException => (StatusCodes.Status504GatewayTimeout, exception.Message),
+                RequestTimeoutException ex => (StatusCodes.Status504GatewayTimeout, ex.ErrorCode),
 
                 // Standard exceptions
-                ArgumentNullException => (StatusCodes.Status400BadRequest, "Required parameter is missing"),
-                ArgumentException => (StatusCodes.Status400BadRequest, exception.Message),
-                InvalidOperationException => (StatusCodes.Status400BadRequest, exception.Message),
-                UnauthorizedAccessException => (StatusCodes.Status401Unauthorized, "Unauthorized access"),
-                OperationCanceledException => (StatusCodes.Status499ClientClosedRequest, "Request was cancelled"),
+                ArgumentNullException => (StatusCodes.Status400BadRequest, ErrorCodes.ValidationRequiredField),
+                ArgumentException => (StatusCodes.Status400BadRequest, ErrorCodes.ValidationInvalidRequest),
+                InvalidOperationException => (StatusCodes.Status400BadRequest, ErrorCodes.ValidationInvalidRequest),
+                UnauthorizedAccessException => (StatusCodes.Status401Unauthorized, ErrorCodes.SystemUnauthorizedAccess),
+                OperationCanceledException => (StatusCodes.Status499ClientClosedRequest, ErrorCodes.SystemRequestCancelled),
 
                 // Default: Internal Server Error
-                _ => (StatusCodes.Status500InternalServerError, "An unexpected error occurred")
+                _ => (StatusCodes.Status500InternalServerError, ErrorCodes.SystemUnexpectedError)
             };
         }
     }

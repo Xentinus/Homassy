@@ -1,3 +1,4 @@
+using Homassy.API.Enums;
 using Homassy.API.Extensions;
 using Homassy.API.Models.Common;
 using Homassy.API.Models.RateLimit;
@@ -15,6 +16,10 @@ namespace Homassy.API.Middleware
         public const string RetryAfterHeader = "Retry-After";
 
         private readonly RequestDelegate _next;
+        private static readonly JsonSerializerOptions JsonOptions = new()
+        {
+            PropertyNamingPolicy = JsonNamingPolicy.CamelCase
+        };
 
         public RateLimitingMiddleware(RequestDelegate next)
         {
@@ -41,10 +46,9 @@ namespace Homassy.API.Middleware
                 context.Response.ContentType = "application/json";
                 AddRateLimitHeaders(context, status);
                 
-                var errorResponse = ApiResponse.ErrorResponse(
-                    $"Too many requests. Please try again in {status.RetryAfterSeconds} seconds.");
+                var errorResponse = ApiResponse.ErrorResponse(ErrorCodes.RateLimitExceeded);
                 
-                await context.Response.WriteAsync(JsonSerializer.Serialize(errorResponse));
+                await context.Response.WriteAsync(JsonSerializer.Serialize(errorResponse, JsonOptions));
                 return;
             }
 
@@ -62,10 +66,9 @@ namespace Homassy.API.Middleware
                 context.Response.ContentType = "application/json";
                 AddRateLimitHeaders(context, status);
                 
-                var errorResponse = ApiResponse.ErrorResponse(
-                    $"Too many requests to this endpoint. Please try again in {status.RetryAfterSeconds} seconds.");
+                var errorResponse = ApiResponse.ErrorResponse(ErrorCodes.RateLimitExceeded);
                 
-                await context.Response.WriteAsync(JsonSerializer.Serialize(errorResponse));
+                await context.Response.WriteAsync(JsonSerializer.Serialize(errorResponse, JsonOptions));
                 return;
             }
 

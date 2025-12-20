@@ -1,4 +1,5 @@
 ﻿using Asp.Versioning;
+using Homassy.API.Enums;
 using Homassy.API.Functions;
 using Homassy.API.Models.Common;
 using Homassy.API.Models.User;
@@ -48,11 +49,11 @@ namespace Homassy.API.Controllers
         {
             if (!ModelState.IsValid)
             {
-                return BadRequest(ApiResponse.ErrorResponse("Invalid request data"));
+                return BadRequest(ApiResponse.ErrorResponse(ErrorCodes.ValidationInvalidRequest));
             }
 
             await new UserFunctions().UpdateUserProfileAsync(request, cancellationToken);
-            return Ok(ApiResponse.SuccessResponse("Settings updated successfully"));
+            return Ok(ApiResponse.SuccessResponse());
         }
 
         /// <summary>
@@ -66,11 +67,11 @@ namespace Homassy.API.Controllers
         {
             if (!ModelState.IsValid)
             {
-                return BadRequest(ApiResponse.ErrorResponse("Invalid request data"));
+                return BadRequest(ApiResponse.ErrorResponse(ErrorCodes.ValidationInvalidRequest));
             }
 
             var imageInfo = await new ImageFunctions(_imageProcessingService).UploadUserProfileImageAsync(request, cancellationToken);
-            return Ok(ApiResponse<UserProfileImageInfo>.SuccessResponse(imageInfo, "Profile picture uploaded successfully"));
+            return Ok(ApiResponse<UserProfileImageInfo>.SuccessResponse(imageInfo));
         }
 
         /// <summary>
@@ -83,7 +84,7 @@ namespace Homassy.API.Controllers
         public async Task<IActionResult> DeleteProfilePicture(CancellationToken cancellationToken)
         {
             await new ImageFunctions(_imageProcessingService).DeleteUserProfileImageAsync(cancellationToken);
-            return Ok(ApiResponse.SuccessResponse("Profile picture deleted successfully"));
+            return Ok(ApiResponse.SuccessResponse());
         }
     }
 }

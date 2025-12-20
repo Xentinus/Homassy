@@ -1,3 +1,4 @@
+using Homassy.API.Enums;
 using Homassy.API.Exceptions;
 using Homassy.API.Middleware;
 using Homassy.API.Models.Common;
@@ -89,7 +90,7 @@ public class GlobalExceptionMiddlewareTests
         var response = await GetResponseAsync(context);
         Assert.NotNull(response);
         Assert.False(response.Success);
-        Assert.Contains("Test unauthorized", response.Errors?.FirstOrDefault());
+        Assert.Contains(ErrorCodes.AuthUnauthorized, response.ErrorCodes?.FirstOrDefault());
     }
 
     [Fact]
@@ -396,7 +397,7 @@ public class GlobalExceptionMiddlewareTests
     }
 
     [Fact]
-    public async Task InvokeAsync_WhenRequestTimeoutException_ReturnsExceptionMessage()
+    public async Task InvokeAsync_WhenRequestTimeoutException_ReturnsErrorCode()
     {
         var middleware = CreateMiddleware(_ => throw new RequestTimeoutException("Request timed out after 30 seconds"));
         var context = CreateHttpContext();
@@ -408,7 +409,7 @@ public class GlobalExceptionMiddlewareTests
         // Assert
         Assert.NotNull(response);
         Assert.False(response.Success);
-        Assert.Contains("Request timed out after 30 seconds", response.Errors?.FirstOrDefault());
+        Assert.Contains(ErrorCodes.SystemRequestTimeout, response.ErrorCodes?.FirstOrDefault());
     }
     #endregion
 
@@ -428,7 +429,7 @@ public class GlobalExceptionMiddlewareTests
     }
 
     [Fact]
-    public async Task InvokeAsync_WhenUnknownException_ReturnsGenericMessage()
+    public async Task InvokeAsync_WhenUnknownException_ReturnsSystemErrorCode()
     {
         // Arrange
         var middleware = CreateMiddleware(_ => throw new Exception("Sensitive internal error"));
@@ -441,8 +442,7 @@ public class GlobalExceptionMiddlewareTests
         // Assert
         Assert.NotNull(response);
         Assert.False(response.Success);
-        Assert.DoesNotContain("Sensitive", response.Errors?.FirstOrDefault() ?? string.Empty);
-        Assert.Contains("unexpected error", response.Errors?.FirstOrDefault() ?? string.Empty);
+        Assert.Contains(ErrorCodes.SystemUnexpectedError, response.ErrorCodes?.FirstOrDefault());
     }
     #endregion
 
@@ -475,9 +475,9 @@ public class GlobalExceptionMiddlewareTests
         // Assert
         Assert.NotNull(response);
         Assert.False(response.Success);
-        Assert.NotNull(response.Errors);
-        Assert.Single(response.Errors);
-        Assert.Contains("Test product not found", response.Errors[0]);
+        Assert.NotNull(response.ErrorCodes);
+        Assert.Single(response.ErrorCodes);
+        Assert.Contains(ErrorCodes.ProductNotFound, response.ErrorCodes[0]);
     }
     #endregion
 }

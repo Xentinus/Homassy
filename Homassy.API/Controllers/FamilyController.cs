@@ -1,4 +1,5 @@
 ﻿using Asp.Versioning;
+using Homassy.API.Enums;
 using Homassy.API.Functions;
 using Homassy.API.Models.Common;
 using Homassy.API.Models.Family;
@@ -39,11 +40,11 @@ namespace Homassy.API.Controllers
         {
             if (!ModelState.IsValid)
             {
-                return BadRequest(ApiResponse.ErrorResponse("Invalid request data"));
+                return BadRequest(ApiResponse.ErrorResponse(ErrorCodes.ValidationInvalidRequest));
             }
 
             await new FamilyFunctions().UpdateFamilyAsync(request, cancellationToken);
-            return Ok(ApiResponse.SuccessResponse("Family updated successfully"));
+            return Ok(ApiResponse.SuccessResponse());
         }
 
         /// <summary>
@@ -57,11 +58,11 @@ namespace Homassy.API.Controllers
         {
             if (!ModelState.IsValid)
             {
-                return BadRequest(ApiResponse.ErrorResponse("Invalid request data"));
+                return BadRequest(ApiResponse.ErrorResponse(ErrorCodes.ValidationInvalidRequest));
             }
 
             var response = await new FamilyFunctions().CreateFamilyAsync(request, cancellationToken);
-            return Ok(ApiResponse<FamilyInfo>.SuccessResponse(response, "Family created successfully"));
+            return Ok(ApiResponse<FamilyInfo>.SuccessResponse(response));
         }
 
         /// <summary>
@@ -75,11 +76,11 @@ namespace Homassy.API.Controllers
         {
             if (!ModelState.IsValid)
             {
-                return BadRequest(ApiResponse.ErrorResponse("Invalid request data"));
+                return BadRequest(ApiResponse.ErrorResponse(ErrorCodes.ValidationInvalidRequest));
             }
 
             var response = await new UserFunctions().JoinFamilyAsync(request, cancellationToken);
-            return Ok(ApiResponse<FamilyInfo>.SuccessResponse(response, "Successfully joined the family"));
+            return Ok(ApiResponse<FamilyInfo>.SuccessResponse(response));
         }
 
         /// <summary>
@@ -92,7 +93,7 @@ namespace Homassy.API.Controllers
         public async Task<IActionResult> LeaveFamily(CancellationToken cancellationToken)
         {
             await new UserFunctions().RemoveUserFromFamilyAsync(cancellationToken);
-            return Ok(ApiResponse.SuccessResponse("Successfully left the family"));
+            return Ok(ApiResponse.SuccessResponse());
         }
 
         /// <summary>
@@ -106,11 +107,11 @@ namespace Homassy.API.Controllers
         {
             if (!ModelState.IsValid)
             {
-                return BadRequest(ApiResponse.ErrorResponse("Invalid request data"));
+                return BadRequest(ApiResponse.ErrorResponse(ErrorCodes.ValidationInvalidRequest));
             }
 
             await new FamilyFunctions().UploadFamilyPictureAsync(request.FamilyPictureBase64, cancellationToken);
-            return Ok(ApiResponse.SuccessResponse("Family picture uploaded successfully"));
+            return Ok(ApiResponse.SuccessResponse());
         }
 
         /// <summary>
@@ -122,7 +123,7 @@ namespace Homassy.API.Controllers
         public async Task<IActionResult> DeleteFamilyPicture(CancellationToken cancellationToken)
         {
             await new FamilyFunctions().DeleteFamilyPictureAsync(cancellationToken);
-            return Ok(ApiResponse.SuccessResponse("Family picture deleted successfully"));
+            return Ok(ApiResponse.SuccessResponse());
         }
     }
 }

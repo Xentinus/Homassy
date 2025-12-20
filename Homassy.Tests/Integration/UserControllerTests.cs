@@ -2,6 +2,7 @@ using System.Net;
 using System.Net.Http.Json;
 using Homassy.API.Models.Common;
 using Homassy.API.Models.User;
+using Homassy.API.Models.ImageUpload;
 using Homassy.Tests.Infrastructure;
 using Xunit.Abstractions;
 
@@ -290,12 +291,12 @@ public class UserControllerTests : IClassFixture<HomassyWebApplicationFactory>
             testEmail = email;
             _authHelper.SetAuthToken(auth.AccessToken);
 
-            // Valid Base64 image (1x1 transparent PNG)
-            var validBase64 = "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==";
+            // Valid Base64 image (50x50 red PNG that meets minimum size requirements)
+            var validBase64 = "iVBORw0KGgoAAAANSUhEUgAAADIAAAAyCAIAAACRXR/mAAAAGklEQVR42mP8z8Dw/z8DA+MMRgxg0AMDCwAAMVsD+RFtk8MAAAAASUVORK5CYII=";
 
             // Step 1: Upload
             _output.WriteLine("=== Step 1: Upload Profile Picture ===");
-            var uploadRequest = new UploadProfilePictureRequest { ProfilePictureBase64 = validBase64 };
+            var uploadRequest = new UploadUserProfileImageRequest { ImageBase64 = validBase64 };
             var uploadResponse = await _client.PostAsJsonAsync("/api/v1.0/user/profile-picture", uploadRequest);
             var uploadBody = await uploadResponse.Content.ReadAsStringAsync();
 

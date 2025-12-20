@@ -634,7 +634,7 @@ public class ShoppingListControllerTests : IClassFixture<HomassyWebApplicationFa
             _output.WriteLine($"Response: {responseBody}");
 
             Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
-            Assert.Contains("custom", responseBody, StringComparison.OrdinalIgnoreCase);
+            Assert.Contains("SHOPPINGLIST-0004", responseBody);
 
             if (itemId.HasValue)
                 await _client.DeleteAsync($"/api/v1.0/shoppinglist/item/{itemId}");

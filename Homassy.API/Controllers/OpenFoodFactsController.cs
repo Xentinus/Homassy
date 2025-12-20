@@ -1,4 +1,5 @@
 using Asp.Versioning;
+using Homassy.API.Enums;
 using Homassy.API.Models.Common;
 using Homassy.API.Models.OpenFoodFacts;
 using Homassy.API.Services;
@@ -38,14 +39,14 @@ public class OpenFoodFactsController : ControllerBase
     {
         if (string.IsNullOrWhiteSpace(barcode))
         {
-            return BadRequest(ApiResponse.ErrorResponse("Barcode is required"));
+            return BadRequest(ApiResponse.ErrorResponse(ErrorCodes.ValidationBarcodeRequired));
         }
 
         var result = await _openFoodFactsService.GetProductByBarcodeAsync(barcode, cancellationToken);
 
         if (result == null || result.Status != 1 || result.Product == null)
         {
-            return NotFound(ApiResponse.ErrorResponse("Product not found in Open Food Facts database"));
+            return NotFound(ApiResponse.ErrorResponse(ErrorCodes.ExternalOpenFoodFactsNotFound));
         }
 
         return Ok(ApiResponse<OpenFoodFactsProduct>.SuccessResponse(result.Product));

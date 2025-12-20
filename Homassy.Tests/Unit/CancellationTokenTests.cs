@@ -1,3 +1,4 @@
+using Homassy.API.Enums;
 using Homassy.API.Middleware;
 using Homassy.API.Models.Common;
 using Microsoft.AspNetCore.Http;
@@ -64,9 +65,9 @@ public class CancellationTokenTests
         var response = await GetResponseAsync(context);
         Assert.NotNull(response);
         Assert.False(response.Success);
-        Assert.NotNull(response.Errors);
-        Assert.Single(response.Errors);
-        Assert.Contains("cancelled", response.Errors[0], StringComparison.OrdinalIgnoreCase);
+        Assert.NotNull(response.ErrorCodes);
+        Assert.Single(response.ErrorCodes);
+        Assert.Equal(ErrorCodes.SystemRequestCancelled, response.ErrorCodes[0]);
     }
 
     [Fact]

@@ -4,65 +4,54 @@
     {
         public bool Success { get; init; }
         public T? Data { get; init; }
-        public string? Message { get; init; }
-        public List<string>? Errors { get; init; }
+        public List<string>? ErrorCodes { get; init; }
         public DateTime Timestamp { get; init; } = DateTime.UtcNow;
 
-        // Success response with data
-        public static ApiResponse<T> SuccessResponse(T data, string? message = null)
+        public static ApiResponse<T> SuccessResponse(T data)
         {
             return new ApiResponse<T>
             {
                 Success = true,
-                Data = data,
-                Message = message
+                Data = data
             };
         }
 
-        // Success response without data
-        public static ApiResponse<T> SuccessResponse(string message)
-        {
-            return new ApiResponse<T>
-            {
-                Success = true,
-                Message = message
-            };
-        }
-
-        // Error response with single error
-        public static ApiResponse<T> ErrorResponse(string error)
+        public static ApiResponse<T> ErrorResponse(string errorCode)
         {
             return new ApiResponse<T>
             {
                 Success = false,
-                Errors = [error]
+                ErrorCodes = [errorCode]
             };
         }
 
-        // Error response with multiple errors
-        public static ApiResponse<T> ErrorResponse(List<string> errors)
+        public static ApiResponse<T> ErrorResponse(List<string> errorCodes)
         {
             return new ApiResponse<T>
             {
                 Success = false,
-                Errors = errors
+                ErrorCodes = errorCodes
             };
         }
 
-        // Error response with message and errors
-        public static ApiResponse<T> ErrorResponse(string message, List<string> errors)
+        public static ApiResponse<T> ErrorResponse(params string[] errorCodes)
         {
             return new ApiResponse<T>
             {
                 Success = false,
-                Message = message,
-                Errors = errors
+                ErrorCodes = [.. errorCodes]
             };
         }
     }
 
-    // Responses without data
     public class ApiResponse : ApiResponse<object>
     {
+        public static ApiResponse SuccessResponse()
+        {
+            return new ApiResponse
+            {
+                Success = true
+            };
+        }
     }
 }

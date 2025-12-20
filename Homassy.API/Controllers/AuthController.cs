@@ -32,10 +32,8 @@ namespace Homassy.API.Controllers
         {
             if (!ModelState.IsValid)
             {
-                return BadRequest(ApiResponse.ErrorResponse("Invalid request data"));
+                return BadRequest(ApiResponse.ErrorResponse(ErrorCodes.ValidationInvalidRequest));
             }
-
-            var genericMessage = "If this email is registered, a verification code will be sent.";
 
             try
             {
@@ -43,20 +41,20 @@ namespace Homassy.API.Controllers
             }
             catch (BadRequestException ex)
             {
-                return BadRequest(ApiResponse.ErrorResponse(ex.Message));
+                return BadRequest(ApiResponse.ErrorResponse(ex.ErrorCode));
             }
             catch (AuthException ex)
             {
-                Log.Warning("Auth error during request-code: {Message}", ex.Message);
+                Log.Warning($"Auth error during request-code: {ex.Message}");
             }
             catch (Exception ex)
             {
-                Log.Error(ex, "Unexpected error during request-code");
+                Log.Error(ex, $"Unexpected error during request-code");
             }
 
             // Security: constant time response to prevent user enumeration
             await Task.Delay(Random.Shared.Next(100, 300), cancellationToken);
-            return Ok(ApiResponse.SuccessResponse(genericMessage));
+            return Ok(ApiResponse.SuccessResponse());
         }
 
         /// <summary>
@@ -70,11 +68,11 @@ namespace Homassy.API.Controllers
         {
             if (!ModelState.IsValid)
             {
-                return BadRequest(ApiResponse.ErrorResponse("Invalid request data"));
+                return BadRequest(ApiResponse.ErrorResponse(ErrorCodes.ValidationInvalidRequest));
             }
 
             var authResponse = await new UserFunctions().VerifyCodeAsync(request.Email, request.VerificationCode, cancellationToken);
-            return Ok(ApiResponse<AuthResponse>.SuccessResponse(authResponse, "Login successful"));
+            return Ok(ApiResponse<AuthResponse>.SuccessResponse(authResponse));
         }
 
         /// <summary>
@@ -90,11 +88,11 @@ namespace Homassy.API.Controllers
         {
             if (!ModelState.IsValid)
             {
-                return BadRequest(ApiResponse.ErrorResponse("Invalid request data"));
+                return BadRequest(ApiResponse.ErrorResponse(ErrorCodes.ValidationInvalidRequest));
             }
 
             var refreshResponse = await new UserFunctions().RefreshTokenAsync(request.RefreshToken, cancellationToken);
-            return Ok(ApiResponse<RefreshTokenResponse>.SuccessResponse(refreshResponse, "Token refreshed successfully"));
+            return Ok(ApiResponse<RefreshTokenResponse>.SuccessResponse(refreshResponse));
         }
 
         /// <summary>
@@ -114,10 +112,10 @@ namespace Homassy.API.Controllers
             catch (UserNotFoundException ex)
             {
                 // User already logged out or deleted - still return success
-                Log.Warning("User not found during logout: {Message}", ex.Message);
+                Log.Warning($"User not found during logout: {ex.Message}");
             }
             
-            return Ok(ApiResponse.SuccessResponse("Logged out successfully"));
+            return Ok(ApiResponse.SuccessResponse());
         }
 
         /// <summary>
@@ -146,7 +144,7 @@ namespace Homassy.API.Controllers
         {
             if (!ModelState.IsValid)
             {
-                return BadRequest(ApiResponse.ErrorResponse("Invalid request data"));
+                return BadRequest(ApiResponse.ErrorResponse(ErrorCodes.ValidationInvalidRequest));
             }
 
             // Check if registration is enabled
@@ -156,7 +154,7 @@ namespace Homassy.API.Controllers
             if (!registrationEnabled)
             {
                 Log.Warning("Registration attempt while registration is disabled");
-                return StatusCode(403, ApiResponse.ErrorResponse("Registration is currently disabled"));
+                return StatusCode(403, ApiResponse.ErrorResponse(ErrorCodes.AuthRegistrationDisabled));
             }
 
             // Extract browser language from Accept-Language header
@@ -167,28 +165,26 @@ namespace Homassy.API.Controllers
             var timezoneHeader = Request.Headers["X-Timezone"].FirstOrDefault();
             var browserTimeZone = ParseTimeZone(timezoneHeader);
 
-            var genericMessage = "Registration request received. If the email is not already in use, a verification code will be sent.";
-
             try
             {
                 await new UserFunctions().RegisterAsync(request, browserLanguage, browserTimeZone, cancellationToken);
             }
             catch (BadRequestException ex)
             {
-                return BadRequest(ApiResponse.ErrorResponse(ex.Message));
+                return BadRequest(ApiResponse.ErrorResponse(ex.ErrorCode));
             }
             catch (AuthException ex)
             {
-                Log.Warning("Auth error during registration: {Message}", ex.Message);
+                Log.Warning($"Auth error during registration: {ex.Message}");
             }
             catch (Exception ex)
             {
-                Log.Error(ex, "Unexpected error during registration");
+                Log.Error(ex, $"Unexpected error during registration");
             }
 
             // Security: constant time response to prevent user enumeration
             await Task.Delay(Random.Shared.Next(100, 300), cancellationToken);
-            return Ok(ApiResponse.SuccessResponse(genericMessage));
+            return Ok(ApiResponse.SuccessResponse());
         }
 
         /// <summary>
