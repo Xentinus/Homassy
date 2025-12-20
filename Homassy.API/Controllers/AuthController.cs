@@ -1,5 +1,7 @@
 ﻿using Asp.Versioning;
+using Homassy.API.Enums;
 using Homassy.API.Exceptions;
+using Homassy.API.Extensions;
 using Homassy.API.Functions;
 using Homassy.API.Models.Auth;
 using Homassy.API.Models.Common;
@@ -157,11 +159,19 @@ namespace Homassy.API.Controllers
                 return StatusCode(403, ApiResponse.ErrorResponse("Registration is currently disabled"));
             }
 
+            // Extract browser language from Accept-Language header
+            var acceptLanguage = Request.Headers.AcceptLanguage.FirstOrDefault();
+            var browserLanguage = ParseAcceptLanguage(acceptLanguage);
+
+            // Extract timezone from X-Timezone header
+            var timezoneHeader = Request.Headers["X-Timezone"].FirstOrDefault();
+            var browserTimeZone = ParseTimeZone(timezoneHeader);
+
             var genericMessage = "Registration request received. If the email is not already in use, a verification code will be sent.";
 
             try
             {
-                await new UserFunctions().RegisterAsync(request, cancellationToken);
+                await new UserFunctions().RegisterAsync(request, browserLanguage, browserTimeZone, cancellationToken);
             }
             catch (BadRequestException ex)
             {
@@ -179,6 +189,48 @@ namespace Homassy.API.Controllers
             // Security: constant time response to prevent user enumeration
             await Task.Delay(Random.Shared.Next(100, 300), cancellationToken);
             return Ok(ApiResponse.SuccessResponse(genericMessage));
+        }
+
+        /// <summary>
+        /// Parses the Accept-Language header and returns the corresponding Language enum.
+        /// </summary>
+        private static Language ParseAcceptLanguage(string? acceptLanguage)
+        {
+            if (string.IsNullOrWhiteSpace(acceptLanguage))
+            {
+                return Language.English;
+            }
+
+            // Accept-Language format: "hu-HU,hu;q=0.9,en-US;q=0.8,en;q=0.7"
+            // Take the first language code (highest priority)
+            var primaryLanguage = acceptLanguage
+                .Split(',')
+                .FirstOrDefault()?
+                .Split(';')
+                .FirstOrDefault()?
+                .Trim();
+
+            if (string.IsNullOrWhiteSpace(primaryLanguage))
+            {
+                return Language.English;
+            }
+
+            var languageCode = primaryLanguage.Split('-').FirstOrDefault()?.ToLowerInvariant();
+
+            return LanguageExtensions.FromLanguageCode(languageCode ?? "en");
+        }
+
+        /// <summary>
+        /// Parses the X-Timezone header and returns the corresponding UserTimeZone enum.
+        /// </summary>
+        private static UserTimeZone ParseTimeZone(string? timezoneId)
+        {
+            if (string.IsNullOrWhiteSpace(timezoneId))
+            {
+                return UserTimeZone.CentralEuropeStandardTime;
+            }
+
+            return UserTimeZoneExtensions.FromTimeZoneId(timezoneId.Trim());
         }
     }
 }

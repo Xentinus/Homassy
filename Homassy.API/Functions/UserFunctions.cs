@@ -749,7 +749,7 @@ namespace Homassy.API.Functions
         #endregion
 
         #region User Management
-        public async Task<User> CreateUserAsync(CreateUserRequest request, CancellationToken cancellationToken = default)
+        public async Task<User> CreateUserAsync(CreateUserRequest request, Language? defaultLanguage = null, UserTimeZone? defaultTimeZone = null, CancellationToken cancellationToken = default)
         {
             var normalizedEmail = request.Email.ToLowerInvariant().Trim();
 
@@ -759,10 +759,17 @@ namespace Homassy.API.Functions
                 Name = request.Name.Trim()
             };
 
+            // Determine default currency based on language
+            var language = defaultLanguage ?? Language.English;
+            var defaultCurrency = language == Language.Hungarian ? Currency.Huf : Currency.Eur;
+
             var profile = new UserProfile
             {
                 User = user,
-                DisplayName = request.DisplayName?.Trim() ?? request.Name.Trim()
+                DisplayName = request.DisplayName?.Trim() ?? request.Name.Trim(),
+                DefaultLanguage = language,
+                DefaultTimeZone = defaultTimeZone ?? UserTimeZone.CentralEuropeStandardTime,
+                DefaultCurrency = defaultCurrency
             };
 
             var authentication = new UserAuthentication
@@ -796,7 +803,7 @@ namespace Homassy.API.Functions
             return user;
         }
 
-        public async Task RegisterAsync(CreateUserRequest request, CancellationToken cancellationToken = default)
+        public async Task RegisterAsync(CreateUserRequest request, Language? browserLanguage = null, UserTimeZone? browserTimeZone = null, CancellationToken cancellationToken = default)
         {
             if (string.IsNullOrWhiteSpace(request.Email) || !request.Email.Contains('@'))
             {
@@ -817,7 +824,7 @@ namespace Homassy.API.Functions
                 return;
             }
 
-            var user = await CreateUserAsync(request, cancellationToken);
+            var user = await CreateUserAsync(request, browserLanguage, browserTimeZone, cancellationToken);
 
             var code = EmailService.GenerateVerificationCode();
             var expirationMinutes = int.Parse(ConfigService.GetValue("EmailVerification:CodeExpirationMinutes"));
