@@ -20,15 +20,15 @@ namespace Homassy.API.Controllers
     {
         #region Shopping Locations
         /// <summary>
-        /// Gets all shopping locations for the current user's family.
+        /// Gets all shopping locations for the current user's family with pagination support.
         /// </summary>
         [HttpGet("shopping")]
         [MapToApiVersion(1.0)]
-        [ProducesResponseType(typeof(ApiResponse<List<ShoppingLocationInfo>>), StatusCodes.Status200OK)]
-        public IActionResult GetShoppingLocations()
+        [ProducesResponseType(typeof(ApiResponse<PagedResult<ShoppingLocationInfo>>), StatusCodes.Status200OK)]
+        public IActionResult GetShoppingLocations([FromQuery] PaginationRequest pagination)
         {
-            var shoppingLocations = new LocationFunctions().GetAllShoppingLocations();
-            return Ok(ApiResponse<List<ShoppingLocationInfo>>.SuccessResponse(shoppingLocations));
+            var shoppingLocations = new LocationFunctions().GetAllShoppingLocations(pagination);
+            return Ok(ApiResponse<PagedResult<ShoppingLocationInfo>>.SuccessResponse(shoppingLocations));
         }
 
         /// <summary>
@@ -121,15 +121,15 @@ namespace Homassy.API.Controllers
 
         #region Storage Locations
         /// <summary>
-        /// Gets all storage locations for the current user's family.
+        /// Gets all storage locations for the current user's family with pagination support.
         /// </summary>
         [HttpGet("storage")]
         [MapToApiVersion(1.0)]
-        [ProducesResponseType(typeof(ApiResponse<List<StorageLocationInfo>>), StatusCodes.Status200OK)]
-        public IActionResult GetStorageLocations()
+        [ProducesResponseType(typeof(ApiResponse<PagedResult<StorageLocationInfo>>), StatusCodes.Status200OK)]
+        public IActionResult GetStorageLocations([FromQuery] PaginationRequest pagination)
         {
-            var storageLocations = new LocationFunctions().GetAllStorageLocations();
-            return Ok(ApiResponse<List<StorageLocationInfo>>.SuccessResponse(storageLocations));
+            var storageLocations = new LocationFunctions().GetAllStorageLocations(pagination);
+            return Ok(ApiResponse<PagedResult<StorageLocationInfo>>.SuccessResponse(storageLocations));
         }
 
         /// <summary>

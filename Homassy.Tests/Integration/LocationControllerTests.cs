@@ -824,4 +824,100 @@ public class LocationControllerTests : IClassFixture<HomassyWebApplicationFactor
         }
     }
     #endregion
+
+    #region Pagination Tests
+    [Fact]
+    public async Task GetShoppingLocations_ReturnsPagedSuccess()
+    {
+        string? testEmail = null;
+        try
+        {
+            var (email, auth) = await _authHelper.CreateAndAuthenticateUserAsync("loc-shop-list");
+            testEmail = email;
+            _authHelper.SetAuthToken(auth.AccessToken);
+
+            var response = await _client.GetAsync("/api/v1.0/location/shopping");
+            var responseBody = await response.Content.ReadAsStringAsync();
+
+            _output.WriteLine($"Status: {response.StatusCode}");
+            _output.WriteLine($"Response: {responseBody}");
+
+            Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+
+            var content = await response.Content.ReadFromJsonAsync<ApiResponse<PagedResult<ShoppingLocationInfo>>>();
+            Assert.NotNull(content);
+            Assert.True(content.Success);
+            Assert.NotNull(content.Data);
+            Assert.NotNull(content.Data.Items);
+        }
+        finally
+        {
+            _authHelper.ClearAuthToken();
+            if (testEmail != null)
+                await _authHelper.CleanupUserAsync(testEmail);
+        }
+    }
+
+    [Fact]
+    public async Task GetStorageLocations_ReturnsPagedSuccess()
+    {
+        string? testEmail = null;
+        try
+        {
+            var (email, auth) = await _authHelper.CreateAndAuthenticateUserAsync("loc-stor-list");
+            testEmail = email;
+            _authHelper.SetAuthToken(auth.AccessToken);
+
+            var response = await _client.GetAsync("/api/v1.0/location/storage");
+            var responseBody = await response.Content.ReadAsStringAsync();
+
+            _output.WriteLine($"Status: {response.StatusCode}");
+            _output.WriteLine($"Response: {responseBody}");
+
+            Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+
+            var content = await response.Content.ReadFromJsonAsync<ApiResponse<PagedResult<StorageLocationInfo>>>();
+            Assert.NotNull(content);
+            Assert.True(content.Success);
+            Assert.NotNull(content.Data);
+            Assert.NotNull(content.Data.Items);
+        }
+        finally
+        {
+            _authHelper.ClearAuthToken();
+            if (testEmail != null)
+                await _authHelper.CleanupUserAsync(testEmail);
+        }
+    }
+
+    [Fact]
+    public async Task GetShoppingLocations_WithReturnAll_ReturnsAllItems()
+    {
+        string? testEmail = null;
+        try
+        {
+            var (email, auth) = await _authHelper.CreateAndAuthenticateUserAsync("loc-shop-all");
+            testEmail = email;
+            _authHelper.SetAuthToken(auth.AccessToken);
+
+            var response = await _client.GetAsync("/api/v1.0/location/shopping?returnAll=true");
+            var responseBody = await response.Content.ReadAsStringAsync();
+
+            _output.WriteLine($"Status: {response.StatusCode}");
+            _output.WriteLine($"Response: {responseBody}");
+
+            Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+
+            var content = await response.Content.ReadFromJsonAsync<ApiResponse<PagedResult<ShoppingLocationInfo>>>();
+            Assert.NotNull(content?.Data);
+            Assert.True(content.Data.IsUnpaginated);
+        }
+        finally
+        {
+            _authHelper.ClearAuthToken();
+            if (testEmail != null)
+                await _authHelper.CleanupUserAsync(testEmail);
+        }
+    }
+    #endregion
 }

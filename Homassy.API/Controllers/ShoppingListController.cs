@@ -20,15 +20,15 @@ namespace Homassy.API.Controllers
     {
         #region ShoppingList
         /// <summary>
-        /// Gets all shopping lists for the current user's family.
+        /// Gets all shopping lists for the current user's family with pagination support.
         /// </summary>
         [HttpGet]
         [MapToApiVersion(1.0)]
-        [ProducesResponseType(typeof(ApiResponse<List<ShoppingListInfo>>), StatusCodes.Status200OK)]
-        public IActionResult GetShoppingLists()
+        [ProducesResponseType(typeof(ApiResponse<PagedResult<ShoppingListInfo>>), StatusCodes.Status200OK)]
+        public IActionResult GetShoppingLists([FromQuery] PaginationRequest pagination)
         {
-            var shoppingLists = new ShoppingListFunctions().GetAllShoppingLists();
-            return Ok(ApiResponse<List<ShoppingListInfo>>.SuccessResponse(shoppingLists));
+            var shoppingLists = new ShoppingListFunctions().GetAllShoppingLists(pagination);
+            return Ok(ApiResponse<PagedResult<ShoppingListInfo>>.SuccessResponse(shoppingLists));
         }
 
         /// <summary>

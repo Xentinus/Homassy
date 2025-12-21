@@ -2,6 +2,7 @@
 using Homassy.API.Entities.ShoppingList;
 using Homassy.API.Exceptions;
 using Homassy.API.Extensions;
+using Homassy.API.Models.Common;
 using Homassy.API.Models.ShoppingList;
 using Microsoft.EntityFrameworkCore;
 using Serilog;
@@ -1387,6 +1388,49 @@ namespace Homassy.API.Functions
                 Log.Error(ex, $"Failed to quick purchase multiple shopping list items for user {userId.Value}");
                 throw;
             }
+        }
+        #endregion
+
+        #region ShoppingList Methods
+        public PagedResult<ShoppingListInfo> GetAllShoppingLists(PaginationRequest pagination)
+        {
+            var userId = SessionInfo.GetUserId();
+            if (!userId.HasValue)
+            {
+                Log.Warning("Invalid session: User ID not found");
+                throw new UserNotFoundException("User not found");
+            }
+
+            var familyId = SessionInfo.GetFamilyId();
+            List<ShoppingList> shoppingLists;
+
+            if (Inited)
+            {
+                shoppingLists = _shoppingListCache.Values
+                    .Where(s => s.UserId == userId.Value ||
+                               (familyId.HasValue && s.FamilyId == familyId.Value))
+                    .OrderByDescending(s => s.Id)
+                    .ToList();
+            }
+            else
+            {
+                var context = new HomassyDbContext();
+                shoppingLists = context.ShoppingLists
+                    .Where(s => s.UserId == userId.Value ||
+                               (familyId.HasValue && s.FamilyId == familyId.Value))
+                    .OrderByDescending(s => s.Id)
+                    .ToList();
+            }
+
+            var shoppingListInfos = shoppingLists.Select(s => new ShoppingListInfo
+            {
+                PublicId = s.PublicId,
+                Name = s.Name,
+                Description = s.Description,
+                Color = s.Color
+            });
+
+            return shoppingListInfos.ToPagedResult(pagination);
         }
         #endregion
     }

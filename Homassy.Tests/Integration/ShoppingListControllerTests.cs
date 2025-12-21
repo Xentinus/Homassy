@@ -363,12 +363,17 @@ public class ShoppingListControllerTests : IClassFixture<HomassyWebApplicationFa
             testEmail = email;
             _authHelper.SetAuthToken(auth.AccessToken);
 
-            // Step 1: Get initial lists
+            // Step 1: Get initial lists (now paginated)
             _output.WriteLine("=== Step 1: Get Shopping Lists ===");
             var getResponse = await _client.GetAsync("/api/v1.0/shoppinglist");
             var getBody = await getResponse.Content.ReadAsStringAsync();
             _output.WriteLine($"Get Status: {getResponse.StatusCode}");
             Assert.Equal(HttpStatusCode.OK, getResponse.StatusCode);
+
+            // Verify paginated response structure
+            var pagedContent = await getResponse.Content.ReadFromJsonAsync<ApiResponse<PagedResult<ShoppingListInfo>>>();
+            Assert.NotNull(pagedContent?.Data);
+            Assert.NotNull(pagedContent.Data.Items);
 
             // Step 2: Create list
             _output.WriteLine("\n=== Step 2: Create Shopping List ===");
@@ -1221,6 +1226,69 @@ public class ShoppingListControllerTests : IClassFixture<HomassyWebApplicationFa
                 await _client.DeleteAsync($"/api/v1.0/product/{productId1}");
             if (productId2.HasValue)
                 await _client.DeleteAsync($"/api/v1.0/product/{productId2}");
+        }
+        finally
+        {
+            _authHelper.ClearAuthToken();
+            if (testEmail != null)
+                await _authHelper.CleanupUserAsync(testEmail);
+        }
+    }
+    #endregion
+
+    #region Paginated Shopping List Tests
+    [Fact]
+    public async Task GetShoppingLists_WithPaginationParams_ReturnsCorrectPage()
+    {
+        string? testEmail = null;
+        try
+        {
+            var (email, auth) = await _authHelper.CreateAndAuthenticateUserAsync("list-page-test");
+            testEmail = email;
+            _authHelper.SetAuthToken(auth.AccessToken);
+
+            var response = await _client.GetAsync("/api/v1.0/shoppinglist?pageNumber=1&pageSize=10");
+            var responseBody = await response.Content.ReadAsStringAsync();
+
+            _output.WriteLine($"Status: {response.StatusCode}");
+            _output.WriteLine($"Response: {responseBody}");
+
+            Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+
+            var content = await response.Content.ReadFromJsonAsync<ApiResponse<PagedResult<ShoppingListInfo>>>();
+            Assert.NotNull(content?.Data);
+            Assert.Equal(1, content.Data.PageNumber);
+            Assert.Equal(10, content.Data.PageSize);
+        }
+        finally
+        {
+            _authHelper.ClearAuthToken();
+            if (testEmail != null)
+                await _authHelper.CleanupUserAsync(testEmail);
+        }
+    }
+
+    [Fact]
+    public async Task GetShoppingLists_WithReturnAll_ReturnsUnpaginatedList()
+    {
+        string? testEmail = null;
+        try
+        {
+            var (email, auth) = await _authHelper.CreateAndAuthenticateUserAsync("list-all-test");
+            testEmail = email;
+            _authHelper.SetAuthToken(auth.AccessToken);
+
+            var response = await _client.GetAsync("/api/v1.0/shoppinglist?returnAll=true");
+            var responseBody = await response.Content.ReadAsStringAsync();
+
+            _output.WriteLine($"Status: {response.StatusCode}");
+            _output.WriteLine($"Response: {responseBody}");
+
+            Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+
+            var content = await response.Content.ReadFromJsonAsync<ApiResponse<PagedResult<ShoppingListInfo>>>();
+            Assert.NotNull(content?.Data);
+            Assert.True(content.Data.IsUnpaginated);
         }
         finally
         {

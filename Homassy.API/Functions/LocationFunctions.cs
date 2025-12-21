@@ -1,6 +1,7 @@
 ﻿using Homassy.API.Context;
 using Homassy.API.Entities.Location;
 using Homassy.API.Exceptions;
+using Homassy.API.Extensions;
 using Homassy.API.Models.Common;
 using Homassy.API.Models.Location;
 using Microsoft.EntityFrameworkCore;
@@ -288,6 +289,11 @@ namespace Homassy.API.Functions
         #region Location Methods
         public List<ShoppingLocationInfo> GetAllShoppingLocations()
         {
+            return GetAllShoppingLocations(new PaginationRequest { ReturnAll = true }).Items;
+        }
+
+        public PagedResult<ShoppingLocationInfo> GetAllShoppingLocations(PaginationRequest pagination)
+        {
             var userId = SessionInfo.GetUserId();
             if (!userId.HasValue)
             {
@@ -298,23 +304,31 @@ namespace Homassy.API.Functions
             var familyId = SessionInfo.GetFamilyId();
             var shoppingLocations = GetShoppingLocationsByUserAndFamily(userId.Value, familyId);
 
-            return shoppingLocations.Select(sl => new ShoppingLocationInfo
+            var shoppingLocationInfos = shoppingLocations.Select(s => new ShoppingLocationInfo
             {
-                PublicId = sl.PublicId,
-                Name = sl.Name,
-                Description = sl.Description,
-                Color = sl.Color,
-                Address = sl.Address,
-                City = sl.City,
-                PostalCode = sl.PostalCode,
-                Country = sl.Country,
-                Website = sl.Website,
-                GoogleMaps = sl.GoogleMaps,
-                IsSharedWithFamily = sl.FamilyId.HasValue
-            }).ToList();
+                PublicId = s.PublicId,
+                Name = s.Name,
+                Description = s.Description,
+                Address = s.Address,
+                City = s.City,
+                PostalCode = s.PostalCode,
+                Country = s.Country,
+                Website = s.Website,
+                GoogleMaps = s.GoogleMaps,
+                Color = s.Color,
+                IsSharedWithFamily = s.FamilyId.HasValue
+            })
+            .OrderBy(s => s.Name);
+
+            return shoppingLocationInfos.ToPagedResult(pagination);
         }
 
         public List<StorageLocationInfo> GetAllStorageLocations()
+        {
+            return GetAllStorageLocations(new PaginationRequest { ReturnAll = true }).Items;
+        }
+
+        public PagedResult<StorageLocationInfo> GetAllStorageLocations(PaginationRequest pagination)
         {
             var userId = SessionInfo.GetUserId();
             if (!userId.HasValue)
@@ -326,15 +340,17 @@ namespace Homassy.API.Functions
             var familyId = SessionInfo.GetFamilyId();
             var storageLocations = GetStorageLocationsByUserAndFamily(userId.Value, familyId);
 
-            return storageLocations.Select(sl => new StorageLocationInfo
+            var storageLocationInfos = storageLocations.Select(s => new StorageLocationInfo
             {
-                PublicId = sl.PublicId,
-                Name = sl.Name,
-                Description = sl.Description,
-                Color = sl.Color,
-                IsFreezer = sl.IsFreezer,
-                IsSharedWithFamily = sl.FamilyId.HasValue
-            }).ToList();
+                PublicId = s.PublicId,
+                Name = s.Name,
+                Description = s.Description,
+                Color = s.Color,
+                IsSharedWithFamily = s.FamilyId.HasValue
+            })
+            .OrderBy(s => s.Name);
+
+            return storageLocationInfos.ToPagedResult(pagination);
         }
 
         public async Task<ShoppingLocationInfo> CreateShoppingLocationAsync(ShoppingLocationRequest request, CancellationToken cancellationToken = default)

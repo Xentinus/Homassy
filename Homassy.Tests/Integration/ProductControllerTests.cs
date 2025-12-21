@@ -292,12 +292,17 @@ public class ProductControllerTests : IClassFixture<HomassyWebApplicationFactory
             testEmail = email;
             _authHelper.SetAuthToken(auth.AccessToken);
 
-            // Step 1: Get initial list
+            // Step 1: Get initial list (now paginated)
             _output.WriteLine("=== Step 1: Get Products ===");
             var getResponse = await _client.GetAsync("/api/v1.0/product");
             var getBody = await getResponse.Content.ReadAsStringAsync();
             _output.WriteLine($"Get Status: {getResponse.StatusCode}");
             Assert.Equal(HttpStatusCode.OK, getResponse.StatusCode);
+
+            // Verify paginated response structure
+            var pagedContent = await getResponse.Content.ReadFromJsonAsync<ApiResponse<PagedResult<ProductInfo>>>();
+            Assert.NotNull(pagedContent?.Data);
+            Assert.NotNull(pagedContent.Data.Items);
 
             // Step 2: Create
             _output.WriteLine("\n=== Step 2: Create Product ===");
@@ -370,7 +375,7 @@ public class ProductControllerTests : IClassFixture<HomassyWebApplicationFactory
     }
 
     [Fact]
-    public async Task GetAllDetailedProducts_ReturnsSuccess()
+    public async Task GetAllDetailedProducts_ReturnsPagedSuccess()
     {
         string? testEmail = null;
         try
@@ -387,9 +392,73 @@ public class ProductControllerTests : IClassFixture<HomassyWebApplicationFactory
 
             Assert.Equal(HttpStatusCode.OK, response.StatusCode);
 
-            var content = await response.Content.ReadFromJsonAsync<ApiResponse<List<DetailedProductInfo>>>();
+            var content = await response.Content.ReadFromJsonAsync<ApiResponse<PagedResult<DetailedProductInfo>>>();
             Assert.NotNull(content);
             Assert.True(content.Success);
+            Assert.NotNull(content.Data);
+            Assert.NotNull(content.Data.Items);
+        }
+        finally
+        {
+            _authHelper.ClearAuthToken();
+            if (testEmail != null)
+                await _authHelper.CleanupUserAsync(testEmail);
+        }
+    }
+
+    // Test pagination parameters
+    [Fact]
+    public async Task GetProducts_WithPaginationParams_ReturnsCorrectPage()
+    {
+        string? testEmail = null;
+        try
+        {
+            var (email, auth) = await _authHelper.CreateAndAuthenticateUserAsync("prod-page-test");
+            testEmail = email;
+            _authHelper.SetAuthToken(auth.AccessToken);
+
+            var response = await _client.GetAsync("/api/v1.0/product?pageNumber=1&pageSize=10");
+            var responseBody = await response.Content.ReadAsStringAsync();
+
+            _output.WriteLine($"Status: {response.StatusCode}");
+            _output.WriteLine($"Response: {responseBody}");
+
+            Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+
+            var content = await response.Content.ReadFromJsonAsync<ApiResponse<PagedResult<ProductInfo>>>();
+            Assert.NotNull(content?.Data);
+            Assert.Equal(1, content.Data.PageNumber);
+            Assert.Equal(10, content.Data.PageSize);
+        }
+        finally
+        {
+            _authHelper.ClearAuthToken();
+            if (testEmail != null)
+                await _authHelper.CleanupUserAsync(testEmail);
+        }
+    }
+
+    [Fact]
+    public async Task GetProducts_WithReturnAll_ReturnsUnpaginatedList()
+    {
+        string? testEmail = null;
+        try
+        {
+            var (email, auth) = await _authHelper.CreateAndAuthenticateUserAsync("prod-all-test");
+            testEmail = email;
+            _authHelper.SetAuthToken(auth.AccessToken);
+
+            var response = await _client.GetAsync("/api/v1.0/product?returnAll=true");
+            var responseBody = await response.Content.ReadAsStringAsync();
+
+            _output.WriteLine($"Status: {response.StatusCode}");
+            _output.WriteLine($"Response: {responseBody}");
+
+            Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+
+            var content = await response.Content.ReadFromJsonAsync<ApiResponse<PagedResult<ProductInfo>>>();
+            Assert.NotNull(content?.Data);
+            Assert.True(content.Data.IsUnpaginated);
         }
         finally
         {

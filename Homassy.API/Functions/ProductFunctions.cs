@@ -3,6 +3,8 @@ using Homassy.API.Entities.Location;
 using Homassy.API.Entities.Product;
 using Homassy.API.Entities.User;
 using Homassy.API.Exceptions;
+using Homassy.API.Extensions;
+using Homassy.API.Models.Common;
 using Homassy.API.Models.Product;
 using Microsoft.EntityFrameworkCore;
 using Serilog;
@@ -456,7 +458,7 @@ namespace Homassy.API.Functions
         #endregion
 
         #region Product Methods
-        public List<ProductInfo> GetAllProducts()
+        public PagedResult<ProductInfo> GetAllProducts(PaginationRequest pagination)
         {
             var userId = SessionInfo.GetUserId();
             List<Product> products;
@@ -473,7 +475,7 @@ namespace Homassy.API.Functions
                     .ToList();
             }
 
-            return products.Select(p =>
+            var productInfos = products.Select(p =>
             {
                 var customization = userId.HasValue ? GetCustomizationByProductAndUser(p.Id, userId.Value) : null;
 
@@ -488,7 +490,9 @@ namespace Homassy.API.Functions
                     IsEatable = p.IsEatable,
                     IsFavorite = customization?.IsFavorite ?? false
                 };
-            }).ToList();
+            });
+
+            return productInfos.ToPagedResult(pagination);
         }
 
         public async Task<ProductInfo> CreateProductAsync(CreateProductRequest request, CancellationToken cancellationToken = default)
@@ -829,7 +833,7 @@ namespace Homassy.API.Functions
             };
         }
 
-        public List<DetailedProductInfo> GetAllDetailedProductsForUser()
+        public PagedResult<DetailedProductInfo> GetAllDetailedProductsForUser(PaginationRequest pagination)
         {
             var userId = SessionInfo.GetUserId();
             if (!userId.HasValue)
@@ -842,7 +846,7 @@ namespace Homassy.API.Functions
 
             var products = GetProductsByUserAndFamily(userId.Value, familyId);
 
-            return products.Select(product =>
+            var detailedProductInfos = products.Select(product =>
             {
                 var customization = GetCustomizationByProductAndUser(product.Id, userId.Value);
                 var allInventoryItems = GetInventoryItemsByProductId(product.Id, includeConsumed: false);
@@ -900,7 +904,9 @@ namespace Homassy.API.Functions
                     IsFavorite = customization?.IsFavorite ?? false,
                     InventoryItems = inventoryItemInfos
                 };
-            }).ToList();
+            });
+
+            return detailedProductInfos.ToPagedResult(pagination);
         }
         #endregion
 

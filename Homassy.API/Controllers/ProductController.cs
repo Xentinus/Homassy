@@ -29,15 +29,15 @@ namespace Homassy.API.Controllers
 
         #region Product
         /// <summary>
-        /// Gets all products for the current user's family.
+        /// Gets all products for the current user's family with pagination support.
         /// </summary>
         [HttpGet]
         [MapToApiVersion(1.0)]
-        [ProducesResponseType(typeof(ApiResponse<List<ProductInfo>>), StatusCodes.Status200OK)]
-        public IActionResult GetProducts()
+        [ProducesResponseType(typeof(ApiResponse<PagedResult<ProductInfo>>), StatusCodes.Status200OK)]
+        public IActionResult GetProducts([FromQuery] PaginationRequest pagination)
         {
-            var products = new ProductFunctions().GetAllProducts();
-            return Ok(ApiResponse<List<ProductInfo>>.SuccessResponse(products));
+            var products = new ProductFunctions().GetAllProducts(pagination);
+            return Ok(ApiResponse<PagedResult<ProductInfo>>.SuccessResponse(products));
         }
 
         /// <summary>
@@ -127,15 +127,15 @@ namespace Homassy.API.Controllers
         }
 
         /// <summary>
-        /// Gets detailed information about all products including inventory items.
+        /// Gets detailed information about all products including inventory items with pagination support.
         /// </summary>
         [HttpGet("detailed")]
         [MapToApiVersion(1.0)]
-        [ProducesResponseType(typeof(ApiResponse<List<DetailedProductInfo>>), StatusCodes.Status200OK)]
-        public IActionResult GetAllDetailedProducts()
+        [ProducesResponseType(typeof(ApiResponse<PagedResult<DetailedProductInfo>>), StatusCodes.Status200OK)]
+        public IActionResult GetAllDetailedProducts([FromQuery] PaginationRequest pagination)
         {
-            var detailedProducts = new ProductFunctions().GetAllDetailedProductsForUser();
-            return Ok(ApiResponse<List<DetailedProductInfo>>.SuccessResponse(detailedProducts));
+            var detailedProducts = new ProductFunctions().GetAllDetailedProductsForUser(pagination);
+            return Ok(ApiResponse<PagedResult<DetailedProductInfo>>.SuccessResponse(detailedProducts));
         }
         #endregion
 
