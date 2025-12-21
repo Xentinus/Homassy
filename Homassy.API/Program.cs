@@ -74,7 +74,20 @@ try
     builder.Services.Configure<RequestTimeoutSettings>(builder.Configuration.GetSection("RequestTimeout"));
     builder.Services.Configure<HealthCheckOptions>(builder.Configuration.GetSection("HealthChecks"));
     builder.Services.Configure<AccountLockoutSettings>(builder.Configuration.GetSection("Security:AccountLockout"));
+    builder.Services.Configure<GracefulShutdownSettings>(builder.Configuration.GetSection("GracefulShutdown"));
+    
     var httpsSettings = builder.Configuration.GetSection("Https").Get<HttpsSettings>() ?? new HttpsSettings();
+    var gracefulShutdownSettings = builder.Configuration.GetSection("GracefulShutdown").Get<GracefulShutdownSettings>() ?? new GracefulShutdownSettings();
+
+    if (gracefulShutdownSettings.Enabled)
+    {
+        builder.WebHost.ConfigureKestrel(serverOptions =>
+        {
+            serverOptions.AddServerHeader = false;
+        });
+    }
+
+    builder.Services.AddHostedService<GracefulShutdownService>();
 
     if (httpsSettings.Enabled && httpsSettings.Hsts.Enabled)
     {
@@ -286,6 +299,16 @@ try
     app.MapControllers();
 
     Log.Information("Homassy API started successfully");
+
+    if (gracefulShutdownSettings.Enabled)
+    {
+        var lifetime = app.Services.GetRequiredService<IHostApplicationLifetime>();
+        lifetime.ApplicationStopping.Register(() =>
+        {
+            Log.Information("Shutdown signal received, waiting for active requests to complete");
+            Thread.Sleep(TimeSpan.FromSeconds(gracefulShutdownSettings.TimeoutSeconds));
+        });
+    }
 
     app.Run();
 }
