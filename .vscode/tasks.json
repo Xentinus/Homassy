@@ -106,6 +106,64 @@
         "id": "trash",
         "color": "terminal.ansiRed"
       }
+    },
+    {
+      "label": "Docker: Frontend Only (Up)",
+      "type": "shell",
+      "command": "docker-compose -f docker-compose.web-only.yml up --build",
+      "problemMatcher": [],
+      "presentation": {
+        "reveal": "always",
+        "panel": "new",
+        "focus": true
+      },
+      "icon": {
+        "id": "browser",
+        "color": "terminal.ansiCyan"
+      }
+    },
+    {
+      "label": "Docker: Frontend Only (Background)",
+      "type": "shell",
+      "command": "docker-compose -f docker-compose.web-only.yml up -d --build",
+      "problemMatcher": [],
+      "presentation": {
+        "reveal": "always",
+        "panel": "shared"
+      },
+      "icon": {
+        "id": "browser",
+        "color": "terminal.ansiCyan"
+      }
+    },
+    {
+      "label": "Docker: Frontend Only (Down)",
+      "type": "shell",
+      "command": "docker-compose -f docker-compose.web-only.yml down",
+      "problemMatcher": [],
+      "presentation": {
+        "reveal": "always",
+        "panel": "shared"
+      },
+      "icon": {
+        "id": "debug-stop",
+        "color": "terminal.ansiCyan"
+      }
+    },
+    {
+      "label": "Docker: Frontend Only (Logs)",
+      "type": "shell",
+      "command": "docker-compose -f docker-compose.web-only.yml logs -f",
+      "problemMatcher": [],
+      "presentation": {
+        "reveal": "always",
+        "panel": "dedicated",
+        "focus": true
+      },
+      "icon": {
+        "id": "output",
+        "color": "terminal.ansiCyan"
+      }
     }
   ]
 }

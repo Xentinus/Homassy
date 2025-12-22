@@ -1,0 +1,21 @@
+services:
+  homassy.api:
+    build:
+      target: base
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Development
+      - DOTNET_USE_POLLING_FILE_WATCHER=1
+    volumes:
+      - ./Homassy.API:/src/Homassy.API:ro
+      - ./Homassy.API/Logs:/app/Logs
+
+  homassy.web:
+    build:
+      target: development
+    environment:
+      - NODE_ENV=development
+    volumes:
+      - ./Homassy.Web:/app
+      - /app/node_modules
+      - /app/.nuxt
+    command: npm run dev -- --host 0.0.0.0
