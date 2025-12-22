@@ -1,0 +1,14 @@
+node_modules
+npm-debug.log
+.output
+.nuxt
+dist
+.vscode
+.idea
+.git
+.env
+.env.local
+logs
+*.log
+.DS_Store
+Thumbs.db

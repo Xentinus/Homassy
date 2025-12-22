@@ -1,4 +1,8 @@
 <Solution>
   <Project Path="Homassy.API/Homassy.API.csproj" />
   <Project Path="Homassy.Tests/Homassy.Tests.csproj" />
+  <Project Path="Homassy.dcproj">
+    <BuildType Project="Release" />
+    <Build />
+  </Project>
 </Solution>

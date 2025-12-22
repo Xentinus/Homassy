@@ -816,3 +816,39 @@ $RECYCLE.BIN/
 appsettings.json
 /Tasks
 /node_modules
+
+# Claude Code
+.claude/
+
+# Environment files
+.env
+
+# Docker auto-generated files
+obj/Docker/
+docker-compose.vs.debug.g.yml
+docker-compose.vs.release.g.yml
+
+# Nuxt dev/build outputs
+.output
+.data
+.nuxt
+.nitro
+.cache
+dist
+
+# Node dependencies
+node_modules
+
+# Logs
+logs
+*.log
+
+# Misc
+.DS_Store
+.fleet
+.idea
+
+# Local env files
+.env
+.env.*
+!.env.example

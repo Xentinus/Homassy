@@ -1,0 +1,30 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "Docker: Attach to .NET (API)",
+      "type": "docker",
+      "request": "attach",
+      "platform": "netCore",
+      "sourceFileMap": {
+        "/src": "${workspaceFolder}"
+      },
+      "containerName": "homassy-api"
+    },
+    {
+      "name": "Launch Chrome (Frontend)",
+      "type": "chrome",
+      "request": "launch",
+      "url": "http://localhost:3000",
+      "webRoot": "${workspaceFolder}/Homassy.Web"
+    }
+  ],
+  "compounds": [
+    {
+      "name": "Docker: Full Stack",
+      "configurations": ["Docker: Attach to .NET (API)", "Launch Chrome (Frontend)"],
+      "preLaunchTask": "Docker: Compose Up (Background)",
+      "stopAll": true
+    }
+  ]
+}

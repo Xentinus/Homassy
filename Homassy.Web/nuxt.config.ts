@@ -10,5 +10,25 @@ export default defineNuxtConfig({
     '@nuxt/image',
     '@nuxt/scripts',
     '@nuxt/ui'
-  ]
+  ],
+
+  runtimeConfig: {
+    public: {
+      apiBase: process.env.NUXT_PUBLIC_API_BASE || 'http://localhost:5226'
+    }
+  },
+
+  nitro: {
+    devProxy: {
+      '/api': {
+        target: process.env.NUXT_PUBLIC_API_BASE || 'http://localhost:5226',
+        changeOrigin: true
+      }
+    }
+  },
+
+  devServer: {
+    host: '0.0.0.0',
+    port: 3000
+  }
 })

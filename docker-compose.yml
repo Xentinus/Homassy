@@ -1,0 +1,42 @@
+name: homassy
+
+services:
+  homassy.api:
+    container_name: homassy-api
+    image: ${DOCKER_REGISTRY-}homassyapi
+    build:
+      context: .
+      dockerfile: Homassy.API/Dockerfile
+    ports:
+      - "5226:8080"
+      - "5227:8081"
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Development
+      - ASPNETCORE_HTTP_PORTS=8080
+      - ASPNETCORE_HTTPS_PORTS=8081
+    networks:
+      - homassy-network
+
+  homassy.web:
+    container_name: homassy-web
+    image: ${DOCKER_REGISTRY-}homassyweb
+    build:
+      context: ./Homassy.Web
+      dockerfile: Dockerfile
+      target: development
+    ports:
+      - "3000:3000"
+    environment:
+      - NODE_ENV=development
+      - NUXT_PUBLIC_API_BASE=http://homassy.api:8080
+    volumes:
+      - ./Homassy.Web:/app
+      - /app/node_modules
+    networks:
+      - homassy-network
+    depends_on:
+      - homassy.api
+
+networks:
+  homassy-network:
+    driver: bridge
