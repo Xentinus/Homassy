@@ -1,15 +1,21 @@
 ﻿<template>
   <UApp>
     <UHeader>
-      <template #left>
+      <template #title>
         <NuxtLink to="/">
           <!-- <AppLogo class="w-auto h-6 shrink-0" /> -->
           <span class="font-semibold text-lg">Homassy</span>
         </NuxtLink>
       </template>
 
+      <UNavigationMenu :items="authItems" class="ml-auto hidden md:flex" />
+
       <template #right>
         <UColorModeButton />
+      </template>
+
+      <template #body>
+        <UNavigationMenu :items="authItems" orientation="vertical" class="-mx-2.5" />
       </template>
     </UHeader>
 
@@ -41,3 +47,26 @@
     </UFooter>
   </UApp>
 </template>
+
+<script setup lang="ts">
+import { computed } from 'vue'
+import { useRoute } from 'vue-router'
+import type { NavigationMenuItem } from '@nuxt/ui'
+
+const route = useRoute()
+
+const authItems = computed<NavigationMenuItem[]>(() => [
+  {
+    label: 'Log in',
+    to: '/auth/login',
+    icon: 'i-lucide-log-in',
+    active: route.path.startsWith('/auth/login')
+  },
+  {
+    label: 'Sign up',
+    to: '/auth/register',
+    icon: 'i-lucide-user-plus',
+    active: route.path.startsWith('/auth/register')
+  }
+])
+</script>

@@ -2,42 +2,42 @@
   <div>
     <UPageHero
       title="Homassy"
-      description="Segít átlátni a háztartási készleteket, bevásárlólistákat és megosztani mindezt a családdal."
+      description="Manage your household inventory, shopping lists, and share everything with your family."
     />
 
     <UPageSection
       id="features"
-      title="Fő funkciók"
+      title="Key Features"
       :features="[
         {
           icon: 'i-lucide-user-check',
-          title: 'Felhasználó és hitelesítés',
-          description: 'Jelszó nélküli, email-kódos belépés. Biztonságos tokenekkel jelentkezel be és ki.'
+          title: 'User Authentication',
+          description: 'Passwordless email-code login. Secure token-based authentication for signing in and out.'
         },
         {
           icon: 'i-lucide-users',
-          title: 'Család kezelés',
-          description: 'Hozz létre családot, hívj meg tagokat kóddal, és kezeljétek együtt az adatokat.'
+          title: 'Family Management',
+          description: 'Create families, invite members with a code, and manage shared data together.'
         },
         {
           icon: 'i-lucide-package-check',
-          title: 'Termékek és készlet',
-          description: 'Vezesd a termékeket és a készletet: felvétel, mozgatás, fogyasztás, kedvencek.'
+          title: 'Products and Inventory',
+          description: 'Track products and inventory: add, move, consume, and mark favorites.'
         },
         {
           icon: 'i-lucide-shopping-cart',
-          title: 'Bevásárlólisták',
-          description: 'Közös bevásárlólisták tételekkel, gyors vásárlással, ami azonnal a készletbe kerül.'
+          title: 'Shopping Lists',
+          description: 'Shared shopping lists with items, quick purchase feature that adds directly to inventory.'
         },
         {
           icon: 'i-lucide-map-pin',
-          title: 'Helyszínek',
-          description: 'Tárold a boltokat és az otthoni tárolóhelyeket; egyszerre több tételt is módosíthatsz.'
+          title: 'Locations',
+          description: 'Store shops and home storage locations; modify multiple items at once.'
         },
         {
           icon: 'i-lucide-barcode',
-          title: 'Vonalkód és adatminőség',
-          description: 'Vonalkód olvasás és ellenőrzés, Open Food Facts adatok, biztonságos képfeltöltés.'
+          title: 'Barcode and Data Quality',
+          description: 'Barcode scanning and validation, Open Food Facts data, secure image uploads.'
         }
       ]"
     />

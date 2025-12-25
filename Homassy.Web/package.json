@@ -16,12 +16,18 @@
     "@nuxt/image": "^2.0.0",
     "@nuxt/scripts": "^0.13.2",
     "@nuxt/ui": "^4.3.0",
+    "@pinia/nuxt": "^0.11.3",
     "@unhead/vue": "^2.0.19",
     "better-sqlite3": "^12.5.0",
     "eslint": "^9.39.2",
     "nuxt": "^4.2.2",
+    "nuxt-api-party": "^3.4.2",
     "typescript": "^5.9.3",
     "vue": "^3.5.25",
     "vue-router": "^4.6.4"
+  },
+  "devDependencies": {
+    "@iconify-json/heroicons": "^1.2.3",
+    "@iconify-json/lucide": "^1.2.82"
   }
 }
