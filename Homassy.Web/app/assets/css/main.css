@@ -1,0 +1,18 @@
+﻿@import "tailwindcss";
+@import "@nuxt/ui";
+
+@theme static {
+  --font-sans: 'Public Sans', sans-serif;
+
+  --color-mocha-50: #F5F0EB;
+  --color-mocha-100: #EFE9E0;
+  --color-mocha-200: #E0D5C7;
+  --color-mocha-300: #D4C7B5;
+  --color-mocha-400: #C9B8A0;
+  --color-mocha-500: #B8956A;
+  --color-mocha-600: #A0825B;
+  --color-mocha-700: #8B7355;
+  --color-mocha-800: #6F5A44;
+  --color-mocha-900: #5A4536;
+  --color-mocha-950: #3F3027;
+}

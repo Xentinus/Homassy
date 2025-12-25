@@ -6,11 +6,12 @@ export default defineNuxtConfig({
   modules: [
     '@nuxt/content',
     '@nuxt/eslint',
-    '@nuxt/hints',
     '@nuxt/image',
     '@nuxt/scripts',
     '@nuxt/ui'
   ],
+
+  css: ['~/assets/css/main.css'],
 
   runtimeConfig: {
     public: {
