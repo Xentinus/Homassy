@@ -5,7 +5,7 @@
 import type {
   CreateUserRequest,
   UserInfo
-} from '~/types/api'
+} from '~/types/auth'
 
 export const useAuthApi = () => {
   const authStore = useAuthStore()

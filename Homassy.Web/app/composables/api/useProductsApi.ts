@@ -2,6 +2,7 @@
  * Products API composable
  * Provides product-related API calls
  */
+import type { PagedResult } from '~/types/common'
 import type {
   ProductInfo,
   DetailedProductInfo,
@@ -9,8 +10,16 @@ import type {
   UpdateProductRequest,
   CreateMultipleProductsRequest,
   UploadProductImageRequest,
-  PagedResult
-} from '~/types/api'
+  InventoryItemInfo,
+  CreateInventoryItemRequest,
+  UpdateInventoryItemRequest,
+  QuickAddInventoryItemRequest,
+  QuickAddMultipleInventoryItemsRequest,
+  ConsumeInventoryItemRequest,
+  ConsumeMultipleInventoryItemsRequest,
+  MoveInventoryItemsRequest,
+  DeleteMultipleInventoryItemsRequest
+} from '~/types/product'
 
 export const useProductsApi = () => {
   const client = useApiClient()
@@ -160,6 +169,135 @@ export const useProductsApi = () => {
     )
   }
 
+  // ==================
+  // Inventory Methods
+  // ==================
+
+  /**
+   * Create inventory item
+   */
+  const createInventoryItem = async (request: CreateInventoryItemRequest) => {
+    return await client.post<InventoryItemInfo>(
+      '/api/v1/Product/inventory',
+      request,
+      {
+        showSuccessToast: true,
+        successMessage: 'Inventory item created successfully'
+      }
+    )
+  }
+
+  /**
+   * Quick add inventory item (minimal info)
+   */
+  const quickAddInventoryItem = async (request: QuickAddInventoryItemRequest) => {
+    return await client.post<InventoryItemInfo>(
+      '/api/v1/Product/inventory/quick',
+      request,
+      {
+        showSuccessToast: true,
+        successMessage: 'Item added to inventory'
+      }
+    )
+  }
+
+  /**
+   * Update inventory item
+   */
+  const updateInventoryItem = async (inventoryItemPublicId: string, request: UpdateInventoryItemRequest) => {
+    return await client.put<InventoryItemInfo>(
+      `/api/v1/Product/inventory/${inventoryItemPublicId}`,
+      request,
+      {
+        showSuccessToast: true,
+        successMessage: 'Inventory item updated successfully'
+      }
+    )
+  }
+
+  /**
+   * Delete inventory item
+   */
+  const deleteInventoryItem = async (inventoryItemPublicId: string) => {
+    return await client.delete(
+      `/api/v1/Product/inventory/${inventoryItemPublicId}`,
+      {
+        showSuccessToast: true,
+        successMessage: 'Inventory item deleted successfully'
+      }
+    )
+  }
+
+  /**
+   * Consume inventory item
+   */
+  const consumeInventoryItem = async (inventoryItemPublicId: string, request: ConsumeInventoryItemRequest) => {
+    return await client.post<InventoryItemInfo>(
+      `/api/v1/Product/inventory/${inventoryItemPublicId}/consume`,
+      request,
+      {
+        showSuccessToast: true,
+        successMessage: 'Consumption recorded successfully'
+      }
+    )
+  }
+
+  /**
+   * Quick add multiple inventory items
+   */
+  const quickAddMultipleInventoryItems = async (request: QuickAddMultipleInventoryItemsRequest) => {
+    return await client.post<InventoryItemInfo[]>(
+      '/api/v1/Product/inventory/quick/multiple',
+      request,
+      {
+        showSuccessToast: true,
+        successMessage: 'Items added to inventory'
+      }
+    )
+  }
+
+  /**
+   * Move inventory items to different storage location
+   */
+  const moveInventoryItems = async (request: MoveInventoryItemsRequest) => {
+    return await client.post<InventoryItemInfo[]>(
+      '/api/v1/Product/inventory/move',
+      request,
+      {
+        showSuccessToast: true,
+        successMessage: 'Items moved successfully'
+      }
+    )
+  }
+
+  /**
+   * Delete multiple inventory items
+   */
+  const deleteMultipleInventoryItems = async (request: DeleteMultipleInventoryItemsRequest) => {
+    return await client.delete(
+      '/api/v1/Product/inventory/multiple',
+      {
+        showSuccessToast: true,
+        successMessage: 'Items deleted successfully',
+        body: request
+      }
+    )
+  }
+
+  /**
+   * Consume multiple inventory items
+   */
+  const consumeMultipleInventoryItems = async (request: ConsumeMultipleInventoryItemsRequest) => {
+    return await client.post<InventoryItemInfo[]>(
+      '/api/v1/Product/inventory/consume/multiple',
+      request,
+      {
+        showSuccessToast: true,
+        successMessage: 'Consumption recorded successfully'
+      }
+    )
+  }
+
   return {
     getProducts,
     getDetailedProducts,
@@ -170,6 +308,16 @@ export const useProductsApi = () => {
     toggleFavorite,
     createMultipleProducts,
     uploadProductImage,
-    deleteProductImage
+    deleteProductImage,
+    // Inventory methods
+    createInventoryItem,
+    quickAddInventoryItem,
+    updateInventoryItem,
+    deleteInventoryItem,
+    consumeInventoryItem,
+    quickAddMultipleInventoryItems,
+    moveInventoryItems,
+    deleteMultipleInventoryItems,
+    consumeMultipleInventoryItems
   }
 }

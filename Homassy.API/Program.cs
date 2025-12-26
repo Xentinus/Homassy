@@ -287,7 +287,7 @@ try
         app.UseHsts();
     }
 
-    if (httpsSettings.Enabled)
+    if (httpsSettings.Enabled && !app.Environment.IsDevelopment())
     {
         app.UseHttpsRedirection();
     }

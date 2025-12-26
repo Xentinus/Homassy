@@ -12,6 +12,17 @@
 
       <template #right>
         <UColorModeButton />
+
+        <UTooltip text="GitHub Repository">
+        <UButton
+          color="neutral"
+          variant="ghost"
+          to="https://github.com/Xentinus/Homassy"
+          target="_blank"
+          icon="i-simple-icons-github"
+          aria-label="GitHub"
+        />
+      </UTooltip>
       </template>
 
       <template #body>
@@ -35,7 +46,7 @@
           />
           <span>by</span>
           <a
-            href="https://github.com/Xentinus/Homassy"
+            href="https://github.com/Xentinus"
             target="_blank"
             rel="noopener"
             class="font-semibold hover:underline"
@@ -56,6 +67,12 @@ import type { NavigationMenuItem } from '@nuxt/ui'
 const route = useRoute()
 
 const authItems = computed<NavigationMenuItem[]>(() => [
+  {
+    label: 'Home',
+    to: '/',
+    icon: 'i-lucide-home',
+    active: route.path === '/'
+  },
   {
     label: 'Log in',
     to: '/auth/login',

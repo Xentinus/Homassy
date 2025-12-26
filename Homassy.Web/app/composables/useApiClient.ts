@@ -1,7 +1,7 @@
 ﻿/**
  * API Client wrapper with automatic token refresh and error handling
  */
-import type { ApiResponse } from '~/types/api'
+import type { ApiResponse } from '~/types/common'
 import { getErrorMessages } from '~/utils/errorCodes'
 
 interface RequestOptions {
@@ -53,12 +53,12 @@ export const useApiClient = () => {
       }
 
       // Make the API request
-      const response = await $api<ApiResponse<T>>(endpoint, {
+      const response = await ($api as any)(endpoint, {
         method,
         body,
         headers: requestHeaders,
         credentials: 'include' // Include cookies for httpOnly cookie support
-      })
+      }) as ApiResponse<T>
 
       // Show success toast if enabled
       if (showSuccessToast && successMessage) {
@@ -71,7 +71,7 @@ export const useApiClient = () => {
       }
 
       return response
-    } catch (error: unknown) {
+    } catch (error: any) {
       // Handle 401 Unauthorized - attempt token refresh
       if (error.statusCode === 401 && authStore.refreshToken) {
         try {
@@ -89,12 +89,12 @@ export const useApiClient = () => {
             requestHeaders['Authorization'] = `Bearer ${accessToken}`
           }
 
-          const retryResponse = await $api<ApiResponse<T>>(endpoint, {
+          const retryResponse = await ($api as any)(endpoint, {
             method,
             body,
             headers: requestHeaders,
             credentials: 'include'
-          })
+          }) as ApiResponse<T>
 
           if (showSuccessToast && successMessage) {
             toast.add({
@@ -115,8 +115,7 @@ export const useApiClient = () => {
               title: 'Session expired',
               description: 'Please log in again.',
               color: 'error',
-              icon: 'i-heroicons-x-circle',
-              timeout: 5000
+              icon: 'i-heroicons-x-circle'
             })
           }
 
@@ -134,8 +133,7 @@ export const useApiClient = () => {
             title: 'Error',
             description: errorMessages[0],
             color: 'error',
-            icon: 'i-heroicons-x-circle',
-            timeout: 5000
+            icon: 'i-heroicons-x-circle'
           })
         }
 
@@ -149,8 +147,7 @@ export const useApiClient = () => {
           title: 'Error',
           description: errorMessage,
           color: 'error',
-          icon: 'i-heroicons-x-circle',
-          timeout: 5000
+          icon: 'i-heroicons-x-circle'
         })
       }
 

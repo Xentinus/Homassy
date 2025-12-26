@@ -10,7 +10,7 @@ import type {
   AuthResponse,
   RefreshTokenRequest,
   UserInfo
-} from '~/types/api'
+} from '~/types/auth'
 
 interface AuthState {
   user: UserInfo | null
@@ -18,7 +18,7 @@ interface AuthState {
   refreshToken: string | null
   accessTokenExpiresAt: string | null
   refreshTokenExpiresAt: string | null
-  refreshTimer: NodeJS.Timeout | null
+  refreshTimer: ReturnType<typeof setTimeout> | null
 }
 
 export const useAuthStore = defineStore('auth', {
@@ -47,8 +47,7 @@ export const useAuthStore = defineStore('auth', {
       try {
         const response = await $api('/api/v1/Auth/request-code', {
           method: 'POST',
-          body: { email } as LoginRequest,
-          credentials: 'include'
+          body: { email } as LoginRequest
         })
 
         toast.add({
@@ -80,8 +79,7 @@ export const useAuthStore = defineStore('auth', {
       try {
         const response = await $api<{ data: AuthResponse }>('/api/v1/Auth/verify-code', {
           method: 'POST',
-          body: { email, code } as VerifyLoginRequest,
-          credentials: 'include'
+          body: { email, verificationCode: code } as VerifyLoginRequest
         })
 
         if (response.data) {
@@ -117,8 +115,7 @@ export const useAuthStore = defineStore('auth', {
       try {
         const response = await $api<{ data: AuthResponse }>('/api/v1/Auth/register', {
           method: 'POST',
-          body: userData,
-          credentials: 'include'
+          body: userData
         })
 
         if (response.data) {
@@ -160,8 +157,7 @@ export const useAuthStore = defineStore('auth', {
           body: {
             accessToken: this.accessToken,
             refreshToken: this.refreshToken
-          } as RefreshTokenRequest,
-          credentials: 'include'
+          } as RefreshTokenRequest
         })
 
         if (response.data) {
@@ -194,8 +190,7 @@ export const useAuthStore = defineStore('auth', {
 
       try {
         await $api('/api/v1/Auth/logout', {
-          method: 'POST',
-          credentials: 'include'
+          method: 'POST'
         })
       } catch (error) {
         // Continue with logout even if API call fails
@@ -226,11 +221,7 @@ export const useAuthStore = defineStore('auth', {
 
       try {
         const response = await $api<{ data: UserInfo }>('/api/v1/Auth/me', {
-          method: 'GET',
-          headers: {
-            Authorization: `Bearer ${this.accessToken}`
-          },
-          credentials: 'include'
+          method: 'GET'
         })
 
         if (response.data) {

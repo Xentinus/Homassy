@@ -8,7 +8,7 @@ import type {
   UpdateFamilyRequest,
   JoinFamilyRequest,
   UploadFamilyPictureRequest
-} from '~/types/api'
+} from '~/types/family'
 
 export const useFamilyApi = () => {
   const client = useApiClient()

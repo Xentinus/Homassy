@@ -2,6 +2,7 @@
  * Shopping Lists API composable
  * Provides shopping list-related API calls
  */
+import type { PagedResult } from '~/types/common'
 import type {
   ShoppingListInfo,
   DetailedShoppingListInfo,
@@ -13,9 +14,8 @@ import type {
   CreateMultipleShoppingListItemsRequest,
   DeleteMultipleShoppingListItemsRequest,
   QuickPurchaseFromShoppingListItemRequest,
-  QuickPurchaseMultipleShoppingListItemsRequest,
-  PagedResult
-} from '~/types/api'
+  QuickPurchaseMultipleShoppingListItemsRequest
+} from '~/types/shoppingList'
 
 export const useShoppingListApi = () => {
   const client = useApiClient()

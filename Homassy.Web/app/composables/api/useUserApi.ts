@@ -6,7 +6,7 @@ import type {
   UserProfileResponse,
   UpdateUserSettingsRequest,
   UploadUserProfileImageRequest
-} from '~/types/api'
+} from '~/types/user'
 
 export const useUserApi = () => {
   const client = useApiClient()

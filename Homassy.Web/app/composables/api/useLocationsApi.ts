@@ -2,6 +2,7 @@
  * Locations API composable
  * Provides storage and shopping location-related API calls
  */
+import type { PagedResult } from '~/types/common'
 import type {
   StorageLocationInfo,
   ShoppingLocationInfo,
@@ -10,9 +11,8 @@ import type {
   CreateMultipleStorageLocationsRequest,
   CreateMultipleShoppingLocationsRequest,
   DeleteMultipleStorageLocationsRequest,
-  DeleteMultipleShoppingLocationsRequest,
-  PagedResult
-} from '~/types/api'
+  DeleteMultipleShoppingLocationsRequest
+} from '~/types/location'
 
 export const useLocationsApi = () => {
   const client = useApiClient()

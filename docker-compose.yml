@@ -28,7 +28,7 @@ services:
       - "3000:3000"
     environment:
       - NODE_ENV=development
-      - NUXT_PUBLIC_API_BASE=http://homassy.api:8080
+      - NUXT_PUBLIC_API_BASE=http://10.0.0.10:5226
     volumes:
       - ./Homassy.Web:/app
       - /app/node_modules
