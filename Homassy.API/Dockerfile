@@ -4,7 +4,6 @@
 FROM mcr.microsoft.com/dotnet/aspnet:10.0 AS base
 WORKDIR /app
 EXPOSE 8080
-EXPOSE 8081
 
 
 # This stage is used to build the service project
@@ -15,12 +14,12 @@ COPY ["Homassy.API/Homassy.API.csproj", "Homassy.API/"]
 RUN dotnet restore "./Homassy.API/Homassy.API.csproj"
 COPY . .
 WORKDIR "/src/Homassy.API"
-RUN dotnet build "./Homassy.API.csproj" -c $BUILD_CONFIGURATION -o /app/build
+RUN dotnet build "./Homassy.API.csproj" -c $BUILD_CONFIGURATION -o /app/build /p:OpenApiGenerateDocuments=false
 
 # This stage is used to publish the service project to be copied to the final stage
 FROM build AS publish
 ARG BUILD_CONFIGURATION=Release
-RUN dotnet publish "./Homassy.API.csproj" -c $BUILD_CONFIGURATION -o /app/publish /p:UseAppHost=false
+RUN dotnet publish "./Homassy.API.csproj" -c $BUILD_CONFIGURATION -o /app/publish /p:UseAppHost=false /p:OpenApiGenerateDocuments=false
 
 # This stage is used in production or when running from VS in regular mode (Default when not using the Debug configuration)
 FROM base AS final

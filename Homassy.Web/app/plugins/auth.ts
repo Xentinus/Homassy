@@ -2,11 +2,9 @@
  * Auth initialization plugin
  * Checks for existing cookies on app startup and auto-login returning users
  */
-export default defineNuxtPlugin(() => {
+export default defineNuxtPlugin(async () => {
   const authStore = useAuthStore()
 
-  // Load authentication state from cookies on client-side
-  if (import.meta.client) {
-    authStore.loadFromCookies()
-  }
+  // Load authentication state from cookies on both server and client
+  await authStore.loadFromCookies()
 })

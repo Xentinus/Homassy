@@ -39,10 +39,12 @@ export const useAuthApi = () => {
   }
 
   /**
-   * Get current user info
+   * Get current user info (no network call)
+   * Returns the snapshot from the auth store; user data is refreshed
+   * only during token refresh to avoid redundant /Auth/me calls.
    */
   const getCurrentUser = async (): Promise<UserInfo | null> => {
-    return await authStore.fetchCurrentUser()
+    return authStore.currentUser
   }
 
   /**

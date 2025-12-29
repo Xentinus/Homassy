@@ -13,6 +13,7 @@ useHead({
 
 const title = 'Homassy'
 const description = 'A modern, elegant application built with Nuxt UI.'
+const toaster = { position: 'top-right' }
 
 useSeoMeta({
   title,
@@ -24,7 +25,7 @@ useSeoMeta({
 </script>
 
 <template>
-  <NuxtLayout>
+  <NuxtLayout :toaster="toaster">
     <NuxtPage />
   </NuxtLayout>
 </template>

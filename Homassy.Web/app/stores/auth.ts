@@ -166,11 +166,22 @@ export const useAuthStore = defineStore('auth', {
           this.accessTokenExpiresAt = response.data.accessTokenExpiresAt
           this.refreshTokenExpiresAt = response.data.refreshTokenExpiresAt
 
-          // Save to cookies
+          // Save tokens + current user snapshot to cookies
           this.saveToCookies()
 
           // Schedule next refresh
           this.scheduleTokenRefresh()
+
+          // Refresh user data only when token is refreshed
+          try {
+            const user = await this.fetchCurrentUser()
+            if (user) {
+              this.user = user
+              this.saveToCookies()
+            }
+          } catch (error) {
+            console.error('Failed to refresh user after token refresh', error)
+          }
         }
 
         return response
@@ -276,43 +287,98 @@ export const useAuthStore = defineStore('auth', {
      * Save tokens to cookies
      */
     saveToCookies() {
-      if (import.meta.client) {
-        const accessTokenCookie = useCookie('homassy_access_token', {
-          maxAge: 60 * 60 * 24 * 7, // 7 days
-          sameSite: 'lax',
-          secure: true,
-          path: '/'
-        })
-        const refreshTokenCookie = useCookie('homassy_refresh_token', {
-          maxAge: 60 * 60 * 24 * 30, // 30 days
-          sameSite: 'lax',
-          secure: true,
-          path: '/'
-        })
+      // Use secure cookies only in production (HTTPS). In dev (HTTP),
+      // cookies must be sent to SSR on refresh, so set secure=false.
+      const isSecure = import.meta.env.PROD
 
-        accessTokenCookie.value = this.accessToken
-        refreshTokenCookie.value = this.refreshToken
-      }
+      const accessTokenCookie = useCookie('homassy_access_token', {
+        maxAge: 60 * 60 * 24 * 7, // 7 days
+        sameSite: 'lax',
+        secure: isSecure,
+        path: '/'
+      })
+      const refreshTokenCookie = useCookie('homassy_refresh_token', {
+        maxAge: 60 * 60 * 24 * 30, // 30 days
+        sameSite: 'lax',
+        secure: isSecure,
+        path: '/'
+      })
+      const userCookie = useCookie('homassy_user', {
+        maxAge: 60 * 60 * 24 * 7,
+        sameSite: 'lax',
+        secure: isSecure,
+        path: '/'
+      })
+
+      accessTokenCookie.value = this.accessToken
+      refreshTokenCookie.value = this.refreshToken
+      userCookie.value = this.user ? JSON.stringify(this.user) : null
     },
 
     /**
      * Load tokens from cookies
      */
-    loadFromCookies() {
-      if (import.meta.client) {
-        const accessTokenCookie = useCookie('homassy_access_token')
-        const refreshTokenCookie = useCookie('homassy_refresh_token')
+    async loadFromCookies() {
+      const accessTokenCookie = useCookie('homassy_access_token')
+      const refreshTokenCookie = useCookie('homassy_refresh_token')
+      const userCookie = useCookie('homassy_user')
 
-        if (accessTokenCookie.value && refreshTokenCookie.value) {
-          this.accessToken = accessTokenCookie.value
-          this.refreshToken = refreshTokenCookie.value
+      const preview = (v: unknown, len = 20): string => {
+        if (!v) return 'null'
+        if (typeof v === 'string') return v.slice(0, len) + ((v as string).length > len ? '...' : '')
+        if (typeof v === 'object') return '[object]'
+        return String(v)
+      }
 
-          // Fetch current user info
-          this.fetchCurrentUser()
+      console.debug('[Auth] loadFromCookies: checking tokens...')
+      console.debug(`[Auth] accessToken: ${preview(accessTokenCookie.value)}`)
+      console.debug(`[Auth] refreshToken: ${preview(refreshTokenCookie.value)}`)
+      console.debug(`[Auth] userCookie type: ${typeof userCookie.value}`)
 
-          // Schedule token refresh
-          this.scheduleTokenRefresh()
+      if (accessTokenCookie.value && refreshTokenCookie.value) {
+        this.accessToken = accessTokenCookie.value as unknown as string
+        this.refreshToken = refreshTokenCookie.value as unknown as string
+
+        let parsedUser: UserInfo | null = null
+        if (userCookie.value) {
+          try {
+            if (typeof userCookie.value === 'object') {
+              parsedUser = userCookie.value as unknown as UserInfo
+            } else if (typeof userCookie.value === 'string') {
+              const raw = userCookie.value as string
+              const looksJson = raw.trim().startsWith('{')
+              parsedUser = looksJson ? JSON.parse(raw) : null
+            }
+          } catch (error) {
+            console.error('Failed to parse user cookie', error)
+            parsedUser = null
+          }
         }
+        this.user = parsedUser
+
+        console.debug(`[Auth] Loaded tokens, isAuthenticated: ${!!this.accessToken && !!this.user}`)
+
+        // If tokens exist but user is missing, attempt recovery once
+        if (!this.user) {
+          // Clear corrupted user cookie to avoid future parse errors
+          userCookie.value = null
+          try {
+            console.debug('[Auth] Attempting user recovery...')
+            const fetched = await this.fetchCurrentUser()
+            if (fetched) {
+              this.user = fetched
+              this.saveToCookies()
+              console.debug('[Auth] User recovered and saved')
+            }
+          } catch (e) {
+            console.error('User recovery after cookie parse failed', e)
+          }
+        }
+
+        // Schedule token refresh (client only)
+        this.scheduleTokenRefresh()
+      } else {
+        console.debug('[Auth] No tokens found in cookies')
       }
     },
 
@@ -320,19 +386,22 @@ export const useAuthStore = defineStore('auth', {
      * Clear cookies
      */
     clearCookies() {
-      if (import.meta.client) {
-        const accessTokenCookie = useCookie('homassy_access_token')
-        const refreshTokenCookie = useCookie('homassy_refresh_token')
+      const accessTokenCookie = useCookie('homassy_access_token')
+      const refreshTokenCookie = useCookie('homassy_refresh_token')
+      const userCookie = useCookie('homassy_user')
 
-        accessTokenCookie.value = null
-        refreshTokenCookie.value = null
-      }
+      accessTokenCookie.value = null
+      refreshTokenCookie.value = null
+      userCookie.value = null
     },
 
     /**
      * Schedule automatic token refresh before expiration
      */
     scheduleTokenRefresh() {
+      // Only schedule timers on the client
+      if (!import.meta.client) return
+
       // Clear existing timer
       if (this.refreshTimer) {
         clearTimeout(this.refreshTimer)

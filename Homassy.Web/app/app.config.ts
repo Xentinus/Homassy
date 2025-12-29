@@ -2,7 +2,8 @@
   ui: {
     colors: {
       primary: 'mocha',
-      neutral: 'slate'
+      neutral: 'slate',
+      success: 'mocha'
     }
   }
 })

@@ -1,17 +1,22 @@
 ﻿<template>
-  <UApp>
+  <UApp class="flex flex-col min-h-screen">
     <UHeader>
       <template #title>
-        <NuxtLink to="/">
-          <!-- <AppLogo class="w-auto h-6 shrink-0" /> -->
-          <span class="font-semibold text-lg">Homassy</span>
-        </NuxtLink>
+        <ClientOnly>
+          <NuxtLink to="/" aria-label="Homassy">
+            <span class="font-semibold text-lg">Homassy</span>
+          </NuxtLink>
+        </ClientOnly>
       </template>
 
-      <UNavigationMenu :items="authItems" class="ml-auto hidden md:flex" />
+      <ClientOnly>
+        <UNavigationMenu :items="authItems" class="ml-auto hidden md:flex" />
+      </ClientOnly>
 
       <template #right>
-        <UColorModeButton />
+        <ClientOnly>
+          <UColorModeButton />
+        </ClientOnly>
 
         <UTooltip text="GitHub Repository">
         <UButton
@@ -26,7 +31,9 @@
       </template>
 
       <template #body>
-        <UNavigationMenu :items="authItems" orientation="vertical" class="-mx-2.5" />
+        <ClientOnly>
+          <UNavigationMenu :items="authItems" orientation="vertical" class="-mx-2.5" />
+        </ClientOnly>
       </template>
     </UHeader>
 

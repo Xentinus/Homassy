@@ -11,7 +11,7 @@
       "name": "MIT License",
       "url": "https://github.com/Xentinus/Homassy/blob/master/LICENSE"
     },
-    "version": "25.1222.1446-prod"
+    "version": "25.1227.1832-prod"
   },
   "paths": {
     "/api/v1/Auth/request-code": {
