@@ -15,6 +15,11 @@
 
       <template #right>
         <ClientOnly>
+          <ULocaleSelect
+            :model-value="locale"
+            :locales="[en, hu, de]"
+            @update:model-value="handleLocaleChange"
+          />
           <UColorModeButton />
         </ClientOnly>
 
@@ -71,9 +76,17 @@ import { computed } from 'vue'
 import { useRoute } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import type { NavigationMenuItem } from '@nuxt/ui'
+import { en, hu, de } from '@nuxt/ui/locale'
 
 const route = useRoute()
-const { t } = useI18n()
+const { t, locale } = useI18n()
+const { $i18n } = useNuxtApp()
+
+const handleLocaleChange = (newLocale: string) => {
+  if (newLocale === 'en' || newLocale === 'hu' || newLocale === 'de') {
+    $i18n.setLocale(newLocale)
+  }
+}
 
 const authItems = computed<NavigationMenuItem[]>(() => [
   {
