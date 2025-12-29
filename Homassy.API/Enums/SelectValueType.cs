@@ -1,4 +1,4 @@
-namespace Homassy.API.Enums
+﻿namespace Homassy.API.Enums
 {
     public enum SelectValueType
     {
@@ -6,6 +6,9 @@ namespace Homassy.API.Enums
         StorageLocation = 1,
         Product = 2,
         ProductInventoryItem = 3,
-        ShoppingList = 4
+        ShoppingList = 4,
+        Languages = 5,
+        Currencies = 6,
+        TimeZones = 7,
     }
 }

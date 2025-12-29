@@ -1,6 +1,7 @@
-﻿using Homassy.API.Context;
+using Homassy.API.Context;
 using Homassy.API.Enums;
 using Homassy.API.Exceptions;
+using Homassy.API.Extensions;
 using Homassy.API.Models.Common;
 using Serilog;
 
@@ -26,6 +27,9 @@ namespace Homassy.API.Functions
                 SelectValueType.Product => GetProductSelectValues(userId.Value, familyId),
                 SelectValueType.ProductInventoryItem => GetProductInventoryItemSelectValues(userId.Value, familyId),
                 SelectValueType.ShoppingList => GetShoppingListSelectValues(userId.Value, familyId),
+                SelectValueType.Languages => GetLanguagesSelectValues(),
+                SelectValueType.Currencies => GetCurrenciesSelectValues(),
+                SelectValueType.TimeZones => GetTimeZonesSelectValues(),
                 _ => throw new BadRequestException($"Invalid select value type: {type}")
             };
         }
@@ -111,6 +115,51 @@ namespace Homassy.API.Functions
                 })
                 .OrderBy(s => s.Text)
                 .ToList();
+        }
+
+        private static List<SelectValue> GetLanguagesSelectValues()
+        {
+            return Enum.GetValues(typeof(Language))
+                       .Cast<Language>()
+                       .Select(lang =>
+
+                       new SelectValue
+                       {
+                           PublicId = Guid.NewGuid(),
+                           Text = LanguageExtensions.ToLanguageCode(lang)
+                       })
+                       .OrderBy(s => s.Text)
+                       .ToList();
+        }
+
+        private static List<SelectValue> GetCurrenciesSelectValues()
+        {
+            return Enum.GetValues(typeof(Currency))
+                       .Cast<Currency>()
+                       .Select(currency =>
+
+                       new SelectValue
+                       {
+                           PublicId = Guid.NewGuid(),
+                           Text = CurrencyExtensions.ToCurrencyCode(currency)
+                       })
+                       .OrderBy(s => s.Text)
+                       .ToList();
+        }
+
+        private static List<SelectValue> GetTimeZonesSelectValues()
+        {
+            return Enum.GetValues(typeof(UserTimeZone))
+                       .Cast<UserTimeZone>()
+                       .Select(timezone =>
+
+                       new SelectValue
+                       {
+                           PublicId = Guid.NewGuid(),
+                           Text = UserTimeZoneExtensions.ToTimeZoneId(timezone)
+                       })
+                       .OrderBy(s => s.Text)
+                       .ToList();
         }
     }
 }

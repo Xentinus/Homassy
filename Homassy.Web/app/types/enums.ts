@@ -50,10 +50,14 @@ export enum ImageFormat {
 }
 
 export enum SelectValueType {
-  Units = 0,
-  Currencies = 1,
-  TimeZones = 2,
-  Languages = 3
+  ShoppingLocation = 0,
+  StorageLocation = 1,
+  Product = 2,
+  ProductInventoryItem = 3,
+  ShoppingList = 4,
+  Languages = 5,
+  Currencies = 6,
+  TimeZones = 7
 }
 
 export enum BarcodeFormat {
