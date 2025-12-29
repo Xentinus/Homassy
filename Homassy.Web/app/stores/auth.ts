@@ -38,12 +38,20 @@ export const useAuthStore = defineStore('auth', {
 
   actions: {
     getTokensFromCookies() {
-      const accessTokenCookie = useCookie('homassy_access_token')
-      const refreshTokenCookie = useCookie('homassy_refresh_token')
+      try {
+        const accessTokenCookie = useCookie('homassy_access_token')
+        const refreshTokenCookie = useCookie('homassy_refresh_token')
 
-      return {
-        accessToken: accessTokenCookie.value as unknown as string | null,
-        refreshToken: refreshTokenCookie.value as unknown as string | null
+        return {
+          accessToken: accessTokenCookie.value as unknown as string | null,
+          refreshToken: refreshTokenCookie.value as unknown as string | null
+        }
+      } catch (error) {
+        console.warn('[Auth] Could not read tokens from cookies - not in valid Nuxt context')
+        return {
+          accessToken: null,
+          refreshToken: null
+        }
       }
     },
 
@@ -308,98 +316,106 @@ export const useAuthStore = defineStore('auth', {
      * Save tokens to cookies
      */
     saveToCookies() {
-      // Use secure cookies only in production (HTTPS). In dev (HTTP),
-      // cookies must be sent to SSR on refresh, so set secure=false.
-      const isSecure = import.meta.env.PROD
+      try {
+        // Use secure cookies only in production (HTTPS). In dev (HTTP),
+        // cookies must be sent to SSR on refresh, so set secure=false.
+        const isSecure = import.meta.env.PROD
 
-      const accessTokenCookie = useCookie('homassy_access_token', {
-        maxAge: 60 * 60 * 24 * 7, // 7 days
-        sameSite: 'lax',
-        secure: isSecure,
-        path: '/'
-      })
-      const refreshTokenCookie = useCookie('homassy_refresh_token', {
-        maxAge: 60 * 60 * 24 * 30, // 30 days
-        sameSite: 'lax',
-        secure: isSecure,
-        path: '/'
-      })
-      const userCookie = useCookie('homassy_user', {
-        maxAge: 60 * 60 * 24 * 7,
-        sameSite: 'lax',
-        secure: isSecure,
-        path: '/'
-      })
+        const accessTokenCookie = useCookie('homassy_access_token', {
+          maxAge: 60 * 60 * 24 * 7, // 7 days
+          sameSite: 'lax',
+          secure: isSecure,
+          path: '/'
+        })
+        const refreshTokenCookie = useCookie('homassy_refresh_token', {
+          maxAge: 60 * 60 * 24 * 30, // 30 days
+          sameSite: 'lax',
+          secure: isSecure,
+          path: '/'
+        })
+        const userCookie = useCookie('homassy_user', {
+          maxAge: 60 * 60 * 24 * 7,
+          sameSite: 'lax',
+          secure: isSecure,
+          path: '/'
+        })
 
-      accessTokenCookie.value = this.accessToken
-      refreshTokenCookie.value = this.refreshToken
-      userCookie.value = this.user ? JSON.stringify(this.user) : null
+        accessTokenCookie.value = this.accessToken
+        refreshTokenCookie.value = this.refreshToken
+        userCookie.value = this.user ? JSON.stringify(this.user) : null
+      } catch (error) {
+        console.warn('[Auth] Could not save to cookies - not in valid Nuxt context')
+      }
     },
 
     /**
      * Load tokens from cookies
      */
     async loadFromCookies() {
-      const accessTokenCookie = useCookie('homassy_access_token')
-      const refreshTokenCookie = useCookie('homassy_refresh_token')
-      const userCookie = useCookie('homassy_user')
+      try {
+        const accessTokenCookie = useCookie('homassy_access_token')
+        const refreshTokenCookie = useCookie('homassy_refresh_token')
+        const userCookie = useCookie('homassy_user')
 
-      const preview = (v: unknown, len = 20): string => {
-        if (!v) return 'null'
-        if (typeof v === 'string') return v.slice(0, len) + ((v as string).length > len ? '...' : '')
-        if (typeof v === 'object') return '[object]'
-        return String(v)
-      }
-
-      console.debug('[Auth] loadFromCookies: checking tokens...')
-      console.debug(`[Auth] accessToken: ${preview(accessTokenCookie.value)}`)
-      console.debug(`[Auth] refreshToken: ${preview(refreshTokenCookie.value)}`)
-      console.debug(`[Auth] userCookie type: ${typeof userCookie.value}`)
-
-      if (accessTokenCookie.value && refreshTokenCookie.value) {
-        this.accessToken = accessTokenCookie.value as unknown as string
-        this.refreshToken = refreshTokenCookie.value as unknown as string
-
-        let parsedUser: UserInfo | null = null
-        if (userCookie.value) {
-          try {
-            if (typeof userCookie.value === 'object') {
-              parsedUser = userCookie.value as unknown as UserInfo
-            } else if (typeof userCookie.value === 'string') {
-              const raw = userCookie.value as string
-              const looksJson = raw.trim().startsWith('{')
-              parsedUser = looksJson ? JSON.parse(raw) : null
-            }
-          } catch (error) {
-            console.error('Failed to parse user cookie', error)
-            parsedUser = null
-          }
-        }
-        this.user = parsedUser
-
-        console.debug(`[Auth] Loaded tokens, isAuthenticated: ${!!this.accessToken && !!this.user}`)
-
-        // If tokens exist but user is missing, attempt recovery once
-        if (!this.user) {
-          // Clear corrupted user cookie to avoid future parse errors
-          userCookie.value = null
-          try {
-            console.debug('[Auth] Attempting user recovery...')
-            const fetched = await this.fetchCurrentUser()
-            if (fetched) {
-              this.user = fetched
-              this.saveToCookies()
-              console.debug('[Auth] User recovered and saved')
-            }
-          } catch (e) {
-            console.error('User recovery after cookie parse failed', e)
-          }
+        const preview = (v: unknown, len = 20): string => {
+          if (!v) return 'null'
+          if (typeof v === 'string') return v.slice(0, len) + ((v as string).length > len ? '...' : '')
+          if (typeof v === 'object') return '[object]'
+          return String(v)
         }
 
-        // Schedule token refresh (client only)
-        this.scheduleTokenRefresh()
-      } else {
-        console.debug('[Auth] No tokens found in cookies')
+        console.debug('[Auth] loadFromCookies: checking tokens...')
+        console.debug(`[Auth] accessToken: ${preview(accessTokenCookie.value)}`)
+        console.debug(`[Auth] refreshToken: ${preview(refreshTokenCookie.value)}`)
+        console.debug(`[Auth] userCookie type: ${typeof userCookie.value}`)
+
+        if (accessTokenCookie.value && refreshTokenCookie.value) {
+          this.accessToken = accessTokenCookie.value as unknown as string
+          this.refreshToken = refreshTokenCookie.value as unknown as string
+
+          let parsedUser: UserInfo | null = null
+          if (userCookie.value) {
+            try {
+              if (typeof userCookie.value === 'object') {
+                parsedUser = userCookie.value as unknown as UserInfo
+              } else if (typeof userCookie.value === 'string') {
+                const raw = userCookie.value as string
+                const looksJson = raw.trim().startsWith('{')
+                parsedUser = looksJson ? JSON.parse(raw) : null
+              }
+            } catch (error) {
+              console.error('Failed to parse user cookie', error)
+              parsedUser = null
+            }
+          }
+          this.user = parsedUser
+
+          console.debug(`[Auth] Loaded tokens, isAuthenticated: ${!!this.accessToken && !!this.user}`)
+
+          // If tokens exist but user is missing, attempt recovery once
+          if (!this.user) {
+            // Clear corrupted user cookie to avoid future parse errors
+            userCookie.value = null
+            try {
+              console.debug('[Auth] Attempting user recovery...')
+              const fetched = await this.fetchCurrentUser()
+              if (fetched) {
+                this.user = fetched
+                this.saveToCookies()
+                console.debug('[Auth] User recovered and saved')
+              }
+            } catch (e) {
+              console.error('User recovery after cookie parse failed', e)
+            }
+          }
+
+          // Schedule token refresh (client only)
+          this.scheduleTokenRefresh()
+        } else {
+          console.debug('[Auth] No tokens found in cookies')
+        }
+      } catch (error) {
+        console.warn('[Auth] Could not load from cookies - not in valid Nuxt context', error)
       }
     },
 
@@ -407,13 +423,21 @@ export const useAuthStore = defineStore('auth', {
      * Clear cookies
      */
     clearCookies() {
-      const accessTokenCookie = useCookie('homassy_access_token')
-      const refreshTokenCookie = useCookie('homassy_refresh_token')
-      const userCookie = useCookie('homassy_user')
+      // Only clear cookies if we're in a valid Nuxt context
+      // This prevents errors when called from error handlers
+      try {
+        const accessTokenCookie = useCookie('homassy_access_token')
+        const refreshTokenCookie = useCookie('homassy_refresh_token')
+        const userCookie = useCookie('homassy_user')
 
-      accessTokenCookie.value = null
-      refreshTokenCookie.value = null
-      userCookie.value = null
+        accessTokenCookie.value = null
+        refreshTokenCookie.value = null
+        userCookie.value = null
+      } catch (error) {
+        // If we can't access cookies (e.g., outside Nuxt context), skip clearing
+        // The cookies will be cleared on next page load when context is available
+        console.warn('[Auth] Could not clear cookies - not in valid Nuxt context')
+      }
     },
 
     /**

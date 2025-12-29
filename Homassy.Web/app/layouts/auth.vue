@@ -27,28 +27,29 @@ import { computed } from 'vue'
 import { useRoute } from 'vue-router'
 
 const route = useRoute()
+const { t } = useI18n()
 
 const navItems = computed(() => [
   {
-    label: 'Products',
+    label: t('nav.products'),
     to: '/products',
     icon: 'i-lucide-package',
     active: route.path.startsWith('/products')
   },
   {
-    label: 'Shopping Lists',
+    label: t('nav.shoppingLists'),
     to: '/shopping-lists',
     icon: 'i-lucide-shopping-cart',
     active: route.path.startsWith('/shopping-lists')
   },
   {
-    label: 'Activity',
+    label: t('nav.activity'),
     to: '/activity',
     icon: 'i-lucide-activity',
     active: route.path.startsWith('/activity')
   },
   {
-    label: 'Profile',
+    label: t('nav.profile'),
     to: '/profile',
     icon: 'i-lucide-user',
     active: route.path.startsWith('/profile')

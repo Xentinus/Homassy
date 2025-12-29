@@ -11,7 +11,8 @@ export default defineNuxtConfig({
     '@nuxt/scripts',
     '@nuxt/ui',
     '@pinia/nuxt',
-    'nuxt-api-party'
+    'nuxt-api-party',
+    '@nuxtjs/i18n'
   ],
 
   css: ['~/assets/css/main.css'],
@@ -45,5 +46,40 @@ export default defineNuxtConfig({
         }
       }
     }
+  },
+
+  i18n: {
+    locales: [
+      {
+        code: 'en',
+        language: 'en-US',
+        file: 'en.json',
+        name: 'English'
+      },
+      {
+        code: 'hu',
+        language: 'hu-HU',
+        file: 'hu.json',
+        name: 'Magyar'
+      },
+      {
+        code: 'de',
+        language: 'de-DE',
+        file: 'de.json',
+        name: 'Deutsch'
+      }
+    ],
+    defaultLocale: 'en',
+    strategy: 'no_prefix',
+    langDir: 'locales',
+    lazy: true,
+    detectBrowserLanguage: {
+      useCookie: true,
+      cookieKey: 'homassy_locale',
+      redirectOn: 'root',
+      alwaysRedirect: false,
+      fallbackLocale: 'en'
+    },
+    vueI18n: './i18n.config.ts'
   }
 })

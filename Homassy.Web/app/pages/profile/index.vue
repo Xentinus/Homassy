@@ -3,7 +3,7 @@
     <!-- Header -->
     <div class="flex items-center gap-3">
       <UIcon name="i-lucide-user" class="h-7 w-7 text-primary-500" />
-      <h1 class="text-2xl font-semibold">Profile</h1>
+      <h1 class="text-2xl font-semibold">{{ $t('profile.title') }}</h1>
     </div>
 
     <!-- Avatar Section -->
@@ -13,7 +13,8 @@
         <UAvatar
           :src="avatarSrc"
           :alt="primaryName || 'User'"
-          class="h-40 w-40 ring-4 ring-primary-200/50"
+          :text="avatarInitial"
+          class="h-40 w-40 ring-4 ring-primary-200/50 text-6xl"
         />
         <UButton
           v-if="hasAvatar"
@@ -36,7 +37,7 @@
       <!-- Upload Button -->
       <UButton v-if="!hasAvatar" color="primary" variant="soft" class="w-full" @click="triggerFileSelect">
         <UIcon name="i-lucide-upload" class="h-4 w-4 mr-2" />
-        Upload Avatar
+        {{ $t('profile.uploadAvatar') }}
       </UButton>
       <input ref="fileInput" type="file" accept="image/*" class="hidden" @change="onFileSelected">
     </div>
@@ -49,19 +50,19 @@
           class="absolute top-3 right-3 text-gray-400"
         />
 
-        <h2 class="text-base font-semibold mb-3">Settings</h2>
+        <h2 class="text-base font-semibold mb-3">{{ $t('profile.settings') }}</h2>
 
         <div class="space-y-2 text-sm">
           <div class="flex justify-between">
-            <span class="text-gray-600 dark:text-gray-400">Language</span>
+            <span class="text-gray-600 dark:text-gray-400">{{ $t('profile.language') }}</span>
             <span class="font-medium">{{ authStore.user?.language }}</span>
           </div>
           <div class="flex justify-between">
-            <span class="text-gray-600 dark:text-gray-400">Currency</span>
+            <span class="text-gray-600 dark:text-gray-400">{{ $t('profile.currency') }}</span>
             <span class="font-medium">{{ authStore.user?.currency }}</span>
           </div>
           <div class="flex justify-between">
-            <span class="text-gray-600 dark:text-gray-400">Time Zone</span>
+            <span class="text-gray-600 dark:text-gray-400">{{ $t('profile.timeZone') }}</span>
             <span class="font-medium">{{ authStore.user?.timeZone }}</span>
           </div>
         </div>
@@ -76,7 +77,7 @@
       </UButton>
       <UButton color="error" variant="soft" class="w-full" @click="onLogout">
         <UIcon name="i-lucide-log-out" class="h-4 w-4 mr-2" />
-        Logout
+        {{ $t('auth.logout') }}
       </UButton>
     </div>
 
@@ -100,6 +101,14 @@ const avatarSrc = computed(() => {
   return b64 ? `data:image/jpeg;base64,${b64}` : undefined
 })
 
+const avatarInitial = computed(() => {
+  const name = authStore.user?.displayName || authStore.user?.name
+  if (!name) return '?'
+
+  const words = name.trim().split(/\s+/)
+  return words.map((word: string) => word.charAt(0).toUpperCase()).join('')
+})
+
 // Name display
 const hasDisplayName = computed(() =>
   !!(authStore.user?.displayName && authStore.user.displayName.trim())
@@ -112,9 +121,10 @@ const secondaryName = computed(() =>
 )
 
 // Color mode
+const { t } = useI18n()
 const colorMode = useColorMode()
 const colorModeText = computed(() =>
-  colorMode.value === 'dark' ? 'Light Mode' : 'Dark Mode'
+  colorMode.value === 'dark' ? t('profile.lightMode') : t('profile.darkMode')
 )
 
 onMounted(() => {

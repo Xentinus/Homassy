@@ -1,4 +1,6 @@
 <script setup>
+const { locale } = useI18n()
+
 useHead({
   meta: [
     { name: 'viewport', content: 'width=device-width, initial-scale=1' }
@@ -7,7 +9,7 @@ useHead({
     { rel: 'icon', href: '/favicon.ico' }
   ],
   htmlAttrs: {
-    lang: 'en'
+    lang: computed(() => locale.value)
   }
 })
 

@@ -9,56 +9,56 @@
         @click="navigateTo('/profile')"
       />
       <div>
-        <h1 class="text-2xl font-semibold">Settings</h1>
+        <h1 class="text-2xl font-semibold">{{ $t('profile.settings') }}</h1>
       </div>
     </div>
 
     <!-- Settings Form -->
     <div class="space-y-4">
       <div>
-        <label class="block text-sm font-medium mb-1.5">Name</label>
+        <label class="block text-sm font-medium mb-1.5">{{ $t('profile.name') }}</label>
         <UInput
           v-model="formData.name"
-          placeholder="Enter your name"
+          :placeholder="$t('profile.name')"
           :disabled="isSubmitting"
         />
       </div>
 
       <div>
-        <label class="block text-sm font-medium mb-1.5">Display Name</label>
+        <label class="block text-sm font-medium mb-1.5">{{ $t('profile.displayName') }}</label>
         <UInput
           v-model="formData.displayName"
-          placeholder="Enter display name (optional)"
+          :placeholder="$t('profile.displayName')"
           :disabled="isSubmitting"
         />
       </div>
 
       <div>
-        <label class="block text-sm font-medium mb-1.5">Language</label>
+        <label class="block text-sm font-medium mb-1.5">{{ $t('profile.language') }}</label>
         <USelect
           v-model="formData.language"
           :items="languageSelectOptions"
-          placeholder="Select language"
+          :placeholder="$t('profile.language')"
           :disabled="isSubmitting || isLoadingOptions"
         />
       </div>
 
       <div>
-        <label class="block text-sm font-medium mb-1.5">Currency</label>
+        <label class="block text-sm font-medium mb-1.5">{{ $t('profile.currency') }}</label>
         <USelect
           v-model="formData.currency"
           :items="currencySelectOptions"
-          placeholder="Select currency"
+          :placeholder="$t('profile.currency')"
           :disabled="isSubmitting || isLoadingOptions"
         />
       </div>
 
       <div>
-        <label class="block text-sm font-medium mb-1.5">Time Zone</label>
+        <label class="block text-sm font-medium mb-1.5">{{ $t('profile.timeZone') }}</label>
         <USelect
           v-model="formData.timeZone"
           :items="timeZoneSelectOptions"
-          placeholder="Select time zone"
+          :placeholder="$t('profile.timeZone')"
           :disabled="isSubmitting || isLoadingOptions"
         />
       </div>
@@ -73,7 +73,7 @@
         :disabled="isSubmitting"
         @click="navigateTo('/profile')"
       >
-        Cancel
+        {{ $t('common.cancel') }}
       </UButton>
       <UButton
         color="primary"
@@ -81,7 +81,7 @@
         :loading="isSubmitting"
         @click="saveSettings"
       >
-        Save Changes
+        {{ $t('settings.saveChanges') }}
       </UButton>
     </div>
   </div>
@@ -96,6 +96,8 @@ import { SelectValueType } from '~/types/enums'
 import type { SelectValue } from '~/types/selectValue'
 import type { UpdateUserSettingsRequest } from '~/types/user'
 import { languageCodeToEnum, currencyCodeToEnum, timeZoneIdToEnum } from '~/utils/enumMappers'
+
+const { setLocale } = useI18n()
 
 definePageMeta({ layout: 'auth', middleware: 'auth' })
 
@@ -174,6 +176,12 @@ async function saveSettings() {
 
     await updateUserSettings(payload)
     await authStore.fetchCurrentUser()
+
+    // Update locale immediately for instant UI feedback
+    if (authStore.user?.language) {
+      await setLocale(authStore.user.language)
+    }
+
     navigateTo('/profile')
   } catch (error) {
     console.error('Failed to update settings:', error)

@@ -1,0 +1,107 @@
+{
+  "common": {
+    "welcome": "Welcome",
+    "cancel": "Cancel",
+    "save": "Save",
+    "delete": "Delete",
+    "edit": "Edit",
+    "search": "Search",
+    "loading": "Loading..."
+  },
+  "auth": {
+    "login": "Login",
+    "logout": "Logout",
+    "register": "Register",
+    "email": "Email",
+    "emailAddress": "Email Address",
+    "password": "Password",
+    "forgotPassword": "Forgot password?",
+    "signIn": "Sign in",
+    "signUp": "Sign up",
+    "verifyAndSignIn": "Verify and Sign in",
+    "verificationCode": "Verification Code",
+    "enterEmail": "Enter your email to receive a verification code",
+    "enterYourEmail": "Enter your email",
+    "dontHaveAccount": "Don't have an account?",
+    "alreadyHaveAccount": "Already have an account?",
+    "requestCode": "Request Code",
+    "sending": "Sending...",
+    "wait": "Wait",
+    "createAccount": "Create Account",
+    "displayNameOptional": "Display Name (optional)",
+    "enterYourName": "Enter your name",
+    "enterDisplayName": "Enter your display name"
+  },
+  "nav": {
+    "home": "Home",
+    "products": "Products",
+    "shoppingLists": "Shopping Lists",
+    "activity": "Activity",
+    "profile": "Profile"
+  },
+  "footer": {
+    "madeWith": "Made with",
+    "by": "by"
+  },
+  "pages": {
+    "home": {
+      "title": "Homassy",
+      "description": "Manage your household inventory, shopping lists, and share everything with your family.",
+      "keyFeatures": "Key Features",
+      "features": {
+        "userAuth": {
+          "title": "User Authentication",
+          "description": "Passwordless email-code login. Secure token-based authentication for signing in and out."
+        },
+        "familyManagement": {
+          "title": "Family Management",
+          "description": "Create families, invite members with a code, and manage shared data together."
+        },
+        "productsInventory": {
+          "title": "Products and Inventory",
+          "description": "Track products and inventory: add, move, consume, and mark favorites."
+        },
+        "shoppingLists": {
+          "title": "Shopping Lists",
+          "description": "Shared shopping lists with items, quick purchase feature that adds directly to inventory."
+        },
+        "locations": {
+          "title": "Locations",
+          "description": "Store shops and home storage locations; modify multiple items at once."
+        },
+        "barcodeQuality": {
+          "title": "Barcode and Data Quality",
+          "description": "Barcode scanning and validation, Open Food Facts data, secure image uploads."
+        }
+      }
+    },
+    "products": {
+      "title": "Products",
+      "description": "Manage your household products and inventory."
+    },
+    "shoppingLists": {
+      "title": "Shopping Lists",
+      "description": "Plan and track your shared shopping lists."
+    },
+    "activity": {
+      "title": "Activity",
+      "description": "View your recent activity and updates."
+    }
+  },
+  "profile": {
+    "title": "Profile",
+    "settings": "Settings",
+    "name": "Name",
+    "displayName": "Display Name",
+    "language": "Language",
+    "currency": "Currency",
+    "timeZone": "Time Zone",
+    "uploadAvatar": "Upload Avatar",
+    "lightMode": "Light Mode",
+    "darkMode": "Dark Mode"
+  },
+  "settings": {
+    "saveChanges": "Save Changes",
+    "settingsUpdated": "Settings updated successfully"
+  }
+}

@@ -1,0 +1,107 @@
+{
+  "common": {
+    "welcome": "Willkommen",
+    "cancel": "Abbrechen",
+    "save": "Speichern",
+    "delete": "Löschen",
+    "edit": "Bearbeiten",
+    "search": "Suchen",
+    "loading": "Laden..."
+  },
+  "auth": {
+    "login": "Anmelden",
+    "logout": "Abmelden",
+    "register": "Registrieren",
+    "email": "E-Mail",
+    "emailAddress": "E-Mail-Adresse",
+    "password": "Passwort",
+    "forgotPassword": "Passwort vergessen?",
+    "signIn": "Anmelden",
+    "signUp": "Registrieren",
+    "verifyAndSignIn": "Verifizieren und anmelden",
+    "verificationCode": "Bestätigungscode",
+    "enterEmail": "Geben Sie Ihre E-Mail-Adresse ein, um einen Bestätigungscode zu erhalten",
+    "enterYourEmail": "Geben Sie Ihre E-Mail-Adresse ein",
+    "dontHaveAccount": "Haben Sie noch kein Konto?",
+    "alreadyHaveAccount": "Haben Sie bereits ein Konto?",
+    "requestCode": "Code anfordern",
+    "sending": "Wird gesendet...",
+    "wait": "Warten",
+    "createAccount": "Konto erstellen",
+    "displayNameOptional": "Anzeigename (optional)",
+    "enterYourName": "Geben Sie Ihren Namen ein",
+    "enterDisplayName": "Geben Sie Ihren Anzeigenamen ein"
+  },
+  "nav": {
+    "home": "Startseite",
+    "products": "Produkte",
+    "shoppingLists": "Einkaufslisten",
+    "activity": "Aktivität",
+    "profile": "Profil"
+  },
+  "footer": {
+    "madeWith": "Hergestellt mit",
+    "by": "von"
+  },
+  "pages": {
+    "home": {
+      "title": "Homassy",
+      "description": "Verwalten Sie Ihr Haushaltsinventar, Einkaufslisten und teilen Sie alles mit Ihrer Familie.",
+      "keyFeatures": "Hauptfunktionen",
+      "features": {
+        "userAuth": {
+          "title": "Benutzerauthentifizierung",
+          "description": "Passwortlose E-Mail-Code-Anmeldung. Sichere token-basierte Authentifizierung zum An- und Abmelden."
+        },
+        "familyManagement": {
+          "title": "Familienverwaltung",
+          "description": "Erstellen Sie Familien, laden Sie Mitglieder mit einem Code ein und verwalten Sie gemeinsame Daten zusammen."
+        },
+        "productsInventory": {
+          "title": "Produkte und Inventar",
+          "description": "Verfolgen Sie Produkte und Inventar: hinzufügen, verschieben, verbrauchen und Favoriten markieren."
+        },
+        "shoppingLists": {
+          "title": "Einkaufslisten",
+          "description": "Geteilte Einkaufslisten mit Artikeln, Schnellkauf-Funktion, die direkt zum Inventar hinzufügt."
+        },
+        "locations": {
+          "title": "Standorte",
+          "description": "Speichern Sie Geschäfte und Lagerorte zu Hause; ändern Sie mehrere Artikel gleichzeitig."
+        },
+        "barcodeQuality": {
+          "title": "Barcode und Datenqualität",
+          "description": "Barcode-Scannen und -Validierung, Open Food Facts-Daten, sichere Bild-Uploads."
+        }
+      }
+    },
+    "products": {
+      "title": "Produkte",
+      "description": "Verwalten Sie Ihre Haushaltsprodukte und Ihr Inventar."
+    },
+    "shoppingLists": {
+      "title": "Einkaufslisten",
+      "description": "Planen und verfolgen Sie Ihre geteilten Einkaufslisten."
+    },
+    "activity": {
+      "title": "Aktivität",
+      "description": "Sehen Sie Ihre letzten Aktivitäten und Updates."
+    }
+  },
+  "profile": {
+    "title": "Profil",
+    "settings": "Einstellungen",
+    "name": "Name",
+    "displayName": "Anzeigename",
+    "language": "Sprache",
+    "currency": "Währung",
+    "timeZone": "Zeitzone",
+    "uploadAvatar": "Profilbild hochladen",
+    "lightMode": "Heller Modus",
+    "darkMode": "Dunkler Modus"
+  },
+  "settings": {
+    "saveChanges": "Änderungen speichern",
+    "settingsUpdated": "Einstellungen erfolgreich aktualisiert"
+  }
+}

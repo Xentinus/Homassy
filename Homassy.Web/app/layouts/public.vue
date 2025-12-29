@@ -46,12 +46,12 @@
     <UFooter>
       <template #left>
         <p class="text-sm text-muted flex items-center gap-2">
-          <span>Made with</span>
+          <span>{{ t('footer.madeWith') }}</span>
           <UIcon
             name="i-lucide-heart"
             class="h-4 w-4 text-primary"
           />
-          <span>by</span>
+          <span>{{ t('footer.by') }}</span>
           <a
             href="https://github.com/Xentinus"
             target="_blank"
@@ -69,25 +69,27 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import { useRoute } from 'vue-router'
+import { useI18n } from 'vue-i18n'
 import type { NavigationMenuItem } from '@nuxt/ui'
 
 const route = useRoute()
+const { t } = useI18n()
 
 const authItems = computed<NavigationMenuItem[]>(() => [
   {
-    label: 'Home',
+    label: t('nav.home'),
     to: '/',
     icon: 'i-lucide-home',
     active: route.path === '/'
   },
   {
-    label: 'Log in',
+    label: t('auth.login'),
     to: '/auth/login',
     icon: 'i-lucide-log-in',
     active: route.path.startsWith('/auth/login')
   },
   {
-    label: 'Sign up',
+    label: t('auth.register'),
     to: '/auth/register',
     icon: 'i-lucide-user-plus',
     active: route.path.startsWith('/auth/register')

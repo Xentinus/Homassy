@@ -1,0 +1,107 @@
+{
+  "common": {
+    "welcome": "Üdvözöljük",
+    "cancel": "Mégse",
+    "save": "Mentés",
+    "delete": "Törlés",
+    "edit": "Szerkesztés",
+    "search": "Keresés",
+    "loading": "Betöltés..."
+  },
+  "auth": {
+    "login": "Bejelentkezés",
+    "logout": "Kijelentkezés",
+    "register": "Regisztráció",
+    "email": "E-mail",
+    "emailAddress": "E-mail cím",
+    "password": "Jelszó",
+    "forgotPassword": "Elfelejtett jelszó?",
+    "signIn": "Bejelentkezés",
+    "signUp": "Regisztráció",
+    "verifyAndSignIn": "Ellenőrzés és bejelentkezés",
+    "verificationCode": "Ellenőrző kód",
+    "enterEmail": "Add meg az e-mail címed az ellenőrző kód fogadásához",
+    "enterYourEmail": "Add meg az e-mail címed",
+    "dontHaveAccount": "Nincs még fiókod?",
+    "alreadyHaveAccount": "Van már fiókod?",
+    "requestCode": "Kód kérése",
+    "sending": "Küldés...",
+    "wait": "Várj",
+    "createAccount": "Fiók létrehozása",
+    "displayNameOptional": "Megjelenítendő név (opcionális)",
+    "enterYourName": "Add meg a neved",
+    "enterDisplayName": "Add meg a megjelenítendő neved"
+  },
+  "nav": {
+    "home": "Kezdőlap",
+    "products": "Termékek",
+    "shoppingLists": "Bevásárlólisták",
+    "activity": "Tevékenység",
+    "profile": "Profil"
+  },
+  "footer": {
+    "madeWith": "Készítette",
+    "by": "-ből"
+  },
+  "pages": {
+    "home": {
+      "title": "Homassy",
+      "description": "Kezeld a háztartási készleted, bevásárlólistáid és oszd meg mindent a családoddal.",
+      "keyFeatures": "Főbb funkciók",
+      "features": {
+        "userAuth": {
+          "title": "Felhasználói hitelesítés",
+          "description": "Jelszó nélküli e-mail kódos bejelentkezés. Biztonságos token alapú hitelesítés be- és kijelentkezéshez."
+        },
+        "familyManagement": {
+          "title": "Családkezelés",
+          "description": "Hozz létre családokat, hívj meg tagokat kóddal, és kezeljétek közösen a megosztott adatokat."
+        },
+        "productsInventory": {
+          "title": "Termékek és készlet",
+          "description": "Kövesd nyomon a termékeket és a készletet: adj hozzá, mozgass, fogyassz és jelölj meg kedvenceket."
+        },
+        "shoppingLists": {
+          "title": "Bevásárlólisták",
+          "description": "Megosztott bevásárlólisták termékekkel, gyors vásárlás funkció, amely közvetlenül hozzáadja a készlethez."
+        },
+        "locations": {
+          "title": "Helyszínek",
+          "description": "Tárolj boltokat és otthoni tárolóhelyeket; módosíts több elemet egyszerre."
+        },
+        "barcodeQuality": {
+          "title": "Vonalkód és adatminőség",
+          "description": "Vonalkód szkennelés és ellenőrzés, Open Food Facts adatok, biztonságos képfeltöltés."
+        }
+      }
+    },
+    "products": {
+      "title": "Termékek",
+      "description": "Kezeld a háztartási termékeidet és készletedet."
+    },
+    "shoppingLists": {
+      "title": "Bevásárlólisták",
+      "description": "Tervezd és kövesd nyomon a megosztott bevásárlólistáidat."
+    },
+    "activity": {
+      "title": "Tevékenység",
+      "description": "Nézd meg a legutóbbi tevékenységeidet és frissítéseket."
+    }
+  },
+  "profile": {
+    "title": "Profil",
+    "settings": "Beállítások",
+    "name": "Név",
+    "displayName": "Megjelenítendő név",
+    "language": "Nyelv",
+    "currency": "Pénznem",
+    "timeZone": "Időzóna",
+    "uploadAvatar": "Profilkép feltöltése",
+    "lightMode": "Világos mód",
+    "darkMode": "Sötét mód"
+  },
+  "settings": {
+    "saveChanges": "Változtatások mentése",
+    "settingsUpdated": "Beállítások sikeresen frissítve"
+  }
+}

@@ -10,29 +10,31 @@ definePageMeta({
 const router = useRouter()
 const authApi = useAuthApi()
 
-const fields: AuthFormField[] = [
+const { t } = useI18n()
+
+const fields = computed<AuthFormField[]>(() => [
   {
     name: 'email',
     type: 'email',
-    label: 'Email',
-    placeholder: 'Enter your email',
+    label: t('auth.email'),
+    placeholder: t('auth.enterYourEmail'),
     required: true
   },
   {
     name: 'name',
     type: 'text',
-    label: 'Name',
-    placeholder: 'Enter your name',
+    label: t('profile.name'),
+    placeholder: t('auth.enterYourName'),
     required: true
   },
   {
     name: 'displayName',
     type: 'text',
-    label: 'Display Name (optional)',
-    placeholder: 'Enter your display name',
+    label: t('auth.displayNameOptional'),
+    placeholder: t('auth.enterDisplayName'),
     required: false
   }
-]
+])
 
 const schema = z.object({
   email: z.string({ required_error: 'Email is required' }).email('Invalid email address'),
@@ -65,13 +67,13 @@ async function onSubmit(payload: FormSubmitEvent<Schema>) {
       <UAuthForm
         :schema="schema"
         :fields="fields"
-        title="Create Account"
+        :title="$t('auth.createAccount')"
         icon="i-lucide-user-plus"
         @submit="onSubmit"
       >
         <template #description>
-          Already have an account?
-          <ULink to="/auth/login" class="text-primary font-medium">Sign in</ULink>.
+          {{ $t('auth.alreadyHaveAccount') }}
+          <ULink to="/auth/login" class="text-primary font-medium">{{ $t('auth.signIn') }}</ULink>.
         </template>
       </UAuthForm>
     </UPageCard>

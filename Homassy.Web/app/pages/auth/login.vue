@@ -68,11 +68,13 @@ const canRequestCode = computed(() => {
   return email.value.length > 0 && cooldownSeconds.value === 0 && !requestingCode.value
 })
 
+const { t } = useI18n()
+
 const requestButtonText = computed(() => {
   if (cooldownSeconds.value > 0) {
-    return `Wait ${cooldownSeconds.value}s`
+    return `${t('auth.wait')} ${cooldownSeconds.value}s`
   }
-  return requestingCode.value ? 'Sending...' : 'Request Code'
+  return requestingCode.value ? t('auth.sending') : t('auth.requestCode')
 })
 
 const schema = z.object({
@@ -122,11 +124,11 @@ async function requestCode() {
           <div class="mb-2">
             <UIcon name="i-lucide-mail" class="size-8 shrink-0 inline-block" />
           </div>
-          <h2 class="text-xl text-pretty font-semibold text-highlighted">Sign in</h2>
-          <p class="mt-1 text-base text-pretty text-muted">Enter your email to receive a verification code</p>
+          <h2 class="text-xl text-pretty font-semibold text-highlighted">{{ $t('auth.signIn') }}</h2>
+          <p class="mt-1 text-base text-pretty text-muted">{{ $t('auth.enterEmail') }}</p>
           <p class="mt-1 text-sm text-pretty text-muted">
-            Don't have an account?
-            <ULink to="/auth/register" class="text-primary font-medium">Sign up</ULink>.
+            {{ $t('auth.dontHaveAccount') }}
+            <ULink to="/auth/register" class="text-primary font-medium">{{ $t('auth.signUp') }}</ULink>.
           </p>
         </div>
 
@@ -134,7 +136,7 @@ async function requestCode() {
           <UFormField name="email">
             <template #label>
               <div class="flex items-center justify-between w-full">
-                <span>Email Address</span>
+                <span>{{ $t('auth.emailAddress') }}</span>
                 <UButton
                   size="xs"
                   variant="ghost"
@@ -145,12 +147,12 @@ async function requestCode() {
                 </UButton>
               </div>
             </template>
-            <UInput v-model="email" type="email" placeholder="Enter your email" class="w-full" />
+            <UInput v-model="email" type="email" :placeholder="$t('auth.enterYourEmail')" class="w-full" />
           </UFormField>
         </UForm>
 
         <UForm :schema="schema" :state="{ code }" class="space-y-5" @submit="onSubmit">
-          <UFormField name="code" label="Verification Code">
+          <UFormField name="code" :label="$t('auth.verificationCode')">
             <div class="flex items-center justify-center gap-2">
               <UPinInput
                 v-model="code"
@@ -162,7 +164,7 @@ async function requestCode() {
           </UFormField>
 
           <UButton type="submit" block :loading="loading">
-            Verify and Sign in
+            {{ $t('auth.verifyAndSignIn') }}
           </UButton>
         </UForm>
       </div>

@@ -1,50 +1,54 @@
 ﻿<template>
   <div>
     <UPageHero
-      title="Homassy"
-      description="Manage your household inventory, shopping lists, and share everything with your family."
+      :title="$t('pages.home.title')"
+      :description="$t('pages.home.description')"
     />
 
     <UPageSection
       id="features"
-      title="Key Features"
-      :features="[
-        {
-          icon: 'i-lucide-user-check',
-          title: 'User Authentication',
-          description: 'Passwordless email-code login. Secure token-based authentication for signing in and out.'
-        },
-        {
-          icon: 'i-lucide-users',
-          title: 'Family Management',
-          description: 'Create families, invite members with a code, and manage shared data together.'
-        },
-        {
-          icon: 'i-lucide-package-check',
-          title: 'Products and Inventory',
-          description: 'Track products and inventory: add, move, consume, and mark favorites.'
-        },
-        {
-          icon: 'i-lucide-shopping-cart',
-          title: 'Shopping Lists',
-          description: 'Shared shopping lists with items, quick purchase feature that adds directly to inventory.'
-        },
-        {
-          icon: 'i-lucide-map-pin',
-          title: 'Locations',
-          description: 'Store shops and home storage locations; modify multiple items at once.'
-        },
-        {
-          icon: 'i-lucide-barcode',
-          title: 'Barcode and Data Quality',
-          description: 'Barcode scanning and validation, Open Food Facts data, secure image uploads.'
-        }
-      ]"
+      :title="$t('pages.home.keyFeatures')"
+      :features="features"
     />
   </div>
 </template>
 
 <script setup>
+const { t } = useI18n()
+
+const features = computed(() => [
+  {
+    icon: 'i-lucide-user-check',
+    title: t('pages.home.features.userAuth.title'),
+    description: t('pages.home.features.userAuth.description')
+  },
+  {
+    icon: 'i-lucide-users',
+    title: t('pages.home.features.familyManagement.title'),
+    description: t('pages.home.features.familyManagement.description')
+  },
+  {
+    icon: 'i-lucide-package-check',
+    title: t('pages.home.features.productsInventory.title'),
+    description: t('pages.home.features.productsInventory.description')
+  },
+  {
+    icon: 'i-lucide-shopping-cart',
+    title: t('pages.home.features.shoppingLists.title'),
+    description: t('pages.home.features.shoppingLists.description')
+  },
+  {
+    icon: 'i-lucide-map-pin',
+    title: t('pages.home.features.locations.title'),
+    description: t('pages.home.features.locations.description')
+  },
+  {
+    icon: 'i-lucide-barcode',
+    title: t('pages.home.features.barcodeQuality.title'),
+    description: t('pages.home.features.barcodeQuality.description')
+  }
+])
+
 definePageMeta({
   layout: 'public'
 })
