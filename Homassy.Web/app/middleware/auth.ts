@@ -28,10 +28,7 @@ export default defineNuxtRouteMiddleware(async (to) => {
     } catch (e) {
       console.error('[Middleware] Token refresh failed:', e)
       authStore.clearAuthData()
-      return navigateTo({
-        path: '/auth/login',
-        query: { redirect: to.fullPath }
-      })
+      return navigateTo('/auth/login')
     }
   }
 
@@ -41,11 +38,6 @@ export default defineNuxtRouteMiddleware(async (to) => {
   if (!authStore.isAuthenticated) {
     // Redirect to login page
     console.debug(`[Middleware] Redirecting to login, redirect=${to.fullPath}`)
-    return navigateTo({
-      path: '/auth/login',
-      query: {
-        redirect: to.fullPath
-      }
-    })
+    return navigateTo('/auth/login')
   }
 })

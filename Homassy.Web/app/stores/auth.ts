@@ -37,6 +37,16 @@ export const useAuthStore = defineStore('auth', {
   },
 
   actions: {
+    getTokensFromCookies() {
+      const accessTokenCookie = useCookie('homassy_access_token')
+      const refreshTokenCookie = useCookie('homassy_refresh_token')
+
+      return {
+        accessToken: accessTokenCookie.value as unknown as string | null,
+        refreshToken: refreshTokenCookie.value as unknown as string | null
+      }
+    },
+
     /**
      * Request verification code for login
      */
@@ -145,9 +155,14 @@ export const useAuthStore = defineStore('auth', {
      * Refresh access token
      */
     async refreshAccessToken() {
-      if (!this.accessToken || !this.refreshToken) {
+      const { accessToken, refreshToken } = this.getTokensFromCookies()
+      if (!accessToken || !refreshToken) {
         throw new Error('No tokens available for refresh')
       }
+
+      // Keep state in sync with cookie source of truth
+      this.accessToken = accessToken
+      this.refreshToken = refreshToken
 
       const { $api } = useNuxtApp()
 
@@ -155,8 +170,8 @@ export const useAuthStore = defineStore('auth', {
         const response = await $api<{ data: { accessToken: string; refreshToken: string; accessTokenExpiresAt: string; refreshTokenExpiresAt: string } }>('/api/v1/Auth/refresh', {
           method: 'POST',
           body: {
-            accessToken: this.accessToken,
-            refreshToken: this.refreshToken
+            accessToken,
+            refreshToken
           } as RefreshTokenRequest
         })
 
@@ -226,7 +241,13 @@ export const useAuthStore = defineStore('auth', {
      * Get current user info
      */
     async fetchCurrentUser() {
-      if (!this.accessToken) return null
+      const { accessToken } = this.getTokensFromCookies()
+      if (!accessToken) return null
+
+      // Sync state from cookie so downstream checks stay consistent
+      if (!this.accessToken) {
+        this.accessToken = accessToken
+      }
 
       const { $api } = useNuxtApp()
 

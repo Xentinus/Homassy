@@ -1,5 +1,5 @@
 ﻿/**
- * API Client wrapper with automatic token refresh and error handling
+ * API Client wrapper with toast/error handling
  */
 import type { ApiResponse } from '~/types/common'
 import { getErrorMessages } from '~/utils/errorCodes'
@@ -17,9 +17,6 @@ export const useApiClient = () => {
   const toast = useToast()
   const nuxtApp = useNuxtApp()
   const $api = nuxtApp.$api as any
-  
-  // Get auth store (will be used for token management)
-  const authStore = useAuthStore()
 
   /**
    * Make API request with automatic error handling and toast notifications
@@ -38,26 +35,22 @@ export const useApiClient = () => {
     } = options
 
     try {
-      // Get access token from auth store
-      const accessToken = authStore.accessToken
-
       // Build request headers
       const requestHeaders: Record<string, string> = {
-        'Content-Type': 'application/json',
         ...headers
       }
 
-      // Add authorization header if token exists
-      if (accessToken) {
-        requestHeaders['Authorization'] = `Bearer ${accessToken}`
+      // Only set JSON content type when body is not FormData and caller did not override
+      const isFormData = typeof FormData !== 'undefined' && body instanceof FormData
+      if (!isFormData && !requestHeaders['Content-Type']) {
+        requestHeaders['Content-Type'] = 'application/json'
       }
 
       // Make the API request
       const response = await ($api as any)(endpoint, {
         method,
         body,
-        headers: requestHeaders,
-        credentials: 'include' // Include cookies for httpOnly cookie support
+        headers: requestHeaders
       }) as ApiResponse<T>
 
       // Show success toast if enabled
@@ -72,57 +65,6 @@ export const useApiClient = () => {
 
       return response
     } catch (error: any) {
-      // Handle 401 Unauthorized - attempt token refresh
-      if (error.statusCode === 401 && authStore.refreshToken) {
-        try {
-          // Attempt to refresh the token
-          await authStore.refreshAccessToken()
-          
-          // Retry the original request with new token
-          const accessToken = authStore.accessToken
-          const requestHeaders: Record<string, string> = {
-            'Content-Type': 'application/json',
-            ...headers
-          }
-
-          if (accessToken) {
-            requestHeaders['Authorization'] = `Bearer ${accessToken}`
-          }
-
-          const retryResponse = await ($api as any)(endpoint, {
-            method,
-            body,
-            headers: requestHeaders,
-            credentials: 'include'
-          }) as ApiResponse<T>
-
-          if (showSuccessToast && successMessage) {
-            toast.add({
-              title: 'Success',
-              description: successMessage,
-              color: 'success',
-              icon: 'i-heroicons-check-circle'
-            })
-          }
-
-          return retryResponse
-        } catch (refreshError: unknown) {
-          // Refresh failed - logout user
-          await authStore.logout()
-          
-          if (showErrorToast) {
-            toast.add({
-              title: 'Session expired',
-              description: 'Please log in again.',
-              color: 'error',
-              icon: 'i-heroicons-x-circle'
-            })
-          }
-
-          throw refreshError
-        }
-      }
-
       // Handle API response errors with error codes
       if (error.data && error.data.errorCodes && Array.isArray(error.data.errorCodes)) {
         const errorMessages = getErrorMessages(error.data.errorCodes)
