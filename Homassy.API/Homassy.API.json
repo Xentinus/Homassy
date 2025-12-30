@@ -11,7 +11,7 @@
       "name": "MIT License",
       "url": "https://github.com/Xentinus/Homassy/blob/master/LICENSE"
     },
-    "version": "25.1229.1528-dev"
+    "version": "25.1230.1202-dev"
   },
   "paths": {
     "/api/v1/Auth/request-code": {
@@ -159,7 +159,7 @@
         "tags": [
           "Auth"
         ],
-        "summary": "Refreshes the access token using a valid refresh token.",
+        "summary": "Refreshes the access token using a valid refresh token.\r\nThis endpoint accepts EXPIRED access tokens and validates them for user identification only.\r\nThe refresh token must still be valid and belong to the user from the access token.",
         "requestBody": {
           "content": {
             "application/json": {

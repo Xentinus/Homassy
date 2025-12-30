@@ -5,7 +5,7 @@
     </UMain>
 
     <nav class="fixed inset-x-4 bottom-4 z-50">
-      <div class="flex items-center gap-2 rounded-2xl border border-gray-200/70 dark:border-gray-800/70 bg-background/80 backdrop-blur shadow-lg px-3 pt-2 pb-[calc(0.5rem+env(safe-area-inset-bottom))]">
+      <div class="flex items-center gap-2 rounded-2xl border border-primary-200 dark:border-primary-800 bg-background/80 backdrop-blur shadow-lg px-3 pt-2 pb-[calc(0.5rem+env(safe-area-inset-bottom))]">
         <NuxtLink
           v-for="item in navItems"
           :key="item.to"

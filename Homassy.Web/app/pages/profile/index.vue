@@ -71,10 +71,12 @@
 
     <!-- Action Buttons -->
     <div class="space-y-3 mt-8">
-      <UButton color="neutral" variant="soft" class="w-full" @click="toggleColorMode">
-        <UIcon :name="colorMode.value === 'dark' ? 'i-lucide-sun' : 'i-lucide-moon'" class="h-4 w-4 mr-2" />
-        {{ colorModeText }}
-      </UButton>
+      <ClientOnly>
+        <UButton color="neutral" variant="soft" class="w-full" @click="toggleColorMode">
+          <UIcon :name="colorMode.value === 'dark' ? 'i-lucide-sun' : 'i-lucide-moon'" class="h-4 w-4 mr-2" />
+          {{ colorModeText }}
+        </UButton>
+      </ClientOnly>
       <UButton color="error" variant="soft" class="w-full" @click="onLogout">
         <UIcon name="i-lucide-log-out" class="h-4 w-4 mr-2" />
         {{ $t('auth.logout') }}

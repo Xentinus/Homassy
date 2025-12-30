@@ -19,6 +19,10 @@ interface AuthState {
   accessTokenExpiresAt: string | null
   refreshTokenExpiresAt: string | null
   refreshTimer: ReturnType<typeof setTimeout> | null
+  isLoggingOut: boolean
+  logoutPromise: Promise<void> | null
+  isRefreshing: boolean
+  refreshPromise: Promise<any> | null
 }
 
 export const useAuthStore = defineStore('auth', {
@@ -28,7 +32,11 @@ export const useAuthStore = defineStore('auth', {
     refreshToken: null,
     accessTokenExpiresAt: null,
     refreshTokenExpiresAt: null,
-    refreshTimer: null
+    refreshTimer: null,
+    isLoggingOut: false,
+    logoutPromise: null,
+    isRefreshing: false,
+    refreshPromise: null
   }),
 
   getters: {
@@ -59,31 +67,36 @@ export const useAuthStore = defineStore('auth', {
      * Request verification code for login
      */
     async requestCode(email: string) {
-      const { $api, $i18n } = useNuxtApp()
-      const toast = useToast()
-
       try {
-        const response = await $api('/api/v1/Auth/request-code', {
-          method: 'POST',
-          body: { email } as LoginRequest
-        })
+        const { $api, $i18n } = useNuxtApp()
+        const toast = useToast()
 
-        toast.add({
-          title: $i18n.t('toast.verificationCodeSent'),
-          description: $i18n.t('toast.checkEmail'),
-          color: 'success',
-          icon: 'i-heroicons-envelope'
-        })
+        try {
+          const response = await $api('/api/v1/Auth/request-code', {
+            method: 'POST',
+            body: { email } as LoginRequest
+          })
 
-        return response
-      } catch (error) {
-        toast.add({
-          title: $i18n.t('toast.error'),
-          description: $i18n.t('toast.failedToSendCode'),
-          color: 'error',
-          icon: 'i-heroicons-x-circle'
-        })
-        throw error
+          toast.add({
+            title: $i18n.t('toast.verificationCodeSent'),
+            description: $i18n.t('toast.checkEmail'),
+            color: 'success',
+            icon: 'i-heroicons-envelope'
+          })
+
+          return response
+        } catch (error) {
+          toast.add({
+            title: $i18n.t('toast.error'),
+            description: $i18n.t('toast.failedToSendCode'),
+            color: 'error',
+            icon: 'i-heroicons-x-circle'
+          })
+          throw error
+        }
+      } catch (composableError) {
+        console.error('[Auth] Composables not available in requestCode', composableError)
+        throw composableError
       }
     },
 
@@ -91,35 +104,40 @@ export const useAuthStore = defineStore('auth', {
      * Verify login code and authenticate user
      */
     async verifyCode(email: string, code: string) {
-      const { $api, $i18n } = useNuxtApp()
-      const toast = useToast()
-
       try {
-        const response = await $api<{ data: AuthResponse }>('/api/v1/Auth/verify-code', {
-          method: 'POST',
-          body: { email, verificationCode: code } as VerifyLoginRequest
-        })
+        const { $api, $i18n } = useNuxtApp()
+        const toast = useToast()
 
-        if (response.data) {
-          this.setAuthData(response.data)
-
-          toast.add({
-            title: $i18n.t('toast.loggedIn'),
-            description: $i18n.t('toast.welcome', { name: response.data.user.name }),
-            color: 'success',
-            icon: 'i-heroicons-check-circle'
+        try {
+          const response = await $api<{ data: AuthResponse }>('/api/v1/Auth/verify-code', {
+            method: 'POST',
+            body: { email, verificationCode: code } as VerifyLoginRequest
           })
-        }
 
-        return response
-      } catch (error) {
-        toast.add({
-          title: $i18n.t('toast.loginError'),
-          description: $i18n.t('toast.invalidCode'),
-          color: 'error',
-          icon: 'i-heroicons-x-circle'
-        })
-        throw error
+          if (response.data) {
+            this.setAuthData(response.data)
+
+            toast.add({
+              title: $i18n.t('toast.loggedIn'),
+              description: $i18n.t('toast.welcome', { name: response.data.user.name }),
+              color: 'success',
+              icon: 'i-heroicons-check-circle'
+            })
+          }
+
+          return response
+        } catch (error) {
+          toast.add({
+            title: $i18n.t('toast.loginError'),
+            description: $i18n.t('toast.invalidCode'),
+            color: 'error',
+            icon: 'i-heroicons-x-circle'
+          })
+          throw error
+        }
+      } catch (composableError) {
+        console.error('[Auth] Composables not available in verifyCode', composableError)
+        throw composableError
       }
     },
 
@@ -127,42 +145,54 @@ export const useAuthStore = defineStore('auth', {
      * Register new user
      */
     async register(userData: CreateUserRequest) {
-      const { $api, $i18n } = useNuxtApp()
-      const toast = useToast()
-
       try {
-        const response = await $api<{ data: AuthResponse }>('/api/v1/Auth/register', {
-          method: 'POST',
-          body: userData
-        })
+        const { $api, $i18n } = useNuxtApp()
+        const toast = useToast()
 
-        if (response.data) {
-          this.setAuthData(response.data)
-
-          toast.add({
-            title: $i18n.t('toast.registered'),
-            description: $i18n.t('toast.accountCreated'),
-            color: 'success',
-            icon: 'i-heroicons-check-circle'
+        try {
+          const response = await $api<{ data: AuthResponse }>('/api/v1/Auth/register', {
+            method: 'POST',
+            body: userData
           })
-        }
 
-        return response
-      } catch (error) {
-        toast.add({
-          title: $i18n.t('toast.registrationError'),
-          description: $i18n.t('toast.failedToCreateAccount'),
-          color: 'error',
-          icon: 'i-heroicons-x-circle'
-        })
-        throw error
+          if (response.data) {
+            this.setAuthData(response.data)
+
+            toast.add({
+              title: $i18n.t('toast.registered'),
+              description: $i18n.t('toast.accountCreated'),
+              color: 'success',
+              icon: 'i-heroicons-check-circle'
+            })
+          }
+
+          return response
+        } catch (error) {
+          toast.add({
+            title: $i18n.t('toast.registrationError'),
+            description: $i18n.t('toast.failedToCreateAccount'),
+            color: 'error',
+            icon: 'i-heroicons-x-circle'
+          })
+          throw error
+        }
+      } catch (composableError) {
+        console.error('[Auth] Composables not available in register', composableError)
+        throw composableError
       }
     },
 
     /**
      * Refresh access token
+     * Guarded to prevent multiple concurrent refresh attempts
      */
     async refreshAccessToken() {
+      // Guard: If already refreshing, return the existing promise
+      if (this.isRefreshing && this.refreshPromise) {
+        console.debug('[Auth] Token refresh already in progress, returning existing promise')
+        return this.refreshPromise
+      }
+
       const { accessToken, refreshToken } = this.getTokensFromCookies()
       if (!accessToken || !refreshToken) {
         throw new Error('No tokens available for refresh')
@@ -172,77 +202,133 @@ export const useAuthStore = defineStore('auth', {
       this.accessToken = accessToken
       this.refreshToken = refreshToken
 
-      const { $api } = useNuxtApp()
+      // Set guard flag and create refresh promise
+      this.isRefreshing = true
 
-      try {
-        const response = await $api<{ data: { accessToken: string; refreshToken: string; accessTokenExpiresAt: string; refreshTokenExpiresAt: string } }>('/api/v1/Auth/refresh', {
-          method: 'POST',
-          body: {
-            accessToken,
-            refreshToken
-          } as RefreshTokenRequest
-        })
+      this.refreshPromise = (async () => {
+        const { $api } = useNuxtApp()
 
-        if (response.data) {
-          this.accessToken = response.data.accessToken
-          this.refreshToken = response.data.refreshToken
-          this.accessTokenExpiresAt = response.data.accessTokenExpiresAt
-          this.refreshTokenExpiresAt = response.data.refreshTokenExpiresAt
+        try {
+          const response = await $api<{ data: { accessToken: string; refreshToken: string; accessTokenExpiresAt: string; refreshTokenExpiresAt: string } }>('/api/v1/Auth/refresh', {
+            method: 'POST',
+            body: {
+              accessToken,
+              refreshToken
+            } as RefreshTokenRequest
+          })
 
-          // Save tokens + current user snapshot to cookies
-          this.saveToCookies()
+          if (response.data) {
+            this.accessToken = response.data.accessToken
+            this.refreshToken = response.data.refreshToken
+            this.accessTokenExpiresAt = response.data.accessTokenExpiresAt
+            this.refreshTokenExpiresAt = response.data.refreshTokenExpiresAt
 
-          // Schedule next refresh
-          this.scheduleTokenRefresh()
+            // Save tokens + current user snapshot to cookies
+            this.saveToCookies()
 
-          // Refresh user data only when token is refreshed
-          try {
-            const user = await this.fetchCurrentUser()
-            if (user) {
-              this.user = user
-              this.saveToCookies()
+            // Schedule next refresh
+            this.scheduleTokenRefresh()
+
+            // Refresh user data only when token is refreshed
+            try {
+              const user = await this.fetchCurrentUser()
+              if (user) {
+                this.user = user
+                this.saveToCookies()
+              }
+            } catch (error) {
+              console.error('Failed to refresh user after token refresh', error)
             }
-          } catch (error) {
-            console.error('Failed to refresh user after token refresh', error)
           }
-        }
 
-        return response
-      } catch (error) {
-        // Refresh failed - logout user
-        await this.logout()
-        throw error
-      }
+          return response
+        } catch (error) {
+          console.error('[Auth] Token refresh failed, initiating logout', error)
+          // Refresh failed - logout user
+          // This will be guarded, so only one logout happens even with multiple refresh failures
+          await this.logout()
+          throw error
+        } finally {
+          // Reset guard state
+          this.isRefreshing = false
+          this.refreshPromise = null
+        }
+      })()
+
+      return this.refreshPromise
     },
 
     /**
      * Logout user
+     * Guarded to prevent multiple concurrent logout calls
      */
     async logout() {
-      const { $api, $i18n } = useNuxtApp()
-      const toast = useToast()
-
-      try {
-        await $api('/api/v1/Auth/logout', {
-          method: 'POST'
-        })
-      } catch (error) {
-        // Continue with logout even if API call fails
-        console.error('Logout API call failed:', error)
+      // Guard: If already logging out, return the existing promise
+      if (this.isLoggingOut && this.logoutPromise) {
+        console.debug('[Auth] Logout already in progress, returning existing promise')
+        return this.logoutPromise
       }
 
-      // Clear state
-      this.clearAuthData()
+      // Guard: If already logged out (no tokens), just redirect
+      if (!this.accessToken && !this.refreshToken) {
+        console.debug('[Auth] Already logged out, redirecting to home')
+        if (typeof window !== 'undefined') {
+          navigateTo('/')
+        }
+        return
+      }
 
-      toast.add({
-        title: $i18n.t('toast.loggedOut'),
-        description: $i18n.t('toast.signedOut'),
-        color: 'success',
-        icon: 'i-heroicons-arrow-left-on-rectangle'
-      })
+      // Set guard flag and create logout promise
+      this.isLoggingOut = true
 
-      // Redirect to home
-      navigateTo('/')
+      this.logoutPromise = (async () => {
+        try {
+          const { $api, $i18n } = useNuxtApp()
+          const toast = useToast()
+
+          try {
+            // Try to call logout API endpoint
+            await $api('/api/v1/Auth/logout', {
+              method: 'POST'
+            })
+          } catch (error) {
+            // Continue with logout even if API call fails
+            console.error('Logout API call failed:', error)
+          }
+
+          // Clear state (this will clear tokens and auth data)
+          this.clearAuthData()
+
+          // Show toast notification ONCE
+          toast.add({
+            title: $i18n.t('toast.loggedOut'),
+            description: $i18n.t('toast.signedOut'),
+            color: 'success',
+            icon: 'i-heroicons-arrow-left-on-rectangle'
+          })
+
+          // Redirect to home ONCE
+          if (typeof window !== 'undefined') {
+            await navigateTo('/')
+          }
+        } catch (composableError) {
+          // If composables are not available (e.g., called from background process)
+          // Just clear auth data and redirect manually
+          console.warn('[Auth] Composables not available during logout, performing manual cleanup', composableError)
+          this.clearAuthData()
+          if (typeof window !== 'undefined') {
+            window.location.href = '/'
+          }
+        }
+      })()
+
+      try {
+        await this.logoutPromise
+      } finally {
+        // Reset guard state after logout completes
+        this.isLoggingOut = false
+        this.logoutPromise = null
+      }
     },
 
     /**
@@ -308,6 +394,12 @@ export const useAuthStore = defineStore('auth', {
         this.refreshTimer = null
       }
 
+      // Clear guard states
+      this.isLoggingOut = false
+      this.logoutPromise = null
+      this.isRefreshing = false
+      this.refreshPromise = null
+
       // Clear cookies
       this.clearCookies()
     },
@@ -339,10 +431,24 @@ export const useAuthStore = defineStore('auth', {
           secure: isSecure,
           path: '/'
         })
+        const accessTokenExpiresCookie = useCookie('homassy_access_token_expires', {
+          maxAge: 60 * 60 * 24 * 7,
+          sameSite: 'lax',
+          secure: isSecure,
+          path: '/'
+        })
+        const refreshTokenExpiresCookie = useCookie('homassy_refresh_token_expires', {
+          maxAge: 60 * 60 * 24 * 30,
+          sameSite: 'lax',
+          secure: isSecure,
+          path: '/'
+        })
 
         accessTokenCookie.value = this.accessToken
         refreshTokenCookie.value = this.refreshToken
         userCookie.value = this.user ? JSON.stringify(this.user) : null
+        accessTokenExpiresCookie.value = this.accessTokenExpiresAt
+        refreshTokenExpiresCookie.value = this.refreshTokenExpiresAt
       } catch (error) {
         console.warn('[Auth] Could not save to cookies - not in valid Nuxt context')
       }
@@ -356,6 +462,8 @@ export const useAuthStore = defineStore('auth', {
         const accessTokenCookie = useCookie('homassy_access_token')
         const refreshTokenCookie = useCookie('homassy_refresh_token')
         const userCookie = useCookie('homassy_user')
+        const accessTokenExpiresCookie = useCookie('homassy_access_token_expires')
+        const refreshTokenExpiresCookie = useCookie('homassy_refresh_token_expires')
 
         const preview = (v: unknown, len = 20): string => {
           if (!v) return 'null'
@@ -372,6 +480,8 @@ export const useAuthStore = defineStore('auth', {
         if (accessTokenCookie.value && refreshTokenCookie.value) {
           this.accessToken = accessTokenCookie.value as unknown as string
           this.refreshToken = refreshTokenCookie.value as unknown as string
+          this.accessTokenExpiresAt = accessTokenExpiresCookie.value as unknown as string | null
+          this.refreshTokenExpiresAt = refreshTokenExpiresCookie.value as unknown as string | null
 
           let parsedUser: UserInfo | null = null
           if (userCookie.value) {
@@ -401,8 +511,11 @@ export const useAuthStore = defineStore('auth', {
               const fetched = await this.fetchCurrentUser()
               if (fetched) {
                 this.user = fetched
-                this.saveToCookies()
-                console.debug('[Auth] User recovered and saved')
+                // Only save to cookies on client side (not during SSR)
+                if (import.meta.client) {
+                  this.saveToCookies()
+                  console.debug('[Auth] User recovered and saved')
+                }
               }
             } catch (e) {
               console.error('User recovery after cookie parse failed', e)
@@ -429,10 +542,14 @@ export const useAuthStore = defineStore('auth', {
         const accessTokenCookie = useCookie('homassy_access_token')
         const refreshTokenCookie = useCookie('homassy_refresh_token')
         const userCookie = useCookie('homassy_user')
+        const accessTokenExpiresCookie = useCookie('homassy_access_token_expires')
+        const refreshTokenExpiresCookie = useCookie('homassy_refresh_token_expires')
 
         accessTokenCookie.value = null
         refreshTokenCookie.value = null
         userCookie.value = null
+        accessTokenExpiresCookie.value = null
+        refreshTokenExpiresCookie.value = null
       } catch (error) {
         // If we can't access cookies (e.g., outside Nuxt context), skip clearing
         // The cookies will be cleared on next page load when context is available
@@ -459,14 +576,35 @@ export const useAuthStore = defineStore('auth', {
       const now = Date.now()
       const timeUntilExpiry = expiresAt - now
 
-      // Refresh 1 minute before expiration
-      const refreshTime = Math.max(timeUntilExpiry - 60000, 0)
+      // Refresh 5 minutes before expiration
+      const refreshTime = Math.max(timeUntilExpiry - 300000, 0) // 5 minutes = 300000ms
+
+      console.debug(`[Auth] Scheduling token refresh in ${Math.round(refreshTime / 1000)} seconds`)
 
       this.refreshTimer = setTimeout(async () => {
         try {
+          console.debug('[Auth] Automatic token refresh triggered')
           await this.refreshAccessToken()
         } catch (error) {
-          console.error('Automatic token refresh failed:', error)
+          console.error('[Auth] Automatic token refresh failed:', error)
+
+          // Retry every minute until expiration if refresh fails
+          if (this.accessTokenExpiresAt) {
+            const expiresAt = new Date(this.accessTokenExpiresAt).getTime()
+            const now = Date.now()
+            const timeUntilExpiry = expiresAt - now
+
+            if (timeUntilExpiry > 0) {
+              console.debug('[Auth] Scheduling retry in 1 minute...')
+              this.refreshTimer = setTimeout(async () => {
+                // Recursively call scheduleTokenRefresh to retry
+                this.scheduleTokenRefresh()
+              }, 60000) // Retry after 1 minute
+            } else {
+              console.error('[Auth] Token expired, cannot retry. Logging out...')
+              await this.logout()
+            }
+          }
         }
       }, refreshTime)
     }

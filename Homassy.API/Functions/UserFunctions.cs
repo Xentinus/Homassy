@@ -1169,13 +1169,13 @@ namespace Homassy.API.Functions
             }
         }
 
-        public async Task<RefreshTokenResponse> RefreshTokenAsync(string currentRefreshToken, CancellationToken cancellationToken = default)
+        public async Task<RefreshTokenResponse> RefreshTokenAsync(Guid userPublicId, string currentRefreshToken, CancellationToken cancellationToken = default)
         {
-            var userId = SessionInfo.GetUserId();
-            if (!userId.HasValue)
+            // Validate input parameters
+            if (userPublicId == Guid.Empty)
             {
-                Log.Warning("Invalid session: User ID not found");
-                throw new UserNotFoundException("User not found", ErrorCodes.UserNotFound);
+                Log.Warning("Invalid user public ID provided for token refresh");
+                throw new BadRequestException("Invalid user ID", ErrorCodes.ValidationInvalidRequest);
             }
 
             if (string.IsNullOrWhiteSpace(currentRefreshToken))
@@ -1183,15 +1183,27 @@ namespace Homassy.API.Functions
                 throw new BadRequestException("Refresh token is required", ErrorCodes.ValidationRefreshTokenRequired);
             }
 
-            var user = GetAllUserDataById(userId);
+            // Get user by public ID (not from SessionInfo)
+            var user = GetUserByPublicId(userPublicId);
 
-            if (user == null || user.Authentication == null)
+            if (user == null)
             {
-                Log.Warning($"User not found for userId {userId}");
+                Log.Warning($"User not found for publicId {userPublicId} during token refresh");
                 throw new UserNotFoundException("User not found", ErrorCodes.UserNotFound);
             }
 
-            var auth = user.Authentication;
+            var userId = user.Id;
+
+            // Get full user data including authentication
+            var fullUserData = GetAllUserDataById(userId);
+
+            if (fullUserData == null || fullUserData.Authentication == null)
+            {
+                Log.Warning($"User authentication data not found for userId {userId}");
+                throw new UserNotFoundException("User authentication not found", ErrorCodes.UserAuthNotFound);
+            }
+
+            var auth = fullUserData.Authentication;
 
             var isCurrentToken = SecureCompare.ConstantTimeEquals(auth.RefreshToken, currentRefreshToken);
 
@@ -1205,7 +1217,7 @@ namespace Homassy.API.Functions
                 if (auth.TokenFamily.HasValue)
                 {
                     Log.Warning($"Potential token theft detected for user {userId}. Token reuse attempted. Invalidating all tokens.");
-                    await InvalidateAllUserTokensAsync(userId.Value, cancellationToken);
+                    await InvalidateAllUserTokensAsync(userId, cancellationToken);
                     throw new InvalidCredentialsException("Invalid refresh token. All sessions invalidated for security.", ErrorCodes.AuthTokenTheftDetected);
                 }
 

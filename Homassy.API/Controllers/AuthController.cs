@@ -77,8 +77,9 @@ namespace Homassy.API.Controllers
 
         /// <summary>
         /// Refreshes the access token using a valid refresh token.
+        /// This endpoint accepts EXPIRED access tokens and validates them for user identification only.
+        /// The refresh token must still be valid and belong to the user from the access token.
         /// </summary>
-        [Authorize]
         [HttpPost("refresh")]
         [MapToApiVersion(1.0)]
         [ProducesResponseType(typeof(ApiResponse<RefreshTokenResponse>), StatusCodes.Status200OK)]
@@ -91,8 +92,55 @@ namespace Homassy.API.Controllers
                 return BadRequest(ApiResponse.ErrorResponse(ErrorCodes.ValidationInvalidRequest));
             }
 
-            var refreshResponse = await new UserFunctions().RefreshTokenAsync(request.RefreshToken, cancellationToken);
-            return Ok(ApiResponse<RefreshTokenResponse>.SuccessResponse(refreshResponse));
+            try
+            {
+                // Extract user ID from expired access token
+                var principal = JwtService.GetPrincipalFromExpiredToken(request.AccessToken);
+
+                if (principal == null)
+                {
+                    Log.Warning("Failed to extract claims from expired access token");
+                    return Unauthorized(ApiResponse.ErrorResponse(ErrorCodes.AuthInvalidCredentials));
+                }
+
+                var publicIdClaim = principal.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+
+                if (string.IsNullOrWhiteSpace(publicIdClaim) || !Guid.TryParse(publicIdClaim, out var userPublicId))
+                {
+                    Log.Warning("Invalid or missing user ID claim in access token");
+                    return Unauthorized(ApiResponse.ErrorResponse(ErrorCodes.AuthInvalidCredentials));
+                }
+
+                // Pass the extracted user ID to the refresh function
+                var refreshResponse = await new UserFunctions().RefreshTokenAsync(
+                    userPublicId,
+                    request.RefreshToken,
+                    cancellationToken
+                );
+
+                return Ok(ApiResponse<RefreshTokenResponse>.SuccessResponse(refreshResponse));
+            }
+            catch (InvalidCredentialsException ex)
+            {
+                return Unauthorized(ApiResponse.ErrorResponse(ex.ErrorCode));
+            }
+            catch (ExpiredCredentialsException ex)
+            {
+                return Unauthorized(ApiResponse.ErrorResponse(ex.ErrorCode));
+            }
+            catch (UserNotFoundException ex)
+            {
+                return Unauthorized(ApiResponse.ErrorResponse(ex.ErrorCode));
+            }
+            catch (BadRequestException ex)
+            {
+                return BadRequest(ApiResponse.ErrorResponse(ex.ErrorCode));
+            }
+            catch (Exception ex)
+            {
+                Log.Error(ex, "Unexpected error during token refresh");
+                return StatusCode(500, ApiResponse.ErrorResponse(ErrorCodes.SystemUnexpectedError));
+            }
         }
 
         /// <summary>
