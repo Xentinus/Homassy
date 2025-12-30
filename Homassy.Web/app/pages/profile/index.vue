@@ -44,36 +44,36 @@
       <input ref="fileInput" type="file" accept="image/*" class="hidden" @change="onFileSelected">
     </div>
 
-    <!-- Settings Card -->
-    <NuxtLink to="/profile/settings">
-      <div class="rounded-lg border border-primary-200/50 dark:border-primary-700/50 p-4 relative hover:border-primary-300 dark:hover:border-primary-700 transition-colors cursor-pointer mb-2 flex items-center gap-3">
-        <UIcon name="i-lucide-settings" class="h-7 w-7 text-primary-500 mr-2" />
-        <div class="flex-1">
-          <h2 class="text-base font-semibold mb-1">{{ $t('profile.settings') }}</h2>
-          <div class="space-y-2 text-sm">
-            <div class="flex items-center">
-              <span class="text-gray-600 dark:text-gray-400 flex-1">{{ $t('profile.language') }}</span>
-              <span class="font-medium text-right min-w-[80px] w-full justify-end flex">{{ userProfile?.language }}</span>
-            </div>
-            <div class="flex items-center">
-              <span class="text-gray-600 dark:text-gray-400 flex-1">{{ $t('profile.currency') }}</span>
-              <span class="font-medium text-right min-w-[80px] w-full justify-end flex">{{ userProfile?.currency }}</span>
-            </div>
-            <div class="flex items-center">
-              <span class="text-gray-600 dark:text-gray-400 flex-1">{{ $t('profile.timeZone') }}</span>
-              <span class="font-medium text-right min-w-[80px] w-full justify-end flex">{{ userProfile?.timeZone }}</span>
+    <!-- Cards Grid: Settings, Family, ... -->
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mt-8">
+      <!-- Settings Card -->
+      <NuxtLink to="/profile/settings">
+        <div class="rounded-lg border border-primary-200/50 dark:border-primary-700/50 p-4 relative hover:border-primary-300 dark:hover:border-primary-700 transition-colors cursor-pointer flex items-center gap-3 h-full">
+          <UIcon name="i-lucide-settings" class="h-7 w-7 text-primary-500 mr-2" />
+          <div class="flex-1">
+            <h2 class="text-base font-semibold mb-1">{{ $t('profile.settings') }}</h2>
+            <div class="space-y-2 text-sm">
+              <div class="flex items-center">
+                <span class="text-gray-600 dark:text-gray-400 flex-1">{{ $t('profile.language') }}</span>
+                <span class="font-medium text-right min-w-[80px] w-full justify-end flex">{{ userProfile?.language }}</span>
+              </div>
+              <div class="flex items-center">
+                <span class="text-gray-600 dark:text-gray-400 flex-1">{{ $t('profile.currency') }}</span>
+                <span class="font-medium text-right min-w-[80px] w-full justify-end flex">{{ userProfile?.currency }}</span>
+              </div>
+              <div class="flex items-center">
+                <span class="text-gray-600 dark:text-gray-400 flex-1">{{ $t('profile.timeZone') }}</span>
+                <span class="font-medium text-right min-w-[80px] w-full justify-end flex">{{ userProfile?.timeZone }}</span>
+              </div>
             </div>
           </div>
+          <UIcon name="i-lucide-chevron-right" class="absolute top-3 right-3 text-gray-400" />
         </div>
-        <UIcon name="i-lucide-chevron-right" class="absolute top-3 right-3 text-gray-400" />
-      </div>
-    </NuxtLink>
+      </NuxtLink>
 
-    <!-- Family Card & Action Buttons -->
-    <div class="mt-10">
       <!-- Family Card -->
       <NuxtLink to="/profile/family">
-        <div class="rounded-lg border border-primary-200/50 dark:border-primary-700/50 p-4 relative hover:border-primary-300 dark:hover:border-primary-700 transition-colors cursor-pointer mb-2 flex items-center gap-3">
+        <div class="rounded-lg border border-primary-200/50 dark:border-primary-700/50 p-4 relative hover:border-primary-300 dark:hover:border-primary-700 transition-colors cursor-pointer flex items-center gap-3 h-full">
           <UIcon name="i-lucide-users" class="h-7 w-7 text-primary-500 mr-2" />
           <div>
             <h2 class="text-base font-semibold mb-1">{{ $t('profile.family.title') }}</h2>
@@ -82,20 +82,22 @@
           <UIcon name="i-lucide-chevron-right" class="absolute top-3 right-3 text-gray-400" />
         </div>
       </NuxtLink>
-      <!-- Action Buttons Spacing -->
-      <div class="mt-8 space-y-3">
-        <!-- Light/Dark mode toggle -->
-        <ClientOnly>
-          <UButton color="neutral" variant="soft" class="w-full" @click="toggleColorMode">
-            <UIcon :name="colorMode.value === 'dark' ? 'i-lucide-sun' : 'i-lucide-moon'" class="h-4 w-4 mr-2" />
-            {{ colorModeText }}
-          </UButton>
-        </ClientOnly>
-        <UButton color="error" variant="soft" class="w-full" @click="onLogout">
-          <UIcon name="i-lucide-log-out" class="h-4 w-4 mr-2" />
-          {{ $t('auth.logout') }}
+      <!-- Itt jöhetnek további cardok -->
+    </div>
+
+    <!-- Action Buttons Spacing -->
+    <div class="mt-8 space-y-3">
+      <!-- Light/Dark mode toggle -->
+      <ClientOnly>
+        <UButton color="neutral" variant="soft" class="w-full" @click="toggleColorMode">
+          <UIcon :name="colorMode.value === 'dark' ? 'i-lucide-sun' : 'i-lucide-moon'" class="h-4 w-4 mr-2" />
+          {{ colorModeText }}
         </UButton>
-      </div>
+      </ClientOnly>
+      <UButton color="error" variant="soft" class="w-full" @click="onLogout">
+        <UIcon name="i-lucide-log-out" class="h-4 w-4 mr-2" />
+        {{ $t('auth.logout') }}
+      </UButton>
     </div>
   </div>
 </template>
