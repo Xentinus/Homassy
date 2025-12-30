@@ -109,6 +109,15 @@
       "codeLabel": "Invite code",
       "nameLabel": "Family name",
       "descriptionLabel": "Description"
+    },
+    "notifications": {
+      "title": "Notifications",
+      "cardDescription": "Manage your notification preferences.",
+      "emailNotifications": "Email notifications",
+      "emailWeeklySummary": "Weekly email summary",
+      "pushNotifications": "Push notifications",
+      "pushWeeklySummary": "Weekly push summary",
+      "inAppNotifications": "In-app notifications"
     }
   },
   "settings": {
@@ -134,6 +143,7 @@
     "settingsUpdatedSuccess": "Settings updated successfully",
     "profilePictureUploaded": "Profile picture uploaded successfully",
     "profilePictureDeleted": "Profile picture deleted successfully",
+    "notificationPreferencesUpdated": "Notification preferences updated successfully",
     "unknownError": "An unknown error occurred"
   }
 }

@@ -5,7 +5,9 @@
 import type {
   UserProfileResponse,
   UpdateUserSettingsRequest,
-  UploadUserProfileImageRequest
+  UploadUserProfileImageRequest,
+  NotificationPreferencesResponse,
+  UpdateNotificationPreferencesRequest
 } from '~/types/user'
 
 export const useUserApi = () => {
@@ -60,10 +62,33 @@ export const useUserApi = () => {
     )
   }
 
+  /**
+   * Get notification preferences
+   */
+  const getNotificationPreferences = async () => {
+    return await client.get<NotificationPreferencesResponse>('/api/v1/User/notification')
+  }
+
+  /**
+   * Update notification preferences
+   */
+  const updateNotificationPreferences = async (preferences: UpdateNotificationPreferencesRequest) => {
+    return await client.put<void>(
+      '/api/v1/User/notification',
+      preferences,
+      {
+        showSuccessToast: true,
+        successMessage: $i18n.t('toast.notificationPreferencesUpdated')
+      }
+    )
+  }
+
   return {
     getUserProfile,
     updateUserSettings,
     uploadProfilePicture,
-    deleteProfilePicture
+    deleteProfilePicture,
+    getNotificationPreferences,
+    updateNotificationPreferences
   }
 }

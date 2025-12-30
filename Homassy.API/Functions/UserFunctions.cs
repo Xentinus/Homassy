@@ -1627,6 +1627,98 @@ namespace Homassy.API.Functions
         }
         #endregion
 
+        #region Notification Preferences Management
+        public NotificationPreferencesResponse GetNotificationPreferencesAsync()
+        {
+            var userId = SessionInfo.GetUserId();
+            if (!userId.HasValue)
+            {
+                Log.Warning("Invalid session: User ID not found");
+                throw new UserNotFoundException("User not found", ErrorCodes.UserNotFound);
+            }
+
+            var prefs = GetUserNotificationPreferencesByUserId(userId.Value);
+
+            if (prefs == null)
+            {
+                Log.Warning($"Notification preferences not found for userId {userId}");
+                throw new UserNotFoundException("Notification preferences not found", ErrorCodes.UserNotFound);
+            }
+
+            var response = new NotificationPreferencesResponse
+            {
+                EmailNotificationsEnabled = prefs.EmailNotificationsEnabled,
+                EmailWeeklySummaryEnabled = prefs.EmailWeeklySummaryEnabled,
+                PushNotificationsEnabled = prefs.PushNotificationsEnabled,
+                PushWeeklySummaryEnabled = prefs.PushWeeklySummaryEnabled,
+                InAppNotificationsEnabled = prefs.InAppNotificationsEnabled
+            };
+
+            return response;
+        }
+
+        public async Task UpdateNotificationPreferencesAsync(UpdateNotificationPreferencesRequest request, CancellationToken cancellationToken = default)
+        {
+            var userId = SessionInfo.GetUserId();
+            if (!userId.HasValue)
+            {
+                Log.Warning("Invalid session: User ID not found");
+                throw new UserNotFoundException("User not found", ErrorCodes.UserNotFound);
+            }
+
+            var context = new HomassyDbContext();
+            await using var transaction = await context.Database.BeginTransactionAsync(cancellationToken);
+            try
+            {
+                var prefs = await context.Set<UserNotificationPreferences>()
+                    .FirstOrDefaultAsync(p => p.UserId == userId, cancellationToken);
+
+                if (prefs == null)
+                {
+                    Log.Warning($"Notification preferences not found for userId {userId}");
+                    throw new UserNotFoundException("Notification preferences not found", ErrorCodes.UserNotFound);
+                }
+
+                // Update only provided values (partial update)
+                if (request.EmailNotificationsEnabled.HasValue)
+                {
+                    prefs.EmailNotificationsEnabled = request.EmailNotificationsEnabled.Value;
+                }
+
+                if (request.EmailWeeklySummaryEnabled.HasValue)
+                {
+                    prefs.EmailWeeklySummaryEnabled = request.EmailWeeklySummaryEnabled.Value;
+                }
+
+                if (request.PushNotificationsEnabled.HasValue)
+                {
+                    prefs.PushNotificationsEnabled = request.PushNotificationsEnabled.Value;
+                }
+
+                if (request.PushWeeklySummaryEnabled.HasValue)
+                {
+                    prefs.PushWeeklySummaryEnabled = request.PushWeeklySummaryEnabled.Value;
+                }
+
+                if (request.InAppNotificationsEnabled.HasValue)
+                {
+                    prefs.InAppNotificationsEnabled = request.InAppNotificationsEnabled.Value;
+                }
+
+                await context.SaveChangesAsync(cancellationToken);
+                await transaction.CommitAsync(cancellationToken);
+
+                Log.Information($"User {userId} updated notification preferences");
+            }
+            catch (Exception ex)
+            {
+                await transaction.RollbackAsync(cancellationToken);
+                Log.Error(ex, $"Error updating notification preferences for user {userId}");
+                throw;
+            }
+        }
+        #endregion
+
         #region Email Helpers
         private static async Task SendEmailAsync(EmailTask task)
         {

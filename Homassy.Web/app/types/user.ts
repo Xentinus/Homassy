@@ -37,3 +37,19 @@ export interface UserProfileImageInfo {
   height: number
   fileSizeBytes: number
 }
+
+export interface NotificationPreferencesResponse {
+  emailNotificationsEnabled: boolean
+  emailWeeklySummaryEnabled: boolean
+  pushNotificationsEnabled: boolean
+  pushWeeklySummaryEnabled: boolean
+  inAppNotificationsEnabled: boolean
+}
+
+export interface UpdateNotificationPreferencesRequest {
+  emailNotificationsEnabled?: boolean
+  emailWeeklySummaryEnabled?: boolean
+  pushNotificationsEnabled?: boolean
+  pushWeeklySummaryEnabled?: boolean
+  inAppNotificationsEnabled?: boolean
+}

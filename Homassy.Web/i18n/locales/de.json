@@ -109,6 +109,15 @@
       "codeLabel": "Einladungscode",
       "nameLabel": "Familienname",
       "descriptionLabel": "Beschreibung"
+    },
+    "notifications": {
+      "title": "Benachrichtigungen",
+      "cardDescription": "Verwalten Sie Ihre Benachrichtigungseinstellungen.",
+      "emailNotifications": "E-Mail-Benachrichtigungen",
+      "emailWeeklySummary": "Wöchentliche E-Mail-Zusammenfassung",
+      "pushNotifications": "Push-Benachrichtigungen",
+      "pushWeeklySummary": "Wöchentliche Push-Zusammenfassung",
+      "inAppNotifications": "In-App-Benachrichtigungen"
     }
   },
   "settings": {
@@ -134,6 +143,7 @@
     "settingsUpdatedSuccess": "Einstellungen erfolgreich aktualisiert",
     "profilePictureUploaded": "Profilbild erfolgreich hochgeladen",
     "profilePictureDeleted": "Profilbild erfolgreich gelöscht",
+    "notificationPreferencesUpdated": "Benachrichtigungseinstellungen erfolgreich aktualisiert",
     "unknownError": "Ein unbekannter Fehler ist aufgetreten"
   }
 }

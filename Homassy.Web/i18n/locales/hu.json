@@ -109,6 +109,15 @@
       "codeLabel": "Meghívó kód",
       "nameLabel": "Család neve",
       "descriptionLabel": "Leírás"
+    },
+    "notifications": {
+      "title": "Értesítések",
+      "cardDescription": "Kezeld az értesítési beállításaidat.",
+      "emailNotifications": "Email értesítések",
+      "emailWeeklySummary": "Heti email összefoglaló",
+      "pushNotifications": "Push értesítések",
+      "pushWeeklySummary": "Heti push összefoglaló",
+      "inAppNotifications": "Alkalmazáson belüli értesítések"
     }
   },
   "settings": {
@@ -134,6 +143,7 @@
     "settingsUpdatedSuccess": "Beállítások sikeresen frissítve",
     "profilePictureUploaded": "Profilkép sikeresen feltöltve",
     "profilePictureDeleted": "Profilkép sikeresen törölve",
+    "notificationPreferencesUpdated": "Értesítési beállítások sikeresen frissítve",
     "unknownError": "Ismeretlen hiba történt"
   }
 }

@@ -86,5 +86,37 @@ namespace Homassy.API.Controllers
             await new ImageFunctions(_imageProcessingService).DeleteUserProfileImageAsync(cancellationToken);
             return Ok(ApiResponse.SuccessResponse());
         }
+
+        /// <summary>
+        /// Gets the current user's notification preferences.
+        /// </summary>
+        [HttpGet("notification")]
+        [MapToApiVersion(1.0)]
+        [ProducesResponseType(typeof(ApiResponse<NotificationPreferencesResponse>), StatusCodes.Status200OK)]
+        [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status404NotFound)]
+        public IActionResult GetNotificationPreferences()
+        {
+            var preferencesResponse = new UserFunctions().GetNotificationPreferencesAsync();
+            return Ok(ApiResponse<NotificationPreferencesResponse>.SuccessResponse(preferencesResponse));
+        }
+
+        /// <summary>
+        /// Updates the current user's notification preferences.
+        /// </summary>
+        [HttpPut("notification")]
+        [MapToApiVersion(1.0)]
+        [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status200OK)]
+        [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status404NotFound)]
+        public async Task<IActionResult> UpdateNotificationPreferences([FromBody] UpdateNotificationPreferencesRequest request, CancellationToken cancellationToken)
+        {
+            if (!ModelState.IsValid)
+            {
+                return BadRequest(ApiResponse.ErrorResponse(ErrorCodes.ValidationInvalidRequest));
+            }
+
+            await new UserFunctions().UpdateNotificationPreferencesAsync(request, cancellationToken);
+            return Ok(ApiResponse.SuccessResponse());
+        }
     }
 }
