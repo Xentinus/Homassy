@@ -1422,6 +1422,15 @@ namespace Homassy.API.Functions
                     .ToList();
             }
 
+            // Apply search filter if SearchText is provided
+            if (!string.IsNullOrWhiteSpace(pagination.SearchText))
+            {
+                var normalizedSearch = pagination.SearchText.NormalizeForSearch();
+                shoppingLists = shoppingLists.Where(s =>
+                    s.Name.NormalizeForSearch().Contains(normalizedSearch)
+                ).ToList();
+            }
+
             var shoppingListInfos = shoppingLists.Select(s => new ShoppingListInfo
             {
                 PublicId = s.PublicId,

@@ -475,6 +475,17 @@ namespace Homassy.API.Functions
                     .ToList();
             }
 
+            // Apply search filter if SearchText is provided
+            if (!string.IsNullOrWhiteSpace(pagination.SearchText))
+            {
+                var normalizedSearch = pagination.SearchText.NormalizeForSearch();
+                products = products.Where(p =>
+                    p.Name.NormalizeForSearch().Contains(normalizedSearch) ||
+                    p.Brand.NormalizeForSearch().Contains(normalizedSearch) ||
+                    p.Barcode.NormalizeForSearch().Contains(normalizedSearch)
+                ).ToList();
+            }
+
             var productInfos = products.Select(p =>
             {
                 var customization = userId.HasValue ? GetCustomizationByProductAndUser(p.Id, userId.Value) : null;
@@ -845,6 +856,17 @@ namespace Homassy.API.Functions
             var familyId = SessionInfo.GetFamilyId();
 
             var products = GetProductsByUserAndFamily(userId.Value, familyId);
+
+            // Apply search filter if SearchText is provided
+            if (!string.IsNullOrWhiteSpace(pagination.SearchText))
+            {
+                var normalizedSearch = pagination.SearchText.NormalizeForSearch();
+                products = products.Where(p =>
+                    p.Name.NormalizeForSearch().Contains(normalizedSearch) ||
+                    p.Brand.NormalizeForSearch().Contains(normalizedSearch) ||
+                    p.Barcode.NormalizeForSearch().Contains(normalizedSearch)
+                ).ToList();
+            }
 
             var detailedProductInfos = products.Select(product =>
             {

@@ -1,4 +1,4 @@
-using System.ComponentModel.DataAnnotations;
+﻿using System.ComponentModel.DataAnnotations;
 
 namespace Homassy.API.Models.Common;
 
@@ -11,4 +11,5 @@ public class PaginationRequest
     public int PageSize { get; init; } = 20;
     public bool ReturnAll { get; init; } = false;
     public int Skip => (PageNumber - 1) * PageSize;
+    public string? SearchText { get; init; }
 }

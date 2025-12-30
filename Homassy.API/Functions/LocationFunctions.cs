@@ -304,6 +304,17 @@ namespace Homassy.API.Functions
             var familyId = SessionInfo.GetFamilyId();
             var shoppingLocations = GetShoppingLocationsByUserAndFamily(userId.Value, familyId);
 
+            // Apply search filter if SearchText is provided
+            if (!string.IsNullOrWhiteSpace(pagination.SearchText))
+            {
+                var normalizedSearch = pagination.SearchText.NormalizeForSearch();
+                shoppingLocations = shoppingLocations.Where(s =>
+                    s.Name.NormalizeForSearch().Contains(normalizedSearch) ||
+                    s.Address.NormalizeForSearch().Contains(normalizedSearch) ||
+                    s.City.NormalizeForSearch().Contains(normalizedSearch)
+                ).ToList();
+            }
+
             var shoppingLocationInfos = shoppingLocations.Select(s => new ShoppingLocationInfo
             {
                 PublicId = s.PublicId,
@@ -339,6 +350,15 @@ namespace Homassy.API.Functions
 
             var familyId = SessionInfo.GetFamilyId();
             var storageLocations = GetStorageLocationsByUserAndFamily(userId.Value, familyId);
+
+            // Apply search filter if SearchText is provided
+            if (!string.IsNullOrWhiteSpace(pagination.SearchText))
+            {
+                var normalizedSearch = pagination.SearchText.NormalizeForSearch();
+                storageLocations = storageLocations.Where(s =>
+                    s.Name.NormalizeForSearch().Contains(normalizedSearch)
+                ).ToList();
+            }
 
             var storageLocationInfos = storageLocations.Select(s => new StorageLocationInfo
             {
