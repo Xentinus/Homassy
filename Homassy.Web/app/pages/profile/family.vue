@@ -15,10 +15,16 @@
       </div>
     </div>
 
-    <div v-if="loading" class="flex justify-center items-center py-10">
-      <span>{{ $t('common.loading') }}</span>
-    </div>
-
+    <template v-if="loading">
+      <USkeleton class="h-8 w-1/2 rounded mb-2 mt-4" />
+      <USkeleton class="h-4 w-2/3 rounded mb-4" />
+      <USkeleton class="h-16 w-16 rounded-full mb-2" />
+      <USkeleton class="h-6 w-32 mb-2" />
+      <USkeleton class="h-4 w-40 mb-2" />
+      <USkeleton class="h-4 w-24 mb-2" />
+      <USkeleton class="h-8 w-1/3 mb-2" />
+      <USkeleton class="h-10 w-full rounded-lg mt-6" />
+    </template>
     <div v-else-if="family" class="space-y-6">
       <div class="rounded-lg border border-primary-200/50 dark:border-primary-700/50 p-4 flex flex-col items-center">
         <div v-if="family.familyPictureBase64" class="mb-2">

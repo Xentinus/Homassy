@@ -8,92 +8,106 @@
 
     <!-- Avatar Section -->
     <div class="flex flex-col items-center gap-4">
-      <!-- Avatar with delete icon overlay -->
-      <div class="relative inline-block">
-        <div class="border-4 border-primary-500 rounded-full p-1">
-          <UAvatar
-            :src="avatarSrc"
-            :alt="primaryName || 'User'"
-            :text="avatarInitial"
-            class="h-40 w-40 text-6xl"
+      <template v-if="loading">
+        <USkeleton class="h-40 w-40 rounded-full" />
+        <USkeleton class="h-6 w-32 mt-2" />
+        <USkeleton class="h-4 w-24 mt-1" />
+      </template>
+      <template v-else>
+        <!-- Avatar with delete icon overlay -->
+        <div class="relative inline-block">
+          <div class="border-4 border-primary-500 rounded-full p-1">
+            <UAvatar
+              :src="avatarSrc"
+              :alt="primaryName || 'User'"
+              :text="avatarInitial"
+              class="h-40 w-40 text-6xl"
+            />
+          </div>
+          <UButton
+            v-if="hasAvatar"
+            icon="i-lucide-trash-2"
+            color="error"
+            size="xs"
+            class="absolute -top-1 -right-1 shadow-md rounded-full"
+            @click="onDeleteAvatar"
           />
         </div>
-        <UButton
-          v-if="hasAvatar"
-          icon="i-lucide-trash-2"
-          color="error"
-          size="xs"
-          class="absolute -top-1 -right-1 shadow-md rounded-full"
-          @click="onDeleteAvatar"
-        />
-      </div>
 
-      <!-- Name Display -->
-      <div class="text-center">
-        <p class="text-2xl font-semibold">{{ primaryName }}</p>
-        <p v-if="secondaryName" class="text-sm text-gray-600 dark:text-gray-400 mt-1">
-          {{ secondaryName }}
-        </p>
-      </div>
+        <!-- Name Display -->
+        <div class="text-center">
+          <p class="text-2xl font-semibold">{{ primaryName }}</p>
+          <p v-if="secondaryName" class="text-sm text-gray-600 dark:text-gray-400 mt-1">
+            {{ secondaryName }}
+          </p>
+        </div>
 
-      <!-- Upload Button -->
-      <UButton v-if="!hasAvatar" color="primary" variant="soft" class="w-full" @click="triggerFileSelect">
-        <UIcon name="i-lucide-upload" class="h-4 w-4 mr-2" />
-        {{ $t('profile.uploadAvatar') }}
-      </UButton>
-      <input ref="fileInput" type="file" accept="image/*" class="hidden" @change="onFileSelected">
+        <!-- Upload Button -->
+        <UButton v-if="!hasAvatar" color="primary" variant="soft" class="w-full" @click="triggerFileSelect">
+          <UIcon name="i-lucide-upload" class="h-4 w-4 mr-2" />
+          {{ $t('profile.uploadAvatar') }}
+        </UButton>
+        <input ref="fileInput" type="file" accept="image/*" class="hidden" @change="onFileSelected">
+      </template>
     </div>
 
     <!-- Cards Grid: Settings, Family, ... -->
     <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mt-8">
-      <!-- Settings Card -->
-      <NuxtLink to="/profile/settings">
-        <div class="rounded-lg border border-primary-200/50 dark:border-primary-700/50 p-4 relative hover:border-primary-300 dark:hover:border-primary-700 transition-colors cursor-pointer flex items-center gap-3 h-full">
-          <UIcon name="i-lucide-settings" class="h-7 w-7 text-primary-500 mr-2" />
-          <div class="flex-1">
-            <h2 class="text-base font-semibold mb-1">{{ $t('profile.settings') }}</h2>
-            <div class="space-y-2 text-sm">
-              <div class="flex items-center">
-                <span class="text-gray-600 dark:text-gray-400 flex-1">{{ $t('profile.language') }}</span>
-                <span class="font-medium text-right min-w-[80px] w-full justify-end flex">{{ userProfile?.language }}</span>
-              </div>
-              <div class="flex items-center">
-                <span class="text-gray-600 dark:text-gray-400 flex-1">{{ $t('profile.currency') }}</span>
-                <span class="font-medium text-right min-w-[80px] w-full justify-end flex">{{ userProfile?.currency }}</span>
-              </div>
-              <div class="flex items-center">
-                <span class="text-gray-600 dark:text-gray-400 flex-1">{{ $t('profile.timeZone') }}</span>
-                <span class="font-medium text-right min-w-[80px] w-full justify-end flex">{{ userProfile?.timeZone }}</span>
+      <template v-if="loading">
+        <USkeleton class="h-32 w-full rounded-lg" />
+        <USkeleton class="h-32 w-full rounded-lg" />
+        <USkeleton class="h-32 w-full rounded-lg" />
+      </template>
+      <template v-else>
+        <!-- Settings Card -->
+        <NuxtLink to="/profile/settings">
+          <div class="rounded-lg border border-primary-200/50 dark:border-primary-700/50 p-4 relative hover:border-primary-300 dark:hover:border-primary-700 transition-colors cursor-pointer flex items-center gap-3 h-full">
+            <UIcon name="i-lucide-settings" class="h-7 w-7 text-primary-500 mr-2" />
+            <div class="flex-1">
+              <h2 class="text-base font-semibold mb-1">{{ $t('profile.settings') }}</h2>
+              <div class="space-y-2 text-sm">
+                <div class="flex items-center">
+                  <span class="text-gray-600 dark:text-gray-400 flex-1">{{ $t('profile.language') }}</span>
+                  <span class="font-medium text-right min-w-[80px] w-full justify-end flex">{{ userProfile?.language }}</span>
+                </div>
+                <div class="flex items-center">
+                  <span class="text-gray-600 dark:text-gray-400 flex-1">{{ $t('profile.currency') }}</span>
+                  <span class="font-medium text-right min-w-[80px] w-full justify-end flex">{{ userProfile?.currency }}</span>
+                </div>
+                <div class="flex items-center">
+                  <span class="text-gray-600 dark:text-gray-400 flex-1">{{ $t('profile.timeZone') }}</span>
+                  <span class="font-medium text-right min-w-[80px] w-full justify-end flex">{{ userProfile?.timeZone }}</span>
+                </div>
               </div>
             </div>
+            <UIcon name="i-lucide-chevron-right" class="absolute top-3 right-3 text-gray-400" />
           </div>
-          <UIcon name="i-lucide-chevron-right" class="absolute top-3 right-3 text-gray-400" />
-        </div>
-      </NuxtLink>
+        </NuxtLink>
 
-      <!-- Family Card -->
-      <NuxtLink to="/profile/family">
-        <div class="rounded-lg border border-primary-200/50 dark:border-primary-700/50 p-4 relative hover:border-primary-300 dark:hover:border-primary-700 transition-colors cursor-pointer flex items-center gap-3 h-full">
-          <UIcon name="i-lucide-users" class="h-7 w-7 text-primary-500 mr-2" />
-          <div>
-            <h2 class="text-base font-semibold mb-1">{{ $t('profile.family.title') }}</h2>
-            <div class="text-xs text-gray-500 dark:text-gray-400">{{ $t('profile.family.cardDescription') }}</div>
+        <!-- Family Card -->
+        <NuxtLink to="/profile/family">
+          <div class="rounded-lg border border-primary-200/50 dark:border-primary-700/50 p-4 relative hover:border-primary-300 dark:hover:border-primary-700 transition-colors cursor-pointer flex items-center gap-3 h-full">
+            <UIcon name="i-lucide-users" class="h-7 w-7 text-primary-500 mr-2" />
+            <div>
+              <h2 class="text-base font-semibold mb-1">{{ $t('profile.family.title') }}</h2>
+              <div class="text-xs text-gray-500 dark:text-gray-400">{{ $t('profile.family.cardDescription') }}</div>
+            </div>
+            <UIcon name="i-lucide-chevron-right" class="absolute top-3 right-3 text-gray-400" />
           </div>
-          <UIcon name="i-lucide-chevron-right" class="absolute top-3 right-3 text-gray-400" />
-        </div>
-      </NuxtLink>
+        </NuxtLink>
 
-      <!-- Notifications Card -->
-      <NuxtLink to="/profile/notifications">
-        <div class="rounded-lg border border-primary-200/50 dark:border-primary-700/50 p-4 relative hover:border-primary-300 dark:hover:border-primary-700 transition-colors cursor-pointer flex items-center gap-3 h-full">
-          <UIcon name="i-lucide-bell" class="h-7 w-7 text-primary-500 mr-2" />
-          <div>
-            <h2 class="text-base font-semibold mb-1">{{ $t('profile.notifications.title') }}</h2>
-            <div class="text-xs text-gray-500 dark:text-gray-400">{{ $t('profile.notifications.cardDescription') }}</div>
+        <!-- Notifications Card -->
+        <NuxtLink to="/profile/notifications">
+          <div class="rounded-lg border border-primary-200/50 dark:border-primary-700/50 p-4 relative hover:border-primary-300 dark:hover:border-primary-700 transition-colors cursor-pointer flex items-center gap-3 h-full">
+            <UIcon name="i-lucide-bell" class="h-7 w-7 text-primary-500 mr-2" />
+            <div>
+              <h2 class="text-base font-semibold mb-1">{{ $t('profile.notifications.title') }}</h2>
+              <div class="text-xs text-gray-500 dark:text-gray-400">{{ $t('profile.notifications.cardDescription') }}</div>
+            </div>
+            <UIcon name="i-lucide-chevron-right" class="absolute top-3 right-3 text-gray-400" />
           </div>
-          <UIcon name="i-lucide-chevron-right" class="absolute top-3 right-3 text-gray-400" />
-        </div>
-      </NuxtLink>
+        </NuxtLink>
+      </template>
     </div>
 
     <!-- Action Buttons Spacing -->
@@ -131,15 +145,17 @@ const { leaveFamily } = useFamilyApi()
 const router = useRouter()
 
 const userProfile = ref<any>(null)
-
+const loading = ref(true)
 
 async function fetchUserProfile() {
+  loading.value = true
   try {
     const res = await getUserProfile()
     userProfile.value = res.data
   } catch {
     userProfile.value = null
   }
+  loading.value = false
 }
 
 onMounted(async () => {

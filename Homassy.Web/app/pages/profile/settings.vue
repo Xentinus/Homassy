@@ -16,8 +16,18 @@
       </div>
     </div>
 
-    <!-- Settings Form with Card Style -->
-    <UForm @submit.prevent="saveSettings" class="rounded-lg border border-primary-200/50 dark:border-primary-700/50 p-6 mt-4 space-y-6">
+    <template v-if="loading">
+      <USkeleton class="h-8 w-1/2 rounded mb-2 mt-4" />
+      <USkeleton class="h-4 w-2/3 rounded mb-4" />
+      <USkeleton class="h-12 w-full rounded-lg mb-2" />
+      <USkeleton class="h-12 w-full rounded-lg mb-2" />
+      <USkeleton class="h-12 w-full rounded-lg mb-2" />
+      <USkeleton class="h-12 w-full rounded-lg mb-2" />
+      <USkeleton class="h-12 w-full rounded-lg mb-2" />
+      <USkeleton class="h-10 w-full rounded-lg mt-6" />
+      <USkeleton class="h-10 w-full rounded-lg" />
+    </template>
+    <UForm v-else @submit.prevent="saveSettings" class="rounded-lg border border-primary-200/50 dark:border-primary-700/50 p-6 mt-4 space-y-6">
       <h2 class="text-lg font-semibold mb-2">{{ $t('profile.settings') }}</h2>
       <p class="text-gray-600 dark:text-gray-400 mb-4">{{ $t('profile.settingsCardDescription') }}</p>
       <div class="space-y-4">

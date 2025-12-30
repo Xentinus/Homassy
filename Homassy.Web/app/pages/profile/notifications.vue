@@ -15,8 +15,18 @@
       </div>
     </div>
 
-    <!-- Notifications Settings Form -->
-    <UForm @submit.prevent="onSave" class="rounded-lg border border-primary-200/50 dark:border-primary-700/50 p-6 mt-4 space-y-6">
+    <template v-if="loading">
+      <USkeleton class="h-8 w-1/2 rounded mb-2 mt-4" />
+      <USkeleton class="h-4 w-2/3 rounded mb-4" />
+      <USkeleton class="h-12 w-full rounded-lg mb-2" />
+      <USkeleton class="h-12 w-full rounded-lg mb-2" />
+      <USkeleton class="h-12 w-full rounded-lg mb-2" />
+      <USkeleton class="h-12 w-full rounded-lg mb-2" />
+      <USkeleton class="h-12 w-full rounded-lg mb-2" />
+      <USkeleton class="h-10 w-full rounded-lg mt-6" />
+      <USkeleton class="h-10 w-full rounded-lg" />
+    </template>
+    <UForm v-else @submit.prevent="onSave" class="rounded-lg border border-primary-200/50 dark:border-primary-700/50 p-6 mt-4 space-y-6">
       <h2 class="text-lg font-semibold mb-2">{{ $t('profile.notifications.title') }}</h2>
       <p class="text-gray-600 dark:text-gray-400 mb-4">{{ $t('profile.notifications.cardDescription') }}</p>
       <div class="space-y-4">
@@ -69,10 +79,11 @@ const form = ref({
   pushWeeklySummaryEnabled: false,
   inAppNotificationsEnabled: false
 })
-
+const loading = ref(true)
 const { getNotificationPreferences, updateNotificationPreferences } = useUserApi()
 
 onMounted(async () => {
+  loading.value = true
   const res = await getNotificationPreferences()
   if (res?.data) {
     form.value = {
@@ -83,6 +94,7 @@ onMounted(async () => {
       inAppNotificationsEnabled: !!res.data.inAppNotificationsEnabled
     }
   }
+  loading.value = false
 })
 
 const router = useRouter()
