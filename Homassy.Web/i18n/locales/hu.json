@@ -96,6 +96,7 @@
     "language": "Nyelv",
     "currency": "Pénznem",
     "timeZone": "Időzóna",
+    "settingsCardDescription": "Itt módosíthatod a profilod alapvető beállításait, például a nevet, nyelvet, pénznemet és időzónát.",
     "uploadAvatar": "Profilkép feltöltése",
     "lightMode": "Világos mód",
     "darkMode": "Sötét mód",
@@ -109,6 +110,17 @@
       "codeLabel": "Meghívó kód",
       "nameLabel": "Család neve",
       "descriptionLabel": "Leírás"
+    },
+    "notifications": {
+      "title": "Értesítések",
+      "cardDescription": "Kezeld az értesítési beállításaidat, beleértve az email, push és alkalmazáson belüli értesítéseket.",
+      "emailNotifications": "Email értesítések",
+      "emailWeeklySummary": "Heti email összefoglaló",
+      "pushNotifications": "Push értesítések",
+      "pushWeeklySummary": "Heti push összefoglaló",
+      "inAppNotifications": "Alkalmazáson belüli értesítések",
+      "save": "Mentés",
+      "cancel": "Mégse"
     },
     "notifications": {
       "title": "Értesítések",

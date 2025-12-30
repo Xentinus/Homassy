@@ -1,97 +1,86 @@
+
 <template>
   <div class="px-4 sm:px-6 lg:px-8 py-6 space-y-6">
     <!-- Header with back button -->
     <div class="flex items-center gap-3">
-      <UButton
-        icon="i-lucide-arrow-left"
-        color="neutral"
-        variant="ghost"
-        @click="navigateTo('/profile')"
-      />
+      <NuxtLink to="/profile">
+        <UButton
+          icon="i-lucide-arrow-left"
+          color="neutral"
+          variant="ghost"
+        />
+      </NuxtLink>
       <UIcon name="i-lucide-settings" class="text-xl text-primary" />
       <div>
         <h1 class="text-2xl font-semibold">{{ $t('profile.settings') }}</h1>
       </div>
     </div>
 
-    <!-- Settings Form -->
-    <div class="space-y-4">
-      <div>
-        <label class="block text-sm font-medium mb-1.5">{{ $t('profile.name') }}</label>
-        <UInput
-          v-model="formData.name"
-          :placeholder="$t('profile.name')"
-          :disabled="isSubmitting"
-          class="w-full"
-        />
+    <!-- Settings Form with Card Style -->
+    <UForm @submit.prevent="saveSettings" class="rounded-lg border border-primary-200/50 dark:border-primary-700/50 p-6 mt-4 space-y-6">
+      <h2 class="text-lg font-semibold mb-2">{{ $t('profile.settings') }}</h2>
+      <p class="text-gray-600 dark:text-gray-400 mb-4">{{ $t('profile.settingsCardDescription') }}</p>
+      <div class="space-y-4">
+        <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1.5 sm:gap-0">
+          <label class="text-sm font-medium mb-1.5 sm:mb-0">{{ $t('profile.name') }}</label>
+          <UInput
+            v-model="formData.name"
+            :placeholder="$t('profile.name')"
+            :disabled="isSubmitting"
+            class="w-full sm:w-64"
+          />
+        </div>
+        <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1.5 sm:gap-0">
+          <label class="text-sm font-medium mb-1.5 sm:mb-0">{{ $t('profile.displayName') }}</label>
+          <UInput
+            v-model="formData.displayName"
+            :placeholder="$t('profile.displayName')"
+            :disabled="isSubmitting"
+            class="w-full sm:w-64"
+          />
+        </div>
+        <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1.5 sm:gap-0">
+          <label class="text-sm font-medium mb-1.5 sm:mb-0">{{ $t('profile.language') }}</label>
+          <USelect
+            v-model="formData.language"
+            :items="languageSelectOptions"
+            :placeholder="$t('profile.language')"
+            :disabled="isSubmitting || isLoadingOptions"
+            class="w-full sm:w-64"
+          />
+        </div>
+        <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1.5 sm:gap-0">
+          <label class="text-sm font-medium mb-1.5 sm:mb-0">{{ $t('profile.currency') }}</label>
+          <USelect
+            v-model="formData.currency"
+            :items="currencySelectOptions"
+            :placeholder="$t('profile.currency')"
+            :disabled="isSubmitting || isLoadingOptions"
+            class="w-full sm:w-64"
+          />
+        </div>
+        <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1.5 sm:gap-0">
+          <label class="text-sm font-medium mb-1.5 sm:mb-0">{{ $t('profile.timeZone') }}</label>
+          <USelect
+            v-model="formData.timeZone"
+            :items="timeZoneSelectOptions"
+            :placeholder="$t('profile.timeZone')"
+            :disabled="isSubmitting || isLoadingOptions"
+            class="w-full sm:w-64"
+          />
+        </div>
       </div>
-
-      <div>
-        <label class="block text-sm font-medium mb-1.5">{{ $t('profile.displayName') }}</label>
-        <UInput
-          v-model="formData.displayName"
-          :placeholder="$t('profile.displayName')"
-          :disabled="isSubmitting"
-          class="w-full"
-        />
+      <div class="space-y-3 mt-6">
+        <UButton type="submit" color="primary" class="w-full" icon="i-lucide-save" :loading="isSubmitting">
+          {{ $t('settings.saveChanges') }}
+        </UButton>
+        <NuxtLink to="/profile" class="block">
+          <UButton color="neutral" variant="soft" class="w-full" icon="i-lucide-x" :disabled="isSubmitting">
+            {{ $t('common.cancel') }}
+          </UButton>
+        </NuxtLink>
       </div>
-
-      <div>
-        <label class="block text-sm font-medium mb-1.5">{{ $t('profile.language') }}</label>
-        <USelect
-          v-model="formData.language"
-          :items="languageSelectOptions"
-          :placeholder="$t('profile.language')"
-          :disabled="isSubmitting || isLoadingOptions"
-          class="w-full"
-        />
-      </div>
-
-      <div>
-        <label class="block text-sm font-medium mb-1.5">{{ $t('profile.currency') }}</label>
-        <USelect
-          v-model="formData.currency"
-          :items="currencySelectOptions"
-          :placeholder="$t('profile.currency')"
-          :disabled="isSubmitting || isLoadingOptions"
-          class="w-full"
-        />
-      </div>
-
-      <div>
-        <label class="block text-sm font-medium mb-1.5">{{ $t('profile.timeZone') }}</label>
-        <USelect
-          v-model="formData.timeZone"
-          :items="timeZoneSelectOptions"
-          :placeholder="$t('profile.timeZone')"
-          :disabled="isSubmitting || isLoadingOptions"
-          class="w-full"
-        />
-      </div>
-    </div>
-
-    <!-- Action Buttons -->
-    <div class="space-y-3">
-      <UButton
-        icon="i-lucide-save"
-        color="primary"
-        class="w-full"
-        :loading="isSubmitting"
-        @click="saveSettings"
-      >
-        {{ $t('settings.saveChanges') }}
-      </UButton>
-      <UButton
-        icon="i-lucide-x"
-        color="neutral"
-        variant="soft"
-        class="w-full"
-        :disabled="isSubmitting"
-        @click="navigateTo('/profile')"
-      >
-        {{ $t('common.cancel') }}
-      </UButton>
-    </div>
+    </UForm>
   </div>
 </template>
 
@@ -190,7 +179,7 @@ async function saveSettings() {
       await setLocale(authStore.user.language)
     }
 
-    navigateTo('/profile')
+    useRouter().push('/profile')
   } catch (error) {
     console.error('Failed to update settings:', error)
   } finally {

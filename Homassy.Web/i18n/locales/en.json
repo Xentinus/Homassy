@@ -96,6 +96,7 @@
     "language": "Language",
     "currency": "Currency",
     "timeZone": "Time Zone",
+    "settingsCardDescription": "Edit your basic profile settings here, such as name, language, currency, and time zone.",
     "uploadAvatar": "Upload Avatar",
     "lightMode": "Light Mode",
     "darkMode": "Dark Mode",
@@ -109,6 +110,17 @@
       "codeLabel": "Invite code",
       "nameLabel": "Family name",
       "descriptionLabel": "Description"
+    },
+    "notifications": {
+      "title": "Notifications",
+      "cardDescription": "Manage your notification preferences, including email, push, and in-app alerts.",
+      "emailNotifications": "Email notifications",
+      "emailWeeklySummary": "Weekly email summary",
+      "pushNotifications": "Push notifications",
+      "pushWeeklySummary": "Weekly push summary",
+      "inAppNotifications": "In-app notifications",
+      "save": "Save",
+      "cancel": "Cancel"
     },
     "notifications": {
       "title": "Notifications",

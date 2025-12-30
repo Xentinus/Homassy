@@ -96,6 +96,7 @@
     "language": "Sprache",
     "currency": "Währung",
     "timeZone": "Zeitzone",
+    "settingsCardDescription": "Hier kannst du grundlegende Profileinstellungen wie Name, Sprache, Währung und Zeitzone bearbeiten.",
     "uploadAvatar": "Profilbild hochladen",
     "lightMode": "Heller Modus",
     "darkMode": "Dunkler Modus",
@@ -109,6 +110,17 @@
       "codeLabel": "Einladungscode",
       "nameLabel": "Familienname",
       "descriptionLabel": "Beschreibung"
+    },
+    "notifications": {
+      "title": "Benachrichtigungen",
+      "cardDescription": "Verwalten Sie Ihre Benachrichtigungseinstellungen, einschließlich E-Mail, Push und In-App-Benachrichtigungen.",
+      "emailNotifications": "E-Mail-Benachrichtigungen",
+      "emailWeeklySummary": "Wöchentliche E-Mail-Zusammenfassung",
+      "pushNotifications": "Push-Benachrichtigungen",
+      "pushWeeklySummary": "Wöchentliche Push-Zusammenfassung",
+      "inAppNotifications": "In-App-Benachrichtigungen",
+      "save": "Speichern",
+      "cancel": "Abbrechen"
     },
     "notifications": {
       "title": "Benachrichtigungen",
