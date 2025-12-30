@@ -17,6 +17,7 @@ export const useApiClient = () => {
   const toast = useToast()
   const nuxtApp = useNuxtApp()
   const $api = nuxtApp.$api as any
+  const { $i18n } = nuxtApp
 
   /**
    * Make API request with automatic error handling and toast notifications
@@ -56,7 +57,7 @@ export const useApiClient = () => {
       // Show success toast if enabled
       if (showSuccessToast && successMessage) {
         toast.add({
-          title: 'Success',
+          title: $i18n.t('toast.success'),
           description: successMessage,
           color: 'success',
           icon: 'i-heroicons-check-circle'
@@ -68,11 +69,11 @@ export const useApiClient = () => {
       // Handle API response errors with error codes
       if (error.data && error.data.errorCodes && Array.isArray(error.data.errorCodes)) {
         const errorMessages = getErrorMessages(error.data.errorCodes)
-        
+
         if (showErrorToast && errorMessages.length > 0) {
           // Show first error message in toast
           toast.add({
-            title: 'Error',
+            title: $i18n.t('toast.error'),
             description: errorMessages[0],
             color: 'error',
             icon: 'i-heroicons-x-circle'
@@ -84,9 +85,9 @@ export const useApiClient = () => {
 
       // Handle network or other errors
       if (showErrorToast) {
-        const errorMessage = error.message || 'An unknown error occurred'
+        const errorMessage = error.message || $i18n.t('toast.unknownError')
         toast.add({
-          title: 'Error',
+          title: $i18n.t('toast.error'),
           description: errorMessage,
           color: 'error',
           icon: 'i-heroicons-x-circle'

@@ -103,5 +103,26 @@
   "settings": {
     "saveChanges": "Änderungen speichern",
     "settingsUpdated": "Einstellungen erfolgreich aktualisiert"
+  },
+  "toast": {
+    "success": "Erfolg",
+    "error": "Fehler",
+    "verificationCodeSent": "Bestätigungscode gesendet",
+    "checkEmail": "Bitte überprüfen Sie Ihren E-Mail-Posteingang.",
+    "failedToSendCode": "Bestätigungscode konnte nicht gesendet werden.",
+    "loggedIn": "Angemeldet",
+    "welcome": "Willkommen, {name}!",
+    "loginError": "Anmeldefehler",
+    "invalidCode": "Ungültiger oder abgelaufener Bestätigungscode.",
+    "registered": "Registriert",
+    "accountCreated": "Ihr Konto wurde erfolgreich erstellt.",
+    "registrationError": "Registrierungsfehler",
+    "failedToCreateAccount": "Konto konnte nicht erstellt werden.",
+    "loggedOut": "Abgemeldet",
+    "signedOut": "Sie wurden abgemeldet.",
+    "settingsUpdatedSuccess": "Einstellungen erfolgreich aktualisiert",
+    "profilePictureUploaded": "Profilbild erfolgreich hochgeladen",
+    "profilePictureDeleted": "Profilbild erfolgreich gelöscht",
+    "unknownError": "Ein unbekannter Fehler ist aufgetreten"
   }
 }

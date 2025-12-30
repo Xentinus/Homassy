@@ -103,5 +103,26 @@
   "settings": {
     "saveChanges": "Változtatások mentése",
     "settingsUpdated": "Beállítások sikeresen frissítve"
+  },
+  "toast": {
+    "success": "Siker",
+    "error": "Hiba",
+    "verificationCodeSent": "Ellenőrző kód elküldve",
+    "checkEmail": "Kérjük, ellenőrizd az e-mail fiókodat.",
+    "failedToSendCode": "Nem sikerült az ellenőrző kódot elküldeni.",
+    "loggedIn": "Bejelentkezve",
+    "welcome": "Üdvözlünk, {name}!",
+    "loginError": "Bejelentkezési hiba",
+    "invalidCode": "Érvénytelen vagy lejárt ellenőrző kód.",
+    "registered": "Regisztrálva",
+    "accountCreated": "A fiókod sikeresen létrehozva.",
+    "registrationError": "Regisztrációs hiba",
+    "failedToCreateAccount": "Nem sikerült a fiókot létrehozni.",
+    "loggedOut": "Kijelentkezve",
+    "signedOut": "Kijelentkeztél.",
+    "settingsUpdatedSuccess": "Beállítások sikeresen frissítve",
+    "profilePictureUploaded": "Profilkép sikeresen feltöltve",
+    "profilePictureDeleted": "Profilkép sikeresen törölve",
+    "unknownError": "Ismeretlen hiba történt"
   }
 }

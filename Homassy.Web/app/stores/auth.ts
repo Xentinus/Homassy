@@ -59,7 +59,7 @@ export const useAuthStore = defineStore('auth', {
      * Request verification code for login
      */
     async requestCode(email: string) {
-      const { $api } = useNuxtApp()
+      const { $api, $i18n } = useNuxtApp()
       const toast = useToast()
 
       try {
@@ -69,8 +69,8 @@ export const useAuthStore = defineStore('auth', {
         })
 
         toast.add({
-          title: 'Verification code sent',
-          description: 'Please check your email inbox.',
+          title: $i18n.t('toast.verificationCodeSent'),
+          description: $i18n.t('toast.checkEmail'),
           color: 'success',
           icon: 'i-heroicons-envelope'
         })
@@ -78,8 +78,8 @@ export const useAuthStore = defineStore('auth', {
         return response
       } catch (error) {
         toast.add({
-          title: 'Error',
-          description: 'Failed to send verification code.',
+          title: $i18n.t('toast.error'),
+          description: $i18n.t('toast.failedToSendCode'),
           color: 'error',
           icon: 'i-heroicons-x-circle'
         })
@@ -91,7 +91,7 @@ export const useAuthStore = defineStore('auth', {
      * Verify login code and authenticate user
      */
     async verifyCode(email: string, code: string) {
-      const { $api } = useNuxtApp()
+      const { $api, $i18n } = useNuxtApp()
       const toast = useToast()
 
       try {
@@ -102,10 +102,10 @@ export const useAuthStore = defineStore('auth', {
 
         if (response.data) {
           this.setAuthData(response.data)
-          
+
           toast.add({
-            title: 'Logged in',
-            description: `Welcome, ${response.data.user.name}!`,
+            title: $i18n.t('toast.loggedIn'),
+            description: $i18n.t('toast.welcome', { name: response.data.user.name }),
             color: 'success',
             icon: 'i-heroicons-check-circle'
           })
@@ -114,8 +114,8 @@ export const useAuthStore = defineStore('auth', {
         return response
       } catch (error) {
         toast.add({
-          title: 'Login error',
-          description: 'Invalid or expired verification code.',
+          title: $i18n.t('toast.loginError'),
+          description: $i18n.t('toast.invalidCode'),
           color: 'error',
           icon: 'i-heroicons-x-circle'
         })
@@ -127,7 +127,7 @@ export const useAuthStore = defineStore('auth', {
      * Register new user
      */
     async register(userData: CreateUserRequest) {
-      const { $api } = useNuxtApp()
+      const { $api, $i18n } = useNuxtApp()
       const toast = useToast()
 
       try {
@@ -138,10 +138,10 @@ export const useAuthStore = defineStore('auth', {
 
         if (response.data) {
           this.setAuthData(response.data)
-          
+
           toast.add({
-            title: 'Registered',
-            description: 'Your account has been created successfully.',
+            title: $i18n.t('toast.registered'),
+            description: $i18n.t('toast.accountCreated'),
             color: 'success',
             icon: 'i-heroicons-check-circle'
           })
@@ -150,8 +150,8 @@ export const useAuthStore = defineStore('auth', {
         return response
       } catch (error) {
         toast.add({
-          title: 'Registration error',
-          description: 'Failed to create account.',
+          title: $i18n.t('toast.registrationError'),
+          description: $i18n.t('toast.failedToCreateAccount'),
           color: 'error',
           icon: 'i-heroicons-x-circle'
         })
@@ -219,7 +219,7 @@ export const useAuthStore = defineStore('auth', {
      * Logout user
      */
     async logout() {
-      const { $api } = useNuxtApp()
+      const { $api, $i18n } = useNuxtApp()
       const toast = useToast()
 
       try {
@@ -235,8 +235,8 @@ export const useAuthStore = defineStore('auth', {
       this.clearAuthData()
 
       toast.add({
-        title: 'Logged out',
-        description: 'You have been signed out.',
+        title: $i18n.t('toast.loggedOut'),
+        description: $i18n.t('toast.signedOut'),
         color: 'success',
         icon: 'i-heroicons-arrow-left-on-rectangle'
       })

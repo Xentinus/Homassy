@@ -10,6 +10,7 @@ import type {
 
 export const useUserApi = () => {
   const client = useApiClient()
+  const { $i18n } = useNuxtApp()
 
   /**
    * Get current user profile
@@ -27,7 +28,7 @@ export const useUserApi = () => {
       settings,
       {
         showSuccessToast: true,
-        successMessage: 'Settings updated successfully'
+        successMessage: $i18n.t('toast.settingsUpdatedSuccess')
       }
     )
   }
@@ -41,7 +42,7 @@ export const useUserApi = () => {
       request,
       {
         showSuccessToast: true,
-        successMessage: 'Profile picture uploaded successfully'
+        successMessage: $i18n.t('toast.profilePictureUploaded')
       }
     )
   }
@@ -54,7 +55,7 @@ export const useUserApi = () => {
       '/api/v1/User/profile-picture',
       {
         showSuccessToast: true,
-        successMessage: 'Profile picture deleted successfully'
+        successMessage: $i18n.t('toast.profilePictureDeleted')
       }
     )
   }

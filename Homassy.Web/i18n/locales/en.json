@@ -103,5 +103,26 @@
   "settings": {
     "saveChanges": "Save Changes",
     "settingsUpdated": "Settings updated successfully"
+  },
+  "toast": {
+    "success": "Success",
+    "error": "Error",
+    "verificationCodeSent": "Verification code sent",
+    "checkEmail": "Please check your email inbox.",
+    "failedToSendCode": "Failed to send verification code.",
+    "loggedIn": "Logged in",
+    "welcome": "Welcome, {name}!",
+    "loginError": "Login error",
+    "invalidCode": "Invalid or expired verification code.",
+    "registered": "Registered",
+    "accountCreated": "Your account has been created successfully.",
+    "registrationError": "Registration error",
+    "failedToCreateAccount": "Failed to create account.",
+    "loggedOut": "Logged out",
+    "signedOut": "You have been signed out.",
+    "settingsUpdatedSuccess": "Settings updated successfully",
+    "profilePictureUploaded": "Profile picture uploaded successfully",
+    "profilePictureDeleted": "Profile picture deleted successfully",
+    "unknownError": "An unknown error occurred"
   }
 }
