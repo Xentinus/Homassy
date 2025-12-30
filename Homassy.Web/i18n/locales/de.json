@@ -98,7 +98,18 @@
     "timeZone": "Zeitzone",
     "uploadAvatar": "Profilbild hochladen",
     "lightMode": "Heller Modus",
-    "darkMode": "Dunkler Modus"
+    "darkMode": "Dunkler Modus",
+    "family": {
+      "title": "Familie",
+      "cardDescription": "Familiendaten, Einladungscode und Mitgliedschaft verwalten.",
+      "create": "Familie erstellen",
+      "join": "Familie beitreten",
+      "leave": "Familie verlassen",
+      "code": "Einladungscode: {code}",
+      "codeLabel": "Einladungscode",
+      "nameLabel": "Familienname",
+      "descriptionLabel": "Beschreibung"
+    }
   },
   "settings": {
     "saveChanges": "Änderungen speichern",

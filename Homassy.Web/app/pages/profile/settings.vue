@@ -8,6 +8,7 @@
         variant="ghost"
         @click="navigateTo('/profile')"
       />
+      <UIcon name="i-lucide-settings" class="text-xl text-primary" />
       <div>
         <h1 class="text-2xl font-semibold">{{ $t('profile.settings') }}</h1>
       </div>
@@ -21,6 +22,7 @@
           v-model="formData.name"
           :placeholder="$t('profile.name')"
           :disabled="isSubmitting"
+          class="w-full"
         />
       </div>
 
@@ -30,6 +32,7 @@
           v-model="formData.displayName"
           :placeholder="$t('profile.displayName')"
           :disabled="isSubmitting"
+          class="w-full"
         />
       </div>
 
@@ -40,6 +43,7 @@
           :items="languageSelectOptions"
           :placeholder="$t('profile.language')"
           :disabled="isSubmitting || isLoadingOptions"
+          class="w-full"
         />
       </div>
 
@@ -50,6 +54,7 @@
           :items="currencySelectOptions"
           :placeholder="$t('profile.currency')"
           :disabled="isSubmitting || isLoadingOptions"
+          class="w-full"
         />
       </div>
 
@@ -60,28 +65,31 @@
           :items="timeZoneSelectOptions"
           :placeholder="$t('profile.timeZone')"
           :disabled="isSubmitting || isLoadingOptions"
+          class="w-full"
         />
       </div>
     </div>
 
     <!-- Action Buttons -->
-    <div class="flex gap-3">
+    <div class="space-y-3">
       <UButton
-        color="neutral"
-        variant="soft"
-        class="flex-1"
-        :disabled="isSubmitting"
-        @click="navigateTo('/profile')"
-      >
-        {{ $t('common.cancel') }}
-      </UButton>
-      <UButton
+        icon="i-lucide-save"
         color="primary"
-        class="flex-1"
+        class="w-full"
         :loading="isSubmitting"
         @click="saveSettings"
       >
         {{ $t('settings.saveChanges') }}
+      </UButton>
+      <UButton
+        icon="i-lucide-x"
+        color="neutral"
+        variant="soft"
+        class="w-full"
+        :disabled="isSubmitting"
+        @click="navigateTo('/profile')"
+      >
+        {{ $t('common.cancel') }}
       </UButton>
     </div>
   </div>

@@ -98,7 +98,18 @@
     "timeZone": "Időzóna",
     "uploadAvatar": "Profilkép feltöltése",
     "lightMode": "Világos mód",
-    "darkMode": "Sötét mód"
+    "darkMode": "Sötét mód",
+    "family": {
+      "title": "Család",
+      "cardDescription": "Családi adatok, meghívó kód és tagság kezelése.",
+      "create": "Család létrehozása",
+      "join": "Csatlakozás családhoz",
+      "leave": "Kilépés a családból",
+      "code": "Meghívó kód: {code}",
+      "codeLabel": "Meghívó kód",
+      "nameLabel": "Család neve",
+      "descriptionLabel": "Leírás"
+    }
   },
   "settings": {
     "saveChanges": "Változtatások mentése",

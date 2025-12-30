@@ -98,7 +98,18 @@
     "timeZone": "Time Zone",
     "uploadAvatar": "Upload Avatar",
     "lightMode": "Light Mode",
-    "darkMode": "Dark Mode"
+    "darkMode": "Dark Mode",
+    "family": {
+      "title": "Family",
+      "cardDescription": "View your family details, invite code, and manage membership.",
+      "create": "Create Family",
+      "join": "Join Family",
+      "leave": "Leave Family",
+      "code": "Invite code: {code}",
+      "codeLabel": "Invite code",
+      "nameLabel": "Family name",
+      "descriptionLabel": "Description"
+    }
   },
   "settings": {
     "saveChanges": "Save Changes",

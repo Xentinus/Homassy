@@ -22,22 +22,32 @@ let cooldownInterval: ReturnType<typeof setInterval> | null = null
 onMounted(async () => {
   // Load tokens from cookies if not already loaded
   authStore.loadFromCookies()
-  
-  // If user is authenticated, try to refresh token and redirect
-  if (authStore.isAuthenticated) {
-    try {
+
+  // Explicit cookie check in try-catch
+  try {
+    // Check if cookies exist before attempting refresh
+    const { accessToken, refreshToken } = authStore.getTokensFromCookies()
+
+    if (accessToken && refreshToken) {
       loading.value = true
-      // Try to refresh the access token
+
+      // Attempt token refresh
       await authStore.refreshAccessToken()
-      // If successful, redirect to activity
+
+      // If successful, cookies are already saved by refreshAccessToken()
+      // but we ensure navigation happens
       await router.push('/activity')
-    } catch (error) {
-      // If refresh fails, clear auth data and stay on login
-      console.error('Token refresh failed:', error)
-      authStore.clearAuthData()
-    } finally {
-      loading.value = false
     }
+  } catch (error) {
+    console.error('[Login] Token refresh failed, clearing invalid cookies:', error)
+
+    // Clear only access and refresh token cookies (keep user data if exists)
+    authStore.clearCookies()
+
+    // Clear auth state
+    authStore.clearAuthData()
+  } finally {
+    loading.value = false
   }
 })
 

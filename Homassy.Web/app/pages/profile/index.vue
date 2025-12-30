@@ -10,12 +10,14 @@
     <div class="flex flex-col items-center gap-4">
       <!-- Avatar with delete icon overlay -->
       <div class="relative inline-block">
-        <UAvatar
-          :src="avatarSrc"
-          :alt="primaryName || 'User'"
-          :text="avatarInitial"
-          class="h-40 w-40 ring-4 ring-primary-200/50 text-6xl"
-        />
+        <div class="border-4 border-primary-500 rounded-full p-1">
+          <UAvatar
+            :src="avatarSrc"
+            :alt="primaryName || 'User'"
+            :text="avatarInitial"
+            class="h-40 w-40 text-6xl"
+          />
+        </div>
         <UButton
           v-if="hasAvatar"
           icon="i-lucide-trash-2"
@@ -44,82 +46,121 @@
 
     <!-- Settings Card -->
     <NuxtLink to="/profile/settings">
-      <div class="rounded-lg border border-gray-200/70 dark:border-gray-800/60 p-4 relative hover:border-primary-300 dark:hover:border-primary-700 transition-colors cursor-pointer">
-        <UIcon
-          name="i-lucide-chevron-right"
-          class="absolute top-3 right-3 text-gray-400"
-        />
-
-        <h2 class="text-base font-semibold mb-3">{{ $t('profile.settings') }}</h2>
-
-        <div class="space-y-2 text-sm">
-          <div class="flex justify-between">
-            <span class="text-gray-600 dark:text-gray-400">{{ $t('profile.language') }}</span>
-            <span class="font-medium">{{ authStore.user?.language }}</span>
-          </div>
-          <div class="flex justify-between">
-            <span class="text-gray-600 dark:text-gray-400">{{ $t('profile.currency') }}</span>
-            <span class="font-medium">{{ authStore.user?.currency }}</span>
-          </div>
-          <div class="flex justify-between">
-            <span class="text-gray-600 dark:text-gray-400">{{ $t('profile.timeZone') }}</span>
-            <span class="font-medium">{{ authStore.user?.timeZone }}</span>
+      <div class="rounded-lg border border-primary-200/50 dark:border-primary-700/50 p-4 relative hover:border-primary-300 dark:hover:border-primary-700 transition-colors cursor-pointer mb-2 flex items-center gap-3">
+        <UIcon name="i-lucide-settings" class="h-7 w-7 text-primary-500 mr-2" />
+        <div class="flex-1">
+          <h2 class="text-base font-semibold mb-1">{{ $t('profile.settings') }}</h2>
+          <div class="space-y-2 text-sm">
+            <div class="flex items-center">
+              <span class="text-gray-600 dark:text-gray-400 flex-1">{{ $t('profile.language') }}</span>
+              <span class="font-medium text-right min-w-[80px] w-full justify-end flex">{{ userProfile?.language }}</span>
+            </div>
+            <div class="flex items-center">
+              <span class="text-gray-600 dark:text-gray-400 flex-1">{{ $t('profile.currency') }}</span>
+              <span class="font-medium text-right min-w-[80px] w-full justify-end flex">{{ userProfile?.currency }}</span>
+            </div>
+            <div class="flex items-center">
+              <span class="text-gray-600 dark:text-gray-400 flex-1">{{ $t('profile.timeZone') }}</span>
+              <span class="font-medium text-right min-w-[80px] w-full justify-end flex">{{ userProfile?.timeZone }}</span>
+            </div>
           </div>
         </div>
+        <UIcon name="i-lucide-chevron-right" class="absolute top-3 right-3 text-gray-400" />
       </div>
     </NuxtLink>
 
-    <!-- Action Buttons -->
-    <div class="space-y-3 mt-8">
-      <ClientOnly>
-        <UButton color="neutral" variant="soft" class="w-full" @click="toggleColorMode">
-          <UIcon :name="colorMode.value === 'dark' ? 'i-lucide-sun' : 'i-lucide-moon'" class="h-4 w-4 mr-2" />
-          {{ colorModeText }}
+    <!-- Family Card & Action Buttons -->
+    <div class="mt-10">
+      <!-- Family Card -->
+      <NuxtLink to="/profile/family">
+        <div class="rounded-lg border border-primary-200/50 dark:border-primary-700/50 p-4 relative hover:border-primary-300 dark:hover:border-primary-700 transition-colors cursor-pointer mb-2 flex items-center gap-3">
+          <UIcon name="i-lucide-users" class="h-7 w-7 text-primary-500 mr-2" />
+          <div>
+            <h2 class="text-base font-semibold mb-1">{{ $t('profile.family.title') }}</h2>
+            <div class="text-xs text-gray-500 dark:text-gray-400">{{ $t('profile.family.cardDescription') }}</div>
+          </div>
+          <UIcon name="i-lucide-chevron-right" class="absolute top-3 right-3 text-gray-400" />
+        </div>
+      </NuxtLink>
+      <!-- Action Buttons Spacing -->
+      <div class="mt-8 space-y-3">
+        <!-- Light/Dark mode toggle -->
+        <ClientOnly>
+          <UButton color="neutral" variant="soft" class="w-full" @click="toggleColorMode">
+            <UIcon :name="colorMode.value === 'dark' ? 'i-lucide-sun' : 'i-lucide-moon'" class="h-4 w-4 mr-2" />
+            {{ colorModeText }}
+          </UButton>
+        </ClientOnly>
+        <UButton color="error" variant="soft" class="w-full" @click="onLogout">
+          <UIcon name="i-lucide-log-out" class="h-4 w-4 mr-2" />
+          {{ $t('auth.logout') }}
         </UButton>
-      </ClientOnly>
-      <UButton color="error" variant="soft" class="w-full" @click="onLogout">
-        <UIcon name="i-lucide-log-out" class="h-4 w-4 mr-2" />
-        {{ $t('auth.logout') }}
-      </UButton>
+      </div>
     </div>
-
   </div>
 </template>
 
 <script setup lang="ts">
+
 import { ref, computed, onMounted } from 'vue'
 import { useAuthStore } from '~/stores/auth'
 import { useUserApi } from '~/composables/api/useUserApi'
+import { useFamilyApi } from '~/composables/api/useFamilyApi'
+import { useRouter } from 'vue-router'
+
 
 definePageMeta({ layout: 'auth', middleware: 'auth' })
 
+
 const authStore = useAuthStore()
-const { uploadProfilePicture, deleteProfilePicture } = useUserApi()
+const { uploadProfilePicture, deleteProfilePicture, getUserProfile } = useUserApi()
+const { leaveFamily } = useFamilyApi()
+const router = useRouter()
+
+const userProfile = ref<any>(null)
+
+
+async function fetchUserProfile() {
+  try {
+    const res = await getUserProfile()
+    userProfile.value = res.data
+  } catch {
+    userProfile.value = null
+  }
+}
+
+onMounted(async () => {
+  await fetchUserProfile()
+})
+
+async function onLeaveFamily() {
+  await leaveFamily()
+  await fetchUserProfile()
+}
 
 const fileInput = ref<HTMLInputElement | null>(null)
-const hasAvatar = computed(() => !!authStore.user?.profilePictureBase64)
+const hasAvatar = computed(() => !!userProfile.value?.profilePictureBase64)
 const avatarSrc = computed(() => {
-  const b64 = authStore.user?.profilePictureBase64
+  const b64 = userProfile.value?.profilePictureBase64
   return b64 ? `data:image/jpeg;base64,${b64}` : undefined
 })
 
 const avatarInitial = computed(() => {
-  const name = authStore.user?.displayName || authStore.user?.name
+  const name = userProfile.value?.displayName || userProfile.value?.name
   if (!name) return '?'
-
   const words = name.trim().split(/\s+/)
   return words.map((word: string) => word.charAt(0).toUpperCase()).join('')
 })
 
 // Name display
 const hasDisplayName = computed(() =>
-  !!(authStore.user?.displayName && authStore.user.displayName.trim())
+  !!(userProfile.value?.displayName && userProfile.value.displayName.trim())
 )
 const primaryName = computed(() =>
-  hasDisplayName.value ? authStore.user?.displayName : authStore.user?.name
+  hasDisplayName.value ? userProfile.value?.displayName : userProfile.value?.name
 )
 const secondaryName = computed(() =>
-  hasDisplayName.value ? authStore.user?.name : null
+  hasDisplayName.value ? userProfile.value?.name : null
 )
 
 // Color mode
@@ -146,13 +187,13 @@ async function onFileSelected(event: Event) {
   const pureBase64 = base64.includes(',') ? base64.split(',')[1] : base64
 
   await uploadProfilePicture({ imageBase64: pureBase64 })
-  await authStore.fetchCurrentUser()
+  await fetchUserProfile()
   input.value = ''
 }
 
 async function onDeleteAvatar() {
   await deleteProfilePicture()
-  await authStore.fetchCurrentUser()
+  await fetchUserProfile()
 }
 
 async function onLogout() {
