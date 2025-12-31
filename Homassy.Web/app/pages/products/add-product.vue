@@ -537,13 +537,29 @@
 
           <!-- Expiration Date (Optional) -->
           <UFormField :label="t('pages.addProduct.inventory.form.expirationAt')" name="expirationAt">
-            <UInput
+            <UInputDate
+              ref="expirationDateInput"
               v-model="inventoryFormData.expirationAt"
-              type="datetime-local"
-              :placeholder="t('pages.addProduct.inventory.form.expirationAtPlaceholder')"
               :disabled="isCreatingInventory"
               class="w-full"
-            />
+            >
+              <template #trailing>
+                <UPopover :reference="expirationDateInput?.inputsRef[0]?.$el">
+                  <UButton
+                    color="neutral"
+                    variant="link"
+                    size="sm"
+                    icon="i-lucide-calendar"
+                    aria-label="Select a date"
+                    class="px-0"
+                    :disabled="isCreatingInventory"
+                  />
+                  <template #content>
+                    <UCalendar v-model="inventoryFormData.expirationAt" class="p-2" />
+                  </template>
+                </UPopover>
+              </template>
+            </UInputDate>
           </UFormField>
 
           <!-- Price (Optional) -->
@@ -614,6 +630,7 @@ import { ref, computed, watch, nextTick } from 'vue'
 import { watchDebounced } from '@vueuse/core'
 import * as z from 'zod'
 import type { FormSubmitEvent } from '@nuxt/ui'
+import type { CalendarDate } from '@internationalized/date'
 import { useProductsApi } from '~/composables/api/useProductsApi'
 import { useLocationsApi } from '~/composables/api/useLocationsApi'
 import type { ProductInfo, CreateProductRequest, CreateInventoryItemRequest } from '~/types/product'
@@ -624,6 +641,20 @@ definePageMeta({
   layout: 'auth',
   middleware: 'auth'
 })
+
+// Local type for form data with CalendarDate
+interface InventoryFormData {
+  productPublicId: string
+  isSharedWithFamily?: boolean
+  storageLocationPublicId?: string
+  quantity: number
+  unit?: Unit
+  expirationAt?: CalendarDate | null
+  price?: number
+  currency?: Currency
+  shoppingLocationPublicId?: string
+  receiptNumber?: string
+}
 
 const { getProducts, createProduct, createInventoryItem } = useProductsApi()
 const { getStorageLocations, createStorageLocation, getShoppingLocations, createShoppingLocation } = useLocationsApi()
@@ -699,7 +730,7 @@ const locationFormData = ref<StorageLocationRequest>({
   description: '',
   color: '',
   isFreezer: false,
-  isSharedWithFamily: false
+  isSharedWithFamily: true
 })
 
 // Step 3: Shopping location search state
@@ -724,28 +755,29 @@ const shoppingLocationFormData = ref<ShoppingLocationRequest>({
   country: '',
   website: '',
   googleMaps: '',
-  isSharedWithFamily: false
+  isSharedWithFamily: true
 })
 
 // Step 4: Create inventory item form state
 const isCreatingInventory = ref(false)
-const inventoryFormData = ref<CreateInventoryItemRequest>({
+const expirationDateInput = ref()
+const inventoryFormData = ref<InventoryFormData>({
   productPublicId: '',
   quantity: 1,
   unit: undefined,
-  expirationAt: undefined,
+  expirationAt: null,
   price: undefined,
   currency: undefined,
   shoppingLocationPublicId: undefined,
   receiptNumber: undefined,
-  isSharedWithFamily: false
+  isSharedWithFamily: true
 })
 
 // Unit options for dropdown
 const unitOptions = computed(() => {
   return Object.entries(Unit)
     .filter(([key]) => isNaN(Number(key))) // Filter out numeric keys
-    .map(([key, value]) => ({
+    .map(([_key, value]) => ({
       label: t(`enums.unit.${value}`),
       value: value as Unit
     }))
@@ -788,7 +820,7 @@ const createLocationSchema = z.object({
     .optional()
     .or(z.literal('')),
   isFreezer: z.boolean().optional().default(false),
-  isSharedWithFamily: z.boolean().optional().default(false)
+  isSharedWithFamily: z.boolean().optional().default(true)
 })
 
 type CreateLocationSchema = z.output<typeof createLocationSchema>
@@ -827,7 +859,7 @@ const createShoppingLocationSchema = z.object({
     .regex(/^#[0-9A-Fa-f]{6}$/, 'Color must be a valid hex color')
     .optional()
     .or(z.literal('')),
-  isSharedWithFamily: z.boolean().optional().default(false)
+  isSharedWithFamily: z.boolean().optional().default(true)
 })
 
 type CreateShoppingLocationSchema = z.output<typeof createShoppingLocationSchema>
@@ -837,10 +869,7 @@ const createInventorySchema = z.object({
   quantity: z.number({ required_error: 'Quantity is required' })
     .min(0.001, 'Quantity must be greater than 0'),
   unit: z.nativeEnum(Unit).optional(),
-  expirationAt: z.string()
-    .datetime({ message: 'Must be a valid date' })
-    .optional()
-    .or(z.literal('')),
+  expirationAt: z.any().nullable().optional(),
   price: z.number()
     .min(0, 'Price must be positive')
     .optional(),
@@ -848,7 +877,7 @@ const createInventorySchema = z.object({
   receiptNumber: z.string()
     .max(50, 'Receipt number must not exceed 50 characters')
     .optional(),
-  isSharedWithFamily: z.boolean().optional().default(false)
+  isSharedWithFamily: z.boolean().optional().default(true)
 })
 
 type CreateInventorySchema = z.output<typeof createInventorySchema>
@@ -1157,13 +1186,21 @@ const onCreateShoppingLocation = async (event: FormSubmitEvent<CreateShoppingLoc
 const onCreateInventory = async (event: FormSubmitEvent<CreateInventorySchema>) => {
   isCreatingInventory.value = true
   try {
+    // Convert CalendarDate to ISO string at 12:00:00 local time
+    let expirationAtString: string | undefined = undefined
+    if (event.data.expirationAt) {
+      const date = event.data.expirationAt
+      const localDate = new Date(date.year, date.month - 1, date.day, 12, 0, 0)
+      expirationAtString = localDate.toISOString()
+    }
+
     const inventoryData: CreateInventoryItemRequest = {
       productPublicId: selectedProductId.value!,
       storageLocationPublicId: selectedStorageLocationId.value || undefined,
       shoppingLocationPublicId: selectedShoppingLocationId.value || undefined,
       quantity: event.data.quantity,
       unit: event.data.unit,
-      expirationAt: event.data.expirationAt?.trim() || undefined,
+      expirationAt: expirationAtString,
       price: event.data.price,
       currency: event.data.currency,
       receiptNumber: event.data.receiptNumber?.trim() || undefined,
