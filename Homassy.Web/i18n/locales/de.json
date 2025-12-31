@@ -102,8 +102,9 @@
       "title": "Produkt hinzufügen",
       "stepLabels": {
         "step1": "Produktauswahl",
-        "step2": "Schritt 2",
-        "step3": "Schritt 3"
+        "step2": "Lagerort",
+        "step3": "Einkaufsort",
+        "step4": "Schritt 4"
       },
       "tabs": {
         "search": "Produkt suchen",
@@ -135,6 +136,63 @@
         "step2": "Schritt 2",
         "step3": "Schritt 3",
         "selectedProductId": "Ausgewählte Produkt-ID: {id}"
+      },
+      "location": {
+        "tabs": {
+          "search": "Lagerort suchen",
+          "create": "Neuen Lagerort erstellen"
+        },
+        "search": {
+          "placeholder": "Lagerorte nach Namen suchen",
+          "startTyping": "Tippen Sie, um Lagerorte zu suchen",
+          "noResults": "Keine Lagerorte gefunden"
+        },
+        "form": {
+          "name": "Ortsname",
+          "namePlaceholder": "z.B. Kühlschrank, Speisekammer, Kellergefrierschrank",
+          "description": "Beschreibung",
+          "descriptionPlaceholder": "Optionale Notizen zu diesem Ort",
+          "color": "Farbe",
+          "chooseColor": "Farbe wählen",
+          "isFreezer": "Gefrierschrank",
+          "isFreezerLabel": "Dies ist ein Gefrierort",
+          "isSharedWithFamily": "Mit Familie geteilt",
+          "isSharedWithFamilyLabel": "Diesen Ort mit Familienmitgliedern teilen",
+          "createButton": "Lagerort erstellen"
+        }
+      },
+      "shoppingLocation": {
+        "tabs": {
+          "search": "Einkaufsort",
+          "create": "Neuen Einkaufsort erstellen"
+        },
+        "search": {
+          "placeholder": "Einkaufsorte nach Namen suchen",
+          "noResults": "Keine Einkaufsorte gefunden"
+        },
+        "form": {
+          "name": "Geschäftsname",
+          "namePlaceholder": "z.B. Rewe, Edeka, Kaufland",
+          "description": "Beschreibung",
+          "descriptionPlaceholder": "Optionale Notizen",
+          "address": "Adresse",
+          "addressPlaceholder": "z.B. Hauptstraße 123",
+          "city": "Stadt",
+          "cityPlaceholder": "z.B. Berlin",
+          "postalCode": "Postleitzahl",
+          "postalCodePlaceholder": "z.B. 10115",
+          "country": "Land",
+          "countryPlaceholder": "z.B. Deutschland",
+          "website": "Webseite",
+          "websitePlaceholder": "z.B. https://example.com",
+          "googleMaps": "Google Maps Link",
+          "googleMapsPlaceholder": "z.B. https://maps.google.com/...",
+          "color": "Farbe",
+          "chooseColor": "Farbe wählen",
+          "isSharedWithFamily": "Mit Familie geteilt",
+          "isSharedWithFamilyLabel": "Mit Familienmitgliedern teilen",
+          "createButton": "Einkaufsort erstellen"
+        }
       }
     },
     "shoppingLists": {

@@ -163,16 +163,348 @@
         </UTabs>
       </div>
 
-      <!-- Step 2: Placeholder -->
-      <div v-else-if="currentStep === 1" class="text-center py-12">
-        <p class="text-xl text-gray-600">{{ t('pages.addProduct.placeholders.step2') }}</p>
-        <p v-if="selectedProductId" class="text-sm text-gray-500 mt-2">
-          {{ t('pages.addProduct.placeholders.selectedProductId', { id: selectedProductId }) }}
-        </p>
+      <!-- Step 2: Storage Location Selection -->
+      <div v-else-if="currentStep === 1" class="space-y-6">
+        <UTabs v-model="activeTab" :items="locationTabItems">
+          <template #search>
+            <div class="space-y-4 py-4">
+              <!-- Search Input -->
+              <UInput
+                v-model="locationSearchQuery"
+                :placeholder="t('pages.addProduct.location.search.placeholder')"
+                icon="i-lucide-search"
+                size="lg"
+                class="w-full"
+              />
+
+              <!-- Loading State -->
+              <div v-if="isLoadingLocations" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                <USkeleton class="h-32 w-full" />
+                <USkeleton class="h-32 w-full" />
+                <USkeleton class="h-32 w-full" />
+                <USkeleton class="h-32 w-full" />
+              </div>
+
+              <!-- No Results -->
+              <div
+                v-else-if="filteredLocations.length === 0 && !isLoadingLocations"
+                class="text-center py-12 text-gray-500"
+              >
+                {{ t('pages.addProduct.location.search.noResults') }}
+              </div>
+
+              <!-- Results Grid -->
+              <div v-else>
+                <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                  <StorageLocationCard
+                    v-for="location in displayedLocations"
+                    :key="location.publicId"
+                    :location="location"
+                    :is-active="selectedLocationCardId === location.publicId"
+                    @click="onLocationCardClick(location)"
+                  />
+                </div>
+
+                <!-- Sentinel for intersection observer -->
+                <div v-if="hasMoreLocations" ref="locationSentinelRef" class="w-full">
+                  <!-- Loading skeletons while loading more -->
+                  <div v-if="loadingMoreLocations" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 mt-4">
+                    <USkeleton class="h-32 w-full" />
+                    <USkeleton class="h-32 w-full" />
+                    <USkeleton class="h-32 w-full" />
+                  </div>
+                </div>
+              </div>
+            </div>
+          </template>
+
+          <template #create>
+            <div class="py-4">
+              <UForm
+                :schema="createLocationSchema"
+                :state="locationFormData"
+                class="space-y-4"
+                @submit="onCreateLocation"
+              >
+                <UFormField :label="t('pages.addProduct.location.form.name')" name="name" required>
+                  <UInput
+                    v-model="locationFormData.name"
+                    :placeholder="t('pages.addProduct.location.form.namePlaceholder')"
+                    :disabled="isCreatingLocation"
+                    class="w-full"
+                  />
+                </UFormField>
+
+                <UFormField :label="t('pages.addProduct.location.form.description')" name="description">
+                  <UTextarea
+                    v-model="locationFormData.description"
+                    :placeholder="t('pages.addProduct.location.form.descriptionPlaceholder')"
+                    :disabled="isCreatingLocation"
+                    class="w-full"
+                  />
+                </UFormField>
+
+                <UFormField :label="t('pages.addProduct.location.form.color')" name="color">
+                  <div class="flex items-center gap-3">
+                    <UPopover>
+                      <UButton
+                        color="neutral"
+                        variant="outline"
+                        :disabled="isCreatingLocation"
+                      >
+                        <div class="flex items-center gap-2">
+                          <div
+                            v-if="locationFormData.color"
+                            class="w-4 h-4 rounded"
+                            :style="{ backgroundColor: locationFormData.color }"
+                          />
+                          <span>{{ locationFormData.color || t('pages.addProduct.location.form.chooseColor') }}</span>
+                        </div>
+                      </UButton>
+                      <template #content>
+                        <UColorPicker v-model="locationFormData.color" />
+                      </template>
+                    </UPopover>
+                    <UButton
+                      v-if="locationFormData.color"
+                      icon="i-lucide-x"
+                      color="neutral"
+                      variant="ghost"
+                      size="sm"
+                      :disabled="isCreatingLocation"
+                      @click="locationFormData.color = ''"
+                    />
+                  </div>
+                </UFormField>
+
+                <UFormField :label="t('pages.addProduct.location.form.isFreezer')" name="isFreezer">
+                  <UCheckbox
+                    v-model="locationFormData.isFreezer"
+                    :label="t('pages.addProduct.location.form.isFreezerLabel')"
+                    :disabled="isCreatingLocation"
+                  />
+                </UFormField>
+
+                <UFormField :label="t('pages.addProduct.location.form.isSharedWithFamily')" name="isSharedWithFamily">
+                  <UCheckbox
+                    v-model="locationFormData.isSharedWithFamily"
+                    :label="t('pages.addProduct.location.form.isSharedWithFamilyLabel')"
+                    :disabled="isCreatingLocation"
+                  />
+                </UFormField>
+
+                <UButton
+                  type="submit"
+                  color="primary"
+                  block
+                  :loading="isCreatingLocation"
+                  icon="i-lucide-plus"
+                >
+                  {{ t('pages.addProduct.location.form.createButton') }}
+                </UButton>
+              </UForm>
+            </div>
+          </template>
+        </UTabs>
       </div>
 
-      <!-- Step 3: Placeholder -->
-      <div v-else-if="currentStep === 2" class="text-center py-12">
+      <!-- Step 3: Shopping Location Selection -->
+      <div v-else-if="currentStep === 2" class="space-y-6">
+        <UTabs v-model="activeTab" :items="shoppingLocationTabItems">
+          <template #search>
+            <div class="space-y-4 py-4">
+              <!-- Search Input -->
+              <UInput
+                v-model="shoppingLocationSearchQuery"
+                :placeholder="t('pages.addProduct.shoppingLocation.search.placeholder')"
+                icon="i-lucide-search"
+                size="lg"
+                class="w-full"
+              />
+
+              <!-- Loading State -->
+              <div v-if="isLoadingShoppingLocations" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                <USkeleton class="h-32 w-full" />
+                <USkeleton class="h-32 w-full" />
+                <USkeleton class="h-32 w-full" />
+                <USkeleton class="h-32 w-full" />
+              </div>
+
+              <!-- No Results -->
+              <div
+                v-else-if="filteredShoppingLocations.length === 0 && !isLoadingShoppingLocations"
+                class="text-center py-12 text-gray-500"
+              >
+                {{ t('pages.addProduct.shoppingLocation.search.noResults') }}
+              </div>
+
+              <!-- Results Grid -->
+              <div v-else>
+                <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                  <ShoppingLocationCard
+                    v-for="location in displayedShoppingLocations"
+                    :key="location.publicId"
+                    :location="location"
+                    :is-active="selectedShoppingLocationCardId === location.publicId"
+                    @click="onShoppingLocationCardClick(location)"
+                  />
+                </div>
+
+                <!-- Sentinel for intersection observer -->
+                <div v-if="hasMoreShoppingLocations" ref="shoppingLocationSentinelRef" class="w-full">
+                  <!-- Loading skeletons while loading more -->
+                  <div v-if="loadingMoreShoppingLocations" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 mt-4">
+                    <USkeleton class="h-32 w-full" />
+                    <USkeleton class="h-32 w-full" />
+                    <USkeleton class="h-32 w-full" />
+                  </div>
+                </div>
+              </div>
+            </div>
+          </template>
+
+          <template #create>
+            <div class="py-4">
+              <UForm
+                :schema="createShoppingLocationSchema"
+                :state="shoppingLocationFormData"
+                class="space-y-4"
+                @submit="onCreateShoppingLocation"
+              >
+                <UFormField :label="t('pages.addProduct.shoppingLocation.form.name')" name="name" required>
+                  <UInput
+                    v-model="shoppingLocationFormData.name"
+                    :placeholder="t('pages.addProduct.shoppingLocation.form.namePlaceholder')"
+                    :disabled="isCreatingShoppingLocation"
+                    class="w-full"
+                  />
+                </UFormField>
+
+                <UFormField :label="t('pages.addProduct.shoppingLocation.form.description')" name="description">
+                  <UTextarea
+                    v-model="shoppingLocationFormData.description"
+                    :placeholder="t('pages.addProduct.shoppingLocation.form.descriptionPlaceholder')"
+                    :disabled="isCreatingShoppingLocation"
+                    class="w-full"
+                  />
+                </UFormField>
+
+                <UFormField :label="t('pages.addProduct.shoppingLocation.form.address')" name="address">
+                  <UInput
+                    v-model="shoppingLocationFormData.address"
+                    :placeholder="t('pages.addProduct.shoppingLocation.form.addressPlaceholder')"
+                    :disabled="isCreatingShoppingLocation"
+                    class="w-full"
+                  />
+                </UFormField>
+
+                <div class="grid grid-cols-2 gap-4">
+                  <UFormField :label="t('pages.addProduct.shoppingLocation.form.city')" name="city">
+                    <UInput
+                      v-model="shoppingLocationFormData.city"
+                      :placeholder="t('pages.addProduct.shoppingLocation.form.cityPlaceholder')"
+                      :disabled="isCreatingShoppingLocation"
+                      class="w-full"
+                    />
+                  </UFormField>
+
+                  <UFormField :label="t('pages.addProduct.shoppingLocation.form.postalCode')" name="postalCode">
+                    <UInput
+                      v-model="shoppingLocationFormData.postalCode"
+                      :placeholder="t('pages.addProduct.shoppingLocation.form.postalCodePlaceholder')"
+                      :disabled="isCreatingShoppingLocation"
+                      class="w-full"
+                    />
+                  </UFormField>
+                </div>
+
+                <UFormField :label="t('pages.addProduct.shoppingLocation.form.country')" name="country">
+                  <UInput
+                    v-model="shoppingLocationFormData.country"
+                    :placeholder="t('pages.addProduct.shoppingLocation.form.countryPlaceholder')"
+                    :disabled="isCreatingShoppingLocation"
+                    class="w-full"
+                  />
+                </UFormField>
+
+                <UFormField :label="t('pages.addProduct.shoppingLocation.form.website')" name="website">
+                  <UInput
+                    v-model="shoppingLocationFormData.website"
+                    type="url"
+                    :placeholder="t('pages.addProduct.shoppingLocation.form.websitePlaceholder')"
+                    :disabled="isCreatingShoppingLocation"
+                    class="w-full"
+                  />
+                </UFormField>
+
+                <UFormField :label="t('pages.addProduct.shoppingLocation.form.googleMaps')" name="googleMaps">
+                  <UInput
+                    v-model="shoppingLocationFormData.googleMaps"
+                    type="url"
+                    :placeholder="t('pages.addProduct.shoppingLocation.form.googleMapsPlaceholder')"
+                    :disabled="isCreatingShoppingLocation"
+                    class="w-full"
+                  />
+                </UFormField>
+
+                <UFormField :label="t('pages.addProduct.shoppingLocation.form.color')" name="color">
+                  <div class="flex items-center gap-3">
+                    <UPopover>
+                      <UButton
+                        color="neutral"
+                        variant="outline"
+                        :disabled="isCreatingShoppingLocation"
+                      >
+                        <div class="flex items-center gap-2">
+                          <div
+                            v-if="shoppingLocationFormData.color"
+                            class="w-4 h-4 rounded"
+                            :style="{ backgroundColor: shoppingLocationFormData.color }"
+                          />
+                          <span>{{ shoppingLocationFormData.color || t('pages.addProduct.shoppingLocation.form.chooseColor') }}</span>
+                        </div>
+                      </UButton>
+                      <template #content>
+                        <UColorPicker v-model="shoppingLocationFormData.color" />
+                      </template>
+                    </UPopover>
+                    <UButton
+                      v-if="shoppingLocationFormData.color"
+                      icon="i-lucide-x"
+                      color="neutral"
+                      variant="ghost"
+                      size="sm"
+                      :disabled="isCreatingShoppingLocation"
+                      @click="shoppingLocationFormData.color = ''"
+                    />
+                  </div>
+                </UFormField>
+
+                <UFormField :label="t('pages.addProduct.shoppingLocation.form.isSharedWithFamily')" name="isSharedWithFamily">
+                  <UCheckbox
+                    v-model="shoppingLocationFormData.isSharedWithFamily"
+                    :label="t('pages.addProduct.shoppingLocation.form.isSharedWithFamilyLabel')"
+                    :disabled="isCreatingShoppingLocation"
+                  />
+                </UFormField>
+
+                <UButton
+                  type="submit"
+                  color="primary"
+                  block
+                  :loading="isCreatingShoppingLocation"
+                  icon="i-lucide-plus"
+                >
+                  {{ t('pages.addProduct.shoppingLocation.form.createButton') }}
+                </UButton>
+              </UForm>
+            </div>
+          </template>
+        </UTabs>
+      </div>
+
+      <!-- Step 4: Placeholder -->
+      <div v-else-if="currentStep === 3" class="text-center py-12">
         <p class="text-xl text-gray-600">{{ t('pages.addProduct.placeholders.step3') }}</p>
         <p v-if="selectedProductId" class="text-sm text-gray-500 mt-2">
           {{ t('pages.addProduct.placeholders.selectedProductId', { id: selectedProductId }) }}
@@ -183,12 +515,14 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref, computed, watch, nextTick } from 'vue'
 import { watchDebounced } from '@vueuse/core'
 import * as z from 'zod'
 import type { FormSubmitEvent } from '@nuxt/ui'
 import { useProductsApi } from '~/composables/api/useProductsApi'
+import { useLocationsApi } from '~/composables/api/useLocationsApi'
 import type { ProductInfo, CreateProductRequest } from '~/types/product'
+import type { StorageLocationInfo, StorageLocationRequest, ShoppingLocationInfo, ShoppingLocationRequest } from '~/types/location'
 
 definePageMeta({
   layout: 'auth',
@@ -196,6 +530,7 @@ definePageMeta({
 })
 
 const { getProducts, createProduct } = useProductsApi()
+const { getStorageLocations, createStorageLocation, getShoppingLocations, createShoppingLocation } = useLocationsApi()
 const { t } = useI18n()
 
 // Stepper state
@@ -203,11 +538,18 @@ const currentStep = ref(0)
 const stepperItems = computed(() => [
   { label: t('pages.addProduct.stepLabels.step1') },
   { label: t('pages.addProduct.stepLabels.step2') },
-  { label: t('pages.addProduct.stepLabels.step3') }
+  { label: t('pages.addProduct.stepLabels.step3') },
+  { label: t('pages.addProduct.stepLabels.step4') }
 ])
 
 // Selected product
 const selectedProductId = ref<string | null>(null)
+
+// Selected storage location
+const selectedStorageLocationId = ref<string | null>(null)
+
+// Selected shopping location
+const selectedShoppingLocationId = ref<string | null>(null)
 
 // Tab state
 const activeTab = ref(0)
@@ -216,11 +558,31 @@ const tabItems = computed(() => [
   { label: t('pages.addProduct.tabs.create'), value: 1, slot: 'create' }
 ])
 
+const locationTabItems = computed(() => [
+  { label: t('pages.addProduct.location.tabs.search'), value: 0, slot: 'search' },
+  { label: t('pages.addProduct.location.tabs.create'), value: 1, slot: 'create' }
+])
+
+const shoppingLocationTabItems = computed(() => [
+  { label: t('pages.addProduct.shoppingLocation.tabs.search'), value: 0, slot: 'search' },
+  { label: t('pages.addProduct.shoppingLocation.tabs.create'), value: 1, slot: 'create' }
+])
+
 // Search state
 const searchQuery = ref('')
 const searchResults = ref<ProductInfo[]>([])
 const isSearching = ref(false)
 const selectedCardId = ref<string | null>(null)
+
+// Step 2: Location search state
+const allLocations = ref<StorageLocationInfo[]>([])
+const locationSearchQuery = ref('')
+const isLoadingLocations = ref(false)
+const selectedLocationCardId = ref<string | null>(null)
+const currentLocationPage = ref(1)
+const locationPageSize = 20
+const loadingMoreLocations = ref(false)
+const locationSentinelRef = ref<HTMLElement | null>(null)
 
 // Create form state
 const isCreating = ref(false)
@@ -232,6 +594,41 @@ const formData = ref<CreateProductRequest>({
   isEatable: false,
   notes: '',
   isFavorite: false
+})
+
+// Step 2: Create location form state
+const isCreatingLocation = ref(false)
+const locationFormData = ref<StorageLocationRequest>({
+  name: '',
+  description: '',
+  color: '',
+  isFreezer: false,
+  isSharedWithFamily: false
+})
+
+// Step 3: Shopping location search state
+const allShoppingLocations = ref<ShoppingLocationInfo[]>([])
+const shoppingLocationSearchQuery = ref('')
+const isLoadingShoppingLocations = ref(false)
+const selectedShoppingLocationCardId = ref<string | null>(null)
+const currentShoppingLocationPage = ref(1)
+const shoppingLocationPageSize = 20
+const loadingMoreShoppingLocations = ref(false)
+const shoppingLocationSentinelRef = ref<HTMLElement | null>(null)
+
+// Step 3: Create shopping location form state
+const isCreatingShoppingLocation = ref(false)
+const shoppingLocationFormData = ref<ShoppingLocationRequest>({
+  name: '',
+  description: '',
+  color: '',
+  address: '',
+  city: '',
+  postalCode: '',
+  country: '',
+  website: '',
+  googleMaps: '',
+  isSharedWithFamily: false
 })
 
 // Zod schema
@@ -248,6 +645,63 @@ const createProductSchema = z.object({
 })
 
 type CreateProductSchema = z.output<typeof createProductSchema>
+
+// Zod schema for storage location
+const createLocationSchema = z.object({
+  name: z.string({ required_error: 'Storage location name is required' })
+    .min(2, 'Name must be at least 2 characters')
+    .max(128, 'Name must not exceed 128 characters'),
+  description: z.string()
+    .max(500, 'Description must not exceed 500 characters')
+    .optional(),
+  color: z.string()
+    .regex(/^#[0-9A-Fa-f]{6}$/, 'Color must be a valid hex color (e.g., #FF5733)')
+    .optional()
+    .or(z.literal('')),
+  isFreezer: z.boolean().optional().default(false),
+  isSharedWithFamily: z.boolean().optional().default(false)
+})
+
+type CreateLocationSchema = z.output<typeof createLocationSchema>
+
+// Zod schema for shopping location
+const createShoppingLocationSchema = z.object({
+  name: z.string({ required_error: 'Shopping location name is required' })
+    .min(2, 'Name must be at least 2 characters')
+    .max(128, 'Name must not exceed 128 characters'),
+  description: z.string()
+    .max(500, 'Description must not exceed 500 characters')
+    .optional(),
+  address: z.string()
+    .max(128, 'Address must not exceed 128 characters')
+    .optional(),
+  city: z.string()
+    .max(64, 'City must not exceed 64 characters')
+    .optional(),
+  postalCode: z.string()
+    .max(20, 'Postal code must not exceed 20 characters')
+    .optional(),
+  country: z.string()
+    .max(64, 'Country must not exceed 64 characters')
+    .optional(),
+  website: z.string()
+    .url('Must be a valid URL')
+    .max(255, 'URL must not exceed 255 characters')
+    .optional()
+    .or(z.literal('')),
+  googleMaps: z.string()
+    .url('Must be a valid URL')
+    .max(255, 'URL must not exceed 255 characters')
+    .optional()
+    .or(z.literal('')),
+  color: z.string()
+    .regex(/^#[0-9A-Fa-f]{6}$/, 'Color must be a valid hex color')
+    .optional()
+    .or(z.literal('')),
+  isSharedWithFamily: z.boolean().optional().default(false)
+})
+
+type CreateShoppingLocationSchema = z.output<typeof createShoppingLocationSchema>
 
 // Watch search query with debounce
 watchDebounced(
@@ -276,6 +730,178 @@ watchDebounced(
   },
   { debounce: 300 }
 )
+
+// Computed - client-side filtering for locations
+const filteredLocations = computed(() => {
+  let result = allLocations.value
+
+  // Text search filter
+  if (locationSearchQuery.value.trim()) {
+    const searchTerm = locationSearchQuery.value.toLowerCase()
+    result = result.filter(location =>
+      location.name.toLowerCase().includes(searchTerm) ||
+      (location.description && location.description.toLowerCase().includes(searchTerm))
+    )
+  }
+
+  return result
+})
+
+// Paginated locations for display (lazy loading)
+const displayedLocations = computed(() => {
+  const startIndex = 0
+  const endIndex = currentLocationPage.value * locationPageSize
+  return filteredLocations.value.slice(startIndex, endIndex)
+})
+
+const hasMoreLocations = computed(() => {
+  return displayedLocations.value.length < filteredLocations.value.length
+})
+
+// Load all locations
+const loadLocations = async () => {
+  isLoadingLocations.value = true
+  try {
+    const response = await getStorageLocations({ returnAll: true })
+    if (response.success && response.data) {
+      allLocations.value = response.data.items
+    }
+  } finally {
+    isLoadingLocations.value = false
+  }
+}
+
+// Intersection Observer for lazy loading locations
+let locationObserver: IntersectionObserver | null = null
+
+const setupLocationObserver = () => {
+  if (locationSentinelRef.value && !locationObserver) {
+    locationObserver = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => {
+          if (entry.isIntersecting && hasMoreLocations.value && !loadingMoreLocations.value) {
+            loadingMoreLocations.value = true
+            currentLocationPage.value++
+            setTimeout(() => {
+              loadingMoreLocations.value = false
+            }, 100)
+          }
+        })
+      },
+      { threshold: 0.5 }
+    )
+    locationObserver.observe(locationSentinelRef.value)
+  }
+}
+
+const cleanupLocationObserver = () => {
+  if (locationObserver) {
+    locationObserver.disconnect()
+    locationObserver = null
+  }
+}
+
+// Watch for when we enter Step 2 to load locations
+watch(currentStep, async (newStep) => {
+  if (newStep === 1 && allLocations.value.length === 0) {
+    await loadLocations()
+    await nextTick()
+    setupLocationObserver()
+  } else if (newStep !== 1) {
+    cleanupLocationObserver()
+  }
+
+  // Step 3: Load shopping locations
+  if (newStep === 2 && allShoppingLocations.value.length === 0) {
+    await loadShoppingLocations()
+    await nextTick()
+    setupShoppingLocationObserver()
+  } else if (newStep !== 2) {
+    cleanupShoppingLocationObserver()
+  }
+})
+
+// Reset pagination when search changes
+watch(locationSearchQuery, () => {
+  currentLocationPage.value = 1
+})
+
+// Computed - client-side filtering for shopping locations
+const filteredShoppingLocations = computed(() => {
+  let result = allShoppingLocations.value
+
+  // Text search filter
+  if (shoppingLocationSearchQuery.value.trim()) {
+    const searchTerm = shoppingLocationSearchQuery.value.toLowerCase()
+    result = result.filter(location =>
+      location.name.toLowerCase().includes(searchTerm) ||
+      (location.address && location.address.toLowerCase().includes(searchTerm)) ||
+      (location.city && location.city.toLowerCase().includes(searchTerm)) ||
+      (location.description && location.description.toLowerCase().includes(searchTerm))
+    )
+  }
+
+  return result
+})
+
+// Paginated shopping locations for display (lazy loading)
+const displayedShoppingLocations = computed(() => {
+  const startIndex = 0
+  const endIndex = currentShoppingLocationPage.value * shoppingLocationPageSize
+  return filteredShoppingLocations.value.slice(startIndex, endIndex)
+})
+
+const hasMoreShoppingLocations = computed(() => {
+  return displayedShoppingLocations.value.length < filteredShoppingLocations.value.length
+})
+
+// Load all shopping locations
+const loadShoppingLocations = async () => {
+  isLoadingShoppingLocations.value = true
+  try {
+    const response = await getShoppingLocations({ returnAll: true })
+    if (response.success && response.data) {
+      allShoppingLocations.value = response.data.items
+    }
+  } finally {
+    isLoadingShoppingLocations.value = false
+  }
+}
+
+// Intersection Observer for lazy loading shopping locations
+let shoppingLocationObserver: IntersectionObserver | null = null
+
+const setupShoppingLocationObserver = () => {
+  if (shoppingLocationSentinelRef.value && !shoppingLocationObserver) {
+    shoppingLocationObserver = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => {
+          if (entry.isIntersecting && hasMoreShoppingLocations.value && !loadingMoreShoppingLocations.value) {
+            loadingMoreShoppingLocations.value = true
+            currentShoppingLocationPage.value++
+            setTimeout(() => {
+              loadingMoreShoppingLocations.value = false
+            }, 100)
+          }
+        })
+      },
+      { threshold: 0.5 }
+    )
+    shoppingLocationObserver.observe(shoppingLocationSentinelRef.value)
+  }
+}
+
+const cleanupShoppingLocationObserver = () => {
+  if (shoppingLocationObserver) {
+    shoppingLocationObserver.disconnect()
+    shoppingLocationObserver = null
+  }
+}
+
+// Reset shopping location pagination when search changes
+watch(shoppingLocationSearchQuery, () => {
+  currentShoppingLocationPage.value = 1
+})
 
 // Handlers
 const onProductCardClick = (product: ProductInfo) => {
@@ -307,6 +933,73 @@ const onCreateProduct = async (event: FormSubmitEvent<CreateProductSchema>) => {
     console.error('Product creation failed:', error)
   } finally {
     isCreating.value = false
+  }
+}
+
+// Location selection handler
+const onLocationCardClick = (location: StorageLocationInfo) => {
+  selectedLocationCardId.value = location.publicId
+  selectedStorageLocationId.value = location.publicId
+  currentStep.value = 2 // Advance to step 3
+}
+
+// Location creation handler
+const onCreateLocation = async (event: FormSubmitEvent<CreateLocationSchema>) => {
+  isCreatingLocation.value = true
+  try {
+    const locationData: StorageLocationRequest = {
+      name: event.data.name,
+      description: event.data.description?.trim() || undefined,
+      color: event.data.color?.trim() || undefined,
+      isFreezer: event.data.isFreezer,
+      isSharedWithFamily: event.data.isSharedWithFamily
+    }
+
+    const response = await createStorageLocation(locationData)
+    if (response.success && response.data) {
+      selectedStorageLocationId.value = response.data.publicId
+      currentStep.value = 2 // Advance to step 3
+    }
+  } catch (error) {
+    console.error('Location creation failed:', error)
+  } finally {
+    isCreatingLocation.value = false
+  }
+}
+
+// Shopping location selection handler
+const onShoppingLocationCardClick = (location: ShoppingLocationInfo) => {
+  selectedShoppingLocationCardId.value = location.publicId
+  selectedShoppingLocationId.value = location.publicId
+  currentStep.value = 3 // Advance to step 4
+}
+
+// Shopping location creation handler
+const onCreateShoppingLocation = async (event: FormSubmitEvent<CreateShoppingLocationSchema>) => {
+  isCreatingShoppingLocation.value = true
+  try {
+    const locationData: ShoppingLocationRequest = {
+      name: event.data.name,
+      description: event.data.description?.trim() || undefined,
+      address: event.data.address?.trim() || undefined,
+      city: event.data.city?.trim() || undefined,
+      postalCode: event.data.postalCode?.trim() || undefined,
+      country: event.data.country?.trim() || undefined,
+      website: event.data.website?.trim() || undefined,
+      googleMaps: event.data.googleMaps?.trim() || undefined,
+      color: event.data.color?.trim() || undefined,
+      isSharedWithFamily: event.data.isSharedWithFamily
+    }
+
+    const response = await createShoppingLocation(locationData)
+    if (response.success && response.data) {
+      selectedShoppingLocationId.value = response.data.publicId
+      currentStep.value = 3 // Advance to step 4
+    }
+  } catch (error) {
+    console.error('Shopping location creation failed:', error)
+  } finally {
+    isCreatingShoppingLocation.value = false
   }
 }
 </script>

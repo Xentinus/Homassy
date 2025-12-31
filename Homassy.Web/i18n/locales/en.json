@@ -102,8 +102,9 @@
       "title": "Add Product",
       "stepLabels": {
         "step1": "Product Selection",
-        "step2": "Step 2",
-        "step3": "Step 3"
+        "step2": "Storage Location",
+        "step3": "Shopping Location",
+        "step4": "Step 4"
       },
       "tabs": {
         "search": "Search Product",
@@ -135,6 +136,63 @@
         "step2": "Step 2",
         "step3": "Step 3",
         "selectedProductId": "Selected product ID: {id}"
+      },
+      "location": {
+        "tabs": {
+          "search": "Search Location",
+          "create": "Create New Location"
+        },
+        "search": {
+          "placeholder": "Search storage locations by name",
+          "startTyping": "Start typing to search storage locations",
+          "noResults": "No storage locations found"
+        },
+        "form": {
+          "name": "Location Name",
+          "namePlaceholder": "e.g. Refrigerator, Pantry, Basement Freezer",
+          "description": "Description",
+          "descriptionPlaceholder": "Optional notes about this location",
+          "color": "Color",
+          "chooseColor": "Choose Color",
+          "isFreezer": "Freezer",
+          "isFreezerLabel": "This is a freezer location",
+          "isSharedWithFamily": "Shared with Family",
+          "isSharedWithFamilyLabel": "Share this location with family members",
+          "createButton": "Create Storage Location"
+        }
+      },
+      "shoppingLocation": {
+        "tabs": {
+          "search": "Shopping Location",
+          "create": "Create Shopping Location"
+        },
+        "search": {
+          "placeholder": "Search shopping locations by name",
+          "noResults": "No shopping locations found"
+        },
+        "form": {
+          "name": "Store Name",
+          "namePlaceholder": "e.g. Tesco, Walmart, Target",
+          "description": "Description",
+          "descriptionPlaceholder": "Optional notes",
+          "address": "Address",
+          "addressPlaceholder": "e.g. Main Street 123",
+          "city": "City",
+          "cityPlaceholder": "e.g. London",
+          "postalCode": "Postal Code",
+          "postalCodePlaceholder": "e.g. SW1A 1AA",
+          "country": "Country",
+          "countryPlaceholder": "e.g. United Kingdom",
+          "website": "Website",
+          "websitePlaceholder": "e.g. https://example.com",
+          "googleMaps": "Google Maps Link",
+          "googleMapsPlaceholder": "e.g. https://maps.google.com/...",
+          "color": "Color",
+          "chooseColor": "Choose Color",
+          "isSharedWithFamily": "Shared with Family",
+          "isSharedWithFamilyLabel": "Share with family members",
+          "createButton": "Create Shopping Location"
+        }
       }
     },
     "shoppingLists": {

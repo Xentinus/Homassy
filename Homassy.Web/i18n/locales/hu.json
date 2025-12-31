@@ -102,8 +102,9 @@
       "title": "Termék hozzáadása",
       "stepLabels": {
         "step1": "Termék választása",
-        "step2": "2. lépés",
-        "step3": "3. lépés"
+        "step2": "Tárolási hely",
+        "step3": "Bevásárlás helye",
+        "step4": "4. lépés"
       },
       "tabs": {
         "search": "Termék keresése",
@@ -135,6 +136,63 @@
         "step2": "Step 2",
         "step3": "Step 3",
         "selectedProductId": "Kiválasztott termék ID: {id}"
+      },
+      "location": {
+        "tabs": {
+          "search": "Tároló keresése",
+          "create": "Új tároló létrehozása"
+        },
+        "search": {
+          "placeholder": "Tárolási helyek keresése név alapján",
+          "startTyping": "Kezdj el gépelni a tárolási helyek kereséséhez",
+          "noResults": "Nem találhatók tárolási helyek"
+        },
+        "form": {
+          "name": "Hely neve",
+          "namePlaceholder": "pl. Hűtőszekrény, Kamra, Pincei fagyasztó",
+          "description": "Leírás",
+          "descriptionPlaceholder": "Opcionális megjegyzések erről a helyről",
+          "color": "Szín",
+          "chooseColor": "Szín választása",
+          "isFreezer": "Fagyasztó",
+          "isFreezerLabel": "Ez egy fagyasztó hely",
+          "isSharedWithFamily": "Megosztva a családdal",
+          "isSharedWithFamilyLabel": "Hely megosztása családtagokkal",
+          "createButton": "Tárolási hely létrehozása"
+        }
+      },
+      "shoppingLocation": {
+        "tabs": {
+          "search": "Bevásárlás helye",
+          "create": "Új bevásárlási hely"
+        },
+        "search": {
+          "placeholder": "Bevásárlási helyek keresése név alapján",
+          "noResults": "Nem találhatók bevásárlási helyek"
+        },
+        "form": {
+          "name": "Üzlet neve",
+          "namePlaceholder": "pl. Tesco, Lidl, Auchan",
+          "description": "Leírás",
+          "descriptionPlaceholder": "Opcionális megjegyzések",
+          "address": "Cím",
+          "addressPlaceholder": "pl. Váci út 1-3",
+          "city": "Város",
+          "cityPlaceholder": "pl. Budapest",
+          "postalCode": "Irányítószám",
+          "postalCodePlaceholder": "pl. 1134",
+          "country": "Ország",
+          "countryPlaceholder": "pl. Magyarország",
+          "website": "Weboldal",
+          "websitePlaceholder": "pl. https://example.com",
+          "googleMaps": "Google Maps link",
+          "googleMapsPlaceholder": "pl. https://maps.google.com/...",
+          "color": "Szín",
+          "chooseColor": "Szín választása",
+          "isSharedWithFamily": "Megosztva a családdal",
+          "isSharedWithFamilyLabel": "Hely megosztása családtagokkal",
+          "createButton": "Bevásárlási hely létrehozása"
+        }
       }
     },
     "shoppingLists": {
