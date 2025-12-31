@@ -25,10 +25,10 @@ export interface DetailedProductInfo extends ProductInfo {
 export interface CreateProductRequest {
   name: string
   brand: string
-  category?: string
-  barcode?: string
+  category?: string | null
+  barcode?: string | null
   isEatable?: boolean
-  notes?: string
+  notes?: string | null
   isFavorite?: boolean
 }
 

@@ -27,14 +27,14 @@ export const useLocationsApi = () => {
   const getStorageLocations = async (params?: {
     pageNumber?: number
     pageSize?: number
-    searchTerm?: string
+    searchText?: string
     sortBy?: string
   }) => {
     const queryParams = new URLSearchParams()
-    if (params?.pageNumber) queryParams.append('pageNumber', params.pageNumber.toString())
-    if (params?.pageSize) queryParams.append('pageSize', params.pageSize.toString())
-    if (params?.searchTerm) queryParams.append('searchTerm', params.searchTerm)
-    if (params?.sortBy) queryParams.append('sortBy', params.sortBy)
+    if (params?.pageNumber) queryParams.append('PageNumber', params.pageNumber.toString())
+    if (params?.pageSize) queryParams.append('PageSize', params.pageSize.toString())
+    if (params?.searchText) queryParams.append('SearchText', params.searchText)
+    if (params?.sortBy) queryParams.append('SortBy', params.sortBy)
 
     return await client.get<PagedResult<StorageLocationInfo>>(
       `/api/v1/Location/storage?${queryParams.toString()}`
@@ -123,14 +123,14 @@ export const useLocationsApi = () => {
   const getShoppingLocations = async (params?: {
     pageNumber?: number
     pageSize?: number
-    searchTerm?: string
+    searchText?: string
     sortBy?: string
   }) => {
     const queryParams = new URLSearchParams()
-    if (params?.pageNumber) queryParams.append('pageNumber', params.pageNumber.toString())
-    if (params?.pageSize) queryParams.append('pageSize', params.pageSize.toString())
-    if (params?.searchTerm) queryParams.append('searchTerm', params.searchTerm)
-    if (params?.sortBy) queryParams.append('sortBy', params.sortBy)
+    if (params?.pageNumber) queryParams.append('PageNumber', params.pageNumber.toString())
+    if (params?.pageSize) queryParams.append('PageSize', params.pageSize.toString())
+    if (params?.searchText) queryParams.append('SearchText', params.searchText)
+    if (params?.sortBy) queryParams.append('SortBy', params.sortBy)
 
     return await client.get<PagedResult<ShoppingLocationInfo>>(
       `/api/v1/Location/shopping?${queryParams.toString()}`

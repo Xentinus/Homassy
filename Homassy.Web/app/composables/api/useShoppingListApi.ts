@@ -26,14 +26,14 @@ export const useShoppingListApi = () => {
   const getShoppingLists = async (params?: {
     pageNumber?: number
     pageSize?: number
-    searchTerm?: string
+    searchText?: string
     sortBy?: string
   }) => {
     const queryParams = new URLSearchParams()
-    if (params?.pageNumber) queryParams.append('pageNumber', params.pageNumber.toString())
-    if (params?.pageSize) queryParams.append('pageSize', params.pageSize.toString())
-    if (params?.searchTerm) queryParams.append('searchTerm', params.searchTerm)
-    if (params?.sortBy) queryParams.append('sortBy', params.sortBy)
+    if (params?.pageNumber) queryParams.append('PageNumber', params.pageNumber.toString())
+    if (params?.pageSize) queryParams.append('PageSize', params.pageSize.toString())
+    if (params?.searchText) queryParams.append('SearchText', params.searchText)
+    if (params?.sortBy) queryParams.append('SortBy', params.sortBy)
 
     return await client.get<PagedResult<ShoppingListInfo>>(
       `/api/v1/ShoppingList?${queryParams.toString()}`
@@ -43,10 +43,10 @@ export const useShoppingListApi = () => {
   /**
    * Get shopping list details with items
    */
-  const getShoppingListDetails = async (publicId: string, includeCompleted?: boolean) => {
+  const getShoppingListDetails = async (publicId: string, showPurchased?: boolean) => {
     const queryParams = new URLSearchParams()
-    if (includeCompleted !== undefined) {
-      queryParams.append('includeCompleted', includeCompleted.toString())
+    if (showPurchased !== undefined) {
+      queryParams.append('showPurchased', showPurchased.toString())
     }
 
     return await client.get<DetailedShoppingListInfo>(
