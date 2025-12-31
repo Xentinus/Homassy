@@ -503,12 +503,107 @@
         </UTabs>
       </div>
 
-      <!-- Step 4: Placeholder -->
-      <div v-else-if="currentStep === 3" class="text-center py-12">
-        <p class="text-xl text-gray-600">{{ t('pages.addProduct.placeholders.step3') }}</p>
-        <p v-if="selectedProductId" class="text-sm text-gray-500 mt-2">
-          {{ t('pages.addProduct.placeholders.selectedProductId', { id: selectedProductId }) }}
-        </p>
+      <!-- Step 4: Create Inventory Item -->
+      <div v-else-if="currentStep === 3" class="space-y-6">
+        <UForm
+          :schema="createInventorySchema"
+          :state="inventoryFormData"
+          class="space-y-4"
+          @submit="onCreateInventory"
+        >
+          <!-- Quantity (Required) -->
+          <UFormField :label="t('pages.addProduct.inventory.form.quantity')" name="quantity" required>
+            <UInput
+              v-model.number="inventoryFormData.quantity"
+              type="number"
+              step="0.01"
+              min="0.01"
+              :placeholder="t('pages.addProduct.inventory.form.quantityPlaceholder')"
+              :disabled="isCreatingInventory"
+              class="w-full"
+            />
+          </UFormField>
+
+          <!-- Unit (Optional) -->
+          <UFormField :label="t('pages.addProduct.inventory.form.unit')" name="unit">
+            <USelect
+              v-model="inventoryFormData.unit"
+              :items="unitOptions"
+              :placeholder="t('pages.addProduct.inventory.form.unitPlaceholder')"
+              :disabled="isCreatingInventory"
+              class="w-full"
+            />
+          </UFormField>
+
+          <!-- Expiration Date (Optional) -->
+          <UFormField :label="t('pages.addProduct.inventory.form.expirationAt')" name="expirationAt">
+            <UInput
+              v-model="inventoryFormData.expirationAt"
+              type="datetime-local"
+              :placeholder="t('pages.addProduct.inventory.form.expirationAtPlaceholder')"
+              :disabled="isCreatingInventory"
+              class="w-full"
+            />
+          </UFormField>
+
+          <!-- Price (Optional) -->
+          <UFormField :label="t('pages.addProduct.inventory.form.price')" name="price">
+            <UInput
+              v-model.number="inventoryFormData.price"
+              type="number"
+              step="0.01"
+              min="0"
+              :placeholder="t('pages.addProduct.inventory.form.pricePlaceholder')"
+              :disabled="isCreatingInventory"
+              class="w-full"
+            />
+          </UFormField>
+
+          <!-- Currency (Optional - shown if price is set) -->
+          <UFormField
+            v-if="inventoryFormData.price !== undefined && inventoryFormData.price > 0"
+            :label="t('pages.addProduct.inventory.form.currency')"
+            name="currency"
+          >
+            <USelect
+              v-model="inventoryFormData.currency"
+              :items="currencyOptions"
+              :placeholder="t('pages.addProduct.inventory.form.currencyPlaceholder')"
+              :disabled="isCreatingInventory"
+              class="w-full"
+            />
+          </UFormField>
+
+          <!-- Receipt Number (Optional) -->
+          <UFormField :label="t('pages.addProduct.inventory.form.receiptNumber')" name="receiptNumber">
+            <UInput
+              v-model="inventoryFormData.receiptNumber"
+              :placeholder="t('pages.addProduct.inventory.form.receiptNumberPlaceholder')"
+              :disabled="isCreatingInventory"
+              class="w-full"
+            />
+          </UFormField>
+
+          <!-- Is Shared with Family (Optional) -->
+          <UFormField :label="t('pages.addProduct.inventory.form.isSharedWithFamily')" name="isSharedWithFamily">
+            <UCheckbox
+              v-model="inventoryFormData.isSharedWithFamily"
+              :label="t('pages.addProduct.inventory.form.isSharedWithFamilyLabel')"
+              :disabled="isCreatingInventory"
+            />
+          </UFormField>
+
+          <!-- Submit Button -->
+          <UButton
+            type="submit"
+            color="primary"
+            block
+            :loading="isCreatingInventory"
+            icon="i-lucide-check"
+          >
+            {{ t('pages.addProduct.inventory.form.createButton') }}
+          </UButton>
+        </UForm>
       </div>
     </div>
   </div>
@@ -521,15 +616,16 @@ import * as z from 'zod'
 import type { FormSubmitEvent } from '@nuxt/ui'
 import { useProductsApi } from '~/composables/api/useProductsApi'
 import { useLocationsApi } from '~/composables/api/useLocationsApi'
-import type { ProductInfo, CreateProductRequest } from '~/types/product'
+import type { ProductInfo, CreateProductRequest, CreateInventoryItemRequest } from '~/types/product'
 import type { StorageLocationInfo, StorageLocationRequest, ShoppingLocationInfo, ShoppingLocationRequest } from '~/types/location'
+import { Unit, Currency } from '~/types/enums'
 
 definePageMeta({
   layout: 'auth',
   middleware: 'auth'
 })
 
-const { getProducts, createProduct } = useProductsApi()
+const { getProducts, createProduct, createInventoryItem } = useProductsApi()
 const { getStorageLocations, createStorageLocation, getShoppingLocations, createShoppingLocation } = useLocationsApi()
 const { t } = useI18n()
 
@@ -631,6 +727,39 @@ const shoppingLocationFormData = ref<ShoppingLocationRequest>({
   isSharedWithFamily: false
 })
 
+// Step 4: Create inventory item form state
+const isCreatingInventory = ref(false)
+const inventoryFormData = ref<CreateInventoryItemRequest>({
+  productPublicId: '',
+  quantity: 1,
+  unit: undefined,
+  expirationAt: undefined,
+  price: undefined,
+  currency: undefined,
+  shoppingLocationPublicId: undefined,
+  receiptNumber: undefined,
+  isSharedWithFamily: false
+})
+
+// Unit options for dropdown
+const unitOptions = computed(() => {
+  return Object.entries(Unit)
+    .filter(([key]) => isNaN(Number(key))) // Filter out numeric keys
+    .map(([key, value]) => ({
+      label: t(`enums.unit.${value}`),
+      value: value as Unit
+    }))
+})
+
+// Currency options for dropdown
+const currencyOptions = computed(() => {
+  return [
+    { label: t('enums.currency.135'), value: Currency.Huf },
+    { label: t('enums.currency.105'), value: Currency.Eur },
+    { label: t('enums.currency.279'), value: Currency.Usd }
+  ]
+})
+
 // Zod schema
 const createProductSchema = z.object({
   name: z.string({ required_error: 'A termék neve kötelező' })
@@ -702,6 +831,27 @@ const createShoppingLocationSchema = z.object({
 })
 
 type CreateShoppingLocationSchema = z.output<typeof createShoppingLocationSchema>
+
+// Zod schema for inventory item
+const createInventorySchema = z.object({
+  quantity: z.number({ required_error: 'Quantity is required' })
+    .min(0.001, 'Quantity must be greater than 0'),
+  unit: z.nativeEnum(Unit).optional(),
+  expirationAt: z.string()
+    .datetime({ message: 'Must be a valid date' })
+    .optional()
+    .or(z.literal('')),
+  price: z.number()
+    .min(0, 'Price must be positive')
+    .optional(),
+  currency: z.nativeEnum(Currency).optional(),
+  receiptNumber: z.string()
+    .max(50, 'Receipt number must not exceed 50 characters')
+    .optional(),
+  isSharedWithFamily: z.boolean().optional().default(false)
+})
+
+type CreateInventorySchema = z.output<typeof createInventorySchema>
 
 // Watch search query with debounce
 watchDebounced(
@@ -1000,6 +1150,35 @@ const onCreateShoppingLocation = async (event: FormSubmitEvent<CreateShoppingLoc
     console.error('Shopping location creation failed:', error)
   } finally {
     isCreatingShoppingLocation.value = false
+  }
+}
+
+// Inventory item creation handler
+const onCreateInventory = async (event: FormSubmitEvent<CreateInventorySchema>) => {
+  isCreatingInventory.value = true
+  try {
+    const inventoryData: CreateInventoryItemRequest = {
+      productPublicId: selectedProductId.value!,
+      storageLocationPublicId: selectedStorageLocationId.value || undefined,
+      shoppingLocationPublicId: selectedShoppingLocationId.value || undefined,
+      quantity: event.data.quantity,
+      unit: event.data.unit,
+      expirationAt: event.data.expirationAt?.trim() || undefined,
+      price: event.data.price,
+      currency: event.data.currency,
+      receiptNumber: event.data.receiptNumber?.trim() || undefined,
+      isSharedWithFamily: event.data.isSharedWithFamily
+    }
+
+    const response = await createInventoryItem(inventoryData)
+    if (response.success && response.data) {
+      // Success - redirect to products page
+      window.location.href = '/products'
+    }
+  } catch (error) {
+    console.error('Inventory item creation failed:', error)
+  } finally {
+    isCreatingInventory.value = false
   }
 }
 </script>

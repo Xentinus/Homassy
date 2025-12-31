@@ -104,7 +104,7 @@
         "step1": "Produktauswahl",
         "step2": "Lagerort",
         "step3": "Einkaufsort",
-        "step4": "Schritt 4"
+        "step4": "Bestand erstellen"
       },
       "tabs": {
         "search": "Produkt suchen",
@@ -192,6 +192,25 @@
           "isSharedWithFamily": "Mit Familie geteilt",
           "isSharedWithFamilyLabel": "Mit Familienmitgliedern teilen",
           "createButton": "Einkaufsort erstellen"
+        }
+      },
+      "inventory": {
+        "form": {
+          "quantity": "Menge",
+          "quantityPlaceholder": "z.B. 1, 2, 10",
+          "unit": "Einheit",
+          "unitPlaceholder": "Einheit auswählen",
+          "expirationAt": "Ablaufdatum",
+          "expirationAtPlaceholder": "Datum auswählen",
+          "price": "Preis",
+          "pricePlaceholder": "z.B. 10,00",
+          "currency": "Währung",
+          "currencyPlaceholder": "Währung auswählen",
+          "receiptNumber": "Belegnummer",
+          "receiptNumberPlaceholder": "Optionale Belegnummer",
+          "isSharedWithFamily": "Mit Familie geteilt",
+          "isSharedWithFamilyLabel": "Diesen Artikel mit Familienmitgliedern teilen",
+          "createButton": "Lagerbestand erstellen"
         }
       }
     },
@@ -298,6 +317,11 @@
       "53": "Dose",
       "54": "Glas",
       "55": "Beutel"
+    },
+    "currency": {
+      "135": "HUF",
+      "105": "EUR",
+      "279": "USD"
     }
   }
 }

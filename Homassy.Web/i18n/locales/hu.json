@@ -104,7 +104,7 @@
         "step1": "Termék választása",
         "step2": "Tárolási hely",
         "step3": "Bevásárlás helye",
-        "step4": "4. lépés"
+        "step4": "Készlet létrehozása"
       },
       "tabs": {
         "search": "Termék keresése",
@@ -192,6 +192,25 @@
           "isSharedWithFamily": "Megosztva a családdal",
           "isSharedWithFamilyLabel": "Hely megosztása családtagokkal",
           "createButton": "Bevásárlási hely létrehozása"
+        }
+      },
+      "inventory": {
+        "form": {
+          "quantity": "Mennyiség",
+          "quantityPlaceholder": "pl. 1, 2, 10",
+          "unit": "Mértékegység",
+          "unitPlaceholder": "Válassz mértékegységet",
+          "expirationAt": "Lejárati dátum",
+          "expirationAtPlaceholder": "Válassz dátumot",
+          "price": "Ár",
+          "pricePlaceholder": "pl. 1000",
+          "currency": "Pénznem",
+          "currencyPlaceholder": "Válassz pénznemet",
+          "receiptNumber": "Nyugta szám",
+          "receiptNumberPlaceholder": "Opcionális nyugta szám",
+          "isSharedWithFamily": "Megosztva a családdal",
+          "isSharedWithFamilyLabel": "Készlet elem megosztása családtagokkal",
+          "createButton": "Készlet elem létrehozása"
         }
       }
     },
@@ -298,6 +317,11 @@
       "53": "konzerv",
       "54": "befőttes",
       "55": "tasak"
+    },
+    "currency": {
+      "135": "Ft",
+      "105": "€",
+      "279": "$"
     }
   }
 }

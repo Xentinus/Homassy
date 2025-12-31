@@ -104,7 +104,7 @@
         "step1": "Product Selection",
         "step2": "Storage Location",
         "step3": "Shopping Location",
-        "step4": "Step 4"
+        "step4": "Create Inventory"
       },
       "tabs": {
         "search": "Search Product",
@@ -192,6 +192,25 @@
           "isSharedWithFamily": "Shared with Family",
           "isSharedWithFamilyLabel": "Share with family members",
           "createButton": "Create Shopping Location"
+        }
+      },
+      "inventory": {
+        "form": {
+          "quantity": "Quantity",
+          "quantityPlaceholder": "e.g. 1, 2, 10",
+          "unit": "Unit",
+          "unitPlaceholder": "Select unit",
+          "expirationAt": "Expiration Date",
+          "expirationAtPlaceholder": "Select date",
+          "price": "Price",
+          "pricePlaceholder": "e.g. 10.00",
+          "currency": "Currency",
+          "currencyPlaceholder": "Select currency",
+          "receiptNumber": "Receipt Number",
+          "receiptNumberPlaceholder": "Optional receipt number",
+          "isSharedWithFamily": "Shared with Family",
+          "isSharedWithFamilyLabel": "Share this item with family members",
+          "createButton": "Create Inventory Item"
         }
       }
     },
@@ -298,6 +317,11 @@
       "53": "can",
       "54": "jar",
       "55": "bag"
+    },
+    "currency": {
+      "135": "HUF",
+      "105": "EUR",
+      "279": "USD"
     }
   }
 }
