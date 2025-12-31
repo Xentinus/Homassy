@@ -47,20 +47,30 @@
     </div>
 
     <!-- No Results -->
-    <div v-else-if="filteredProducts.length === 0" class="text-center py-12">
+    <div v-else-if="filteredProducts.length === 0 && !isLoading" class="text-center py-12">
       <p class="text-gray-500 dark:text-gray-400">{{ $t('pages.products.noResults') }}</p>
     </div>
 
     <!-- Products Grid -->
     <div v-else class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-      <DetailedProductCard v-for="product in filteredProducts" :key="product.publicId" :product="product" />
+      <DetailedProductCard v-for="product in displayedProducts" :key="product.publicId" :product="product" />
+    </div>
+
+    <!-- Sentinel for intersection observer -->
+    <div v-if="hasMoreProducts" ref="sentinelRef" class="w-full">
+      <!-- Loading skeletons while loading more -->
+      <div v-if="loadingMore" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mt-4">
+        <USkeleton class="h-32 w-full" />
+        <USkeleton class="h-32 w-full" />
+        <USkeleton class="h-32 w-full" />
+      </div>
     </div>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, watch, nextTick, onBeforeUnmount } from 'vue'
 import { useProductsApi } from '../../composables/api/useProductsApi'
 import type { DetailedProductInfo } from '../../types/product'
 import { normalizeForSearch } from '../../utils/stringUtils'
@@ -78,6 +88,12 @@ const allProducts = ref<DetailedProductInfo[]>([])
 const isLoading = ref(false)
 const searchQuery = ref('')
 const filterMode = ref('all')
+
+// Pagination state
+const currentPage = ref(1)
+const pageSize = 20
+const loadingMore = ref(false)
+const sentinelRef = ref<HTMLElement | null>(null)
 
 // Filter options for select dropdown
 const filterOptions = computed(() => [
@@ -129,6 +145,17 @@ const filteredProducts = computed(() => {
   return result
 })
 
+// Paginated products for display (lazy loading)
+const displayedProducts = computed(() => {
+  const startIndex = 0
+  const endIndex = currentPage.value * pageSize
+  return filteredProducts.value.slice(startIndex, endIndex)
+})
+
+const hasMoreProducts = computed(() => {
+  return displayedProducts.value.length < filteredProducts.value.length
+})
+
 // Helper function to check if product has expired items
 const hasExpiredItems = (product: DetailedProductInfo): boolean => {
   const now = new Date()
@@ -152,7 +179,6 @@ const hasExpiringSoonItems = (product: DetailedProductInfo): boolean => {
     if (!item.expirationAt) return false
     try {
       const expirationDate = new Date(item.expirationAt)
-      // Within next 2 weeks but NOT yet expired
       return expirationDate >= now && expirationDate <= twoWeeksFromNow
     } catch {
       return false
@@ -174,8 +200,55 @@ const loadProducts = async () => {
   }
 }
 
+const loadMoreProducts = () => {
+  if (loadingMore.value || !hasMoreProducts.value) return
+
+  loadingMore.value = true
+
+  // Simulate loading delay for better UX
+  setTimeout(() => {
+    currentPage.value++
+    loadingMore.value = false
+  }, 300)
+}
+
+// Watch for filter changes to reset pagination
+watch(searchQuery, () => {
+  currentPage.value = 1
+})
+
+watch(filterMode, () => {
+  currentPage.value = 1
+})
+
 // Lifecycle
 onMounted(() => {
   loadProducts()
+
+  // Setup intersection observer for infinite scroll
+  nextTick(() => {
+    if (!sentinelRef.value) return
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        const [entry] = entries
+        if (entry && entry.isIntersecting && hasMoreProducts.value && !loadingMore.value) {
+          loadMoreProducts()
+        }
+      },
+      {
+        root: null,
+        rootMargin: '100px', // Trigger 100px before reaching bottom
+        threshold: 0.1
+      }
+    )
+
+    observer.observe(sentinelRef.value)
+
+    // Cleanup
+    onBeforeUnmount(() => {
+      observer.disconnect()
+    })
+  })
 })
 </script>
