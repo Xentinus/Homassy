@@ -11,7 +11,7 @@
           />
         </NuxtLink>
         <UIcon name="i-lucide-package-plus" class="h-7 w-7 text-primary-500" />
-        <h1 class="text-2xl font-semibold">Termék hozzáadása</h1>
+        <h1 class="text-2xl font-semibold">{{ t('pages.addProduct.title') }}</h1>
       </div>
 
       <!-- Stepper -->
@@ -32,7 +32,7 @@
             <div class="space-y-4 py-4">
               <UInput
                 v-model="searchQuery"
-                placeholder="Termék keresése név, márka vagy vonalkód alapján"
+                :placeholder="t('pages.addProduct.search.placeholder')"
                 icon="i-lucide-search"
                 size="lg"
                 class="w-full"
@@ -51,7 +51,7 @@
                 v-else-if="searchQuery.trim() === ''"
                 class="text-center py-12 text-gray-500"
               >
-                Kezdj el gépelni a kereséshez
+                {{ t('pages.addProduct.search.startTyping') }}
               </div>
 
               <!-- No Results -->
@@ -59,7 +59,7 @@
                 v-else-if="searchResults.length === 0 && !isSearching"
                 class="text-center py-12 text-gray-500"
               >
-                Nincs találat
+                {{ t('pages.addProduct.search.noResults') }}
               </div>
 
               <!-- Results Grid -->
@@ -87,63 +87,63 @@
                 class="space-y-4"
                 @submit="onCreateProduct"
               >
-                <UFormField label="Termék neve" name="name" required>
+                <UFormField :label="t('pages.addProduct.form.name')" name="name" required>
                   <UInput
                     v-model="formData.name"
-                    placeholder="pl. Tej"
+                    :placeholder="t('pages.addProduct.form.namePlaceholder')"
                     :disabled="isCreating"
                     class="w-full"
                   />
                 </UFormField>
 
-                <UFormField label="Márka" name="brand" required>
+                <UFormField :label="t('pages.addProduct.form.brand')" name="brand" required>
                   <UInput
                     v-model="formData.brand"
-                    placeholder="pl. Mizo"
+                    :placeholder="t('pages.addProduct.form.brandPlaceholder')"
                     :disabled="isCreating"
                     class="w-full"
                   />
                 </UFormField>
 
-                <UFormField label="Kategória" name="category">
+                <UFormField :label="t('pages.addProduct.form.category')" name="category">
                   <UInput
                     v-model="formData.category"
-                    placeholder="pl. Tejtermék"
+                    :placeholder="t('pages.addProduct.form.categoryPlaceholder')"
                     :disabled="isCreating"
                     class="w-full"
                   />
                 </UFormField>
 
-                <UFormField label="Vonalkód" name="barcode">
+                <UFormField :label="t('pages.addProduct.form.barcode')" name="barcode">
                   <UInput
                     v-model="formData.barcode"
-                    placeholder="pl. 5998200119874"
+                    :placeholder="t('pages.addProduct.form.barcodePlaceholder')"
                     :disabled="isCreating"
                     class="w-full"
                   />
                 </UFormField>
 
-                <UFormField label="Ehető termék" name="isEatable">
+                <UFormField :label="t('pages.addProduct.form.isEatable')" name="isEatable">
                   <UCheckbox
                     v-model="formData.isEatable"
-                    label="Ez egy ehető termék"
+                    :label="t('pages.addProduct.form.isEatableLabel')"
                     :disabled="isCreating"
                   />
                 </UFormField>
 
-                <UFormField label="Megjegyzések" name="notes">
+                <UFormField :label="t('pages.addProduct.form.notes')" name="notes">
                   <UTextarea
                     v-model="formData.notes"
-                    placeholder="Opcionális megjegyzések"
+                    :placeholder="t('pages.addProduct.form.notesPlaceholder')"
                     :disabled="isCreating"
                     class="w-full"
                   />
                 </UFormField>
 
-                <UFormField label="Kedvenc termék" name="isFavorite">
+                <UFormField :label="t('pages.addProduct.form.isFavorite')" name="isFavorite">
                   <UCheckbox
                     v-model="formData.isFavorite"
-                    label="Kedvenc termék"
+                    :label="t('pages.addProduct.form.isFavoriteLabel')"
                     :disabled="isCreating"
                   />
                 </UFormField>
@@ -155,7 +155,7 @@
                   :loading="isCreating"
                   icon="i-lucide-plus"
                 >
-                  Termék létrehozása
+                  {{ t('pages.addProduct.form.createButton') }}
                 </UButton>
               </UForm>
             </div>
@@ -165,17 +165,17 @@
 
       <!-- Step 2: Placeholder -->
       <div v-else-if="currentStep === 1" class="text-center py-12">
-        <p class="text-xl text-gray-600">Step 2</p>
+        <p class="text-xl text-gray-600">{{ t('pages.addProduct.placeholders.step2') }}</p>
         <p v-if="selectedProductId" class="text-sm text-gray-500 mt-2">
-          Kiválasztott termék ID: {{ selectedProductId }}
+          {{ t('pages.addProduct.placeholders.selectedProductId', { id: selectedProductId }) }}
         </p>
       </div>
 
       <!-- Step 3: Placeholder -->
       <div v-else-if="currentStep === 2" class="text-center py-12">
-        <p class="text-xl text-gray-600">Step 3</p>
+        <p class="text-xl text-gray-600">{{ t('pages.addProduct.placeholders.step3') }}</p>
         <p v-if="selectedProductId" class="text-sm text-gray-500 mt-2">
-          Kiválasztott termék ID: {{ selectedProductId }}
+          {{ t('pages.addProduct.placeholders.selectedProductId', { id: selectedProductId }) }}
         </p>
       </div>
     </div>
@@ -196,13 +196,14 @@ definePageMeta({
 })
 
 const { getProducts, createProduct } = useProductsApi()
+const { t } = useI18n()
 
 // Stepper state
 const currentStep = ref(0)
 const stepperItems = computed(() => [
-  { label: 'Termék választása' },
-  { label: '2. lépés' },
-  { label: '3. lépés' }
+  { label: t('pages.addProduct.stepLabels.step1') },
+  { label: t('pages.addProduct.stepLabels.step2') },
+  { label: t('pages.addProduct.stepLabels.step3') }
 ])
 
 // Selected product
@@ -211,8 +212,8 @@ const selectedProductId = ref<string | null>(null)
 // Tab state
 const activeTab = ref(0)
 const tabItems = computed(() => [
-  { label: 'Termék keresése', value: 0, slot: 'search' },
-  { label: 'Új termék létrehozása', value: 1, slot: 'create' }
+  { label: t('pages.addProduct.tabs.search'), value: 0, slot: 'search' },
+  { label: t('pages.addProduct.tabs.create'), value: 1, slot: 'create' }
 ])
 
 // Search state

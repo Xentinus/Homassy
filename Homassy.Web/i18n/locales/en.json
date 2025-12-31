@@ -98,6 +98,45 @@
         "withBarcode": "Products with barcode"
       }
     },
+    "addProduct": {
+      "title": "Add Product",
+      "stepLabels": {
+        "step1": "Product Selection",
+        "step2": "Step 2",
+        "step3": "Step 3"
+      },
+      "tabs": {
+        "search": "Search Product",
+        "create": "Create New Product"
+      },
+      "search": {
+        "placeholder": "Search by name, brand, or barcode",
+        "startTyping": "Start typing to search",
+        "noResults": "No results found"
+      },
+      "form": {
+        "name": "Product Name",
+        "namePlaceholder": "e.g. Milk",
+        "brand": "Brand",
+        "brandPlaceholder": "e.g. Mizo",
+        "category": "Category",
+        "categoryPlaceholder": "e.g. Dairy",
+        "barcode": "Barcode",
+        "barcodePlaceholder": "e.g. 5998200119874",
+        "isEatable": "Eatable Product",
+        "isEatableLabel": "This is an eatable product",
+        "notes": "Notes",
+        "notesPlaceholder": "Optional notes",
+        "isFavorite": "Favorite Product",
+        "isFavoriteLabel": "Favorite product",
+        "createButton": "Create Product"
+      },
+      "placeholders": {
+        "step2": "Step 2",
+        "step3": "Step 3",
+        "selectedProductId": "Selected product ID: {id}"
+      }
+    },
     "shoppingLists": {
       "title": "Shopping Lists",
       "description": "Plan and track your shared shopping lists."

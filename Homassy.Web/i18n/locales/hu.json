@@ -98,6 +98,45 @@
         "withBarcode": "Vonalkóddal rendelkező termékek"
       }
     },
+    "addProduct": {
+      "title": "Termék hozzáadása",
+      "stepLabels": {
+        "step1": "Termék választása",
+        "step2": "2. lépés",
+        "step3": "3. lépés"
+      },
+      "tabs": {
+        "search": "Termék keresése",
+        "create": "Új termék létrehozása"
+      },
+      "search": {
+        "placeholder": "Termék keresése név, márka vagy vonalkód alapján",
+        "startTyping": "Kezdj el gépelni a kereséshez",
+        "noResults": "Nincs találat"
+      },
+      "form": {
+        "name": "Termék neve",
+        "namePlaceholder": "pl. Tej",
+        "brand": "Márka",
+        "brandPlaceholder": "pl. Mizo",
+        "category": "Kategória",
+        "categoryPlaceholder": "pl. Tejtermék",
+        "barcode": "Vonalkód",
+        "barcodePlaceholder": "pl. 5998200119874",
+        "isEatable": "Ehető termék",
+        "isEatableLabel": "Ez egy ehető termék",
+        "notes": "Megjegyzések",
+        "notesPlaceholder": "Opcionális megjegyzések",
+        "isFavorite": "Kedvenc termék",
+        "isFavoriteLabel": "Kedvenc termék",
+        "createButton": "Termék létrehozása"
+      },
+      "placeholders": {
+        "step2": "Step 2",
+        "step3": "Step 3",
+        "selectedProductId": "Kiválasztott termék ID: {id}"
+      }
+    },
     "shoppingLists": {
       "title": "Bevásárlólisták",
       "description": "Tervezd és kövesd nyomon a megosztott bevásárlólistáidat."

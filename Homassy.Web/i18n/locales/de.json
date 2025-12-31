@@ -98,6 +98,45 @@
         "withBarcode": "Produkte mit Barcode"
       }
     },
+    "addProduct": {
+      "title": "Produkt hinzufügen",
+      "stepLabels": {
+        "step1": "Produktauswahl",
+        "step2": "Schritt 2",
+        "step3": "Schritt 3"
+      },
+      "tabs": {
+        "search": "Produkt suchen",
+        "create": "Neues Produkt erstellen"
+      },
+      "search": {
+        "placeholder": "Nach Name, Marke oder Barcode suchen",
+        "startTyping": "Tippen Sie, um zu suchen",
+        "noResults": "Keine Ergebnisse gefunden"
+      },
+      "form": {
+        "name": "Produktname",
+        "namePlaceholder": "z.B. Milch",
+        "brand": "Marke",
+        "brandPlaceholder": "z.B. Mizo",
+        "category": "Kategorie",
+        "categoryPlaceholder": "z.B. Milchprodukte",
+        "barcode": "Barcode",
+        "barcodePlaceholder": "z.B. 5998200119874",
+        "isEatable": "Essbares Produkt",
+        "isEatableLabel": "Dies ist ein essbares Produkt",
+        "notes": "Notizen",
+        "notesPlaceholder": "Optionale Notizen",
+        "isFavorite": "Lieblingsprodukt",
+        "isFavoriteLabel": "Lieblingsprodukt",
+        "createButton": "Produkt erstellen"
+      },
+      "placeholders": {
+        "step2": "Schritt 2",
+        "step3": "Schritt 3",
+        "selectedProductId": "Ausgewählte Produkt-ID: {id}"
+      }
+    },
     "shoppingLists": {
       "title": "Einkaufslisten",
       "description": "Planen und verfolgen Sie Ihre geteilten Einkaufslisten."
