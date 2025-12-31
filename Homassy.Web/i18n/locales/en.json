@@ -88,7 +88,15 @@
     "products": {
       "title": "Products",
       "description": "Manage your household products and inventory.",
-      "noResults": "No products found. Try adjusting your search criteria."
+      "noResults": "No products found. Try adjusting your search criteria.",
+      "filters": {
+        "all": "Show all",
+        "expired": "Expired products",
+        "expiringSoon": "Expiring soon",
+        "favorites": "Favorites",
+        "eatable": "Eatable products",
+        "withBarcode": "Products with barcode"
+      }
     },
     "shoppingLists": {
       "title": "Shopping Lists",
@@ -168,5 +176,31 @@
     "profilePictureDeleted": "Profile picture deleted successfully",
     "notificationPreferencesUpdated": "Notification preferences updated successfully",
     "unknownError": "An unknown error occurred"
+  },
+  "enums": {
+    "unit": {
+      "0": "pc",
+      "1": "g",
+      "2": "kg",
+      "3": "mg",
+      "10": "ml",
+      "11": "cl",
+      "12": "dl",
+      "13": "l",
+      "20": "m",
+      "21": "cm",
+      "22": "mm",
+      "30": "m²",
+      "31": "m³",
+      "40": "tsp",
+      "41": "tbsp",
+      "42": "cup",
+      "50": "pack",
+      "51": "box",
+      "52": "bottle",
+      "53": "can",
+      "54": "jar",
+      "55": "bag"
+    }
   }
 }

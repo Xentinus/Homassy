@@ -88,7 +88,15 @@
     "products": {
       "title": "Produkte",
       "description": "Verwalten Sie Ihre Haushaltsprodukte und Ihr Inventar.",
-      "noResults": "Keine Produkte gefunden. Versuchen Sie, Ihre Suchkriterien anzupassen."
+      "noResults": "Keine Produkte gefunden. Versuchen Sie, Ihre Suchkriterien anzupassen.",
+      "filters": {
+        "all": "Alle anzeigen",
+        "expired": "Abgelaufene Produkte",
+        "expiringSoon": "Bald ablaufend",
+        "favorites": "Favoriten",
+        "eatable": "Essbare Produkte",
+        "withBarcode": "Produkte mit Barcode"
+      }
     },
     "shoppingLists": {
       "title": "Einkaufslisten",
@@ -168,5 +176,31 @@
     "profilePictureDeleted": "Profilbild erfolgreich gelöscht",
     "notificationPreferencesUpdated": "Benachrichtigungseinstellungen erfolgreich aktualisiert",
     "unknownError": "Ein unbekannter Fehler ist aufgetreten"
+  },
+  "enums": {
+    "unit": {
+      "0": "Stk",
+      "1": "g",
+      "2": "kg",
+      "3": "mg",
+      "10": "ml",
+      "11": "cl",
+      "12": "dl",
+      "13": "l",
+      "20": "m",
+      "21": "cm",
+      "22": "mm",
+      "30": "m²",
+      "31": "m³",
+      "40": "TL",
+      "41": "EL",
+      "42": "Tasse",
+      "50": "Packung",
+      "51": "Box",
+      "52": "Flasche",
+      "53": "Dose",
+      "54": "Glas",
+      "55": "Beutel"
+    }
   }
 }

@@ -88,7 +88,15 @@
     "products": {
       "title": "Termékek",
       "description": "Kezeld a háztartási termékeidet és készletedet.",
-      "noResults": "Nem található termék. Próbálj meg más keresési feltételeket használni."
+      "noResults": "Nem található termék. Próbálj meg más keresési feltételeket használni.",
+      "filters": {
+        "all": "Mind",
+        "expired": "Lejárt termékek",
+        "expiringSoon": "Hamarosan lejáró termékek",
+        "favorites": "Kedvencek",
+        "eatable": "Ehető termékek",
+        "withBarcode": "Vonalkóddal rendelkező termékek"
+      }
     },
     "shoppingLists": {
       "title": "Bevásárlólisták",
@@ -168,5 +176,31 @@
     "profilePictureDeleted": "Profilkép sikeresen törölve",
     "notificationPreferencesUpdated": "Értesítési beállítások sikeresen frissítve",
     "unknownError": "Ismeretlen hiba történt"
+  },
+  "enums": {
+    "unit": {
+      "0": "db",
+      "1": "g",
+      "2": "kg",
+      "3": "mg",
+      "10": "ml",
+      "11": "cl",
+      "12": "dl",
+      "13": "l",
+      "20": "m",
+      "21": "cm",
+      "22": "mm",
+      "30": "m²",
+      "31": "m³",
+      "40": "kk",
+      "41": "ek",
+      "42": "csésze",
+      "50": "csomag",
+      "51": "doboz",
+      "52": "üveg",
+      "53": "konzerv",
+      "54": "befőttes",
+      "55": "tasak"
+    }
   }
 }
