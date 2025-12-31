@@ -6,7 +6,17 @@
     "delete": "Törlés",
     "edit": "Szerkesztés",
     "search": "Keresés",
-    "loading": "Betöltés..."
+    "loading": "Betöltés...",
+    "searchPlaceholder": "Keresés név, márka vagy vonalkód alapján...",
+    "filter": "Szűrés",
+    "previous": "Előző",
+    "next": "Következő",
+    "noData": "Nincs adat",
+    "pagination": "Oldalszámozás",
+    "paginationInfo": "{current}. oldal ({total}-ből) {items} termék",
+    "quantity": "Mennyiség",
+    "expirationDate": "Lejárati dátum",
+    "expired": "Lejárt"
   },
   "auth": {
     "login": "Bejelentkezés",
@@ -77,7 +87,8 @@
     },
     "products": {
       "title": "Termékek",
-      "description": "Kezeld a háztartási termékeidet és készletedet."
+      "description": "Kezeld a háztartási termékeidet és készletedet.",
+      "noResults": "Nem található termék. Próbálj meg más keresési feltételeket használni."
     },
     "shoppingLists": {
       "title": "Bevásárlólisták",

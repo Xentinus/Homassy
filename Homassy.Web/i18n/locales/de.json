@@ -6,7 +6,17 @@
     "delete": "Löschen",
     "edit": "Bearbeiten",
     "search": "Suchen",
-    "loading": "Laden..."
+    "loading": "Laden...",
+    "searchPlaceholder": "Nach Name, Marke oder Barcode suchen...",
+    "filter": "Filtern",
+    "previous": "Zurück",
+    "next": "Weiter",
+    "noData": "Keine Daten",
+    "pagination": "Seitennummerierung",
+    "paginationInfo": "Seite {current} von {total} ({items} Artikel gesamt)",
+    "quantity": "Menge",
+    "expirationDate": "Verfallsdatum",
+    "expired": "Abgelaufen"
   },
   "auth": {
     "login": "Anmelden",
@@ -77,7 +87,8 @@
     },
     "products": {
       "title": "Produkte",
-      "description": "Verwalten Sie Ihre Haushaltsprodukte und Ihr Inventar."
+      "description": "Verwalten Sie Ihre Haushaltsprodukte und Ihr Inventar.",
+      "noResults": "Keine Produkte gefunden. Versuchen Sie, Ihre Suchkriterien anzupassen."
     },
     "shoppingLists": {
       "title": "Einkaufslisten",

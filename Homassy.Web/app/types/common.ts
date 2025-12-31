@@ -24,5 +24,5 @@ export interface PaginationParams {
   pageNumber?: number
   pageSize?: number
   returnAll?: boolean
-  skip?: number
+  searchText?: string
 }

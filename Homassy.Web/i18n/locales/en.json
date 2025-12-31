@@ -6,7 +6,17 @@
     "delete": "Delete",
     "edit": "Edit",
     "search": "Search",
-    "loading": "Loading..."
+    "loading": "Loading...",
+    "searchPlaceholder": "Search by name, brand, or barcode...",
+    "filter": "Filter",
+    "previous": "Previous",
+    "next": "Next",
+    "noData": "No data",
+    "pagination": "Pagination",
+    "paginationInfo": "Showing page {current} of {total} ({items} items total)",
+    "quantity": "Quantity",
+    "expirationDate": "Expiration Date",
+    "expired": "Expired"
   },
   "auth": {
     "login": "Login",
@@ -77,7 +87,8 @@
     },
     "products": {
       "title": "Products",
-      "description": "Manage your household products and inventory."
+      "description": "Manage your household products and inventory.",
+      "noResults": "No products found. Try adjusting your search criteria."
     },
     "shoppingLists": {
       "title": "Shopping Lists",
