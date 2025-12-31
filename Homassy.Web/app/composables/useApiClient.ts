@@ -70,11 +70,10 @@ export const useApiClient = () => {
       if (error.data && error.data.errorCodes && Array.isArray(error.data.errorCodes)) {
         const errorMessages = getErrorMessages(error.data.errorCodes)
 
-        if (showErrorToast && errorMessages.length > 0) {
-          // Show first error message in toast
+        if (showErrorToast) {
           toast.add({
             title: $i18n.t('toast.error'),
-            description: errorMessages[0],
+            description: $i18n.t('toast.requestError'),
             color: 'error',
             icon: 'i-heroicons-x-circle'
           })
@@ -85,10 +84,9 @@ export const useApiClient = () => {
 
       // Handle network or other errors
       if (showErrorToast) {
-        const errorMessage = error.message || $i18n.t('toast.unknownError')
         toast.add({
           title: $i18n.t('toast.error'),
-          description: errorMessage,
+          description: $i18n.t('toast.requestError'),
           color: 'error',
           icon: 'i-heroicons-x-circle'
         })

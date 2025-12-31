@@ -16,6 +16,7 @@ import type {
 
 export const useLocationsApi = () => {
   const client = useApiClient()
+  const $i18n = useI18n()
 
   // ==================
   // Storage Locations
@@ -50,7 +51,7 @@ export const useLocationsApi = () => {
       location,
       {
         showSuccessToast: true,
-        successMessage: 'Storage location created successfully'
+        successMessage: $i18n.t('toast.storageLocationCreated')
       }
     )
   }
@@ -67,7 +68,7 @@ export const useLocationsApi = () => {
       location,
       {
         showSuccessToast: true,
-        successMessage: 'Storage location updated successfully'
+        successMessage: $i18n.t('toast.storageLocationUpdated')
       }
     )
   }
@@ -80,7 +81,7 @@ export const useLocationsApi = () => {
       `/api/v1/Location/storage/${storageLocationPublicId}`,
       {
         showSuccessToast: true,
-        successMessage: 'Storage location deleted successfully'
+        successMessage: $i18n.t('toast.storageLocationDeleted')
       }
     )
   }
@@ -94,7 +95,7 @@ export const useLocationsApi = () => {
       request,
       {
         showSuccessToast: true,
-        successMessage: 'Storage locations created successfully'
+        successMessage: $i18n.t('toast.storageLocationsCreated')
       }
     )
   }
@@ -108,7 +109,7 @@ export const useLocationsApi = () => {
       request,
       {
         showSuccessToast: true,
-        successMessage: 'Storage locations deleted successfully'
+        successMessage: $i18n.t('toast.storageLocationsDeleted')
       }
     )
   }
@@ -146,7 +147,7 @@ export const useLocationsApi = () => {
       location,
       {
         showSuccessToast: true,
-        successMessage: 'Shopping location created successfully'
+        successMessage: $i18n.t('toast.shoppingLocationCreated')
       }
     )
   }
@@ -163,7 +164,7 @@ export const useLocationsApi = () => {
       location,
       {
         showSuccessToast: true,
-        successMessage: 'Shopping location updated successfully'
+        successMessage: $i18n.t('toast.shoppingLocationUpdated')
       }
     )
   }
@@ -176,7 +177,7 @@ export const useLocationsApi = () => {
       `/api/v1/Location/shopping/${shoppingLocationPublicId}`,
       {
         showSuccessToast: true,
-        successMessage: 'Shopping location deleted successfully'
+        successMessage: $i18n.t('toast.shoppingLocationDeleted')
       }
     )
   }
@@ -190,7 +191,7 @@ export const useLocationsApi = () => {
       request,
       {
         showSuccessToast: true,
-        successMessage: 'Shopping locations created successfully'
+        successMessage: $i18n.t('toast.shoppingLocationsCreated')
       }
     )
   }
@@ -204,7 +205,7 @@ export const useLocationsApi = () => {
       request,
       {
         showSuccessToast: true,
-        successMessage: 'Shopping locations deleted successfully'
+        successMessage: $i18n.t('toast.shoppingLocationsDeleted')
       }
     )
   }

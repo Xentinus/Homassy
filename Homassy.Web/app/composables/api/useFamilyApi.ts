@@ -12,6 +12,7 @@ import type {
 
 export const useFamilyApi = () => {
   const client = useApiClient()
+  const $i18n = useI18n()
 
   /**
    * Get current family information
@@ -29,7 +30,7 @@ export const useFamilyApi = () => {
       family,
       {
         showSuccessToast: true,
-        successMessage: 'Family created successfully'
+        successMessage: $i18n.t('toast.familyCreated')
       }
     )
   }
@@ -43,7 +44,7 @@ export const useFamilyApi = () => {
       family,
       {
         showSuccessToast: true,
-        successMessage: 'Family updated successfully'
+        successMessage: $i18n.t('toast.familyUpdated')
       }
     )
   }
@@ -57,7 +58,7 @@ export const useFamilyApi = () => {
       request,
       {
         showSuccessToast: true,
-        successMessage: 'Joined family successfully'
+        successMessage: $i18n.t('toast.joinedFamily')
       }
     )
   }
@@ -71,7 +72,7 @@ export const useFamilyApi = () => {
       undefined,
       {
         showSuccessToast: true,
-        successMessage: 'Left family successfully'
+        successMessage: $i18n.t('toast.leftFamily')
       }
     )
   }
@@ -85,7 +86,7 @@ export const useFamilyApi = () => {
       request,
       {
         showSuccessToast: true,
-        successMessage: 'Family picture uploaded successfully'
+        successMessage: $i18n.t('toast.familyPictureUploaded')
       }
     )
   }
@@ -98,7 +99,7 @@ export const useFamilyApi = () => {
       '/api/v1/Family/picture',
       {
         showSuccessToast: true,
-        successMessage: 'Family picture deleted successfully'
+        successMessage: $i18n.t('toast.familyPictureDeleted')
       }
     )
   }

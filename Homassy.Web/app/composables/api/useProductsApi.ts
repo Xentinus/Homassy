@@ -23,6 +23,7 @@ import type {
 
 export const useProductsApi = () => {
   const client = useApiClient()
+  const $i18n = useI18n()
 
   /**
    * Get all products with pagination
@@ -84,7 +85,7 @@ export const useProductsApi = () => {
       product,
       {
         showSuccessToast: true,
-        successMessage: 'Product created successfully'
+        successMessage: $i18n.t('toast.productCreated')
       }
     )
   }
@@ -98,7 +99,7 @@ export const useProductsApi = () => {
       product,
       {
         showSuccessToast: true,
-        successMessage: 'Product updated successfully'
+        successMessage: $i18n.t('toast.productUpdated')
       }
     )
   }
@@ -111,7 +112,7 @@ export const useProductsApi = () => {
       `/api/v1/Product/${productPublicId}`,
       {
         showSuccessToast: true,
-        successMessage: 'Product deleted successfully'
+        successMessage: $i18n.t('toast.productDeleted')
       }
     )
   }
@@ -125,7 +126,7 @@ export const useProductsApi = () => {
       undefined,
       {
         showSuccessToast: true,
-        successMessage: 'Favorite state updated'
+        successMessage: $i18n.t('toast.favoriteStateUpdated')
       }
     )
   }
@@ -139,7 +140,7 @@ export const useProductsApi = () => {
       request,
       {
         showSuccessToast: true,
-        successMessage: 'Products created successfully'
+        successMessage: $i18n.t('toast.productsCreated')
       }
     )
   }
@@ -153,7 +154,7 @@ export const useProductsApi = () => {
       request,
       {
         showSuccessToast: true,
-        successMessage: 'Image uploaded successfully'
+        successMessage: $i18n.t('toast.imageUploaded')
       }
     )
   }
@@ -166,7 +167,7 @@ export const useProductsApi = () => {
       `/api/v1/Product/${productPublicId}/image`,
       {
         showSuccessToast: true,
-        successMessage: 'Image deleted successfully'
+        successMessage: $i18n.t('toast.imageDeleted')
       }
     )
   }
@@ -184,7 +185,7 @@ export const useProductsApi = () => {
       request,
       {
         showSuccessToast: true,
-        successMessage: 'Inventory item created successfully'
+        successMessage: $i18n.t('toast.inventoryItemCreated')
       }
     )
   }
@@ -198,7 +199,7 @@ export const useProductsApi = () => {
       request,
       {
         showSuccessToast: true,
-        successMessage: 'Item added to inventory'
+        successMessage: $i18n.t('toast.itemAddedToInventory')
       }
     )
   }
@@ -212,7 +213,7 @@ export const useProductsApi = () => {
       request,
       {
         showSuccessToast: true,
-        successMessage: 'Inventory item updated successfully'
+        successMessage: $i18n.t('toast.inventoryItemUpdated')
       }
     )
   }
@@ -225,7 +226,7 @@ export const useProductsApi = () => {
       `/api/v1/Product/inventory/${inventoryItemPublicId}`,
       {
         showSuccessToast: true,
-        successMessage: 'Inventory item deleted successfully'
+        successMessage: $i18n.t('toast.inventoryItemDeleted')
       }
     )
   }
@@ -239,7 +240,7 @@ export const useProductsApi = () => {
       request,
       {
         showSuccessToast: true,
-        successMessage: 'Consumption recorded successfully'
+        successMessage: $i18n.t('toast.consumptionRecorded')
       }
     )
   }
@@ -253,7 +254,7 @@ export const useProductsApi = () => {
       request,
       {
         showSuccessToast: true,
-        successMessage: 'Items added to inventory'
+        successMessage: $i18n.t('toast.itemsAddedToInventory')
       }
     )
   }
@@ -267,7 +268,7 @@ export const useProductsApi = () => {
       request,
       {
         showSuccessToast: true,
-        successMessage: 'Items moved successfully'
+        successMessage: $i18n.t('toast.itemsMoved')
       }
     )
   }
@@ -280,7 +281,7 @@ export const useProductsApi = () => {
       '/api/v1/Product/inventory/multiple',
       {
         showSuccessToast: true,
-        successMessage: 'Items deleted successfully',
+        successMessage: $i18n.t('toast.itemsDeleted'),
         body: request
       }
     )
@@ -295,7 +296,7 @@ export const useProductsApi = () => {
       request,
       {
         showSuccessToast: true,
-        successMessage: 'Consumption recorded successfully'
+        successMessage: $i18n.t('toast.consumptionRecorded')
       }
     )
   }

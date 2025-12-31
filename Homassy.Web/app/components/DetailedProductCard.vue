@@ -1,13 +1,19 @@
 ﻿<template>
   <div
+    role="button"
+    tabindex="0"
+    class="cursor-pointer transition-colors"
     :class="[
-      'p-3 rounded-lg border-2 bg-white dark:bg-gray-800 hover:shadow-sm transition-shadow',
+      'p-3 rounded-lg border-2 bg-white dark:bg-gray-800 hover:shadow-sm transition-shadow hover:bg-gray-50 dark:hover:bg-gray-700',
       hasExpiredItems
         ? 'border-red-500 dark:border-red-400'
         : hasExpiringSoonItems
           ? 'border-primary-500 dark:border-primary-400'
           : 'border-neutral-300 dark:border-neutral-700'
     ]"
+    @click="navigateToProduct"
+    @keydown.enter="navigateToProduct"
+    @keydown.space.prevent="navigateToProduct"
   >
     <!-- Header: Name, Brand, Barcode -->
     <div class="space-y-1 mb-2">
@@ -160,5 +166,9 @@ const isExpired = (expirationAt: string): boolean => {
   } catch {
     return false
   }
+}
+
+const navigateToProduct = () => {
+  navigateTo(`/products/${props.product.publicId}`)
 }
 </script>

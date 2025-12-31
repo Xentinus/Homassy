@@ -19,6 +19,7 @@ import type {
 
 export const useShoppingListApi = () => {
   const client = useApiClient()
+  const $i18n = useI18n()
 
   /**
    * Get all shopping lists with pagination
@@ -63,7 +64,7 @@ export const useShoppingListApi = () => {
       list,
       {
         showSuccessToast: true,
-        successMessage: 'Shopping list created successfully'
+        successMessage: $i18n.t('toast.shoppingListCreated')
       }
     )
   }
@@ -77,7 +78,7 @@ export const useShoppingListApi = () => {
       list,
       {
         showSuccessToast: true,
-        successMessage: 'Shopping list updated successfully'
+        successMessage: $i18n.t('toast.shoppingListUpdated')
       }
     )
   }
@@ -90,7 +91,7 @@ export const useShoppingListApi = () => {
       `/api/v1/ShoppingList/${publicId}`,
       {
         showSuccessToast: true,
-        successMessage: 'Shopping list deleted successfully'
+        successMessage: $i18n.t('toast.shoppingListDeleted')
       }
     )
   }
@@ -104,7 +105,7 @@ export const useShoppingListApi = () => {
       item,
       {
         showSuccessToast: true,
-        successMessage: 'Item added successfully'
+        successMessage: $i18n.t('toast.shoppingItemAdded')
       }
     )
   }
@@ -118,7 +119,7 @@ export const useShoppingListApi = () => {
       item,
       {
         showSuccessToast: true,
-        successMessage: 'Item updated successfully'
+        successMessage: $i18n.t('toast.shoppingItemUpdated')
       }
     )
   }
@@ -131,7 +132,7 @@ export const useShoppingListApi = () => {
       `/api/v1/ShoppingList/item/${publicId}`,
       {
         showSuccessToast: true,
-        successMessage: 'Item deleted successfully'
+        successMessage: $i18n.t('toast.shoppingItemDeleted')
       }
     )
   }
@@ -145,7 +146,7 @@ export const useShoppingListApi = () => {
       request,
       {
         showSuccessToast: true,
-        successMessage: 'Items added successfully'
+        successMessage: $i18n.t('toast.shoppingItemsAdded')
       }
     )
   }
@@ -159,7 +160,7 @@ export const useShoppingListApi = () => {
       request,
       {
         showSuccessToast: true,
-        successMessage: 'Items deleted successfully'
+        successMessage: $i18n.t('toast.shoppingItemsDeleted')
       }
     )
   }
@@ -173,7 +174,7 @@ export const useShoppingListApi = () => {
       request,
       {
         showSuccessToast: true,
-        successMessage: 'Item purchased and added to inventory'
+        successMessage: $i18n.t('toast.itemPurchased')
       }
     )
   }
@@ -187,7 +188,7 @@ export const useShoppingListApi = () => {
       request,
       {
         showSuccessToast: true,
-        successMessage: 'Items purchased and added to inventory'
+        successMessage: $i18n.t('toast.itemsPurchased')
       }
     )
   }
