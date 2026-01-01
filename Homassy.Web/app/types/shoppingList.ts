@@ -2,6 +2,8 @@
  * Shopping List related types
  */
 import type { Unit, Currency } from './enums'
+import type { ProductInfo } from './product'
+import type { ShoppingLocationInfo } from './location'
 
 export interface ShoppingListInfo {
   publicId: string
@@ -20,6 +22,8 @@ export interface ShoppingListItemInfo {
   shoppingListPublicId: string
   productPublicId?: string
   shoppingLocationPublicId?: string
+  product?: ProductInfo
+  shoppingLocation?: ShoppingLocationInfo
   customName?: string
   quantity: number
   unit: string

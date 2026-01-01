@@ -316,8 +316,58 @@
       }
     },
     "shoppingLists": {
-      "title": "Shopping Lists",
-      "description": "Plan and track your shared shopping lists."
+      "title": "Shopping",
+      "description": "Plan and track your shared shopping lists.",
+      "addProductButton": "Add Product",
+      "selectPlaceholder": "Select a shopping list...",
+      "searchPlaceholder": "Search items...",
+      "showPurchasedToggle": "Show purchased items",
+      "noListsFound": "No shopping lists found.",
+      "noItemsInList": "This list is empty.",
+      "noSearchResults": "No items found.",
+      "menu": {
+        "add": "Add List",
+        "edit": "Edit List",
+        "delete": "Delete List"
+      },
+      "createModal": {
+        "title": "Create Shopping List",
+        "description": "Create a new shopping list to organize your items.",
+        "nameLabel": "List Name",
+        "namePlaceholder": "e.g. Weekly Shopping, Party Supplies",
+        "descriptionLabel": "Description",
+        "descriptionPlaceholder": "Optional description",
+        "colorLabel": "Color",
+        "isSharedWithFamilyLabel": "Share with family members",
+        "cancel": "Cancel",
+        "confirm": "Create"
+      },
+      "editModal": {
+        "title": "Edit Shopping List",
+        "description": "Modify the shopping list details.",
+        "nameLabel": "List Name",
+        "namePlaceholder": "e.g. Weekly Shopping, Party Supplies",
+        "descriptionLabel": "Description",
+        "descriptionPlaceholder": "Optional description",
+        "colorLabel": "Color",
+        "isSharedWithFamilyLabel": "Share with family members",
+        "cancel": "Cancel",
+        "confirm": "Save"
+      },
+      "deleteModal": {
+        "title": "Delete Shopping List",
+        "description": "Are you sure you want to delete this shopping list?",
+        "warning": "Warning: This action cannot be undone! All items in this list will be permanently deleted.",
+        "listName": "List Name",
+        "itemCount": "Number of Items",
+        "cancel": "Cancel",
+        "confirm": "Delete"
+      },
+      "addProduct": {
+        "title": "Add Product to Shopping List",
+        "description": "Add a new product to your shopping list.",
+        "placeholder": "Product addition form will be implemented here."
+      }
     },
     "activity": {
       "title": "Activity",

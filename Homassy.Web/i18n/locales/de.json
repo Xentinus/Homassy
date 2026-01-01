@@ -316,8 +316,58 @@
       }
     },
     "shoppingLists": {
-      "title": "Einkaufslisten",
-      "description": "Planen und verfolgen Sie Ihre geteilten Einkaufslisten."
+      "title": "Einkaufen",
+      "description": "Planen und verfolgen Sie Ihre geteilten Einkaufslisten.",
+      "addProductButton": "Produkt hinzufügen",
+      "selectPlaceholder": "Wählen Sie eine Einkaufsliste...",
+      "searchPlaceholder": "Artikel suchen...",
+      "showPurchasedToggle": "Gekaufte Artikel anzeigen",
+      "noListsFound": "Keine Einkaufslisten gefunden.",
+      "noItemsInList": "Diese Liste ist leer.",
+      "noSearchResults": "Keine Artikel gefunden.",
+      "menu": {
+        "add": "Liste hinzufügen",
+        "edit": "Liste bearbeiten",
+        "delete": "Liste löschen"
+      },
+      "createModal": {
+        "title": "Einkaufsliste erstellen",
+        "description": "Erstellen Sie eine neue Einkaufsliste zur Organisation Ihrer Artikel.",
+        "nameLabel": "Listenname",
+        "namePlaceholder": "z.B. Wocheneinkauf, Party-Zubehör",
+        "descriptionLabel": "Beschreibung",
+        "descriptionPlaceholder": "Optionale Beschreibung",
+        "colorLabel": "Farbe",
+        "isSharedWithFamilyLabel": "Mit Familienmitgliedern teilen",
+        "cancel": "Abbrechen",
+        "confirm": "Erstellen"
+      },
+      "editModal": {
+        "title": "Einkaufsliste bearbeiten",
+        "description": "Ändern Sie die Details der Einkaufsliste.",
+        "nameLabel": "Listenname",
+        "namePlaceholder": "z.B. Wocheneinkauf, Party-Zubehör",
+        "descriptionLabel": "Beschreibung",
+        "descriptionPlaceholder": "Optionale Beschreibung",
+        "colorLabel": "Farbe",
+        "isSharedWithFamilyLabel": "Mit Familienmitgliedern teilen",
+        "cancel": "Abbrechen",
+        "confirm": "Speichern"
+      },
+      "deleteModal": {
+        "title": "Einkaufsliste löschen",
+        "description": "Möchten Sie diese Einkaufsliste wirklich löschen?",
+        "warning": "Warnung: Diese Aktion kann nicht rückgängig gemacht werden! Alle Artikel in dieser Liste werden dauerhaft gelöscht.",
+        "listName": "Listenname",
+        "itemCount": "Anzahl der Artikel",
+        "cancel": "Abbrechen",
+        "confirm": "Löschen"
+      },
+      "addProduct": {
+        "title": "Produkt zur Einkaufsliste hinzufügen",
+        "description": "Fügen Sie ein neues Produkt zu Ihrer Einkaufsliste hinzu.",
+        "placeholder": "Das Formular zum Hinzufügen von Produkten wird hier implementiert."
+      }
     },
     "activity": {
       "title": "Aktivität",

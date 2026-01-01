@@ -316,8 +316,58 @@
       }
     },
     "shoppingLists": {
-      "title": "Bevásárlólisták",
-      "description": "Tervezd és kövesd nyomon a megosztott bevásárlólistáidat."
+      "title": "Bevásárlás",
+      "description": "Tervezd és kövesd nyomon a megosztott bevásárlólistáidat.",
+      "addProductButton": "Termék hozzáadása",
+      "selectPlaceholder": "Válassz egy bevásárlólistát...",
+      "searchPlaceholder": "Tételek keresése...",
+      "showPurchasedToggle": "Megvásárolt tételek mutatása",
+      "noListsFound": "Nem található bevásárlólista.",
+      "noItemsInList": "Ez a lista üres.",
+      "noSearchResults": "Nem található tétel.",
+      "menu": {
+        "add": "Lista hozzáadása",
+        "edit": "Lista szerkesztése",
+        "delete": "Lista törlése"
+      },
+      "createModal": {
+        "title": "Bevásárlólista létrehozása",
+        "description": "Hozz létre egy új bevásárlólistát a tételek rendszerezéséhez.",
+        "nameLabel": "Lista neve",
+        "namePlaceholder": "pl. Heti bevásárlás, Buli kellékek",
+        "descriptionLabel": "Leírás",
+        "descriptionPlaceholder": "Opcionális leírás",
+        "colorLabel": "Szín",
+        "isSharedWithFamilyLabel": "Megosztás családtagokkal",
+        "cancel": "Mégse",
+        "confirm": "Létrehozás"
+      },
+      "editModal": {
+        "title": "Bevásárlólista szerkesztése",
+        "description": "Módosítsd a bevásárlólista adatait.",
+        "nameLabel": "Lista neve",
+        "namePlaceholder": "pl. Heti bevásárlás, Buli kellékek",
+        "descriptionLabel": "Leírás",
+        "descriptionPlaceholder": "Opcionális leírás",
+        "colorLabel": "Szín",
+        "isSharedWithFamilyLabel": "Megosztás családtagokkal",
+        "cancel": "Mégse",
+        "confirm": "Mentés"
+      },
+      "deleteModal": {
+        "title": "Bevásárlólista törlése",
+        "description": "Biztosan törölni szeretnéd ezt a bevásárlólistát?",
+        "warning": "Figyelem: Ez a művelet nem vonható vissza! A listában lévő összes tétel véglegesen törlődik.",
+        "listName": "Lista neve",
+        "itemCount": "Tételek száma",
+        "cancel": "Mégse",
+        "confirm": "Törlés"
+      },
+      "addProduct": {
+        "title": "Termék hozzáadása bevásárlólistához",
+        "description": "Adj hozzá egy új terméket a bevásárlólistádhoz.",
+        "placeholder": "A termék hozzáadási űrlap itt lesz megvalósítva."
+      }
     },
     "activity": {
       "title": "Tevékenység",
