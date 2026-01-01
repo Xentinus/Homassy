@@ -121,7 +121,7 @@
         "consumedQuantity": "Consumed quantity",
         "remainingQuantity": "Remaining quantity",
         "consumedAt": "Consumed at",
-        "edit": "Edit Inventory",
+        "editInventory": "Edit Inventory",
         "deleteItem": "Delete Inventory",
         "consume": {
           "button": "Consume",
@@ -157,6 +157,34 @@
           "cancel": "Cancel",
           "confirm": "Delete",
           "success": "Inventory deleted successfully"
+        },
+        "editProduct": "Edit Product",
+        "deleteProduct": "Delete Product",
+        "editProductModal": {
+          "title": "Edit Product",
+          "description": "Modify the product details",
+          "nameLabel": "Product Name",
+          "brandLabel": "Brand",
+          "categoryLabel": "Category",
+          "barcodeLabel": "Barcode",
+          "isEatableLabel": "Eatable Product",
+          "notesLabel": "Notes",
+          "cancel": "Cancel",
+          "confirm": "Save",
+          "success": "Product updated successfully"
+        },
+        "deleteProductModal": {
+          "title": "Delete Product",
+          "description": "Are you sure you want to delete this product? This will delete all inventory items as well!",
+          "warning": "Warning: This action cannot be undone!",
+          "productName": "Product Name",
+          "brand": "Brand",
+          "category": "Category",
+          "barcode": "Barcode",
+          "inventoryCount": "Inventory Items Count",
+          "cancel": "Cancel",
+          "confirm": "Delete",
+          "success": "Product deleted successfully"
         }
       }
     },

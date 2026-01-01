@@ -121,7 +121,7 @@
         "consumedQuantity": "Elfogyasztott mennyiség",
         "remainingQuantity": "Maradt mennyiség",
         "consumedAt": "Fogyasztás dátuma",
-        "edit": "Készlet szerkesztése",
+        "editInventory": "Készlet szerkesztése",
         "deleteItem": "Készlet törlése",
         "consume": {
           "button": "Fogyasztás",
@@ -157,6 +157,34 @@
           "cancel": "Mégse",
           "confirm": "Törlés",
           "success": "Készlet sikeresen törölve"
+        },
+        "editProduct": "Termék szerkesztése",
+        "deleteProduct": "Termék törlése",
+        "editProductModal": {
+          "title": "Termék szerkesztése",
+          "description": "Módosítsa a termék adatait",
+          "nameLabel": "Termék neve",
+          "brandLabel": "Márka",
+          "categoryLabel": "Kategória",
+          "barcodeLabel": "Vonalkód",
+          "isEatableLabel": "Ehető termék",
+          "notesLabel": "Megjegyzések",
+          "cancel": "Mégse",
+          "confirm": "Mentés",
+          "success": "Termék sikeresen frissítve"
+        },
+        "deleteProductModal": {
+          "title": "Termék törlése",
+          "description": "Biztosan törölni kívánja ezt a terméket? Ez törli az összes készlet elemet is!",
+          "warning": "Figyelmeztetés: Ez a művelet nem visszavonható!",
+          "productName": "Termék neve",
+          "brand": "Márka",
+          "category": "Kategória",
+          "barcode": "Vonalkód",
+          "inventoryCount": "Készlet elemek száma",
+          "cancel": "Mégse",
+          "confirm": "Törlés",
+          "success": "Termék sikeresen törölve"
         }
       }
     },

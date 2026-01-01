@@ -477,7 +477,7 @@ const isDeleting = ref(false)
 const dropdownItems = computed(() => [
   [
     {
-      label: $t('pages.products.details.edit'),
+      label: $t('pages.products.details.editInventory'),
       icon: 'i-lucide-pencil',
       onSelect: openEditModal
     },

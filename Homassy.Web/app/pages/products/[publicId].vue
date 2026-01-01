@@ -37,20 +37,20 @@
       <!-- Product Details -->
       <div v-else-if="product" class="space-y-6">
         <!-- Product Info Card -->
-        <div class="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-6 space-y-4">
+        <div class="relative bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-6 space-y-4">
           <div class="flex gap-6">
             <!-- Product Image -->
             <div v-if="product.productPictureBase64" class="flex-shrink-0">
               <img
                 :src="`data:image/jpeg;base64,${product.productPictureBase64}`"
                 :alt="product.name"
-                class="w-32 h-32 object-cover rounded-lg cursor-pointer hover:opacity-90 transition-opacity"
+                class="w-24 h-24 md:w-32 md:h-32 object-cover rounded-lg cursor-pointer hover:opacity-90 transition-opacity"
                 @click="isImageOverlayOpen = true"
               >
             </div>
-            <div v-else class="flex-shrink-0 w-32 h-32 bg-gray-100 dark:bg-gray-700 rounded-lg flex flex-col items-center justify-center">
+            <div v-else class="flex-shrink-0 w-24 h-24 md:w-32 md:h-32 bg-gray-100 dark:bg-gray-700 rounded-lg flex flex-col items-center justify-center">
               <UIcon name="i-lucide-package" class="h-12 w-12 text-gray-400 dark:text-gray-500" />
-              <span class="text-xs text-gray-500 dark:text-gray-400 mt-2">
+              <span class="text-xs text-gray-500 dark:text-gray-400 mt-1">
                 {{ $t('pages.products.details.noImage') }}
               </span>
             </div>
@@ -86,6 +86,43 @@
                   <span>{{ product.barcode }}</span>
                 </div>
               </div>
+
+              <!-- Action Buttons -->
+              <div class="flex gap-2 justify-end md:absolute md:top-4 md:right-4">
+                <!-- Mobile: Icon only -->
+                <UButton
+                  icon="i-lucide-pencil"
+                  size="sm"
+                  color="primary"
+                  class="md:hidden"
+                  @click="openEditProductModal"
+                />
+                <UButton
+                  icon="i-lucide-trash-2"
+                  size="sm"
+                  color="error"
+                  class="md:hidden"
+                  @click="openDeleteProductModal"
+                />
+                
+                <!-- Tablet+: Icon + Label -->
+                <UButton
+                  :label="$t('common.edit')"
+                  icon="i-lucide-pencil"
+                  size="sm"
+                  color="primary"
+                  class="hidden md:inline-flex"
+                  @click="openEditProductModal"
+                />
+                <UButton
+                  :label="$t('common.delete')"
+                  icon="i-lucide-trash-2"
+                  size="sm"
+                  color="error"
+                  class="hidden md:inline-flex"
+                  @click="openDeleteProductModal"
+                />
+              </div>
             </div>
           </div>
         </div>
@@ -116,6 +153,194 @@
       </div>
     </div>
 
+    <!-- Edit Product Modal -->
+    <UModal :open="isEditProductModalOpen" @update:open="(val) => isEditProductModalOpen = val">
+      <template #title>
+        {{ $t('pages.products.details.editProductModal.title') }}
+      </template>
+
+      <template #description>
+        {{ $t('pages.products.details.editProductModal.description') }}
+      </template>
+
+      <template #body>
+        <div class="space-y-4">
+          <!-- Name -->
+          <div>
+            <label class="block text-sm font-medium mb-1">
+              {{ $t('pages.products.details.editProductModal.nameLabel') }} <span class="text-red-500">*</span>
+            </label>
+            <UInput
+              v-model="editProductForm.name"
+              type="text"
+              :placeholder="$t('pages.addProduct.form.namePlaceholder')"
+              required
+              class="w-full"
+            />
+          </div>
+
+          <!-- Brand -->
+          <div>
+            <label class="block text-sm font-medium mb-1">
+              {{ $t('pages.products.details.editProductModal.brandLabel') }} <span class="text-red-500">*</span>
+            </label>
+            <UInput
+              v-model="editProductForm.brand"
+              type="text"
+              :placeholder="$t('pages.addProduct.form.brandPlaceholder')"
+              required
+              class="w-full"
+            />
+          </div>
+
+          <!-- Category -->
+          <div>
+            <label class="block text-sm font-medium mb-1">
+              {{ $t('pages.products.details.editProductModal.categoryLabel') }}
+            </label>
+            <UInput
+              v-model="editProductForm.category"
+              type="text"
+              :placeholder="$t('pages.addProduct.form.categoryPlaceholder')"
+              class="w-full"
+            />
+          </div>
+
+          <!-- Barcode -->
+          <div>
+            <label class="block text-sm font-medium mb-1">
+              {{ $t('pages.products.details.editProductModal.barcodeLabel') }}
+            </label>
+            <UInput
+              v-model="editProductForm.barcode"
+              type="text"
+              :placeholder="$t('pages.addProduct.form.barcodePlaceholder')"
+              class="w-full"
+            />
+          </div>
+
+          <!-- Is Eatable -->
+          <div class="flex items-center gap-2">
+            <UCheckbox
+              v-model="editProductForm.isEatable"
+              :label="$t('pages.products.details.editProductModal.isEatableLabel')"
+            />
+          </div>
+
+          <!-- Notes -->
+          <div>
+            <label class="block text-sm font-medium mb-1">
+              {{ $t('pages.products.details.editProductModal.notesLabel') }}
+            </label>
+            <UTextarea
+              v-model="editProductForm.notes"
+              :rows="3"
+              :placeholder="$t('pages.addProduct.form.notesPlaceholder')"
+              class="w-full"
+            />
+          </div>
+        </div>
+      </template>
+
+      <template #footer>
+        <div class="flex justify-end gap-2">
+          <UButton
+            :label="$t('pages.products.details.editProductModal.cancel')"
+            color="neutral"
+            variant="outline"
+            @click="closeEditProductModal"
+          />
+          <UButton
+            :label="$t('pages.products.details.editProductModal.confirm')"
+            :loading="isUpdatingProduct"
+            @click="handleUpdateProduct"
+          />
+        </div>
+      </template>
+    </UModal>
+
+    <!-- Delete Product Modal -->
+    <UModal :open="isDeleteProductModalOpen" @update:open="(val) => isDeleteProductModalOpen = val">
+      <template #title>
+        {{ $t('pages.products.details.deleteProductModal.title') }}
+      </template>
+
+      <template #description>
+        {{ $t('pages.products.details.deleteProductModal.description') }}
+      </template>
+
+      <template #body>
+        <div class="space-y-4">
+          <!-- Warning -->
+          <div class="p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg">
+            <p class="text-sm font-medium text-red-600 dark:text-red-400">
+              {{ $t('pages.products.details.deleteProductModal.warning') }}
+            </p>
+          </div>
+
+          <!-- Product Details -->
+          <div class="space-y-3">
+            <!-- Product Name -->
+            <div>
+              <span class="text-sm font-medium text-gray-700 dark:text-gray-300">
+                {{ $t('pages.products.details.deleteProductModal.productName') }}:
+              </span>
+              <span class="text-sm ml-2">{{ product?.name }}</span>
+            </div>
+
+            <!-- Brand -->
+            <div>
+              <span class="text-sm font-medium text-gray-700 dark:text-gray-300">
+                {{ $t('pages.products.details.deleteProductModal.brand') }}:
+              </span>
+              <span class="text-sm ml-2">{{ product?.brand }}</span>
+            </div>
+
+            <!-- Category -->
+            <div v-if="product?.category">
+              <span class="text-sm font-medium text-gray-700 dark:text-gray-300">
+                {{ $t('pages.products.details.deleteProductModal.category') }}:
+              </span>
+              <span class="text-sm ml-2">{{ product.category }}</span>
+            </div>
+
+            <!-- Barcode -->
+            <div v-if="product?.barcode">
+              <span class="text-sm font-medium text-gray-700 dark:text-gray-300">
+                {{ $t('pages.products.details.deleteProductModal.barcode') }}:
+              </span>
+              <span class="text-sm ml-2">{{ product.barcode }}</span>
+            </div>
+
+            <!-- Inventory Count -->
+            <div class="pt-2 border-t border-gray-200 dark:border-gray-700">
+              <span class="text-sm font-medium text-gray-700 dark:text-gray-300">
+                {{ $t('pages.products.details.deleteProductModal.inventoryCount') }}:
+              </span>
+              <span class="text-sm ml-2">{{ product?.inventoryItems.length || 0 }}</span>
+            </div>
+          </div>
+        </div>
+      </template>
+
+      <template #footer>
+        <div class="flex justify-end gap-2">
+          <UButton
+            :label="$t('pages.products.details.deleteProductModal.cancel')"
+            color="neutral"
+            variant="outline"
+            @click="closeDeleteProductModal"
+          />
+          <UButton
+            :label="$t('pages.products.details.deleteProductModal.confirm')"
+            color="error"
+            :loading="isDeletingProduct"
+            @click="handleDeleteProduct"
+          />
+        </div>
+      </template>
+    </UModal>
+
     <!-- Image Overlay -->
     <Transition
       enter-active-class="transition-opacity duration-200 ease-out"
@@ -143,7 +368,7 @@
 
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
-import type { DetailedProductInfo } from '../../types/product'
+import type { DetailedProductInfo, UpdateProductRequest } from '../../types/product'
 import { useProductsApi } from '../../composables/api/useProductsApi'
 
 definePageMeta({
@@ -153,7 +378,7 @@ definePageMeta({
 
 const route = useRoute()
 const { t: $t } = useI18n()
-const { getProductDetails, toggleFavorite } = useProductsApi()
+const { getProductDetails, toggleFavorite, updateProduct, deleteProduct } = useProductsApi()
 const toast = useToast()
 
 // State
@@ -161,6 +386,22 @@ const product = ref<DetailedProductInfo | null>(null)
 const isLoading = ref(false)
 const error = ref(false)
 const isImageOverlayOpen = ref(false)
+
+// Edit product modal state
+const isEditProductModalOpen = ref(false)
+const editProductForm = ref<UpdateProductRequest>({
+  name: undefined,
+  brand: undefined,
+  category: undefined,
+  barcode: undefined,
+  isEatable: undefined,
+  notes: undefined
+})
+const isUpdatingProduct = ref(false)
+
+// Delete product modal state
+const isDeleteProductModalOpen = ref(false)
+const isDeletingProduct = ref(false)
 
 // Methods
 const handleToggleFavorite = async () => {
@@ -217,6 +458,82 @@ const loadProductDetails = async () => {
     }, 2000)
   } finally {
     isLoading.value = false
+  }
+}
+
+// Edit product modal methods
+const openEditProductModal = () => {
+  if (!product.value) return
+
+  // Pre-fill form with current values
+  editProductForm.value = {
+    name: product.value.name,
+    brand: product.value.brand,
+    category: product.value.category || undefined,
+    barcode: product.value.barcode || undefined,
+    isEatable: product.value.isEatable,
+    notes: undefined // Notes not available in DetailedProductInfo
+  }
+  isEditProductModalOpen.value = true
+}
+
+const closeEditProductModal = () => {
+  isEditProductModalOpen.value = false
+  editProductForm.value = {
+    name: undefined,
+    brand: undefined,
+    category: undefined,
+    barcode: undefined,
+    isEatable: undefined,
+    notes: undefined
+  }
+}
+
+const handleUpdateProduct = async () => {
+  if (!product.value) return
+
+  isUpdatingProduct.value = true
+
+  try {
+    const response = await updateProduct(product.value.publicId, editProductForm.value)
+
+    if (response.success) {
+      closeEditProductModal()
+      await loadProductDetails() // Refresh product data
+    }
+  } catch (error) {
+    console.error('Failed to update product:', error)
+  } finally {
+    isUpdatingProduct.value = false
+  }
+}
+
+// Delete product modal methods
+const openDeleteProductModal = () => {
+  isDeleteProductModalOpen.value = true
+}
+
+const closeDeleteProductModal = () => {
+  isDeleteProductModalOpen.value = false
+}
+
+const handleDeleteProduct = async () => {
+  if (!product.value) return
+
+  isDeletingProduct.value = true
+
+  try {
+    const response = await deleteProduct(product.value.publicId)
+
+    if (response.success) {
+      closeDeleteProductModal()
+      // Navigate back to products list
+      await navigateTo('/products')
+    }
+  } catch (error) {
+    console.error('Failed to delete product:', error)
+  } finally {
+    isDeletingProduct.value = false
   }
 }
 

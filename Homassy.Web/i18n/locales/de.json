@@ -121,7 +121,7 @@
         "consumedQuantity": "Verbrauchte Menge",
         "remainingQuantity": "Verbleibende Menge",
         "consumedAt": "Verbraucht am",
-        "edit": "Bestand bearbeiten",
+        "editInventory": "Bestand bearbeiten",
         "deleteItem": "Bestand löschen",
         "consume": {
           "button": "Verbrauchen",
@@ -157,6 +157,34 @@
           "cancel": "Abbrechen",
           "confirm": "Löschen",
           "success": "Bestand erfolgreich gelöscht"
+        },
+        "editProduct": "Produkt bearbeiten",
+        "deleteProduct": "Produkt löschen",
+        "editProductModal": {
+          "title": "Produkt bearbeiten",
+          "description": "Produktdetails ändern",
+          "nameLabel": "Produktname",
+          "brandLabel": "Marke",
+          "categoryLabel": "Kategorie",
+          "barcodeLabel": "Barcode",
+          "isEatableLabel": "Essbares Produkt",
+          "notesLabel": "Notizen",
+          "cancel": "Abbrechen",
+          "confirm": "Speichern",
+          "success": "Produkt erfolgreich aktualisiert"
+        },
+        "deleteProductModal": {
+          "title": "Produkt löschen",
+          "description": "Möchten Sie dieses Produkt wirklich löschen? Dadurch werden auch alle Bestandselemente gelöscht!",
+          "warning": "Warnung: Diese Aktion kann nicht rückgängig gemacht werden!",
+          "productName": "Produktname",
+          "brand": "Marke",
+          "category": "Kategorie",
+          "barcode": "Barcode",
+          "inventoryCount": "Anzahl der Bestandselemente",
+          "cancel": "Abbrechen",
+          "confirm": "Löschen",
+          "success": "Produkt erfolgreich gelöscht"
         }
       }
     },
