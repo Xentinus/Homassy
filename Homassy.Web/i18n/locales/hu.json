@@ -121,9 +121,12 @@
         "consumedQuantity": "Elfogyasztott mennyiség",
         "remainingQuantity": "Maradt mennyiség",
         "consumedAt": "Fogyasztás dátuma",
+        "edit": "Készlet szerkesztése",
+        "deleteItem": "Készlet törlése",
         "consume": {
           "button": "Fogyasztás",
           "title": "Elem fogyasztása",
+          "description": "A fogyasztás csökkenti a készlet mennyiségét.",
           "quantityLabel": "Fogyasztandó mennyiség",
           "cancel": "Mégse",
           "confirm": "Megerősítés",

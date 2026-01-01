@@ -1,6 +1,6 @@
 ﻿<template>
   <div class="rounded-lg border p-4 transition-all" :class="borderColorClass">
-    <!-- Header: Quantity + Unit -->
+    <!-- Header: Quantity + Actions -->
     <div class="flex items-center justify-between mb-3">
       <div class="flex items-center gap-2">
         <UIcon name="i-lucide-package-2" class="h-5 w-5 text-primary-500" />
@@ -8,6 +8,23 @@
           {{ item.currentQuantity }} {{ $t(`enums.unit.${item.unit}`) }}
         </span>
       </div>
+
+      <!-- Action Buttons -->
+      <UFieldGroup size="sm" orientation="horizontal">
+        <UButton
+          :label="$t('pages.products.details.consume.button')"
+          icon="i-lucide-utensils"
+          size="sm"
+          @click="openConsumeModal"
+        />
+        <UDropdownMenu :items="dropdownItems" size="sm">
+          <UButton
+            icon="i-lucide-ellipsis-vertical"
+            size="sm"
+            variant="subtle"
+          />
+        </UDropdownMenu>
+      </UFieldGroup>
     </div>
 
     <!-- Expiration Section -->
@@ -80,12 +97,129 @@
         </div>
       </Transition>
     </div>
+
+    <!-- Consume Modal -->
+    <UModal
+      :open="isConsumeModalOpen"
+      @update:open="(val) => isConsumeModalOpen = val"
+    >
+      <template #title>
+        {{ $t('pages.products.details.consume.title') }}
+      </template>
+
+      <template #description>
+        {{ $t('pages.products.details.consume.description') }}
+      </template>
+
+      <template #body>
+        <div class="space-y-4">
+          <div class="space-y-2">
+            <label for="consume-quantity" class="block text-sm font-medium">
+              {{ $t('pages.products.details.consume.quantityLabel') }}
+            </label>
+            <UInput
+              id="consume-quantity"
+              v-model="consumeQuantity"
+              type="number"
+              :min="0"
+              :max="item.currentQuantity"
+              :placeholder="$t('pages.products.details.consume.quantityLabel')"
+              class="w-full"
+            />
+            <p class="text-xs text-gray-500 dark:text-gray-400">
+              {{ $t('pages.products.details.consume.maxQuantity', { max: item.currentQuantity }) }}
+            </p>
+
+            <!-- Stepper Buttons -->
+            <div class="flex gap-2">
+              <!-- Subtract buttons -->
+              <div class="flex gap-1">
+                <UButton
+                  size="xs"
+                  color="primary"
+                  variant="soft"
+                  icon="i-lucide-minus"
+                  @click="adjustQuantity(-10)"
+                >
+                  10
+                </UButton>
+                <UButton
+                  size="xs"
+                  color="primary"
+                  variant="soft"
+                  icon="i-lucide-minus"
+                  @click="adjustQuantity(-1)"
+                >
+                  1
+                </UButton>
+                <UButton
+                  size="xs"
+                  color="primary"
+                  variant="soft"
+                  icon="i-lucide-minus"
+                  @click="adjustQuantity(-0.1)"
+                >
+                  0.1
+                </UButton>
+              </div>
+
+              <!-- Add buttons -->
+              <div class="flex gap-1">
+                <UButton
+                  size="xs"
+                  color="primary"
+                  variant="soft"
+                  icon="i-lucide-plus"
+                  @click="adjustQuantity(0.1)"
+                >
+                  0.1
+                </UButton>
+                <UButton
+                  size="xs"
+                  color="primary"
+                  variant="soft"
+                  icon="i-lucide-plus"
+                  @click="adjustQuantity(1)"
+                >
+                  1
+                </UButton>
+                <UButton
+                  size="xs"
+                  color="primary"
+                  variant="soft"
+                  icon="i-lucide-plus"
+                  @click="adjustQuantity(10)"
+                >
+                  10
+                </UButton>
+              </div>
+            </div>
+          </div>
+        </div>
+      </template>
+
+      <template #footer>
+        <div class="flex justify-end gap-2">
+          <UButton
+            :label="$t('pages.products.details.consume.cancel')"
+            color="neutral"
+            variant="outline"
+            @click="closeConsumeModal"
+          />
+          <UButton
+            :label="$t('pages.products.details.consume.confirm')"
+            :loading="isConsuming"
+            @click="handleConsume"
+          />
+        </div>
+      </template>
+    </UModal>
   </div>
 </template>
 
 <script setup lang="ts">
 import { ref, computed } from 'vue'
-import type { InventoryItemInfo } from '../types/product'
+import type { InventoryItemInfo, ConsumeInventoryItemRequest } from '../types/product'
 
 interface TimelineItem {
   date?: string
@@ -101,11 +235,37 @@ interface Props {
 
 const props = defineProps<Props>()
 
+const emit = defineEmits<{
+  consumed: []
+}>()
+
 const { t: $t } = useI18n()
 const { formatDate } = useDateFormat()
+const { consumeInventoryItem } = useProductsApi()
+const toast = useToast()
 
 // State
 const isHistoryExpanded = ref(false)
+const isConsumeModalOpen = ref(false)
+const consumeQuantity = ref<number | null>(null)
+const isConsuming = ref(false)
+
+// Dropdown menu items
+const dropdownItems = computed(() => [
+  [
+    {
+      label: $t('pages.products.details.edit'),
+      icon: 'i-lucide-pencil'
+      // Future: Add click handler
+    },
+    {
+      label: $t('pages.products.details.deleteItem'),
+      icon: 'i-lucide-trash-2',
+      color: 'error' as const
+      // Future: Add click handler
+    }
+  ]
+])
 
 // Computed
 const isExpired = computed(() => {
@@ -168,13 +328,79 @@ const timelineItems = computed<TimelineItem[]>(() => {
 // Methods
 const formatUnitPrice = (price: number, quantity: number): string => {
   const unitPrice = price / quantity
-  
+
   // Check if it's a whole number
   if (Number.isInteger(unitPrice)) {
     return unitPrice.toString()
   }
-  
+
   // Otherwise format with 2 decimal places
   return unitPrice.toFixed(2)
+}
+
+const openConsumeModal = () => {
+  // Set default value to current quantity when opening modal
+  consumeQuantity.value = props.item.currentQuantity
+  isConsumeModalOpen.value = true
+}
+
+const closeConsumeModal = () => {
+  isConsumeModalOpen.value = false
+  consumeQuantity.value = null
+}
+
+const adjustQuantity = (amount: number) => {
+  const currentValue = consumeQuantity.value || 0
+  const newValue = currentValue + amount
+
+  // Ensure value stays within bounds (0 to currentQuantity)
+  if (newValue < 0) {
+    consumeQuantity.value = 0
+  } else if (newValue > props.item.currentQuantity) {
+    consumeQuantity.value = props.item.currentQuantity
+  } else {
+    // Round to 1 decimal place to avoid floating point precision issues
+    consumeQuantity.value = Math.round(newValue * 10) / 10
+  }
+}
+
+const handleConsume = async () => {
+  // Validate quantity
+  if (!consumeQuantity.value || consumeQuantity.value <= 0) {
+    toast.add({
+      title: $t('toast.error'),
+      description: $t('pages.products.details.consume.maxQuantity', { max: props.item.currentQuantity }),
+      color: 'error'
+    })
+    return
+  }
+
+  if (consumeQuantity.value > props.item.currentQuantity) {
+    toast.add({
+      title: $t('toast.error'),
+      description: $t('pages.products.details.consume.maxQuantity', { max: props.item.currentQuantity }),
+      color: 'error'
+    })
+    return
+  }
+
+  isConsuming.value = true
+
+  try {
+    const request: ConsumeInventoryItemRequest = {
+      quantity: consumeQuantity.value
+    }
+
+    const response = await consumeInventoryItem(props.item.publicId, request)
+
+    if (response.success) {
+      closeConsumeModal()
+      emit('consumed')
+    }
+  } catch (error) {
+    console.error('Failed to consume inventory item:', error)
+  } finally {
+    isConsuming.value = false
+  }
 }
 </script>

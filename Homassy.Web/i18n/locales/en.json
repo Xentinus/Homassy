@@ -121,9 +121,12 @@
         "consumedQuantity": "Consumed quantity",
         "remainingQuantity": "Remaining quantity",
         "consumedAt": "Consumed at",
+        "edit": "Edit Inventory",
+        "deleteItem": "Delete Inventory",
         "consume": {
           "button": "Consume",
           "title": "Consume Item",
+          "description": "Consumption will reduce the inventory quantity.",
           "quantityLabel": "Quantity to consume",
           "cancel": "Cancel",
           "confirm": "Confirm",

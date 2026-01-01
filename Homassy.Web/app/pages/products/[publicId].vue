@@ -107,6 +107,7 @@
               :key="item.publicId"
               :item="item"
               :product-name="product.name"
+              @consumed="loadProductDetails"
             />
           </div>
         </div>

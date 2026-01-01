@@ -121,9 +121,12 @@
         "consumedQuantity": "Verbrauchte Menge",
         "remainingQuantity": "Verbleibende Menge",
         "consumedAt": "Verbraucht am",
+        "edit": "Bestand bearbeiten",
+        "deleteItem": "Bestand löschen",
         "consume": {
           "button": "Verbrauchen",
           "title": "Artikel verbrauchen",
+          "description": "Der Verbrauch verringert die Bestandsmenge.",
           "quantityLabel": "Zu verbrauchende Menge",
           "cancel": "Abbrechen",
           "confirm": "Bestätigen",
