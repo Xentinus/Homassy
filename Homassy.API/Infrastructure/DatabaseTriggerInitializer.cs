@@ -23,13 +23,23 @@ namespace Homassy.API.Infrastructure
                 await _context.Database.ExecuteSqlRawAsync(@"
                     CREATE OR REPLACE FUNCTION record_table_change()
                     RETURNS TRIGGER AS $$
+                    DECLARE
+                        change_payload JSON;
                     BEGIN
                         INSERT INTO ""TableRecordChanges"" (""TableName"", ""RecordId"", ""IsDeleted"")
                         VALUES (TG_TABLE_NAME, NEW.""Id"", false);
+                        
+                        -- Send real-time notification
+                        change_payload := json_build_object(
+                            'table', TG_TABLE_NAME,
+                            'recordId', NEW.""Id""
+                        );
+                        PERFORM pg_notify('cache_changes', change_payload::text);
+                        
                         RETURN NEW;
                     EXCEPTION
                         WHEN OTHERS THEN
-                            RAISE WARNING 'Error inserting into TableRecordChanges: %', SQLERRM;
+                            RAISE WARNING 'Error in record_table_change: %', SQLERRM;
                             RETURN NEW;
                     END;
                     $$ LANGUAGE plpgsql;
@@ -69,12 +79,15 @@ namespace Homassy.API.Infrastructure
 
                     if (!triggerExists)
                     {
+                        // Safe: triggerName and tableName are from EF Core metadata, not user input
+#pragma warning disable EF1002
                         await _context.Database.ExecuteSqlRawAsync($@"
                             CREATE TRIGGER {triggerName}
                             AFTER INSERT OR UPDATE ON ""{tableName}""
                             FOR EACH ROW
                             EXECUTE FUNCTION record_table_change();
                         ");
+#pragma warning restore EF1002
 
                         Log.Information($"Created trigger for table: {tableName}");
                     }
