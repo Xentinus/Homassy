@@ -11,7 +11,7 @@
       "name": "MIT License",
       "url": "https://github.com/Xentinus/Homassy/blob/master/LICENSE"
     },
-    "version": "25.1230.2032-dev"
+    "version": "26.0101.1707-dev"
   },
   "paths": {
     "/api/v1/Auth/request-code": {
@@ -159,7 +159,7 @@
         "tags": [
           "Auth"
         ],
-        "summary": "Refreshes the access token using a valid refresh token.\r\nThis endpoint accepts EXPIRED access tokens and validates them for user identification only.\r\nThe refresh token must still be valid and belong to the user from the access token.",
+        "summary": "Refreshes the access token using a valid refresh token.\nThis endpoint accepts EXPIRED access tokens and validates them for user identification only.\nThe refresh token must still be valid and belong to the user from the access token.",
         "requestBody": {
           "content": {
             "application/json": {
@@ -439,7 +439,7 @@
         "tags": [
           "ErrorCodes"
         ],
-        "summary": "Gets all available error codes with their descriptions.\r\nError codes are grouped by category (e.g., AUTH, USER, PRODUCT).",
+        "summary": "Gets all available error codes with their descriptions.\nError codes are grouped by category (e.g., AUTH, USER, PRODUCT).",
         "responses": {
           "200": {
             "description": "OK",
@@ -7605,6 +7605,26 @@
               "string"
             ],
             "format": "uuid"
+          },
+          "product": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/ProductInfo"
+              }
+            ]
+          },
+          "shoppingLocation": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/ShoppingLocationInfo"
+              }
+            ]
           },
           "customName": {
             "type": [

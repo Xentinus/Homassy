@@ -1118,5 +1118,30 @@ namespace Homassy.API.Functions
             }
         }
         #endregion
+
+        #region Helper Methods
+        /// <summary>
+        /// Converts a ShoppingLocation entity to ShoppingLocationInfo DTO.
+        /// </summary>
+        public ShoppingLocationInfo? ConvertToShoppingLocationInfo(ShoppingLocation? shoppingLocation)
+        {
+            if (shoppingLocation == null) return null;
+
+            return new ShoppingLocationInfo
+            {
+                PublicId = shoppingLocation.PublicId,
+                Name = shoppingLocation.Name,
+                Description = shoppingLocation.Description,
+                Address = shoppingLocation.Address,
+                City = shoppingLocation.City,
+                PostalCode = shoppingLocation.PostalCode,
+                Country = shoppingLocation.Country,
+                Website = shoppingLocation.Website,
+                GoogleMaps = shoppingLocation.GoogleMaps,
+                Color = shoppingLocation.Color,
+                IsSharedWithFamily = shoppingLocation.FamilyId.HasValue
+            };
+        }
+        #endregion
     }
 }

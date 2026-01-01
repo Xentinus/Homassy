@@ -1862,5 +1862,29 @@ namespace Homassy.API.Functions
             }
         }
         #endregion
+
+        #region Helper Methods
+        /// <summary>
+        /// Converts a Product entity to ProductInfo DTO.
+        /// </summary>
+        public ProductInfo? ConvertToProductInfo(Product? product, int? userId = null)
+        {
+            if (product == null) return null;
+
+            var customization = userId.HasValue ? GetCustomizationByProductAndUser(product.Id, userId.Value) : null;
+
+            return new ProductInfo
+            {
+                PublicId = product.PublicId,
+                Name = product.Name,
+                Brand = product.Brand,
+                Category = product.Category,
+                Barcode = product.Barcode,
+                ProductPictureBase64 = product.ProductPictureBase64,
+                IsEatable = product.IsEatable,
+                IsFavorite = customization?.IsFavorite ?? false
+            };
+        }
+        #endregion
     }
 }

@@ -410,19 +410,27 @@ namespace Homassy.API.Functions
                 Description = shoppingList.Description,
                 Color = shoppingList.Color,
                 IsSharedWithFamily = shoppingList.FamilyId.HasValue,
-                Items = items.Select(sli => new ShoppingListItemInfo
+                Items = items.Select(sli =>
                 {
-                    PublicId = sli.PublicId,
-                    ShoppingListPublicId = shoppingList.PublicId,
-                    ProductPublicId = sli.ProductId.HasValue ? productFunctions.GetProductById(sli.ProductId)?.PublicId : null,
-                    ShoppingLocationPublicId = sli.ShoppingLocationId.HasValue ? locationFunctions.GetShoppingLocationById(sli.ShoppingLocationId)?.PublicId : null,
-                    CustomName = sli.CustomName,
-                    Quantity = sli.Quantity,
-                    Unit = sli.Unit.ToUnitCode(),
-                    Note = sli.Note,
-                    PurchasedAt = sli.PurchasedAt,
-                    DeadlineAt = sli.DeadlineAt,
-                    DueAt = sli.DueAt
+                    var product = sli.ProductId.HasValue ? productFunctions.GetProductById(sli.ProductId) : null;
+                    var shoppingLocation = sli.ShoppingLocationId.HasValue ? locationFunctions.GetShoppingLocationById(sli.ShoppingLocationId) : null;
+
+                    return new ShoppingListItemInfo
+                    {
+                        PublicId = sli.PublicId,
+                        ShoppingListPublicId = shoppingList.PublicId,
+                        ProductPublicId = product?.PublicId,
+                        ShoppingLocationPublicId = shoppingLocation?.PublicId,
+                        Product = productFunctions.ConvertToProductInfo(product, userId),
+                        ShoppingLocation = locationFunctions.ConvertToShoppingLocationInfo(shoppingLocation),
+                        CustomName = sli.CustomName,
+                        Quantity = sli.Quantity,
+                        Unit = sli.Unit.ToUnitCode(),
+                        Note = sli.Note,
+                        PurchasedAt = sli.PurchasedAt,
+                        DeadlineAt = sli.DeadlineAt,
+                        DueAt = sli.DueAt
+                    };
                 }).ToList()
             };
         }
