@@ -44,7 +44,7 @@
               <img
                 :src="`data:image/jpeg;base64,${product.productPictureBase64}`"
                 :alt="product.name"
-                class="w-24 h-24 md:w-32 md:h-32 object-cover rounded-lg cursor-pointer hover:opacity-90 transition-opacity"
+                class="w-24 h-24 md:w-32 md:h-32 object-contain rounded-lg cursor-pointer hover:opacity-90 transition-opacity"
                 @click="isImageOverlayOpen = true"
               >
               <UButton
@@ -68,14 +68,23 @@
                 class="hidden"
                 @change="handleFileSelect"
               >
-              <UButton
-                icon="i-lucide-upload"
-                color="primary"
-                size="xs"
-                :loading="isUploadingImage"
-                class="absolute top-1 right-1"
-                @click="fileInput?.click()"
-              />
+              <div class="absolute top-1 right-1 flex gap-1">
+                <UButton
+                  icon="i-lucide-upload"
+                  color="primary"
+                  size="xs"
+                  :loading="isUploadingImage"
+                  @click="fileInput?.click()"
+                />
+                <UButton
+                  v-if="product.barcode"
+                  icon="i-lucide-barcode"
+                  color="primary"
+                  size="xs"
+                  :loading="isImportingImageFromBarcode"
+                  @click="handleImportImageFromBarcode"
+                />
+              </div>
             </div>
 
             <!-- Product Details -->
@@ -481,6 +490,7 @@ const isImageOverlayOpen = ref(false)
 const fileInput = ref<HTMLInputElement | null>(null)
 const isUploadingImage = ref(false)
 const isDeletingImage = ref(false)
+const isImportingImageFromBarcode = ref(false)
 
 // Edit product modal state
 const isEditProductModalOpen = ref(false)
@@ -548,7 +558,10 @@ const handleFileSelect = async (event: Event) => {
       })
       
       if (response.success) {
-        await loadProductDetails() // Refresh product data
+        // Immediately update the image without full reload
+        if (product.value) {
+          product.value.productPictureBase64 = base64Data
+        }
       }
     }
     reader.readAsDataURL(file)
@@ -572,12 +585,61 @@ const handleDeleteProductImage = async () => {
     const response = await deleteProductImage(productPublicId)
     
     if (response.success) {
-      await loadProductDetails() // Refresh product data
+      // Immediately remove the image without full reload
+      if (product.value) {
+        product.value.productPictureBase64 = undefined
+      }
     }
   } catch (error) {
     console.error('Failed to delete image:', error)
   } finally {
     isDeletingImage.value = false
+  }
+}
+
+const handleImportImageFromBarcode = async () => {
+  if (!product.value || !product.value.barcode) return
+  
+  isImportingImageFromBarcode.value = true
+  
+  try {
+    const response = await getProductByBarcode(product.value.barcode.trim())
+    
+    if (response.success && response.data && response.data.image_base64) {
+      // Remove the "data:image/jpeg;base64," prefix if it exists
+      let base64Data = response.data.image_base64
+      if (base64Data.includes(',')) {
+        base64Data = base64Data.split(',')[1]
+      }
+      
+      // Upload the image
+      const uploadResponse = await uploadProductImage(product.value.publicId, {
+        productPublicId: product.value.publicId,
+        imageBase64: base64Data
+      })
+      
+      if (uploadResponse.success) {
+        // Immediately update the image without full reload
+        if (product.value) {
+          product.value.productPictureBase64 = base64Data
+        }
+      }
+    } else {
+      toast.add({
+        title: $t('toast.error'),
+        description: $t('pages.addProduct.openFoodFacts.noProductError'),
+        color: 'error'
+      })
+    }
+  } catch (error) {
+    console.error('Failed to import image from barcode:', error)
+    toast.add({
+      title: $t('toast.error'),
+      description: $t('pages.addProduct.openFoodFacts.noProductError'),
+      color: 'error'
+    })
+  } finally {
+    isImportingImageFromBarcode.value = false
   }
 }
 
