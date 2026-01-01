@@ -40,19 +40,42 @@
         <div class="relative bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-6 space-y-4">
           <div class="flex gap-6">
             <!-- Product Image -->
-            <div v-if="product.productPictureBase64" class="flex-shrink-0">
+            <div v-if="product.productPictureBase64" class="flex-shrink-0 relative">
               <img
                 :src="`data:image/jpeg;base64,${product.productPictureBase64}`"
                 :alt="product.name"
                 class="w-24 h-24 md:w-32 md:h-32 object-cover rounded-lg cursor-pointer hover:opacity-90 transition-opacity"
                 @click="isImageOverlayOpen = true"
               >
+              <UButton
+                icon="i-lucide-trash-2"
+                color="error"
+                size="xs"
+                :loading="isDeletingImage"
+                class="absolute top-1 right-1"
+                @click="handleDeleteProductImage"
+              />
             </div>
-            <div v-else class="flex-shrink-0 w-24 h-24 md:w-32 md:h-32 bg-gray-100 dark:bg-gray-700 rounded-lg flex flex-col items-center justify-center">
+            <div v-else class="flex-shrink-0 w-24 h-24 md:w-32 md:h-32 bg-gray-100 dark:bg-gray-700 rounded-lg flex flex-col items-center justify-center relative">
               <UIcon name="i-lucide-package" class="h-12 w-12 text-gray-400 dark:text-gray-500" />
               <span class="text-xs text-gray-500 dark:text-gray-400 mt-1">
                 {{ $t('pages.products.details.noImage') }}
               </span>
+              <input
+                ref="fileInput"
+                type="file"
+                accept="image/*"
+                class="hidden"
+                @change="handleFileSelect"
+              >
+              <UButton
+                icon="i-lucide-upload"
+                color="primary"
+                size="xs"
+                :loading="isUploadingImage"
+                class="absolute top-1 right-1"
+                @click="fileInput?.click()"
+              />
             </div>
 
             <!-- Product Details -->
@@ -89,29 +112,11 @@
 
               <!-- Action Buttons -->
               <div class="flex gap-2 justify-end md:absolute md:top-4 md:right-4">
-                <!-- Mobile: Icon only -->
-                <UButton
-                  icon="i-lucide-pencil"
-                  size="sm"
-                  color="primary"
-                  class="md:hidden"
-                  @click="openEditProductModal"
-                />
-                <UButton
-                  icon="i-lucide-trash-2"
-                  size="sm"
-                  color="error"
-                  class="md:hidden"
-                  @click="openDeleteProductModal"
-                />
-                
-                <!-- Tablet+: Icon + Label -->
                 <UButton
                   :label="$t('common.edit')"
                   icon="i-lucide-pencil"
                   size="sm"
                   color="primary"
-                  class="hidden md:inline-flex"
                   @click="openEditProductModal"
                 />
                 <UButton
@@ -119,7 +124,6 @@
                   icon="i-lucide-trash-2"
                   size="sm"
                   color="error"
-                  class="hidden md:inline-flex"
                   @click="openDeleteProductModal"
                 />
               </div>
@@ -378,7 +382,7 @@ definePageMeta({
 
 const route = useRoute()
 const { t: $t } = useI18n()
-const { getProductDetails, toggleFavorite, updateProduct, deleteProduct } = useProductsApi()
+const { getProductDetails, toggleFavorite, updateProduct, deleteProduct, uploadProductImage, deleteProductImage } = useProductsApi()
 const toast = useToast()
 
 // State
@@ -386,6 +390,9 @@ const product = ref<DetailedProductInfo | null>(null)
 const isLoading = ref(false)
 const error = ref(false)
 const isImageOverlayOpen = ref(false)
+const fileInput = ref<HTMLInputElement | null>(null)
+const isUploadingImage = ref(false)
+const isDeletingImage = ref(false)
 
 // Edit product modal state
 const isEditProductModalOpen = ref(false)
@@ -419,6 +426,64 @@ const handleToggleFavorite = async () => {
       title: $t('common.error'),
       color: 'error'
     })
+  }
+}
+
+const handleFileSelect = async (event: Event) => {
+  const target = event.target as HTMLInputElement
+  const file = target.files?.[0]
+  
+  if (!file || !product.value) return
+  
+  const productPublicId = product.value.publicId
+  isUploadingImage.value = true
+  
+  try {
+    // Convert to base64
+    const reader = new FileReader()
+    reader.onload = async (e) => {
+      const base64 = e.target?.result as string
+      if (!base64) return
+      
+      const base64Data = base64.split(',')[1] // Remove data:image/...;base64, prefix
+      if (!base64Data) return
+      
+      const response = await uploadProductImage(productPublicId, {
+        productPublicId: productPublicId,
+        imageBase64: base64Data
+      })
+      
+      if (response.success) {
+        await loadProductDetails() // Refresh product data
+      }
+    }
+    reader.readAsDataURL(file)
+  } catch (error) {
+    console.error('Failed to upload image:', error)
+  } finally {
+    isUploadingImage.value = false
+    if (fileInput.value) {
+      fileInput.value.value = '' // Reset input
+    }
+  }
+}
+
+const handleDeleteProductImage = async () => {
+  if (!product.value) return
+  
+  const productPublicId = product.value.publicId
+  isDeletingImage.value = true
+  
+  try {
+    const response = await deleteProductImage(productPublicId)
+    
+    if (response.success) {
+      await loadProductDetails() // Refresh product data
+    }
+  } catch (error) {
+    console.error('Failed to delete image:', error)
+  } finally {
+    isDeletingImage.value = false
   }
 }
 
