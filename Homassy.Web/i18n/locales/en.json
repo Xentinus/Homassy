@@ -214,6 +214,7 @@
         "categoryPlaceholder": "e.g. Dairy",
         "barcode": "Barcode",
         "barcodePlaceholder": "e.g. 5998200119874",
+        "barcodeQuery": "Query",
         "isEatable": "Eatable Product",
         "isEatableLabel": "This is an eatable product",
         "notes": "Notes",
@@ -221,6 +222,16 @@
         "isFavorite": "Favorite Product",
         "isFavoriteLabel": "Favorite product",
         "createButton": "Create Product"
+      },
+      "openFoodFacts": {
+        "modalTitle": "Product Found",
+        "modalDescription": "Import this product information?",
+        "productName": "Product Name",
+        "brands": "Brands",
+        "import": "Import",
+        "cancel": "Cancel",
+        "noBarcodeError": "Please enter a barcode",
+        "noProductError": "Product not found. OpenFoodFacts only contains food items."
       },
       "placeholders": {
         "step2": "Step 2",

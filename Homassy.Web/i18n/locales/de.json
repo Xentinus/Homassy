@@ -214,6 +214,7 @@
         "categoryPlaceholder": "z.B. Milchprodukte",
         "barcode": "Barcode",
         "barcodePlaceholder": "z.B. 5998200119874",
+        "barcodeQuery": "Abfragen",
         "isEatable": "Essbares Produkt",
         "isEatableLabel": "Dies ist ein essbares Produkt",
         "notes": "Notizen",
@@ -221,6 +222,16 @@
         "isFavorite": "Lieblingsprodukt",
         "isFavoriteLabel": "Lieblingsprodukt",
         "createButton": "Produkt erstellen"
+      },
+      "openFoodFacts": {
+        "modalTitle": "Produkt gefunden",
+        "modalDescription": "Diese Produktinformationen importieren?",
+        "productName": "Produktname",
+        "brands": "Marken",
+        "import": "Importieren",
+        "cancel": "Abbrechen",
+        "noBarcodeError": "Bitte geben Sie einen Barcode ein",
+        "noProductError": "Produkt nicht gefunden. OpenFoodFacts enthält nur Lebensmittel."
       },
       "placeholders": {
         "step2": "Schritt 2",

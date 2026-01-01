@@ -16,9 +16,10 @@
 
       <!-- Stepper -->
       <UStepper
-        v-model="currentStep"
+        :model-value="currentStep"
         :items="stepperItems"
         orientation="horizontal"
+        @update:model-value="handleStepChange"
       />
     </div>
 
@@ -115,12 +116,23 @@
                 </UFormField>
 
                 <UFormField :label="t('pages.addProduct.form.barcode')" name="barcode">
-                  <UInput
-                    v-model="formData.barcode"
-                    :placeholder="t('pages.addProduct.form.barcodePlaceholder')"
-                    :disabled="isCreating"
-                    class="w-full"
-                  />
+                  <UFieldGroup size="md" orientation="horizontal" class="w-full">
+                    <UInput
+                      v-model="formData.barcode"
+                      :placeholder="t('pages.addProduct.form.barcodePlaceholder')"
+                      :disabled="isCreating"
+                      class="flex-1"
+                    />
+                    <UButton
+                      :label="t('pages.addProduct.form.barcodeQuery')"
+                      icon="i-lucide-barcode"
+                      color="primary"
+                      size="sm"
+                      :loading="isQueryingBarcode"
+                      :disabled="isCreating"
+                      @click="handleBarcodeQuery"
+                    />
+                  </UFieldGroup>
                 </UFormField>
 
                 <UFormField :label="t('pages.addProduct.form.isEatable')" name="isEatable">
@@ -161,6 +173,81 @@
             </div>
           </template>
         </UTabs>
+
+        <!-- OpenFoodFacts Modal -->
+        <UModal
+          :open="isOpenFoodFactsModalOpen"
+          @update:open="(val) => { if (!val) handleCancelImport() }"
+        >
+          <template #title>
+            {{ t('pages.addProduct.openFoodFacts.modalTitle') }}
+          </template>
+
+          <template #description>
+            {{ t('pages.addProduct.openFoodFacts.modalDescription') }}
+          </template>
+
+          <template #body>
+            <div class="space-y-4">
+              <!-- Product Image -->
+              <div class="flex justify-center">
+                <div class="relative w-40 h-40">
+                  <USkeleton
+                    v-if="isImageLoading && openFoodFactsProduct?.image_base64"
+                    class="w-full h-full rounded-lg"
+                  />
+                  <img
+                    v-if="openFoodFactsProduct?.image_base64"
+                    :src="openFoodFactsProduct.image_base64"
+                    alt="Product image"
+                    class="w-full h-full object-contain rounded-lg border border-gray-200 dark:border-gray-700"
+                    :class="{ 'opacity-0': isImageLoading }"
+                    @load="isImageLoading = false"
+                  >
+                  <div
+                    v-else
+                    class="w-full h-full flex items-center justify-center bg-gray-100 dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700"
+                  >
+                    <UIcon name="i-lucide-package" class="h-16 w-16 text-gray-400" />
+                  </div>
+                </div>
+              </div>
+
+              <!-- Product Information -->
+              <div class="space-y-3">
+                <div v-if="openFoodFactsProduct?.product_name">
+                  <span class="text-sm font-medium text-gray-700 dark:text-gray-300">
+                    {{ t('pages.addProduct.openFoodFacts.productName') }}:
+                  </span>
+                  <p class="text-sm mt-1">{{ openFoodFactsProduct.product_name }}</p>
+                </div>
+
+                <div v-if="openFoodFactsProduct?.brands">
+                  <span class="text-sm font-medium text-gray-700 dark:text-gray-300">
+                    {{ t('pages.addProduct.openFoodFacts.brands') }}:
+                  </span>
+                  <p class="text-sm mt-1">{{ openFoodFactsProduct.brands }}</p>
+                </div>
+              </div>
+            </div>
+          </template>
+
+          <template #footer>
+            <div class="flex justify-end gap-2">
+              <UButton
+                :label="t('pages.addProduct.openFoodFacts.cancel')"
+                color="neutral"
+                variant="outline"
+                @click="handleCancelImport"
+              />
+              <UButton
+                :label="t('pages.addProduct.openFoodFacts.import')"
+                color="primary"
+                @click="handleImportProduct"
+              />
+            </div>
+          </template>
+        </UModal>
       </div>
 
       <!-- Step 2: Storage Location Selection -->
@@ -524,8 +611,8 @@
             />
           </UFormField>
 
-          <!-- Unit (Optional) -->
-          <UFormField :label="t('pages.addProduct.inventory.form.unit')" name="unit">
+          <!-- Unit (Required) -->
+          <UFormField :label="t('pages.addProduct.inventory.form.unit')" name="unit" required>
             <USelect
               v-model="inventoryFormData.unit"
               :items="unitOptions"
@@ -633,8 +720,10 @@ import type { FormSubmitEvent } from '@nuxt/ui'
 import type { CalendarDate } from '@internationalized/date'
 import { useProductsApi } from '~/composables/api/useProductsApi'
 import { useLocationsApi } from '~/composables/api/useLocationsApi'
+import { useOpenFoodFactsApi } from '~/composables/api/useOpenFoodFactsApi'
 import type { ProductInfo, CreateProductRequest, CreateInventoryItemRequest } from '~/types/product'
 import type { StorageLocationInfo, StorageLocationRequest, ShoppingLocationInfo, ShoppingLocationRequest } from '~/types/location'
+import type { OpenFoodFactsProduct } from '~/types/openFoodFacts'
 import { Unit, Currency } from '~/types/enums'
 
 definePageMeta({
@@ -658,7 +747,9 @@ interface InventoryFormData {
 
 const { getProducts, createProduct, createInventoryItem } = useProductsApi()
 const { getStorageLocations, createStorageLocation, getShoppingLocations, createShoppingLocation } = useLocationsApi()
+const { getProductByBarcode } = useOpenFoodFactsApi()
 const { t } = useI18n()
+const toast = useToast()
 
 // Stepper state
 const currentStep = ref(0)
@@ -700,6 +791,12 @@ const searchQuery = ref('')
 const searchResults = ref<ProductInfo[]>([])
 const isSearching = ref(false)
 const selectedCardId = ref<string | null>(null)
+
+// OpenFoodFacts state
+const isOpenFoodFactsModalOpen = ref(false)
+const isQueryingBarcode = ref(false)
+const openFoodFactsProduct = ref<OpenFoodFactsProduct | null>(null)
+const isImageLoading = ref(true)
 
 // Step 2: Location search state
 const allLocations = ref<StorageLocationInfo[]>([])
@@ -868,7 +965,7 @@ type CreateShoppingLocationSchema = z.output<typeof createShoppingLocationSchema
 const createInventorySchema = z.object({
   quantity: z.number({ required_error: 'Quantity is required' })
     .min(0.001, 'Quantity must be greater than 0'),
-  unit: z.nativeEnum(Unit).optional(),
+  unit: z.nativeEnum(Unit, { required_error: 'Unit is required' }),
   expirationAt: z.any().nullable().optional(),
   price: z.number()
     .min(0, 'Price must be positive')
@@ -1082,11 +1179,80 @@ watch(shoppingLocationSearchQuery, () => {
   currentShoppingLocationPage.value = 1
 })
 
+// Stepper navigation handler - prevent forward navigation
+const handleStepChange = (newStep: number) => {
+  // Only allow backward navigation or staying on current step
+  if (newStep <= currentStep.value) {
+    currentStep.value = newStep
+  }
+  // Forward navigation is blocked - users must complete each step
+}
+
 // Handlers
 const onProductCardClick = (product: ProductInfo) => {
   selectedCardId.value = product.publicId
   selectedProductId.value = product.publicId
   currentStep.value = 1
+}
+
+// OpenFoodFacts barcode query handler
+const handleBarcodeQuery = async () => {
+  // Validate barcode exists
+  if (!formData.value.barcode || formData.value.barcode.trim() === '') {
+    toast.add({
+      title: t('toast.error'),
+      description: t('pages.addProduct.openFoodFacts.noBarcodeError'),
+      color: 'error'
+    })
+    return
+  }
+
+  isQueryingBarcode.value = true
+  try {
+    const response = await getProductByBarcode(formData.value.barcode.trim())
+    
+    // Only open modal if request was successful and has data
+    if (response.success && response.data) {
+      openFoodFactsProduct.value = response.data
+      isImageLoading.value = true
+      isOpenFoodFactsModalOpen.value = true
+    } else {
+      // Show error toast
+      toast.add({
+        title: t('toast.error'),
+        description: t('pages.addProduct.openFoodFacts.noProductError'),
+        color: 'error'
+      })
+    }
+  } catch (error) {
+    console.error('OpenFoodFacts query failed:', error)
+    toast.add({
+      title: t('toast.error'),
+      description: t('pages.addProduct.openFoodFacts.noProductError'),
+      color: 'error'
+    })
+  } finally {
+    isQueryingBarcode.value = false
+  }
+}
+
+const handleImportProduct = () => {
+  if (openFoodFactsProduct.value) {
+    // Import product name and brand
+    if (openFoodFactsProduct.value.product_name) {
+      formData.value.name = openFoodFactsProduct.value.product_name
+    }
+    if (openFoodFactsProduct.value.brands) {
+      formData.value.brand = openFoodFactsProduct.value.brands
+    }
+  }
+  handleCancelImport()
+}
+
+const handleCancelImport = () => {
+  isOpenFoodFactsModalOpen.value = false
+  openFoodFactsProduct.value = null
+  isImageLoading.value = true
 }
 
 const onCreateProduct = async (event: FormSubmitEvent<CreateProductSchema>) => {

@@ -215,12 +215,22 @@
             <label class="block text-sm font-medium mb-1">
               {{ $t('pages.products.details.editProductModal.barcodeLabel') }}
             </label>
-            <UInput
-              v-model="editProductForm.barcode"
-              type="text"
-              :placeholder="$t('pages.addProduct.form.barcodePlaceholder')"
-              class="w-full"
-            />
+            <UFieldGroup size="md" orientation="horizontal" class="w-full">
+              <UInput
+                v-model="editProductForm.barcode"
+                type="text"
+                :placeholder="$t('pages.addProduct.form.barcodePlaceholder')"
+                class="flex-1"
+              />
+              <UButton
+                :label="$t('pages.addProduct.form.barcodeQuery')"
+                icon="i-lucide-barcode"
+                color="primary"
+                size="sm"
+                :loading="isQueryingBarcode"
+                @click="handleBarcodeQuery"
+              />
+            </UFieldGroup>
           </div>
 
           <!-- Is Eatable -->
@@ -345,6 +355,81 @@
       </template>
     </UModal>
 
+    <!-- OpenFoodFacts Modal -->
+    <UModal
+      :open="isOpenFoodFactsModalOpen"
+      @update:open="(val) => { if (!val) handleCancelImport() }"
+    >
+      <template #title>
+        {{ $t('pages.addProduct.openFoodFacts.modalTitle') }}
+      </template>
+
+      <template #description>
+        {{ $t('pages.addProduct.openFoodFacts.modalDescription') }}
+      </template>
+
+      <template #body>
+        <div class="space-y-4">
+          <!-- Product Image -->
+          <div class="flex justify-center">
+            <div class="relative w-40 h-40">
+              <USkeleton
+                v-if="isImageLoading && openFoodFactsProduct?.image_base64"
+                class="w-full h-full rounded-lg"
+              />
+              <img
+                v-if="openFoodFactsProduct?.image_base64"
+                :src="openFoodFactsProduct.image_base64"
+                alt="Product image"
+                class="w-full h-full object-contain rounded-lg border border-gray-200 dark:border-gray-700"
+                :class="{ 'opacity-0': isImageLoading }"
+                @load="isImageLoading = false"
+              >
+              <div
+                v-else
+                class="w-full h-full flex items-center justify-center bg-gray-100 dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700"
+              >
+                <UIcon name="i-lucide-package" class="h-16 w-16 text-gray-400" />
+              </div>
+            </div>
+          </div>
+
+          <!-- Product Information -->
+          <div class="space-y-3">
+            <div v-if="openFoodFactsProduct?.product_name">
+              <span class="text-sm font-medium text-gray-700 dark:text-gray-300">
+                {{ $t('pages.addProduct.openFoodFacts.productName') }}:
+              </span>
+              <p class="text-sm mt-1">{{ openFoodFactsProduct.product_name }}</p>
+            </div>
+
+            <div v-if="openFoodFactsProduct?.brands">
+              <span class="text-sm font-medium text-gray-700 dark:text-gray-300">
+                {{ $t('pages.addProduct.openFoodFacts.brands') }}:
+              </span>
+              <p class="text-sm mt-1">{{ openFoodFactsProduct.brands }}</p>
+            </div>
+          </div>
+        </div>
+      </template>
+
+      <template #footer>
+        <div class="flex justify-end gap-2">
+          <UButton
+            :label="$t('pages.addProduct.openFoodFacts.cancel')"
+            color="neutral"
+            variant="outline"
+            @click="handleCancelImport"
+          />
+          <UButton
+            :label="$t('pages.addProduct.openFoodFacts.import')"
+            color="primary"
+            @click="handleImportProduct"
+          />
+        </div>
+      </template>
+    </UModal>
+
     <!-- Image Overlay -->
     <Transition
       enter-active-class="transition-opacity duration-200 ease-out"
@@ -373,7 +458,9 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
 import type { DetailedProductInfo, UpdateProductRequest } from '../../types/product'
+import type { OpenFoodFactsProduct } from '../../types/openFoodFacts'
 import { useProductsApi } from '../../composables/api/useProductsApi'
+import { useOpenFoodFactsApi } from '../../composables/api/useOpenFoodFactsApi'
 
 definePageMeta({
   layout: 'auth',
@@ -383,6 +470,7 @@ definePageMeta({
 const route = useRoute()
 const { t: $t } = useI18n()
 const { getProductDetails, toggleFavorite, updateProduct, deleteProduct, uploadProductImage, deleteProductImage } = useProductsApi()
+const { getProductByBarcode } = useOpenFoodFactsApi()
 const toast = useToast()
 
 // State
@@ -405,6 +493,12 @@ const editProductForm = ref<UpdateProductRequest>({
   notes: undefined
 })
 const isUpdatingProduct = ref(false)
+
+// OpenFoodFacts state for edit modal
+const isOpenFoodFactsModalOpen = ref(false)
+const isQueryingBarcode = ref(false)
+const openFoodFactsProduct = ref<OpenFoodFactsProduct | null>(null)
+const isImageLoading = ref(true)
 
 // Delete product modal state
 const isDeleteProductModalOpen = ref(false)
@@ -524,6 +618,66 @@ const loadProductDetails = async () => {
   } finally {
     isLoading.value = false
   }
+}
+
+// OpenFoodFacts barcode query handler
+const handleBarcodeQuery = async () => {
+  // Validate barcode exists
+  if (!editProductForm.value.barcode || editProductForm.value.barcode.trim() === '') {
+    toast.add({
+      title: $t('toast.error'),
+      description: $t('pages.addProduct.openFoodFacts.noBarcodeError'),
+      color: 'error'
+    })
+    return
+  }
+
+  isQueryingBarcode.value = true
+  try {
+    const response = await getProductByBarcode(editProductForm.value.barcode.trim())
+    
+    // Only open modal if request was successful and has data
+    if (response.success && response.data) {
+      openFoodFactsProduct.value = response.data
+      isImageLoading.value = true
+      isOpenFoodFactsModalOpen.value = true
+    } else {
+      // Show error toast
+      toast.add({
+        title: $t('toast.error'),
+        description: $t('pages.addProduct.openFoodFacts.noProductError'),
+        color: 'error'
+      })
+    }
+  } catch (error) {
+    console.error('OpenFoodFacts query failed:', error)
+    toast.add({
+      title: $t('toast.error'),
+      description: $t('pages.addProduct.openFoodFacts.noProductError'),
+      color: 'error'
+    })
+  } finally {
+    isQueryingBarcode.value = false
+  }
+}
+
+const handleImportProduct = () => {
+  if (openFoodFactsProduct.value) {
+    // Import product name and brand
+    if (openFoodFactsProduct.value.product_name) {
+      editProductForm.value.name = openFoodFactsProduct.value.product_name
+    }
+    if (openFoodFactsProduct.value.brands) {
+      editProductForm.value.brand = openFoodFactsProduct.value.brands
+    }
+  }
+  handleCancelImport()
+}
+
+const handleCancelImport = () => {
+  isOpenFoodFactsModalOpen.value = false
+  openFoodFactsProduct.value = null
+  isImageLoading.value = true
 }
 
 // Edit product modal methods

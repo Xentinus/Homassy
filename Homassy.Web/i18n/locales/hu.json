@@ -214,6 +214,7 @@
         "categoryPlaceholder": "pl. Tejtermék",
         "barcode": "Vonalkód",
         "barcodePlaceholder": "pl. 5998200119874",
+        "barcodeQuery": "Lekérdezés",
         "isEatable": "Ehető termék",
         "isEatableLabel": "Ez egy ehető termék",
         "notes": "Megjegyzések",
@@ -221,6 +222,16 @@
         "isFavorite": "Kedvenc termék",
         "isFavoriteLabel": "Kedvenc termék",
         "createButton": "Termék létrehozása"
+      },
+      "openFoodFacts": {
+        "modalTitle": "Termék találva",
+        "modalDescription": "Importálja ezt a termékinformációt?",
+        "productName": "Termék neve",
+        "brands": "Márkák",
+        "import": "Importálás",
+        "cancel": "Mégse",
+        "noBarcodeError": "Kérem adjon meg egy vonalkódot",
+        "noProductError": "Termék nem található. Az OpenFoodFacts csak élelmiszereket tartalmaz."
       },
       "placeholders": {
         "step2": "Step 2",
