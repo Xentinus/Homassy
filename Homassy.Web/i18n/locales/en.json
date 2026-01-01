@@ -132,6 +132,31 @@
           "confirm": "Confirm",
           "success": "Item consumed successfully",
           "maxQuantity": "Maximum {max} can be consumed"
+        },
+        "editModal": {
+          "title": "Edit Inventory",
+          "description": "Modify the inventory item details",
+          "quantityLabel": "Quantity",
+          "unitLabel": "Unit",
+          "expirationLabel": "Expiration Date",
+          "priceLabel": "Price",
+          "currencyLabel": "Currency",
+          "cancel": "Cancel",
+          "confirm": "Save",
+          "success": "Inventory updated successfully"
+        },
+        "deleteModal": {
+          "title": "Delete Inventory",
+          "description": "Are you sure you want to delete this inventory item?",
+          "productName": "Product",
+          "currentQuantity": "Quantity",
+          "expirationDate": "Expiration Date",
+          "purchaseDate": "Purchase Date",
+          "originalQuantity": "Original Quantity",
+          "purchasePrice": "Purchase Price",
+          "cancel": "Cancel",
+          "confirm": "Delete",
+          "success": "Inventory deleted successfully"
         }
       }
     },

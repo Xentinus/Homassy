@@ -132,6 +132,31 @@
           "confirm": "Megerősítés",
           "success": "Elem sikeresen elfogyasztva",
           "maxQuantity": "Maximum {max} fogyasztható"
+        },
+        "editModal": {
+          "title": "Készlet szerkesztése",
+          "description": "Módosítsa a készlet adatait",
+          "quantityLabel": "Mennyiség",
+          "unitLabel": "Mértékegység",
+          "expirationLabel": "Lejárati dátum",
+          "priceLabel": "Ár",
+          "currencyLabel": "Pénznem",
+          "cancel": "Mégse",
+          "confirm": "Mentés",
+          "success": "Készlet sikeresen frissítve"
+        },
+        "deleteModal": {
+          "title": "Készlet törlése",
+          "description": "Biztosan törölni kívánja a készletet?",
+          "productName": "Termék",
+          "currentQuantity": "Mennyiség",
+          "expirationDate": "Lejárati dátum",
+          "purchaseDate": "Vásárlás dátuma",
+          "originalQuantity": "Eredeti mennyiség",
+          "purchasePrice": "Vásárlási ár",
+          "cancel": "Mégse",
+          "confirm": "Törlés",
+          "success": "Készlet sikeresen törölve"
         }
       }
     },

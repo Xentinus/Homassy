@@ -132,6 +132,31 @@
           "confirm": "Bestätigen",
           "success": "Artikel erfolgreich verbraucht",
           "maxQuantity": "Maximal {max} kann verbraucht werden"
+        },
+        "editModal": {
+          "title": "Bestand bearbeiten",
+          "description": "Bestandsdetails ändern",
+          "quantityLabel": "Menge",
+          "unitLabel": "Einheit",
+          "expirationLabel": "Ablaufdatum",
+          "priceLabel": "Preis",
+          "currencyLabel": "Währung",
+          "cancel": "Abbrechen",
+          "confirm": "Speichern",
+          "success": "Bestand erfolgreich aktualisiert"
+        },
+        "deleteModal": {
+          "title": "Bestand löschen",
+          "description": "Möchten Sie diesen Bestand wirklich löschen?",
+          "productName": "Produkt",
+          "currentQuantity": "Menge",
+          "expirationDate": "Ablaufdatum",
+          "purchaseDate": "Kaufdatum",
+          "originalQuantity": "Ursprüngliche Menge",
+          "purchasePrice": "Kaufpreis",
+          "cancel": "Abbrechen",
+          "confirm": "Löschen",
+          "success": "Bestand erfolgreich gelöscht"
         }
       }
     },

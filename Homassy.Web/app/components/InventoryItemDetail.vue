@@ -17,7 +17,7 @@
           size="sm"
           @click="openConsumeModal"
         />
-        <UDropdownMenu :items="dropdownItems" size="sm">
+        <UDropdownMenu :items="dropdownItems" size="md">
           <UButton
             icon="i-lucide-ellipsis-vertical"
             size="sm"
@@ -214,12 +214,211 @@
         </div>
       </template>
     </UModal>
+
+    <!-- Edit Modal -->
+    <UModal :open="isEditModalOpen" @update:open="(val) => isEditModalOpen = val">
+      <template #title>
+        {{ $t('pages.products.details.editModal.title') }}
+      </template>
+
+      <template #description>
+        {{ $t('pages.products.details.editModal.description') }}
+      </template>
+
+      <template #body>
+        <div class="space-y-4">
+          <!-- Quantity -->
+          <div>
+            <label class="block text-sm font-medium mb-1">
+              {{ $t('pages.products.details.editModal.quantityLabel') }}
+            </label>
+            <UInput
+              v-model="editForm.quantity"
+              type="number"
+              :min="0"
+            />
+          </div>
+
+          <!-- Unit -->
+          <div>
+            <label class="block text-sm font-medium mb-1">
+              {{ $t('pages.products.details.editModal.unitLabel') }}
+            </label>
+            <USelect
+              :model-value="editForm.unit ?? undefined"
+              :items="unitOptions"
+              class="w-full"
+              @update:model-value="(val) => editForm.unit = val ?? null"
+            />
+          </div>
+
+          <!-- Expiration Date -->
+          <div>
+            <label class="block text-sm font-medium mb-1">
+              {{ $t('pages.products.details.editModal.expirationLabel') }}
+            </label>
+            <UInputDate
+              ref="expirationDateInput"
+              v-model="editForm.expirationAt"
+              class="w-full"
+            >
+              <template #trailing>
+                <UPopover :reference="expirationDateInput?.inputsRef[0]?.$el">
+                  <UButton
+                    color="neutral"
+                    variant="link"
+                    size="sm"
+                    icon="i-lucide-calendar"
+                    aria-label="Select a date"
+                    class="px-0"
+                  />
+                  <template #content>
+                    <UCalendar v-model="editForm.expirationAt" class="p-2" />
+                  </template>
+                </UPopover>
+              </template>
+            </UInputDate>
+          </div>
+
+          <!-- Price -->
+          <div>
+            <label class="block text-sm font-medium mb-1">
+              {{ $t('pages.products.details.editModal.priceLabel') }}
+            </label>
+            <UInput
+              v-model="editForm.price"
+              type="number"
+              :min="0"
+              step="0.01"
+            />
+          </div>
+
+          <!-- Currency -->
+          <div>
+            <label class="block text-sm font-medium mb-1">
+              {{ $t('pages.products.details.editModal.currencyLabel') }}
+            </label>
+            <USelect
+              :model-value="editForm.currency ?? undefined"
+              :items="currencyOptions"
+              class="w-full"
+              @update:model-value="(val) => editForm.currency = val ?? null"
+            />
+          </div>
+        </div>
+      </template>
+
+      <template #footer>
+        <div class="flex justify-end gap-2">
+          <UButton
+            :label="$t('pages.products.details.editModal.cancel')"
+            color="neutral"
+            variant="outline"
+            @click="closeEditModal"
+          />
+          <UButton
+            :label="$t('pages.products.details.editModal.confirm')"
+            :loading="isUpdating"
+            @click="handleUpdate"
+          />
+        </div>
+      </template>
+    </UModal>
+
+    <!-- Delete Modal -->
+    <UModal :open="isDeleteModalOpen" @update:open="(val) => isDeleteModalOpen = val">
+      <template #title>
+        {{ $t('pages.products.details.deleteModal.title') }}
+      </template>
+
+      <template #description>
+        {{ $t('pages.products.details.deleteModal.description') }}
+      </template>
+
+      <template #body>
+        <div class="space-y-3">
+          <!-- Product Name -->
+          <div v-if="productName">
+            <span class="text-sm font-medium text-gray-700 dark:text-gray-300">
+              {{ $t('pages.products.details.deleteModal.productName') }}:
+            </span>
+            <span class="text-sm ml-2">{{ productName }}</span>
+          </div>
+
+          <!-- Current Quantity -->
+          <div>
+            <span class="text-sm font-medium text-gray-700 dark:text-gray-300">
+              {{ $t('pages.products.details.deleteModal.currentQuantity') }}:
+            </span>
+            <span class="text-sm ml-2">
+              {{ item.currentQuantity }} {{ $t(`enums.unit.${item.unit}`) }}
+            </span>
+          </div>
+
+          <!-- Expiration Date -->
+          <div v-if="item.expirationAt">
+            <span class="text-sm font-medium text-gray-700 dark:text-gray-300">
+              {{ $t('pages.products.details.deleteModal.expirationDate') }}:
+            </span>
+            <span class="text-sm ml-2">{{ formatDate(item.expirationAt) }}</span>
+          </div>
+
+          <!-- Purchase Information -->
+          <div v-if="item.purchaseInfo" class="pt-2 border-t border-gray-200 dark:border-gray-700">
+            <div v-if="item.purchaseInfo.purchasedAt" class="mb-2">
+              <span class="text-sm font-medium text-gray-700 dark:text-gray-300">
+                {{ $t('pages.products.details.deleteModal.purchaseDate') }}:
+              </span>
+              <span class="text-sm ml-2">{{ formatDate(item.purchaseInfo.purchasedAt) }}</span>
+            </div>
+
+            <div v-if="item.purchaseInfo.originalQuantity">
+              <span class="text-sm font-medium text-gray-700 dark:text-gray-300">
+                {{ $t('pages.products.details.deleteModal.originalQuantity') }}:
+              </span>
+              <span class="text-sm ml-2">
+                {{ item.purchaseInfo.originalQuantity }} {{ $t(`enums.unit.${item.unit}`) }}
+              </span>
+            </div>
+
+            <div v-if="item.purchaseInfo.price && item.purchaseInfo.currency">
+              <span class="text-sm font-medium text-gray-700 dark:text-gray-300">
+                {{ $t('pages.products.details.deleteModal.purchasePrice') }}:
+              </span>
+              <span class="text-sm ml-2">
+                {{ item.purchaseInfo.price }} {{ $t(`enums.currency.${item.purchaseInfo.currency}`) }}
+              </span>
+            </div>
+          </div>
+        </div>
+      </template>
+
+      <template #footer>
+        <div class="flex justify-end gap-2">
+          <UButton
+            :label="$t('pages.products.details.deleteModal.cancel')"
+            color="neutral"
+            variant="outline"
+            @click="closeDeleteModal"
+          />
+          <UButton
+            :label="$t('pages.products.details.deleteModal.confirm')"
+            color="error"
+            :loading="isDeleting"
+            @click="handleDelete"
+          />
+        </div>
+      </template>
+    </UModal>
   </div>
 </template>
 
 <script setup lang="ts">
 import { ref, computed } from 'vue'
-import type { InventoryItemInfo, ConsumeInventoryItemRequest } from '../types/product'
+import type { InventoryItemInfo, ConsumeInventoryItemRequest, UpdateInventoryItemRequest } from '../types/product'
+import { Unit, Currency } from '../types/enums'
+import type { CalendarDate } from '@internationalized/date'
+import { CalendarDate as CalendarDateClass } from '@internationalized/date'
 
 interface TimelineItem {
   date?: string
@@ -237,11 +436,13 @@ const props = defineProps<Props>()
 
 const emit = defineEmits<{
   consumed: []
+  updated: []
+  deleted: []
 }>()
 
 const { t: $t } = useI18n()
 const { formatDate } = useDateFormat()
-const { consumeInventoryItem } = useProductsApi()
+const { consumeInventoryItem, updateInventoryItem, deleteInventoryItem } = useProductsApi()
 const toast = useToast()
 
 // State
@@ -250,21 +451,59 @@ const isConsumeModalOpen = ref(false)
 const consumeQuantity = ref<number | null>(null)
 const isConsuming = ref(false)
 
+// Edit modal state
+const isEditModalOpen = ref(false)
+const expirationDateInput = ref()
+const editForm = ref<{
+  quantity: number | null
+  unit: Unit | null
+  expirationAt: CalendarDate | null
+  price: number | null
+  currency: Currency | null
+}>({
+  quantity: null,
+  unit: null,
+  expirationAt: null,
+  price: null,
+  currency: null
+})
+const isUpdating = ref(false)
+
+// Delete modal state
+const isDeleteModalOpen = ref(false)
+const isDeleting = ref(false)
+
 // Dropdown menu items
 const dropdownItems = computed(() => [
   [
     {
       label: $t('pages.products.details.edit'),
-      icon: 'i-lucide-pencil'
-      // Future: Add click handler
+      icon: 'i-lucide-pencil',
+      onSelect: openEditModal
     },
     {
       label: $t('pages.products.details.deleteItem'),
       icon: 'i-lucide-trash-2',
-      color: 'error' as const
-      // Future: Add click handler
+      color: 'error' as const,
+      onSelect: openDeleteModal
     }
   ]
+])
+
+// Select options
+const unitOptions = computed(() => {
+  return Object.entries(Unit)
+    .filter(([key]) => isNaN(Number(key))) // Filter out numeric keys
+    .map(([_key, value]) => ({
+      label: $t(`enums.unit.${value}`),
+      value: value as Unit
+    }))
+})
+
+const currencyOptions = computed(() => [
+  { label: $t('enums.currency.135'), value: Currency.Huf },
+  { label: $t('enums.currency.105'), value: Currency.Eur },
+  { label: $t('enums.currency.279'), value: Currency.Usd }
 ])
 
 // Computed
@@ -401,6 +640,96 @@ const handleConsume = async () => {
     console.error('Failed to consume inventory item:', error)
   } finally {
     isConsuming.value = false
+  }
+}
+
+// Edit modal methods
+const openEditModal = () => {
+  // Pre-fill form with current values
+  // Convert ISO string to CalendarDate for expirationAt if it exists
+  let expirationDate: CalendarDate | null = null
+  if (props.item.expirationAt) {
+    const date = new Date(props.item.expirationAt)
+    expirationDate = new CalendarDateClass(date.getFullYear(), date.getMonth() + 1, date.getDate())
+  }
+
+  editForm.value = {
+    quantity: props.item.currentQuantity,
+    unit: props.item.unit,
+    expirationAt: expirationDate,
+    price: props.item.purchaseInfo?.price || null,
+    currency: props.item.purchaseInfo?.currency || null
+  }
+  isEditModalOpen.value = true
+}
+
+const closeEditModal = () => {
+  isEditModalOpen.value = false
+  editForm.value = {
+    quantity: null,
+    unit: null,
+    expirationAt: null,
+    price: null,
+    currency: null
+  }
+}
+
+const handleUpdate = async () => {
+  isUpdating.value = true
+
+  try {
+    // Convert CalendarDate to ISO string for API
+    let expirationAtString: string | undefined = undefined
+    if (editForm.value.expirationAt) {
+      const date = editForm.value.expirationAt
+      const localDate = new Date(date.year, date.month - 1, date.day, 12, 0, 0)
+      expirationAtString = localDate.toISOString()
+    }
+
+    const request: UpdateInventoryItemRequest = {
+      quantity: editForm.value.quantity || undefined,
+      unit: editForm.value.unit || undefined,
+      expirationAt: expirationAtString,
+      price: editForm.value.price || undefined,
+      currency: editForm.value.currency || undefined
+    }
+
+    const response = await updateInventoryItem(props.item.publicId, request)
+
+    if (response.success) {
+      closeEditModal()
+      emit('updated')
+    }
+  } catch (error) {
+    console.error('Failed to update inventory item:', error)
+  } finally {
+    isUpdating.value = false
+  }
+}
+
+// Delete modal methods
+const openDeleteModal = () => {
+  isDeleteModalOpen.value = true
+}
+
+const closeDeleteModal = () => {
+  isDeleteModalOpen.value = false
+}
+
+const handleDelete = async () => {
+  isDeleting.value = true
+
+  try {
+    const response = await deleteInventoryItem(props.item.publicId)
+
+    if (response.success) {
+      closeDeleteModal()
+      emit('deleted')
+    }
+  } catch (error) {
+    console.error('Failed to delete inventory item:', error)
+  } finally {
+    isDeleting.value = false
   }
 }
 </script>

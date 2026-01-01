@@ -108,6 +108,8 @@
               :item="item"
               :product-name="product.name"
               @consumed="loadProductDetails"
+              @updated="loadProductDetails"
+              @deleted="loadProductDetails"
             />
           </div>
         </div>
