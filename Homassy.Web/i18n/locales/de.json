@@ -50,7 +50,7 @@
     "home": "Startseite",
     "products": "Produkte",
     "shoppingLists": "Einkaufslisten",
-    "activity": "Aktivität",
+    "activity": "Aktivitäten",
     "profile": "Profil"
   },
   "footer": {
@@ -525,6 +525,28 @@
       "135": "HUF",
       "105": "EUR",
       "279": "USD"
+    },
+    "activityType": {
+      "1": "Produkt erstellt",
+      "2": "Produkt aktualisiert",
+      "3": "Produkt gelöscht",
+      "4": "Foto hochgeladen",
+      "5": "Foto gelöscht",
+      "6": "Foto von OpenFoodFacts heruntergeladen",
+      "7": "Bestand erstellt",
+      "8": "Bestand aktualisiert",
+      "9": "Bestand verringert",
+      "10": "Bestand gelöscht",
+      "11": "Einkaufsliste erstellt",
+      "12": "Einkaufsliste aktualisiert",
+      "13": "Einkaufsliste gelöscht",
+      "14": "Artikel zur Liste hinzugefügt",
+      "15": "Artikel aktualisiert",
+      "16": "Artikel gekauft",
+      "17": "Artikel gelöscht",
+      "18": "Familie erstellt",
+      "19": "Familie beigetreten",
+      "20": "Familie verlassen"
     }
   }
 }

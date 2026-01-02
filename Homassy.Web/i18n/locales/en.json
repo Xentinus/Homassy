@@ -50,7 +50,7 @@
     "home": "Home",
     "products": "Products",
     "shoppingLists": "Shopping Lists",
-    "activity": "Activity",
+    "activity": "Activities",
     "profile": "Profile"
   },
   "footer": {
@@ -525,6 +525,28 @@
       "135": "HUF",
       "105": "EUR",
       "279": "USD"
+    },
+    "activityType": {
+      "1": "Product Created",
+      "2": "Product Updated",
+      "3": "Product Deleted",
+      "4": "Photo Uploaded",
+      "5": "Photo Deleted",
+      "6": "Photo Downloaded from OpenFoodFacts",
+      "7": "Inventory Created",
+      "8": "Inventory Updated",
+      "9": "Inventory Decreased",
+      "10": "Inventory Deleted",
+      "11": "Shopping List Created",
+      "12": "Shopping List Updated",
+      "13": "Shopping List Deleted",
+      "14": "Item Added to List",
+      "15": "Item Updated",
+      "16": "Item Purchased",
+      "17": "Item Deleted",
+      "18": "Family Created",
+      "19": "Joined Family",
+      "20": "Left Family"
     }
   }
 }

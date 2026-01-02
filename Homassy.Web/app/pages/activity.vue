@@ -1,14 +1,18 @@
 <template>
-  <div class="container mx-auto px-4 py-8">
-    <!-- Page Header -->
-    <div class="mb-8">
-      <h1 class="text-3xl font-bold text-gray-900 dark:text-white mb-2">
-        {{ $t('pages.activity.title') }}
-      </h1>
+  <div>
+    <!-- Fixed Header -->
+    <div class="fixed top-0 left-0 right-0 z-10 bg-white dark:bg-gray-900 px-6 sm:px-10 lg:px-16 py-6 space-y-3">
+      <div class="flex items-center gap-3">
+        <UIcon name="i-lucide-activity" class="h-7 w-7 text-primary-500" />
+        <h1 class="text-2xl font-semibold">{{ $t('nav.activity') }}</h1>
+      </div>
       <p class="text-gray-600 dark:text-gray-400">
         {{ $t('pages.activity.description') }}
       </p>
     </div>
+
+    <!-- Content Section with padding to account for fixed header -->
+    <div class="pt-40 px-4 sm:px-8 lg:px-14 pb-6">
 
     <!-- Loading State (Initial) -->
     <div v-if="isInitialLoading" class="space-y-4">
@@ -85,6 +89,7 @@
       <p class="text-gray-600 dark:text-gray-400">
         {{ $t('pages.activity.noActivitiesDescription') }}
       </p>
+    </div>
     </div>
   </div>
 </template>

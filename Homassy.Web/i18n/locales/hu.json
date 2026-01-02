@@ -50,7 +50,7 @@
     "home": "Kezdőlap",
     "products": "Termékek",
     "shoppingLists": "Bevásárlólisták",
-    "activity": "Tevékenység",
+    "activity": "Tevékenységek",
     "profile": "Profil"
   },
   "footer": {
@@ -525,6 +525,28 @@
       "135": "Ft",
       "105": "€",
       "279": "$"
+    },
+    "activityType": {
+      "1": "Termék létrehozva",
+      "2": "Termék frissítve",
+      "3": "Termék törölve",
+      "4": "Fotó feltöltve",
+      "5": "Fotó törölve",
+      "6": "Fotó letöltve OpenFoodFacts-ről",
+      "7": "Készlet létrehozva",
+      "8": "Készlet frissítve",
+      "9": "Készlet csökkentve",
+      "10": "Készlet törölve",
+      "11": "Bevásárlólista létrehozva",
+      "12": "Bevásárlólista frissítve",
+      "13": "Bevásárlólista törölve",
+      "14": "Tétel hozzáadva a listához",
+      "15": "Tétel frissítve",
+      "16": "Tétel megvásárolva",
+      "17": "Tétel törölve",
+      "18": "Család létrehozva",
+      "19": "Csatlakozott a családhoz",
+      "20": "Kilépett a családból"
     }
   }
 }

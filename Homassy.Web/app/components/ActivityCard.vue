@@ -35,9 +35,9 @@
 
         <!-- Activity type badge -->
         <div class="flex items-center gap-2 mt-1">
-          <UBadge :color="getActivityColor(activity.activityType)" size="xs">
-            {{ activity.activityTypeName }}
-          </UBadge>
+          <span class="text-sm font-medium text-primary-600 dark:text-primary-400">
+            {{ $t(`enums.activityType.${activity.activityType}`) }}
+          </span>
         </div>
       </div>
     </div>
@@ -50,12 +50,6 @@
         <p class="text-sm text-gray-700 dark:text-gray-300">
           {{ activity.recordName }}
         </p>
-      </div>
-
-      <!-- Family indicator if applicable -->
-      <div v-if="activity.familyId" class="flex items-center gap-2 text-xs text-gray-500 dark:text-gray-400">
-        <UIcon name="i-lucide-users" class="h-3 w-3" />
-        <span>{{ $t('common.familyActivity') }}</span>
       </div>
     </div>
   </div>
@@ -99,26 +93,6 @@ const formatTimestamp = (timestamp: string): string => {
   if (diffDays < 7) return $t('time.daysAgo', { count: diffDays })
 
   return date.toLocaleDateString()
-}
-
-// Get color based on activity type
-const getActivityColor = (activityType: ActivityType): string => {
-  if (activityType >= ActivityType.ProductCreate && activityType <= ActivityType.ProductPhotoDownloadFromOpenFoodFacts) {
-    return 'blue'
-  }
-  if (activityType >= ActivityType.ProductInventoryCreate && activityType <= ActivityType.ProductInventoryDelete) {
-    return 'green'
-  }
-  if (activityType >= ActivityType.ShoppingListCreate && activityType <= ActivityType.ShoppingListDelete) {
-    return 'purple'
-  }
-  if (activityType >= ActivityType.ShoppingListItemAdd && activityType <= ActivityType.ShoppingListItemDelete) {
-    return 'violet'
-  }
-  if (activityType >= ActivityType.FamilyCreate && activityType <= ActivityType.FamilyLeave) {
-    return 'amber'
-  }
-  return 'gray'
 }
 
 // Get icon based on activity type
