@@ -19,7 +19,8 @@
     "expired": "Lejárt",
     "eatable": "Ehető",
     "favorite": "Kedvenc",
-    "price": "Ár"
+    "price": "Ár",
+    "familyActivity": "Családi tevékenység"
   },
   "auth": {
     "login": "Bejelentkezés",
@@ -371,8 +372,17 @@
     },
     "activity": {
       "title": "Tevékenység",
-      "description": "Nézd meg a legutóbbi tevékenységeidet és frissítéseket."
+      "description": "Nézd meg a legutóbbi tevékenységeidet és frissítéseket.",
+      "endOfActivities": "Nincs több tevékenység",
+      "noActivities": "Még nincsenek tevékenységek",
+      "noActivitiesDescription": "A tevékenységeid itt fognak megjelenni, amint elkezdesz dolgozni a termékekkel, bevásárlólistákkal vagy családi beállításokkal."
     }
+  },
+  "time": {
+    "justNow": "most",
+    "minutesAgo": "{count} perce",
+    "hoursAgo": "{count} órája",
+    "daysAgo": "{count} napja"
   },
   "profile": {
     "title": "Profil",

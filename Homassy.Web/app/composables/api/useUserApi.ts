@@ -7,8 +7,14 @@ import type {
   UpdateUserSettingsRequest,
   UploadUserProfileImageRequest,
   NotificationPreferencesResponse,
-  UpdateNotificationPreferencesRequest
+  UpdateNotificationPreferencesRequest,
+  UserInfo
 } from '~/types/user'
+import type {
+  ActivityInfo,
+  GetActivitiesRequest,
+  PagedActivitiesResponse
+} from '~/types/activity'
 
 export const useUserApi = () => {
   const client = useApiClient()
@@ -83,12 +89,70 @@ export const useUserApi = () => {
     )
   }
 
+  /**
+   * Get multiple users by their public IDs
+   * @param publicIds - Array of user public IDs (GUIDs)
+   * @returns List of UserInfo objects
+   */
+  const getUsersByPublicIds = async (publicIds: string[]) => {
+    if (!publicIds || publicIds.length === 0) {
+      return []
+    }
+
+    if (publicIds.length > 100) {
+      throw new Error('Maximum 100 user IDs allowed per request')
+    }
+
+    // Join publicIds with comma
+    const publicIdsParam = publicIds.join(',')
+
+    return await client.get<UserInfo[]>(`/api/v1/User/bulk?publicIds=${publicIdsParam}`)
+  }
+
+  /**
+   * Get paginated activity history with optional filtering
+   * @param params - Activity filter parameters
+   * @returns Paginated list of activities
+   */
+  const getActivities = async (params?: GetActivitiesRequest) => {
+    const queryParams = new URLSearchParams()
+
+    if (params?.activityType !== undefined) {
+      queryParams.append('activityType', params.activityType.toString())
+    }
+    if (params?.startDate) {
+      queryParams.append('startDate', params.startDate)
+    }
+    if (params?.endDate) {
+      queryParams.append('endDate', params.endDate)
+    }
+    if (params?.userPublicId !== undefined) {
+      queryParams.append('userPublicId', params.userPublicId)
+    }
+    if (params?.pageNumber !== undefined) {
+      queryParams.append('pageNumber', params.pageNumber.toString())
+    }
+    if (params?.pageSize !== undefined) {
+      queryParams.append('pageSize', params.pageSize.toString())
+    }
+    if (params?.returnAll !== undefined) {
+      queryParams.append('returnAll', params.returnAll.toString())
+    }
+
+    const queryString = queryParams.toString()
+    const url = queryString ? `/api/v1/User/activities?${queryString}` : '/api/v1/User/activities'
+
+    return await client.get<PagedActivitiesResponse>(url)
+  }
+
   return {
     getUserProfile,
     updateUserSettings,
     uploadProfilePicture,
     deleteProfilePicture,
     getNotificationPreferences,
-    updateNotificationPreferences
+    updateNotificationPreferences,
+    getUsersByPublicIds,
+    getActivities
   }
 }

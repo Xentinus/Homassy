@@ -118,5 +118,78 @@ namespace Homassy.API.Controllers
             await new UserFunctions().UpdateNotificationPreferencesAsync(request, cancellationToken);
             return Ok(ApiResponse.SuccessResponse());
         }
+
+        /// <summary>
+        /// Gets multiple users by their public IDs.
+        /// </summary>
+        /// <param name="publicIds">Comma-separated list of user public IDs</param>
+        [HttpGet("bulk")]
+        [MapToApiVersion(1.0)]
+        [ProducesResponseType(typeof(ApiResponse<List<UserInfo>>), StatusCodes.Status200OK)]
+        [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status400BadRequest)]
+        public IActionResult GetUsersByPublicIds([FromQuery] string publicIds)
+        {
+            if (string.IsNullOrWhiteSpace(publicIds))
+            {
+                return BadRequest(ApiResponse.ErrorResponse(ErrorCodes.ValidationInvalidRequest));
+            }
+
+            // Parse comma-separated GUIDs
+            var guidList = publicIds.Split(',', StringSplitOptions.RemoveEmptyEntries)
+                .Select(s => Guid.TryParse(s.Trim(), out var guid) ? guid : (Guid?)null)
+                .Where(g => g.HasValue)
+                .Select(g => g!.Value)
+                .ToList();
+
+            if (guidList.Count == 0)
+            {
+                return BadRequest(ApiResponse.ErrorResponse(ErrorCodes.ValidationInvalidRequest, "No valid user IDs provided"));
+            }
+
+            if (guidList.Count > 100)
+            {
+                return BadRequest(ApiResponse.ErrorResponse(ErrorCodes.ValidationInvalidRequest, "Maximum 100 user IDs allowed per request"));
+            }
+
+            var users = new UserFunctions().GetUsersByPublicIds(guidList);
+            return Ok(ApiResponse<List<UserInfo>>.SuccessResponse(users));
+        }
+
+        /// <summary>
+        /// Gets paginated activity history with optional filtering.
+        /// </summary>
+        [HttpGet("activities")]
+        [MapToApiVersion(1.0)]
+        [ProducesResponseType(typeof(ApiResponse<PagedResult<Models.Activity.ActivityInfo>>), StatusCodes.Status200OK)]
+        [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status400BadRequest)]
+        public async Task<IActionResult> GetActivities(
+            [FromQuery] int? activityType,
+            [FromQuery] DateTime? startDate,
+            [FromQuery] DateTime? endDate,
+            [FromQuery] Guid? userPublicId,
+            [FromQuery] int pageNumber = 1,
+            [FromQuery] int pageSize = 20,
+            [FromQuery] bool returnAll = false,
+            CancellationToken cancellationToken = default)
+        {
+            if (!ModelState.IsValid)
+            {
+                return BadRequest(ApiResponse.ErrorResponse(ErrorCodes.ValidationInvalidRequest));
+            }
+
+            var request = new Models.Activity.GetActivitiesRequest
+            {
+                ActivityType = activityType.HasValue ? (Enums.ActivityType)activityType.Value : null,
+                StartDate = startDate,
+                EndDate = endDate,
+                UserPublicId = userPublicId,
+                PageNumber = pageNumber,
+                PageSize = pageSize,
+                ReturnAll = returnAll
+            };
+
+            var result = await new ActivityFunctions().GetActivitiesAsync(request, cancellationToken);
+            return Ok(ApiResponse<PagedResult<Models.Activity.ActivityInfo>>.SuccessResponse(result));
+        }
     }
 }

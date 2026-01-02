@@ -1,3 +1,4 @@
+using Homassy.API.Entities.Activity;
 using Homassy.API.Entities.Common;
 using Homassy.API.Entities.Family;
 using Homassy.API.Entities.Location;
@@ -143,6 +144,20 @@ namespace Homassy.API.Context
                 .HasForeignKey(sli => sli.ShoppingListId)
                 .OnDelete(DeleteBehavior.Cascade);
             #endregion
+
+            #region Activity Indexes
+            modelBuilder.Entity<Activity>(entity =>
+            {
+                entity.HasIndex(e => e.UserId);
+                entity.HasIndex(e => e.FamilyId);
+                entity.HasIndex(e => e.Timestamp);
+                entity.HasIndex(e => e.ActivityType);
+                entity.HasIndex(e => new { e.UserId, e.Timestamp })
+                    .IsDescending(false, true);  // UserId ASC, Timestamp DESC
+                entity.HasIndex(e => new { e.FamilyId, e.Timestamp })
+                    .IsDescending(false, true);  // FamilyId ASC, Timestamp DESC
+            });
+            #endregion
         }
 
         public override Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)
@@ -171,6 +186,10 @@ namespace Homassy.API.Context
 
         // DbSets
         public DbSet<TableRecordChange> TableRecordChanges { get; set; }
+
+        #region Activity Related DbSets
+        public DbSet<Activity> Activities { get; set; }
+        #endregion
 
         #region User Related DbSets
         public DbSet<User> Users { get; set; }

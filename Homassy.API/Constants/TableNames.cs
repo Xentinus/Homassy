@@ -19,5 +19,7 @@
 
         public const string ShoppingLists = "ShoppingLists";
         public const string ShoppingListItems = "ShoppingListItems";
+
+        public const string Activities = "Activities";
     }
 }

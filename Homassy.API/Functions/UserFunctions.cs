@@ -581,6 +581,61 @@ namespace Homassy.API.Functions
             return result;
         }
 
+        public List<UserInfo> GetUsersByPublicIds(List<Guid> publicIds)
+        {
+            if (publicIds == null || !publicIds.Any()) return new List<UserInfo>();
+
+            var users = new List<User>();
+            var missingIds = new List<Guid>();
+
+            if (Inited)
+            {
+                foreach (var publicId in publicIds)
+                {
+                    var user = _userCache.Values.FirstOrDefault(u => u.PublicId == publicId);
+                    if (user != null)
+                        users.Add(user);
+                    else
+                        missingIds.Add(publicId);
+                }
+            }
+            else
+            {
+                missingIds = publicIds;
+            }
+
+            // Fetch missing users from DB
+            if (missingIds.Count > 0)
+            {
+                var context = new HomassyDbContext();
+                var dbUsers = context.Users
+                    .Where(u => missingIds.Contains(u.PublicId))
+                    .ToList();
+                users.AddRange(dbUsers);
+            }
+
+            // Get profiles for all users
+            var userIds = users.Select(u => u.Id).ToList();
+            var profiles = GetUserProfilesByUserIds(userIds.Cast<int?>().ToList());
+
+            // Map to UserInfo
+            var userInfos = users.Select(u =>
+            {
+                var profile = profiles.FirstOrDefault(p => p.UserId == u.Id);
+                return new UserInfo
+                {
+                    Name = u.Name,
+                    DisplayName = profile?.DisplayName ?? u.Name,
+                    ProfilePictureBase64 = profile?.ProfilePictureBase64,
+                    TimeZone = profile?.DefaultTimeZone.ToTimeZoneId() ?? string.Empty,
+                    Language = profile?.DefaultLanguage.ToLanguageCode() ?? string.Empty,
+                    Currency = profile?.DefaultCurrency.ToCurrencyCode() ?? string.Empty
+                };
+            }).ToList();
+
+            return userInfos;
+        }
+
         public List<UserProfile> GetUserProfilesByUserIds(List<int?> userIds)
         {
             if (userIds == null || !userIds.Any()) return new List<UserProfile>();
@@ -908,6 +963,23 @@ namespace Homassy.API.Functions
                 await transaction.CommitAsync(cancellationToken);
 
                 Log.Information($"User {userId.Value} joined family {family.Id}");
+
+                // Record activity
+                try
+                {
+                    await new ActivityFunctions().RecordActivityAsync(
+                        userId.Value,
+                        family.Id,
+                        Enums.ActivityType.FamilyJoin,
+                        family.Id,
+                        family.Name,
+                        cancellationToken
+                    );
+                }
+                catch (Exception ex)
+                {
+                    Log.Error(ex, $"Failed to record FamilyJoin activity for family {family.Name}");
+                }
             }
             catch (Exception ex)
             {
@@ -952,6 +1024,10 @@ namespace Homassy.API.Functions
                     throw new UserNotFoundException("User not found", ErrorCodes.UserNotFound);
                 }
 
+                // Cache family name BEFORE user leaves
+                var family = new FamilyFunctions().GetFamilyById(familyId);
+                var familyName = family?.Name ?? "Unknown Family";
+
                 var familyIdToLog = user.FamilyId;
                 user.FamilyId = null;
 
@@ -959,6 +1035,23 @@ namespace Homassy.API.Functions
                 await transaction.CommitAsync(cancellationToken);
 
                 Log.Information($"User {userId.Value} left family {familyIdToLog}");
+
+                // Record activity with cached family name
+                try
+                {
+                    await new ActivityFunctions().RecordActivityAsync(
+                        userId.Value,
+                        familyIdToLog,
+                        Enums.ActivityType.FamilyLeave,
+                        familyIdToLog.Value,
+                        familyName,
+                        cancellationToken
+                    );
+                }
+                catch (Exception ex)
+                {
+                    Log.Error(ex, "Failed to record FamilyLeave activity");
+                }
             }
             catch (Exception ex)
             {

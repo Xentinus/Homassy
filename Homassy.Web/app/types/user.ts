@@ -53,3 +53,15 @@ export interface UpdateNotificationPreferencesRequest {
   pushWeeklySummaryEnabled?: boolean
   inAppNotificationsEnabled?: boolean
 }
+
+/**
+ * Simple user info for bulk retrieval
+ */
+export interface UserInfo {
+  name: string
+  displayName: string
+  profilePictureBase64?: string
+  timeZone: string
+  language: string
+  currency: string
+}

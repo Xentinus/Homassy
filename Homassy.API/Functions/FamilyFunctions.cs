@@ -201,6 +201,23 @@ namespace Homassy.API.Functions
 
                 Log.Information($"User {userId.Value} created family {family.Id} with share code {family.ShareCode}");
 
+                // Record activity
+                try
+                {
+                    await new ActivityFunctions().RecordActivityAsync(
+                        userId.Value,
+                        family.Id,
+                        Enums.ActivityType.FamilyCreate,
+                        family.Id,
+                        family.Name,
+                        cancellationToken
+                    );
+                }
+                catch (Exception ex)
+                {
+                    Log.Error(ex, $"Failed to record FamilyCreate activity for family {family.Name}");
+                }
+
                 var response = new FamilyInfo
                 {
                     Name = family.Name,

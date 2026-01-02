@@ -19,7 +19,8 @@
     "expired": "Expired",
     "eatable": "Eatable",
     "favorite": "Favorite",
-    "price": "Price"
+    "price": "Price",
+    "familyActivity": "Family activity"
   },
   "auth": {
     "login": "Login",
@@ -371,8 +372,17 @@
     },
     "activity": {
       "title": "Activity",
-      "description": "View your recent activity and updates."
+      "description": "View your recent activities and updates.",
+      "endOfActivities": "No more activities",
+      "noActivities": "No activities yet",
+      "noActivitiesDescription": "Your activities will appear here once you start working with products, shopping lists, or family settings."
     }
+  },
+  "time": {
+    "justNow": "just now",
+    "minutesAgo": "{count} minutes ago",
+    "hoursAgo": "{count} hours ago",
+    "daysAgo": "{count} days ago"
   },
   "profile": {
     "title": "Profile",
