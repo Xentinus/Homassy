@@ -20,7 +20,10 @@
     "eatable": "Eatable",
     "favorite": "Favorite",
     "price": "Price",
-    "familyActivity": "Family activity"
+    "familyActivity": "Family activity",
+    "deadline": "Deadline",
+    "due": "Due",
+    "purchased": "Purchased"
   },
   "auth": {
     "login": "Login",
@@ -366,9 +369,38 @@
         "confirm": "Delete"
       },
       "addProduct": {
-        "title": "Add Product to Shopping List",
-        "description": "Add a new product to your shopping list.",
-        "placeholder": "Product addition form will be implemented here."
+        "title": "Add to Shopping List",
+        "description": "Add a new item to your shopping list in 3 easy steps.",
+        "stepLabels": {
+          "step1": "Product Selection",
+          "step2": "Shopping Location",
+          "step3": "Item Details"
+        },
+        "tabs": {
+          "search": "Search Product",
+          "create": "Create New",
+          "custom": "Custom Item"
+        },
+        "custom": {
+          "label": "Custom Item Name",
+          "placeholder": "e.g. Fresh Bread, Organic Milk",
+          "submitButton": "Continue",
+          "description": "Enter a custom name for items not in the product catalog"
+        },
+        "item": {
+          "quantityLabel": "Quantity",
+          "quantityPlaceholder": "Enter quantity",
+          "unitLabel": "Unit",
+          "unitPlaceholder": "Select unit",
+          "noteLabel": "Note",
+          "notePlaceholder": "Add optional note or details",
+          "deadlineLabel": "Deadline",
+          "dueLabel": "Due Date",
+          "createButton": "Add to Shopping List"
+        },
+        "skipLocation": "Skip",
+        "skipLocationDescription": "Skip shopping location selection",
+        "noListSelected": "Please select a shopping list first"
       }
     },
     "activity": {

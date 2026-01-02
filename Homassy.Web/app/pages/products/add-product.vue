@@ -24,7 +24,7 @@
     </div>
 
     <!-- Content Section with padding to account for fixed header -->
-    <div class="pt-40 px-4 sm:px-8 lg:px-14 pb-6">
+    <div class="pt-48 px-4 sm:px-8 lg:px-14 pb-6">
       <!-- Step 1: Product Selection -->
       <div v-if="currentStep === 0" class="space-y-6">
         <UTabs v-model="activeTab" :items="tabItems">

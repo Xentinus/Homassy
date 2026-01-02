@@ -20,7 +20,10 @@
     "eatable": "Essbar",
     "favorite": "Favorit",
     "price": "Preis",
-    "familyActivity": "Familienaktivität"
+    "familyActivity": "Familienaktivität",
+    "deadline": "Frist",
+    "due": "Fällig",
+    "purchased": "Gekauft"
   },
   "auth": {
     "login": "Anmelden",
@@ -366,9 +369,38 @@
         "confirm": "Löschen"
       },
       "addProduct": {
-        "title": "Produkt zur Einkaufsliste hinzufügen",
-        "description": "Fügen Sie ein neues Produkt zu Ihrer Einkaufsliste hinzu.",
-        "placeholder": "Das Formular zum Hinzufügen von Produkten wird hier implementiert."
+        "title": "Zur Einkaufsliste hinzufügen",
+        "description": "Fügen Sie in 3 einfachen Schritten einen neuen Artikel zu Ihrer Einkaufsliste hinzu.",
+        "stepLabels": {
+          "step1": "Produktauswahl",
+          "step2": "Einkaufsort",
+          "step3": "Details"
+        },
+        "tabs": {
+          "search": "Produkt suchen",
+          "create": "Neu erstellen",
+          "custom": "Benutzerdefiniert"
+        },
+        "custom": {
+          "label": "Benutzerdefinierter Artikelname",
+          "placeholder": "z.B. Frisches Brot, Bio-Milch",
+          "submitButton": "Weiter",
+          "description": "Geben Sie einen benutzerdefinierten Namen für Artikel ein, die nicht im Produktkatalog enthalten sind"
+        },
+        "item": {
+          "quantityLabel": "Menge",
+          "quantityPlaceholder": "Menge eingeben",
+          "unitLabel": "Einheit",
+          "unitPlaceholder": "Einheit auswählen",
+          "noteLabel": "Notiz",
+          "notePlaceholder": "Optionale Notiz hinzufügen",
+          "deadlineLabel": "Frist",
+          "dueLabel": "Fälligkeitsdatum",
+          "createButton": "Zur Liste hinzufügen"
+        },
+        "skipLocation": "Überspringen",
+        "skipLocationDescription": "Einkaufsort überspringen",
+        "noListSelected": "Bitte wählen Sie zuerst eine Einkaufsliste aus"
       }
     },
     "activity": {

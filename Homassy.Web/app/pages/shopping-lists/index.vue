@@ -8,8 +8,16 @@
           <UIcon name="i-lucide-shopping-cart" class="h-7 w-7 text-primary-500" />
           <h1 class="text-2xl font-semibold">{{ $t('pages.shoppingLists.title') }}</h1>
         </div>
-        <NuxtLink to="/shopping-lists/add-product">
-          <UButton color="primary" size="sm" trailing-icon="i-lucide-plus">
+        <NuxtLink
+          :to="{ path: '/shopping-lists/add-product', query: { listId: selectedListId } }"
+          :class="{ 'pointer-events-none': !selectedListId }"
+        >
+          <UButton
+            color="primary"
+            size="sm"
+            trailing-icon="i-lucide-plus"
+            :disabled="!selectedListId"
+          >
             {{ $t('pages.shoppingLists.addProductButton') }}
           </UButton>
         </NuxtLink>

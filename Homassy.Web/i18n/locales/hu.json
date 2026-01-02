@@ -20,7 +20,10 @@
     "eatable": "Ehető",
     "favorite": "Kedvenc",
     "price": "Ár",
-    "familyActivity": "Családi tevékenység"
+    "familyActivity": "Családi tevékenység",
+    "deadline": "Határidő",
+    "due": "Esedékes",
+    "purchased": "Megvásárolva"
   },
   "auth": {
     "login": "Bejelentkezés",
@@ -366,9 +369,38 @@
         "confirm": "Törlés"
       },
       "addProduct": {
-        "title": "Termék hozzáadása bevásárlólistához",
-        "description": "Adj hozzá egy új terméket a bevásárlólistádhoz.",
-        "placeholder": "A termék hozzáadási űrlap itt lesz megvalósítva."
+        "title": "Hozzáadás bevásárlólistához",
+        "description": "Adj hozzá új terméket a bevásárlólistádhoz 3 egyszerű lépésben.",
+        "stepLabels": {
+          "step1": "Termék kiválasztása",
+          "step2": "Bevásárlóhely",
+          "step3": "Részletek"
+        },
+        "tabs": {
+          "search": "Termék keresése",
+          "create": "Új létrehozása",
+          "custom": "Egyedi"
+        },
+        "custom": {
+          "label": "Egyedi termék neve",
+          "placeholder": "pl. Friss kenyér, Bio tej",
+          "submitButton": "Folytatás",
+          "description": "Adj meg egy egyedi nevet olyan termékekhez, amelyek nincsenek a katalógusban"
+        },
+        "item": {
+          "quantityLabel": "Mennyiség",
+          "quantityPlaceholder": "Add meg a mennyiséget",
+          "unitLabel": "Mértékegység",
+          "unitPlaceholder": "Válassz mértékegységet",
+          "noteLabel": "Megjegyzés",
+          "notePlaceholder": "Adj hozzá opcionális megjegyzést",
+          "deadlineLabel": "Határidő",
+          "dueLabel": "Esedékesség",
+          "createButton": "Hozzáadás a listához"
+        },
+        "skipLocation": "Kihagyás",
+        "skipLocationDescription": "Bevásárlóhely kihagyása",
+        "noListSelected": "Kérlek, először válassz ki egy bevásárlólistát"
       }
     },
     "activity": {

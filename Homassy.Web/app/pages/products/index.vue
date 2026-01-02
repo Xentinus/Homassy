@@ -48,6 +48,7 @@
 
     <!-- No Results -->
     <div v-else-if="filteredProducts.length === 0 && !isLoading" class="text-center py-12">
+      <UIcon name="i-lucide-package-search" class="h-16 w-16 mx-auto text-gray-400 mb-4" />
       <p class="text-gray-500 dark:text-gray-400">{{ $t('pages.products.noResults') }}</p>
     </div>
 

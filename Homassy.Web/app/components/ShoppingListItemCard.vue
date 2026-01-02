@@ -1,7 +1,7 @@
 <template>
   <div
-    class="relative bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-4 space-y-3"
-    :class="{ 'border-green-500 dark:border-green-600': item.purchasedAt }"
+    class="relative bg-white dark:bg-gray-800 rounded-lg border p-4 space-y-3"
+    :class="cardBorderClass"
   >
     <div class="flex gap-4">
       <!-- Product Image -->
@@ -46,7 +46,7 @@
         <div class="flex items-center gap-2 text-sm">
           <UIcon name="i-lucide-package-2" class="h-4 w-4 text-gray-500" />
           <span class="font-medium text-gray-900 dark:text-gray-100">
-            {{ item.quantity }} {{ item.unit }}
+            {{ item.quantity }} {{ unitLabel }}
           </span>
         </div>
 
@@ -60,18 +60,18 @@
         <div class="flex flex-wrap gap-3 text-xs">
           <div v-if="item.dueAt" class="flex items-center gap-1 text-gray-600 dark:text-gray-400">
             <UIcon name="i-lucide-calendar-clock" class="h-3 w-3" />
-            <span>Due: {{ formatDate(item.dueAt) }}</span>
+            <span>{{ $t('common.due') }}: {{ formatDate(item.dueAt) }}</span>
           </div>
           <div v-if="item.deadlineAt" class="flex items-center gap-1 text-gray-600 dark:text-gray-400">
             <UIcon name="i-lucide-calendar-x" class="h-3 w-3" />
-            <span>Deadline: {{ formatDate(item.deadlineAt) }}</span>
+            <span>{{ $t('common.deadline') }}: {{ formatDate(item.deadlineAt) }}</span>
           </div>
         </div>
 
         <!-- Purchased Badge -->
         <div v-if="item.purchasedAt" class="inline-flex items-center gap-1 px-2 py-1 bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 rounded text-xs font-medium">
           <UIcon name="i-lucide-check-circle" class="h-3 w-3" />
-          <span>Purchased</span>
+          <span>{{ $t('common.purchased') }}</span>
         </div>
       </div>
     </div>
@@ -110,6 +110,7 @@ interface Props {
 }
 
 const props = defineProps<Props>()
+const { t } = useI18n()
 
 // State
 const isImageOverlayOpen = ref(false)
@@ -117,6 +118,47 @@ const isImageOverlayOpen = ref(false)
 // Computed
 const displayName = computed(() => {
   return props.item.product?.name || props.item.customName || 'Unnamed Item'
+})
+
+const unitLabel = computed(() => {
+  if (props.item.unit === null || props.item.unit === undefined) return ''
+  return t(`enums.unit.${props.item.unit}`)
+})
+
+const cardBorderClass = computed(() => {
+  // If purchased, show green border
+  if (props.item.purchasedAt) {
+    return 'border-green-500 dark:border-green-600'
+  }
+
+  // Check deadline date
+  const deadlineDate = props.item.deadlineAt ? new Date(props.item.deadlineAt) : null
+  const dueDate = props.item.dueAt ? new Date(props.item.dueAt) : null
+
+  // Use the earlier of deadline or due date
+  const targetDate = deadlineDate && dueDate
+    ? (deadlineDate < dueDate ? deadlineDate : dueDate)
+    : (deadlineDate || dueDate)
+
+  if (!targetDate) {
+    return 'border-gray-200 dark:border-gray-700'
+  }
+
+  const now = new Date()
+  const twoWeeksFromNow = new Date(now.getTime() + 14 * 24 * 60 * 60 * 1000)
+
+  // If date has passed, show danger (red)
+  if (targetDate < now) {
+    return 'border-red-500 dark:border-red-600'
+  }
+
+  // If within 2 weeks, show primary (blue)
+  if (targetDate <= twoWeeksFromNow) {
+    return 'border-primary-500 dark:border-primary-600'
+  }
+
+  // Default border
+  return 'border-gray-200 dark:border-gray-700'
 })
 
 // Methods
