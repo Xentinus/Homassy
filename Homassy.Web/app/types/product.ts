@@ -46,6 +46,7 @@ export interface CreateMultipleProductsRequest {
 }
 
 export interface UploadProductImageRequest {
+  productPublicId: string
   imageBase64: string
 }
 

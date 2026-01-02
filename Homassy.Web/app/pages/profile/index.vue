@@ -51,6 +51,21 @@
       </template>
     </div>
 
+    <!-- Action Buttons -->
+    <div class="space-y-3">
+      <!-- Light/Dark mode toggle -->
+      <ClientOnly>
+        <UButton color="neutral" variant="soft" class="w-full" @click="toggleColorMode">
+          <UIcon :name="colorMode.value === 'dark' ? 'i-lucide-sun' : 'i-lucide-moon'" class="h-4 w-4 mr-2" />
+          {{ colorModeText }}
+        </UButton>
+      </ClientOnly>
+      <UButton color="error" variant="soft" class="w-full" @click="onLogout">
+        <UIcon name="i-lucide-log-out" class="h-4 w-4 mr-2" />
+        {{ $t('auth.logout') }}
+      </UButton>
+    </div>
+
     <!-- Cards Grid: Settings, Family, ... -->
     <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mt-8">
       <template v-if="loading">
@@ -107,22 +122,43 @@
             <UIcon name="i-lucide-chevron-right" class="absolute top-3 right-3 text-gray-400" />
           </div>
         </NuxtLink>
-      </template>
-    </div>
 
-    <!-- Action Buttons Spacing -->
-    <div class="mt-8 space-y-3">
-      <!-- Light/Dark mode toggle -->
-      <ClientOnly>
-        <UButton color="neutral" variant="soft" class="w-full" @click="toggleColorMode">
-          <UIcon :name="colorMode.value === 'dark' ? 'i-lucide-sun' : 'i-lucide-moon'" class="h-4 w-4 mr-2" />
-          {{ colorModeText }}
-        </UButton>
-      </ClientOnly>
-      <UButton color="error" variant="soft" class="w-full" @click="onLogout">
-        <UIcon name="i-lucide-log-out" class="h-4 w-4 mr-2" />
-        {{ $t('auth.logout') }}
-      </UButton>
+        <!-- All Products Card -->
+        <NuxtLink to="/profile/products">
+          <div class="rounded-lg border border-primary-200/50 dark:border-primary-700/50 p-4 relative hover:border-primary-300 dark:hover:border-primary-700 transition-colors cursor-pointer flex items-center gap-3 h-full">
+            <UIcon name="i-lucide-package" class="h-7 w-7 text-primary-500 mr-2" />
+            <div>
+              <h2 class="text-base font-semibold mb-1">{{ $t('profile.allProducts.title') }}</h2>
+              <div class="text-xs text-gray-500 dark:text-gray-400">{{ $t('profile.allProducts.cardDescription') }}</div>
+            </div>
+            <UIcon name="i-lucide-chevron-right" class="absolute top-3 right-3 text-gray-400" />
+          </div>
+        </NuxtLink>
+
+        <!-- Shopping Locations Card -->
+        <NuxtLink to="/profile/shopping-locations">
+          <div class="rounded-lg border border-primary-200/50 dark:border-primary-700/50 p-4 relative hover:border-primary-300 dark:hover:border-primary-700 transition-colors cursor-pointer flex items-center gap-3 h-full">
+            <UIcon name="i-lucide-shopping-cart" class="h-7 w-7 text-primary-500 mr-2" />
+            <div>
+              <h2 class="text-base font-semibold mb-1">{{ $t('profile.shoppingLocations.title') }}</h2>
+              <div class="text-xs text-gray-500 dark:text-gray-400">{{ $t('profile.shoppingLocations.cardDescription') }}</div>
+            </div>
+            <UIcon name="i-lucide-chevron-right" class="absolute top-3 right-3 text-gray-400" />
+          </div>
+        </NuxtLink>
+
+        <!-- Storage Locations Card -->
+        <NuxtLink to="/profile/storage-locations">
+          <div class="rounded-lg border border-primary-200/50 dark:border-primary-700/50 p-4 relative hover:border-primary-300 dark:hover:border-primary-700 transition-colors cursor-pointer flex items-center gap-3 h-full">
+            <UIcon name="i-lucide-warehouse" class="h-7 w-7 text-primary-500 mr-2" />
+            <div>
+              <h2 class="text-base font-semibold mb-1">{{ $t('profile.storageLocations.title') }}</h2>
+              <div class="text-xs text-gray-500 dark:text-gray-400">{{ $t('profile.storageLocations.cardDescription') }}</div>
+            </div>
+            <UIcon name="i-lucide-chevron-right" class="absolute top-3 right-3 text-gray-400" />
+          </div>
+        </NuxtLink>
+      </template>
     </div>
   </div>
 </template>

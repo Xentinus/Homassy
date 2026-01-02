@@ -28,12 +28,14 @@ export const useLocationsApi = () => {
   const getStorageLocations = async (params?: {
     pageNumber?: number
     pageSize?: number
+    returnAll?: boolean
     searchText?: string
     sortBy?: string
   }) => {
     const queryParams = new URLSearchParams()
     if (params?.pageNumber) queryParams.append('PageNumber', params.pageNumber.toString())
     if (params?.pageSize) queryParams.append('PageSize', params.pageSize.toString())
+    if (params?.returnAll) queryParams.append('ReturnAll', params.returnAll.toString())
     if (params?.searchText) queryParams.append('SearchText', params.searchText)
     if (params?.sortBy) queryParams.append('SortBy', params.sortBy)
 
@@ -48,7 +50,13 @@ export const useLocationsApi = () => {
   const createStorageLocation = async (location: StorageLocationRequest) => {
     return await client.post<StorageLocationInfo>(
       '/api/v1/Location/storage',
-      location,
+      {
+        Name: location.name,
+        Description: location.description,
+        Color: location.color,
+        IsFreezer: location.isFreezer,
+        IsSharedWithFamily: location.isSharedWithFamily
+      },
       {
         showSuccessToast: true,
         successMessage: $i18n.t('toast.storageLocationCreated')
@@ -65,7 +73,13 @@ export const useLocationsApi = () => {
   ) => {
     return await client.put<StorageLocationInfo>(
       `/api/v1/Location/storage/${storageLocationPublicId}`,
-      location,
+      {
+        Name: location.name,
+        Description: location.description,
+        Color: location.color,
+        IsFreezer: location.isFreezer,
+        IsSharedWithFamily: location.isSharedWithFamily
+      },
       {
         showSuccessToast: true,
         successMessage: $i18n.t('toast.storageLocationUpdated')
@@ -124,12 +138,14 @@ export const useLocationsApi = () => {
   const getShoppingLocations = async (params?: {
     pageNumber?: number
     pageSize?: number
+    returnAll?: boolean
     searchText?: string
     sortBy?: string
   }) => {
     const queryParams = new URLSearchParams()
     if (params?.pageNumber) queryParams.append('PageNumber', params.pageNumber.toString())
     if (params?.pageSize) queryParams.append('PageSize', params.pageSize.toString())
+    if (params?.returnAll) queryParams.append('ReturnAll', params.returnAll.toString())
     if (params?.searchText) queryParams.append('SearchText', params.searchText)
     if (params?.sortBy) queryParams.append('SortBy', params.sortBy)
 

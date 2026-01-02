@@ -366,6 +366,7 @@ namespace Homassy.API.Functions
                 Name = s.Name,
                 Description = s.Description,
                 Color = s.Color,
+                IsFreezer = s.IsFreezer,
                 IsSharedWithFamily = s.FamilyId.HasValue
             })
             .OrderBy(s => s.Name);
@@ -831,6 +832,9 @@ namespace Homassy.API.Functions
                 await context.SaveChangesAsync(cancellationToken);
 
                 await transaction.CommitAsync(cancellationToken);
+
+                // Refresh cache
+                await RefreshStorageLocationCacheAsync(trackedLocation.Id, cancellationToken);
 
                 Log.Information($"User {userId.Value} deleted storage location {storageLocation.Id} (PublicId: {storageLocation.PublicId})");
             }

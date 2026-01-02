@@ -23,6 +23,14 @@
         <h3 class="font-semibold text-sm line-clamp-2 text-gray-900 dark:text-white flex-1">
           {{ location.name }}
         </h3>
+
+        <!-- Family Shared Icon -->
+        <UIcon
+          v-if="location.isSharedWithFamily"
+          name="i-lucide-users"
+          class="h-4 w-4 text-primary-500 flex-shrink-0"
+          :title="$t('profile.shoppingLocations.sharedWithFamily')"
+        />
       </div>
 
       <!-- Address (only if not empty) -->

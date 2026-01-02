@@ -31,12 +31,14 @@ export const useProductsApi = () => {
   const getProducts = async (params?: {
     pageNumber?: number
     pageSize?: number
+    returnAll?: boolean
     searchText?: string
     sortBy?: string
   }) => {
     const queryParams = new URLSearchParams()
     if (params?.pageNumber) queryParams.append('PageNumber', params.pageNumber.toString())
     if (params?.pageSize) queryParams.append('PageSize', params.pageSize.toString())
+    if (params?.returnAll) queryParams.append('ReturnAll', params.returnAll.toString())
     if (params?.searchText) queryParams.append('SearchText', params.searchText)
     if (params?.sortBy) queryParams.append('SortBy', params.sortBy)
 

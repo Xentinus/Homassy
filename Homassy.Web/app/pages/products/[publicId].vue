@@ -40,51 +40,19 @@
         <div class="relative bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-6 space-y-4">
           <div class="flex gap-6">
             <!-- Product Image -->
-            <div v-if="product.productPictureBase64" class="flex-shrink-0 relative">
+            <div v-if="product.productPictureBase64" class="flex-shrink-0">
               <img
                 :src="`data:image/jpeg;base64,${product.productPictureBase64}`"
                 :alt="product.name"
                 class="w-24 h-24 md:w-32 md:h-32 object-contain rounded-lg cursor-pointer hover:opacity-90 transition-opacity"
                 @click="isImageOverlayOpen = true"
               >
-              <UButton
-                icon="i-lucide-trash-2"
-                color="error"
-                size="xs"
-                :loading="isDeletingImage"
-                class="absolute top-1 right-1"
-                @click="handleDeleteProductImage"
-              />
             </div>
-            <div v-else class="flex-shrink-0 w-24 h-24 md:w-32 md:h-32 bg-gray-100 dark:bg-gray-700 rounded-lg flex flex-col items-center justify-center relative">
+            <div v-else class="flex-shrink-0 w-24 h-24 md:w-32 md:h-32 bg-gray-100 dark:bg-gray-700 rounded-lg flex flex-col items-center justify-center">
               <UIcon name="i-lucide-package" class="h-12 w-12 text-gray-400 dark:text-gray-500" />
               <span class="text-xs text-gray-500 dark:text-gray-400 mt-1">
                 {{ $t('pages.products.details.noImage') }}
               </span>
-              <input
-                ref="fileInput"
-                type="file"
-                accept="image/*"
-                class="hidden"
-                @change="handleFileSelect"
-              >
-              <div class="absolute top-1 right-1 flex gap-1">
-                <UButton
-                  icon="i-lucide-upload"
-                  color="primary"
-                  size="xs"
-                  :loading="isUploadingImage"
-                  @click="fileInput?.click()"
-                />
-                <UButton
-                  v-if="product.barcode"
-                  icon="i-lucide-barcode"
-                  color="primary"
-                  size="xs"
-                  :loading="isImportingImageFromBarcode"
-                  @click="handleImportImageFromBarcode"
-                />
-              </div>
             </div>
 
             <!-- Product Details -->
@@ -117,24 +85,6 @@
                   <UIcon name="i-lucide-barcode" class="text-gray-500" />
                   <span>{{ product.barcode }}</span>
                 </div>
-              </div>
-
-              <!-- Action Buttons -->
-              <div class="flex gap-2 justify-end md:absolute md:top-6 md:right-6">
-                <UButton
-                  :label="$t('common.edit')"
-                  icon="i-lucide-pencil"
-                  size="sm"
-                  color="primary"
-                  @click="openEditProductModal"
-                />
-                <UButton
-                  :label="$t('common.delete')"
-                  icon="i-lucide-trash-2"
-                  size="sm"
-                  color="error"
-                  @click="openDeleteProductModal"
-                />
               </div>
             </div>
           </div>
