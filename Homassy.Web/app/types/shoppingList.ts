@@ -26,7 +26,7 @@ export interface ShoppingListItemInfo {
   shoppingLocation?: ShoppingLocationInfo
   customName?: string
   quantity: number
-  unit: string
+  unit: Unit
   note?: string
   purchasedAt?: string
   deadlineAt?: string

@@ -1,3 +1,4 @@
+using Homassy.API.Enums;
 using Homassy.API.Models.Location;
 using Homassy.API.Models.Product;
 
@@ -13,7 +14,7 @@ namespace Homassy.API.Models.ShoppingList
         public ShoppingLocationInfo? ShoppingLocation { get; set; }
         public string? CustomName { get; set; }
         public decimal Quantity { get; set; }
-        public string Unit { get; set; } = string.Empty;
+        public Unit Unit { get; set; }
         public string? Note { get; set; }
         public DateTime? PurchasedAt { get; set; }
         public DateTime? DeadlineAt { get; set; }
