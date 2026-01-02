@@ -193,6 +193,24 @@ export const useShoppingListApi = () => {
     )
   }
 
+  /**
+   * Quick purchase shopping list item (simple - just marks as purchased)
+   */
+  const quickPurchaseShoppingListItem = async (publicId: string) => {
+    return await client.get<ShoppingListItemInfo>(
+      `/api/v1/ShoppingList/item/${publicId}/quick-purchase`
+    )
+  }
+
+  /**
+   * Restore purchase of shopping list item (removes purchase date)
+   */
+  const restorePurchaseShoppingListItem = async (publicId: string) => {
+    return await client.get<ShoppingListItemInfo>(
+      `/api/v1/ShoppingList/item/${publicId}/restore-purchase`
+    )
+  }
+
   return {
     getShoppingLists,
     getShoppingListDetails,
@@ -205,6 +223,8 @@ export const useShoppingListApi = () => {
     createMultipleShoppingListItems,
     deleteMultipleShoppingListItems,
     quickPurchaseItem,
-    quickPurchaseMultipleItems
+    quickPurchaseMultipleItems,
+    quickPurchaseShoppingListItem,
+    restorePurchaseShoppingListItem
   }
 }

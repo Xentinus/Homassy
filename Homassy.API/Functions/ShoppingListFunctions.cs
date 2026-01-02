@@ -596,9 +596,7 @@ namespace Homassy.API.Functions
                             Enums.ActivityType.ShoppingListUpdate,
                             trackedList.Id,
                             trackedList.Name,
-                            null,
-                            null,
-                            cancellationToken
+                            cancellationToken: cancellationToken
                         );
                     }
                     catch (Exception ex)
@@ -675,9 +673,7 @@ namespace Homassy.API.Functions
                         Enums.ActivityType.ShoppingListDelete,
                         shoppingList.Id,
                         shoppingList.Name,
-                        null,
-                        null,
-                        cancellationToken
+                        cancellationToken: cancellationToken
                     );
                 }
                 catch (Exception ex)
@@ -786,9 +782,7 @@ namespace Homassy.API.Functions
                         Enums.ActivityType.ShoppingListItemAdd,
                         shoppingListItem.Id,
                         $"{shoppingList.Name} - {itemName}",
-                        null,
-                        null,
-                        cancellationToken
+                        cancellationToken: cancellationToken
                     );
                 }
                 catch (Exception ex)
@@ -958,9 +952,7 @@ namespace Homassy.API.Functions
                             Enums.ActivityType.ShoppingListItemUpdate,
                             trackedItem.Id,
                             $"{shoppingList.Name} - {itemName}",
-                            null,
-                            null,
-                            cancellationToken
+                            cancellationToken: cancellationToken
                         );
                     }
                     catch (Exception ex)
@@ -1087,11 +1079,6 @@ namespace Homassy.API.Functions
                 throw new ShoppingListItemNotFoundException();
             }
 
-            if (!shoppingListItem.ProductId.HasValue)
-            {
-                throw new InvalidShoppingListItemException("Cannot quick purchase a custom item. Only items with a product can be converted to inventory items.");
-            }
-
             var shoppingList = GetShoppingListById(shoppingListItem.ShoppingListId);
             if (shoppingList == null)
             {
@@ -1104,31 +1091,6 @@ namespace Homassy.API.Functions
             {
                 throw new ShoppingListAccessDeniedException();
             }
-
-            var locationFunctions = new LocationFunctions();
-            var productFunctions = new ProductFunctions();
-
-            var product = productFunctions.GetProductById(shoppingListItem.ProductId);
-            if (product == null)
-            {
-                throw new ProductNotFoundException("Product not found");
-            }
-
-            int? storageLocationId = null;
-            if (request.StorageLocationPublicId.HasValue)
-            {
-                var storageLocation = locationFunctions.GetStorageLocationByPublicId(request.StorageLocationPublicId.Value);
-                if (storageLocation == null)
-                {
-                    throw new StorageLocationNotFoundException("Storage location not found");
-                }
-                storageLocationId = storageLocation.Id;
-            }
-
-            int? shoppingLocationId = shoppingListItem.ShoppingLocationId;
-
-            var userProfile = new UserFunctions().GetUserProfileByUserId(userId.Value);
-            var currency = request.Currency ?? userProfile?.DefaultCurrency;
 
             var context = new HomassyDbContext();
             await using var transaction = await context.Database.BeginTransactionAsync(cancellationToken);
@@ -1143,6 +1105,77 @@ namespace Homassy.API.Functions
                 }
 
                 trackedShoppingListItem.PurchasedAt = request.PurchasedAt;
+                await context.SaveChangesAsync(cancellationToken);
+
+                // If it's a custom item (no ProductId), just set PurchasedAt and return
+                if (!shoppingListItem.ProductId.HasValue)
+                {
+                    await transaction.CommitAsync(cancellationToken);
+
+                    Log.Information($"User {userId} quick purchased custom shopping list item {shoppingListItem.Id} (PublicId: {shoppingListItem.PublicId})");
+
+                    // Record activity for custom item
+                    try
+                    {
+                        await new ActivityFunctions().RecordActivityAsync(
+                            userId.Value,
+                            familyId,
+                            Enums.ActivityType.ShoppingListItemPurchase,
+                            shoppingListItem.Id,
+                            $"{shoppingList.Name} - {trackedShoppingListItem.CustomName ?? "Custom Item"}",
+                            null,
+                            null,
+                            cancellationToken: cancellationToken
+                        );
+                    }
+                    catch (Exception ex)
+                    {
+                        Log.Error(ex, $"Failed to record ShoppingListItemPurchase activity for custom shopping list item {shoppingListItem.PublicId}");
+                    }
+
+                    var customItemInfo = new ShoppingListItemInfo
+                    {
+                        PublicId = trackedShoppingListItem.PublicId,
+                        ShoppingListPublicId = shoppingList.PublicId,
+                        ProductPublicId = null,
+                        ShoppingLocationPublicId = shoppingListItem.ShoppingLocationId.HasValue ? new LocationFunctions().GetShoppingLocationById(shoppingListItem.ShoppingLocationId)?.PublicId : null,
+                        CustomName = trackedShoppingListItem.CustomName,
+                        Quantity = trackedShoppingListItem.Quantity,
+                        Unit = trackedShoppingListItem.Unit,
+                        Note = trackedShoppingListItem.Note,
+                        PurchasedAt = trackedShoppingListItem.PurchasedAt,
+                        DeadlineAt = trackedShoppingListItem.DeadlineAt,
+                        DueAt = trackedShoppingListItem.DueAt
+                    };
+
+                    return customItemInfo;
+                }
+
+                // For items with products, continue with inventory creation
+                var locationFunctions = new LocationFunctions();
+                var productFunctions = new ProductFunctions();
+
+                var product = productFunctions.GetProductById(shoppingListItem.ProductId);
+                if (product == null)
+                {
+                    throw new ProductNotFoundException("Product not found");
+                }
+
+                int? storageLocationId = null;
+                if (request.StorageLocationPublicId.HasValue)
+                {
+                    var storageLocation = locationFunctions.GetStorageLocationByPublicId(request.StorageLocationPublicId.Value);
+                    if (storageLocation == null)
+                    {
+                        throw new StorageLocationNotFoundException("Storage location not found");
+                    }
+                    storageLocationId = storageLocation.Id;
+                }
+
+                int? shoppingLocationId = shoppingListItem.ShoppingLocationId;
+
+                var userProfile = new UserFunctions().GetUserProfileByUserId(userId.Value);
+                var currency = request.Currency ?? userProfile?.DefaultCurrency;
 
                 // Create inventory item
                 var inventoryItem = new Entities.Product.ProductInventoryItem
@@ -1221,6 +1254,206 @@ namespace Homassy.API.Functions
             {
                 await transaction.RollbackAsync(cancellationToken);
                 Log.Error(ex, $"Failed to quick purchase shopping list item {request.ShoppingListItemPublicId} for user {userId}");
+                throw;
+            }
+        }
+
+        public async Task<ShoppingListItemInfo> SimpleQuickPurchaseAsync(Guid publicId, CancellationToken cancellationToken = default)
+        {
+            var userId = SessionInfo.GetUserId();
+            if (!userId.HasValue)
+            {
+                Log.Warning("Invalid session: User ID not found");
+                throw new UserNotFoundException("User not found");
+            }
+
+            var shoppingListItem = GetShoppingListItemByPublicId(publicId);
+            if (shoppingListItem == null)
+            {
+                throw new ShoppingListItemNotFoundException();
+            }
+
+            var shoppingList = GetShoppingListById(shoppingListItem.ShoppingListId);
+            if (shoppingList == null)
+            {
+                throw new ShoppingListNotFoundException();
+            }
+
+            var familyId = SessionInfo.GetFamilyId();
+            if (shoppingList.UserId != userId.Value &&
+                (!familyId.HasValue || shoppingList.FamilyId != familyId.Value))
+            {
+                throw new ShoppingListAccessDeniedException();
+            }
+
+            var context = new HomassyDbContext();
+            await using var transaction = await context.Database.BeginTransactionAsync(cancellationToken);
+
+            try
+            {
+                var trackedShoppingListItem = await context.ShoppingListItems.FindAsync([shoppingListItem.Id], cancellationToken);
+                if (trackedShoppingListItem == null)
+                {
+                    throw new ShoppingListItemNotFoundException();
+                }
+
+                trackedShoppingListItem.PurchasedAt = DateTime.UtcNow;
+                await context.SaveChangesAsync(cancellationToken);
+
+                await transaction.CommitAsync(cancellationToken);
+
+                Log.Information($"User {userId} quick purchased shopping list item {shoppingListItem.Id} (PublicId: {shoppingListItem.PublicId})");
+
+                // Record activity
+                try
+                {
+                    var displayName = shoppingListItem.ProductId.HasValue 
+                        ? new ProductFunctions().GetProductById(shoppingListItem.ProductId)?.Name 
+                        : trackedShoppingListItem.CustomName ?? "Item";
+
+                    await new ActivityFunctions().RecordActivityAsync(
+                        userId.Value,
+                        familyId,
+                        Enums.ActivityType.ShoppingListItemQuickPurchase,
+                        shoppingListItem.Id,
+                        $"{shoppingList.Name} - {displayName}",
+                        null,
+                        null,
+                        cancellationToken: cancellationToken
+                    );
+                }
+                catch (Exception ex)
+                {
+                    Log.Error(ex, $"Failed to record ShoppingListItemQuickPurchase activity for shopping list item {shoppingListItem.PublicId}");
+                }
+
+                // Refresh cache
+                await RefreshShoppingListItemCacheAsync(shoppingListItem.Id, cancellationToken);
+
+                var locationFunctions = new LocationFunctions();
+                var productFunctions = new ProductFunctions();
+
+                var shoppingListItemInfo = new ShoppingListItemInfo
+                {
+                    PublicId = trackedShoppingListItem.PublicId,
+                    ShoppingListPublicId = shoppingList.PublicId,
+                    ProductPublicId = shoppingListItem.ProductId.HasValue ? productFunctions.GetProductById(shoppingListItem.ProductId)?.PublicId : null,
+                    ShoppingLocationPublicId = shoppingListItem.ShoppingLocationId.HasValue ? locationFunctions.GetShoppingLocationById(shoppingListItem.ShoppingLocationId)?.PublicId : null,
+                    CustomName = trackedShoppingListItem.CustomName,
+                    Quantity = trackedShoppingListItem.Quantity,
+                    Unit = trackedShoppingListItem.Unit,
+                    Note = trackedShoppingListItem.Note,
+                    PurchasedAt = trackedShoppingListItem.PurchasedAt,
+                    DeadlineAt = trackedShoppingListItem.DeadlineAt,
+                    DueAt = trackedShoppingListItem.DueAt
+                };
+
+                return shoppingListItemInfo;
+            }
+            catch (Exception ex)
+            {
+                await transaction.RollbackAsync(cancellationToken);
+                Log.Error(ex, $"Failed to quick purchase shopping list item {publicId} for user {userId}");
+                throw;
+            }
+        }
+
+        public async Task<ShoppingListItemInfo> RestorePurchaseAsync(Guid publicId, CancellationToken cancellationToken = default)
+        {
+            var userId = SessionInfo.GetUserId();
+            if (!userId.HasValue)
+            {
+                Log.Warning("Invalid session: User ID not found");
+                throw new UserNotFoundException("User not found");
+            }
+
+            var shoppingListItem = GetShoppingListItemByPublicId(publicId);
+            if (shoppingListItem == null)
+            {
+                throw new ShoppingListItemNotFoundException();
+            }
+
+            var shoppingList = GetShoppingListById(shoppingListItem.ShoppingListId);
+            if (shoppingList == null)
+            {
+                throw new ShoppingListNotFoundException();
+            }
+
+            var familyId = SessionInfo.GetFamilyId();
+            if (shoppingList.UserId != userId.Value &&
+                (!familyId.HasValue || shoppingList.FamilyId != familyId.Value))
+            {
+                throw new ShoppingListAccessDeniedException();
+            }
+
+            var context = new HomassyDbContext();
+            await using var transaction = await context.Database.BeginTransactionAsync(cancellationToken);
+
+            try
+            {
+                var trackedShoppingListItem = await context.ShoppingListItems.FindAsync([shoppingListItem.Id], cancellationToken);
+                if (trackedShoppingListItem == null)
+                {
+                    throw new ShoppingListItemNotFoundException();
+                }
+
+                trackedShoppingListItem.PurchasedAt = null;
+                await context.SaveChangesAsync(cancellationToken);
+
+                await transaction.CommitAsync(cancellationToken);
+
+                Log.Information($"User {userId} restored purchase for shopping list item {shoppingListItem.Id} (PublicId: {shoppingListItem.PublicId})");
+
+                // Record activity
+                try
+                {
+                    var displayName = shoppingListItem.ProductId.HasValue 
+                        ? new ProductFunctions().GetProductById(shoppingListItem.ProductId)?.Name 
+                        : trackedShoppingListItem.CustomName ?? "Item";
+
+                    await new ActivityFunctions().RecordActivityAsync(
+                        userId.Value,
+                        familyId,
+                        Enums.ActivityType.ShoppingListItemRestorePurchase,
+                        shoppingListItem.Id,
+                        $"{shoppingList.Name} - {displayName}",
+                        null,
+                        null,
+                        cancellationToken: cancellationToken
+                    );
+                }
+                catch (Exception ex)
+                {
+                    Log.Error(ex, $"Failed to record ShoppingListItemRestorePurchase activity for shopping list item {shoppingListItem.PublicId}");
+                }
+
+                // Refresh cache
+                await RefreshShoppingListItemCacheAsync(shoppingListItem.Id, cancellationToken);
+
+                var locationFunctions = new LocationFunctions();
+                var productFunctions = new ProductFunctions();
+
+                var shoppingListItemInfo = new ShoppingListItemInfo
+                {
+                    PublicId = trackedShoppingListItem.PublicId,
+                    ShoppingListPublicId = shoppingList.PublicId,
+                    ProductPublicId = shoppingListItem.ProductId.HasValue ? productFunctions.GetProductById(shoppingListItem.ProductId)?.PublicId : null,
+                    ShoppingLocationPublicId = shoppingListItem.ShoppingLocationId.HasValue ? locationFunctions.GetShoppingLocationById(shoppingListItem.ShoppingLocationId)?.PublicId : null,
+                    CustomName = trackedShoppingListItem.CustomName,
+                    Quantity = trackedShoppingListItem.Quantity,
+                    Unit = trackedShoppingListItem.Unit,
+                    Note = trackedShoppingListItem.Note,
+                    PurchasedAt = trackedShoppingListItem.PurchasedAt,
+                    DeadlineAt = trackedShoppingListItem.DeadlineAt,
+                    DueAt = trackedShoppingListItem.DueAt
+                };
+
+                return shoppingListItemInfo;
+            }
+            catch (Exception ex)
+            {
+                await transaction.RollbackAsync(cancellationToken);
+                Log.Error(ex, $"Failed to restore purchase for shopping list item {publicId} for user {userId}");
                 throw;
             }
         }
@@ -1335,9 +1568,7 @@ namespace Homassy.API.Functions
                             Enums.ActivityType.ShoppingListItemAdd,
                             sli.Id,
                             $"{shoppingList.Name} - {itemName}",
-                            null,
-                            null,
-                            cancellationToken
+                            cancellationToken: cancellationToken
                         );
                     }
                     catch (Exception ex)
@@ -1435,9 +1666,7 @@ namespace Homassy.API.Functions
                             Enums.ActivityType.ShoppingListItemDelete,
                             shoppingListItem.Id,
                             $"{shoppingList.Name} - {itemName}",
-                            null,
-                            null,
-                            cancellationToken
+                            cancellationToken: cancellationToken
                         );
                     }
                     catch (Exception ex)
@@ -1578,9 +1807,7 @@ namespace Homassy.API.Functions
                             Enums.ActivityType.ShoppingListItemPurchase,
                             shoppingListItem.Id,
                             $"{shoppingList.Name} - {product.Name}",
-                            null,
-                            null,
-                            cancellationToken
+                            cancellationToken: cancellationToken
                         );
                     }
                     catch (Exception ex)

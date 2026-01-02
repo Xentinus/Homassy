@@ -76,6 +76,28 @@
       </div>
     </div>
 
+    <!-- Quick Actions -->
+    <div class="flex gap-2 mt-3 pt-3 border-t border-gray-200 dark:border-gray-700">
+      <UButton
+        v-if="!item.purchasedAt"
+        :label="$t('shoppingList.quickPurchase')"
+        icon="i-lucide-check"
+        size="sm"
+        color="success"
+        :loading="isQuickPurchasing"
+        @click="handleQuickPurchase"
+      />
+      <UButton
+        v-if="item.purchasedAt"
+        :label="$t('shoppingList.restorePurchase')"
+        icon="i-lucide-undo-2"
+        size="sm"
+        variant="outline"
+        :loading="isRestoring"
+        @click="handleRestorePurchase"
+      />
+    </div>
+
     <!-- Image Overlay -->
     <Transition
       enter-active-class="transition-opacity duration-200 ease-out"
@@ -110,10 +132,19 @@ interface Props {
 }
 
 const props = defineProps<Props>()
+
+const emit = defineEmits<{
+  updated: []
+}>()
+
 const { t } = useI18n()
+const { quickPurchaseShoppingListItem, restorePurchaseShoppingListItem } = useShoppingListApi()
+const toast = useToast()
 
 // State
 const isImageOverlayOpen = ref(false)
+const isQuickPurchasing = ref(false)
+const isRestoring = ref(false)
 
 // Computed
 const displayName = computed(() => {
@@ -164,5 +195,43 @@ const cardBorderClass = computed(() => {
 // Methods
 const formatDate = (dateString: string): string => {
   return new Date(dateString).toLocaleDateString()
+}
+
+const handleQuickPurchase = async () => {
+  isQuickPurchasing.value = true
+  try {
+    const response = await quickPurchaseShoppingListItem(props.item.publicId)
+    if (response.success) {
+      toast.add({
+        title: t('toast.success'),
+        description: t('shoppingList.itemPurchased'),
+        color: 'success'
+      })
+      emit('updated')
+    }
+  } catch (error) {
+    console.error('Failed to quick purchase item:', error)
+  } finally {
+    isQuickPurchasing.value = false
+  }
+}
+
+const handleRestorePurchase = async () => {
+  isRestoring.value = true
+  try {
+    const response = await restorePurchaseShoppingListItem(props.item.publicId)
+    if (response.success) {
+      toast.add({
+        title: t('toast.success'),
+        description: t('shoppingList.purchaseRestored'),
+        color: 'success'
+      })
+      emit('updated')
+    }
+  } catch (error) {
+    console.error('Failed to restore purchase:', error)
+  } finally {
+    isRestoring.value = false
+  }
 }
 </script>

@@ -21,7 +21,7 @@ namespace Homassy.API.Enums
         ShoppingListUpdate = 12,
         ShoppingListDelete = 13,
 
-        // ShoppingListItem Activities (14-17)
+        // ShoppingListItem Activities (14-17, 21-22)
         ShoppingListItemAdd = 14,
         ShoppingListItemUpdate = 15,
         ShoppingListItemPurchase = 16,
@@ -30,6 +30,10 @@ namespace Homassy.API.Enums
         // Family Activities (18-20)
         FamilyCreate = 18,
         FamilyJoin = 19,
-        FamilyLeave = 20
+        FamilyLeave = 20,
+
+        // ShoppingListItem Activities (continued)
+        ShoppingListItemQuickPurchase = 21,
+        ShoppingListItemRestorePurchase = 22
     }
 }

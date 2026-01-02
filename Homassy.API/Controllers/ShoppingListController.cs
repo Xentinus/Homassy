@@ -175,6 +175,32 @@ namespace Homassy.API.Controllers
         }
 
         /// <summary>
+        /// Quickly marks a shopping list item as purchased without creating inventory.
+        /// </summary>
+        [HttpGet("item/{publicId}/quick-purchase")]
+        [MapToApiVersion(1.0)]
+        [ProducesResponseType(typeof(ApiResponse<ShoppingListItemInfo>), StatusCodes.Status200OK)]
+        [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status404NotFound)]
+        public async Task<IActionResult> SimpleQuickPurchase(Guid publicId, CancellationToken cancellationToken)
+        {
+            var shoppingListItem = await new ShoppingListFunctions().SimpleQuickPurchaseAsync(publicId, cancellationToken);
+            return Ok(ApiResponse<ShoppingListItemInfo>.SuccessResponse(shoppingListItem));
+        }
+
+        /// <summary>
+        /// Restores a purchased shopping list item by removing its purchase date.
+        /// </summary>
+        [HttpGet("item/{publicId}/restore-purchase")]
+        [MapToApiVersion(1.0)]
+        [ProducesResponseType(typeof(ApiResponse<ShoppingListItemInfo>), StatusCodes.Status200OK)]
+        [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status404NotFound)]
+        public async Task<IActionResult> RestorePurchase(Guid publicId, CancellationToken cancellationToken)
+        {
+            var shoppingListItem = await new ShoppingListFunctions().RestorePurchaseAsync(publicId, cancellationToken);
+            return Ok(ApiResponse<ShoppingListItemInfo>.SuccessResponse(shoppingListItem));
+        }
+
+        /// <summary>
         /// Creates multiple shopping list items in a single request.
         /// </summary>
         [HttpPost("item/multiple")]
