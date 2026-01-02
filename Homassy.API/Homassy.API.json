@@ -11,7 +11,7 @@
       "name": "MIT License",
       "url": "https://github.com/Xentinus/Homassy/blob/master/LICENSE"
     },
-    "version": "26.0102.1639-dev"
+    "version": "26.0102.2106-dev"
   },
   "paths": {
     "/api/v1/Auth/request-code": {
@@ -4160,6 +4160,128 @@
         }
       }
     },
+    "/api/v1/ShoppingList/item/{publicId}/quick-purchase": {
+      "get": {
+        "tags": [
+          "ShoppingList"
+        ],
+        "summary": "Quickly marks a shopping list item as purchased without creating inventory.",
+        "parameters": [
+          {
+            "name": "publicId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponseOfShoppingListItemInfo"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponseOfShoppingListItemInfo"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponseOfShoppingListItemInfo"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponse"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponse"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/ShoppingList/item/{publicId}/restore-purchase": {
+      "get": {
+        "tags": [
+          "ShoppingList"
+        ],
+        "summary": "Restores a purchased shopping list item by removing its purchase date.",
+        "parameters": [
+          {
+            "name": "publicId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponseOfShoppingListItemInfo"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponseOfShoppingListItemInfo"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponseOfShoppingListItemInfo"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponse"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponse"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/ShoppingList/item/multiple": {
       "post": {
         "tags": [
@@ -4953,32 +5075,12 @@
           "userName": {
             "type": "string"
           },
-          "familyId": {
-            "pattern": "^-?(?:0|[1-9]\\d*)$",
-            "type": [
-              "null",
-              "integer",
-              "string"
-            ],
-            "format": "int32"
-          },
           "timestamp": {
             "type": "string",
             "format": "date-time"
           },
           "activityType": {
             "$ref": "#/components/schemas/ActivityType"
-          },
-          "activityTypeName": {
-            "type": "string"
-          },
-          "recordId": {
-            "pattern": "^-?(?:0|[1-9]\\d*)$",
-            "type": [
-              "integer",
-              "string"
-            ],
-            "format": "int32"
           },
           "recordName": {
             "type": "string"

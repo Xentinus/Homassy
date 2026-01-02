@@ -148,7 +148,7 @@
                     v-model="productFormData.notes"
                     :placeholder="t('pages.addProduct.form.notesPlaceholder')"
                     :disabled="isCreating"
-                    rows="3"
+                    :rows="3"
                     class="w-full"
                   />
                 </UFormField>
@@ -445,7 +445,7 @@
               v-model="itemFormData.note"
               :placeholder="t('pages.shoppingLists.addProduct.item.notePlaceholder')"
               :disabled="isCreatingItem"
-              rows="3"
+              :rows="3"
               class="w-full"
             />
           </UFormField>

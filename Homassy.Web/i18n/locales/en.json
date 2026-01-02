@@ -609,7 +609,9 @@
       "17": "Item Deleted",
       "18": "Family Created",
       "19": "Joined Family",
-      "20": "Left Family"
+      "20": "Left Family",
+      "21": "Item Quick Purchased",
+      "22": "Item Purchase Restored"
     }
   }
 }

@@ -53,7 +53,7 @@
       </div>
 
       <!-- Quantity and unit (if available) -->
-      <div v-if="activity.quantity !== undefined && activity.quantity !== null && activity.unit !== undefined && activity.unit !== null" class="flex items-center gap-2">
+      <div v-if="activity.quantity != null && activity.unit != null" class="flex items-center gap-2">
         <UIcon name="i-lucide-scale" class="h-4 w-4 text-gray-400" />
         <p class="text-sm text-gray-700 dark:text-gray-300">
           {{ formatQuantity(activity.quantity) }} {{ $t(`enums.unit.${activity.unit}`) }}
@@ -118,7 +118,9 @@ const getActivityIcon = (activityType: ActivityType): string => {
   if (activityType >= ActivityType.ShoppingListCreate && activityType <= ActivityType.ShoppingListDelete) {
     return 'i-lucide-shopping-cart'
   }
-  if (activityType >= ActivityType.ShoppingListItemAdd && activityType <= ActivityType.ShoppingListItemDelete) {
+  if ((activityType >= ActivityType.ShoppingListItemAdd && activityType <= ActivityType.ShoppingListItemDelete) ||
+      activityType === ActivityType.ShoppingListItemQuickPurchase ||
+      activityType === ActivityType.ShoppingListItemRestorePurchase) {
     return 'i-lucide-list'
   }
   if (activityType >= ActivityType.FamilyCreate && activityType <= ActivityType.FamilyLeave) {

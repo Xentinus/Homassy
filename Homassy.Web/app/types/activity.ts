@@ -25,7 +25,7 @@ export enum ActivityType {
   ShoppingListUpdate = 12,
   ShoppingListDelete = 13,
 
-  // ShoppingListItem Activities (14-17)
+  // ShoppingListItem Activities (14-17, 21-22)
   ShoppingListItemAdd = 14,
   ShoppingListItemUpdate = 15,
   ShoppingListItemPurchase = 16,
@@ -34,7 +34,11 @@ export enum ActivityType {
   // Family Activities (18-20)
   FamilyCreate = 18,
   FamilyJoin = 19,
-  FamilyLeave = 20
+  FamilyLeave = 20,
+
+  // ShoppingListItem Activities (continued)
+  ShoppingListItemQuickPurchase = 21,
+  ShoppingListItemRestorePurchase = 22
 }
 
 /**
@@ -44,11 +48,8 @@ export interface ActivityInfo {
   publicId: string
   userPublicId: string
   userName: string
-  familyId?: number
   timestamp: string
   activityType: ActivityType
-  activityTypeName: string
-  recordId: number
   recordName: string
   unit?: number
   quantity?: number

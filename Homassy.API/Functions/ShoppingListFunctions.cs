@@ -1317,8 +1317,8 @@ namespace Homassy.API.Functions
                         Enums.ActivityType.ShoppingListItemQuickPurchase,
                         shoppingListItem.Id,
                         $"{shoppingList.Name} - {displayName}",
-                        null,
-                        null,
+                        trackedShoppingListItem.Unit,
+                        trackedShoppingListItem.Quantity,
                         cancellationToken: cancellationToken
                     );
                 }
@@ -1417,8 +1417,8 @@ namespace Homassy.API.Functions
                         Enums.ActivityType.ShoppingListItemRestorePurchase,
                         shoppingListItem.Id,
                         $"{shoppingList.Name} - {displayName}",
-                        null,
-                        null,
+                        trackedShoppingListItem.Unit,
+                        trackedShoppingListItem.Quantity,
                         cancellationToken: cancellationToken
                     );
                 }

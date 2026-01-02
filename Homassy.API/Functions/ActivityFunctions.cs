@@ -192,11 +192,8 @@ namespace Homassy.API.Functions
                     PublicId = a.PublicId,
                     UserPublicId = user?.PublicId ?? Guid.Empty,
                     UserName = user?.Name ?? "Unknown User",
-                    FamilyId = a.FamilyId,
                     Timestamp = a.Timestamp,
                     ActivityType = a.ActivityType,
-                    ActivityTypeName = GetActivityTypeName(a.ActivityType),
-                    RecordId = a.RecordId,
                     RecordName = a.RecordName,  // Using cached name from Activity table
                     Unit = a.Unit,
                     Quantity = a.Quantity
@@ -206,36 +203,6 @@ namespace Homassy.API.Functions
             return request.ReturnAll
                 ? PagedResult<ActivityInfo>.CreateUnpaginated(activityInfos)
                 : PagedResult<ActivityInfo>.Create(activityInfos, totalCount, request.PageNumber, request.PageSize);
-        }
-        #endregion
-
-        #region Helper Methods
-        private string GetActivityTypeName(ActivityType activityType)
-        {
-            return activityType switch
-            {
-                ActivityType.ProductCreate => "Product Created",
-                ActivityType.ProductUpdate => "Product Updated",
-                ActivityType.ProductDelete => "Product Deleted",
-                ActivityType.ProductPhotoUpload => "Product Photo Uploaded",
-                ActivityType.ProductPhotoDelete => "Product Photo Deleted",
-                ActivityType.ProductPhotoDownloadFromOpenFoodFacts => "Product Photo Downloaded from OpenFoodFacts",
-                ActivityType.ProductInventoryCreate => "Inventory Item Created",
-                ActivityType.ProductInventoryUpdate => "Inventory Item Updated",
-                ActivityType.ProductInventoryDecrease => "Inventory Decreased",
-                ActivityType.ProductInventoryDelete => "Inventory Item Deleted",
-                ActivityType.ShoppingListCreate => "Shopping List Created",
-                ActivityType.ShoppingListUpdate => "Shopping List Updated",
-                ActivityType.ShoppingListDelete => "Shopping List Deleted",
-                ActivityType.ShoppingListItemAdd => "Shopping List Item Added",
-                ActivityType.ShoppingListItemUpdate => "Shopping List Item Updated",
-                ActivityType.ShoppingListItemPurchase => "Shopping List Item Purchased",
-                ActivityType.ShoppingListItemDelete => "Shopping List Item Deleted",
-                ActivityType.FamilyCreate => "Family Created",
-                ActivityType.FamilyJoin => "Joined Family",
-                ActivityType.FamilyLeave => "Left Family",
-                _ => "Unknown Activity"
-            };
         }
         #endregion
     }
