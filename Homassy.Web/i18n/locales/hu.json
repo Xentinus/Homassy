@@ -242,8 +242,8 @@
         "notes": "Megjegyzések",
         "notesPlaceholder": "Opcionális megjegyzések",
         "isFavorite": "Kedvenc termék",
-        "isFavoriteLabel": "Kedvenc termék",
-        "createButton": "Termék létrehozása"
+        "isFavoriteLabel": "Kedvenc termék",      "createProduct": "Termék létrehozása",
+      "createProductDescription": "Adj hozzá egy új terméket az adatbázisodhoz",        "createButton": "Termék létrehozása"
       },
       "openFoodFacts": {
         "modalTitle": "Termék találva",

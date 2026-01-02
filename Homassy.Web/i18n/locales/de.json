@@ -243,6 +243,8 @@
         "notesPlaceholder": "Optionale Notizen",
         "isFavorite": "Lieblingsprodukt",
         "isFavoriteLabel": "Lieblingsprodukt",
+        "createProduct": "Produkt erstellen",
+        "createProductDescription": "Fügen Sie ein neues Produkt zu Ihrer Datenbank hinzu",
         "createButton": "Produkt erstellen"
       },
       "openFoodFacts": {

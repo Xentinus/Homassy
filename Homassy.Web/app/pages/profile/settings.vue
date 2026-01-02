@@ -115,6 +115,7 @@ const { getSelectValues } = useSelectValueApi()
 
 const isSubmitting = ref(false)
 const isLoadingOptions = ref(false)
+const loading = ref(true)
 
 const formData = ref({
   name: '',
@@ -150,6 +151,8 @@ onMounted(async () => {
 
   // Load dropdown options
   await loadSelectOptions()
+  
+  loading.value = false
 })
 
 async function loadSelectOptions() {
