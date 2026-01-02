@@ -401,7 +401,18 @@
         "skipLocation": "Skip",
         "skipLocationDescription": "Skip shopping location selection",
         "noListSelected": "Please select a shopping list first"
-      }
+      },
+      "markAsPurchased": "Mark as Purchased",
+      "editItem": "Edit Item",
+      "deleteItem": "Delete Item",
+      "restorePurchase": "Restore Purchase",
+      "editItemDescription": "Modify the shopping list item details",
+      "customName": "Custom Name",
+      "deleteItemWarning": "Are you sure you want to delete this item?",
+      "itemUpdated": "Item updated successfully",
+      "itemDeleted": "Item deleted successfully",
+      "restorePurchaseWarning": "Are you sure you want to restore this purchase?",
+      "restorePurchaseInventoryWarning": "Note: This will only unmark the item as purchased. It will NOT remove the item from inventory if it was already added."
     },
     "activity": {
       "title": "Activity",
@@ -416,6 +427,22 @@
     "minutesAgo": "{count} minutes ago",
     "hoursAgo": "{count} hours ago",
     "daysAgo": "{count} days ago"
+  },
+  "shoppingList": {
+    "markAsPurchased": "Mark as Purchased",
+    "purchaseConfirmation": "Are you sure you want to mark this item as purchased?",
+    "itemPurchased": "Item marked as purchased",
+    "purchaseRestored": "Purchase restored",
+    "editItem": "Edit Item",
+    "deleteItem": "Delete Item",
+    "restorePurchase": "Restore Purchase",
+    "editItemDescription": "Modify the shopping list item details",
+    "customName": "Custom Name",
+    "deleteItemWarning": "Are you sure you want to delete this item?",
+    "itemUpdated": "Item updated successfully",
+    "itemDeleted": "Item deleted successfully",
+    "restorePurchaseWarning": "Are you sure you want to restore this purchase?",
+    "restorePurchaseInventoryWarning": "Note: This will only unmark the item as purchased. It will NOT remove the item from inventory if it was already added."
   },
   "profile": {
     "title": "Profile",

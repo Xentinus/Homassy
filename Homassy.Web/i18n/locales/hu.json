@@ -2,6 +2,7 @@
   "common": {
     "welcome": "Üdvözöljük",
     "cancel": "Mégse",
+    "confirm": "Megerősítés",
     "save": "Mentés",
     "delete": "Törlés",
     "edit": "Szerkesztés",
@@ -401,7 +402,18 @@
         "skipLocation": "Kihagyás",
         "skipLocationDescription": "Bevásárlóhely kihagyása",
         "noListSelected": "Kérlek, először válassz ki egy bevásárlólistát"
-      }
+      },
+      "markAsPurchased": "Megvásároltnak jelölés",
+      "editItem": "Elem szerkesztése",
+      "deleteItem": "Elem törlése",
+      "restorePurchase": "Vásárlás visszaállítása",
+      "editItemDescription": "A bevásárlólista elem részleteinek módosítása",
+      "customName": "Egyedi név",
+      "deleteItemWarning": "Biztosan törölni szeretnéd ezt az elemet?",
+      "itemUpdated": "Elem sikeresen frissítve",
+      "itemDeleted": "Elem sikeresen törölve",
+      "restorePurchaseWarning": "Biztosan vissza szeretnéd állítani ezt a vásárlást?",
+      "restorePurchaseInventoryWarning": "Megjegyzés: Ez csak megjelöli az elemet nem vásároltként. NEM távolítja el az elemet a készletből, ha már hozzá lett adva."
     },
     "activity": {
       "title": "Tevékenység",
@@ -416,6 +428,22 @@
     "minutesAgo": "{count} perce",
     "hoursAgo": "{count} órája",
     "daysAgo": "{count} napja"
+  },
+  "shoppingList": {
+    "markAsPurchased": "Megvásároltnak jelölés",
+    "purchaseConfirmation": "Biztosan megvásároltnak szeretnéd jelölni ezt a terméket?",
+    "itemPurchased": "Elem megvásároltnak jelölve",
+    "purchaseRestored": "Vásárlás visszaállítva",
+    "editItem": "Elem szerkesztése",
+    "deleteItem": "Elem törlése",
+    "restorePurchase": "Vásárlás visszaállítása",
+    "editItemDescription": "A bevásárlólista elem részleteinek módosítása",
+    "customName": "Egyedi név",
+    "deleteItemWarning": "Biztosan törölni szeretnéd ezt az elemet?",
+    "itemUpdated": "Elem sikeresen frissítve",
+    "itemDeleted": "Elem sikeresen törölve",
+    "restorePurchaseWarning": "Biztosan vissza szeretnéd állítani ezt a vásárlást?",
+    "restorePurchaseInventoryWarning": "Megjegyzés: Ez csak megjelöli az elemet nem vásároltként. NEM távolítja el az elemet a készletből, ha már hozzá lett adva."
   },
   "profile": {
     "title": "Profil",

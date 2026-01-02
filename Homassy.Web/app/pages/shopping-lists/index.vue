@@ -134,6 +134,8 @@
           v-for="item in filteredItems"
           :key="item.publicId"
           :item="item"
+          @refresh="handleItemRefresh"
+          @deleted="handleItemRefresh"
         />
       </div>
     </div>
@@ -629,6 +631,13 @@ const handleDeleteList = async () => {
     console.error('Failed to delete shopping list:', error)
   } finally {
     isDeleting.value = false
+  }
+}
+
+// Handle item refresh (when item is updated, deleted, purchased, or restored)
+const handleItemRefresh = async () => {
+  if (selectedListId.value) {
+    await loadListDetails(selectedListId.value)
   }
 }
 

@@ -401,7 +401,18 @@
         "skipLocation": "Überspringen",
         "skipLocationDescription": "Einkaufsort überspringen",
         "noListSelected": "Bitte wählen Sie zuerst eine Einkaufsliste aus"
-      }
+      },
+      "markAsPurchased": "Als gekauft markieren",
+      "editItem": "Artikel bearbeiten",
+      "deleteItem": "Artikel löschen",
+      "restorePurchase": "Kauf wiederherstellen",
+      "editItemDescription": "Ändern Sie die Details des Einkaufslistenartikels",
+      "customName": "Benutzerdefinierter Name",
+      "deleteItemWarning": "Möchten Sie diesen Artikel wirklich löschen?",
+      "itemUpdated": "Artikel erfolgreich aktualisiert",
+      "itemDeleted": "Artikel erfolgreich gelöscht",
+      "restorePurchaseWarning": "Möchten Sie diesen Kauf wirklich wiederherstellen?",
+      "restorePurchaseInventoryWarning": "Hinweis: Dies markiert nur den Artikel als nicht gekauft. Es entfernt den Artikel NICHT aus dem Inventar, wenn er bereits hinzugefügt wurde."
     },
     "activity": {
       "title": "Aktivität",
@@ -416,6 +427,22 @@
     "minutesAgo": "vor {count} Minuten",
     "hoursAgo": "vor {count} Stunden",
     "daysAgo": "vor {count} Tagen"
+  },
+  "shoppingList": {
+    "markAsPurchased": "Als gekauft markieren",
+    "purchaseConfirmation": "Möchten Sie diesen Artikel wirklich als gekauft markieren?",
+    "itemPurchased": "Artikel als gekauft markiert",
+    "purchaseRestored": "Kauf wiederhergestellt",
+    "editItem": "Artikel bearbeiten",
+    "deleteItem": "Artikel löschen",
+    "restorePurchase": "Kauf wiederherstellen",
+    "editItemDescription": "Ändern Sie die Details des Einkaufslistenartikels",
+    "customName": "Benutzerdefinierter Name",
+    "deleteItemWarning": "Möchten Sie diesen Artikel wirklich löschen?",
+    "itemUpdated": "Artikel erfolgreich aktualisiert",
+    "itemDeleted": "Artikel erfolgreich gelöscht",
+    "restorePurchaseWarning": "Möchten Sie diesen Kauf wirklich wiederherstellen?",
+    "restorePurchaseInventoryWarning": "Hinweis: Dies markiert nur den Artikel als nicht gekauft. Es entfernt den Artikel NICHT aus dem Inventar, wenn er bereits hinzugefügt wurde."
   },
   "profile": {
     "title": "Profil",

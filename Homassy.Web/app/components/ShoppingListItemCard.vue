@@ -1,7 +1,8 @@
 <template>
   <div
-    class="relative bg-white dark:bg-gray-800 rounded-lg border p-4 space-y-3"
+    class="relative bg-white dark:bg-gray-800 rounded-lg border p-4 space-y-3 cursor-pointer hover:shadow-md transition-shadow"
     :class="cardBorderClass"
+    @click="handleCardClick"
   >
     <div class="flex gap-4">
       <!-- Product Image -->
@@ -18,11 +19,11 @@
       </div>
 
       <!-- Item Details -->
-      <div class="flex-1 space-y-2">
+      <div class="flex-1 min-w-0 space-y-2">
         <!-- Product Name -->
-        <div>
-          <h3 class="text-lg font-semibold">{{ displayName }}</h3>
-          <p v-if="item.product?.brand" class="text-sm text-gray-600 dark:text-gray-400">
+        <div class="break-words">
+          <h3 class="text-lg font-semibold break-words">{{ displayName }}</h3>
+          <p v-if="item.product?.brand" class="text-sm text-gray-600 dark:text-gray-400 break-words">
             {{ item.product.brand }}
           </p>
         </div>
@@ -74,29 +75,252 @@
           <span>{{ $t('common.purchased') }}</span>
         </div>
       </div>
+
+      <!-- Action Buttons -->
+      <UDropdownMenu :items="dropdownItems" size="md" class="flex-shrink-0 self-start">
+        <UButton
+          icon="i-lucide-ellipsis-vertical"
+          size="sm"
+          variant="subtle"
+          @click.stop
+        />
+      </UDropdownMenu>
     </div>
 
-    <!-- Quick Actions -->
-    <div class="flex gap-2 mt-3 pt-3 border-t border-gray-200 dark:border-gray-700">
-      <UButton
-        v-if="!item.purchasedAt"
-        :label="$t('shoppingList.quickPurchase')"
-        icon="i-lucide-check"
-        size="sm"
-        color="success"
-        :loading="isQuickPurchasing"
-        @click="handleQuickPurchase"
-      />
-      <UButton
-        v-if="item.purchasedAt"
-        :label="$t('shoppingList.restorePurchase')"
-        icon="i-lucide-undo-2"
-        size="sm"
-        variant="outline"
-        :loading="isRestoring"
-        @click="handleRestorePurchase"
-      />
-    </div>
+    <!-- Purchase Confirmation Modal -->
+    <UModal :open="isPurchaseModalOpen" @update:open="(val) => isPurchaseModalOpen = val">
+      <template #title>
+        {{ $t('shoppingList.markAsPurchased') }}
+      </template>
+
+      <template #description>
+        {{ $t('shoppingList.purchaseConfirmation') }}
+      </template>
+
+      <template #body>
+        <div class="space-y-3">
+          <div class="flex items-start gap-3 p-3 bg-gray-50 dark:bg-gray-900/50 rounded-lg">
+            <UIcon name="i-lucide-package" class="h-5 w-5 text-gray-500 mt-0.5" />
+            <div class="flex-1">
+              <p class="font-medium">{{ displayName }}</p>
+              <p v-if="item.product?.brand" class="text-sm text-gray-600 dark:text-gray-400">{{ item.product.brand }}</p>
+              <p class="text-sm text-gray-600 dark:text-gray-400 mt-1">{{ item.quantity }} {{ unitLabel }}</p>
+            </div>
+          </div>
+        </div>
+      </template>
+
+      <template #footer>
+        <div class="flex justify-end gap-2">
+          <UButton
+            :label="$t('common.cancel')"
+            variant="subtle"
+            @click="isPurchaseModalOpen = false"
+          />
+          <UButton
+            :label="$t('common.confirm')"
+            color="success"
+            :loading="isQuickPurchasing"
+            @click="confirmPurchase"
+          />
+        </div>
+      </template>
+    </UModal>
+
+    <!-- Edit Modal -->
+    <UModal :open="isEditModalOpen" @update:open="(val) => isEditModalOpen = val">
+      <template #title>
+        {{ $t('shoppingList.editItem') }}
+      </template>
+
+      <template #description>
+        {{ $t('shoppingList.editItemDescription') }}
+      </template>
+
+      <template #body>
+        <div class="space-y-4">
+          <!-- Custom Name (only if no product) -->
+          <div v-if="!item.product">
+            <label class="block text-sm font-medium mb-1">
+              {{ $t('shoppingList.customName') }}
+            </label>
+            <UInput
+              v-model="editForm.customName"
+              type="text"
+            />
+          </div>
+
+          <!-- Quantity -->
+          <div>
+            <label class="block text-sm font-medium mb-1">
+              {{ $t('common.quantity') }}
+            </label>
+            <UInput
+              v-model="editForm.quantity"
+              type="number"
+              :min="0.001"
+              step="0.1"
+            />
+          </div>
+
+          <!-- Unit -->
+          <div>
+            <label class="block text-sm font-medium mb-1">
+              {{ $t('common.unit') }}
+            </label>
+            <USelect
+              :model-value="editForm.unit ?? undefined"
+              :items="unitOptions"
+              class="w-full"
+              @update:model-value="(val) => editForm.unit = val ?? null"
+            />
+          </div>
+
+          <!-- Note -->
+          <div>
+            <label class="block text-sm font-medium mb-1">
+              {{ $t('common.note') }}
+            </label>
+            <UTextarea
+              v-model="editForm.note"
+              :placeholder="$t('common.note')"
+            />
+          </div>
+
+          <!-- Due Date -->
+          <div>
+            <label class="block text-sm font-medium mb-1">
+              {{ $t('common.dueDate') }}
+            </label>
+            <UInputDate
+              v-model="editForm.dueAt"
+              class="w-full"
+            />
+          </div>
+
+          <!-- Deadline -->
+          <div>
+            <label class="block text-sm font-medium mb-1">
+              {{ $t('common.deadline') }}
+            </label>
+            <UInputDate
+              v-model="editForm.deadlineAt"
+              class="w-full"
+            />
+          </div>
+        </div>
+      </template>
+
+      <template #footer>
+        <div class="flex justify-end gap-2">
+          <UButton
+            :label="$t('common.cancel')"
+            color="neutral"
+            variant="outline"
+            @click="closeEditModal"
+          />
+          <UButton
+            :label="$t('common.save')"
+            :loading="isUpdating"
+            @click="handleUpdate"
+          />
+        </div>
+      </template>
+    </UModal>
+
+    <!-- Delete Modal -->
+    <UModal :open="isDeleteModalOpen" @update:open="(val) => isDeleteModalOpen = val">
+      <template #title>
+        {{ $t('shoppingList.deleteItem') }}
+      </template>
+
+      <template #description>
+        {{ $t('shoppingList.deleteItemWarning') }}
+      </template>
+
+      <template #body>
+        <div class="space-y-3">
+          <!-- Item Name -->
+          <div>
+            <span class="text-sm font-medium text-gray-700 dark:text-gray-300">
+              {{ $t('common.name') }}:
+            </span>
+            <span class="text-sm ml-2">{{ displayName }}</span>
+          </div>
+
+          <!-- Quantity -->
+          <div>
+            <span class="text-sm font-medium text-gray-700 dark:text-gray-300">
+              {{ $t('common.quantity') }}:
+            </span>
+            <span class="text-sm ml-2">
+              {{ item.quantity }} {{ unitLabel }}
+            </span>
+          </div>
+
+          <!-- Note if exists -->
+          <div v-if="item.note">
+            <span class="text-sm font-medium text-gray-700 dark:text-gray-300">
+              {{ $t('common.note') }}:
+            </span>
+            <span class="text-sm ml-2">{{ item.note }}</span>
+          </div>
+        </div>
+      </template>
+
+      <template #footer>
+        <div class="flex justify-end gap-2">
+          <UButton
+            :label="$t('common.cancel')"
+            color="neutral"
+            variant="outline"
+            @click="closeDeleteModal"
+          />
+          <UButton
+            :label="$t('common.delete')"
+            color="error"
+            :loading="isDeleting"
+            @click="handleDelete"
+          />
+        </div>
+      </template>
+    </UModal>
+
+    <!-- Restore Purchase Modal -->
+    <UModal :open="isRestoreModalOpen" @update:open="(val) => isRestoreModalOpen = val">
+      <template #title>
+        {{ $t('shoppingList.restorePurchase') }}
+      </template>
+
+      <template #description>
+        {{ $t('shoppingList.restorePurchaseWarning') }}
+      </template>
+
+      <template #body>
+        <div class="p-4 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-lg">
+          <p class="text-sm text-amber-800 dark:text-amber-200">
+            {{ $t('shoppingList.restorePurchaseInventoryWarning') }}
+          </p>
+        </div>
+      </template>
+
+      <template #footer>
+        <div class="flex justify-end gap-2">
+          <UButton
+            :label="$t('common.cancel')"
+            color="neutral"
+            variant="outline"
+            @click="closeRestoreModal"
+          />
+          <UButton
+            :label="$t('common.confirm')"
+            color="primary"
+            :loading="isRestoring"
+            @click="handleRestorePurchase"
+          />
+        </div>
+      </template>
+    </UModal>
 
     <!-- Image Overlay -->
     <Transition
@@ -126,6 +350,7 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue'
 import type { ShoppingListItemInfo } from '../types/shoppingList'
+import { Unit } from '../types/enums'
 
 interface Props {
   item: ShoppingListItemInfo
@@ -134,17 +359,41 @@ interface Props {
 const props = defineProps<Props>()
 
 const emit = defineEmits<{
-  updated: []
+  refresh: []
+  deleted: []
 }>()
 
 const { t } = useI18n()
-const { quickPurchaseShoppingListItem, restorePurchaseShoppingListItem } = useShoppingListApi()
+const { quickPurchaseShoppingListItem, restorePurchaseShoppingListItem, updateShoppingListItem, deleteShoppingListItem } = useShoppingListApi()
 const toast = useToast()
 
 // State
 const isImageOverlayOpen = ref(false)
+const isPurchaseModalOpen = ref(false)
 const isQuickPurchasing = ref(false)
 const isRestoring = ref(false)
+const isEditModalOpen = ref(false)
+const isDeleteModalOpen = ref(false)
+const isRestoreModalOpen = ref(false)
+const isUpdating = ref(false)
+const isDeleting = ref(false)
+
+// Edit form state
+const editForm = ref<{
+  customName: string | null
+  quantity: number | null
+  unit: number | null
+  note: string | null
+  dueAt: Date | null
+  deadlineAt: Date | null
+}>({
+  customName: null,
+  quantity: null,
+  unit: null,
+  note: null,
+  dueAt: null,
+  deadlineAt: null
+})
 
 // Computed
 const displayName = computed(() => {
@@ -154,6 +403,35 @@ const displayName = computed(() => {
 const unitLabel = computed(() => {
   if (props.item.unit === null || props.item.unit === undefined) return ''
   return t(`enums.unit.${props.item.unit}`)
+})
+
+// Dropdown menu items
+const dropdownItems = computed(() => {
+  const items = [
+    {
+      label: t('common.edit'),
+      icon: 'i-lucide-pencil',
+      onSelect: openEditModal
+    },
+    {
+      label: t('common.delete'),
+      icon: 'i-lucide-trash-2',
+      color: 'error' as const,
+      onSelect: openDeleteModal
+    }
+  ]
+
+  return [items]
+})
+
+// Unit options for edit form
+const unitOptions = computed(() => {
+  return Object.entries(Unit)
+    .filter(([key]) => isNaN(Number(key)))
+    .map(([_key, value]) => ({
+      label: t(`enums.unit.${value}`),
+      value: value as number
+    }))
 })
 
 const cardBorderClass = computed(() => {
@@ -197,6 +475,27 @@ const formatDate = (dateString: string): string => {
   return new Date(dateString).toLocaleDateString()
 }
 
+// Card click handler
+const handleCardClick = (event: MouseEvent) => {
+  // Ignore clicks on interactive elements
+  const target = event.target as HTMLElement
+  if (target.closest('a, button, img')) return
+  
+  // If already purchased, open restore modal
+  if (props.item.purchasedAt) {
+    isRestoreModalOpen.value = true
+  } else {
+    // If not purchased, open purchase modal
+    isPurchaseModalOpen.value = true
+  }
+}
+
+// Confirm purchase from modal
+const confirmPurchase = async () => {
+  await handleQuickPurchase()
+  isPurchaseModalOpen.value = false
+}
+
 const handleQuickPurchase = async () => {
   isQuickPurchasing.value = true
   try {
@@ -207,7 +506,7 @@ const handleQuickPurchase = async () => {
         description: t('shoppingList.itemPurchased'),
         color: 'success'
       })
-      emit('updated')
+      emit('refresh')
     }
   } catch (error) {
     console.error('Failed to quick purchase item:', error)
@@ -226,12 +525,97 @@ const handleRestorePurchase = async () => {
         description: t('shoppingList.purchaseRestored'),
         color: 'success'
       })
-      emit('updated')
+      closeRestoreModal()
+      emit('refresh')
     }
   } catch (error) {
     console.error('Failed to restore purchase:', error)
   } finally {
     isRestoring.value = false
   }
+}
+
+// Edit modal methods
+const openEditModal = () => {
+  editForm.value = {
+    customName: props.item.customName || null,
+    quantity: props.item.quantity,
+    unit: props.item.unit,
+    note: props.item.note || null,
+    dueAt: props.item.dueAt ? new Date(props.item.dueAt) : null,
+    deadlineAt: props.item.deadlineAt ? new Date(props.item.deadlineAt) : null
+  }
+  isEditModalOpen.value = true
+}
+
+const closeEditModal = () => {
+  isEditModalOpen.value = false
+}
+
+const handleUpdate = async () => {
+  isUpdating.value = true
+  try {
+    const updateData = {
+      quantity: editForm.value.quantity ?? undefined,
+      unit: editForm.value.unit ?? undefined,
+      note: editForm.value.note || undefined,
+      dueAt: editForm.value.dueAt ? new Date(editForm.value.dueAt).toISOString() : undefined,
+      deadlineAt: editForm.value.deadlineAt ? new Date(editForm.value.deadlineAt).toISOString() : undefined,
+      customName: !props.item.product ? (editForm.value.customName || undefined) : undefined
+    }
+
+    const response = await updateShoppingListItem(props.item.publicId, updateData)
+    if (response.success) {
+      toast.add({
+        title: t('toast.success'),
+        description: t('shoppingList.itemUpdated'),
+        color: 'success'
+      })
+      closeEditModal()
+      emit('refresh')
+    }
+  } catch (error) {
+    console.error('Failed to update shopping list item:', error)
+  } finally {
+    isUpdating.value = false
+  }
+}
+
+// Delete modal methods
+const openDeleteModal = () => {
+  isDeleteModalOpen.value = true
+}
+
+const closeDeleteModal = () => {
+  isDeleteModalOpen.value = false
+}
+
+const handleDelete = async () => {
+  isDeleting.value = true
+  try {
+    const response = await deleteShoppingListItem(props.item.publicId)
+    if (response.success) {
+      toast.add({
+        title: t('toast.success'),
+        description: t('shoppingList.itemDeleted'),
+        color: 'success'
+      })
+      closeDeleteModal()
+      emit('deleted')
+    }
+  } catch (error) {
+    console.error('Failed to delete shopping list item:', error)
+  } finally {
+    isDeleting.value = false
+  }
+}
+
+// Restore modal methods
+const openRestoreModal = () => {
+  isRestoreModalOpen.value = true
+}
+
+const closeRestoreModal = () => {
+  isRestoreModalOpen.value = false
 }
 </script>
