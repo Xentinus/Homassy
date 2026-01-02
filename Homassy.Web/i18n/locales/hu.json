@@ -285,6 +285,7 @@
         }
       },
       "shoppingLocation": {
+        "skipButton": "Kihagyás (Opcionális)",
         "tabs": {
           "search": "Bevásárlás helye",
           "create": "Új bevásárlási hely"

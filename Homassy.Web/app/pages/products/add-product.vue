@@ -399,6 +399,17 @@
 
       <!-- Step 3: Shopping Location Selection -->
       <div v-else-if="currentStep === 2" class="space-y-6">
+        <!-- Skip Button -->
+        <div class="flex justify-end mb-4">
+          <UButton
+            :label="t('pages.addProduct.shoppingLocation.skipButton')"
+            color="neutral"
+            variant="outline"
+            icon="i-lucide-skip-forward"
+            @click="onSkipShoppingLocation"
+          />
+        </div>
+
         <UTabs v-model="activeTab" :items="shoppingLocationTabItems">
           <template #search>
             <div class="space-y-4 py-4">
@@ -1321,6 +1332,13 @@ const onShoppingLocationCardClick = (location: ShoppingLocationInfo) => {
   currentStep.value = 3 // Advance to step 4
 }
 
+// Skip shopping location handler
+const onSkipShoppingLocation = () => {
+  selectedShoppingLocationCardId.value = null
+  selectedShoppingLocationId.value = null
+  currentStep.value = 3 // Advance to step 4
+}
+
 // Shopping location creation handler
 const onCreateShoppingLocation = async (event: FormSubmitEvent<CreateShoppingLocationSchema>) => {
   isCreatingShoppingLocation.value = true
@@ -1378,11 +1396,15 @@ const onCreateInventory = async (event: FormSubmitEvent<CreateInventorySchema>) 
     const response = await createInventoryItem(inventoryData)
     if (response.success && response.data) {
       // Success - redirect to products page
+      // Keep button disabled until navigation completes
       window.location.href = '/products'
+    } else {
+      // Only re-enable button if there was an error
+      isCreatingInventory.value = false
     }
   } catch (error) {
     console.error('Inventory item creation failed:', error)
-  } finally {
+    // Only re-enable button on error
     isCreatingInventory.value = false
   }
 }
