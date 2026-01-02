@@ -45,6 +45,39 @@ export const useAuthStore = defineStore('auth', {
   },
 
   actions: {
+    /**
+     * Sync language locale and cookie from user data
+     * Returns the locale code for caller to use with setLocale
+     */
+    syncLanguageLocale(language: string): string {
+      try {
+        const localeCookie = useCookie('homassy_locale', {
+          maxAge: 10 * 365 * 24 * 60 * 60, // 10 years
+          path: '/',
+          sameSite: 'lax'
+        })
+        
+        // Map language name/code to locale code
+        // Support both full names (English, German) and codes (en, de)
+        const localeMap: Record<string, string> = {
+          'English': 'en',
+          'Hungarian': 'hu',
+          'German': 'de',
+          'en': 'en',
+          'hu': 'hu',
+          'de': 'de'
+        }
+        
+        const localeCode = localeMap[language] || 'en'
+        localeCookie.value = localeCode
+        
+        return localeCode
+      } catch (error) {
+        console.warn('[Auth] Could not sync language locale:', error)
+        return 'en'
+      }
+    },
+
     getTokensFromCookies() {
       try {
         const accessTokenCookie = useCookie('homassy_access_token')
@@ -333,8 +366,9 @@ export const useAuthStore = defineStore('auth', {
 
     /**
      * Get current user info
+     * @param syncLocale - If false, skips locale synchronization (useful when locale was just set manually)
      */
-    async fetchCurrentUser() {
+    async fetchCurrentUser(syncLocale: boolean = true) {
       const { accessToken } = this.getTokensFromCookies()
       if (!accessToken) return null
 
@@ -352,6 +386,10 @@ export const useAuthStore = defineStore('auth', {
 
         if (response.data) {
           this.user = response.data
+          // Sync language locale and cookie only if requested
+          if (syncLocale && response.data.language) {
+            this.syncLanguageLocale(response.data.language)
+          }
         }
 
         return response.data
@@ -370,6 +408,11 @@ export const useAuthStore = defineStore('auth', {
       this.refreshToken = authData.refreshToken
       this.accessTokenExpiresAt = authData.accessTokenExpiresAt
       this.refreshTokenExpiresAt = authData.refreshTokenExpiresAt
+
+      // Sync language locale and cookie
+      if (authData.user.language) {
+        this.syncLanguageLocale(authData.user.language)
+      }
 
       // Save to cookies
       this.saveToCookies()
@@ -502,8 +545,8 @@ export const useAuthStore = defineStore('auth', {
 
           console.debug(`[Auth] Loaded tokens, isAuthenticated: ${!!this.accessToken && !!this.user}`)
 
-          // If tokens exist but user is missing, attempt recovery once
-          if (!this.user) {
+          // If tokens exist but user is missing, attempt recovery once (only on client side)
+          if (!this.user && import.meta.client) {
             // Clear corrupted user cookie to avoid future parse errors
             userCookie.value = null
             try {
@@ -511,11 +554,8 @@ export const useAuthStore = defineStore('auth', {
               const fetched = await this.fetchCurrentUser()
               if (fetched) {
                 this.user = fetched
-                // Only save to cookies on client side (not during SSR)
-                if (import.meta.client) {
-                  this.saveToCookies()
-                  console.debug('[Auth] User recovered and saved')
-                }
+                this.saveToCookies()
+                console.debug('[Auth] User recovered and saved')
               }
             } catch (e) {
               console.error('User recovery after cookie parse failed', e)

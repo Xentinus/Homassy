@@ -50,6 +50,8 @@ export interface ActivityInfo {
   activityTypeName: string
   recordId: number
   recordName: string
+  unit?: number
+  quantity?: number
 }
 
 /**

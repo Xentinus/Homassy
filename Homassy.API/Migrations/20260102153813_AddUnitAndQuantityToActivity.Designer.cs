@@ -3,6 +3,7 @@ using System;
 using Homassy.API.Context;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
@@ -11,9 +12,11 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace Homassy.API.Migrations
 {
     [DbContext(typeof(HomassyDbContext))]
-    partial class HomassyDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260102153813_AddUnitAndQuantityToActivity")]
+    partial class AddUnitAndQuantityToActivity
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder

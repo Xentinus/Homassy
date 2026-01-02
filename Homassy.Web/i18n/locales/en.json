@@ -92,6 +92,7 @@
     "products": {
       "title": "Products",
       "description": "Manage your household products and inventory.",
+      "addProductButton": "Add Product",
       "noResults": "No products found. Try adjusting your search criteria.",
       "filters": {
         "all": "Show all",

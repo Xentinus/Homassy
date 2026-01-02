@@ -92,6 +92,7 @@
     "products": {
       "title": "Produkte",
       "description": "Verwalten Sie Ihre Haushaltsprodukte und Ihr Inventar.",
+      "addProductButton": "Produkt hinzufügen",
       "noResults": "Keine Produkte gefunden. Versuchen Sie, Ihre Suchkriterien anzupassen.",
       "filters": {
         "all": "Alle anzeigen",

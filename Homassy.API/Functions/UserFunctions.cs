@@ -973,6 +973,8 @@ namespace Homassy.API.Functions
                         Enums.ActivityType.FamilyJoin,
                         family.Id,
                         family.Name,
+                        null,
+                        null,
                         cancellationToken
                     );
                 }
@@ -1047,6 +1049,8 @@ namespace Homassy.API.Functions
                             Enums.ActivityType.FamilyLeave,
                             familyIdToLog.Value,
                             familyName,
+                            null,
+                            null,
                             cancellationToken
                         );
                     }

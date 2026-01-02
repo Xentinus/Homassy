@@ -13,5 +13,7 @@ namespace Homassy.API.Models.Activity
         public string ActivityTypeName { get; init; } = string.Empty;
         public int RecordId { get; init; }
         public string RecordName { get; init; } = string.Empty;
+        public Unit? Unit { get; init; }
+        public decimal? Quantity { get; init; }
     }
 }

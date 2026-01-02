@@ -92,6 +92,7 @@
     "products": {
       "title": "Termékek",
       "description": "Kezeld a háztartási termékeidet és készletedet.",
+      "addProductButton": "Termék hozzáadása",
       "noResults": "Nem található termék. Próbálj meg más keresési feltételeket használni.",
       "filters": {
         "all": "Mind",

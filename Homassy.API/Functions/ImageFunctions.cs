@@ -83,6 +83,8 @@ namespace Homassy.API.Functions
                         Enums.ActivityType.ProductPhotoUpload,
                         product.Id,
                         product.Name,
+                        null,
+                        null,
                         cancellationToken
                     );
                 }
@@ -152,6 +154,8 @@ namespace Homassy.API.Functions
                         Enums.ActivityType.ProductPhotoDelete,
                         product.Id,
                         product.Name,
+                        null,
+                        null,
                         cancellationToken
                     );
                 }

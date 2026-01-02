@@ -12,9 +12,24 @@ export default defineNuxtPlugin({
     const authStore = useAuthStore()
     const localeCookie = useCookie('homassy_locale')
 
+    // Map language codes to locale codes
+    const localeMap: Record<string, string> = {
+      'English': 'en',
+      'Hungarian': 'hu',
+      'German': 'de'
+    }
+
+    // Helper to convert language string to locale code
+    const getLocaleCode = (language: string): string => {
+      return localeMap[language] || language.toLowerCase().substring(0, 2) || 'en'
+    }
+
     // Helper to set locale and persist to cookie
-    const setLocale = (locale: string) => {
-      if ($i18n.locale.value !== locale) {
+    const setLocale = (localeOrLanguage: string) => {
+      // Convert language name to locale code if needed
+      const locale = localeMap[localeOrLanguage] || localeOrLanguage
+      
+      if ($i18n.locale.value !== locale && ['en', 'hu', 'de'].includes(locale)) {
         $i18n.setLocale(locale)
         localeCookie.value = locale
       }
@@ -22,25 +37,34 @@ export default defineNuxtPlugin({
 
     // Initial locale setup
     if (import.meta.server) {
-      // SSR: Set locale from user preference or cookie
-      if (authStore.user?.language) {
-        setLocale(authStore.user.language)
-      } else if (localeCookie.value) {
+      // SSR: Set locale from cookie first, then user preference
+      if (localeCookie.value && ['en', 'hu', 'de'].includes(localeCookie.value)) {
         setLocale(localeCookie.value)
+      } else if (authStore.user?.language) {
+        const localeCode = getLocaleCode(authStore.user.language)
+        setLocale(localeCode)
       }
       // Otherwise use browser detection (handled by i18n module)
     }
 
     if (import.meta.client) {
-      // Client: Watch for user language changes
+      // Client: Set initial locale from cookie or user preference
+      if (authStore.user?.language) {
+        const localeCode = getLocaleCode(authStore.user.language)
+        setLocale(localeCode)
+      } else if (localeCookie.value) {
+        setLocale(localeCookie.value)
+      }
+
+      // Watch for user language changes
       watch(
         () => authStore.user?.language,
         (newLanguage) => {
           if (newLanguage) {
-            setLocale(newLanguage)
+            const localeCode = getLocaleCode(newLanguage)
+            setLocale(localeCode)
           }
-        },
-        { immediate: true }
+        }
       )
 
       // Watch for logout (user becomes null)

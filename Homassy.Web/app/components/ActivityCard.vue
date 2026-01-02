@@ -51,12 +51,19 @@
           {{ activity.recordName }}
         </p>
       </div>
+
+      <!-- Quantity and unit (if available) -->
+      <div v-if="activity.quantity !== undefined && activity.quantity !== null && activity.unit !== undefined && activity.unit !== null" class="flex items-center gap-2">
+        <UIcon name="i-lucide-scale" class="h-4 w-4 text-gray-400" />
+        <p class="text-sm text-gray-700 dark:text-gray-300">
+          {{ formatQuantity(activity.quantity) }} {{ $t(`enums.unit.${activity.unit}`) }}
+        </p>
+      </div>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue'
 import type { ActivityInfo } from '~/types/activity'
 import type { UserInfo } from '~/types/user'
 import { ActivityType } from '~/types/activity'
@@ -93,6 +100,11 @@ const formatTimestamp = (timestamp: string): string => {
   if (diffDays < 7) return $t('time.daysAgo', { count: diffDays })
 
   return date.toLocaleDateString()
+}
+
+// Format quantity: show integers without decimals, otherwise max 2 decimal places
+const formatQuantity = (quantity: number): string => {
+  return Number.isInteger(quantity) ? quantity.toString() : quantity.toFixed(2)
 }
 
 // Get icon based on activity type

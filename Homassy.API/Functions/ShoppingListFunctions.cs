@@ -481,6 +481,8 @@ namespace Homassy.API.Functions
                         Enums.ActivityType.ShoppingListCreate,
                         shoppingList.Id,
                         shoppingList.Name,
+                        null,
+                        null,
                         cancellationToken
                     );
                 }
@@ -594,6 +596,8 @@ namespace Homassy.API.Functions
                             Enums.ActivityType.ShoppingListUpdate,
                             trackedList.Id,
                             trackedList.Name,
+                            null,
+                            null,
                             cancellationToken
                         );
                     }
@@ -671,6 +675,8 @@ namespace Homassy.API.Functions
                         Enums.ActivityType.ShoppingListDelete,
                         shoppingList.Id,
                         shoppingList.Name,
+                        null,
+                        null,
                         cancellationToken
                     );
                 }
@@ -780,6 +786,8 @@ namespace Homassy.API.Functions
                         Enums.ActivityType.ShoppingListItemAdd,
                         shoppingListItem.Id,
                         $"{shoppingList.Name} - {itemName}",
+                        null,
+                        null,
                         cancellationToken
                     );
                 }
@@ -950,6 +958,8 @@ namespace Homassy.API.Functions
                             Enums.ActivityType.ShoppingListItemUpdate,
                             trackedItem.Id,
                             $"{shoppingList.Name} - {itemName}",
+                            null,
+                            null,
                             cancellationToken
                         );
                     }
@@ -1044,6 +1054,8 @@ namespace Homassy.API.Functions
                         Enums.ActivityType.ShoppingListItemDelete,
                         shoppingListItem.Id,
                         $"{shoppingList.Name} - {itemName}",
+                        null,
+                        null,
                         cancellationToken
                     );
                 }
@@ -1178,6 +1190,8 @@ namespace Homassy.API.Functions
                         Enums.ActivityType.ShoppingListItemPurchase,
                         shoppingListItem.Id,
                         $"{shoppingList.Name} - {product.Name}",
+                        null,
+                        null,
                         cancellationToken
                     );
                 }
@@ -1321,6 +1335,8 @@ namespace Homassy.API.Functions
                             Enums.ActivityType.ShoppingListItemAdd,
                             sli.Id,
                             $"{shoppingList.Name} - {itemName}",
+                            null,
+                            null,
                             cancellationToken
                         );
                     }
@@ -1419,6 +1435,8 @@ namespace Homassy.API.Functions
                             Enums.ActivityType.ShoppingListItemDelete,
                             shoppingListItem.Id,
                             $"{shoppingList.Name} - {itemName}",
+                            null,
+                            null,
                             cancellationToken
                         );
                     }
@@ -1560,6 +1578,8 @@ namespace Homassy.API.Functions
                             Enums.ActivityType.ShoppingListItemPurchase,
                             shoppingListItem.Id,
                             $"{shoppingList.Name} - {product.Name}",
+                            null,
+                            null,
                             cancellationToken
                         );
                     }

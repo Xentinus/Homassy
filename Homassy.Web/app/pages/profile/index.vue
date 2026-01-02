@@ -143,6 +143,8 @@ const authStore = useAuthStore()
 const { uploadProfilePicture, deleteProfilePicture, getUserProfile } = useUserApi()
 const { leaveFamily } = useFamilyApi()
 const router = useRouter()
+const { t, setLocale } = useI18n()
+const colorMode = useColorMode()
 
 const userProfile = ref<any>(null)
 const loading = ref(true)
@@ -152,6 +154,11 @@ async function fetchUserProfile() {
   try {
     const res = await getUserProfile()
     userProfile.value = res.data
+    // Sync language locale and cookie
+    if (res.data?.language) {
+      const localeCode = authStore.syncLanguageLocale(res.data.language)
+      await setLocale(localeCode)
+    }
   } catch {
     userProfile.value = null
   }
@@ -193,8 +200,6 @@ const secondaryName = computed(() =>
 )
 
 // Color mode
-const { t } = useI18n()
-const colorMode = useColorMode()
 const colorModeText = computed(() =>
   colorMode.value === 'dark' ? t('profile.lightMode') : t('profile.darkMode')
 )

@@ -105,6 +105,7 @@ import type { UpdateUserSettingsRequest } from '~/types/user'
 import { languageCodeToEnum, currencyCodeToEnum, timeZoneIdToEnum } from '~/utils/enumMappers'
 
 const { setLocale } = useI18n()
+const router = useRouter()
 
 definePageMeta({ layout: 'auth', middleware: 'auth' })
 
@@ -182,14 +183,15 @@ async function saveSettings() {
     }
 
     await updateUserSettings(payload)
-    await authStore.fetchCurrentUser()
+    
+    // Update locale immediately based on the selected language
+    const localeCode = authStore.syncLanguageLocale(formData.value.language)
+    await setLocale(localeCode as 'en' | 'hu' | 'de')
+    
+    // Fetch updated user data but don't sync locale (we just did it manually)
+    await authStore.fetchCurrentUser(false)
 
-    // Update locale immediately for instant UI feedback
-    if (authStore.user?.language) {
-      await setLocale(authStore.user.language)
-    }
-
-    useRouter().push('/profile')
+    router.push('/profile')
   } catch (error) {
     console.error('Failed to update settings:', error)
   } finally {

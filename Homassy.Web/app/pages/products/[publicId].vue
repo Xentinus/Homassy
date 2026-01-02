@@ -120,7 +120,7 @@
               </div>
 
               <!-- Action Buttons -->
-              <div class="flex gap-2 justify-end md:absolute md:top-4 md:right-4">
+              <div class="flex gap-2 justify-end md:absolute md:top-6 md:right-6">
                 <UButton
                   :label="$t('common.edit')"
                   icon="i-lucide-pencil"

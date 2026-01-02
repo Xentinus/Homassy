@@ -7,6 +7,7 @@ export default defineNuxtRouteMiddleware(async (to) => {
 
   console.debug(`[Middleware] Checking auth for route: ${to.path}`)
   console.debug(`[Middleware] isAuthenticated before restore: ${authStore.isAuthenticated}`)
+  console.debug(`[Middleware] Running in: ${import.meta.server ? 'SSR' : 'Client'}`)
 
   // Attempt to restore session from cookies if needed
   if (!authStore.isAuthenticated) {
@@ -17,7 +18,18 @@ export default defineNuxtRouteMiddleware(async (to) => {
   console.debug(`[Middleware] isAuthenticated after restore: ${authStore.isAuthenticated}`)
   console.debug(`[Middleware] hasTokens: ${!!authStore.accessToken && !!authStore.refreshToken}`)
 
-  // If tokens exist but user missing, try to recover once (SSR-safe)
+  // SSR: Allow if tokens exist (user will be loaded on client side)
+  if (import.meta.server) {
+    if (authStore.accessToken && authStore.refreshToken) {
+      console.debug('[Middleware] SSR: Tokens exist, allowing access')
+      return
+    } else {
+      console.debug('[Middleware] SSR: No tokens, redirecting to login')
+      return navigateTo('/auth/login')
+    }
+  }
+
+  // Client-side: If tokens exist but user missing, try to recover once
   if (!authStore.isAuthenticated && authStore.accessToken && authStore.refreshToken) {
     console.debug('[Middleware] Attempting token-based recovery...')
     try {

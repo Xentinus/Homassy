@@ -569,6 +569,8 @@ namespace Homassy.API.Functions
                         Enums.ActivityType.ProductCreate,
                         product.Id,
                         product.Name,
+                        null,
+                        null,
                         cancellationToken
                     );
                 }
@@ -678,6 +680,8 @@ namespace Homassy.API.Functions
                             Enums.ActivityType.ProductUpdate,
                             product.Id,
                             product.Name,
+                            null,
+                            null,
                             cancellationToken
                         );
                     }
@@ -747,6 +751,8 @@ namespace Homassy.API.Functions
                         Enums.ActivityType.ProductDelete,
                         product.Id,
                         product.Name,
+                        null,
+                        null,
                         cancellationToken
                     );
                 }
@@ -1081,7 +1087,9 @@ namespace Homassy.API.Functions
                         familyId,
                         Enums.ActivityType.ProductInventoryCreate,
                         inventoryItem.Id,
-                        $"{product.Name} - {inventoryItem.CurrentQuantity} {inventoryItem.Unit}",
+                        product.Name,
+                        inventoryItem.Unit,
+                        inventoryItem.CurrentQuantity,
                         cancellationToken
                     );
                 }
@@ -1160,7 +1168,9 @@ namespace Homassy.API.Functions
                         familyId,
                         Enums.ActivityType.ProductInventoryCreate,
                         inventoryItem.Id,
-                        $"{product.Name} - {inventoryItem.CurrentQuantity} {inventoryItem.Unit}",
+                        product.Name,
+                        inventoryItem.Unit,
+                        inventoryItem.CurrentQuantity,
                         cancellationToken
                     );
                 }
@@ -1342,7 +1352,9 @@ namespace Homassy.API.Functions
                             familyId,
                             Enums.ActivityType.ProductInventoryUpdate,
                             trackedItem.Id,
-                            $"{product?.Name ?? "Unknown"} - {trackedItem.CurrentQuantity} {trackedItem.Unit}",
+                            product?.Name ?? "Unknown",
+                            trackedItem.Unit,
+                            trackedItem.CurrentQuantity,
                             cancellationToken
                         );
                     }
@@ -1441,7 +1453,9 @@ namespace Homassy.API.Functions
                         familyId,
                         Enums.ActivityType.ProductInventoryDelete,
                         inventoryItem.Id,
-                        $"{product?.Name ?? "Unknown"} - {inventoryItem.CurrentQuantity} {inventoryItem.Unit}",
+                        product?.Name ?? "Unknown",
+                        inventoryItem.Unit,
+                        inventoryItem.CurrentQuantity,
                         cancellationToken
                     );
                 }
@@ -1534,7 +1548,9 @@ namespace Homassy.API.Functions
                         familyId,
                         Enums.ActivityType.ProductInventoryDecrease,
                         trackedItem.Id,
-                        $"{product?.Name ?? "Unknown"} - {request.Quantity} {trackedItem.Unit}",
+                        product?.Name ?? "Unknown",
+                        trackedItem.Unit,
+                        request.Quantity,
                         cancellationToken
                     );
                 }
@@ -1814,7 +1830,9 @@ namespace Homassy.API.Functions
                             familyId,
                             Enums.ActivityType.ProductInventoryDelete,
                             inventoryItem.Id,
-                            $"{product?.Name ?? "Unknown"} - {inventoryItem.CurrentQuantity} {inventoryItem.Unit}",
+                            product?.Name ?? "Unknown",
+                            inventoryItem.Unit,
+                            inventoryItem.CurrentQuantity,
                             cancellationToken
                         );
                     }
@@ -1920,7 +1938,9 @@ namespace Homassy.API.Functions
                             familyId,
                             Enums.ActivityType.ProductInventoryDecrease,
                             trackedItem.Id,
-                            $"{product?.Name ?? "Unknown"} - {itemRequest.Quantity} {trackedItem.Unit}",
+                            product?.Name ?? "Unknown",
+                            trackedItem.Unit,
+                            itemRequest.Quantity,
                             cancellationToken
                         );
                     }

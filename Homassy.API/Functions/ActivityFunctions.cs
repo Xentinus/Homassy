@@ -86,6 +86,8 @@ namespace Homassy.API.Functions
             ActivityType activityType,
             int recordId,
             string recordName,
+            Unit? unit = null,
+            decimal? quantity = null,
             CancellationToken cancellationToken = default)
         {
             try
@@ -99,7 +101,9 @@ namespace Homassy.API.Functions
                     Timestamp = DateTime.UtcNow,
                     ActivityType = activityType,
                     RecordId = recordId,
-                    RecordName = recordName
+                    RecordName = recordName,
+                    Unit = unit,
+                    Quantity = quantity
                 };
 
                 context.Activities.Add(activity);
@@ -193,7 +197,9 @@ namespace Homassy.API.Functions
                     ActivityType = a.ActivityType,
                     ActivityTypeName = GetActivityTypeName(a.ActivityType),
                     RecordId = a.RecordId,
-                    RecordName = a.RecordName  // Using cached name from Activity table
+                    RecordName = a.RecordName,  // Using cached name from Activity table
+                    Unit = a.Unit,
+                    Quantity = a.Quantity
                 };
             }).ToList();
 

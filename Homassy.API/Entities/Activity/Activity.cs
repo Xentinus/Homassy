@@ -19,5 +19,10 @@ namespace Homassy.API.Entities.Activity
 
         [StringLength(256)]
         public string RecordName { get; set; } = string.Empty;
+
+        [EnumDataType(typeof(Unit))]
+        public Unit? Unit { get; set; }
+
+        public decimal? Quantity { get; set; }
     }
 }

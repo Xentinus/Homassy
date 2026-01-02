@@ -210,6 +210,8 @@ namespace Homassy.API.Functions
                         Enums.ActivityType.FamilyCreate,
                         family.Id,
                         family.Name,
+                        null,
+                        null,
                         cancellationToken
                     );
                 }
