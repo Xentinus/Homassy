@@ -147,6 +147,7 @@
             <UInput
               v-model="editForm.customName"
               type="text"
+              class="w-full"
             />
           </div>
 
@@ -160,6 +161,7 @@
               type="number"
               :min="0.001"
               step="0.1"
+              class="w-full"
             />
           </div>
 
@@ -184,6 +186,7 @@
             <UTextarea
               v-model="editForm.note"
               :placeholder="$t('common.note')"
+              class="w-full"
             />
           </div>
 
@@ -351,6 +354,8 @@
 import { ref, computed } from 'vue'
 import type { ShoppingListItemInfo } from '../types/shoppingList'
 import { Unit } from '../types/enums'
+import type { CalendarDate } from '@internationalized/date'
+import { CalendarDate as CalendarDateClass } from '@internationalized/date'
 
 interface Props {
   item: ShoppingListItemInfo
@@ -384,8 +389,8 @@ const editForm = ref<{
   quantity: number | null
   unit: number | null
   note: string | null
-  dueAt: Date | null
-  deadlineAt: Date | null
+  dueAt: CalendarDate | null
+  deadlineAt: CalendarDate | null
 }>({
   customName: null,
   quantity: null,
@@ -537,13 +542,26 @@ const handleRestorePurchase = async () => {
 
 // Edit modal methods
 const openEditModal = () => {
+  // Convert ISO strings to CalendarDate
+  let dueDate: CalendarDate | null = null
+  if (props.item.dueAt) {
+    const date = new Date(props.item.dueAt)
+    dueDate = new CalendarDateClass(date.getFullYear(), date.getMonth() + 1, date.getDate())
+  }
+
+  let deadlineDate: CalendarDate | null = null
+  if (props.item.deadlineAt) {
+    const date = new Date(props.item.deadlineAt)
+    deadlineDate = new CalendarDateClass(date.getFullYear(), date.getMonth() + 1, date.getDate())
+  }
+
   editForm.value = {
     customName: props.item.customName || null,
     quantity: props.item.quantity,
     unit: props.item.unit,
     note: props.item.note || null,
-    dueAt: props.item.dueAt ? new Date(props.item.dueAt) : null,
-    deadlineAt: props.item.deadlineAt ? new Date(props.item.deadlineAt) : null
+    dueAt: dueDate,
+    deadlineAt: deadlineDate
   }
   isEditModalOpen.value = true
 }
@@ -555,12 +573,27 @@ const closeEditModal = () => {
 const handleUpdate = async () => {
   isUpdating.value = true
   try {
+    // Convert CalendarDate to ISO string for API
+    let dueAtString: string | undefined = undefined
+    if (editForm.value.dueAt) {
+      const date = editForm.value.dueAt
+      const localDate = new Date(date.year, date.month - 1, date.day, 12, 0, 0)
+      dueAtString = localDate.toISOString()
+    }
+
+    let deadlineAtString: string | undefined = undefined
+    if (editForm.value.deadlineAt) {
+      const date = editForm.value.deadlineAt
+      const localDate = new Date(date.year, date.month - 1, date.day, 12, 0, 0)
+      deadlineAtString = localDate.toISOString()
+    }
+
     const updateData = {
       quantity: editForm.value.quantity ?? undefined,
       unit: editForm.value.unit ?? undefined,
       note: editForm.value.note || undefined,
-      dueAt: editForm.value.dueAt ? new Date(editForm.value.dueAt).toISOString() : undefined,
-      deadlineAt: editForm.value.deadlineAt ? new Date(editForm.value.deadlineAt).toISOString() : undefined,
+      dueAt: dueAtString,
+      deadlineAt: deadlineAtString,
       customName: !props.item.product ? (editForm.value.customName || undefined) : undefined
     }
 

@@ -24,7 +24,7 @@ namespace Homassy.API.Functions
                 .ToListAsync(cancellationToken);
 
             var shoppingListItems = await context.ShoppingListItems
-                .Where(w => !w.PurchasedAt.HasValue || w.PurchasedAt >= DateTime.UtcNow.Date.AddDays(-1))
+                .Where(w => !w.PurchasedAt.HasValue || w.PurchasedAt >= DateTime.UtcNow.Date.AddDays(-7))
                 .ToListAsync(cancellationToken);
 
             try
@@ -286,26 +286,26 @@ namespace Homassy.API.Functions
 
         public List<ShoppingListItem> GetShoppingListItemsByShoppingListId(int shoppingListId, bool includePurchased = false)
         {
-            var yesterday = DateTime.UtcNow.Date.AddDays(-1);
+            var oneWeekAgo = DateTime.UtcNow.Date.AddDays(-7);
 
             if (Inited)
             {
                 return _shoppingListItemCache.Values
                     .Where(sli => sli.ShoppingListId == shoppingListId &&
-                                  (includePurchased || !sli.PurchasedAt.HasValue || sli.PurchasedAt >= yesterday))
+                                  (includePurchased || !sli.PurchasedAt.HasValue || sli.PurchasedAt >= oneWeekAgo))
                     .ToList();
             }
 
             var context = new HomassyDbContext();
             return context.ShoppingListItems
                 .Where(sli => sli.ShoppingListId == shoppingListId &&
-                              (includePurchased || !sli.PurchasedAt.HasValue || sli.PurchasedAt >= yesterday))
+                              (includePurchased || !sli.PurchasedAt.HasValue || sli.PurchasedAt >= oneWeekAgo))
                 .ToList();
         }
 
         public List<ShoppingListItem> GetShoppingListItemsByFamilyId(int familyId)
         {
-            var yesterday = DateTime.UtcNow.Date.AddDays(-1);
+            var oneWeekAgo = DateTime.UtcNow.Date.AddDays(-7);
 
             // ShoppingListItem doesn't have FamilyId directly, need to filter through ShoppingList
             var shoppingListIds = GetShoppingListsByUserAndFamily(0, familyId)
@@ -317,20 +317,20 @@ namespace Homassy.API.Functions
             {
                 return _shoppingListItemCache.Values
                     .Where(sli => shoppingListIds.Contains(sli.ShoppingListId) &&
-                                  (!sli.PurchasedAt.HasValue || sli.PurchasedAt >= yesterday))
+                                  (!sli.PurchasedAt.HasValue || sli.PurchasedAt >= oneWeekAgo))
                     .ToList();
             }
 
             var context = new HomassyDbContext();
             return context.ShoppingListItems
                 .Where(sli => shoppingListIds.Contains(sli.ShoppingListId) &&
-                              (!sli.PurchasedAt.HasValue || sli.PurchasedAt >= yesterday))
+                              (!sli.PurchasedAt.HasValue || sli.PurchasedAt >= oneWeekAgo))
                 .ToList();
         }
 
         public List<ShoppingListItem> GetShoppingListItemsByUserId(int userId)
         {
-            var yesterday = DateTime.UtcNow.Date.AddDays(-1);
+            var oneWeekAgo = DateTime.UtcNow.Date.AddDays(-7);
 
             // ShoppingListItem doesn't have UserId directly, need to filter through ShoppingList
             var shoppingListIds = GetShoppingListsByUserAndFamily(userId, null)
@@ -342,14 +342,14 @@ namespace Homassy.API.Functions
             {
                 return _shoppingListItemCache.Values
                     .Where(sli => shoppingListIds.Contains(sli.ShoppingListId) &&
-                                  (!sli.PurchasedAt.HasValue || sli.PurchasedAt >= yesterday))
+                                  (!sli.PurchasedAt.HasValue || sli.PurchasedAt >= oneWeekAgo))
                     .ToList();
             }
 
             var context = new HomassyDbContext();
             return context.ShoppingListItems
                 .Where(sli => shoppingListIds.Contains(sli.ShoppingListId) &&
-                              (!sli.PurchasedAt.HasValue || sli.PurchasedAt >= yesterday))
+                              (!sli.PurchasedAt.HasValue || sli.PurchasedAt >= oneWeekAgo))
                 .ToList();
         }
         #endregion

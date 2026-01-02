@@ -24,7 +24,10 @@
     "familyActivity": "Családi tevékenység",
     "deadline": "Határidő",
     "due": "Esedékes",
-    "purchased": "Megvásárolva"
+    "purchased": "Megvásárolva",
+    "unit": "Mértékegység",
+    "note": "Megjegyzés",
+    "dueDate": "Esedékesség"
   },
   "auth": {
     "login": "Bejelentkezés",

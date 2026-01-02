@@ -23,7 +23,10 @@
     "familyActivity": "Family activity",
     "deadline": "Deadline",
     "due": "Due",
-    "purchased": "Purchased"
+    "purchased": "Purchased",
+    "unit": "Unit",
+    "note": "Note",
+    "dueDate": "Due Date"
   },
   "auth": {
     "login": "Login",

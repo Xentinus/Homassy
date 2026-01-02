@@ -23,7 +23,10 @@
     "familyActivity": "Familienaktivität",
     "deadline": "Frist",
     "due": "Fällig",
-    "purchased": "Gekauft"
+    "purchased": "Gekauft",
+    "unit": "Einheit",
+    "note": "Notiz",
+    "dueDate": "Fälligkeitsdatum"
   },
   "auth": {
     "login": "Anmelden",
