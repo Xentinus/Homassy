@@ -406,7 +406,10 @@
       "code": "Einladungscode: {code}",
       "codeLabel": "Einladungscode",
       "nameLabel": "Familienname",
-      "descriptionLabel": "Beschreibung"
+      "descriptionLabel": "Beschreibung",
+      "noFamily": "Sie sind noch nicht Teil einer Familie.",
+      "createFamilyCard": "Erstellen Sie eine neue Familie und laden Sie Mitglieder ein",
+      "joinFamilyCard": "Treten Sie einer bestehenden Familie mit einem Code bei"
     },
     "notifications": {
       "title": "Benachrichtigungen",

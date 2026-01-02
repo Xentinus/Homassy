@@ -406,7 +406,10 @@
       "code": "Meghívó kód: {code}",
       "codeLabel": "Meghívó kód",
       "nameLabel": "Család neve",
-      "descriptionLabel": "Leírás"
+      "descriptionLabel": "Leírás",
+      "noFamily": "Még nem vagy tagja egy családnak sem.",
+      "createFamilyCard": "Hozz létre egy új családot és hívj meg tagokat",
+      "joinFamilyCard": "Csatlakozz egy meglévő családhoz kóddal"
     },
     "notifications": {
       "title": "Értesítések",

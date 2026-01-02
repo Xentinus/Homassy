@@ -46,29 +46,53 @@
         </UButton>
       </div>
     </div>
-    <div v-else class="text-center text-gray-500 dark:text-gray-400 py-10">
-      {{ $t('profile.family.noFamily') }}
+    <div v-else class="space-y-6">
+      <!-- Create Family Card -->
+      <NuxtLink to="/profile/create-family">
+        <div class="rounded-lg border border-primary-200/50 dark:border-primary-700/50 p-4 relative hover:border-primary-300 dark:hover:border-primary-700 transition-colors cursor-pointer flex items-center gap-3 h-full">
+          <UIcon name="i-lucide-plus-circle" class="h-7 w-7 text-primary-500 mr-2" />
+          <div>
+            <h2 class="text-base font-semibold mb-1">{{ $t('profile.family.create') }}</h2>
+            <div class="text-xs text-gray-500 dark:text-gray-400">{{ $t('profile.family.createFamilyCard') }}</div>
+          </div>
+          <UIcon name="i-lucide-chevron-right" class="absolute top-3 right-3 text-gray-400" />
+        </div>
+      </NuxtLink>
+
+      <!-- Join Family Card -->
+      <NuxtLink to="/profile/join-family">
+        <div class="rounded-lg border border-primary-200/50 dark:border-primary-700/50 p-4 relative hover:border-primary-300 dark:hover:border-primary-700 transition-colors cursor-pointer flex items-center gap-3 h-full mt-6">
+          <UIcon name="i-lucide-user-plus" class="h-7 w-7 text-primary-500 mr-2" />
+          <div>
+            <h2 class="text-base font-semibold mb-1">{{ $t('profile.family.join') }}</h2>
+            <div class="text-xs text-gray-500 dark:text-gray-400">{{ $t('profile.family.joinFamilyCard') }}</div>
+          </div>
+          <UIcon name="i-lucide-chevron-right" class="absolute top-3 right-3 text-gray-400" />
+        </div>
+      </NuxtLink>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
-definePageMeta({ layout: 'auth', middleware: 'auth' })
 import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useFamilyApi } from '~/composables/api/useFamilyApi'
+import type { FamilyDetailsResponse } from '~/types/family'
+
+definePageMeta({ layout: 'auth', middleware: 'auth' })
 
 const { getFamily, leaveFamily } = useFamilyApi()
 const router = useRouter()
 
-const family = ref<any>(null)
+const family = ref<FamilyDetailsResponse | null>(null)
 const loading = ref(true)
 
 async function fetchFamily() {
   loading.value = true
   try {
     const res = await getFamily()
-    family.value = res.data
+    family.value = res.data ?? null
   } catch {
     family.value = null
   } finally {

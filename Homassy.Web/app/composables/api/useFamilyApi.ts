@@ -18,7 +18,9 @@ export const useFamilyApi = () => {
    * Get current family information
    */
   const getFamily = async () => {
-    return await client.get<FamilyDetailsResponse>('/api/v1/Family')
+    return await client.get<FamilyDetailsResponse>('/api/v1/Family', {
+      showErrorToast: false
+    })
   }
 
   /**
