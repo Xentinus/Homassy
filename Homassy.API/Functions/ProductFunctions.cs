@@ -559,6 +559,24 @@ namespace Homassy.API.Functions
 
                 await transaction.CommitAsync(cancellationToken);
 
+                // Record activity
+                try
+                {
+                    var familyId = SessionInfo.GetFamilyId();
+                    await new ActivityFunctions().RecordActivityAsync(
+                        userId.Value,
+                        familyId,
+                        Enums.ActivityType.ProductCreate,
+                        product.Id,
+                        product.Name,
+                        cancellationToken
+                    );
+                }
+                catch (Exception ex)
+                {
+                    Log.Error(ex, $"Failed to record ProductCreate activity for product {product.Name}");
+                }
+
                 return new ProductInfo
                 {
                     PublicId = product.PublicId,
@@ -648,6 +666,27 @@ namespace Homassy.API.Functions
 
                 await transaction.CommitAsync(cancellationToken);
 
+                // Record activity only if changes were made
+                if (hasChanges)
+                {
+                    try
+                    {
+                        var familyId = SessionInfo.GetFamilyId();
+                        await new ActivityFunctions().RecordActivityAsync(
+                            userId.Value,
+                            familyId,
+                            Enums.ActivityType.ProductUpdate,
+                            product.Id,
+                            product.Name,
+                            cancellationToken
+                        );
+                    }
+                    catch (Exception ex)
+                    {
+                        Log.Error(ex, $"Failed to record ProductUpdate activity for product {product.Name}");
+                    }
+                }
+
                 var customization = GetCustomizationByProductAndUser(product.Id, userId.Value);
 
                 return new ProductInfo
@@ -697,6 +736,24 @@ namespace Homassy.API.Functions
 
                 Log.Information($"User {userId} deleted product {product.Id} (PublicId: {product.PublicId})");
                 await transaction.CommitAsync(cancellationToken);
+
+                // Record activity
+                try
+                {
+                    var familyId = SessionInfo.GetFamilyId();
+                    await new ActivityFunctions().RecordActivityAsync(
+                        userId.Value,
+                        familyId,
+                        Enums.ActivityType.ProductDelete,
+                        product.Id,
+                        product.Name,
+                        cancellationToken
+                    );
+                }
+                catch (Exception ex)
+                {
+                    Log.Error(ex, $"Failed to record ProductDelete activity for product {product.Name}");
+                }
             }
             catch (Exception ex)
             {
@@ -1016,6 +1073,23 @@ namespace Homassy.API.Functions
 
                 Log.Information($"User {userId} created inventory item {inventoryItem.Id} (PublicId: {inventoryItem.PublicId}) for product {product.Id}");
 
+                // Record activity
+                try
+                {
+                    await new ActivityFunctions().RecordActivityAsync(
+                        userId.Value,
+                        familyId,
+                        Enums.ActivityType.ProductInventoryCreate,
+                        inventoryItem.Id,
+                        $"{product.Name} - {inventoryItem.CurrentQuantity} {inventoryItem.Unit}",
+                        cancellationToken
+                    );
+                }
+                catch (Exception ex)
+                {
+                    Log.Error(ex, $"Failed to record ProductInventoryCreate activity for inventory item {inventoryItem.PublicId}");
+                }
+
                 return new InventoryItemInfo
                 {
                     PublicId = inventoryItem.PublicId,
@@ -1077,6 +1151,23 @@ namespace Homassy.API.Functions
                 await transaction.CommitAsync(cancellationToken);
 
                 Log.Information($"User {userId} quick-added inventory item {inventoryItem.Id} (PublicId: {inventoryItem.PublicId}) for product {product.Id}");
+
+                // Record activity
+                try
+                {
+                    await new ActivityFunctions().RecordActivityAsync(
+                        userId.Value,
+                        familyId,
+                        Enums.ActivityType.ProductInventoryCreate,
+                        inventoryItem.Id,
+                        $"{product.Name} - {inventoryItem.CurrentQuantity} {inventoryItem.Unit}",
+                        cancellationToken
+                    );
+                }
+                catch (Exception ex)
+                {
+                    Log.Error(ex, $"Failed to record ProductInventoryCreate activity for inventory item {inventoryItem.PublicId}");
+                }
 
                 return new InventoryItemInfo
                 {
@@ -1240,6 +1331,27 @@ namespace Homassy.API.Functions
 
                 await transaction.CommitAsync(cancellationToken);
 
+                // Record activity only if changes were made
+                if (hasChanges)
+                {
+                    try
+                    {
+                        var product = GetProductById(trackedItem.ProductId);
+                        await new ActivityFunctions().RecordActivityAsync(
+                            userId.Value,
+                            familyId,
+                            Enums.ActivityType.ProductInventoryUpdate,
+                            trackedItem.Id,
+                            $"{product?.Name ?? "Unknown"} - {trackedItem.CurrentQuantity} {trackedItem.Unit}",
+                            cancellationToken
+                        );
+                    }
+                    catch (Exception ex)
+                    {
+                        Log.Error(ex, $"Failed to record ProductInventoryUpdate activity for inventory item {trackedItem.PublicId}");
+                    }
+                }
+
                 var consumptionLogs = GetConsumptionLogsByInventoryItemId(trackedItem.Id);
 
                 return new InventoryItemInfo
@@ -1319,6 +1431,24 @@ namespace Homassy.API.Functions
                 await transaction.CommitAsync(cancellationToken);
 
                 Log.Information($"User {userId} deleted inventory item {inventoryItem.Id} (PublicId: {inventoryItem.PublicId})");
+
+                // Record activity
+                try
+                {
+                    var product = GetProductById(inventoryItem.ProductId);
+                    await new ActivityFunctions().RecordActivityAsync(
+                        userId.Value,
+                        familyId,
+                        Enums.ActivityType.ProductInventoryDelete,
+                        inventoryItem.Id,
+                        $"{product?.Name ?? "Unknown"} - {inventoryItem.CurrentQuantity} {inventoryItem.Unit}",
+                        cancellationToken
+                    );
+                }
+                catch (Exception ex)
+                {
+                    Log.Error(ex, $"Failed to record ProductInventoryDelete activity for inventory item {inventoryItem.PublicId}");
+                }
             }
             catch (Exception ex)
             {
@@ -1394,6 +1524,24 @@ namespace Homassy.API.Functions
                 await transaction.CommitAsync(cancellationToken);
 
                 Log.Information($"User {userId} consumed {request.Quantity} from inventory item {trackedItem.Id} (PublicId: {trackedItem.PublicId}), remaining: {remainingQuantity}");
+
+                // Record activity
+                try
+                {
+                    var product = GetProductById(trackedItem.ProductId);
+                    await new ActivityFunctions().RecordActivityAsync(
+                        userId.Value,
+                        familyId,
+                        Enums.ActivityType.ProductInventoryDecrease,
+                        trackedItem.Id,
+                        $"{product?.Name ?? "Unknown"} - {request.Quantity} {trackedItem.Unit}",
+                        cancellationToken
+                    );
+                }
+                catch (Exception ex)
+                {
+                    Log.Error(ex, $"Failed to record ProductInventoryDecrease activity for inventory item {trackedItem.PublicId}");
+                }
 
                 var purchaseInfo = GetPurchaseInfoByInventoryItemId(trackedItem.Id);
                 var consumptionLogs = GetConsumptionLogsByInventoryItemId(trackedItem.Id);
@@ -1656,6 +1804,24 @@ namespace Homassy.API.Functions
 
                     trackedItem.DeleteRecord(userId.Value);
                     context.ProductInventoryItems.Update(trackedItem);
+
+                    // Record activity for each deleted item
+                    try
+                    {
+                        var product = GetProductById(inventoryItem.ProductId);
+                        await new ActivityFunctions().RecordActivityAsync(
+                            userId.Value,
+                            familyId,
+                            Enums.ActivityType.ProductInventoryDelete,
+                            inventoryItem.Id,
+                            $"{product?.Name ?? "Unknown"} - {inventoryItem.CurrentQuantity} {inventoryItem.Unit}",
+                            cancellationToken
+                        );
+                    }
+                    catch (Exception ex)
+                    {
+                        Log.Error(ex, $"Failed to record ProductInventoryDelete activity for inventory item {inventoryItem.PublicId}");
+                    }
                 }
 
                 await context.SaveChangesAsync(cancellationToken);
@@ -1743,6 +1909,24 @@ namespace Homassy.API.Functions
                     {
                         trackedItem.IsFullyConsumed = true;
                         trackedItem.FullyConsumedAt = DateTime.UtcNow;
+                    }
+
+                    // Record activity for each consumed item
+                    try
+                    {
+                        var product = GetProductById(trackedItem.ProductId);
+                        await new ActivityFunctions().RecordActivityAsync(
+                            userId.Value,
+                            familyId,
+                            Enums.ActivityType.ProductInventoryDecrease,
+                            trackedItem.Id,
+                            $"{product?.Name ?? "Unknown"} - {itemRequest.Quantity} {trackedItem.Unit}",
+                            cancellationToken
+                        );
+                    }
+                    catch (Exception ex)
+                    {
+                        Log.Error(ex, $"Failed to record ProductInventoryDecrease activity for inventory item {trackedItem.PublicId}");
                     }
 
                     var purchaseInfo = GetPurchaseInfoByInventoryItemId(trackedItem.Id);

@@ -73,6 +73,24 @@ namespace Homassy.API.Functions
 
                 Log.Information($"User {userId} uploaded image for product {product.Id} (PublicId: {product.PublicId})");
 
+                // Record activity
+                try
+                {
+                    var familyId = SessionInfo.GetFamilyId();
+                    await new ActivityFunctions().RecordActivityAsync(
+                        userId.Value,
+                        familyId,
+                        Enums.ActivityType.ProductPhotoUpload,
+                        product.Id,
+                        product.Name,
+                        cancellationToken
+                    );
+                }
+                catch (Exception ex)
+                {
+                    Log.Error(ex, $"Failed to record ProductPhotoUpload activity for product {product.Name}");
+                }
+
                 return new ProductImageInfo
                 {
                     ProductPublicId = product.PublicId,
@@ -123,6 +141,24 @@ namespace Homassy.API.Functions
                 await transaction.CommitAsync(cancellationToken);
 
                 Log.Information($"User {userId} deleted image for product {product.Id} (PublicId: {product.PublicId})");
+
+                // Record activity
+                try
+                {
+                    var familyId = SessionInfo.GetFamilyId();
+                    await new ActivityFunctions().RecordActivityAsync(
+                        userId.Value,
+                        familyId,
+                        Enums.ActivityType.ProductPhotoDelete,
+                        product.Id,
+                        product.Name,
+                        cancellationToken
+                    );
+                }
+                catch (Exception ex)
+                {
+                    Log.Error(ex, $"Failed to record ProductPhotoDelete activity for product {product.Name}");
+                }
             }
             catch (Exception ex)
             {

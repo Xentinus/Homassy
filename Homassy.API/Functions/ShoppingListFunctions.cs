@@ -472,6 +472,23 @@ namespace Homassy.API.Functions
 
                 Log.Information($"User {userId.Value} created shopping list {shoppingList.Id} (PublicId: {shoppingList.PublicId}), shared with family: {request.IsSharedWithFamily}");
 
+                // Record activity
+                try
+                {
+                    await new ActivityFunctions().RecordActivityAsync(
+                        userId.Value,
+                        familyId,
+                        Enums.ActivityType.ShoppingListCreate,
+                        shoppingList.Id,
+                        shoppingList.Name,
+                        cancellationToken
+                    );
+                }
+                catch (Exception ex)
+                {
+                    Log.Error(ex, $"Failed to record ShoppingListCreate activity for shopping list {shoppingList.Name}");
+                }
+
                 return new ShoppingListInfo
                 {
                     PublicId = shoppingList.PublicId,
@@ -566,6 +583,26 @@ namespace Homassy.API.Functions
 
                 await transaction.CommitAsync(cancellationToken);
 
+                // Record activity only if changes were made
+                if (hasChanges)
+                {
+                    try
+                    {
+                        await new ActivityFunctions().RecordActivityAsync(
+                            userId.Value,
+                            familyId,
+                            Enums.ActivityType.ShoppingListUpdate,
+                            trackedList.Id,
+                            trackedList.Name,
+                            cancellationToken
+                        );
+                    }
+                    catch (Exception ex)
+                    {
+                        Log.Error(ex, $"Failed to record ShoppingListUpdate activity for shopping list {trackedList.Name}");
+                    }
+                }
+
                 return new ShoppingListInfo
                 {
                     PublicId = trackedList.PublicId,
@@ -624,6 +661,23 @@ namespace Homassy.API.Functions
                 await transaction.CommitAsync(cancellationToken);
 
                 Log.Information($"User {userId.Value} deleted shopping list {shoppingList.Id} (PublicId: {shoppingList.PublicId})");
+
+                // Record activity
+                try
+                {
+                    await new ActivityFunctions().RecordActivityAsync(
+                        userId.Value,
+                        familyId,
+                        Enums.ActivityType.ShoppingListDelete,
+                        shoppingList.Id,
+                        shoppingList.Name,
+                        cancellationToken
+                    );
+                }
+                catch (Exception ex)
+                {
+                    Log.Error(ex, $"Failed to record ShoppingListDelete activity for shopping list {shoppingList.Name}");
+                }
             }
             catch (Exception ex)
             {
@@ -712,6 +766,27 @@ namespace Homassy.API.Functions
                 await transaction.CommitAsync(cancellationToken);
 
                 Log.Information($"User {userId.Value} created shopping list item {shoppingListItem.Id} (PublicId: {shoppingListItem.PublicId}) in shopping list {shoppingList.Id}");
+
+                // Record activity
+                try
+                {
+                    var itemName = !string.IsNullOrWhiteSpace(shoppingListItem.CustomName) 
+                        ? shoppingListItem.CustomName 
+                        : (productId.HasValue ? productFunctions.GetProductById(productId.Value)?.Name : null) ?? "Unknown";
+                    
+                    await new ActivityFunctions().RecordActivityAsync(
+                        userId.Value,
+                        familyId,
+                        Enums.ActivityType.ShoppingListItemAdd,
+                        shoppingListItem.Id,
+                        $"{shoppingList.Name} - {itemName}",
+                        cancellationToken
+                    );
+                }
+                catch (Exception ex)
+                {
+                    Log.Error(ex, $"Failed to record ShoppingListItemAdd activity for shopping list item {shoppingListItem.PublicId}");
+                }
 
                 return new ShoppingListItemInfo
                 {
@@ -860,6 +935,30 @@ namespace Homassy.API.Functions
 
                 await transaction.CommitAsync(cancellationToken);
 
+                // Record activity only if changes were made
+                if (hasChanges)
+                {
+                    try
+                    {
+                        var itemName = !string.IsNullOrWhiteSpace(trackedItem.CustomName) 
+                            ? trackedItem.CustomName 
+                            : (trackedItem.ProductId.HasValue ? productFunctions.GetProductById(trackedItem.ProductId.Value)?.Name : null) ?? "Unknown";
+                        
+                        await new ActivityFunctions().RecordActivityAsync(
+                            userId.Value,
+                            familyId,
+                            Enums.ActivityType.ShoppingListItemUpdate,
+                            trackedItem.Id,
+                            $"{shoppingList.Name} - {itemName}",
+                            cancellationToken
+                        );
+                    }
+                    catch (Exception ex)
+                    {
+                        Log.Error(ex, $"Failed to record ShoppingListItemUpdate activity for shopping list item {trackedItem.PublicId}");
+                    }
+                }
+
                 return new ShoppingListItemInfo
                 {
                     PublicId = trackedItem.PublicId,
@@ -930,6 +1029,28 @@ namespace Homassy.API.Functions
                 await transaction.CommitAsync(cancellationToken);
 
                 Log.Information($"User {userId.Value} deleted shopping list item {shoppingListItem.Id} (PublicId: {shoppingListItem.PublicId})");
+
+                // Record activity
+                try
+                {
+                    var productFunctions = new ProductFunctions();
+                    var itemName = !string.IsNullOrWhiteSpace(shoppingListItem.CustomName) 
+                        ? shoppingListItem.CustomName 
+                        : (shoppingListItem.ProductId.HasValue ? productFunctions.GetProductById(shoppingListItem.ProductId.Value)?.Name : null) ?? "Unknown";
+                    
+                    await new ActivityFunctions().RecordActivityAsync(
+                        userId.Value,
+                        familyId,
+                        Enums.ActivityType.ShoppingListItemDelete,
+                        shoppingListItem.Id,
+                        $"{shoppingList.Name} - {itemName}",
+                        cancellationToken
+                    );
+                }
+                catch (Exception ex)
+                {
+                    Log.Error(ex, $"Failed to record ShoppingListItemDelete activity for shopping list item {shoppingListItem.PublicId}");
+                }
             }
             catch (Exception ex)
             {
@@ -1047,6 +1168,23 @@ namespace Homassy.API.Functions
                 await transaction.CommitAsync(cancellationToken);
 
                 Log.Information($"User {userId} quick purchased shopping list item {shoppingListItem.Id} (PublicId: {shoppingListItem.PublicId}) and created inventory item {inventoryItem.Id} (PublicId: {inventoryItem.PublicId})");
+
+                // Record activity
+                try
+                {
+                    await new ActivityFunctions().RecordActivityAsync(
+                        userId.Value,
+                        familyId,
+                        Enums.ActivityType.ShoppingListItemPurchase,
+                        shoppingListItem.Id,
+                        $"{shoppingList.Name} - {product.Name}",
+                        cancellationToken
+                    );
+                }
+                catch (Exception ex)
+                {
+                    Log.Error(ex, $"Failed to record ShoppingListItemPurchase activity for shopping list item {shoppingListItem.PublicId}");
+                }
 
                 var shoppingListItemInfo = new ShoppingListItemInfo
                 {
@@ -1168,6 +1306,30 @@ namespace Homassy.API.Functions
 
                 Log.Information($"User {userId.Value} created {createdItems.Count} shopping list items in shopping list {shoppingList.Id}");
 
+                // Record activity for each created item
+                foreach (var sli in createdItems)
+                {
+                    try
+                    {
+                        var itemName = !string.IsNullOrWhiteSpace(sli.CustomName) 
+                            ? sli.CustomName 
+                            : (sli.ProductId.HasValue ? productFunctions.GetProductById(sli.ProductId.Value)?.Name : null) ?? "Unknown";
+                        
+                        await new ActivityFunctions().RecordActivityAsync(
+                            userId.Value,
+                            familyId,
+                            Enums.ActivityType.ShoppingListItemAdd,
+                            sli.Id,
+                            $"{shoppingList.Name} - {itemName}",
+                            cancellationToken
+                        );
+                    }
+                    catch (Exception ex)
+                    {
+                        Log.Error(ex, $"Failed to record ShoppingListItemAdd activity for shopping list item {sli.PublicId}");
+                    }
+                }
+
                 return createdItems.Select(sli => new ShoppingListItemInfo
                 {
                     PublicId = sli.PublicId,
@@ -1206,6 +1368,7 @@ namespace Homassy.API.Functions
             }
 
             var familyId = SessionInfo.GetFamilyId();
+            var productFunctions = new ProductFunctions();
 
             var context = new HomassyDbContext();
             await using var transaction = await context.Database.BeginTransactionAsync(cancellationToken);
@@ -1242,6 +1405,27 @@ namespace Homassy.API.Functions
 
                     trackedItem.DeleteRecord(userId.Value);
                     context.ShoppingListItems.Update(trackedItem);
+
+                    // Record activity for each deleted item
+                    try
+                    {
+                        var itemName = !string.IsNullOrWhiteSpace(shoppingListItem.CustomName) 
+                            ? shoppingListItem.CustomName 
+                            : (shoppingListItem.ProductId.HasValue ? productFunctions.GetProductById(shoppingListItem.ProductId.Value)?.Name : null) ?? "Unknown";
+                        
+                        await new ActivityFunctions().RecordActivityAsync(
+                            userId.Value,
+                            familyId,
+                            Enums.ActivityType.ShoppingListItemDelete,
+                            shoppingListItem.Id,
+                            $"{shoppingList.Name} - {itemName}",
+                            cancellationToken
+                        );
+                    }
+                    catch (Exception ex)
+                    {
+                        Log.Error(ex, $"Failed to record ShoppingListItemDelete activity for shopping list item {shoppingListItem.PublicId}");
+                    }
                 }
 
                 await context.SaveChangesAsync(cancellationToken);
@@ -1365,6 +1549,23 @@ namespace Homassy.API.Functions
                         };
 
                         context.ProductPurchaseInfos.Add(purchaseInfo);
+                    }
+
+                    // Record activity for each purchased item
+                    try
+                    {
+                        await new ActivityFunctions().RecordActivityAsync(
+                            userId.Value,
+                            familyId,
+                            Enums.ActivityType.ShoppingListItemPurchase,
+                            shoppingListItem.Id,
+                            $"{shoppingList.Name} - {product.Name}",
+                            cancellationToken
+                        );
+                    }
+                    catch (Exception ex)
+                    {
+                        Log.Error(ex, $"Failed to record ShoppingListItemPurchase activity for shopping list item {shoppingListItem.PublicId}");
                     }
 
                     results.Add(new ShoppingListItemInfo

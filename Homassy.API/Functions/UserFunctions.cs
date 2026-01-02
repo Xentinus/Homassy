@@ -1037,20 +1037,23 @@ namespace Homassy.API.Functions
                 Log.Information($"User {userId.Value} left family {familyIdToLog}");
 
                 // Record activity with cached family name
-                try
+                if (familyIdToLog.HasValue)
                 {
-                    await new ActivityFunctions().RecordActivityAsync(
-                        userId.Value,
-                        familyIdToLog,
-                        Enums.ActivityType.FamilyLeave,
-                        familyIdToLog.Value,
-                        familyName,
-                        cancellationToken
-                    );
-                }
-                catch (Exception ex)
-                {
-                    Log.Error(ex, "Failed to record FamilyLeave activity");
+                    try
+                    {
+                        await new ActivityFunctions().RecordActivityAsync(
+                            userId.Value,
+                            familyIdToLog,
+                            Enums.ActivityType.FamilyLeave,
+                            familyIdToLog.Value,
+                            familyName,
+                            cancellationToken
+                        );
+                    }
+                    catch (Exception ex)
+                    {
+                        Log.Error(ex, "Failed to record FamilyLeave activity");
+                    }
                 }
             }
             catch (Exception ex)
