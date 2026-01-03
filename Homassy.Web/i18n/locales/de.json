@@ -68,7 +68,7 @@
   },
   "nav": {
     "home": "Startseite",
-    "products": "Produkte",
+    "products": "Lagerbestand",
     "shoppingLists": "Einkaufslisten",
     "activity": "Aktivitäten",
     "profile": "Profil"
@@ -110,7 +110,7 @@
       }
     },
     "products": {
-      "title": "Produkte",
+      "title": "Lagerbestand",
       "description": "Verwalten Sie Ihre Haushaltsprodukte und Ihr Inventar.",
       "addProductButton": "Produkt hinzufügen",
       "noResults": "Keine Produkte gefunden. Versuchen Sie, Ihre Suchkriterien anzupassen.",

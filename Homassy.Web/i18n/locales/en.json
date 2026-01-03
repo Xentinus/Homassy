@@ -68,7 +68,7 @@
   },
   "nav": {
     "home": "Home",
-    "products": "Products",
+    "products": "Inventory",
     "shoppingLists": "Shopping Lists",
     "activity": "Activities",
     "profile": "Profile"
@@ -110,7 +110,7 @@
       }
     },
     "products": {
-      "title": "Products",
+      "title": "Inventory",
       "description": "Manage your household products and inventory.",
       "addProductButton": "Add Product",
       "noResults": "No products found. Try adjusting your search criteria.",

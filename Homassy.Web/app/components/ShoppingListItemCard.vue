@@ -11,7 +11,7 @@
           :src="`data:image/jpeg;base64,${item.product.productPictureBase64}`"
           :alt="displayName"
           class="w-20 h-20 md:w-24 md:h-24 object-contain rounded-lg cursor-pointer hover:opacity-90 transition-opacity"
-          @click="isImageOverlayOpen = true"
+          @click.stop="isImageOverlayOpen = true"
         >
       </div>
       <div v-else class="flex-shrink-0 w-20 h-20 md:w-24 md:h-24 bg-gray-100 dark:bg-gray-700 rounded-lg flex items-center justify-center">
@@ -337,7 +337,7 @@
       <div
         v-if="isImageOverlayOpen && item.product?.productPictureBase64"
         class="fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-4 cursor-pointer"
-        @click="isImageOverlayOpen = false"
+        @click.stop="isImageOverlayOpen = false"
         @keydown.esc="isImageOverlayOpen = false"
       >
         <img

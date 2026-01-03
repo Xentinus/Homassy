@@ -68,7 +68,7 @@
   },
   "nav": {
     "home": "Kezdőlap",
-    "products": "Termékek",
+    "products": "Készletek",
     "shoppingLists": "Bevásárlólisták",
     "activity": "Tevékenységek",
     "profile": "Profil"
@@ -110,7 +110,7 @@
       }
     },
     "products": {
-      "title": "Termékek",
+      "title": "Készletek",
       "description": "Kezeld a háztartási termékeidet és készletedet.",
       "addProductButton": "Termék hozzáadása",
       "noResults": "Nem található termék. Próbálj meg más keresési feltételeket használni.",
