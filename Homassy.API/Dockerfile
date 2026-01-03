@@ -23,6 +23,8 @@ RUN dotnet publish "./Homassy.API.csproj" -c $BUILD_CONFIGURATION -o /app/publis
 
 # This stage is used in production or when running from VS in regular mode (Default when not using the Debug configuration)
 FROM base AS final
+# Install curl for healthcheck
+RUN apt-get update && apt-get install -y curl && rm -rf /var/lib/apt/lists/*
 WORKDIR /app
 COPY --from=publish /app/publish .
 ENTRYPOINT ["dotnet", "Homassy.API.dll"]

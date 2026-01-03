@@ -1,7 +1,13 @@
 services:
+  postgres:
+    environment:
+      - POSTGRES_DB=${POSTGRES_DB}
+      - POSTGRES_USER=${POSTGRES_USER}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+
   homassy.api:
     environment:
-      - ConnectionStrings__DefaultConnection=${DB_CONNECTION_STRING}
+      - ConnectionStrings__DefaultConnection=${DB_CONNECTION_STRING_DOCKER}
       - Jwt__SecretKey=${JWT_SECRET_KEY}
       - Jwt__Issuer=Homassy.API
       - Jwt__Audience=Homassy.Client
@@ -10,6 +16,11 @@ services:
       - Cors__AllowedOrigins__0=http://localhost:3000
       - Logging__LogLevel__Default=Information
       - Logging__LogLevel__Microsoft.AspNetCore=Warning
+      - POSTGRES_DB=${POSTGRES_DB}
+      - POSTGRES_USER=${POSTGRES_USER}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+      - DATABASE_HOST=${DATABASE_HOST}
+      - DATABASE_PORT=${DATABASE_PORT}
 
   homassy.web:
     environment:

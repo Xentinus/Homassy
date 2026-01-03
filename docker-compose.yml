@@ -1,6 +1,40 @@
 name: homassy
 
 services:
+  postgres:
+    container_name: homassy-postgres
+    image: postgres:16
+    ports:
+      - "5432:5432"
+    environment:
+      - POSTGRES_DB=${POSTGRES_DB}
+      - POSTGRES_USER=${POSTGRES_USER}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    networks:
+      - homassy-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  homassy.migrator:
+    container_name: homassy-migrator
+    image: ${DOCKER_REGISTRY-}homassymigrator
+    build:
+      context: .
+      dockerfile: Homassy.Migrator/Dockerfile
+    environment:
+      - ConnectionStrings__DefaultConnection=Host=${DATABASE_HOST};Port=${DATABASE_PORT};Database=${POSTGRES_DB};Username=${POSTGRES_USER};Password=${POSTGRES_PASSWORD}
+    networks:
+      - homassy-network
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: "no"
+
   homassy.api:
     container_name: homassy-api
     image: ${DOCKER_REGISTRY-}homassyapi
@@ -13,8 +47,25 @@ services:
       - ASPNETCORE_ENVIRONMENT=Development
       - ASPNETCORE_HTTP_PORTS=8080
       - ASPNETCORE_URLS=http://+:8080
+      - ConnectionStrings__DefaultConnection=Host=${DATABASE_HOST};Port=${DATABASE_PORT};Database=${POSTGRES_DB};Username=${POSTGRES_USER};Password=${POSTGRES_PASSWORD}
+      - DATABASE_HOST=${DATABASE_HOST}
+      - DATABASE_PORT=${DATABASE_PORT}
+      - POSTGRES_DB=${POSTGRES_DB}
+      - POSTGRES_USER=${POSTGRES_USER}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
     networks:
       - homassy-network
+    depends_on:
+      postgres:
+        condition: service_healthy
+      homassy.migrator:
+        condition: service_completed_successfully
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/api/v1.0/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
 
   homassy.web:
     container_name: homassy-web
@@ -34,8 +85,15 @@ services:
     networks:
       - homassy-network
     depends_on:
-      - homassy.api
+      postgres:
+        condition: service_healthy
+      homassy.api:
+        condition: service_healthy
 
 networks:
   homassy-network:
     driver: bridge
+
+volumes:
+  postgres-data:
+    driver: local
