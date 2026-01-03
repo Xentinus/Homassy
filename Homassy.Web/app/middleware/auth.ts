@@ -18,27 +18,51 @@ export default defineNuxtRouteMiddleware(async (to) => {
   console.debug(`[Middleware] isAuthenticated after restore: ${authStore.isAuthenticated}`)
   console.debug(`[Middleware] hasTokens: ${!!authStore.accessToken && !!authStore.refreshToken}`)
 
-  // SSR: Allow if tokens exist (user will be loaded on client side)
+  // SSR: Validate tokens exist, but don't assume they're valid
   if (import.meta.server) {
-    if (authStore.accessToken && authStore.refreshToken) {
-      console.debug('[Middleware] SSR: Tokens exist, allowing access')
-      return
-    } else {
+    const hasTokens = authStore.accessToken && authStore.refreshToken
+    console.debug(`[Middleware] SSR: hasTokens=${hasTokens}`)
+    
+    if (!hasTokens) {
       console.debug('[Middleware] SSR: No tokens, redirecting to login')
       return navigateTo('/auth/login')
     }
+    
+    // Allow SSR to render, but client will validate tokens
+    // If tokens are invalid, client-side will catch and redirect
+    console.debug('[Middleware] SSR: Tokens exist, allowing render (client will validate)')
+    return
   }
 
-  // Client-side: If tokens exist but user missing, try to recover once
-  if (!authStore.isAuthenticated && authStore.accessToken && authStore.refreshToken) {
-    console.debug('[Middleware] Attempting token-based recovery...')
-    try {
-      // First, refresh the access token in case it's expired
-      console.debug('[Middleware] Refreshing access token...')
-      await authStore.refreshAccessToken()
-      console.debug('[Middleware] Token refreshed successfully')
-    } catch (e) {
-      console.error('[Middleware] Token refresh failed:', e)
+  // Client-side: Validate tokens and recover user data
+  if (import.meta.client) {
+    const hasTokens = authStore.accessToken && authStore.refreshToken
+    const hasUser = !!authStore.user
+    
+    console.debug(`[Middleware] Client: hasTokens=${hasTokens}, hasUser=${hasUser}`)
+    
+    if (hasTokens && !hasUser) {
+      // Tokens exist but no user - attempt recovery
+      console.debug('[Middleware] Attempting token-based recovery...')
+      try {
+        await authStore.refreshAccessToken()
+        console.debug('[Middleware] Token refreshed successfully')
+        
+        // Double-check authentication after refresh
+        if (!authStore.isAuthenticated) {
+          console.error('[Middleware] Still not authenticated after refresh')
+          authStore.clearAuthData()
+          return navigateTo('/auth/login')
+        }
+      } catch (e) {
+        console.error('[Middleware] Token refresh failed, clearing auth and redirecting:', e)
+        // Immediate clear - don't wait for async logout
+        authStore.clearAuthData()
+        return navigateTo('/auth/login')
+      }
+    } else if (!hasTokens) {
+      // No tokens at all
+      console.debug('[Middleware] No tokens found, redirecting to login')
       authStore.clearAuthData()
       return navigateTo('/auth/login')
     }

@@ -76,7 +76,12 @@ export default defineNuxtPlugin(() => {
 
       // Handle 401 errors (except for logout and refresh endpoints)
       if (isUnauthorized && !isLogout && !isRefresh) {
+        console.error('[API] 401 Unauthorized - handling token refresh/logout')
         const authStore = useAuthStore()
+
+        // Check current location to prevent redirect loops
+        const isOnLoginPage = typeof window !== 'undefined' && 
+                              window.location.pathname.startsWith('/auth/')
 
         // Check if we have a refresh token to attempt refresh
         const refreshTokenCookie = useCookie('homassy_refresh_token')
@@ -84,27 +89,39 @@ export default defineNuxtPlugin(() => {
 
         // If this is the first attempt and we have a refresh token, try to refresh
         if (!alreadyRetried && hasRefreshToken) {
+          console.debug('[API] Attempting token refresh after 401')
           try {
-            // Attempt token refresh (this is guarded and will call logout if refresh fails)
+            // Attempt token refresh
             await authStore.refreshAccessToken()
+            console.debug('[API] Token refresh successful, retrying request')
 
             // Retry the original request with refreshed token
             const retryOptions = { ...options, _retried: true }
             return await rawApi<T>(request, retryOptions)
           } catch (refreshError) {
-            // Refresh failed - clear cookies and navigate to login
+            console.error('[API] Token refresh failed after 401:', refreshError)
+            
+            // Refresh failed - clear auth data immediately
             authStore.clearAuthData()
-            if (typeof window !== 'undefined' && !window.location.pathname.startsWith('/auth/login')) {
-              navigateTo('/auth/login')
+            
+            // Redirect to login if not already there
+            if (!isOnLoginPage && typeof window !== 'undefined') {
+              console.debug('[API] Redirecting to login after failed refresh')
+              await navigateTo('/auth/login')
             }
+            
             throw refreshError
           }
         }
 
-        // No refresh token or already retried - clear auth data and navigate to login
+        // No refresh token or already retried - clear auth data immediately
+        console.debug('[API] No refresh token or already retried, clearing auth')
         authStore.clearAuthData()
-        if (typeof window !== 'undefined' && !window.location.pathname.startsWith('/auth/login')) {
-          navigateTo('/auth/login')
+        
+        // Redirect to login if not already there
+        if (!isOnLoginPage && typeof window !== 'undefined') {
+          console.debug('[API] Redirecting to login (no retry)')
+          await navigateTo('/auth/login')
         }
       }
 

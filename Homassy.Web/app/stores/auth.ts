@@ -276,10 +276,20 @@ export const useAuthStore = defineStore('auth', {
 
           return response
         } catch (error) {
-          console.error('[Auth] Token refresh failed, initiating logout', error)
-          // Refresh failed - logout user
-          // This will be guarded, so only one logout happens even with multiple refresh failures
-          await this.logout()
+          console.error('[Auth] Token refresh failed:', error)
+          
+          // Check if this is a 401 (invalid refresh token) vs network error
+          const is401 = error?.response?.status === 401 || error?.statusCode === 401
+          
+          if (is401) {
+            console.error('[Auth] Refresh token is invalid (401), clearing immediately')
+            // Invalid refresh token - clear auth data immediately
+            this.clearAuthData()
+          } else {
+            console.error('[Auth] Token refresh network error, will retry later')
+            // Network error - don't clear, let retry logic handle it
+          }
+          
           throw error
         } finally {
           // Reset guard state
@@ -425,6 +435,8 @@ export const useAuthStore = defineStore('auth', {
      * Clear authentication data
      */
     clearAuthData() {
+      console.debug('[Auth] Clearing auth data and cookies')
+      
       this.user = null
       this.accessToken = null
       this.refreshToken = null
@@ -443,8 +455,16 @@ export const useAuthStore = defineStore('auth', {
       this.isRefreshing = false
       this.refreshPromise = null
 
-      // Clear cookies
+      // Clear cookies SYNCHRONOUSLY
       this.clearCookies()
+      
+      // Force a second clear to ensure cookies are gone
+      // This handles edge cases where first clear might not work
+      if (typeof window !== 'undefined') {
+        setTimeout(() => {
+          this.clearCookies()
+        }, 0)
+      }
     },
 
     /**

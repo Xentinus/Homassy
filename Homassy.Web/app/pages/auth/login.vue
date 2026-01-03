@@ -20,35 +20,31 @@ let cooldownInterval: ReturnType<typeof setInterval> | null = null
 
 // Check if user is already authenticated on mount
 onMounted(async () => {
+  console.debug('[Login] Checking existing authentication...')
+  
   // Load tokens from cookies if not already loaded
-  authStore.loadFromCookies()
+  await authStore.loadFromCookies()
 
-  // Explicit cookie check in try-catch
-  try {
-    // Check if cookies exist before attempting refresh
-    const { accessToken, refreshToken } = authStore.getTokensFromCookies()
-
-    if (accessToken && refreshToken) {
-      loading.value = true
-
-      // Attempt token refresh
-      await authStore.refreshAccessToken()
-
-      // If successful, cookies are already saved by refreshAccessToken()
-      // but we ensure navigation happens
+  // If already authenticated with valid user, redirect to activity
+  if (authStore.isAuthenticated) {
+    console.debug('[Login] User is authenticated, redirecting to activity')
+    loading.value = true
+    try {
       await router.push('/activity')
+    } finally {
+      loading.value = false
     }
-  } catch (error) {
-    console.error('[Login] Token refresh failed, clearing invalid cookies:', error)
-
-    // Clear only access and refresh token cookies (keep user data if exists)
-    authStore.clearCookies()
-
-    // Clear auth state
-    authStore.clearAuthData()
-  } finally {
-    loading.value = false
+    return
   }
+
+  // If tokens exist but no user, they're likely invalid - clear them
+  const { accessToken, refreshToken } = authStore.getTokensFromCookies()
+  if ((accessToken || refreshToken) && !authStore.user) {
+    console.debug('[Login] Tokens exist but no user - clearing invalid tokens')
+    authStore.clearAuthData()
+  }
+  
+  console.debug('[Login] Ready for login')
 })
 
 onBeforeUnmount(() => {
