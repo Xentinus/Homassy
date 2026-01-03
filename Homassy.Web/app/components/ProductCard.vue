@@ -383,6 +383,15 @@
         >
       </div>
     </Transition>
+
+    <!-- Image Cropper Modal -->
+    <ImageCropper
+      :is-open="isCropperOpen"
+      :image-src="cropperImageSrc"
+      :default-aspect-ratio="1"
+      @close="isCropperOpen = false"
+      @cropped="handleCroppedProductImage"
+    />
   </div>
 </template>
 
@@ -391,6 +400,9 @@ import type { ProductInfo } from '~/types/product'
 import type { OpenFoodFactsProduct } from '~/types/openFoodFacts'
 import { useProductsApi } from '~/composables/api/useProductsApi'
 import { useOpenFoodFactsApi } from '~/composables/api/useOpenFoodFactsApi'
+import ImageCropper from '~/components/ImageCropper.vue'
+import imageCompression from 'browser-image-compression'
+import { extractBase64 } from '~/composables/useImageCrop'
 
 interface Props {
   product: ProductInfo
@@ -419,6 +431,7 @@ const isEditModalOpen = ref(false)
 const isDeleteModalOpen = ref(false)
 const isImageOverlayOpen = ref(false)
 const isOpenFoodFactsModalOpen = ref(false)
+const isCropperOpen = ref(false)
 
 // Loading states
 const isUpdating = ref(false)
@@ -427,6 +440,9 @@ const isQueryingBarcode = ref(false)
 const isImageLoading = ref(true)
 const isUploadingImage = ref(false)
 const isDeletingImage = ref(false)
+
+// Cropper state
+const cropperImageSrc = ref('')
 const isImportingImageFromBarcode = ref(false)
 
 // Refs
@@ -487,36 +503,54 @@ const dropdownItems = computed(() => {
 const handleFileSelect = async (event: Event) => {
   const target = event.target as HTMLInputElement
   const file = target.files?.[0]
-  
+
   if (!file) return
-  
-  const productPublicId = props.product.publicId
+
+  // Read file as base64 and open cropper
+  const reader = new FileReader()
+  reader.onload = (e) => {
+    cropperImageSrc.value = e.target?.result as string
+    isCropperOpen.value = true
+  }
+  reader.readAsDataURL(file)
+
+  // Reset input
+  if (fileInput.value) {
+    fileInput.value.value = ''
+  }
+}
+
+const handleCroppedProductImage = async (base64: string) => {
+  isCropperOpen.value = false
   isUploadingImage.value = true
-  
+
   try {
+    // Compress
+    const blob = await fetch(base64).then(r => r.blob())
+    const compressed = await imageCompression(blob as File, {
+      maxWidthOrHeight: 500,
+      maxSizeMB: 0.5,
+      useWebWorker: true
+    })
+
+    // Convert and upload
     const reader = new FileReader()
-    reader.onload = async (e) => {
-      const base64 = e.target?.result as string
-      if (!base64) return
-      
-      const base64Data = base64.split(',')[1]
-      if (!base64Data) return
-      
-      await productsApi.uploadProductImage(productPublicId, {
-        productPublicId: productPublicId,
+    reader.onload = async () => {
+      const compressedBase64 = reader.result as string
+      const base64Data = extractBase64(compressedBase64)
+
+      await productsApi.uploadProductImage(props.product.publicId, {
+        productPublicId: props.product.publicId,
         imageBase64: base64Data
       })
-      
+
       emit('updated')
     }
-    reader.readAsDataURL(file)
+    reader.readAsDataURL(compressed)
   } catch (error) {
     console.error('Failed to upload image:', error)
   } finally {
     isUploadingImage.value = false
-    if (fileInput.value) {
-      fileInput.value.value = ''
-    }
   }
 }
 

@@ -47,9 +47,17 @@
           <UIcon name="i-lucide-upload" class="h-4 w-4 mr-2" />
           {{ $t('profile.uploadAvatar') }}
         </UButton>
-        <input ref="fileInput" type="file" accept="image/*" class="hidden" @change="onFileSelected">
       </template>
     </div>
+
+    <!-- Image Cropper Modal -->
+    <ImageCropper
+      :is-open="imageCropperOpen"
+      :image-src="cropperImageSrc"
+      :default-aspect-ratio="1"
+      @close="imageCropperOpen = false"
+      @cropped="handleCroppedImage"
+    />
 
     <!-- Action Buttons -->
     <div class="space-y-3">
@@ -170,6 +178,9 @@ import { useAuthStore } from '~/stores/auth'
 import { useUserApi } from '~/composables/api/useUserApi'
 import { useFamilyApi } from '~/composables/api/useFamilyApi'
 import { useRouter } from 'vue-router'
+import ImageCropper from '~/components/ImageCropper.vue'
+import imageCompression from 'browser-image-compression'
+import { extractBase64 } from '~/composables/useImageCrop'
 
 
 definePageMeta({ layout: 'auth', middleware: 'auth' })
@@ -184,6 +195,8 @@ const colorMode = useColorMode()
 
 const userProfile = ref<any>(null)
 const loading = ref(true)
+const imageCropperOpen = ref(false)
+const cropperImageSrc = ref('')
 
 async function fetchUserProfile() {
   loading.value = true
@@ -210,7 +223,6 @@ async function onLeaveFamily() {
   await fetchUserProfile()
 }
 
-const fileInput = ref<HTMLInputElement | null>(null)
 const hasAvatar = computed(() => !!userProfile.value?.profilePictureBase64)
 const avatarSrc = computed(() => {
   const b64 = userProfile.value?.profilePictureBase64
@@ -245,20 +257,50 @@ onMounted(() => {
 })
 
 function triggerFileSelect() {
-  fileInput.value?.click()
+  const input = document.createElement('input')
+  input.type = 'file'
+  input.accept = 'image/*'
+
+  input.onchange = (e: Event) => {
+    const file = (e.target as HTMLInputElement).files?.[0]
+    if (!file) return
+
+    const reader = new FileReader()
+    reader.onload = (event) => {
+      cropperImageSrc.value = event.target?.result as string
+      imageCropperOpen.value = true
+    }
+    reader.readAsDataURL(file)
+  }
+
+  input.click()
 }
 
-async function onFileSelected(event: Event) {
-  const input = event.target as HTMLInputElement
-  const file = input.files?.[0]
-  if (!file) return
+async function handleCroppedImage(base64: string) {
+  imageCropperOpen.value = false
 
-  const base64 = await readFileAsBase64(file)
-  const pureBase64 = base64.includes(',') ? base64.split(',')[1] : base64
+  try {
+    // Compress using browser-image-compression
+    const blob = await fetch(base64).then(r => r.blob())
+    const compressed = await imageCompression(blob as File, {
+      maxWidthOrHeight: 500,
+      maxSizeMB: 0.5,
+      useWebWorker: true
+    })
 
-  await uploadProfilePicture({ imageBase64: pureBase64 })
-  await fetchUserProfile()
-  input.value = ''
+    // Convert to base64
+    const reader = new FileReader()
+    reader.onload = async () => {
+      const compressedBase64 = reader.result as string
+      const pureBase64 = extractBase64(compressedBase64)
+
+      await uploadProfilePicture({ imageBase64: pureBase64 })
+      await fetchUserProfile()
+    }
+    reader.readAsDataURL(compressed)
+  } catch (error) {
+    console.error('Failed to process image:', error)
+  }
 }
 
 async function onDeleteAvatar() {
@@ -268,15 +310,6 @@ async function onDeleteAvatar() {
 
 async function onLogout() {
   await authStore.logout()
-}
-
-function readFileAsBase64(file: File): Promise<string> {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader()
-    reader.onload = () => resolve(reader.result as string)
-    reader.onerror = reject
-    reader.readAsDataURL(file)
-  })
 }
 
 function toggleColorMode() {

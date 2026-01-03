@@ -40,7 +40,19 @@
     "city": "Város",
     "postalCode": "Irányítószám",
     "country": "Ország",
-    "website": "Weboldal"
+    "website": "Weboldal",
+    "apply": "Alkalmaz"
+  },
+  "imageCropper": {
+    "title": "Kép vágása",
+    "description": "A kép vágási területének, nagyításának és forgatásának beállítása",
+    "instructions": "Húzd a képet az áthelyezéshez • Görgetés vagy csípés a zoomhoz • Húzd a sarkokat az átméretezéshez",
+    "aspectRatio": {
+      "square": "1:1",
+      "portrait": "4:3",
+      "landscape": "16:9",
+      "free": "Szabad"
+    }
   },
   "auth": {
     "login": "Bejelentkezés",

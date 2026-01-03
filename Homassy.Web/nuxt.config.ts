@@ -15,7 +15,10 @@ export default defineNuxtConfig({
     '@nuxtjs/i18n'
   ],
 
-  css: ['~/assets/css/main.css'],
+  css: [
+    '~/assets/css/main.css',
+    'vue-advanced-cropper/dist/style.css'
+  ],
 
   runtimeConfig: {
     public: {

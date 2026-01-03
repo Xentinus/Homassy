@@ -40,7 +40,19 @@
     "postalCode": "Postleitzahl",
     "country": "Land",
     "website": "Webseite",
-    "confirm": "Bestätigen"
+    "confirm": "Bestätigen",
+    "apply": "Anwenden"
+  },
+  "imageCropper": {
+    "title": "Bild zuschneiden",
+    "description": "Passen Sie den Zuschneidebereich, die Vergrößerung und die Drehung Ihres Bildes an",
+    "instructions": "Ziehen zum Verschieben • Scrollen oder Kneifen zum Zoomen • Ecken ziehen zum Ändern der Größe",
+    "aspectRatio": {
+      "square": "1:1",
+      "portrait": "4:3",
+      "landscape": "16:9",
+      "free": "Frei"
+    }
   },
   "auth": {
     "login": "Anmelden",

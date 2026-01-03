@@ -40,7 +40,19 @@
     "city": "City",
     "postalCode": "Postal Code",
     "country": "Country",
-    "website": "Website"
+    "website": "Website",
+    "apply": "Apply"
+  },
+  "imageCropper": {
+    "title": "Crop Image",
+    "description": "Adjust the crop area, zoom, and rotation of your image",
+    "instructions": "Drag to reposition • Pinch or scroll to zoom • Drag corners to resize",
+    "aspectRatio": {
+      "square": "1:1",
+      "portrait": "4:3",
+      "landscape": "16:9",
+      "free": "Free"
+    }
   },
   "auth": {
     "login": "Login",
