@@ -16,8 +16,7 @@ set -euo pipefail
 # =============================================================================
 
 readonly SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-readonly COMPOSE_FILE="docker-compose.yml"
-readonly COMPOSE_RELEASE_FILE="docker-compose.release.yml"
+readonly COMPOSE_FILE="docker-compose.production.yml"
 readonly ENV_FILE=".env"
 readonly SERVICES=("homassymigrator" "homassyapi" "homassyweb")
 readonly POSTGRES_IMAGE="postgres:16"
@@ -350,7 +349,6 @@ transfer_compose_files() {
 
     eval "$SCP_CMD \
         '$SCRIPT_DIR/$COMPOSE_FILE' \
-        '$SCRIPT_DIR/$COMPOSE_RELEASE_FILE' \
         '$RASPBERRY_PI_USER@$RASPBERRY_PI_HOST:$DEPLOY_PATH/'" || \
         error "Failed to transfer compose files"
 
@@ -363,9 +361,9 @@ transfer_env_file() {
     # Create a deployment-specific .env (filter out SSH credentials and update API base)
     local temp_env=$(mktemp)
 
-    # Filter out RASPBERRY_PI_ variables and update NUXT_PUBLIC_API_BASE
+    # Filter out RASPBERRY_PI_ variables and update NUXT_PUBLIC_API_BASE to production domain
     grep -v "^RASPBERRY_PI" "$SCRIPT_DIR/$ENV_FILE" | \
-        sed "s|NUXT_PUBLIC_API_BASE=.*|NUXT_PUBLIC_API_BASE=http://$RASPBERRY_PI_HOST:5226|g" > "$temp_env"
+        sed "s|NUXT_PUBLIC_API_BASE=.*|NUXT_PUBLIC_API_BASE=https://homassyapi.kellner.dev|g" > "$temp_env"
 
     eval "$SCP_CMD '$temp_env' '$RASPBERRY_PI_USER@$RASPBERRY_PI_HOST:$DEPLOY_PATH/.env'" || \
         error "Failed to transfer .env file"
@@ -460,9 +458,9 @@ You can also manually pull the image: ssh $RASPBERRY_PI_USER@$RASPBERRY_PI_HOST 
         log "PostgreSQL image already exists, skipping pull"
     fi
 
-    # Start services using both compose files
+    # Start services using production compose file
     log "Starting all services..."
-    eval "$SSH_CMD 'cd $DEPLOY_PATH && docker compose -f $COMPOSE_FILE -f $COMPOSE_RELEASE_FILE up -d'" || \
+    eval "$SSH_CMD 'cd $DEPLOY_PATH && docker compose -f $COMPOSE_FILE up -d'" || \
         error "Failed to start services"
 
     success "Services started"

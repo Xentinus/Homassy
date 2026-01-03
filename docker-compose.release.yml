@@ -13,4 +13,3 @@ services:
     environment:
       - NODE_ENV=production
     command: node .output/server/index.mjs
-    volumes: []  # Remove development volume mounts for production
