@@ -176,6 +176,8 @@
                 v-model="editForm.barcode"
                 type="text"
                 :placeholder="$t('pages.addProduct.form.barcodePlaceholder')"
+                inputmode="numeric"
+                pattern="[0-9]*"
                 class="flex-1"
               />
               <UButton
@@ -448,6 +450,13 @@ const editForm = ref<{
   barcode: '',
   isEatable: false,
   notes: ''
+})
+
+// Ensure barcode contains only numeric characters
+watch(() => editForm.value.barcode, (newValue) => {
+  if (newValue) {
+    editForm.value.barcode = newValue.replace(/\D/g, '')
+  }
 })
 
 // Dropdown menu items

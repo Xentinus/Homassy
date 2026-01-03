@@ -123,6 +123,8 @@
                       v-model="formData.barcode"
                       :placeholder="t('pages.addProduct.form.barcodePlaceholder')"
                       :disabled="isCreating"
+                      inputmode="numeric"
+                      pattern="[0-9]*"
                       class="flex-1"
                     />
                     <UButton
@@ -991,6 +993,13 @@ const createInventorySchema = z.object({
 })
 
 type CreateInventorySchema = z.output<typeof createInventorySchema>
+
+// Ensure barcode contains only numeric characters
+watch(() => formData.value.barcode, (newValue) => {
+  if (newValue) {
+    formData.value.barcode = newValue.replace(/\D/g, '')
+  }
+})
 
 // Watch search query with debounce
 watchDebounced(

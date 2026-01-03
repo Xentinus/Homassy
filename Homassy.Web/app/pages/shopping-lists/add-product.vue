@@ -40,7 +40,9 @@
               />
 
               <!-- Loading State -->
-              <div v-if="isSearching" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+              <div v-if="isSearching" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
+                <USkeleton class="h-32 w-full" />
+                <USkeleton class="h-32 w-full" />
                 <USkeleton class="h-32 w-full" />
                 <USkeleton class="h-32 w-full" />
                 <USkeleton class="h-32 w-full" />
@@ -66,7 +68,7 @@
               <!-- Results Grid -->
               <div
                 v-else
-                class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4"
+                class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4"
               >
                 <ProductCard
                   v-for="product in searchResults"
@@ -121,6 +123,8 @@
                       v-model="productFormData.barcode"
                       :placeholder="t('pages.addProduct.form.barcodePlaceholder')"
                       :disabled="isCreating"
+                      inputmode="numeric"
+                      pattern="[0-9]*"
                       class="flex-1"
                     />
                     <UButton
@@ -791,6 +795,13 @@ const paginatedShoppingLocations = computed(() => {
 // =========================
 // Watchers
 // =========================
+
+// Ensure barcode contains only numeric characters
+watch(() => productFormData.value.barcode, (newValue) => {
+  if (newValue) {
+    productFormData.value.barcode = newValue.replace(/\D/g, '')
+  }
+})
 
 // Product search debounce
 watchDebounced(
