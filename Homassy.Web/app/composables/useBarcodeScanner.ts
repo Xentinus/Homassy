@@ -8,6 +8,7 @@ const detectedBarcode = ref<string | null>(null)
 
 let html5QrCode: any = null
 let Html5Qrcode: any = null
+let Html5QrcodeSupportedFormats: any = null
 
 /**
  * Composable for barcode scanning using device camera
@@ -112,15 +113,25 @@ export const useBarcodeScanner = () => {
       if (!Html5Qrcode) {
         const module = await import('html5-qrcode')
         Html5Qrcode = module.Html5Qrcode
+        Html5QrcodeSupportedFormats = module.Html5QrcodeSupportedFormats
       }
 
       html5QrCode = new Html5Qrcode(elementId)
 
       await html5QrCode.start(
-        { facingMode: 'environment' }, // Use rear camera
+        { facingMode: 'environment' }, // Use rear camera (simplified)
         {
-          fps: 10, // Frames per second (reduce CPU usage)
-          qrbox: { width: 250, height: 150 }, // Scanning area optimized for barcodes
+          fps: 10, // Frames per second (slower for better focus)
+          qrbox: (viewfinderWidth, viewfinderHeight) => {
+            // Use 70% of the viewfinder width for scanning area
+            const minEdgeSize = Math.min(viewfinderWidth, viewfinderHeight)
+            const qrboxSize = Math.max(Math.floor(minEdgeSize * 0.7), 150) // Minimum 150px
+            const qrboxHeight = Math.max(Math.floor(qrboxSize * 0.4), 100) // Minimum 100px, wider for barcodes
+            return {
+              width: qrboxSize,
+              height: qrboxHeight // Wider rectangle for barcodes
+            }
+          },
           aspectRatio: 1.777778 // 16:9 aspect ratio
         },
         async (decodedText) => {
@@ -147,15 +158,143 @@ export const useBarcodeScanner = () => {
   }
 
   /**
+   * Capture and scan current frame
+   * Takes a snapshot of the current video feed and attempts to scan it
+   */
+  const captureAndScan = async (onSuccess: (barcode: string) => void, onFreeze?: (imageUrl: string) => void, onUnfreeze?: () => void) => {
+    if (!html5QrCode) return
+
+    try {
+      // Get the video element from the scanner
+      const videoElement = document.querySelector('#barcode-scanner-reader video') as HTMLVideoElement
+      if (!videoElement) return
+
+      // Pause the video to freeze the frame
+      videoElement.pause()
+
+      // Create a high-resolution canvas to capture the frame
+      const canvas = document.createElement('canvas')
+      // Use higher resolution if available
+      const scaleFactor = 2 // 2x resolution for better barcode detection
+      canvas.width = videoElement.videoWidth * scaleFactor
+      canvas.height = videoElement.videoHeight * scaleFactor
+      const ctx = canvas.getContext('2d')
+      if (!ctx) return
+
+      // Enable image smoothing for better quality
+      ctx.imageSmoothingEnabled = true
+      ctx.imageSmoothingQuality = 'high'
+
+      // Draw current video frame to canvas with scaling
+      ctx.drawImage(videoElement, 0, 0, canvas.width, canvas.height)
+
+      // Get data URL for preview (use lower quality for preview)
+      const previewCanvas = document.createElement('canvas')
+      previewCanvas.width = videoElement.videoWidth
+      previewCanvas.height = videoElement.videoHeight
+      const previewCtx = previewCanvas.getContext('2d')
+      if (previewCtx) {
+        previewCtx.drawImage(videoElement, 0, 0)
+        const imageUrl = previewCanvas.toDataURL('image/jpeg', 0.9)
+        if (onFreeze) onFreeze(imageUrl)
+      }
+
+      // Convert high-res canvas to blob with maximum quality
+      canvas.toBlob(async (blob) => {
+        if (!blob) {
+          // Resume video if capture failed
+          videoElement.play()
+          if (onUnfreeze) onUnfreeze()
+          return
+        }
+
+        // Create file from blob
+        const file = new File([blob], 'snapshot.jpg', { type: 'image/jpeg' })
+
+        try {
+          // IMPORTANT: Stop the camera scanner completely before scanning the file
+          // html5-qrcode doesn't allow simultaneous camera and file scanning
+          const wasScanning = html5QrCode.getState() === 2
+          if (wasScanning) {
+            await html5QrCode.stop()
+          }
+
+          // Scan the captured image with all formats enabled
+          const decodedText = await html5QrCode.scanFile(file, true)
+
+          // Success - barcode found
+          playBeep()
+          detectedBarcode.value = decodedText
+
+          // Clear and close
+          html5QrCode.clear()
+          html5QrCode = null
+          isScannerOpen.value = false
+          isScanning.value = false
+          onSuccess(decodedText)
+        } catch (err) {
+          // Log the error for debugging
+          console.log('No barcode detected in captured frame:', err)
+
+          // Restart the camera scanner if it was scanning
+          try {
+            await html5QrCode.start(
+              { facingMode: 'environment' },
+              {
+                fps: 10,
+                qrbox: (viewfinderWidth: number, viewfinderHeight: number) => {
+                  const minEdgeSize = Math.min(viewfinderWidth, viewfinderHeight)
+                  const qrboxSize = Math.max(Math.floor(minEdgeSize * 0.7), 150)
+                  const qrboxHeight = Math.max(Math.floor(qrboxSize * 0.4), 100)
+                  return {
+                    width: qrboxSize,
+                    height: qrboxHeight
+                  }
+                },
+                aspectRatio: 1.777778
+              },
+              async (decodedText: string) => {
+                playBeep()
+                detectedBarcode.value = decodedText
+                await stopScanner()
+                isScannerOpen.value = false
+                onSuccess(decodedText)
+              },
+              () => {
+                // Error callback - ignore
+              }
+            )
+          } catch (restartErr) {
+            console.error('Error restarting scanner:', restartErr)
+          }
+
+          // No barcode found in snapshot - wait 2 seconds then resume video
+          setTimeout(() => {
+            videoElement.play()
+            if (onUnfreeze) onUnfreeze()
+          }, 2000)
+        }
+      }, 'image/jpeg', 1.0) // Maximum quality (1.0)
+    } catch (err) {
+      // Error during capture - continue live scanning
+      console.error('Capture error:', err)
+    }
+  }
+
+  /**
    * Stop the barcode scanner and release camera
    */
   const stopScanner = async () => {
     if (html5QrCode) {
       try {
-        await html5QrCode.stop()
+        // Check if scanner is actually running before stopping
+        const state = html5QrCode.getState()
+        if (state === 2) { // 2 = SCANNING state
+          await html5QrCode.stop()
+        }
         html5QrCode.clear()
       } catch (err) {
-        console.error('Error stopping scanner:', err)
+        // Silently ignore stop errors as scanner might already be stopped
       }
       html5QrCode = null
     }
@@ -190,6 +329,7 @@ export const useBarcodeScanner = () => {
     detectedBarcode,
     startScanner,
     stopScanner,
+    captureAndScan,
     openScanner,
     closeScanner
   }

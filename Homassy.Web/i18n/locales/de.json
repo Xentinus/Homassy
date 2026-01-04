@@ -701,7 +701,7 @@
   "barcodeScanner": {
     "title": "Barcode scannen",
     "description": "Richten Sie die Kamera auf den Produktbarcode",
-    "instructions": "Platzieren Sie den Barcode im Rahmen und warten Sie auf die automatische Erkennung",
+    "instructions": "Platzieren Sie den Barcode im Rahmen oder tippen Sie auf das Bild zum Aufnehmen und Scannen",
     "errors": {
       "permissionDenied": "Kamerazugriff verweigert. Bitte aktivieren Sie die Kamera in Ihren Einstellungen.",
       "noCameraFound": "Keine Kamera auf diesem Gerät gefunden",

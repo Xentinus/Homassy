@@ -1,7 +1,8 @@
 <template>
   <UModal
     :open="isScannerOpen"
-    @update:open="handleClose"
+    @update:open="handleUpdateOpen"
+    :dismissible="false"
     :ui="{
       container: 'items-center justify-center',
       width: 'max-w-full sm:max-w-lg',
@@ -19,19 +20,37 @@
     <template #body>
       <div class="space-y-4">
         <!-- Camera Preview -->
-        <div class="relative">
+        <div class="relative cursor-pointer" @click="handleCameraClick">
           <div
             id="barcode-scanner-reader"
             class="w-full rounded-lg overflow-hidden"
           />
 
+          <!-- Frozen Image Overlay -->
+          <div
+            v-if="frozenImage"
+            class="absolute inset-0 pointer-events-none"
+          >
+            <img
+              :src="frozenImage"
+              alt="Captured frame"
+              class="w-full h-full object-cover"
+            />
+          </div>
+
           <!-- Scanning Animation Overlay (Primary Color) -->
           <div
-            v-if="isScanning"
+            v-if="isScanning && !frozenImage"
             class="absolute inset-0 pointer-events-none flex items-center justify-center overflow-hidden"
           >
             <div class="scanning-line" />
           </div>
+
+          <!-- Capture Flash Animation -->
+          <div
+            v-if="isCapturing"
+            class="absolute inset-0 pointer-events-none bg-white capture-flash"
+          />
         </div>
 
         <!-- Instructions -->
@@ -50,22 +69,11 @@
         </div>
       </div>
     </template>
-
-    <template #footer>
-      <div class="flex justify-end">
-        <UButton
-          :label="t('common.cancel')"
-          color="neutral"
-          variant="outline"
-          @click="handleClose"
-        />
-      </div>
-    </template>
   </UModal>
 </template>
 
 <script setup lang="ts">
-import { watch, nextTick } from 'vue'
+import { watch, nextTick, ref } from 'vue'
 import { useBarcodeScanner } from '~/composables/useBarcodeScanner'
 
 interface Props {
@@ -80,19 +88,49 @@ const {
   isScanning,
   scanError,
   startScanner,
-  closeScanner
+  closeScanner,
+  captureAndScan
 } = useBarcodeScanner()
+
+const isCapturing = ref(false)
+const frozenImage = ref<string | null>(null)
 
 // Watch for modal open and start scanner
 watch(isScannerOpen, async (isOpen) => {
   if (isOpen) {
+    // Clear frozen image when opening scanner
+    frozenImage.value = null
     await nextTick()
     await startScanner('barcode-scanner-reader', props.onBarcodeDetected)
   }
 })
 
-const handleClose = async () => {
-  await closeScanner()
+const handleUpdateOpen = async (value: boolean) => {
+  if (!value) {
+    // Modal is being closed
+    await closeScanner()
+    frozenImage.value = null
+  }
+}
+
+const handleCameraClick = () => {
+  // Trigger capture animation
+  isCapturing.value = true
+  setTimeout(() => {
+    isCapturing.value = false
+  }, 300)
+
+  captureAndScan(
+    props.onBarcodeDetected,
+    (imageUrl) => {
+      // On freeze - show the captured image
+      frozenImage.value = imageUrl
+    },
+    () => {
+      // On unfreeze - resume live video
+      frozenImage.value = null
+    }
+  )
 }
 </script>
 
@@ -117,6 +155,23 @@ const handleClose = async () => {
   }
   100% {
     transform: translateY(100px);
+  }
+}
+
+/* Camera capture flash animation */
+.capture-flash {
+  animation: flash 0.3s ease-out;
+}
+
+@keyframes flash {
+  0% {
+    opacity: 0;
+  }
+  50% {
+    opacity: 0.8;
+  }
+  100% {
+    opacity: 0;
   }
 }
 </style>

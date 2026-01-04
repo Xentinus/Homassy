@@ -703,7 +703,7 @@
   "barcodeScanner": {
     "title": "Scan Barcode",
     "description": "Point the camera at the product barcode",
-    "instructions": "Place the barcode inside the frame and wait for automatic detection",
+    "instructions": "Place the barcode inside the frame or tap the image to capture and scan",
     "errors": {
       "permissionDenied": "Camera access denied. Please enable camera permissions in your settings.",
       "noCameraFound": "No camera found on this device",

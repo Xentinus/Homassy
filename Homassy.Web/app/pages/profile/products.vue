@@ -26,13 +26,16 @@
       
       <!-- Search Input -->
       <div class="max-w-md">
-        <UInput
-          v-model="searchQuery"
-          trailing-icon="i-lucide-search"
-          :placeholder="$t('common.searchPlaceholder')"
-          class="w-full"
-          @update:model-value="handleSearch"
-        />
+        <UFieldGroup size="md" orientation="horizontal" class="w-full">
+          <UInput
+            v-model="searchQuery"
+            trailing-icon="i-lucide-search"
+            :placeholder="$t('common.searchPlaceholder')"
+            class="flex-1"
+            @update:model-value="handleSearch"
+          />
+          <BarcodeScannerButton @scanned="handleSearchBarcodeScanned" />
+        </UFieldGroup>
       </div>
     </div>
 
@@ -495,6 +498,12 @@ const handleBarcodeScanned = (barcode: string) => {
   nextTick(() => {
     handleBarcodeQuery()
   })
+}
+
+// Search barcode scanner handler
+const handleSearchBarcodeScanned = (barcode: string) => {
+  searchQuery.value = barcode
+  handleSearch()
 }
 
 // Create modal functions

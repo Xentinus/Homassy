@@ -701,7 +701,7 @@
   "barcodeScanner": {
     "title": "Vonalkód beolvasása",
     "description": "Irányítsd a kamerát a termék vonalkódjára",
-    "instructions": "Helyezd a vonalkódot a keretbe és várd meg az automatikus beolvasást",
+    "instructions": "Helyezd a vonalkódot a keretbe vagy koppints a képre a pillanatkép beolvasásához",
     "errors": {
       "permissionDenied": "A kamera hozzáférés megtagadva. Kérjük, engedélyezd a kamerát a beállításokban.",
       "noCameraFound": "Nem található kamera az eszközön",
