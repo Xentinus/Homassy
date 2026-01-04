@@ -739,7 +739,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watch, nextTick } from 'vue'
+import { ref, computed, watch, nextTick, onMounted } from 'vue'
 import { watchDebounced } from '@vueuse/core'
 import * as z from 'zod'
 import type { FormSubmitEvent } from '@nuxt/ui'
@@ -1112,6 +1112,9 @@ const cleanupLocationObserver = () => {
 
 // Watch for when we enter Step 2 to load locations
 watch(currentStep, async (newStep) => {
+  // Always reset to search tab (tab0) when entering any step
+  activeTab.value = 0
+
   if (newStep === 1 && allLocations.value.length === 0) {
     await loadLocations()
     await nextTick()
@@ -1128,6 +1131,11 @@ watch(currentStep, async (newStep) => {
   } else if (newStep !== 2) {
     cleanupShoppingLocationObserver()
   }
+})
+
+// Reset tab to search when component mounts
+onMounted(() => {
+  activeTab.value = 0
 })
 
 // Reset pagination when search changes

@@ -610,6 +610,12 @@ const { getProductByBarcode } = useOpenFoodFactsApi()
 // =========================
 const shoppingListId = ref<string | null>(null)
 
+// Reset tabs to search when component mounts
+onMounted(() => {
+  activeTab.value = 0
+  shoppingLocationTab.value = 0
+})
+
 onMounted(() => {
   const listId = route.query.listId as string | undefined
 
@@ -843,17 +849,27 @@ watchDebounced(
 
 // Load shopping locations when Step 1 is entered
 watch(currentStep, async (newStep) => {
-  if (newStep === 1 && allShoppingLocations.value.length === 0) {
-    isLoadingShoppingLocations.value = true
-    try {
-      const response = await getShoppingLocations({ returnAll: true })
-      if (response.success && response.data) {
-        allShoppingLocations.value = response.data.items
+  // Always reset to search tab when entering Step 0
+  if (newStep === 0) {
+    activeTab.value = 0
+  }
+  
+  // Always reset to search tab when entering Step 1
+  if (newStep === 1) {
+    shoppingLocationTab.value = 0
+    
+    if (allShoppingLocations.value.length === 0) {
+      isLoadingShoppingLocations.value = true
+      try {
+        const response = await getShoppingLocations({ returnAll: true })
+        if (response.success && response.data) {
+          allShoppingLocations.value = response.data.items
+        }
+      } catch (error) {
+        console.error('Failed to load shopping locations:', error)
+      } finally {
+        isLoadingShoppingLocations.value = false
       }
-    } catch (error) {
-      console.error('Failed to load shopping locations:', error)
-    } finally {
-      isLoadingShoppingLocations.value = false
     }
   }
 })
