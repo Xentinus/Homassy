@@ -117,7 +117,7 @@
     </div>
 
     <!-- Edit Product Modal -->
-    <UModal :open="isEditProductModalOpen" @update:open="(val) => isEditProductModalOpen = val">
+    <UModal :open="isEditProductModalOpen" @update:open="(val) => isEditProductModalOpen = val" :dismissible="false">
       <template #title>
         {{ $t('pages.products.details.editProductModal.title') }}
       </template>
@@ -233,7 +233,7 @@
     </UModal>
 
     <!-- Delete Product Modal -->
-    <UModal :open="isDeleteProductModalOpen" @update:open="(val) => isDeleteProductModalOpen = val">
+    <UModal :open="isDeleteProductModalOpen" @update:open="(val) => isDeleteProductModalOpen = val" :dismissible="false">
       <template #title>
         {{ $t('pages.products.details.deleteProductModal.title') }}
       </template>
@@ -318,6 +318,7 @@
     <UModal
       :open="isOpenFoodFactsModalOpen"
       @update:open="(val) => { if (!val) handleCancelImport() }"
+      :dismissible="false"
     >
       <template #title>
         {{ $t('pages.addProduct.openFoodFacts.modalTitle') }}

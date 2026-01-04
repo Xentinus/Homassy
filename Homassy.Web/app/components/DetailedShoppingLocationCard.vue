@@ -98,7 +98,7 @@
     </div>
 
     <!-- Edit Modal -->
-    <UModal :open="isEditModalOpen" @update:open="(val) => isEditModalOpen = val">
+    <UModal :open="isEditModalOpen" @update:open="(val) => isEditModalOpen = val" :dismissible="false">
       <template #title>
         {{ $t('profile.shoppingLocations.editLocation') }}
       </template>
@@ -271,7 +271,7 @@
     </UModal>
 
     <!-- Delete Modal -->
-    <UModal :open="isDeleteModalOpen" @update:open="(val) => isDeleteModalOpen = val">
+    <UModal :open="isDeleteModalOpen" @update:open="(val) => isDeleteModalOpen = val" :dismissible="false">
       <template #title>
         {{ $t('profile.shoppingLocations.deleteLocation') }}
       </template>

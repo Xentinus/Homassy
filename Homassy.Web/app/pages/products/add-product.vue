@@ -189,6 +189,7 @@
         <UModal
           :open="isOpenFoodFactsModalOpen"
           @update:open="(val) => { if (!val) handleCancelImport() }"
+          :dismissible="false"
         >
           <template #title>
             {{ t('pages.addProduct.openFoodFacts.modalTitle') }}

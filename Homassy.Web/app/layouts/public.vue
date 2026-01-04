@@ -4,7 +4,7 @@
       <template #title>
         <ClientOnly>
           <NuxtLink to="/" aria-label="Homassy">
-            <span class="font-semibold text-lg">Homassy</span>
+            <AppLogo />
           </NuxtLink>
         </ClientOnly>
       </template>

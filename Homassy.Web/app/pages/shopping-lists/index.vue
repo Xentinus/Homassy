@@ -141,7 +141,7 @@
     </div>
 
     <!-- Create Shopping List Modal -->
-    <UModal :open="isCreateModalOpen" @update:open="(val) => isCreateModalOpen = val">
+    <UModal :open="isCreateModalOpen" @update:open="(val) => isCreateModalOpen = val" :dismissible="false">
       <template #title>
         {{ $t('pages.shoppingLists.createModal.title') }}
       </template>
@@ -219,7 +219,7 @@
     </UModal>
 
     <!-- Edit Shopping List Modal -->
-    <UModal :open="isEditModalOpen" @update:open="(val) => isEditModalOpen = val">
+    <UModal :open="isEditModalOpen" @update:open="(val) => isEditModalOpen = val" :dismissible="false">
       <template #title>
         {{ $t('pages.shoppingLists.editModal.title') }}
       </template>
@@ -297,7 +297,7 @@
     </UModal>
 
     <!-- Delete Shopping List Modal -->
-    <UModal :open="isDeleteModalOpen" @update:open="(val) => isDeleteModalOpen = val">
+    <UModal :open="isDeleteModalOpen" @update:open="(val) => isDeleteModalOpen = val" :dismissible="false">
       <template #title>
         {{ $t('pages.shoppingLists.deleteModal.title') }}
       </template>

@@ -501,6 +501,7 @@
     <UModal
       :open="isOpenFoodFactsModalOpen"
       @update:open="(val) => { if (!val) isOpenFoodFactsModalOpen = false }"
+      :dismissible="false"
     >
       <template #title>
         {{ t('pages.addProduct.openFoodFacts.modalTitle') }}

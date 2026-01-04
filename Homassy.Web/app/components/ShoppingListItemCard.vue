@@ -88,7 +88,7 @@
     </div>
 
     <!-- Purchase Confirmation Modal -->
-    <UModal :open="isPurchaseModalOpen" @update:open="(val) => isPurchaseModalOpen = val">
+    <UModal :open="isPurchaseModalOpen" @update:open="(val) => isPurchaseModalOpen = val" :dismissible="false">
       <template #title>
         {{ $t('shoppingList.markAsPurchased') }}
       </template>
@@ -128,7 +128,7 @@
     </UModal>
 
     <!-- Edit Modal -->
-    <UModal :open="isEditModalOpen" @update:open="(val) => isEditModalOpen = val">
+    <UModal :open="isEditModalOpen" @update:open="(val) => isEditModalOpen = val" :dismissible="false">
       <template #title>
         {{ $t('shoppingList.editItem') }}
       </template>
@@ -232,7 +232,7 @@
     </UModal>
 
     <!-- Delete Modal -->
-    <UModal :open="isDeleteModalOpen" @update:open="(val) => isDeleteModalOpen = val">
+    <UModal :open="isDeleteModalOpen" @update:open="(val) => isDeleteModalOpen = val" :dismissible="false">
       <template #title>
         {{ $t('shoppingList.deleteItem') }}
       </template>
@@ -290,7 +290,7 @@
     </UModal>
 
     <!-- Restore Purchase Modal -->
-    <UModal :open="isRestoreModalOpen" @update:open="(val) => isRestoreModalOpen = val">
+    <UModal :open="isRestoreModalOpen" @update:open="(val) => isRestoreModalOpen = val" :dismissible="false">
       <template #title>
         {{ $t('shoppingList.restorePurchase') }}
       </template>

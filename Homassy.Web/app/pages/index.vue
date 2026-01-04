@@ -3,7 +3,10 @@
     <UPageHero
       :title="$t('pages.home.title')"
       :description="$t('pages.home.description')"
-    />
+      orientation="horizontal"
+    >
+      <img src="/favicon.svg" alt="Homassy Logo" class="hidden lg :block w-full max-w-[256px]">
+    </UPageHero>
 
     <UPageSection
       id="features"

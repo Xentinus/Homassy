@@ -63,7 +63,7 @@
     </div>
 
     <!-- Edit Modal -->
-  <UModal :open="isEditModalOpen" @update:open="(val) => isEditModalOpen = val">
+  <UModal :open="isEditModalOpen" @update:open="(val) => isEditModalOpen = val" :dismissible="false">
     <template #title>
       {{ $t('profile.storageLocations.editLocation') }}
     </template>

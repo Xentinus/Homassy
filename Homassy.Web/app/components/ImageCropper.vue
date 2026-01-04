@@ -1,5 +1,5 @@
 <template>
-  <UModal :open="isOpen" @update:open="handleClose">
+  <UModal :open="isOpen" @update:open="handleClose" :dismissible="false">
     <template #title>
       {{ $t('imageCropper.title') }}
     </template>

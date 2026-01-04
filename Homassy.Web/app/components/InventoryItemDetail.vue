@@ -102,6 +102,7 @@
     <UModal
       :open="isConsumeModalOpen"
       @update:open="(val) => isConsumeModalOpen = val"
+      :dismissible="false"
     >
       <template #title>
         {{ $t('pages.products.details.consume.title') }}
@@ -216,7 +217,7 @@
     </UModal>
 
     <!-- Edit Modal -->
-    <UModal :open="isEditModalOpen" @update:open="(val) => isEditModalOpen = val">
+    <UModal :open="isEditModalOpen" @update:open="(val) => isEditModalOpen = val" :dismissible="false">
       <template #title>
         {{ $t('pages.products.details.editModal.title') }}
       </template>
@@ -326,7 +327,7 @@
     </UModal>
 
     <!-- Delete Modal -->
-    <UModal :open="isDeleteModalOpen" @update:open="(val) => isDeleteModalOpen = val">
+    <UModal :open="isDeleteModalOpen" @update:open="(val) => isDeleteModalOpen = val" :dismissible="false">
       <template #title>
         {{ $t('pages.products.details.deleteModal.title') }}
       </template>

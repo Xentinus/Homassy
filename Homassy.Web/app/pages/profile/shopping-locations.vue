@@ -70,7 +70,7 @@
     </div>
 
   <!-- Create Modal -->
-  <UModal :open="isCreateModalOpen" @update:open="(val) => isCreateModalOpen = val">
+  <UModal :open="isCreateModalOpen" @update:open="(val) => isCreateModalOpen = val" :dismissible="false">
     <template #title>
       {{ $t('profile.shoppingLocations.editLocation') }}
     </template>

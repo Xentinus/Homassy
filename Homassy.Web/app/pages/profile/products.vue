@@ -82,7 +82,7 @@
     </div>
 
   <!-- Create Product Modal -->
-  <UModal :open="isCreateModalOpen" @update:open="(val) => isCreateModalOpen = val">
+  <UModal :open="isCreateModalOpen" @update:open="(val) => isCreateModalOpen = val" :dismissible="false">
     <template #title>
       {{ $t('pages.addProduct.form.createProduct') }}
     </template>
@@ -214,6 +214,7 @@
   <UModal
     :open="isOpenFoodFactsModalOpen"
     @update:open="(val) => { if (!val) handleCancelImport() }"
+    :dismissible="false"
   >
     <template #title>
       {{ $t('pages.addProduct.openFoodFacts.modalTitle') }}
