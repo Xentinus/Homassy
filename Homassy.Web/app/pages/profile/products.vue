@@ -141,7 +141,13 @@
               v-model="createForm.barcode"
               type="text"
               :placeholder="$t('pages.addProduct.form.barcodePlaceholder')"
+              inputmode="numeric"
+              pattern="[0-9]*"
               class="flex-1"
+            />
+            <BarcodeScannerButton
+              :disabled="isCreating"
+              @scanned="handleBarcodeScanned"
             />
             <UButton
               :label="$t('pages.addProduct.form.barcodeQuery')"
@@ -275,6 +281,9 @@
       </div>
     </template>
   </UModal>
+
+  <!-- Barcode Scanner Modal -->
+  <BarcodeScannerModal :on-barcode-detected="handleBarcodeScanned" />
   </div>
 </template>
 
@@ -477,6 +486,15 @@ const handleCancelImport = () => {
   isOpenFoodFactsModalOpen.value = false
   openFoodFactsProduct.value = null
   isImageLoading.value = true
+}
+
+// Barcode scanner handler
+const handleBarcodeScanned = (barcode: string) => {
+  createForm.value.barcode = barcode
+  // Auto-trigger OpenFoodFacts query
+  nextTick(() => {
+    handleBarcodeQuery()
+  })
 }
 
 // Create modal functions

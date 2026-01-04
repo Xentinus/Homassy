@@ -25,6 +25,7 @@
     "better-sqlite3": "^12.5.0",
     "browser-image-compression": "^2.0.2",
     "eslint": "^9.39.2",
+    "html5-qrcode": "^2.3.8",
     "nuxt": "^4.2.2",
     "nuxt-api-party": "^3.4.2",
     "typescript": "^5.9.3",

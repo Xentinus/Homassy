@@ -39,6 +39,20 @@
                 class="w-full"
               />
 
+              <!-- Barcode Search -->
+              <UFormField :label="t('pages.addProduct.search.barcodeSearch')" name="barcodeSearch">
+                <UFieldGroup size="md" orientation="horizontal" class="w-full">
+                  <UInput
+                    v-model="barcodeSearchQuery"
+                    :placeholder="t('pages.addProduct.form.barcodePlaceholder')"
+                    inputmode="numeric"
+                    pattern="[0-9]*"
+                    class="flex-1"
+                  />
+                  <BarcodeScannerButton @scanned="handleBarcodeSearchScanned" />
+                </UFieldGroup>
+              </UFormField>
+
               <!-- Loading State -->
               <div v-if="isSearching" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
                 <USkeleton class="h-32 w-full" />
@@ -127,6 +141,7 @@
                       pattern="[0-9]*"
                       class="flex-1"
                     />
+                    <BarcodeScannerButton :disabled="isCreating" @scanned="handleBarcodeScanned" />
                     <UButton
                       :label="t('pages.addProduct.form.barcodeQuery')"
                       icon="i-lucide-barcode"
@@ -567,12 +582,16 @@
         </div>
       </template>
     </UModal>
+
+    <!-- Barcode Scanner Modal -->
+    <BarcodeScannerModal :on-barcode-detected="activeBarcodeHandler" />
   </div>
 </template>
 
 <script setup lang="ts">
 import { z } from 'zod'
 import { watchDebounced } from '@vueuse/core'
+import { computed, nextTick } from 'vue'
 import type { ProductInfo, CreateProductRequest } from '~/types/product'
 import type { ShoppingLocationInfo, CreateShoppingLocationRequest } from '~/types/location'
 import type { CreateShoppingListItemRequest } from '~/types/shoppingList'
@@ -651,6 +670,7 @@ const selectedCardId = ref<string | null>(null)
 
 // Tab 1: Search Product
 const searchQuery = ref('')
+const barcodeSearchQuery = ref('')
 const searchResults = ref<ProductInfo[]>([])
 const isSearching = ref(false)
 
@@ -803,6 +823,12 @@ watch(() => productFormData.value.barcode, (newValue) => {
   }
 })
 
+watch(() => barcodeSearchQuery.value, (newValue) => {
+  if (newValue) {
+    barcodeSearchQuery.value = newValue.replace(/\D/g, '')
+  }
+})
+
 // Product search debounce
 watchDebounced(
   searchQuery,
@@ -825,6 +851,35 @@ watchDebounced(
       }
     } catch (error) {
       console.error('Product search failed:', error)
+    } finally {
+      isSearching.value = false
+    }
+  },
+  { debounce: 300 }
+)
+
+// Barcode search debounce
+watchDebounced(
+  barcodeSearchQuery,
+  async (barcode) => {
+    if (barcode.trim() === '') {
+      return
+    }
+
+    isSearching.value = true
+    try {
+      const response = await getProducts({
+        barcode: barcode,
+        pageNumber: 1,
+        pageSize: 20
+      })
+
+      if (response.success && response.data) {
+        searchResults.value = response.data.items
+        searchQuery.value = '' // Clear text search when searching by barcode
+      }
+    } catch (error) {
+      console.error('Barcode search failed:', error)
     } finally {
       isSearching.value = false
     }
@@ -966,6 +1021,25 @@ const importOpenFoodFactsData = () => {
   }
   isOpenFoodFactsModalOpen.value = false
 }
+
+// Barcode scanner handler (for Create Product tab)
+const handleBarcodeScanned = (barcode: string) => {
+  productFormData.value.barcode = barcode
+  // Auto-trigger OpenFoodFacts query
+  nextTick(() => {
+    queryOpenFoodFacts()
+  })
+}
+
+// Barcode scanner handler (for Search Product tab)
+const handleBarcodeSearchScanned = (barcode: string) => {
+  barcodeSearchQuery.value = barcode
+}
+
+// Dynamic handler based on context
+const activeBarcodeHandler = computed(() => {
+  return activeTab.value === 0 ? handleBarcodeSearchScanned : handleBarcodeScanned
+})
 
 // Tab 3: Custom Name Submit
 const onCustomNameSubmit = (event: FormSubmitEvent<typeof customNameSchema>) => {

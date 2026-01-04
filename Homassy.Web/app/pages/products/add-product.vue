@@ -127,6 +127,10 @@
                       pattern="[0-9]*"
                       class="flex-1"
                     />
+                    <BarcodeScannerButton
+                      :disabled="isCreating"
+                      @scanned="handleBarcodeScanned"
+                    />
                     <UButton
                       :label="t('pages.addProduct.form.barcodeQuery')"
                       icon="i-lucide-barcode"
@@ -252,6 +256,9 @@
             </div>
           </template>
         </UModal>
+
+        <!-- Barcode Scanner Modal -->
+        <BarcodeScannerModal :on-barcode-detected="handleBarcodeScanned" />
       </div>
 
       <!-- Step 2: Storage Location Selection -->
@@ -1275,6 +1282,15 @@ const handleCancelImport = () => {
   isOpenFoodFactsModalOpen.value = false
   openFoodFactsProduct.value = null
   isImageLoading.value = true
+}
+
+// Barcode scanner handler
+const handleBarcodeScanned = (barcode: string) => {
+  formData.value.barcode = barcode
+  // Auto-trigger OpenFoodFacts query
+  nextTick(() => {
+    handleBarcodeQuery()
+  })
 }
 
 const onCreateProduct = async (event: FormSubmitEvent<CreateProductSchema>) => {

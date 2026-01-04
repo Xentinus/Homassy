@@ -236,6 +236,7 @@
       },
       "search": {
         "placeholder": "Nach Name, Marke oder Barcode suchen",
+        "barcodeSearch": "Barcode-Suche",
         "startTyping": "Tippen Sie, um zu suchen",
         "noResults": "Keine Ergebnisse gefunden"
       },
@@ -695,6 +696,19 @@
       "18": "Familie erstellt",
       "19": "Familie beigetreten",
       "20": "Familie verlassen"
+    }
+  },
+  "barcodeScanner": {
+    "title": "Barcode scannen",
+    "description": "Richten Sie die Kamera auf den Produktbarcode",
+    "instructions": "Platzieren Sie den Barcode im Rahmen und warten Sie auf die automatische Erkennung",
+    "errors": {
+      "permissionDenied": "Kamerazugriff verweigert. Bitte aktivieren Sie die Kamera in Ihren Einstellungen.",
+      "noCameraFound": "Keine Kamera auf diesem Gerät gefunden",
+      "cameraAccessFailed": "Zugriff auf Kamera fehlgeschlagen. Bitte versuchen Sie es später erneut.",
+      "scanFailed": "Scannen fehlgeschlagen. Bitte versuchen Sie es erneut.",
+      "invalidFormat": "Ungültiges Barcode-Format. Nur numerische Barcodes werden unterstützt.",
+      "unusualLength": "Ungewöhnliche Barcode-Länge. Bitte überprüfen Sie, ob er korrekt gescannt wurde."
     }
   }
 }

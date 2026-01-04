@@ -236,6 +236,7 @@
       },
       "search": {
         "placeholder": "Termék keresése név, márka vagy vonalkód alapján",
+        "barcodeSearch": "Vonalkód keresés",
         "startTyping": "Kezdj el gépelni a kereséshez",
         "noResults": "Nincs találat"
       },
@@ -695,6 +696,19 @@
       "20": "Kilépett a családból",
       "21": "Tétel gyorsan megvásárolva",
       "22": "Vásárlás visszaállítva"
+    }
+  },
+  "barcodeScanner": {
+    "title": "Vonalkód beolvasása",
+    "description": "Irányítsd a kamerát a termék vonalkódjára",
+    "instructions": "Helyezd a vonalkódot a keretbe és várd meg az automatikus beolvasást",
+    "errors": {
+      "permissionDenied": "A kamera hozzáférés megtagadva. Kérjük, engedélyezd a kamerát a beállításokban.",
+      "noCameraFound": "Nem található kamera az eszközön",
+      "cameraAccessFailed": "Nem sikerült elérni a kamerát. Próbáld újra később.",
+      "scanFailed": "A beolvasás sikertelen. Próbáld újra.",
+      "invalidFormat": "Érvénytelen vonalkód formátum. Csak számokat tartalmazó vonalkódok támogatottak.",
+      "unusualLength": "Szokatlan vonalkód hossz. Ellenőrizd, hogy helyesen lett-e beolvasva."
     }
   }
 }

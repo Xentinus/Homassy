@@ -83,7 +83,7 @@
           />
           <UButton
             v-if="location.googleMaps"
-            icon="i-lucide-external-link"
+            icon="i-lucide-map"
             :label="$t('profile.shoppingLocations.googleMaps')"
             size="xs"
             color="neutral"

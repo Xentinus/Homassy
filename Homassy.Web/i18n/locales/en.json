@@ -236,6 +236,7 @@
       },
       "search": {
         "placeholder": "Search by name, brand, or barcode",
+        "barcodeSearch": "Barcode Search",
         "startTyping": "Start typing to search",
         "noResults": "No results found"
       },
@@ -697,6 +698,19 @@
       "20": "Left Family",
       "21": "Item Quick Purchased",
       "22": "Item Purchase Restored"
+    }
+  },
+  "barcodeScanner": {
+    "title": "Scan Barcode",
+    "description": "Point the camera at the product barcode",
+    "instructions": "Place the barcode inside the frame and wait for automatic detection",
+    "errors": {
+      "permissionDenied": "Camera access denied. Please enable camera permissions in your settings.",
+      "noCameraFound": "No camera found on this device",
+      "cameraAccessFailed": "Failed to access camera. Please try again later.",
+      "scanFailed": "Scan failed. Please try again.",
+      "invalidFormat": "Invalid barcode format. Only numeric barcodes are supported.",
+      "unusualLength": "Unusual barcode length. Please verify it was scanned correctly."
     }
   }
 }
