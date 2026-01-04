@@ -31,13 +31,16 @@
           <template #search>
             <!-- Tab 1: Search -->
             <div class="space-y-4 py-4">
-              <UInput
-                v-model="searchQuery"
-                :placeholder="t('pages.addProduct.search.placeholder')"
-                icon="i-lucide-search"
-                size="lg"
-                class="w-full"
-              />
+              <UFieldGroup size="lg" orientation="horizontal" class="w-full">
+                <UInput
+                  v-model="searchQuery"
+                  :placeholder="t('pages.addProduct.search.placeholder')"
+                  icon="i-lucide-search"
+                  size="lg"
+                  class="flex-1"
+                />
+                <BarcodeScannerButton @scanned="handleSearchBarcodeScanned" />
+              </UFieldGroup>
 
               <!-- Loading State -->
               <div v-if="isSearching" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
@@ -1284,13 +1287,18 @@ const handleCancelImport = () => {
   isImageLoading.value = true
 }
 
-// Barcode scanner handler
+// Barcode scanner handler for Create tab
 const handleBarcodeScanned = (barcode: string) => {
   formData.value.barcode = barcode
   // Auto-trigger OpenFoodFacts query
   nextTick(() => {
     handleBarcodeQuery()
   })
+}
+
+// Barcode scanner handler for Search tab
+const handleSearchBarcodeScanned = (barcode: string) => {
+  searchQuery.value = barcode
 }
 
 const onCreateProduct = async (event: FormSubmitEvent<CreateProductSchema>) => {

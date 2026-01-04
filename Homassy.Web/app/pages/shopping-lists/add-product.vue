@@ -31,27 +31,16 @@
           <!-- Tab 1: Search Product -->
           <template #search>
             <div class="space-y-4 py-4">
-              <UInput
-                v-model="searchQuery"
-                :placeholder="t('pages.addProduct.search.placeholder')"
-                icon="i-lucide-search"
-                size="lg"
-                class="w-full"
-              />
-
-              <!-- Barcode Search -->
-              <UFormField :label="t('pages.addProduct.search.barcodeSearch')" name="barcodeSearch">
-                <UFieldGroup size="md" orientation="horizontal" class="w-full">
-                  <UInput
-                    v-model="barcodeSearchQuery"
-                    :placeholder="t('pages.addProduct.form.barcodePlaceholder')"
-                    inputmode="numeric"
-                    pattern="[0-9]*"
-                    class="flex-1"
-                  />
-                  <BarcodeScannerButton @scanned="handleBarcodeSearchScanned" />
-                </UFieldGroup>
-              </UFormField>
+              <UFieldGroup size="lg" orientation="horizontal" class="w-full">
+                <UInput
+                  v-model="searchQuery"
+                  :placeholder="t('pages.addProduct.search.placeholder')"
+                  icon="i-lucide-search"
+                  size="lg"
+                  class="flex-1"
+                />
+                <BarcodeScannerButton @scanned="handleSearchBarcodeScanned" />
+              </UFieldGroup>
 
               <!-- Loading State -->
               <div v-if="isSearching" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
@@ -670,7 +659,6 @@ const selectedCardId = ref<string | null>(null)
 
 // Tab 1: Search Product
 const searchQuery = ref('')
-const barcodeSearchQuery = ref('')
 const searchResults = ref<ProductInfo[]>([])
 const isSearching = ref(false)
 
@@ -823,12 +811,6 @@ watch(() => productFormData.value.barcode, (newValue) => {
   }
 })
 
-watch(() => barcodeSearchQuery.value, (newValue) => {
-  if (newValue) {
-    barcodeSearchQuery.value = newValue.replace(/\D/g, '')
-  }
-})
-
 // Product search debounce
 watchDebounced(
   searchQuery,
@@ -851,35 +833,6 @@ watchDebounced(
       }
     } catch (error) {
       console.error('Product search failed:', error)
-    } finally {
-      isSearching.value = false
-    }
-  },
-  { debounce: 300 }
-)
-
-// Barcode search debounce
-watchDebounced(
-  barcodeSearchQuery,
-  async (barcode) => {
-    if (barcode.trim() === '') {
-      return
-    }
-
-    isSearching.value = true
-    try {
-      const response = await getProducts({
-        barcode: barcode,
-        pageNumber: 1,
-        pageSize: 20
-      })
-
-      if (response.success && response.data) {
-        searchResults.value = response.data.items
-        searchQuery.value = '' // Clear text search when searching by barcode
-      }
-    } catch (error) {
-      console.error('Barcode search failed:', error)
     } finally {
       isSearching.value = false
     }
@@ -1032,13 +985,13 @@ const handleBarcodeScanned = (barcode: string) => {
 }
 
 // Barcode scanner handler (for Search Product tab)
-const handleBarcodeSearchScanned = (barcode: string) => {
-  barcodeSearchQuery.value = barcode
+const handleSearchBarcodeScanned = (barcode: string) => {
+  searchQuery.value = barcode
 }
 
 // Dynamic handler based on context
 const activeBarcodeHandler = computed(() => {
-  return activeTab.value === 0 ? handleBarcodeSearchScanned : handleBarcodeScanned
+  return activeTab.value === 0 ? handleSearchBarcodeScanned : handleBarcodeScanned
 })
 
 // Tab 3: Custom Name Submit

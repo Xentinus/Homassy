@@ -18,13 +18,16 @@
       <!-- Search and Filter Section -->
       <div class="flex flex-col sm:flex-row gap-2">
         <div class="flex-1">
-          <UInput
-            v-model="searchQuery"
-            class="w-full"
-            type="text"
-            :placeholder="$t('common.searchPlaceholder')"
-            trailing-icon="i-lucide-search"
-          />
+          <UFieldGroup size="md" orientation="horizontal" class="w-full">
+            <UInput
+              v-model="searchQuery"
+              class="flex-1"
+              type="text"
+              :placeholder="$t('common.searchPlaceholder')"
+              trailing-icon="i-lucide-search"
+            />
+            <BarcodeScannerButton @scanned="handleBarcodeScanned" />
+          </UFieldGroup>
         </div>
         <div class="flex-1">
           <USelect
@@ -67,6 +70,9 @@
       </div>
     </div>
     </div>
+
+    <!-- Barcode Scanner Modal -->
+    <BarcodeScannerModal :on-barcode-detected="handleBarcodeScanned" />
   </div>
 </template>
 
@@ -211,6 +217,11 @@ const loadMoreProducts = () => {
     currentPage.value++
     loadingMore.value = false
   }, 300)
+}
+
+// Barcode scanner handler
+const handleBarcodeScanned = (barcode: string) => {
+  searchQuery.value = barcode
 }
 
 // Watch for filter changes to reset pagination
