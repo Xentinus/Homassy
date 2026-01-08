@@ -56,7 +56,7 @@
     </div>
 
     <!-- Products Grid -->
-    <div v-else class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+    <div v-else class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
       <DetailedProductCard 
         v-for="product in displayedProducts" 
         :key="product.publicId" 
@@ -68,7 +68,7 @@
     <!-- Sentinel for intersection observer -->
     <div v-if="hasMoreProducts" ref="sentinelRef" class="w-full">
       <!-- Loading skeletons while loading more -->
-      <div v-if="loadingMore" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mt-4">
+      <div v-if="loadingMore" class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 mt-4">
         <USkeleton class="h-32 w-full" />
         <USkeleton class="h-32 w-full" />
         <USkeleton class="h-32 w-full" />
