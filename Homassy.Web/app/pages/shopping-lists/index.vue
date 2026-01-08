@@ -392,6 +392,10 @@ const { t: $t } = useI18n()
 const { getSelectValues } = useSelectValueApi()
 const { getShoppingListDetails, createShoppingList, updateShoppingList, deleteShoppingList } = useShoppingListApi()
 
+// LocalStorage key for last selected shopping list
+const LAST_SELECTED_LIST_KEY = 'lastSelectedShoppingListId'
+const SHOW_PURCHASED_KEY = 'shoppingListsShowPurchased'
+
 // State
 const allShoppingLists = ref<SelectValue[]>([])
 const selectedListId = ref<string | null>(null)
@@ -545,8 +549,15 @@ const loadShoppingLists = async () => {
 
     if (response.success && response.data) {
       allShoppingLists.value = response.data
-      // Auto-select first list if available
-      if (allShoppingLists.value.length > 0 && allShoppingLists.value[0]) {
+      
+      // Try to restore last selected list from localStorage
+      const lastSelectedId = localStorage.getItem(LAST_SELECTED_LIST_KEY)
+      
+      if (lastSelectedId && allShoppingLists.value.some(list => list.publicId === lastSelectedId)) {
+        // If last selected list exists in the current list, select it
+        selectedListId.value = lastSelectedId
+      } else if (allShoppingLists.value.length > 0 && allShoppingLists.value[0]) {
+        // Otherwise, auto-select first list if available
         selectedListId.value = allShoppingLists.value[0].publicId
       }
     }
@@ -709,12 +720,20 @@ const handleBarcodeScanned = (barcode: string) => {
 watch(selectedListId, (newId) => {
   if (newId) {
     loadListDetails(newId)
+    // Save to localStorage
+    localStorage.setItem(LAST_SELECTED_LIST_KEY, newId)
   } else {
     currentListDetails.value = null
+    // Clear from localStorage if no list is selected
+    localStorage.removeItem(LAST_SELECTED_LIST_KEY)
   }
 })
 
-watch(showPurchased, () => {
+watch(showPurchased, (newValue) => {
+  // Save to localStorage
+  localStorage.setItem(SHOW_PURCHASED_KEY, String(newValue))
+  
+  // Reload list details
   if (selectedListId.value) {
     loadListDetails(selectedListId.value)
   }
@@ -722,6 +741,12 @@ watch(showPurchased, () => {
 
 // Lifecycle
 onMounted(() => {
+  // Restore showPurchased state from localStorage
+  const savedShowPurchased = localStorage.getItem(SHOW_PURCHASED_KEY)
+  if (savedShowPurchased !== null) {
+    showPurchased.value = savedShowPurchased === 'true'
+  }
+  
   loadShoppingLists()
 })
 </script>

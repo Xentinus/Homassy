@@ -95,6 +95,10 @@ definePageMeta({
 const { getDetailedProducts } = useProductsApi()
 const { t: $t } = useI18n()
 
+// LocalStorage keys for filter settings
+const LAST_SEARCH_QUERY_KEY = 'productsLastSearchQuery'
+const LAST_FILTER_MODE_KEY = 'productsLastFilterMode'
+
 // State
 const allProducts = ref<DetailedProductInfo[]>([])
 const isLoading = ref(false)
@@ -267,6 +271,18 @@ watch(filterMode, () => {
 
 // Lifecycle
 onMounted(() => {
+  // Restore filter settings from localStorage
+  const savedSearchQuery = localStorage.getItem(LAST_SEARCH_QUERY_KEY)
+  const savedFilterMode = localStorage.getItem(LAST_FILTER_MODE_KEY)
+  
+  if (savedSearchQuery) {
+    searchQuery.value = savedSearchQuery
+  }
+  
+  if (savedFilterMode) {
+    filterMode.value = savedFilterMode
+  }
+  
   loadProducts()
 
   // Setup intersection observer for infinite scroll
@@ -294,5 +310,18 @@ onMounted(() => {
       observer.disconnect()
     })
   })
+})
+
+// Watch for filter changes and save to localStorage
+watch(searchQuery, (newValue) => {
+  if (newValue) {
+    localStorage.setItem(LAST_SEARCH_QUERY_KEY, newValue)
+  } else {
+    localStorage.removeItem(LAST_SEARCH_QUERY_KEY)
+  }
+})
+
+watch(filterMode, (newValue) => {
+  localStorage.setItem(LAST_FILTER_MODE_KEY, newValue)
 })
 </script>
