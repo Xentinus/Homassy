@@ -135,8 +135,8 @@
         "withBarcode": "Vonalkóddal rendelkező termékek"
       },
       "details": {
+        "overview": "Készlet áttekintés",
         "title": "Termék részletei",
-        "overview": "Termék áttekintés",
         "backToProducts": "Vissza a termékekhez",
         "inventoryHeader": "Készlet elemek",
         "noInventoryItems": "Nincsenek készlet elemek",

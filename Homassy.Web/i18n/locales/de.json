@@ -135,8 +135,8 @@
         "withBarcode": "Produkte mit Barcode"
       },
       "details": {
+        "overview": "Bestandsübersicht",
         "title": "Produktdetails",
-        "overview": "Produktübersicht",
         "backToProducts": "Zurück zu Produkten",
         "inventoryHeader": "Inventarartikel",
         "noInventoryItems": "Keine Inventarartikel",

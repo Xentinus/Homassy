@@ -38,7 +38,7 @@
       <div v-else-if="product" class="space-y-6">
         <!-- Product Info Card -->
         <div class="relative bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-6 space-y-4">
-          <div class="flex gap-6">
+          <div class="flex flex-col md:flex-row gap-6 items-center md:items-start">
             <!-- Product Image -->
             <div v-if="product.productPictureBase64" class="flex-shrink-0">
               <img
@@ -56,13 +56,13 @@
             </div>
 
             <!-- Product Details -->
-            <div class="flex-1 space-y-3">
+            <div class="flex-1 space-y-3 text-center md:text-left">
               <div>
-                <h2 class="text-2xl font-bold">{{ product.name }}</h2>
-                <p class="text-lg text-gray-600 dark:text-gray-400">{{ product.brand }}</p>
+                <h2 class="text-2xl font-bold break-words">{{ product.name }}</h2>
+                <p class="text-lg text-gray-600 dark:text-gray-400 break-words">{{ product.brand }}</p>
                 
                 <!-- Status Icons -->
-                <div class="flex items-center gap-2 mt-2">
+                <div class="flex items-center gap-2 mt-2 justify-center md:justify-start">
                   <UIcon
                     v-if="product.isEatable"
                     name="i-lucide-utensils"
@@ -76,12 +76,12 @@
                 </div>
               </div>
 
-              <div class="flex flex-wrap gap-4 text-sm">
+              <div class="flex flex-wrap gap-4 text-sm justify-center md:justify-start">
                 <div v-if="product.category" class="flex items-center gap-2">
                   <UIcon name="i-lucide-tag" class="text-gray-500" />
                   <span>{{ product.category }}</span>
                 </div>
-                <div v-if="product.barcode" class="flex items-center gap-2">
+                <div v-if="product.barcode" class="hidden md:flex items-center gap-2">
                   <UIcon name="i-lucide-barcode" class="text-gray-500" />
                   <span>{{ product.barcode }}</span>
                 </div>
@@ -103,7 +103,7 @@
 
           <div v-else class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
             <InventoryItemDetail
-              v-for="item in product.inventoryItems"
+              v-for="item in sortedInventoryItems"
               :key="item.publicId"
               :item="item"
               :product-name="product.name"
@@ -416,7 +416,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import type { DetailedProductInfo, UpdateProductRequest } from '../../types/product'
 import type { OpenFoodFactsProduct } from '../../types/openFoodFacts'
 import { useProductsApi } from '../../composables/api/useProductsApi'
@@ -464,6 +464,22 @@ const isImageLoading = ref(true)
 // Delete product modal state
 const isDeleteProductModalOpen = ref(false)
 const isDeletingProduct = ref(false)
+
+// Sorted inventory items by expiration date
+const sortedInventoryItems = computed(() => {
+  if (!product.value) return []
+  
+  return [...product.value.inventoryItems].sort((a, b) => {
+    // Ha egyik elemnek sincs lejárati dátuma
+    if (!a.expirationAt && !b.expirationAt) return 0
+    // Ha csak 'a'-nak nincs lejárati dátuma, akkor 'b' legyen előbb
+    if (!a.expirationAt) return 1
+    // Ha csak 'b'-nek nincs lejárati dátuma, akkor 'a' legyen előbb
+    if (!b.expirationAt) return -1
+    // Ha mindkettőnek van lejárati dátuma, rendezés időrendi sorrendben
+    return new Date(a.expirationAt).getTime() - new Date(b.expirationAt).getTime()
+  })
+})
 
 // Methods
 const handleToggleFavorite = async () => {

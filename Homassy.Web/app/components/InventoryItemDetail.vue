@@ -579,8 +579,8 @@ const formatUnitPrice = (price: number, quantity: number): string => {
 }
 
 const openConsumeModal = () => {
-  // Set default value to current quantity when opening modal
-  consumeQuantity.value = props.item.currentQuantity
+  // Set default value to 1, or current quantity if less than 1
+  consumeQuantity.value = Math.min(1, props.item.currentQuantity)
   isConsumeModalOpen.value = true
 }
 
