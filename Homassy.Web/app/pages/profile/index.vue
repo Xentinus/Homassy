@@ -168,6 +168,16 @@
         </NuxtLink>
       </template>
     </div>
+
+    <!-- Version Info -->
+    <div v-if="versionLoading || versionInfo" class="text-center text-xs text-gray-500 dark:text-gray-400 mt-8 pb-4">
+      <template v-if="versionLoading">
+        <USkeleton class="h-4 w-32 mx-auto" />
+      </template>
+      <template v-else-if="versionInfo">
+        v{{ versionInfo.shortVersion }}
+      </template>
+    </div>
   </div>
 </template>
 
@@ -177,10 +187,12 @@ import { ref, computed, onMounted } from 'vue'
 import { useAuthStore } from '~/stores/auth'
 import { useUserApi } from '~/composables/api/useUserApi'
 import { useFamilyApi } from '~/composables/api/useFamilyApi'
+import { useVersionApi } from '~/composables/api/useVersionApi'
 import { useRouter } from 'vue-router'
 import ImageCropper from '~/components/ImageCropper.vue'
 import imageCompression from 'browser-image-compression'
 import { extractBase64 } from '~/composables/useImageCrop'
+import type { VersionInfo } from '~/types/version'
 
 
 definePageMeta({ layout: 'auth', middleware: 'auth' })
@@ -189,6 +201,7 @@ definePageMeta({ layout: 'auth', middleware: 'auth' })
 const authStore = useAuthStore()
 const { uploadProfilePicture, deleteProfilePicture, getUserProfile } = useUserApi()
 const { leaveFamily } = useFamilyApi()
+const { getVersion } = useVersionApi()
 const router = useRouter()
 const { t, setLocale } = useI18n()
 const colorMode = useColorMode()
@@ -197,6 +210,8 @@ const userProfile = ref<any>(null)
 const loading = ref(true)
 const imageCropperOpen = ref(false)
 const cropperImageSrc = ref('')
+const versionInfo = ref<VersionInfo | null>(null)
+const versionLoading = ref(false)
 
 async function fetchUserProfile() {
   loading.value = true
@@ -214,8 +229,20 @@ async function fetchUserProfile() {
   loading.value = false
 }
 
+async function fetchVersion() {
+  versionLoading.value = true
+  try {
+    const res = await getVersion()
+    versionInfo.value = res.data || null
+  } catch {
+    versionInfo.value = null
+  }
+  versionLoading.value = false
+}
+
 onMounted(async () => {
   await fetchUserProfile()
+  await fetchVersion()
 })
 
 async function onLeaveFamily() {
