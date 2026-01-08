@@ -361,16 +361,22 @@ transfer_env_file() {
     # Create a deployment-specific .env (filter out SSH credentials and update API base)
     local temp_env=$(mktemp)
 
-    # Filter out RASPBERRY_PI_ variables and update NUXT_PUBLIC_API_BASE to production domain
+    # Check if RASPBERRY_PI_API_BASE is set
+    if [[ -z "$RASPBERRY_PI_API_BASE" ]]; then
+        error "RASPBERRY_PI_API_BASE is not set in .env file. This variable is required for production deployment."
+    fi
+
+    # Filter out RASPBERRY_PI_ and VPS_ variables and update NUXT_PUBLIC_API_BASE to production URL
     grep -v "^RASPBERRY_PI" "$SCRIPT_DIR/$ENV_FILE" | \
-        sed "s|NUXT_PUBLIC_API_BASE=.*|NUXT_PUBLIC_API_BASE=https://homassyapi.kellner.dev|g" > "$temp_env"
+        grep -v "^VPS_" | \
+        sed "s|NUXT_PUBLIC_API_BASE=.*|NUXT_PUBLIC_API_BASE=$RASPBERRY_PI_API_BASE|g" > "$temp_env"
 
     eval "$SCP_CMD '$temp_env' '$RASPBERRY_PI_USER@$RASPBERRY_PI_HOST:$DEPLOY_PATH/.env'" || \
         error "Failed to transfer .env file"
 
     rm "$temp_env"
 
-    success "Environment file transferred"
+    success "Environment file transferred (API base set to $RASPBERRY_PI_API_BASE)"
 }
 
 # =============================================================================
