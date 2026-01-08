@@ -1,54 +1,59 @@
 <template>
-  <div class="px-4 sm:px-6 lg:px-8 py-6 space-y-6">
-    <!-- Header -->
-    <div class="flex items-center gap-3">
-      <UIcon name="i-lucide-user" class="h-7 w-7 text-primary-500" />
-      <h1 class="text-2xl font-semibold">{{ $t('profile.title') }}</h1>
+  <div>
+    <!-- Fixed Header -->
+    <div class="fixed top-0 left-0 right-0 z-10 bg-white dark:bg-gray-900 px-6 sm:px-10 lg:px-16 py-6">
+      <!-- Header -->
+      <div class="flex items-center gap-3">
+        <UIcon name="i-lucide-user" class="h-7 w-7 text-primary-500" />
+        <h1 class="text-2xl font-semibold">{{ $t('profile.title') }}</h1>
+      </div>
     </div>
 
-    <!-- Avatar Section -->
-    <div class="flex flex-col items-center gap-4">
-      <template v-if="loading">
-        <USkeleton class="h-40 w-40 rounded-full" />
-        <USkeleton class="h-6 w-32 mt-2" />
-        <USkeleton class="h-4 w-24 mt-1" />
-      </template>
-      <template v-else>
-        <!-- Avatar with delete icon overlay -->
-        <div class="relative inline-block">
-          <div class="border-4 border-primary-500 rounded-full p-1">
-            <UAvatar
-              :src="avatarSrc"
-              :alt="primaryName || 'User'"
-              :text="avatarInitial"
-              class="h-40 w-40 text-6xl"
+    <!-- Content Section with padding to account for fixed header -->
+    <div class="pt-28 px-4 sm:px-8 lg:px-14 pb-6 space-y-6">
+      <!-- Avatar Section -->
+      <div class="flex flex-col items-center gap-4">
+        <template v-if="loading">
+          <USkeleton class="h-40 w-40 rounded-full" />
+          <USkeleton class="h-6 w-32 mt-2" />
+          <USkeleton class="h-4 w-24 mt-1" />
+        </template>
+        <template v-else>
+          <!-- Avatar with delete icon overlay -->
+          <div class="relative inline-block">
+            <div class="border-4 border-primary-500 rounded-full p-1">
+              <UAvatar
+                :src="avatarSrc"
+                :alt="primaryName || 'User'"
+                :text="avatarInitial"
+                class="h-40 w-40 text-6xl"
+              />
+            </div>
+            <UButton
+              v-if="hasAvatar"
+              icon="i-lucide-trash-2"
+              color="error"
+              size="xs"
+              class="absolute -top-1 -right-1 shadow-md rounded-full"
+              @click="onDeleteAvatar"
             />
           </div>
-          <UButton
-            v-if="hasAvatar"
-            icon="i-lucide-trash-2"
-            color="error"
-            size="xs"
-            class="absolute -top-1 -right-1 shadow-md rounded-full"
-            @click="onDeleteAvatar"
-          />
-        </div>
 
-        <!-- Name Display -->
-        <div class="text-center">
-          <p class="text-2xl font-semibold">{{ primaryName }}</p>
-          <p v-if="secondaryName" class="text-sm text-gray-600 dark:text-gray-400 mt-1">
-            {{ secondaryName }}
-          </p>
-        </div>
+          <!-- Name Display -->
+          <div class="text-center">
+            <p class="text-2xl font-semibold">{{ primaryName }}</p>
+            <p v-if="secondaryName" class="text-sm text-gray-600 dark:text-gray-400 mt-1">
+              {{ secondaryName }}
+            </p>
+          </div>
 
-        <!-- Upload Button -->
-        <UButton v-if="!hasAvatar" color="primary" variant="soft" class="w-full" @click="triggerFileSelect">
-          <UIcon name="i-lucide-upload" class="h-4 w-4 mr-2" />
-          {{ $t('profile.uploadAvatar') }}
-        </UButton>
-      </template>
-    </div>
+          <!-- Upload Button -->
+          <UButton v-if="!hasAvatar" color="primary" variant="soft" class="w-full" @click="triggerFileSelect">
+            <UIcon name="i-lucide-upload" class="h-4 w-4 mr-2" />
+            {{ $t('profile.uploadAvatar') }}
+          </UButton>
+        </template>
+      </div>
 
     <!-- Image Cropper Modal -->
     <ImageCropper
@@ -177,6 +182,7 @@
       <template v-else-if="versionInfo">
         v{{ versionInfo.shortVersion }}
       </template>
+    </div>
     </div>
   </div>
 </template>

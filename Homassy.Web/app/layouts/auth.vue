@@ -11,10 +11,10 @@
           :key="item.to"
           :to="item.to"
           :aria-label="item.label"
-          class="flex-1 flex flex-col items-center justify-center h-12 rounded-xl transition duration-150 hover:scale-[1.02] active:scale-95"
-          :class="item.active ? 'text-primary-500' : 'text-gray-500 dark:text-gray-400 hover:text-primary-500'"
+          class="flex-1 flex flex-col items-center justify-center h-16 md:h-12 rounded-xl transition duration-150 hover:scale-[1.02] active:scale-95"
+          :class="item.active ? 'text-primary-500 font-bold' : 'text-gray-500 dark:text-gray-400 hover:text-primary-500'"
         >
-          <UIcon :name="item.icon" class="h-6 w-6" />
+          <UIcon :name="item.icon" :class="item.active ? 'h-6 w-6 font-bold' : 'h-6 w-6'" />
           <span class="mt-1 text-xs hidden md:block">{{ item.label }}</span>
         </NuxtLink>
       </div>
