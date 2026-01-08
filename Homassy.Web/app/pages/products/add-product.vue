@@ -262,7 +262,7 @@
         </UModal>
 
         <!-- Barcode Scanner Modal -->
-        <BarcodeScannerModal :on-barcode-detected="handleBarcodeScanned" />
+        <BarcodeScannerModal :on-barcode-detected="dynamicBarcodeHandler" />
       </div>
 
       <!-- Step 2: Storage Location Selection -->
@@ -1308,6 +1308,17 @@ const handleBarcodeScanned = (barcode: string) => {
 // Barcode scanner handler for Search tab
 const handleSearchBarcodeScanned = (barcode: string) => {
   searchQuery.value = barcode
+}
+
+// Dynamic barcode handler - routes to correct handler based on active tab
+const dynamicBarcodeHandler = (barcode: string) => {
+  if (activeTab.value === 0) {
+    // Search tab - just set search query
+    handleSearchBarcodeScanned(barcode)
+  } else {
+    // Create tab - set barcode and trigger OpenFoodFacts query
+    handleBarcodeScanned(barcode)
+  }
 }
 
 const onCreateProduct = async (event: FormSubmitEvent<CreateProductSchema>) => {

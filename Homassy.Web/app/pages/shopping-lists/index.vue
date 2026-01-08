@@ -76,13 +76,19 @@
 
         <!-- RIGHT: Search Input with Toggle -->
         <div class="flex-1 flex gap-2">
-          <UInput
-            v-model="searchQuery"
-            :disabled="!isSearchEnabled"
-            :placeholder="$t('pages.shoppingLists.searchPlaceholder')"
-            trailing-icon="i-lucide-search"
-            class="flex-1"
-          />
+          <UFieldGroup size="md" orientation="horizontal" class="flex-1">
+            <UInput
+              v-model="searchQuery"
+              :disabled="!isSearchEnabled"
+              :placeholder="$t('pages.shoppingLists.searchPlaceholder')"
+              trailing-icon="i-lucide-search"
+              class="flex-1"
+            />
+            <BarcodeScannerButton
+              :disabled="!isSearchEnabled"
+              @scanned="handleBarcodeScanned"
+            />
+          </UFieldGroup>
           <UButton
             :icon="showPurchased ? 'i-lucide-eye' : 'i-lucide-eye-off'"
             size="md"
@@ -361,6 +367,9 @@
         </div>
       </template>
     </UModal>
+
+    <!-- Barcode Scanner Modal -->
+    <BarcodeScannerModal :on-barcode-detected="handleBarcodeScanned" />
   </div>
 </template>
 
@@ -639,6 +648,11 @@ const handleItemRefresh = async () => {
   if (selectedListId.value) {
     await loadListDetails(selectedListId.value)
   }
+}
+
+// Barcode scanner handler
+const handleBarcodeScanned = (barcode: string) => {
+  searchQuery.value = barcode
 }
 
 // Watchers

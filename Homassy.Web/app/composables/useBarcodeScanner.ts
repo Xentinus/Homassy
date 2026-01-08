@@ -83,8 +83,6 @@ export const useBarcodeScanner = () => {
     if (isPaused.value || !isScanning.value || detectedCodes.length === 0) return
 
     const barcode = detectedCodes[0].rawValue
-    console.log('📷 Barcode detected:', barcode)
-    console.log('📞 Callback exists:', !!scanCallback.value)
 
     playBeep()
     detectedBarcode.value = barcode
@@ -96,10 +94,7 @@ export const useBarcodeScanner = () => {
     isScannerOpen.value = false
 
     if (callback) {
-      console.log('✅ Calling callback with barcode:', barcode)
       callback(barcode)
-    } else {
-      console.error('❌ No callback registered!')
     }
   }
 
