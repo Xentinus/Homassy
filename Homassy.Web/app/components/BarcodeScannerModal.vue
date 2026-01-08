@@ -21,36 +21,42 @@
       <div class="space-y-4">
         <!-- Camera Preview -->
         <div class="relative cursor-pointer" @click="handleCameraClick">
-          <div
-            id="barcode-scanner-reader"
-            class="w-full rounded-lg overflow-hidden"
-          />
-
-          <!-- Frozen Image Overlay -->
-          <div
-            v-if="frozenImage"
-            class="absolute inset-0 pointer-events-none"
+          <QrcodeStream
+            v-if="isScannerOpen"
+            :paused="isPaused"
+            :constraints="{ facingMode: 'environment' }"
+            :formats="['linear_codes', 'matrix_codes']"
+            :track="trackFunction"
+            @detect="handleDetect"
+            @camera-on="handleCameraOn"
+            @error="handleCameraError"
           >
-            <img
-              :src="frozenImage"
-              alt="Captured frame"
-              class="w-full h-full object-cover"
+            <!-- Frozen Image Overlay -->
+            <div
+              v-if="frozenImage"
+              class="absolute inset-0 pointer-events-none"
+            >
+              <img
+                :src="frozenImage"
+                alt="Captured frame"
+                class="w-full h-full object-cover"
+              />
+            </div>
+
+            <!-- Scanning Animation Overlay (Primary Color) -->
+            <div
+              v-if="isScanning && !isPaused && !frozenImage"
+              class="absolute inset-0 pointer-events-none flex items-center justify-center overflow-hidden"
+            >
+              <div class="scanning-line" />
+            </div>
+
+            <!-- Capture Flash Animation -->
+            <div
+              v-if="isCapturing"
+              class="absolute inset-0 pointer-events-none bg-white capture-flash"
             />
-          </div>
-
-          <!-- Scanning Animation Overlay (Primary Color) -->
-          <div
-            v-if="isScanning && !frozenImage"
-            class="absolute inset-0 pointer-events-none flex items-center justify-center overflow-hidden"
-          >
-            <div class="scanning-line" />
-          </div>
-
-          <!-- Capture Flash Animation -->
-          <div
-            v-if="isCapturing"
-            class="absolute inset-0 pointer-events-none bg-white capture-flash"
-          />
+          </QrcodeStream>
         </div>
 
         <!-- Instructions -->
@@ -74,7 +80,8 @@
 
 <script setup lang="ts">
 import { watch, nextTick, ref } from 'vue'
-import { useBarcodeScanner } from '~/composables/useBarcodeScanner'
+import { QrcodeStream } from 'vue-qrcode-reader'
+import { useBarcodeScanner } from '../composables/useBarcodeScanner'
 
 interface Props {
   onBarcodeDetected: (barcode: string) => void
@@ -86,14 +93,18 @@ const { t } = useI18n()
 const {
   isScannerOpen,
   isScanning,
+  isPaused,
   scanError,
   startScanner,
   closeScanner,
-  captureAndScan
+  captureAndScan,
+  handleDetect,
+  handleCameraError
 } = useBarcodeScanner()
 
 const isCapturing = ref(false)
 const frozenImage = ref<string | null>(null)
+const videoRef = ref<HTMLVideoElement | null>(null)
 
 // Watch for modal open and start scanner
 watch(isScannerOpen, async (isOpen) => {
@@ -101,7 +112,7 @@ watch(isScannerOpen, async (isOpen) => {
     // Clear frozen image when opening scanner
     frozenImage.value = null
     await nextTick()
-    await startScanner('barcode-scanner-reader', props.onBarcodeDetected)
+    startScanner(props.onBarcodeDetected)
   }
 })
 
@@ -110,18 +121,63 @@ const handleUpdateOpen = async (value: boolean) => {
     // Modal is being closed
     await closeScanner()
     frozenImage.value = null
+    videoRef.value = null
   }
 }
 
+const handleCameraOn = () => {
+  // Camera successfully started
+  scanError.value = null
+}
+
+const trackFunction = (detectedCodes: any[], ctx: CanvasRenderingContext2D) => {
+  if (detectedCodes.length === 0) return
+
+  detectedCodes.forEach((code) => {
+    const { boundingBox, cornerPoints } = code
+
+    // Draw green box around detected code
+    ctx.strokeStyle = 'rgb(var(--color-primary-500))'
+    ctx.lineWidth = 3
+
+    if (boundingBox) {
+      ctx.strokeRect(
+        boundingBox.x,
+        boundingBox.y,
+        boundingBox.width,
+        boundingBox.height
+      )
+    }
+
+    // Draw corner points
+    if (cornerPoints && cornerPoints.length === 4) {
+      ctx.fillStyle = 'rgb(var(--color-primary-500))'
+      cornerPoints.forEach((point: any) => {
+        ctx.beginPath()
+        ctx.arc(point.x, point.y, 5, 0, 2 * Math.PI)
+        ctx.fill()
+      })
+    }
+  })
+}
+
 const handleCameraClick = () => {
+  if (!isScanning.value || isPaused.value) return
+
   // Trigger capture animation
   isCapturing.value = true
   setTimeout(() => {
     isCapturing.value = false
   }, 300)
 
+  // Get video element from QrcodeStream
+  const video = document.querySelector('.qrcode-stream-camera') as HTMLVideoElement
+  if (!video) return
+
+  videoRef.value = video
+
   captureAndScan(
-    props.onBarcodeDetected,
+    videoRef,
     (imageUrl) => {
       // On freeze - show the captured image
       frozenImage.value = imageUrl

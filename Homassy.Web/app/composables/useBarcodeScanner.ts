@@ -1,14 +1,12 @@
-import { ref, onUnmounted } from 'vue'
+import { ref, onUnmounted, type Ref } from 'vue'
 
 // Global state shared across all instances
 const isScannerOpen = ref(false)
 const isScanning = ref(false)
+const isPaused = ref(false)
 const scanError = ref<string | null>(null)
 const detectedBarcode = ref<string | null>(null)
-
-let html5QrCode: any = null
-let Html5Qrcode: any = null
-let Html5QrcodeSupportedFormats: any = null
+const scanCallback = ref<((barcode: string) => void) | null>(null)
 
 /**
  * Composable for barcode scanning using device camera
@@ -67,93 +65,41 @@ export const useBarcodeScanner = () => {
   }
 
   /**
-   * Request camera permission
-   * @returns {Promise<boolean>} True if permission granted, false otherwise
+   * Start the barcode scanner
+   * @param {Function} onSuccess - Callback function when barcode is detected
    */
-  const requestCameraPermission = async (): Promise<boolean> => {
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({ video: true })
-      // Stop the stream immediately after permission check
-      stream.getTracks().forEach((track) => track.stop())
-      return true
-    } catch (err: any) {
-      if (err.name === 'NotAllowedError') {
-        scanError.value = t('barcodeScanner.errors.permissionDenied')
-      } else if (err.name === 'NotFoundError') {
-        scanError.value = t('barcodeScanner.errors.noCameraFound')
-      } else {
-        scanError.value = t('barcodeScanner.errors.cameraAccessFailed')
-      }
-      return false
-    }
+  const startScanner = (onSuccess: (barcode: string) => void) => {
+    scanError.value = null
+    isScanning.value = true
+    scanCallback.value = onSuccess
+    isPaused.value = false
   }
 
   /**
-   * Start the barcode scanner
-   * @param {string} elementId - DOM element ID for camera preview
-   * @param {Function} onSuccess - Callback function when barcode is detected
+   * Handle barcode detection from live camera feed
+   * @param {Array} detectedCodes - Array of detected barcodes
    */
-  const startScanner = async (
-    elementId: string,
-    onSuccess: (barcode: string) => void
-  ) => {
-    try {
-      scanError.value = null
+  const handleDetect = (detectedCodes: any[]) => {
+    if (isPaused.value || !isScanning.value || detectedCodes.length === 0) return
 
-      // Request camera permission first
-      const hasPermission = await requestCameraPermission()
-      if (!hasPermission) {
-        isScanning.value = false
-        return
-      }
+    const barcode = detectedCodes[0].rawValue
+    console.log('📷 Barcode detected:', barcode)
+    console.log('📞 Callback exists:', !!scanCallback.value)
 
-      isScanning.value = true
+    playBeep()
+    detectedBarcode.value = barcode
 
-      // Dynamically import html5-qrcode (client-side only)
-      if (!Html5Qrcode) {
-        const module = await import('html5-qrcode')
-        Html5Qrcode = module.Html5Qrcode
-        Html5QrcodeSupportedFormats = module.Html5QrcodeSupportedFormats
-      }
+    // Store callback before stopping scanner (which clears it)
+    const callback = scanCallback.value
 
-      html5QrCode = new Html5Qrcode(elementId)
+    stopScanner()
+    isScannerOpen.value = false
 
-      await html5QrCode.start(
-        { facingMode: 'environment' }, // Use rear camera (simplified)
-        {
-          fps: 10, // Frames per second (slower for better focus)
-          qrbox: (viewfinderWidth, viewfinderHeight) => {
-            // Use 70% of the viewfinder width for scanning area
-            const minEdgeSize = Math.min(viewfinderWidth, viewfinderHeight)
-            const qrboxSize = Math.max(Math.floor(minEdgeSize * 0.7), 150) // Minimum 150px
-            const qrboxHeight = Math.max(Math.floor(qrboxSize * 0.4), 100) // Minimum 100px, wider for barcodes
-            return {
-              width: qrboxSize,
-              height: qrboxHeight // Wider rectangle for barcodes
-            }
-          },
-          aspectRatio: 1.777778 // 16:9 aspect ratio
-        },
-        async (decodedText) => {
-          // Success callback - barcode detected
-          playBeep()
-          detectedBarcode.value = decodedText
-
-          // Stop scanner and close modal
-          await stopScanner()
-          isScannerOpen.value = false
-
-          // Call the success callback
-          onSuccess(decodedText)
-        },
-        (errorMessage) => {
-          // Error callback - ignore scan failures during scanning
-          // These are normal and happen continuously while no barcode is detected
-        }
-      )
-    } catch (err: any) {
-      scanError.value = err.message || t('barcodeScanner.errors.scanFailed')
-      isScanning.value = false
+    if (callback) {
+      console.log('✅ Calling callback with barcode:', barcode)
+      callback(barcode)
+    } else {
+      console.error('❌ No callback registered!')
     }
   }
 
@@ -161,40 +107,38 @@ export const useBarcodeScanner = () => {
    * Capture and scan current frame
    * Takes a snapshot of the current video feed and attempts to scan it
    */
-  const captureAndScan = async (onSuccess: (barcode: string) => void, onFreeze?: (imageUrl: string) => void, onUnfreeze?: () => void) => {
-    if (!html5QrCode) return
+  const captureAndScan = async (
+    videoRef: Ref<HTMLVideoElement | null>,
+    onFreeze?: (imageUrl: string) => void,
+    onUnfreeze?: () => void
+  ) => {
+    if (!videoRef.value) return
+
+    isPaused.value = true
 
     try {
-      // Get the video element from the scanner
-      const videoElement = document.querySelector('#barcode-scanner-reader video') as HTMLVideoElement
-      if (!videoElement) return
-
-      // Pause the video to freeze the frame
-      videoElement.pause()
+      const video = videoRef.value
 
       // Create a high-resolution canvas to capture the frame
       const canvas = document.createElement('canvas')
-      // Use higher resolution if available
       const scaleFactor = 2 // 2x resolution for better barcode detection
-      canvas.width = videoElement.videoWidth * scaleFactor
-      canvas.height = videoElement.videoHeight * scaleFactor
+      canvas.width = video.videoWidth * scaleFactor
+      canvas.height = video.videoHeight * scaleFactor
       const ctx = canvas.getContext('2d')
       if (!ctx) return
 
       // Enable image smoothing for better quality
       ctx.imageSmoothingEnabled = true
       ctx.imageSmoothingQuality = 'high'
-
-      // Draw current video frame to canvas with scaling
-      ctx.drawImage(videoElement, 0, 0, canvas.width, canvas.height)
+      ctx.drawImage(video, 0, 0, canvas.width, canvas.height)
 
       // Get data URL for preview (use lower quality for preview)
       const previewCanvas = document.createElement('canvas')
-      previewCanvas.width = videoElement.videoWidth
-      previewCanvas.height = videoElement.videoHeight
+      previewCanvas.width = video.videoWidth
+      previewCanvas.height = video.videoHeight
       const previewCtx = previewCanvas.getContext('2d')
       if (previewCtx) {
-        previewCtx.drawImage(videoElement, 0, 0)
+        previewCtx.drawImage(video, 0, 0)
         const imageUrl = previewCanvas.toDataURL('image/jpeg', 0.9)
         if (onFreeze) onFreeze(imageUrl)
       }
@@ -202,101 +146,80 @@ export const useBarcodeScanner = () => {
       // Convert high-res canvas to blob with maximum quality
       canvas.toBlob(async (blob) => {
         if (!blob) {
-          // Resume video if capture failed
-          videoElement.play()
+          isPaused.value = false
           if (onUnfreeze) onUnfreeze()
           return
         }
 
-        // Create file from blob
-        const file = new File([blob], 'snapshot.jpg', { type: 'image/jpeg' })
-
         try {
-          // IMPORTANT: Stop the camera scanner completely before scanning the file
-          // html5-qrcode doesn't allow simultaneous camera and file scanning
-          const wasScanning = html5QrCode.getState() === 2
-          if (wasScanning) {
-            await html5QrCode.stop()
+          // Use BarcodeDetector API (polyfilled by vue-qrcode-reader)
+          const barcodeDetector = new (window as any).BarcodeDetector({
+            formats: ['linear_codes', 'matrix_codes']
+          })
+
+          const detectedCodes = await barcodeDetector.detect(await createImageBitmap(blob))
+
+          if (detectedCodes.length > 0) {
+            // Success - barcode found
+            const barcode = detectedCodes[0].rawValue
+            playBeep()
+            detectedBarcode.value = barcode
+
+            // Store callback before stopping scanner (which clears it)
+            const callback = scanCallback.value
+
+            stopScanner()
+            isScannerOpen.value = false
+
+            if (callback) {
+              callback(barcode)
+            }
+          } else {
+            // No barcode found in snapshot - wait 2 seconds then resume video
+            setTimeout(() => {
+              isPaused.value = false
+              if (onUnfreeze) onUnfreeze()
+            }, 2000)
           }
-
-          // Scan the captured image with all formats enabled
-          const decodedText = await html5QrCode.scanFile(file, true)
-
-          // Success - barcode found
-          playBeep()
-          detectedBarcode.value = decodedText
-
-          // Clear and close
-          html5QrCode.clear()
-          html5QrCode = null
-          isScannerOpen.value = false
-          isScanning.value = false
-          onSuccess(decodedText)
         } catch (err) {
-          // Log the error for debugging
-          console.log('No barcode detected in captured frame:', err)
-
-          // Restart the camera scanner if it was scanning
-          try {
-            await html5QrCode.start(
-              { facingMode: 'environment' },
-              {
-                fps: 10,
-                qrbox: (viewfinderWidth: number, viewfinderHeight: number) => {
-                  const minEdgeSize = Math.min(viewfinderWidth, viewfinderHeight)
-                  const qrboxSize = Math.max(Math.floor(minEdgeSize * 0.7), 150)
-                  const qrboxHeight = Math.max(Math.floor(qrboxSize * 0.4), 100)
-                  return {
-                    width: qrboxSize,
-                    height: qrboxHeight
-                  }
-                },
-                aspectRatio: 1.777778
-              },
-              async (decodedText: string) => {
-                playBeep()
-                detectedBarcode.value = decodedText
-                await stopScanner()
-                isScannerOpen.value = false
-                onSuccess(decodedText)
-              },
-              () => {
-                // Error callback - ignore
-              }
-            )
-          } catch (restartErr) {
-            console.error('Error restarting scanner:', restartErr)
-          }
-
-          // No barcode found in snapshot - wait 2 seconds then resume video
+          console.error('Barcode detection error:', err)
+          // Error during detection - wait 2 seconds then resume video
           setTimeout(() => {
-            videoElement.play()
+            isPaused.value = false
             if (onUnfreeze) onUnfreeze()
           }, 2000)
         }
       }, 'image/jpeg', 1.0) // Maximum quality (1.0)
     } catch (err) {
-      // Error during capture - continue live scanning
+      // Error during capture - resume immediately
       console.error('Capture error:', err)
+      isPaused.value = false
+      if (onUnfreeze) onUnfreeze()
     }
   }
 
   /**
    * Stop the barcode scanner and release camera
    */
-  const stopScanner = async () => {
-    if (html5QrCode) {
-      try {
-        // Check if scanner is actually running before stopping
-        const state = html5QrCode.getState()
-        if (state === 2) { // 2 = SCANNING state
-          await html5QrCode.stop()
-        }
-        html5QrCode.clear()
-      } catch (err) {
-        // Silently ignore stop errors as scanner might already be stopped
-      }
-      html5QrCode = null
+  const stopScanner = () => {
+    isScanning.value = false
+    isPaused.value = false
+    scanCallback.value = null
+  }
+
+  /**
+   * Handle camera errors
+   * @param {Error} error - Camera error
+   */
+  const handleCameraError = (error: Error) => {
+    if (error.name === 'NotAllowedError') {
+      scanError.value = t('barcodeScanner.errors.permissionDenied')
+    } else if (error.name === 'NotFoundError') {
+      scanError.value = t('barcodeScanner.errors.noCameraFound')
+    } else if (error.name === 'NotReadableError') {
+      scanError.value = t('barcodeScanner.errors.cameraAccessFailed')
+    } else {
+      scanError.value = error.message || t('barcodeScanner.errors.scanFailed')
     }
     isScanning.value = false
   }
@@ -312,24 +235,27 @@ export const useBarcodeScanner = () => {
    * Close the scanner modal and cleanup
    */
   const closeScanner = async () => {
-    await stopScanner()
+    stopScanner()
     isScannerOpen.value = false
     scanError.value = null
   }
 
   // Cleanup on component unmount
-  onUnmounted(async () => {
-    await stopScanner()
+  onUnmounted(() => {
+    stopScanner()
   })
 
   return {
     isScannerOpen,
     isScanning,
+    isPaused,
     scanError,
     detectedBarcode,
     startScanner,
     stopScanner,
     captureAndScan,
+    handleDetect,
+    handleCameraError,
     openScanner,
     closeScanner
   }

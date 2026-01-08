@@ -287,7 +287,7 @@
   </UModal>
 
   <!-- Barcode Scanner Modal -->
-  <BarcodeScannerModal :on-barcode-detected="handleBarcodeScanned" />
+  <BarcodeScannerModal :on-barcode-detected="dynamicBarcodeHandler" />
   </div>
 </template>
 
@@ -505,6 +505,17 @@ const handleBarcodeScanned = (barcode: string) => {
 const handleSearchBarcodeScanned = (barcode: string) => {
   searchQuery.value = barcode
   handleSearch()
+}
+
+// Dynamic barcode handler - routes to correct handler based on context
+const dynamicBarcodeHandler = (barcode: string) => {
+  if (isCreateModalOpen.value) {
+    // We're in the create modal - use create handler
+    handleBarcodeScanned(barcode)
+  } else {
+    // We're in search mode - use search handler
+    handleSearchBarcodeScanned(barcode)
+  }
 }
 
 // Create modal functions
