@@ -223,7 +223,7 @@
       }
     },
     "addProduct": {
-      "title": "Add Product",
+      "title": "Add Inventory",
       "stepLabels": {
         "step1": "Product Selection",
         "step2": "Storage Location",

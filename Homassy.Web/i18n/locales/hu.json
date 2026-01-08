@@ -223,7 +223,7 @@
       }
     },
     "addProduct": {
-      "title": "Termék hozzáadása",
+      "title": "Készlet hozzáadása",
       "stepLabels": {
         "step1": "Termék választása",
         "step2": "Tárolási hely",

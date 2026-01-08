@@ -18,7 +18,7 @@
             trailing-icon="i-lucide-plus"
             :disabled="!selectedListId"
           >
-            {{ $t('pages.shoppingLists.addProductButton') }}
+            {{ $t('common.add') }}
           </UButton>
         </NuxtLink>
       </div>

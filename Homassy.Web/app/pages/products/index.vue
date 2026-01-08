@@ -9,7 +9,7 @@
         </div>
         <NuxtLink to="/products/add-product">
           <UButton color="primary" size="sm" trailing-icon="i-lucide-plus">
-            {{ $t('pages.products.addProductButton') }}
+            {{ $t('common.add') }}
           </UButton>
         </NuxtLink>
       </div>

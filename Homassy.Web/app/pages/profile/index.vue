@@ -180,7 +180,7 @@
         <USkeleton class="h-4 w-32 mx-auto" />
       </template>
       <template v-else-if="versionInfo">
-        v{{ versionInfo.shortVersion }}
+        v{{ displayVersion }}
       </template>
     </div>
     </div>
@@ -218,6 +218,15 @@ const imageCropperOpen = ref(false)
 const cropperImageSrc = ref('')
 const versionInfo = ref<VersionInfo | null>(null)
 const versionLoading = ref(false)
+
+// Check if we're in production mode
+const isProduction = import.meta.env.PROD
+
+// Computed property for version display
+const displayVersion = computed(() => {
+  if (!versionInfo.value) return ''
+  return isProduction ? versionInfo.value.shortVersion : versionInfo.value.version
+})
 
 async function fetchUserProfile() {
   loading.value = true
