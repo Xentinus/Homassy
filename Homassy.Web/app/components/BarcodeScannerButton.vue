@@ -1,6 +1,5 @@
 <template>
   <UButton
-    v-if="isMobile"
     icon="i-lucide-camera"
     color="primary"
     size="sm"
@@ -17,7 +16,6 @@ interface Props {
 
 defineProps<Props>()
 
-const { isMobile } = useDeviceDetection()
 const { openScanner } = useBarcodeScanner()
 
 const handleClick = () => {

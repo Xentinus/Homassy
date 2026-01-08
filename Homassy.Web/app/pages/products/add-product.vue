@@ -39,7 +39,7 @@
                   size="lg"
                   class="flex-1"
                 />
-                <BarcodeScannerButton @scanned="handleSearchBarcodeScanned" />
+                <BarcodeScannerButton v-if="showCameraButton" @scanned="handleSearchBarcodeScanned" />
               </UFieldGroup>
 
               <!-- Loading State -->
@@ -132,6 +132,7 @@
                       class="flex-1"
                     />
                     <BarcodeScannerButton
+                      v-if="showCameraButton"
                       :disabled="isCreating"
                       @scanned="handleBarcodeScanned"
                     />
@@ -779,6 +780,7 @@ const { getStorageLocations, createStorageLocation, getShoppingLocations, create
 const { getProductByBarcode } = useOpenFoodFactsApi()
 const { t } = useI18n()
 const toast = useToast()
+const { showCameraButton } = useCameraAvailability()
 
 // Stepper state
 const currentStep = ref(0)

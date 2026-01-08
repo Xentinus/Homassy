@@ -34,7 +34,7 @@
             class="flex-1"
             @update:model-value="handleSearch"
           />
-          <BarcodeScannerButton @scanned="handleSearchBarcodeScanned" />
+          <BarcodeScannerButton v-if="showCameraButton" @scanned="handleSearchBarcodeScanned" />
         </UFieldGroup>
       </div>
     </div>
@@ -150,6 +150,7 @@
               class="flex-1"
             />
             <BarcodeScannerButton
+              v-if="showCameraButton"
               :disabled="isCreating"
               @scanned="handleBarcodeScanned"
             />
@@ -296,6 +297,7 @@
 import { ref, onMounted, onBeforeUnmount, nextTick } from 'vue'
 import { useProductsApi } from '~/composables/api/useProductsApi'
 import { useOpenFoodFactsApi } from '~/composables/api/useOpenFoodFactsApi'
+import { useCameraAvailability } from '~/composables/useCameraAvailability'
 import type { ProductInfo } from '~/types/product'
 import type { OpenFoodFactsProduct } from '~/types/openFoodFacts'
 
@@ -305,6 +307,7 @@ const { getProducts, createProduct } = useProductsApi()
 const openFoodFactsApi = useOpenFoodFactsApi()
 const { t } = useI18n()
 const toast = useToast()
+const { showCameraButton } = useCameraAvailability()
 
 const loading = ref(true)
 const loadingMore = ref(false)

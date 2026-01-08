@@ -26,7 +26,7 @@
               :placeholder="$t('common.searchPlaceholder')"
               trailing-icon="i-lucide-search"
             />
-            <BarcodeScannerButton @scanned="handleBarcodeScanned" />
+            <BarcodeScannerButton v-if="showCameraButton" @scanned="handleBarcodeScanned" />
           </UFieldGroup>
         </div>
         <div class="flex-1">
@@ -86,6 +86,7 @@ import { ref, computed, onMounted, watch, nextTick, onBeforeUnmount } from 'vue'
 import { useProductsApi } from '../../composables/api/useProductsApi'
 import type { DetailedProductInfo } from '../../types/product'
 import { normalizeForSearch } from '../../utils/stringUtils'
+import { useCameraAvailability } from '../../composables/useCameraAvailability'
 
 definePageMeta({
   layout: 'auth',
@@ -94,6 +95,7 @@ definePageMeta({
 
 const { getDetailedProducts } = useProductsApi()
 const { t: $t } = useI18n()
+const { showCameraButton } = useCameraAvailability()
 
 // LocalStorage keys for filter settings
 const LAST_SEARCH_QUERY_KEY = 'productsLastSearchQuery'

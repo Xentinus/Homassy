@@ -85,6 +85,7 @@
               class="flex-1"
             />
             <BarcodeScannerButton
+              v-if="showCameraButton"
               :disabled="!isSearchEnabled"
               @scanned="handleBarcodeScanned"
             />
@@ -382,6 +383,7 @@ import { SelectValueType } from '../../types/enums'
 import { useSelectValueApi } from '../../composables/api/useSelectValueApi'
 import { useShoppingListApi } from '../../composables/api/useShoppingListApi'
 import { normalizeForSearch } from '../../utils/stringUtils'
+import { useCameraAvailability } from '../../composables/useCameraAvailability'
 
 definePageMeta({
   layout: 'auth',
@@ -391,6 +393,7 @@ definePageMeta({
 const { t: $t } = useI18n()
 const { getSelectValues } = useSelectValueApi()
 const { getShoppingListDetails, createShoppingList, updateShoppingList, deleteShoppingList } = useShoppingListApi()
+const { showCameraButton } = useCameraAvailability()
 
 // LocalStorage key for last selected shopping list
 const LAST_SELECTED_LIST_KEY = 'lastSelectedShoppingListId'

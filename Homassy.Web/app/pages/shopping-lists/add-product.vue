@@ -39,7 +39,7 @@
                   size="lg"
                   class="flex-1"
                 />
-                <BarcodeScannerButton @scanned="handleSearchBarcodeScanned" />
+                <BarcodeScannerButton v-if="showCameraButton" @scanned="handleSearchBarcodeScanned" />
               </UFieldGroup>
 
               <!-- Loading State -->
@@ -131,7 +131,7 @@
                       pattern="[0-9]*"
                       class="flex-1"
                     />
-                    <BarcodeScannerButton :disabled="isCreating" @scanned="handleBarcodeScanned" />
+                    <BarcodeScannerButton v-if="showCameraButton" :disabled="isCreating" @scanned="handleBarcodeScanned" />
                     <UButton
                       :label="t('pages.addProduct.form.barcodeQuery')"
                       icon="i-lucide-barcode"
@@ -606,6 +606,7 @@ const { getProducts, createProduct } = useProductsApi()
 const { getShoppingLocations, createShoppingLocation } = useLocationsApi()
 const { createShoppingListItem } = useShoppingListApi()
 const { getProductByBarcode } = useOpenFoodFactsApi()
+const { showCameraButton } = useCameraAvailability()
 
 // =========================
 // Shopping List ID Validation
