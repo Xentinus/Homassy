@@ -77,6 +77,7 @@
                   v-for="product in searchResults"
                   :key="product.publicId"
                   :product="product"
+                  :search-query="searchQuery"
                   :is-active="selectedCardId === product.publicId"
                   @click="onProductCardClick(product)"
                 />
@@ -267,6 +268,7 @@
                   v-for="location in paginatedShoppingLocations"
                   :key="location.publicId"
                   :location="location"
+                  :search-query="shoppingLocationSearchQuery"
                   :is-active="selectedShoppingLocationCardId === location.publicId"
                   @click="onShoppingLocationCardClick(location)"
                 />
@@ -788,16 +790,23 @@ const unitOptions = computed(() => {
 const filteredShoppingLocations = computed(() => {
   const query = shoppingLocationSearchQuery.value.toLowerCase().trim()
 
-  if (!query) {
-    return allShoppingLocations.value
+  let result = allShoppingLocations.value
+
+  if (query) {
+    result = result.filter(location =>
+      location.name?.toLowerCase().includes(query) ||
+      location.description?.toLowerCase().includes(query) ||
+      location.address?.toLowerCase().includes(query) ||
+      location.city?.toLowerCase().includes(query)
+    )
   }
 
-  return allShoppingLocations.value.filter(location =>
-    location.name?.toLowerCase().includes(query) ||
-    location.description?.toLowerCase().includes(query) ||
-    location.address?.toLowerCase().includes(query) ||
-    location.city?.toLowerCase().includes(query)
-  )
+  // Sort alphabetically by name
+  result = result.sort((a, b) => {
+    return a.name.toLowerCase().localeCompare(b.name.toLowerCase(), 'hu')
+  })
+
+  return result
 })
 
 const paginatedShoppingLocations = computed(() => {
@@ -836,7 +845,10 @@ watchDebounced(
       })
 
       if (response.success && response.data) {
-        searchResults.value = response.data.items
+        const sortedItems = response.data.items.sort((a, b) => {
+          return a.name.toLowerCase().localeCompare(b.name.toLowerCase(), 'hu')
+        })
+        searchResults.value = sortedItems
       }
     } catch (error) {
       console.error('Product search failed:', error)

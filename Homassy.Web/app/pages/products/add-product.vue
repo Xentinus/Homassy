@@ -78,6 +78,7 @@
                   :key="product.publicId"
                   :product="product"
                   :is-active="selectedCardId === product.publicId"
+                  :search-query="searchQuery"
                   @click="onProductCardClick(product)"
                 />
               </div>
@@ -303,6 +304,7 @@
                     :key="location.publicId"
                     :location="location"
                     :is-active="selectedLocationCardId === location.publicId"
+                    :search-query="locationSearchQuery"
                     @click="onLocationCardClick(location)"
                   />
                 </div>
@@ -459,6 +461,7 @@
                     :key="location.publicId"
                     :location="location"
                     :is-active="selectedShoppingLocationCardId === location.publicId"
+                    :search-query="shoppingLocationSearchQuery"
                     @click="onShoppingLocationCardClick(location)"
                   />
                 </div>
@@ -1028,7 +1031,11 @@ watchDebounced(
         pageSize: 20
       })
       if (response.success && response.data) {
-        searchResults.value = response.data.items
+        // Sort products alphabetically by name
+        const sortedItems = response.data.items.sort((a, b) => {
+          return a.name.toLowerCase().localeCompare(b.name.toLowerCase(), 'hu')
+        })
+        searchResults.value = sortedItems
       }
     } catch (error) {
       console.error('Search failed:', error)
@@ -1052,6 +1059,11 @@ const filteredLocations = computed(() => {
       (location.description && location.description.toLowerCase().includes(searchTerm))
     )
   }
+
+  // Sort alphabetically by name
+  result = result.sort((a, b) => {
+    return a.name.toLowerCase().localeCompare(b.name.toLowerCase(), 'hu')
+  })
 
   return result
 })
@@ -1157,6 +1169,11 @@ const filteredShoppingLocations = computed(() => {
       (location.description && location.description.toLowerCase().includes(searchTerm))
     )
   }
+
+  // Sort alphabetically by name
+  result = result.sort((a, b) => {
+    return a.name.toLowerCase().localeCompare(b.name.toLowerCase(), 'hu')
+  })
 
   return result
 })

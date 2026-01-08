@@ -25,7 +25,7 @@
       </div>
       
       <!-- Search Input -->
-      <div class="max-w-md">
+      <div class="w-full">
         <UFieldGroup size="md" orientation="horizontal" class="w-full">
           <UInput
             v-model="searchQuery"
@@ -66,6 +66,7 @@
         v-for="product in products"
         :key="product.publicId"
         :product="product"
+        :search-query="searchQuery"
         :editable="true"
         @updated="reloadCurrentPages"
         @deleted="reloadCurrentPages"

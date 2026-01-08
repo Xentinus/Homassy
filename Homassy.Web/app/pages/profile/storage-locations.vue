@@ -62,6 +62,7 @@
         v-for="location in filteredLocations"
         :key="location.publicId"
         :location="location"
+        :search-query="searchQuery"
         @click="handleLocationClick(location)"
         @updated="loadStorageLocations"
         @deleted="loadStorageLocations"

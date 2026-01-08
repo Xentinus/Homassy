@@ -140,6 +140,7 @@
           v-for="item in filteredItems"
           :key="item.publicId"
           :item="item"
+          :search-query="searchQuery"
           @refresh="handleItemRefresh"
           @deleted="handleItemRefresh"
         />
@@ -376,7 +377,7 @@
 <script setup lang="ts">
 import { ref, computed, watch, onMounted } from 'vue'
 import type { SelectValue } from '../../types/selectValue'
-import type { DetailedShoppingListInfo, CreateShoppingListRequest, UpdateShoppingListRequest } from '../../types/shoppingList'
+import type { DetailedShoppingListInfo, CreateShoppingListRequest, UpdateShoppingListRequest, ShoppingListItemInfo } from '../../types/shoppingList'
 import { SelectValueType } from '../../types/enums'
 import { useSelectValueApi } from '../../composables/api/useSelectValueApi'
 import { useShoppingListApi } from '../../composables/api/useShoppingListApi'
@@ -423,6 +424,22 @@ const isUpdating = ref(false)
 // Delete modal state
 const isDeleteModalOpen = ref(false)
 const isDeleting = ref(false)
+
+// Helper function to get target date for an item
+const getTargetDate = (item: ShoppingListItemInfo): Date | null => {
+  const deadlineDate = item.deadlineAt ? new Date(item.deadlineAt) : null
+  const dueDate = item.dueAt ? new Date(item.dueAt) : null
+
+  // Use the earlier of deadline or due date
+  return deadlineDate && dueDate
+    ? (deadlineDate < dueDate ? deadlineDate : dueDate)
+    : (deadlineDate || dueDate)
+}
+
+// Helper function to get display name for an item
+const getDisplayName = (item: ShoppingListItemInfo): string => {
+  return item.product?.name || item.customName || 'Unnamed Item'
+}
 
 // Computed
 const shoppingListOptions = computed(() => {
@@ -484,7 +501,40 @@ const filteredItems = computed(() => {
     })
   }
 
-  return items
+  // Sort items by urgency and then alphabetically
+  const now = new Date()
+  const twoWeeksFromNow = new Date(now.getTime() + 14 * 24 * 60 * 60 * 1000)
+
+  // Categorize items
+  const overdueItems: ShoppingListItemInfo[] = []
+  const dueSoonItems: ShoppingListItemInfo[] = []
+  const otherItems: ShoppingListItemInfo[] = []
+
+  items.forEach(item => {
+    const targetDate = getTargetDate(item)
+
+    if (targetDate && targetDate < now) {
+      overdueItems.push(item)
+    } else if (targetDate && targetDate <= twoWeeksFromNow) {
+      dueSoonItems.push(item)
+    } else {
+      otherItems.push(item)
+    }
+  })
+
+  // Sort each category alphabetically
+  const sortAlphabetically = (a: ShoppingListItemInfo, b: ShoppingListItemInfo) => {
+    const nameA = getDisplayName(a).toLowerCase()
+    const nameB = getDisplayName(b).toLowerCase()
+    return nameA.localeCompare(nameB, 'hu')
+  }
+
+  overdueItems.sort(sortAlphabetically)
+  dueSoonItems.sort(sortAlphabetically)
+  otherItems.sort(sortAlphabetically)
+
+  // Concatenate in priority order
+  return [...overdueItems, ...dueSoonItems, ...otherItems]
 })
 
 // Methods

@@ -21,9 +21,10 @@
           />
 
           <!-- Name -->
-          <h3 class="font-semibold text-sm line-clamp-2 text-gray-900 dark:text-white flex-1">
-            {{ location.name }}
-          </h3>
+          <h3 
+            class="font-semibold text-sm line-clamp-2 text-gray-900 dark:text-white flex-1"
+            v-html="highlightText(location.name, searchQuery)"
+          />
 
           <!-- Family Shared Icon -->
           <UIcon
@@ -51,11 +52,12 @@
         >
           <UIcon name="i-lucide-map-pin" class="h-3 w-3 flex-shrink-0 mt-0.5" />
           <div class="flex-1">
-            <div v-if="location.country">{{ location.country }}</div>
-            <div v-if="location.city || location.postalCode">
-              {{ location.city }}{{ location.city && location.postalCode ? ' ' : '' }}{{ location.postalCode }}
+            <div v-if="location.country" v-html="highlightText(location.country, searchQuery)" />
+            <div v-if="location.city || location.postalCode" class="flex gap-1">
+              <span v-if="location.city" v-html="highlightText(location.city, searchQuery)" />
+              <span v-if="location.postalCode" v-html="highlightText(location.postalCode, searchQuery)" />
             </div>
-            <div v-if="location.address">{{ location.address }}</div>
+            <div v-if="location.address" v-html="highlightText(location.address, searchQuery)" />
           </div>
         </div>
 
@@ -63,9 +65,8 @@
         <p
           v-if="location.description && location.description.trim() !== ''"
           class="text-xs text-gray-600 dark:text-gray-400 line-clamp-2"
-        >
-          {{ location.description }}
-        </p>
+          v-html="highlightText(location.description, searchQuery)"
+        />
 
         <!-- External Links -->
         <div v-if="location.website || location.googleMaps" class="flex gap-2">
@@ -327,10 +328,12 @@ import { useLocationsApi } from '~/composables/api/useLocationsApi'
 interface Props {
   location: ShoppingLocationInfo
   isActive?: boolean
+  searchQuery?: string
 }
 
 const props = withDefaults(defineProps<Props>(), {
-  isActive: false
+  isActive: false,
+  searchQuery: ''
 })
 
 const emit = defineEmits<{
@@ -342,6 +345,24 @@ const emit = defineEmits<{
 const { t } = useI18n()
 const toast = useToast()
 const locationsApi = useLocationsApi()
+
+// Helper function to escape regex special characters
+const escapeRegex = (str: string): string => {
+  return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+}
+
+// Helper function to highlight search text
+const highlightText = (text: string, query: string): string => {
+  if (!query || !text) return text
+  
+  const normalizedQuery = query.toLowerCase().trim()
+  const normalizedText = text.toLowerCase()
+  
+  if (!normalizedText.includes(normalizedQuery)) return text
+  
+  const regex = new RegExp(`(${escapeRegex(normalizedQuery)})`, 'gi')
+  return text.replace(regex, '<span class="font-bold text-primary-600 dark:text-primary-400 bg-primary-100 dark:bg-primary-900/30 px-1 py-0.5 rounded">$1</span>')
+}
 
 // Modal states
 const isEditModalOpen = ref(false)

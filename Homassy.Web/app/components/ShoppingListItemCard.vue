@@ -22,10 +22,15 @@
       <div class="flex-1 min-w-0 space-y-2">
         <!-- Product Name -->
         <div class="break-words">
-          <h3 class="text-lg font-semibold break-words">{{ displayName }}</h3>
-          <p v-if="item.product?.brand" class="text-sm text-gray-600 dark:text-gray-400 break-words">
-            {{ item.product.brand }}
-          </p>
+          <h3 
+            class="text-lg font-semibold break-words"
+            v-html="highlightText(displayName, searchQuery)"
+          />
+          <p 
+            v-if="item.product?.brand" 
+            class="text-sm text-gray-600 dark:text-gray-400 break-words"
+            v-html="highlightText(item.product.brand, searchQuery)"
+          />
         </div>
 
         <!-- Shopping Location with Google Maps -->
@@ -54,7 +59,10 @@
         <!-- Note (if not empty) -->
         <div v-if="item.note" class="flex items-start gap-2 text-sm">
           <UIcon name="i-lucide-sticky-note" class="h-4 w-4 text-gray-500 mt-0.5" />
-          <p class="text-gray-600 dark:text-gray-400 italic">{{ item.note }}</p>
+          <p 
+            class="text-gray-600 dark:text-gray-400 italic"
+            v-html="highlightText(item.note, searchQuery)"
+          />
         </div>
 
         <!-- Dates -->
@@ -359,9 +367,12 @@ import { CalendarDate as CalendarDateClass } from '@internationalized/date'
 
 interface Props {
   item: ShoppingListItemInfo
+  searchQuery?: string
 }
 
-const props = defineProps<Props>()
+const props = withDefaults(defineProps<Props>(), {
+  searchQuery: ''
+})
 
 const emit = defineEmits<{
   refresh: []
@@ -409,6 +420,24 @@ const unitLabel = computed(() => {
   if (props.item.unit === null || props.item.unit === undefined) return ''
   return t(`enums.unit.${props.item.unit}`)
 })
+
+// Helper function to escape regex special characters
+const escapeRegex = (str: string): string => {
+  return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+}
+
+// Helper function to highlight search text
+const highlightText = (text: string, query: string): string => {
+  if (!query || !text) return text
+  
+  const normalizedQuery = query.toLowerCase().trim()
+  const normalizedText = text.toLowerCase()
+  
+  if (!normalizedText.includes(normalizedQuery)) return text
+  
+  const regex = new RegExp(`(${escapeRegex(normalizedQuery)})`, 'gi')
+  return text.replace(regex, '<span class="font-bold text-primary-600 dark:text-primary-400 bg-primary-100 dark:bg-primary-900/30 px-1 py-0.5 rounded">$1</span>')
+}
 
 // Dropdown menu items
 const dropdownItems = computed(() => {

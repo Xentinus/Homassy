@@ -18,9 +18,10 @@
     <!-- Header: Name, Brand, Barcode -->
     <div class="space-y-1 mb-2">
       <div class="flex items-start justify-between gap-2">
-        <h3 class="font-semibold text-sm text-gray-900 dark:text-white line-clamp-1">
-          {{ product.name }}
-        </h3>
+        <h3 
+          class="font-semibold text-sm text-gray-900 dark:text-white line-clamp-1"
+          v-html="highlightText(product.name, searchQuery)"
+        />
         <div class="flex items-center gap-1.5 flex-shrink-0 mt-0.5">
           <UIcon
             v-if="product.isEatable"
@@ -46,11 +47,11 @@
       </div>
       
       <div class="flex items-center gap-2 text-xs text-gray-500 dark:text-gray-400">
-        <span>{{ product.brand || '-' }}</span>
+        <span v-html="highlightText(product.brand || '-', searchQuery)" />
         <span v-if="product.barcode" class="flex items-center gap-1">
           <span>•</span>
           <UIcon name="i-lucide-barcode" class="h-3 w-3" />
-          <span class="font-mono">{{ product.barcode }}</span>
+          <span class="font-mono" v-html="highlightText(product.barcode, searchQuery)" />
         </span>
       </div>
     </div>
@@ -113,11 +114,32 @@ import type { Unit } from '../types/enums'
 
 interface Props {
   product: DetailedProductInfo
+  searchQuery?: string
 }
 
-const props = defineProps<Props>()
+const props = withDefaults(defineProps<Props>(), {
+  searchQuery: ''
+})
 
 const { t } = useI18n()
+
+// Helper function to escape regex special characters
+const escapeRegex = (str: string): string => {
+  return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+}
+
+// Helper function to highlight search text
+const highlightText = (text: string, query: string): string => {
+  if (!query || !text) return text
+  
+  const normalizedQuery = query.toLowerCase().trim()
+  const normalizedText = text.toLowerCase()
+  
+  if (!normalizedText.includes(normalizedQuery)) return text
+  
+  const regex = new RegExp(`(${escapeRegex(normalizedQuery)})`, 'gi')
+  return text.replace(regex, '<span class="font-bold text-primary-600 dark:text-primary-400 bg-primary-100 dark:bg-primary-900/30 px-1 py-0.5 rounded">$1</span>')
+}
 
 const hasExpiredItems = computed(() => {
   return props.product.inventoryItems.some(item =>

@@ -20,9 +20,10 @@
         />
 
         <!-- Name -->
-        <h3 class="font-semibold text-sm line-clamp-2 text-gray-900 dark:text-white flex-1">
-          {{ location.name }}
-        </h3>
+        <h3 
+          class="font-semibold text-sm line-clamp-2 text-gray-900 dark:text-white flex-1"
+          v-html="highlightText(location.name, searchQuery)"
+        />
 
         <!-- Family Shared Icon -->
         <UIcon
@@ -39,16 +40,15 @@
         class="text-xs text-gray-600 dark:text-gray-400 flex items-center gap-1"
       >
         <UIcon name="i-lucide-map-pin" class="h-3 w-3 flex-shrink-0" />
-        <span class="line-clamp-1">{{ location.address }}</span>
+        <span class="line-clamp-1" v-html="highlightText(location.address, searchQuery)" />
       </p>
 
       <!-- Description (only if not empty) -->
       <p
         v-if="location.description && location.description.trim() !== ''"
         class="text-xs text-gray-600 dark:text-gray-400 line-clamp-2"
-      >
-        {{ location.description }}
-      </p>
+        v-html="highlightText(location.description, searchQuery)"
+      />
     </div>
   </div>
 </template>
@@ -59,13 +59,33 @@ import type { ShoppingLocationInfo } from '~/types/location'
 interface Props {
   location: ShoppingLocationInfo
   isActive?: boolean
+  searchQuery?: string
 }
 
 withDefaults(defineProps<Props>(), {
-  isActive: false
+  isActive: false,
+  searchQuery: ''
 })
 
 const emit = defineEmits<{
   click: []
 }>()
+
+// Helper function to escape regex special characters
+const escapeRegex = (str: string): string => {
+  return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+}
+
+// Helper function to highlight search text
+const highlightText = (text: string, query: string): string => {
+  if (!query || !text) return text
+  
+  const normalizedQuery = query.toLowerCase().trim()
+  const normalizedText = text.toLowerCase()
+  
+  if (!normalizedText.includes(normalizedQuery)) return text
+  
+  const regex = new RegExp(`(${escapeRegex(normalizedQuery)})`, 'gi')
+  return text.replace(regex, '<span class="font-bold text-primary-600 dark:text-primary-400 bg-primary-100 dark:bg-primary-900/30 px-1 py-0.5 rounded">$1</span>')
+}
 </script>

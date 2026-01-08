@@ -57,7 +57,12 @@
 
     <!-- Products Grid -->
     <div v-else class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-      <DetailedProductCard v-for="product in displayedProducts" :key="product.publicId" :product="product" />
+      <DetailedProductCard 
+        v-for="product in displayedProducts" 
+        :key="product.publicId" 
+        :product="product"
+        :search-query="searchQuery"
+      />
     </div>
 
     <!-- Sentinel for intersection observer -->
@@ -149,7 +154,34 @@ const filteredProducts = computed(() => {
       break
   }
 
-  return result
+  // Sort products by urgency and then alphabetically
+  const expiredProducts: DetailedProductInfo[] = []
+  const expiringSoonProducts: DetailedProductInfo[] = []
+  const otherProducts: DetailedProductInfo[] = []
+
+  result.forEach(product => {
+    if (hasExpiredItems(product)) {
+      expiredProducts.push(product)
+    } else if (hasExpiringSoonItems(product)) {
+      expiringSoonProducts.push(product)
+    } else {
+      otherProducts.push(product)
+    }
+  })
+
+  // Sort each category alphabetically
+  const sortAlphabetically = (a: DetailedProductInfo, b: DetailedProductInfo) => {
+    const nameA = a.name.toLowerCase()
+    const nameB = b.name.toLowerCase()
+    return nameA.localeCompare(nameB, 'hu')
+  }
+
+  expiredProducts.sort(sortAlphabetically)
+  expiringSoonProducts.sort(sortAlphabetically)
+  otherProducts.sort(sortAlphabetically)
+
+  // Concatenate in priority order
+  return [...expiredProducts, ...expiringSoonProducts, ...otherProducts]
 })
 
 // Paginated products for display (lazy loading)

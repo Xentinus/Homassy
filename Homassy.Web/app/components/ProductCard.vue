@@ -80,9 +80,10 @@
         <!-- Product Info -->
         <div class="flex-1 flex flex-col">
           <div class="flex items-start gap-1 mb-1">
-            <h3 class="text-sm font-semibold line-clamp-2 flex-1 text-gray-900 dark:text-white">
-              {{ product.name }}
-            </h3>
+            <h3 
+              class="text-sm font-semibold line-clamp-2 flex-1 text-gray-900 dark:text-white"
+              v-html="highlightText(product.name, searchQuery)"
+            />
             <div class="flex gap-1 flex-shrink-0">
               <UIcon
                 v-if="product.isEatable"
@@ -99,17 +100,21 @@
             </div>
           </div>
           
-          <p v-if="product.brand" class="text-xs text-gray-600 dark:text-gray-400 line-clamp-1 mb-1">
-            {{ product.brand }}
-          </p>
+          <p 
+            v-if="product.brand" 
+            class="text-xs text-gray-600 dark:text-gray-400 line-clamp-1 mb-1"
+            v-html="highlightText(product.brand, searchQuery)"
+          />
           
           <p v-if="product.category" class="text-xs text-gray-500 dark:text-gray-500 line-clamp-1 mb-1">
             {{ product.category }}
           </p>
           
-          <p v-if="product.barcode" class="text-xs text-gray-500 dark:text-gray-500 font-mono line-clamp-1">
-            {{ product.barcode }}
-          </p>
+          <p 
+            v-if="product.barcode" 
+            class="text-xs text-gray-500 dark:text-gray-500 font-mono line-clamp-1"
+            v-html="highlightText(product.barcode, searchQuery)"
+          />
         </div>
       </div>
     </div>
@@ -409,11 +414,13 @@ interface Props {
   product: ProductInfo
   isActive?: boolean
   editable?: boolean
+  searchQuery?: string
 }
 
 const props = withDefaults(defineProps<Props>(), {
   isActive: false,
-  editable: false
+  editable: false,
+  searchQuery: ''
 })
 
 const emit = defineEmits<{
@@ -475,6 +482,24 @@ watch(() => editForm.value.barcode, (newValue) => {
     editForm.value.barcode = newValue.replace(/\D/g, '')
   }
 })
+
+// Helper function to escape regex special characters
+const escapeRegex = (str: string): string => {
+  return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+}
+
+// Helper function to highlight search text
+const highlightText = (text: string, query: string): string => {
+  if (!query || !text) return text
+  
+  const normalizedQuery = query.toLowerCase().trim()
+  const normalizedText = text.toLowerCase()
+  
+  if (!normalizedText.includes(normalizedQuery)) return text
+  
+  const regex = new RegExp(`(${escapeRegex(normalizedQuery)})`, 'gi')
+  return text.replace(regex, '<span class="font-bold text-primary-600 dark:text-primary-400 bg-primary-100 dark:bg-primary-900/30 px-1 py-0.5 rounded">$1</span>')
+}
 
 // Dropdown menu items
 const dropdownItems = computed(() => {

@@ -62,6 +62,7 @@
         v-for="location in filteredLocations"
         :key="location.publicId"
         :location="location"
+        :search-query="searchQuery"
         @click="handleLocationClick(location)"
         @updated="loadLocations"
         @deleted="loadLocations"
@@ -300,6 +301,7 @@ const filteredLocations = computed(() => {
     loc.description?.toLowerCase().includes(query) ||
     loc.address?.toLowerCase().includes(query) ||
     loc.city?.toLowerCase().includes(query) ||
+    loc.postalCode?.toLowerCase().includes(query) ||
     loc.country?.toLowerCase().includes(query)
   )
 })
