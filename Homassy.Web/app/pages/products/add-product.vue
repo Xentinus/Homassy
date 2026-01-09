@@ -657,6 +657,7 @@
             <UInputDate
               ref="expirationDateInput"
               v-model="inventoryFormData.expirationAt"
+              :locale="inputDateLocale"
               :disabled="isCreatingInventory"
               class="w-full"
             >
@@ -672,7 +673,7 @@
                     :disabled="isCreatingInventory"
                   />
                   <template #content>
-                    <UCalendar v-model="inventoryFormData.expirationAt" class="p-2" />
+                    <UCalendar v-model="inventoryFormData.expirationAt" :locale="inputDateLocale" class="p-2" />
                   </template>
                 </UPopover>
               </template>
@@ -779,6 +780,7 @@ const { getProducts, createProduct, createInventoryItem } = useProductsApi()
 const { getStorageLocations, createStorageLocation, getShoppingLocations, createShoppingLocation } = useLocationsApi()
 const { getProductByBarcode } = useOpenFoodFactsApi()
 const { t } = useI18n()
+const { inputDateLocale } = useInputDateLocale()
 const toast = useToast()
 const { showCameraButton } = useCameraAvailability()
 

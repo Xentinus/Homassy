@@ -205,8 +205,18 @@
             </label>
             <UInputDate
               v-model="editForm.dueAt"
+              :locale="inputDateLocale"
               class="w-full"
-            />
+            >
+              <template #trailing>
+                <UPopover>
+                  <UButton icon="i-lucide-calendar" color="neutral" variant="ghost" size="xs" />
+                  <template #content>
+                    <UCalendar v-model="editForm.dueAt" :locale="inputDateLocale" />
+                  </template>
+                </UPopover>
+              </template>
+            </UInputDate>
           </div>
 
           <!-- Deadline -->
@@ -216,8 +226,18 @@
             </label>
             <UInputDate
               v-model="editForm.deadlineAt"
+              :locale="inputDateLocale"
               class="w-full"
-            />
+            >
+              <template #trailing>
+                <UPopover>
+                  <UButton icon="i-lucide-calendar" color="neutral" variant="ghost" size="xs" />
+                  <template #content>
+                    <UCalendar v-model="editForm.deadlineAt" :locale="inputDateLocale" />
+                  </template>
+                </UPopover>
+              </template>
+            </UInputDate>
           </div>
         </div>
       </template>
@@ -380,6 +400,7 @@ const emit = defineEmits<{
 }>()
 
 const { t } = useI18n()
+const { inputDateLocale } = useInputDateLocale()
 const { quickPurchaseShoppingListItem, restorePurchaseShoppingListItem, updateShoppingListItem, deleteShoppingListItem } = useShoppingListApi()
 const toast = useToast()
 

@@ -461,12 +461,12 @@
           </UFormField>
 
           <UFormField :label="t('pages.shoppingLists.addProduct.item.deadlineLabel')" name="deadlineAt">
-            <UInputDate v-model="itemFormData.deadlineAt" :disabled="isCreatingItem" class="w-full">
+            <UInputDate v-model="itemFormData.deadlineAt" :locale="inputDateLocale" :disabled="isCreatingItem" class="w-full">
               <template #trailing>
                 <UPopover>
                   <UButton icon="i-lucide-calendar" color="neutral" variant="ghost" size="xs" />
                   <template #content>
-                    <UCalendar v-model="itemFormData.deadlineAt" />
+                    <UCalendar v-model="itemFormData.deadlineAt" :locale="inputDateLocale" />
                   </template>
                 </UPopover>
               </template>
@@ -474,12 +474,12 @@
           </UFormField>
 
           <UFormField :label="t('pages.shoppingLists.addProduct.item.dueLabel')" name="dueAt">
-            <UInputDate v-model="itemFormData.dueAt" :disabled="isCreatingItem" class="w-full">
+            <UInputDate v-model="itemFormData.dueAt" :locale="inputDateLocale" :disabled="isCreatingItem" class="w-full">
               <template #trailing>
                 <UPopover>
                   <UButton icon="i-lucide-calendar" color="neutral" variant="ghost" size="xs" />
                   <template #content>
-                    <UCalendar v-model="itemFormData.dueAt" />
+                    <UCalendar v-model="itemFormData.dueAt" :locale="inputDateLocale" />
                   </template>
                 </UPopover>
               </template>
@@ -601,6 +601,7 @@ definePageMeta({
 const route = useRoute()
 const router = useRouter()
 const { t } = useI18n()
+const { inputDateLocale } = useInputDateLocale()
 const toast = useToast()
 const { getProducts, createProduct } = useProductsApi()
 const { getShoppingLocations, createShoppingLocation } = useLocationsApi()

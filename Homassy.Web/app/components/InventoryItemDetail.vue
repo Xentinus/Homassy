@@ -261,6 +261,7 @@
             <UInputDate
               ref="expirationDateInput"
               v-model="editForm.expirationAt"
+              :locale="inputDateLocale"
               class="w-full"
             >
               <template #trailing>
@@ -274,7 +275,7 @@
                     class="px-0"
                   />
                   <template #content>
-                    <UCalendar v-model="editForm.expirationAt" class="p-2" />
+                    <UCalendar v-model="editForm.expirationAt" :locale="inputDateLocale" class="p-2" />
                   </template>
                 </UPopover>
               </template>
@@ -443,6 +444,7 @@ const emit = defineEmits<{
 
 const { t: $t } = useI18n()
 const { formatDate } = useDateFormat()
+const { inputDateLocale } = useInputDateLocale()
 const { consumeInventoryItem, updateInventoryItem, deleteInventoryItem } = useProductsApi()
 const toast = useToast()
 
