@@ -94,11 +94,11 @@ namespace Homassy.API.Services
             _ => "Welcome to Homassy - Complete Your Registration"
         };
 
-        public static string GetRegistrationGreeting(Language language, string username) => language switch
+        public static string GetRegistrationGreeting(Language language) => language switch
         {
-            Language.Hungarian => $"Üdvözöljük, {username}!",
-            Language.German => $"Willkommen, {username}!",
-            _ => $"Welcome, {username}!"
+            Language.Hungarian => $"Üdvözöljük!",
+            Language.German => $"Willkommen!",
+            _ => $"Welcome!"
         };
 
         public static string GetRegistrationMessage(Language language, string email) => language switch

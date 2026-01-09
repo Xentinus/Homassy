@@ -101,12 +101,9 @@ namespace Homassy.API.Services
                 var expirationTimeFormatted = $"{expirationTime:yyyy-MM-dd HH:mm} ({timeZoneName})";
                 var currentYear = DateTime.UtcNow.Year;
 
-                var halfLength = code.Length / 2;
-                var formattedCode = $"{code[..halfLength]} - {code[halfLength..]}";
-
                 var htmlBody = _verificationTemplate
                     .Replace("{{APP_NAME}}", EmailTemplateService.GetAppName())
-                    .Replace("{{CODE}}", formattedCode)
+                    .Replace("{{CODE}}", code)
                     .Replace("{{EXPIRY_TIME}}", expirationTimeFormatted)
                     .Replace("{{YEAR}}", currentYear.ToString())
                     .Replace("{{APP_SUBTITLE}}", EmailTemplateService.GetAppSubtitle(language))
@@ -118,7 +115,7 @@ namespace Homassy.API.Services
                     .Replace("{{FOOTER_COPYRIGHT}}", EmailTemplateService.GetFooterCopyright(language, currentYear))
                     .Replace("{{FOOTER_AUTO_MESSAGE}}", EmailTemplateService.GetFooterAutoMessage(language));
 
-                var plainText = EmailTemplateService.GetVerificationPlainText(language, formattedCode, expirationTimeFormatted, currentYear);
+                var plainText = EmailTemplateService.GetVerificationPlainText(language, code, expirationTimeFormatted, currentYear);
 
                 var bodyBuilder = new BodyBuilder();
                 bodyBuilder.HtmlBody = htmlBody;
@@ -170,18 +167,15 @@ namespace Homassy.API.Services
                 var expirationTimeFormatted = $"{expirationTime:yyyy-MM-dd HH:mm} ({timeZoneName})";
                 var currentYear = DateTime.UtcNow.Year;
 
-                var halfLength = code.Length / 2;
-                var formattedCode = $"{code[..halfLength]} - {code[halfLength..]}";
-
                 var htmlBody = _registrationTemplate
                     .Replace("{{APP_NAME}}", EmailTemplateService.GetAppName())
                     .Replace("{{USERNAME}}", username)
                     .Replace("{{EMAIL}}", email)
-                    .Replace("{{CODE}}", formattedCode)
+                    .Replace("{{CODE}}", code)
                     .Replace("{{EXPIRY_TIME}}", expirationTimeFormatted)
                     .Replace("{{YEAR}}", currentYear.ToString())
                     .Replace("{{APP_SUBTITLE}}", EmailTemplateService.GetAppSubtitle(language))
-                    .Replace("{{GREETING}}", EmailTemplateService.GetRegistrationGreeting(language, username))
+                    .Replace("{{GREETING}}", EmailTemplateService.GetRegistrationGreeting(language))
                     .Replace("{{MESSAGE}}", EmailTemplateService.GetRegistrationMessage(language, email))
                     .Replace("{{COMPLETE_TITLE}}", EmailTemplateService.GetRegistrationCompleteTitle(language))
                     .Replace("{{COMPLETE_MESSAGE}}", EmailTemplateService.GetRegistrationCompleteMessage(language))
@@ -190,7 +184,7 @@ namespace Homassy.API.Services
                     .Replace("{{FOOTER_COPYRIGHT}}", EmailTemplateService.GetFooterCopyright(language, currentYear))
                     .Replace("{{FOOTER_AUTO_MESSAGE}}", EmailTemplateService.GetFooterAutoMessage(language));
 
-                var plainText = EmailTemplateService.GetRegistrationPlainText(language, username, email, formattedCode, expirationTimeFormatted, currentYear);
+                var plainText = EmailTemplateService.GetRegistrationPlainText(language, username, email, code, expirationTimeFormatted, currentYear);
 
                 var bodyBuilder = new BodyBuilder();
                 bodyBuilder.HtmlBody = htmlBody;
