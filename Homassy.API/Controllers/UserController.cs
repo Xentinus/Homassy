@@ -1,12 +1,14 @@
 ﻿using Asp.Versioning;
 using Homassy.API.Enums;
 using Homassy.API.Functions;
+using Homassy.API.Models;
 using Homassy.API.Models.Common;
 using Homassy.API.Models.User;
 using Homassy.API.Models.ImageUpload;
 using Homassy.API.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Serilog;
 
 namespace Homassy.API.Controllers
 {
@@ -20,10 +22,12 @@ namespace Homassy.API.Controllers
     public class UserController : ControllerBase
     {
         private readonly IImageProcessingService _imageProcessingService;
+        private readonly IProgressTrackerService _progressTrackerService;
 
-        public UserController(IImageProcessingService imageProcessingService)
+        public UserController(IImageProcessingService imageProcessingService, IProgressTrackerService progressTrackerService)
         {
             _imageProcessingService = imageProcessingService;
+            _progressTrackerService = progressTrackerService;
         }
 
         /// <summary>
@@ -57,7 +61,7 @@ namespace Homassy.API.Controllers
         }
 
         /// <summary>
-        /// Uploads and processes a new profile picture for the current user.
+        /// Uploads and processes a new profile picture for the current user (synchronous - legacy).
         /// </summary>
         [HttpPost("profile-picture")]
         [MapToApiVersion(1.0)]
@@ -70,8 +74,55 @@ namespace Homassy.API.Controllers
                 return BadRequest(ApiResponse.ErrorResponse(ErrorCodes.ValidationInvalidRequest));
             }
 
-            var imageInfo = await new ImageFunctions(_imageProcessingService).UploadUserProfileImageAsync(request, cancellationToken);
+            var imageInfo = await new ImageFunctions(_imageProcessingService).UploadUserProfileImageAsync(request, null, cancellationToken);
             return Ok(ApiResponse<UserProfileImageInfo>.SuccessResponse(imageInfo));
+        }
+
+        /// <summary>
+        /// Uploads and processes a new profile picture asynchronously with progress tracking.
+        /// </summary>
+        [HttpPost("profile-picture/upload-async")]
+        [MapToApiVersion(1.0)]
+        [ProducesResponseType(typeof(ApiResponse<UploadJobResponse>), StatusCodes.Status200OK)]
+        [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status400BadRequest)]
+        public IActionResult UploadProfilePictureAsync([FromBody] UploadUserProfileImageRequest request)
+        {
+            if (!ModelState.IsValid)
+            {
+                return BadRequest(ApiResponse.ErrorResponse(ErrorCodes.ValidationInvalidRequest));
+            }
+
+            var jobId = _progressTrackerService.CreateJob();
+
+            // Start background task
+            _ = Task.Run(async () =>
+            {
+                try
+                {
+                    var cancellationToken = _progressTrackerService.GetCancellationToken(jobId);
+
+                    var progress = new Progress<ProgressInfo>(info =>
+                    {
+                        _progressTrackerService.UpdateProgress(jobId, info.Percentage, info.Stage, info.Status);
+                    });
+
+                    await new ImageFunctions(_imageProcessingService).UploadUserProfileImageAsync(request, progress, cancellationToken);
+                    
+                    _progressTrackerService.CompleteJob(jobId);
+                }
+                catch (OperationCanceledException)
+                {
+                    _progressTrackerService.CancelJob(jobId);
+                    Log.Information($"Profile picture upload cancelled for job {jobId}");
+                }
+                catch (Exception ex)
+                {
+                    _progressTrackerService.FailJob(jobId, ex.Message);
+                    Log.Error(ex, $"Failed to upload profile picture for job {jobId}");
+                }
+            });
+
+            return Ok(ApiResponse<UploadJobResponse>.SuccessResponse(new UploadJobResponse { JobId = jobId }));
         }
 
         /// <summary>

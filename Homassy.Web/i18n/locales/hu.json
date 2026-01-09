@@ -62,6 +62,20 @@
       "free": "Szabad"
     }
   },
+  "imageUpload": {
+    "progress": {
+      "title": "Kép feltöltése",
+      "validating": "Kép ellenőrzése...",
+      "compressing": "Kép tömörítése...",
+      "uploading": "Feltöltés...",
+      "processing": "Kép feldolgozása...",
+      "saving": "Mentés...",
+      "completed": "Feltöltés sikeresen befejezve!",
+      "failed": "Feltöltés sikertelen",
+      "cancelled": "Feltöltés megszakítva",
+      "cancelButton": "Feltöltés megszakítása"
+    }
+  },
   "auth": {
     "login": "Bejelentkezés",
     "logout": "Kijelentkezés",

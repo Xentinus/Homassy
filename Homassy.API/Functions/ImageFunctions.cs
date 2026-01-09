@@ -1,6 +1,7 @@
 using Homassy.API.Context;
 using Homassy.API.Enums;
 using Homassy.API.Exceptions;
+using Homassy.API.Models;
 using Homassy.API.Models.ImageUpload;
 using Homassy.API.Services;
 using Microsoft.EntityFrameworkCore;
@@ -17,7 +18,7 @@ namespace Homassy.API.Functions
             _imageProcessingService = imageProcessingService;
         }
 
-        public async Task<ProductImageInfo> UploadProductImageAsync(UploadProductImageRequest request, CancellationToken cancellationToken = default)
+        public async Task<ProductImageInfo> UploadProductImageAsync(UploadProductImageRequest request, IProgress<ProgressInfo>? progress = null, CancellationToken cancellationToken = default)
         {
             var userId = SessionInfo.GetUserId();
             if (!userId.HasValue)
@@ -44,11 +45,17 @@ namespace Homassy.API.Functions
                 AllowedFormats = [ImageFormat.Jpeg, ImageFormat.Png, ImageFormat.WebP]
             };
 
+            cancellationToken.ThrowIfCancellationRequested();
+            progress?.Report(new ProgressInfo { Percentage = 5, Stage = ProgressStage.Validating, Status = ProgressStatus.InProgress, UpdatedAt = DateTime.UtcNow });
+
             var validationResult = _imageProcessingService.ValidateImage(request.ImageBase64, options);
             if (!validationResult.IsValid)
             {
                 throw new BadRequestException($"Image validation failed: {validationResult.ErrorMessage}");
             }
+
+            cancellationToken.ThrowIfCancellationRequested();
+            progress?.Report(new ProgressInfo { Percentage = 15, Stage = ProgressStage.Compressing, Status = ProgressStatus.InProgress, UpdatedAt = DateTime.UtcNow });
 
             var processedImage = await _imageProcessingService.ProcessImageAsync(request.ImageBase64, options, cancellationToken);
             if (processedImage == null)
@@ -56,11 +63,17 @@ namespace Homassy.API.Functions
                 throw new BadRequestException("Failed to process image");
             }
 
+            cancellationToken.ThrowIfCancellationRequested();
+            progress?.Report(new ProgressInfo { Percentage = 60, Stage = ProgressStage.Uploading, Status = ProgressStatus.InProgress, UpdatedAt = DateTime.UtcNow });
+
             var context = new HomassyDbContext();
             await using var transaction = await context.Database.BeginTransactionAsync(cancellationToken);
 
             try
             {
+                cancellationToken.ThrowIfCancellationRequested();
+                progress?.Report(new ProgressInfo { Percentage = 80, Stage = ProgressStage.Processing, Status = ProgressStatus.InProgress, UpdatedAt = DateTime.UtcNow });
+
                 var trackedProduct = await context.Products.FirstOrDefaultAsync(p => p.Id == product.Id, cancellationToken);
                 if (trackedProduct == null)
                 {
@@ -68,6 +81,10 @@ namespace Homassy.API.Functions
                 }
 
                 trackedProduct.ProductPictureBase64 = processedImage.Base64;
+                
+                cancellationToken.ThrowIfCancellationRequested();
+                progress?.Report(new ProgressInfo { Percentage = 90, Stage = ProgressStage.Saving, Status = ProgressStatus.InProgress, UpdatedAt = DateTime.UtcNow });
+                
                 await context.SaveChangesAsync(cancellationToken);
                 await transaction.CommitAsync(cancellationToken);
 
@@ -172,7 +189,7 @@ namespace Homassy.API.Functions
             }
         }
 
-        public async Task<UserProfileImageInfo> UploadUserProfileImageAsync(UploadUserProfileImageRequest request, CancellationToken cancellationToken = default)
+        public async Task<UserProfileImageInfo> UploadUserProfileImageAsync(UploadUserProfileImageRequest request, IProgress<ProgressInfo>? progress = null, CancellationToken cancellationToken = default)
         {
             var userId = SessionInfo.GetUserId();
             if (!userId.HasValue)
@@ -192,11 +209,17 @@ namespace Homassy.API.Functions
                 AllowedFormats = [ImageFormat.Jpeg, ImageFormat.Png, ImageFormat.WebP]
             };
 
+            cancellationToken.ThrowIfCancellationRequested();
+            progress?.Report(new ProgressInfo { Percentage = 5, Stage = ProgressStage.Validating, Status = ProgressStatus.InProgress, UpdatedAt = DateTime.UtcNow });
+
             var validationResult = _imageProcessingService.ValidateImage(request.ImageBase64, options);
             if (!validationResult.IsValid)
             {
                 throw new BadRequestException($"Image validation failed: {validationResult.ErrorMessage}");
             }
+
+            cancellationToken.ThrowIfCancellationRequested();
+            progress?.Report(new ProgressInfo { Percentage = 15, Stage = ProgressStage.Compressing, Status = ProgressStatus.InProgress, UpdatedAt = DateTime.UtcNow });
 
             var processedImage = await _imageProcessingService.ProcessImageAsync(request.ImageBase64, options, cancellationToken);
             if (processedImage == null)
@@ -204,11 +227,17 @@ namespace Homassy.API.Functions
                 throw new BadRequestException("Failed to process image");
             }
 
+            cancellationToken.ThrowIfCancellationRequested();
+            progress?.Report(new ProgressInfo { Percentage = 60, Stage = ProgressStage.Uploading, Status = ProgressStatus.InProgress, UpdatedAt = DateTime.UtcNow });
+
             var context = new HomassyDbContext();
             await using var transaction = await context.Database.BeginTransactionAsync(cancellationToken);
 
             try
             {
+                cancellationToken.ThrowIfCancellationRequested();
+                progress?.Report(new ProgressInfo { Percentage = 80, Stage = ProgressStage.Processing, Status = ProgressStatus.InProgress, UpdatedAt = DateTime.UtcNow });
+
                 var profile = await context.UserProfiles.FirstOrDefaultAsync(p => p.UserId == userId, cancellationToken);
                 if (profile == null)
                 {
@@ -216,6 +245,10 @@ namespace Homassy.API.Functions
                 }
 
                 profile.ProfilePictureBase64 = processedImage.Base64;
+                
+                cancellationToken.ThrowIfCancellationRequested();
+                progress?.Report(new ProgressInfo { Percentage = 90, Stage = ProgressStage.Saving, Status = ProgressStatus.InProgress, UpdatedAt = DateTime.UtcNow });
+                
                 await context.SaveChangesAsync(cancellationToken);
                 await transaction.CommitAsync(cancellationToken);
 

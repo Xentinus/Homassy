@@ -1368,6 +1368,13 @@ namespace Homassy.API.Functions
                     userAuth.TokenFamily = JwtService.GenerateTokenFamily();
                 }
 
+                var userEntity = await context.Users.FindAsync([userId], cancellationToken);
+                if (userEntity != null)
+                {
+                    userEntity.LastLoginAt = DateTime.UtcNow;
+                    context.Users.Update(userEntity);
+                }
+
                 await context.SaveChangesAsync(cancellationToken);
                 await transaction.CommitAsync(cancellationToken);
             }

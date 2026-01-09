@@ -398,6 +398,18 @@
       @close="isCropperOpen = false"
       @cropped="handleCroppedProductImage"
     />
+
+    <!-- Upload Progress Modal -->
+    <UploadProgressModal
+      :is-open="isUploadProgressOpen"
+      :progress="uploadProgress"
+      :stage="uploadStage"
+      :status="uploadStatus"
+      :error-message="uploadErrorMessage"
+      @update:is-open="isUploadProgressOpen = $event"
+      @cancel="handleCancelUpload"
+      @close="handleCloseUploadModal"
+    />
   </div>
 </template>
 
@@ -405,8 +417,10 @@
 import type { ProductInfo } from '~/types/product'
 import type { OpenFoodFactsProduct } from '~/types/openFoodFacts'
 import { useProductsApi } from '~/composables/api/useProductsApi'
+import { useProgressApi, type ProgressStatus } from '~/composables/api/useProgressApi'
 import { useOpenFoodFactsApi } from '~/composables/api/useOpenFoodFactsApi'
 import ImageCropper from '~/components/ImageCropper.vue'
+import UploadProgressModal from '~/components/UploadProgressModal.vue'
 import imageCompression from 'browser-image-compression'
 import { extractBase64 } from '~/composables/useImageCrop'
 
@@ -431,6 +445,7 @@ const emit = defineEmits<{
 const { t } = useI18n()
 const toast = useToast()
 const productsApi = useProductsApi()
+const progressApi = useProgressApi()
 const openFoodFactsApi = useOpenFoodFactsApi()
 const router = useRouter()
 
@@ -440,6 +455,7 @@ const isDeleteModalOpen = ref(false)
 const isImageOverlayOpen = ref(false)
 const isOpenFoodFactsModalOpen = ref(false)
 const isCropperOpen = ref(false)
+const isUploadProgressOpen = ref(false)
 
 // Loading states
 const isUpdating = ref(false)
@@ -452,6 +468,14 @@ const isDeletingImage = ref(false)
 // Cropper state
 const cropperImageSrc = ref('')
 const isImportingImageFromBarcode = ref(false)
+
+// Upload progress state
+const currentUploadJobId = ref<string | null>(null)
+const uploadProgress = ref(0)
+const uploadStage = ref('validating')
+const uploadStatus = ref<'inprogress' | 'completed' | 'failed' | 'cancelled'>('inprogress')
+const uploadErrorMessage = ref<string | undefined>(undefined)
+let stopPolling: (() => void) | null = null
 
 // Refs
 const fileInput = ref<HTMLInputElement | null>(null)
@@ -559,25 +583,94 @@ const handleCroppedProductImage = async (base64: string) => {
       useWebWorker: true
     })
 
-    // Convert and upload
+    // Convert and upload with progress
     const reader = new FileReader()
     reader.onload = async () => {
       const compressedBase64 = reader.result as string
       const base64Data = extractBase64(compressedBase64)
 
-      await productsApi.uploadProductImage(props.product.publicId, {
-        productPublicId: props.product.publicId,
-        imageBase64: base64Data
-      })
-
-      emit('updated')
+      await uploadWithProgress(base64Data)
     }
     reader.readAsDataURL(compressed)
   } catch (error) {
     console.error('Failed to upload image:', error)
-  } finally {
     isUploadingImage.value = false
   }
+}
+
+const uploadWithProgress = async (base64Data: string) => {
+  try {
+    // Open progress modal
+    isUploadProgressOpen.value = true
+    uploadProgress.value = 0
+    uploadStage.value = 'validating'
+    uploadStatus.value = 'inprogress'
+    uploadErrorMessage.value = undefined
+
+    // Start async upload
+    const response = await productsApi.uploadProductImageWithProgress(props.product.publicId, {
+      productPublicId: props.product.publicId,
+      imageBase64: base64Data
+    })
+
+    if (response.data?.jobId) {
+      currentUploadJobId.value = response.data.jobId
+
+      // Start polling for progress
+      stopPolling = progressApi.pollProgress(response.data.jobId, (progress) => {
+        uploadProgress.value = progress.percentage
+        uploadStage.value = progress.stage
+        uploadStatus.value = progress.status
+        uploadErrorMessage.value = progress.errorMessage
+
+        // If completed or failed, stop polling and update UI
+        if (progress.status === 'completed') {
+          isUploadingImage.value = false
+          toast.add({
+            title: t('toast.success'),
+            description: t('toast.imageUploaded'),
+            color: 'success',
+            icon: 'i-heroicons-check-circle'
+          })
+          emit('updated')
+          // Auto-close modal after success
+          setTimeout(() => {
+            handleCloseUploadModal()
+          }, 500)
+        } else if (progress.status === 'failed' || progress.status === 'cancelled') {
+          isUploadingImage.value = false
+        }
+      })
+    }
+  } catch (error) {
+    console.error('Failed to start upload:', error)
+    isUploadingImage.value = false
+    isUploadProgressOpen.value = false
+  }
+}
+
+const handleCancelUpload = async () => {
+  if (currentUploadJobId.value) {
+    try {
+      await progressApi.cancelJob(currentUploadJobId.value)
+      if (stopPolling) {
+        stopPolling()
+        stopPolling = null
+      }
+      isUploadingImage.value = false
+    } catch (error) {
+      console.error('Failed to cancel upload:', error)
+    }
+  }
+}
+
+const handleCloseUploadModal = () => {
+  if (stopPolling) {
+    stopPolling()
+    stopPolling = null
+  }
+  isUploadProgressOpen.value = false
+  currentUploadJobId.value = null
 }
 
 const handleDeleteProductImage = async () => {

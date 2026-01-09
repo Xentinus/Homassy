@@ -53,10 +53,8 @@
     <div class="pt-56 px-4 sm:px-8 lg:px-14 pb-6">
 
     <!-- Loading State -->
-    <div v-if="isLoading" class="space-y-3">
-      <USkeleton class="h-32 w-full" />
-      <USkeleton class="h-32 w-full" />
-      <USkeleton class="h-32 w-full" />
+    <div v-if="isLoading" class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+      <USkeleton v-for="i in 8" :key="i" class="h-36 w-full rounded-lg" />
     </div>
 
     <!-- No Results -->
@@ -79,9 +77,7 @@
     <div v-if="hasMoreProducts" ref="sentinelRef" class="w-full">
       <!-- Loading skeletons while loading more -->
       <div v-if="loadingMore" class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 mt-4">
-        <USkeleton class="h-32 w-full" />
-        <USkeleton class="h-32 w-full" />
-        <USkeleton class="h-32 w-full" />
+        <USkeleton v-for="i in 8" :key="i" class="h-36 w-full rounded-lg" />
       </div>
     </div>
     </div>

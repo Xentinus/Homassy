@@ -88,4 +88,8 @@ public static class ErrorCodes
     public const string SystemRequestCancelled = "SYSTEM-0003";
     public const string SystemUnauthorizedAccess = "SYSTEM-0004";
     #endregion
+
+    #region Progress Tracking Errors (PROGRESS-0xxx)
+    public const string ProgressJobNotFound = "PROGRESS-0001";
+    #endregion
 }

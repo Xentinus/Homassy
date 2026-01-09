@@ -148,7 +148,7 @@ export const useProductsApi = () => {
   }
 
   /**
-   * Upload product image
+   * Upload product image (synchronous - legacy)
    */
   const uploadProductImage = async (productPublicId: string, request: UploadProductImageRequest) => {
     return await client.post(
@@ -157,6 +157,20 @@ export const useProductsApi = () => {
       {
         showSuccessToast: true,
         successMessage: $i18n.t('toast.imageUploaded')
+      }
+    )
+  }
+
+  /**
+   * Upload product image with progress tracking
+   */
+  const uploadProductImageWithProgress = async (productPublicId: string, request: UploadProductImageRequest) => {
+    return await client.post<{ jobId: string }>(
+      `/api/v1/Product/${productPublicId}/image/upload-async`,
+      request,
+      {
+        showSuccessToast: false,
+        showErrorToast: false
       }
     )
   }
@@ -313,6 +327,7 @@ export const useProductsApi = () => {
     toggleFavorite,
     createMultipleProducts,
     uploadProductImage,
+    uploadProductImageWithProgress,
     deleteProductImage,
     // Inventory methods
     createInventoryItem,

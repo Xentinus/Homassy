@@ -64,6 +64,18 @@
       @cropped="handleCroppedImage"
     />
 
+    <!-- Upload Progress Modal -->
+    <UploadProgressModal
+      :is-open="isUploadProgressOpen"
+      :progress="uploadProgress"
+      :stage="uploadStage"
+      :status="uploadStatus"
+      :error-message="uploadErrorMessage"
+      @update:is-open="isUploadProgressOpen = $event"
+      @cancel="handleCancelUpload"
+      @close="handleCloseUploadModal"
+    />
+
     <!-- Action Buttons -->
     <div class="space-y-3">
       <!-- Light/Dark mode toggle -->
@@ -192,10 +204,12 @@
 import { ref, computed, onMounted } from 'vue'
 import { useAuthStore } from '~/stores/auth'
 import { useUserApi } from '~/composables/api/useUserApi'
+import { useProgressApi } from '~/composables/api/useProgressApi'
 import { useFamilyApi } from '~/composables/api/useFamilyApi'
 import { useVersionApi } from '~/composables/api/useVersionApi'
 import { useRouter } from 'vue-router'
 import ImageCropper from '~/components/ImageCropper.vue'
+import UploadProgressModal from '~/components/UploadProgressModal.vue'
 import imageCompression from 'browser-image-compression'
 import { extractBase64 } from '~/composables/useImageCrop'
 import type { VersionInfo } from '~/types/version'
@@ -205,12 +219,14 @@ definePageMeta({ layout: 'auth', middleware: 'auth' })
 
 
 const authStore = useAuthStore()
-const { uploadProfilePicture, deleteProfilePicture, getUserProfile } = useUserApi()
+const { uploadProfilePicture, uploadProfilePictureWithProgress, deleteProfilePicture, getUserProfile } = useUserApi()
+const progressApi = useProgressApi()
 const { leaveFamily } = useFamilyApi()
 const { getVersion } = useVersionApi()
 const router = useRouter()
 const { t, setLocale } = useI18n()
 const colorMode = useColorMode()
+const toast = useToast()
 
 const userProfile = ref<any>(null)
 const loading = ref(true)
@@ -218,6 +234,15 @@ const imageCropperOpen = ref(false)
 const cropperImageSrc = ref('')
 const versionInfo = ref<VersionInfo | null>(null)
 const versionLoading = ref(false)
+
+// Upload progress state
+const isUploadProgressOpen = ref(false)
+const currentUploadJobId = ref<string | null>(null)
+const uploadProgress = ref(0)
+const uploadStage = ref('validating')
+const uploadStatus = ref<'inprogress' | 'completed' | 'failed' | 'cancelled'>('inprogress')
+const uploadErrorMessage = ref<string | undefined>(undefined)
+let stopPolling: (() => void) | null = null
 
 // Check if we're in production mode
 const isProduction = import.meta.env.PROD
@@ -336,13 +361,77 @@ async function handleCroppedImage(base64: string) {
       const compressedBase64 = reader.result as string
       const pureBase64 = extractBase64(compressedBase64)
 
-      await uploadProfilePicture({ imageBase64: pureBase64 })
-      await fetchUserProfile()
+      await uploadWithProgress(pureBase64)
     }
     reader.readAsDataURL(compressed)
   } catch (error) {
     console.error('Failed to process image:', error)
   }
+}
+
+async function uploadWithProgress(base64Data: string) {
+  try {
+    // Open progress modal
+    isUploadProgressOpen.value = true
+    uploadProgress.value = 0
+    uploadStage.value = 'validating'
+    uploadStatus.value = 'inprogress'
+    uploadErrorMessage.value = undefined
+
+    // Start async upload
+    const response = await uploadProfilePictureWithProgress({ imageBase64: base64Data })
+
+    if (response.data?.jobId) {
+      currentUploadJobId.value = response.data.jobId
+
+      // Start polling for progress
+      stopPolling = progressApi.pollProgress(response.data.jobId, async (progress) => {
+        uploadProgress.value = progress.percentage
+        uploadStage.value = progress.stage
+        uploadStatus.value = progress.status
+        uploadErrorMessage.value = progress.errorMessage
+
+        // If completed or failed, stop polling and update UI
+        if (progress.status === 'completed') {
+          toast.add({
+            title: t('toast.success'),
+            description: t('toast.profilePictureUploaded'),
+            color: 'success',
+            icon: 'i-heroicons-check-circle'
+          })
+          await fetchUserProfile()
+          // Auto-close modal after success
+          setTimeout(() => {
+            handleCloseUploadModal()
+          }, 500)
+        }
+      })
+    }
+  } catch (error) {
+    console.error('Failed to start upload:', error)
+    isUploadProgressOpen.value = false
+  }
+}
+
+function handleCancelUpload() {
+  if (currentUploadJobId.value) {
+    progressApi.cancelJob(currentUploadJobId.value).catch(error => {
+      console.error('Failed to cancel upload:', error)
+    })
+    if (stopPolling) {
+      stopPolling()
+      stopPolling = null
+    }
+  }
+}
+
+function handleCloseUploadModal() {
+  if (stopPolling) {
+    stopPolling()
+    stopPolling = null
+  }
+  isUploadProgressOpen.value = false
+  currentUploadJobId.value = null
 }
 
 async function onDeleteAvatar() {

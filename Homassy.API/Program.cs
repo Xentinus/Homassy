@@ -64,6 +64,7 @@ try
     builder.Services.AddSingleton<IInputSanitizationService, InputSanitizationService>();
     builder.Services.AddSingleton<IBarcodeValidationService, BarcodeValidationService>();
     builder.Services.AddSingleton<IImageProcessingService, ImageProcessingService>();
+    builder.Services.AddSingleton<IProgressTrackerService, ProgressTrackerService>();
 
     builder.Services.AddSingleton<EmailQueueService>();
     builder.Services.AddSingleton<IEmailQueueService>(sp => sp.GetRequiredService<EmailQueueService>());

@@ -62,6 +62,20 @@
       "free": "Free"
     }
   },
+  "imageUpload": {
+    "progress": {
+      "title": "Uploading Image",
+      "validating": "Validating image...",
+      "compressing": "Compressing image...",
+      "uploading": "Uploading...",
+      "processing": "Processing image...",
+      "saving": "Saving...",
+      "completed": "Upload completed successfully!",
+      "failed": "Upload failed",
+      "cancelled": "Upload cancelled",
+      "cancelButton": "Cancel Upload"
+    }
+  },
   "auth": {
     "login": "Login",
     "logout": "Logout",

@@ -61,8 +61,20 @@
       "landscape": "16:9",
       "free": "Frei"
     }
-  },
-  "auth": {
+  },  "imageUpload": {
+    "progress": {
+      "title": "Bild wird hochgeladen",
+      "validating": "Bild wird überprüft...",
+      "compressing": "Bild wird komprimiert...",
+      "uploading": "Wird hochgeladen...",
+      "processing": "Bild wird verarbeitet...",
+      "saving": "Wird gespeichert...",
+      "completed": "Upload erfolgreich abgeschlossen!",
+      "failed": "Upload fehlgeschlagen",
+      "cancelled": "Upload abgebrochen",
+      "cancelButton": "Upload abbrechen"
+    }
+  },  "auth": {
     "login": "Anmelden",
     "logout": "Abmelden",
     "register": "Registrieren",

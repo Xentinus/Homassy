@@ -42,7 +42,7 @@ export const useUserApi = () => {
   }
 
   /**
-   * Upload user profile picture
+   * Upload user profile picture (synchronous - legacy)
    */
   const uploadProfilePicture = async (request: UploadUserProfileImageRequest) => {
     return await client.post(
@@ -51,6 +51,20 @@ export const useUserApi = () => {
       {
         showSuccessToast: true,
         successMessage: $i18n.t('toast.profilePictureUploaded')
+      }
+    )
+  }
+
+  /**
+   * Upload user profile picture with progress tracking
+   */
+  const uploadProfilePictureWithProgress = async (request: UploadUserProfileImageRequest) => {
+    return await client.post<{ jobId: string }>(
+      '/api/v1/User/profile-picture/upload-async',
+      request,
+      {
+        showSuccessToast: false,
+        showErrorToast: false
       }
     )
   }
@@ -149,6 +163,7 @@ export const useUserApi = () => {
     getUserProfile,
     updateUserSettings,
     uploadProfilePicture,
+    uploadProfilePictureWithProgress,
     deleteProfilePicture,
     getNotificationPreferences,
     updateNotificationPreferences,

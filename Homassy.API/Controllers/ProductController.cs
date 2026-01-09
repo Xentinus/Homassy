@@ -1,6 +1,7 @@
 using Asp.Versioning;
 using Homassy.API.Enums;
 using Homassy.API.Functions;
+using Homassy.API.Models;
 using Homassy.API.Models.Common;
 using Homassy.API.Models.Product;
 using Homassy.API.Models.ImageUpload;
@@ -21,10 +22,12 @@ namespace Homassy.API.Controllers
     public class ProductController : ControllerBase
     {
         private readonly IImageProcessingService _imageProcessingService;
+        private readonly IProgressTrackerService _progressTrackerService;
 
-        public ProductController(IImageProcessingService imageProcessingService)
+        public ProductController(IImageProcessingService imageProcessingService, IProgressTrackerService progressTrackerService)
         {
             _imageProcessingService = imageProcessingService;
+            _progressTrackerService = progressTrackerService;
         }
 
         #region Product
@@ -322,7 +325,7 @@ namespace Homassy.API.Controllers
 
         #region Product Image
         /// <summary>
-        /// Uploads and processes an image for a product.
+        /// Uploads and processes an image for a product (synchronous - legacy).
         /// </summary>
         [HttpPost("{productPublicId}/image")]
         [MapToApiVersion(1.0)]
@@ -342,8 +345,62 @@ namespace Homassy.API.Controllers
                 ImageBase64 = request.ImageBase64
             };
 
-            var imageInfo = await new ImageFunctions(_imageProcessingService).UploadProductImageAsync(uploadRequest, cancellationToken);
+            var imageInfo = await new ImageFunctions(_imageProcessingService).UploadProductImageAsync(uploadRequest, null, cancellationToken);
             return Ok(ApiResponse<ProductImageInfo>.SuccessResponse(imageInfo));
+        }
+
+        /// <summary>
+        /// Uploads and processes an image for a product asynchronously with progress tracking.
+        /// </summary>
+        [HttpPost("{productPublicId}/image/upload-async")]
+        [MapToApiVersion(1.0)]
+        [ProducesResponseType(typeof(ApiResponse<UploadJobResponse>), StatusCodes.Status200OK)]
+        [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status404NotFound)]
+        public IActionResult UploadProductImageAsync(Guid productPublicId, [FromBody] UploadProductImageRequest request)
+        {
+            if (!ModelState.IsValid)
+            {
+                return BadRequest(ApiResponse.ErrorResponse(ErrorCodes.ValidationInvalidRequest));
+            }
+
+            var jobId = _progressTrackerService.CreateJob();
+
+            // Start background task
+            _ = Task.Run(async () =>
+            {
+                try
+                {
+                    var cancellationToken = _progressTrackerService.GetCancellationToken(jobId);
+                    
+                    var uploadRequest = new UploadProductImageRequest
+                    {
+                        ProductPublicId = productPublicId,
+                        ImageBase64 = request.ImageBase64
+                    };
+
+                    var progress = new Progress<ProgressInfo>(info =>
+                    {
+                        _progressTrackerService.UpdateProgress(jobId, info.Percentage, info.Stage, info.Status);
+                    });
+
+                    await new ImageFunctions(_imageProcessingService).UploadProductImageAsync(uploadRequest, progress, cancellationToken);
+                    
+                    _progressTrackerService.CompleteJob(jobId);
+                }
+                catch (OperationCanceledException)
+                {
+                    _progressTrackerService.CancelJob(jobId);
+                    Log.Information($"Product image upload cancelled for job {jobId}");
+                }
+                catch (Exception ex)
+                {
+                    _progressTrackerService.FailJob(jobId, ex.Message);
+                    Log.Error(ex, $"Failed to upload product image for job {jobId}");
+                }
+            });
+
+            return Ok(ApiResponse<UploadJobResponse>.SuccessResponse(new UploadJobResponse { JobId = jobId }));
         }
 
         /// <summary>
