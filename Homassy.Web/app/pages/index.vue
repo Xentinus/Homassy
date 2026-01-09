@@ -16,7 +16,9 @@
   </div>
 </template>
 
-<script setup>
+<script setup lang="ts">
+const router = useRouter()
+const authStore = useAuthStore()
 const { t } = useI18n()
 
 const features = computed(() => [
@@ -51,6 +53,30 @@ const features = computed(() => [
     description: t('pages.home.features.barcodeQuality.description')
   }
 ])
+
+// Check if user is already authenticated on mount
+onMounted(async () => {
+  console.debug('[Index] Checking existing authentication...')
+
+  // Load tokens from cookies if not already loaded
+  await authStore.loadFromCookies()
+
+  // If already authenticated with valid user, redirect to activity
+  if (authStore.isAuthenticated) {
+    console.debug('[Index] User is authenticated, redirecting to activity')
+    await router.push('/activity')
+    return
+  }
+
+  // If tokens exist but no user, they're likely invalid - clear them
+  const { accessToken, refreshToken } = authStore.getTokensFromCookies()
+  if ((accessToken || refreshToken) && !authStore.user) {
+    console.debug('[Index] Tokens exist but no user - clearing invalid tokens')
+    authStore.clearAuthData()
+  }
+
+  console.debug('[Index] Ready to show landing page')
+})
 
 definePageMeta({
   layout: 'public'
