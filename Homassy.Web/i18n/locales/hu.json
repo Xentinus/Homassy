@@ -49,7 +49,10 @@
     "postalCode": "Irányítószám",
     "country": "Ország",
     "website": "Weboldal",
-    "apply": "Alkalmaz"
+    "apply": "Alkalmaz",
+    "back": "Vissza",
+    "family": "Család",
+    "personal": "Személyes"
   },
   "imageCropper": {
     "title": "Kép vágása",
@@ -357,6 +360,38 @@
         }
       },
       "inventory": {
+        "modeSelection": {
+          "title": "Hogyan szeretnéd hozzáadni a termékeket?",
+          "description": "Válaszd ki, hogyan kezeld a készletet",
+          "bulk": "Egybe",
+          "bulkDescription": "Hozzáadás egyetlen tételként",
+          "individual": "Darabosan",
+          "individualDescription": "Hozzáadás külön tételekként eltérő részletekkel"
+        },
+        "bulk": {
+          "title": "Egyetlen Tétel Hozzáadása"
+        },
+        "preview": {
+          "title": "Előnézet",
+          "viewAllButton": "Összes {count} Tétel Előnézete"
+        },
+        "individual": {
+          "title": "Egyedi Tételek Hozzáadása"
+        },
+        "sharedContext": {
+          "title": "Az összes tételre vonatkozik",
+          "none": "Nincs"
+        },
+        "addItemForm": {
+          "title": "Tétel Hozzáadása",
+          "addButton": "Tétel Hozzáadása a Listához"
+        },
+        "itemsList": {
+          "title": "Létrehozandó Tételek",
+          "empty": "Még nincsenek hozzáadott tételek. Használd a fenti űrlapot tételek hozzáadásához."
+        },
+        "itemAdded": "Tétel hozzáadva a listához",
+        "minimumOneItem": "Legalább egy tételnek lennie kell",
         "form": {
           "quantity": "Mennyiség",
           "quantityPlaceholder": "pl. 1, 2, 10",
@@ -372,8 +407,31 @@
           "receiptNumberPlaceholder": "Opcionális nyugta szám",
           "isSharedWithFamily": "Megosztva a családdal",
           "isSharedWithFamilyLabel": "Készlet elem megosztása családtagokkal",
-          "createButton": "Készlet elem létrehozása"
+          "createButton": "Készlet elem létrehozása",
+          "createMultipleButton": "{count} Tétel Létrehozása"
         }
+      },
+      "progressModal": {
+        "title": "Készlet Tételek Létrehozása",
+        "description": "Kérlek várj, amíg elmentjük a tételeket...",
+        "processing": "{current}/{total} tétel feldolgozása",
+        "completed": "Minden tétel feldolgozva",
+        "failed": "Sikertelen",
+        "noExpiration": "Nincs lejárat",
+        "summary": {
+          "allSuccess": "{count} tétel sikeresen létrehozva!",
+          "partialSuccess": "{success}/{total} tétel sikeresen létrehozva",
+          "allFailed": "Nem sikerült létrehozni a tételeket. Kérlek próbáld újra."
+        },
+        "noItemsError": "Kérlek adj hozzá legalább egy tételt",
+        "invalidItemsError": "Néhány tétel érvénytelen adatokat tartalmaz. Kérlek ellenőrizd és próbáld újra."
+      },
+      "previewModal": {
+        "title": "{count} Tétel Áttekintése",
+        "description": "Kérlek tekintsd át a tételeket létrehozás előtt",
+        "itemNumber": "#{number}. tétel",
+        "summary": "{count} készlet tétel létrehozására készülsz",
+        "confirmButton": "{count} Tétel Létrehozása"
       }
     },
     "shoppingLists": {

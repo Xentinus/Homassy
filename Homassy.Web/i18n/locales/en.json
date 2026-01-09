@@ -49,7 +49,10 @@
     "postalCode": "Postal Code",
     "country": "Country",
     "website": "Website",
-    "apply": "Apply"
+    "apply": "Apply",
+    "back": "Back",
+    "family": "Family",
+    "personal": "Personal"
   },
   "imageCropper": {
     "title": "Crop Image",
@@ -359,6 +362,38 @@
         }
       },
       "inventory": {
+        "modeSelection": {
+          "title": "How would you like to add items?",
+          "description": "Choose how to handle your inventory items",
+          "bulk": "Bulk",
+          "bulkDescription": "Add as a single batch",
+          "individual": "Individual",
+          "individualDescription": "Add as separate items with different details"
+        },
+        "bulk": {
+          "title": "Add Single Item"
+        },
+        "preview": {
+          "title": "Preview",
+          "viewAllButton": "Preview All {count} Items"
+        },
+        "individual": {
+          "title": "Add Individual Items"
+        },
+        "sharedContext": {
+          "title": "Applies to all items",
+          "none": "None"
+        },
+        "addItemForm": {
+          "title": "Add Item",
+          "addButton": "Add Item to List"
+        },
+        "itemsList": {
+          "title": "Items to Create",
+          "empty": "No items added yet. Use the form above to add items."
+        },
+        "itemAdded": "Item added to list",
+        "minimumOneItem": "You must have at least one item",
         "form": {
           "quantity": "Quantity",
           "quantityPlaceholder": "e.g. 1, 2, 10",
@@ -374,8 +409,31 @@
           "receiptNumberPlaceholder": "Optional receipt number",
           "isSharedWithFamily": "Shared with Family",
           "isSharedWithFamilyLabel": "Share this item with family members",
-          "createButton": "Create Inventory Item"
+          "createButton": "Create Inventory Item",
+          "createMultipleButton": "Create {count} Items"
         }
+      },
+      "progressModal": {
+        "title": "Creating Inventory Items",
+        "description": "Please wait while we save your items...",
+        "processing": "Processing {current} of {total} items",
+        "completed": "All items processed",
+        "failed": "Failed",
+        "noExpiration": "No expiration",
+        "summary": {
+          "allSuccess": "{count} items created successfully!",
+          "partialSuccess": "{success} of {total} items created successfully",
+          "allFailed": "Failed to create items. Please try again."
+        },
+        "noItemsError": "Please add at least one item",
+        "invalidItemsError": "Some items have invalid data. Please check and try again."
+      },
+      "previewModal": {
+        "title": "Review {count} Item(s)",
+        "description": "Please review your items before creating them",
+        "itemNumber": "Item #{number}",
+        "summary": "You are about to create {count} inventory item(s)",
+        "confirmButton": "Create {count} Item(s)"
       }
     },
     "shoppingLists": {

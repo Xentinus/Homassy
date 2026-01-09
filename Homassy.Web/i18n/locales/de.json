@@ -49,7 +49,10 @@
     "country": "Land",
     "website": "Webseite",
     "confirm": "Bestätigen",
-    "apply": "Anwenden"
+    "apply": "Anwenden",
+    "back": "Zurück",
+    "family": "Familie",
+    "personal": "Persönlich"
   },
   "imageCropper": {
     "title": "Bild zuschneiden",
@@ -357,6 +360,38 @@
         }
       },
       "inventory": {
+        "modeSelection": {
+          "title": "Wie möchten Sie Artikel hinzufügen?",
+          "description": "Wählen Sie, wie Sie Ihre Bestandsartikel verwalten möchten",
+          "bulk": "Stapel",
+          "bulkDescription": "Als einzelne Charge hinzufügen",
+          "individual": "Einzeln",
+          "individualDescription": "Als separate Artikel mit unterschiedlichen Details hinzufügen"
+        },
+        "bulk": {
+          "title": "Einzelnen Artikel hinzufügen"
+        },
+        "preview": {
+          "title": "Vorschau",
+          "viewAllButton": "Alle {count} Artikel anzeigen"
+        },
+        "individual": {
+          "title": "Einzelne Artikel hinzufügen"
+        },
+        "sharedContext": {
+          "title": "Gilt für alle Artikel",
+          "none": "Keine"
+        },
+        "addItemForm": {
+          "title": "Artikel hinzufügen",
+          "addButton": "Artikel zur Liste hinzufügen"
+        },
+        "itemsList": {
+          "title": "Zu erstellende Artikel",
+          "empty": "Noch keine Artikel hinzugefügt. Verwenden Sie das obige Formular, um Artikel hinzuzufügen."
+        },
+        "itemAdded": "Artikel zur Liste hinzugefügt",
+        "minimumOneItem": "Sie müssen mindestens einen Artikel haben",
         "form": {
           "quantity": "Menge",
           "quantityPlaceholder": "z.B. 1, 2, 10",
@@ -372,8 +407,31 @@
           "receiptNumberPlaceholder": "Optionale Belegnummer",
           "isSharedWithFamily": "Mit Familie geteilt",
           "isSharedWithFamilyLabel": "Diesen Artikel mit Familienmitgliedern teilen",
-          "createButton": "Lagerbestand erstellen"
+          "createButton": "Lagerbestand erstellen",
+          "createMultipleButton": "{count} Artikel erstellen"
         }
+      },
+      "progressModal": {
+        "title": "Bestandsartikel erstellen",
+        "description": "Bitte warten Sie, während wir Ihre Artikel speichern...",
+        "processing": "{current} von {total} Artikeln werden verarbeitet",
+        "completed": "Alle Artikel verarbeitet",
+        "failed": "Fehlgeschlagen",
+        "noExpiration": "Kein Ablaufdatum",
+        "summary": {
+          "allSuccess": "{count} Artikel erfolgreich erstellt!",
+          "partialSuccess": "{success} von {total} Artikeln erfolgreich erstellt",
+          "allFailed": "Artikel konnten nicht erstellt werden. Bitte versuchen Sie es erneut."
+        },
+        "noItemsError": "Bitte fügen Sie mindestens einen Artikel hinzu",
+        "invalidItemsError": "Einige Artikel enthalten ungültige Daten. Bitte überprüfen Sie und versuchen Sie es erneut."
+      },
+      "previewModal": {
+        "title": "{count} Artikel überprüfen",
+        "description": "Bitte überprüfen Sie Ihre Artikel vor der Erstellung",
+        "itemNumber": "Artikel #{number}",
+        "summary": "Sie sind dabei, {count} Bestandsartikel zu erstellen",
+        "confirmButton": "{count} Artikel erstellen"
       }
     },
     "shoppingLists": {

@@ -622,14 +622,71 @@
 
       <!-- Step 4: Create Inventory Item -->
       <div v-else-if="currentStep === 3" class="space-y-6">
-        <UForm
-          :schema="createInventorySchema"
-          :state="inventoryFormData"
-          class="space-y-4"
-          @submit="onCreateInventory"
-        >
-          <!-- Quantity (Required) -->
-          <UFormField :label="t('pages.addProduct.inventory.form.quantity')" name="quantity" required>
+        <!-- Mode Selection (shown first when no mode selected) -->
+        <div v-if="inventoryHandlingMode === null" class="space-y-4">
+          <h3 class="text-lg font-semibold">
+            {{ t('pages.addProduct.inventory.modeSelection.title') }}
+          </h3>
+          <p class="text-sm text-gray-600 dark:text-gray-400">
+            {{ t('pages.addProduct.inventory.modeSelection.description') }}
+          </p>
+
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-6">
+            <!-- Bulk Mode Card -->
+            <button
+              @click="inventoryHandlingMode = 'bulk'"
+              class="p-6 border-2 border-gray-300 dark:border-gray-700 rounded-lg hover:border-primary-500 dark:hover:border-primary-400 transition-colors text-left"
+            >
+              <div class="flex items-center gap-3 mb-2">
+                <UIcon name="i-lucide-layers" class="h-6 w-6 text-primary-500" />
+                <span class="text-lg font-semibold">{{ t('pages.addProduct.inventory.modeSelection.bulk') }}</span>
+              </div>
+              <p class="text-sm text-gray-600 dark:text-gray-400">
+                {{ t('pages.addProduct.inventory.modeSelection.bulkDescription') }}
+              </p>
+            </button>
+
+            <!-- Individual Mode Card -->
+            <button
+              @click="inventoryHandlingMode = 'individual'"
+              class="p-6 border-2 border-gray-300 dark:border-gray-700 rounded-lg hover:border-primary-500 dark:hover:border-primary-400 transition-colors text-left"
+            >
+              <div class="flex items-center gap-3 mb-2">
+                <UIcon name="i-lucide-grid-2x2" class="h-6 w-6 text-primary-500" />
+                <span class="text-lg font-semibold">{{ t('pages.addProduct.inventory.modeSelection.individual') }}</span>
+              </div>
+              <p class="text-sm text-gray-600 dark:text-gray-400">
+                {{ t('pages.addProduct.inventory.modeSelection.individualDescription') }}
+              </p>
+            </button>
+          </div>
+        </div>
+
+        <!-- Bulk Mode UI -->
+        <div v-else-if="inventoryHandlingMode === 'bulk'" class="space-y-6">
+          <!-- Back to Mode Selection -->
+          <div class="flex items-center justify-between">
+            <h3 class="text-lg font-semibold">
+              {{ t('pages.addProduct.inventory.bulk.title') }}
+            </h3>
+            <UButton
+              :label="t('common.back')"
+              icon="i-lucide-arrow-left"
+              color="neutral"
+              variant="ghost"
+              size="sm"
+              @click="handleBackToModeSelection"
+            />
+          </div>
+
+          <!-- Inventory Form -->
+          <UForm
+            :schema="createInventorySchema"
+            :state="inventoryFormData"
+            class="space-y-4"
+          >
+            <!-- Quantity (Required) -->
+            <UFormField :label="t('pages.addProduct.inventory.form.quantity')" name="quantity" required>
             <UInput
               v-model.number="inventoryFormData.quantity"
               type="number"
@@ -726,20 +783,310 @@
               :disabled="isCreatingInventory"
             />
           </UFormField>
+        </UForm>
 
-          <!-- Submit Button -->
+        <!-- Live Preview Card (shows current form state) -->
+        <div v-if="isBulkFormValid" class="p-4 border border-primary-500 dark:border-primary-400 rounded-lg bg-primary-50 dark:bg-primary-900/20">
+          <h4 class="text-sm font-semibold mb-3 flex items-center gap-2">
+            <UIcon name="i-lucide-eye" class="h-4 w-4" />
+            {{ t('pages.addProduct.inventory.preview.title') }}
+          </h4>
+          <div class="space-y-2 text-sm">
+            <div class="flex justify-between">
+              <span class="text-gray-600 dark:text-gray-400">{{ t('common.quantity') }}:</span>
+              <span class="font-medium">
+                {{ inventoryFormData.quantity }} {{ inventoryFormData.unit ? t(`enums.unit.${inventoryFormData.unit}`) : '' }}
+              </span>
+            </div>
+            <div v-if="inventoryFormData.expirationAt" class="flex justify-between">
+              <span class="text-gray-600 dark:text-gray-400">{{ t('common.expirationDate') }}:</span>
+              <span class="font-medium">{{ formatCalendarDate(inventoryFormData.expirationAt) }}</span>
+            </div>
+            <div v-if="inventoryFormData.price && inventoryFormData.price > 0" class="flex justify-between">
+              <span class="text-gray-600 dark:text-gray-400">{{ t('common.price') }}:</span>
+              <span class="font-medium">
+                {{ inventoryFormData.price }} {{ inventoryFormData.currency ? t(`enums.currency.${inventoryFormData.currency}`) : '' }}
+              </span>
+            </div>
+            <div v-if="inventoryFormData.receiptNumber" class="flex justify-between">
+              <span class="text-gray-600 dark:text-gray-400">{{ t('pages.addProduct.inventory.form.receiptNumber') }}:</span>
+              <span class="font-medium">{{ inventoryFormData.receiptNumber }}</span>
+            </div>
+            <div class="flex justify-between">
+              <span class="text-gray-600 dark:text-gray-400">{{ t('pages.addProduct.inventory.form.isSharedWithFamily') }}:</span>
+              <UIcon
+                :name="inventoryFormData.isSharedWithFamily ? 'i-lucide-check' : 'i-lucide-x'"
+                :class="inventoryFormData.isSharedWithFamily ? 'text-green-500' : 'text-gray-400'"
+                class="h-5 w-5"
+              />
+            </div>
+          </div>
+        </div>
+
+        <!-- Submit Button (not part of UForm, standalone) -->
+        <UButton
+          color="primary"
+          block
+          size="lg"
+          :disabled="!isBulkFormValid"
+          :loading="isCreatingInventory"
+          icon="i-lucide-check"
+          @click="onCreateBulkInventory"
+        >
+          {{ t('pages.addProduct.inventory.form.createButton') }}
+        </UButton>
+      </div>
+
+      <!-- Individual Mode UI -->
+      <div v-else-if="inventoryHandlingMode === 'individual'" class="space-y-6">
+        <!-- Back to Mode Selection -->
+        <div class="flex items-center justify-between">
+          <h3 class="text-lg font-semibold">
+            {{ t('pages.addProduct.inventory.individual.title') }}
+          </h3>
           <UButton
-            type="submit"
+            :label="t('common.back')"
+            icon="i-lucide-arrow-left"
+            color="neutral"
+            variant="ghost"
+            size="sm"
+            @click="handleBackToModeSelection"
+          />
+        </div>
+
+        <!-- Shared Context Info -->
+        <div class="p-4 bg-gray-50 dark:bg-gray-800 rounded-lg space-y-3">
+          <h4 class="text-sm font-semibold flex items-center gap-2">
+            <UIcon name="i-lucide-info" class="h-4 w-4" />
+            {{ t('pages.addProduct.inventory.sharedContext.title') }}
+          </h4>
+          <div class="flex flex-wrap gap-2">
+            <UBadge color="primary" variant="soft" size="md">
+              <span class="flex items-center gap-1">
+                <UIcon name="i-lucide-map-pin" class="h-3 w-3" />
+                {{ getStorageLocationName() }}
+              </span>
+            </UBadge>
+            <UBadge v-if="selectedShoppingLocationId" color="secondary" variant="soft" size="md">
+              <span class="flex items-center gap-1">
+                <UIcon name="i-lucide-shopping-cart" class="h-3 w-3" />
+                {{ getShoppingLocationName() }}
+              </span>
+            </UBadge>
+          </div>
+
+          <!-- Shared with Family Checkbox -->
+          <UFormField :label="t('pages.addProduct.inventory.form.isSharedWithFamily')" name="isSharedWithFamily">
+            <UCheckbox
+              v-model="inventoryFormData.isSharedWithFamily"
+              :label="t('pages.addProduct.inventory.form.isSharedWithFamilyLabel')"
+            />
+          </UFormField>
+        </div>
+
+        <!-- Add Item Form -->
+        <div class="p-6 border-2 border-dashed border-gray-300 dark:border-gray-700 rounded-lg">
+          <h4 class="text-md font-semibold mb-4">
+            {{ t('pages.addProduct.inventory.addItemForm.title') }}
+          </h4>
+
+          <UForm
+            :schema="individualItemSchema"
+            :state="inventoryFormData"
+            class="space-y-4"
+            @submit="onAddIndividualItem"
+          >
+            <!-- Quantity + Unit (side by side) -->
+            <div class="grid grid-cols-2 gap-4">
+              <UFormField :label="t('pages.addProduct.inventory.form.quantity')" name="quantity" required>
+                <UInput
+                  v-model.number="inventoryFormData.quantity"
+                  type="number"
+                  step="0.01"
+                  min="0.01"
+                  :placeholder="t('pages.addProduct.inventory.form.quantityPlaceholder')"
+                  class="w-full"
+                />
+              </UFormField>
+
+              <UFormField :label="t('pages.addProduct.inventory.form.unit')" name="unit" required>
+                <USelect
+                  v-model="inventoryFormData.unit"
+                  :items="unitOptions"
+                  :placeholder="t('pages.addProduct.inventory.form.unitPlaceholder')"
+                  class="w-full"
+                />
+              </UFormField>
+            </div>
+
+            <!-- Expiration Date -->
+            <UFormField :label="t('pages.addProduct.inventory.form.expirationAt')" name="expirationAt">
+              <UInputDate
+                ref="expirationDateInput"
+                v-model="inventoryFormData.expirationAt"
+                :locale="inputDateLocale"
+                class="w-full"
+              >
+                <template #trailing>
+                  <UPopover :reference="expirationDateInput?.inputsRef[0]?.$el">
+                    <UButton
+                      color="neutral"
+                      variant="link"
+                      size="sm"
+                      icon="i-lucide-calendar"
+                      aria-label="Select a date"
+                      class="px-0"
+                    />
+                    <template #content>
+                      <UCalendar v-model="inventoryFormData.expirationAt" :locale="inputDateLocale" class="p-2" />
+                    </template>
+                  </UPopover>
+                </template>
+              </UInputDate>
+            </UFormField>
+
+            <!-- Price + Currency -->
+            <div class="grid grid-cols-2 gap-4">
+              <UFormField :label="t('pages.addProduct.inventory.form.price')" name="price">
+                <UInput
+                  v-model.number="inventoryFormData.price"
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  :placeholder="t('pages.addProduct.inventory.form.pricePlaceholder')"
+                  class="w-full"
+                />
+              </UFormField>
+
+              <UFormField
+                v-if="inventoryFormData.price !== undefined && inventoryFormData.price > 0"
+                :label="t('pages.addProduct.inventory.form.currency')"
+                name="currency"
+              >
+                <USelect
+                  v-model="inventoryFormData.currency"
+                  :items="currencyOptions"
+                  :placeholder="t('pages.addProduct.inventory.form.currencyPlaceholder')"
+                  class="w-full"
+                />
+              </UFormField>
+            </div>
+
+            <!-- Receipt Number -->
+            <UFormField :label="t('pages.addProduct.inventory.form.receiptNumber')" name="receiptNumber">
+              <UInput
+                v-model="inventoryFormData.receiptNumber"
+                :placeholder="t('pages.addProduct.inventory.form.receiptNumberPlaceholder')"
+                class="w-full"
+              />
+            </UFormField>
+
+            <!-- Add Button -->
+            <UButton
+              type="submit"
+              color="primary"
+              block
+              icon="i-lucide-plus"
+            >
+              {{ t('pages.addProduct.inventory.addItemForm.addButton') }}
+            </UButton>
+          </UForm>
+        </div>
+
+        <!-- Items List -->
+        <div v-if="individualItems.length > 0" class="space-y-4">
+          <h4 class="text-md font-semibold">
+            {{ t('pages.addProduct.inventory.itemsList.title') }} ({{ individualItems.length }})
+          </h4>
+
+          <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            <div
+              v-for="item in individualItems"
+              :key="item.id"
+              class="relative p-4 border border-gray-300 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-800"
+            >
+              <!-- Remove button -->
+              <button
+                v-if="individualItems.length > 1"
+                class="absolute top-2 right-2 text-gray-400 hover:text-red-500 dark:hover:text-red-400 transition-colors"
+                @click="removeIndividualItem(item.id)"
+              >
+                <UIcon name="i-lucide-x" class="h-5 w-5" />
+              </button>
+
+              <!-- Item details -->
+              <div class="space-y-2 text-sm">
+                <div class="flex items-center gap-2">
+                  <UIcon name="i-lucide-package-2" class="h-4 w-4 text-primary-500" />
+                  <span class="font-semibold">{{ item.quantity }} {{ t(`enums.unit.${item.unit}`) }}</span>
+                </div>
+                <div v-if="item.expirationAt" class="text-gray-600 dark:text-gray-400">
+                  <span class="font-medium">{{ t('common.expirationDate') }}:</span>
+                  {{ formatCalendarDate(item.expirationAt) }}
+                </div>
+                <div v-if="item.price && item.price > 0" class="text-gray-600 dark:text-gray-400">
+                  <span class="font-medium">{{ t('common.price') }}:</span>
+                  {{ item.price }} {{ item.currency ? t(`enums.currency.${item.currency}`) : '' }}
+                </div>
+                <div v-if="item.receiptNumber" class="text-gray-600 dark:text-gray-400 truncate">
+                  <span class="font-medium">{{ t('pages.addProduct.inventory.form.receiptNumber') }}:</span>
+                  {{ item.receiptNumber }}
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Preview All Items Button -->
+          <UButton
             color="primary"
             block
-            :loading="isCreatingInventory"
-            icon="i-lucide-check"
+            size="lg"
+            icon="i-lucide-eye"
+            @click="showIndividualItemsPreview"
           >
-            {{ t('pages.addProduct.inventory.form.createButton') }}
+            {{ t('pages.addProduct.inventory.preview.viewAllButton', { count: individualItems.length }) }}
           </UButton>
-        </UForm>
+        </div>
+
+        <!-- Empty State -->
+        <div v-else class="text-center py-12 text-gray-500">
+          <UIcon name="i-lucide-package-x" class="h-12 w-12 mx-auto mb-3 text-gray-400" />
+          <p>{{ t('pages.addProduct.inventory.itemsList.empty') }}</p>
+        </div>
       </div>
     </div>
+
+    <!-- Preview Modal -->
+    <InventoryItemsPreviewModal
+      v-if="isPreviewModalOpen"
+      :is-open="isPreviewModalOpen"
+      :items="inventoryHandlingMode === 'bulk' && inventoryFormData.unit
+        ? [{
+            id: '1',
+            quantity: inventoryFormData.quantity,
+            unit: inventoryFormData.unit,
+            expirationAt: inventoryFormData.expirationAt || null,
+            price: inventoryFormData.price,
+            currency: inventoryFormData.currency,
+            receiptNumber: inventoryFormData.receiptNumber
+          }]
+        : individualItems"
+      :storage-location-name="getStorageLocationName()"
+      :shopping-location-name="selectedShoppingLocationId ? getShoppingLocationName() : undefined"
+      :is-shared-with-family="inventoryFormData.isSharedWithFamily ?? true"
+      @update:is-open="isPreviewModalOpen = $event"
+      @confirm="handlePreviewConfirm"
+    />
+
+    <!-- Progress Modal -->
+    <InventoryCreationProgressModal
+      :is-open="isProgressModalOpen"
+      :items="progressItems"
+      :is-processing="isCreatingMultiple"
+      @update:is-open="isProgressModalOpen = $event"
+      @close="handleProgressModalClose"
+    />
+  </div>
   </div>
 </template>
 
@@ -769,7 +1116,7 @@ interface InventoryFormData {
   storageLocationPublicId?: string
   quantity: number
   unit?: Unit
-  expirationAt?: CalendarDate | null
+  expirationAt?: any | null
   price?: number
   currency?: Currency
   shoppingLocationPublicId?: string
@@ -903,6 +1250,34 @@ const inventoryFormData = ref<InventoryFormData>({
   isSharedWithFamily: true
 })
 
+// Inventory handling mode state (Step 3)
+const inventoryHandlingMode = ref<'bulk' | 'individual' | null>(null)
+
+// Individual items state
+interface IndividualInventoryItem {
+  id: string // temporary UUID for frontend tracking
+  quantity: number
+  unit: Unit
+  expirationAt: any | null
+  price: number | undefined
+  currency: Currency | undefined
+  receiptNumber: string | undefined
+}
+
+const individualItems = ref<IndividualInventoryItem[]>([])
+
+// Progress modal state
+const isProgressModalOpen = ref(false)
+const isPreviewModalOpen = ref(false)
+interface ProgressItem {
+  id: string
+  displayText: string
+  status: 'pending' | 'in-progress' | 'success' | 'error'
+  errorMessage?: string
+}
+const progressItems = ref<ProgressItem[]>([])
+const isCreatingMultiple = ref(false)
+
 // Unit options for dropdown
 const unitOptions = computed(() => {
   return Object.entries(Unit)
@@ -1011,6 +1386,27 @@ const createInventorySchema = z.object({
 })
 
 type CreateInventorySchema = z.output<typeof createInventorySchema>
+
+// Zod schema for individual item (no isSharedWithFamily field)
+const individualItemSchema = z.object({
+  quantity: z.number({ required_error: 'Quantity is required' })
+    .min(0.001, 'Quantity must be greater than 0'),
+  unit: z.nativeEnum(Unit, { required_error: 'Unit is required' }),
+  expirationAt: z.any().nullable().optional(),
+  price: z.number().min(0).optional(),
+  currency: z.nativeEnum(Currency).optional(),
+  receiptNumber: z.string().max(50).optional()
+})
+
+// Computed: Check if bulk form has minimum valid data
+const isBulkFormValid = computed(() => {
+  return inventoryFormData.value.quantity > 0 && inventoryFormData.value.unit !== undefined
+})
+
+// Helper: Format CalendarDate for display
+const formatCalendarDate = (date: CalendarDate): string => {
+  return `${date.year}-${String(date.month).padStart(2, '0')}-${String(date.day).padStart(2, '0')}`
+}
 
 // Ensure barcode contains only numeric characters
 watch(() => formData.value.barcode, (newValue) => {
@@ -1442,7 +1838,276 @@ const onCreateShoppingLocation = async (event: FormSubmitEvent<CreateShoppingLoc
   }
 }
 
-// Inventory item creation handler
+// Get storage location name for display
+const getStorageLocationName = (): string => {
+  if (!selectedStorageLocationId.value) return t('pages.addProduct.inventory.sharedContext.none')
+  const location = allLocations.value.find(l => l.publicId === selectedStorageLocationId.value)
+  return location?.name || t('pages.addProduct.inventory.sharedContext.none')
+}
+
+// Get shopping location name for display
+const getShoppingLocationName = (): string => {
+  if (!selectedShoppingLocationId.value) return t('pages.addProduct.inventory.sharedContext.none')
+  const location = allShoppingLocations.value.find(l => l.publicId === selectedShoppingLocationId.value)
+  return location?.name || t('pages.addProduct.inventory.sharedContext.none')
+}
+
+// Handle back to mode selection
+const handleBackToModeSelection = () => {
+  inventoryHandlingMode.value = null
+  individualItems.value = []
+  resetInventoryForm()
+}
+
+// Reset inventory form to defaults
+const resetInventoryForm = () => {
+  inventoryFormData.value = {
+    productPublicId: '',
+    quantity: 1,
+    unit: undefined,
+    expirationAt: null,
+    price: undefined,
+    currency: undefined,
+    receiptNumber: undefined,
+    isSharedWithFamily: true
+  }
+}
+
+// Add individual item to list
+const onAddIndividualItem = (event: FormSubmitEvent<any>) => {
+  // Create new item with unique ID
+  const newItem: IndividualInventoryItem = {
+    id: crypto.randomUUID(),
+    quantity: inventoryFormData.value.quantity,
+    unit: inventoryFormData.value.unit!,
+    expirationAt: inventoryFormData.value.expirationAt,
+    price: inventoryFormData.value.price,
+    currency: inventoryFormData.value.currency,
+    receiptNumber: inventoryFormData.value.receiptNumber
+  }
+
+  individualItems.value.push(newItem)
+
+  // Reset form for next item (keep unit for convenience)
+  const previousUnit = inventoryFormData.value.unit
+  resetInventoryForm()
+  inventoryFormData.value.unit = previousUnit
+
+  toast.add({
+    title: t('toast.success'),
+    description: t('pages.addProduct.inventory.itemAdded'),
+    color: 'success'
+  })
+}
+
+// Remove individual item from list
+const removeIndividualItem = (itemId: string) => {
+  if (individualItems.value.length <= 1) {
+    toast.add({
+      title: t('toast.error'),
+      description: t('pages.addProduct.inventory.minimumOneItem'),
+      color: 'error'
+    })
+    return
+  }
+
+  individualItems.value = individualItems.value.filter(item => item.id !== itemId)
+}
+
+// Convert CalendarDate to ISO string helper
+const convertCalendarDateToISO = (date: CalendarDate | null): string | undefined => {
+  if (!date) return undefined
+  const localDate = new Date(date.year, date.month - 1, date.day, 12, 0, 0)
+  return localDate.toISOString()
+}
+
+// Build API request from item data
+const buildInventoryRequest = (itemData: IndividualInventoryItem | InventoryFormData): CreateInventoryItemRequest => {
+  return {
+    productPublicId: selectedProductId.value!,
+    storageLocationPublicId: selectedStorageLocationId.value || undefined,
+    shoppingLocationPublicId: selectedShoppingLocationId.value || undefined,
+    quantity: itemData.quantity,
+    unit: itemData.unit!,
+    expirationAt: convertCalendarDateToISO(itemData.expirationAt || null),
+    price: itemData.price && itemData.price > 0 ? itemData.price : undefined,
+    currency: itemData.price && itemData.price > 0 ? itemData.currency : undefined,
+    receiptNumber: itemData.receiptNumber?.trim() || undefined,
+    isSharedWithFamily: inventoryFormData.value.isSharedWithFamily
+  }
+}
+
+// Format display text for progress items
+const formatItemDisplay = (item: IndividualInventoryItem | InventoryFormData): string => {
+  const qty = item.quantity
+  const unitLabel = t(`enums.unit.${item.unit}`)
+  const expiration = item.expirationAt
+    ? formatCalendarDate(item.expirationAt)
+    : t('pages.addProduct.progressModal.noExpiration')
+
+  return `${qty} ${unitLabel} - ${t('common.expirationDate')}: ${expiration}`
+}
+
+// Show preview modal for individual items
+const showIndividualItemsPreview = () => {
+  if (individualItems.value.length === 0) {
+    toast.add({
+      title: t('toast.error'),
+      description: t('pages.addProduct.progressModal.noItemsError'),
+      color: 'error'
+    })
+    return
+  }
+
+  isPreviewModalOpen.value = true
+}
+
+// Bulk mode: Create directly without preview modal
+const onCreateBulkInventory = async () => {
+  // Validate form first
+  try {
+    createInventorySchema.parse(inventoryFormData.value)
+  } catch (error) {
+    if (error instanceof z.ZodError) {
+      toast.add({
+        title: t('toast.error'),
+        description: error.errors[0].message,
+        color: 'error'
+      })
+    }
+    return
+  }
+
+  // Create directly without preview modal
+  onConfirmAndCreateBulkInventory()
+}
+
+// Preview modal confirm handler (routes to correct create function)
+const handlePreviewConfirm = () => {
+  if (inventoryHandlingMode.value === 'bulk') {
+    onConfirmAndCreateBulkInventory()
+  } else {
+    onConfirmAndCreateMultipleInventoryItems()
+  }
+}
+
+// Confirm and create bulk inventory (called from preview modal)
+const onConfirmAndCreateBulkInventory = async () => {
+  // Close preview modal
+  isPreviewModalOpen.value = false
+
+  // Prepare single item for progress modal
+  progressItems.value = [{
+    id: '1',
+    displayText: formatItemDisplay(inventoryFormData.value),
+    status: 'pending' as const
+  }]
+
+  isProgressModalOpen.value = true
+  isCreatingInventory.value = true
+  isCreatingMultiple.value = true
+
+  progressItems.value[0].status = 'in-progress'
+
+  try {
+    const inventoryData = buildInventoryRequest(inventoryFormData.value)
+    const response = await createInventoryItem(inventoryData)
+
+    if (response.success) {
+      progressItems.value[0].status = 'success'
+
+      // Auto-close and redirect after 1 second
+      setTimeout(() => {
+        window.location.href = '/products'
+      }, 1000)
+    } else {
+      progressItems.value[0].status = 'error'
+      progressItems.value[0].errorMessage = response.message || t('toast.error')
+      isCreatingInventory.value = false
+      isCreatingMultiple.value = false
+    }
+  } catch (error) {
+    progressItems.value[0].status = 'error'
+    progressItems.value[0].errorMessage = error instanceof Error ? error.message : t('toast.error')
+    console.error('Inventory item creation failed:', error)
+    isCreatingInventory.value = false
+    isCreatingMultiple.value = false
+  }
+}
+
+// Confirm and create multiple inventory items (called from preview modal)
+const onConfirmAndCreateMultipleInventoryItems = async () => {
+  // Close preview modal
+  isPreviewModalOpen.value = false
+
+  // Prepare progress items
+  progressItems.value = individualItems.value.map(item => ({
+    id: item.id,
+    displayText: formatItemDisplay(item),
+    status: 'pending' as const
+  }))
+
+  isProgressModalOpen.value = true
+  isCreatingInventory.value = true
+  isCreatingMultiple.value = true
+
+  let successCount = 0
+  let failureCount = 0
+
+  // Sequential processing
+  for (let i = 0; i < progressItems.value.length; i++) {
+    progressItems.value[i].status = 'in-progress'
+
+    try {
+      const itemToCreate = buildInventoryRequest(individualItems.value[i])
+      const response = await createInventoryItem(itemToCreate)
+
+      if (response.success) {
+        progressItems.value[i].status = 'success'
+        successCount++
+      } else {
+        progressItems.value[i].status = 'error'
+        progressItems.value[i].errorMessage = response.message || t('toast.error')
+        failureCount++
+      }
+    } catch (error) {
+      progressItems.value[i].status = 'error'
+      progressItems.value[i].errorMessage = error instanceof Error ? error.message : t('toast.error')
+      failureCount++
+      console.error('Failed to create inventory item:', error)
+    }
+
+    // Small delay between requests for UX
+    await new Promise(resolve => setTimeout(resolve, 300))
+  }
+
+  isCreatingMultiple.value = false
+  isCreatingInventory.value = false
+
+  // Auto-close and redirect if all succeeded
+  if (failureCount === 0) {
+    setTimeout(() => {
+      window.location.href = '/products'
+    }, 1000)
+  }
+}
+
+// Progress modal close handler
+const handleProgressModalClose = () => {
+  if (!isCreatingMultiple.value && progressItems.value.every(item => item.status !== 'pending' && item.status !== 'in-progress')) {
+    window.location.href = '/products'
+  }
+}
+
+// Watch for step changes to reset mode
+watch(currentStep, (newStep) => {
+  if (newStep !== 3) {
+    inventoryHandlingMode.value = null
+    individualItems.value = []
+  }
+})
+
+// Inventory item creation handler (legacy - keeping for backward compatibility if needed)
 const onCreateInventory = async (event: FormSubmitEvent<CreateInventorySchema>) => {
   isCreatingInventory.value = true
   try {
