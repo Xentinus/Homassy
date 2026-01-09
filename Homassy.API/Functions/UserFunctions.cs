@@ -899,6 +899,7 @@ namespace Homassy.API.Functions
 
                 userAuth.VerificationCode = code;
                 userAuth.VerificationCodeExpiry = expiry;
+                context.Update(userAuth);
 
                 await context.SaveChangesAsync(cancellationToken);
                 await transaction.CommitAsync(cancellationToken);
@@ -928,8 +929,16 @@ namespace Homassy.API.Functions
                 throw new UnauthorizedException("Invalid authentication", ErrorCodes.AuthUnauthorized);
             }
 
-            var familyId = SessionInfo.GetFamilyId();
-            if (familyId.HasValue)
+            var user = GetUserById(userId);
+
+                if (user == null)
+                {
+                    Log.Warning($"User not found for userId {userId.Value}");
+                    throw new UserNotFoundException("User not found", ErrorCodes.UserNotFound);
+                }
+
+            var hasFamily = user.FamilyId.HasValue;
+            if (hasFamily)
             {
                 throw new BadRequestException("You are already a member of a family. Please leave your current family first.", ErrorCodes.FamilyAlreadyMember);
             }
@@ -949,15 +958,8 @@ namespace Homassy.API.Functions
             await using var transaction = await context.Database.BeginTransactionAsync(cancellationToken);
             try
             {
-                var user = GetUserById(userId);
-
-                if (user == null)
-                {
-                    Log.Warning($"User not found for userId {userId.Value}");
-                    throw new UserNotFoundException("User not found", ErrorCodes.UserNotFound);
-                }
-
                 user.FamilyId = family.Id;
+                context.Update(user);
 
                 await context.SaveChangesAsync(cancellationToken);
                 await transaction.CommitAsync(cancellationToken);
@@ -1008,30 +1010,31 @@ namespace Homassy.API.Functions
                 throw new UnauthorizedException("Invalid authentication", ErrorCodes.AuthUnauthorized);
             }
 
-            var familyId = SessionInfo.GetFamilyId();
-            if (!familyId.HasValue)
+            var user = GetUserById(userId);
+
+                if (user == null)
+                {
+                    Log.Warning($"User not found for userId {userId.Value}");
+                    throw new UserNotFoundException("User not found", ErrorCodes.UserNotFound);
+                }
+
+            var hasFamily = user.FamilyId.HasValue;
+            if (hasFamily)
             {
-                throw new BadRequestException("You are not a member of any family", ErrorCodes.FamilyNotMember);
+                throw new BadRequestException("You are already a member of a family. Please leave your current family first.", ErrorCodes.FamilyAlreadyMember);
             }
 
             var context = new HomassyDbContext();
             await using var transaction = await context.Database.BeginTransactionAsync(cancellationToken);
             try
             {
-                var user = GetUserById(userId);
-
-                if (user == null)
-                {
-                    Log.Warning($"User not found for userId {userId}");
-                    throw new UserNotFoundException("User not found", ErrorCodes.UserNotFound);
-                }
-
                 // Cache family name BEFORE user leaves
-                var family = new FamilyFunctions().GetFamilyById(familyId);
+                var family = new FamilyFunctions().GetFamilyById(user.FamilyId);
                 var familyName = family?.Name ?? "Unknown Family";
 
                 var familyIdToLog = user.FamilyId;
                 user.FamilyId = null;
+                context.Update(user);
 
                 await context.SaveChangesAsync(cancellationToken);
                 await transaction.CommitAsync(cancellationToken);
