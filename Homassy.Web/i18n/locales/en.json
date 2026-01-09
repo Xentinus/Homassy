@@ -170,6 +170,8 @@
         "normalStocksCount": "Normal: {count}",
         "noImage": "No image",
         "expirationInfo": "Expiration Information",
+        "storageLocation": "Storage Location",
+        "shoppingLocation": "Shopping Location",
         "purchaseInfo": "Purchase Information",
         "purchasedAt": "Purchased at",
         "originalQuantity": "Original quantity",
@@ -185,6 +187,7 @@
         "consumedAt": "Consumed at",
         "editInventory": "Edit Inventory",
         "deleteItem": "Delete Inventory",
+        "moveItem": "Move Inventory",
         "consume": {
           "button": "Consume",
           "title": "Consume Item",
@@ -219,8 +222,16 @@
           "cancel": "Cancel",
           "confirm": "Delete",
           "success": "Inventory deleted successfully"
-        },
-        "editProduct": "Edit Product",
+        },        "moveModal": {
+          "title": "Move Inventory Item",
+          "description": "Select a new storage location for this inventory item",
+          "currentLocation": "Current location",
+          "targetLocation": "Target location",
+          "targetLocationPlaceholder": "Select a storage location...",
+          "cancel": "Cancel",
+          "move": "Move",
+          "success": "Inventory moved successfully"
+        },        "editProduct": "Edit Product",
         "deleteProduct": "Delete Product",
         "editProductModal": {
           "title": "Edit Product",

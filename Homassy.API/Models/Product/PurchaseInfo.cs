@@ -9,6 +9,6 @@ namespace Homassy.API.Models.Product
         public decimal OriginalQuantity { get; set; }
         public int? Price { get; set; }
         public Currency? Currency { get; set; }
-        public int? ShoppingLocationId { get; set; }
+        public LocationInfo? ShoppingLocation { get; set; }
     }
 }

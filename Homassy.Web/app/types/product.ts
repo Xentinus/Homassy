@@ -63,11 +63,17 @@ export interface ProductImageInfo {
 // Inventory
 // ===================
 
+export interface LocationInfo {
+  publicId: string
+  name: string
+}
+
 export interface InventoryItemInfo {
   publicId: string
   currentQuantity: number
   unit: Unit
   expirationAt?: string
+  storageLocation?: LocationInfo
   purchaseInfo?: PurchaseInfo
   consumptionLogs: ConsumptionLogInfo[]
 }
@@ -78,7 +84,7 @@ export interface PurchaseInfo {
   originalQuantity: number
   price?: number
   currency?: Currency
-  shoppingLocationId?: string
+  shoppingLocation?: LocationInfo
 }
 
 export interface ConsumptionLogInfo {

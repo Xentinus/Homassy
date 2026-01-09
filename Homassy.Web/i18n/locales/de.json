@@ -168,6 +168,8 @@
         "normalStocksCount": "Normal: {count}",
         "noImage": "Kein Bild",
         "expirationInfo": "Ablaufinformationen",
+        "storageLocation": "Lagerort",
+        "shoppingLocation": "Einkaufsort",
         "purchaseInfo": "Kaufinformationen",
         "purchasedAt": "Gekauft am",
         "originalQuantity": "Ursprüngliche Menge",
@@ -183,6 +185,7 @@
         "consumedAt": "Verbraucht am",
         "editInventory": "Bestand bearbeiten",
         "deleteItem": "Bestand löschen",
+        "moveItem": "Bestand verschieben",
         "consume": {
           "button": "Verbrauchen",
           "title": "Artikel verbrauchen",
@@ -217,8 +220,16 @@
           "cancel": "Abbrechen",
           "confirm": "Löschen",
           "success": "Bestand erfolgreich gelöscht"
-        },
-        "editProduct": "Produkt bearbeiten",
+        },        "moveModal": {
+          "title": "Bestand verschieben",
+          "description": "Wählen Sie einen neuen Lagerort für diesen Bestand",
+          "currentLocation": "Aktueller Standort",
+          "targetLocation": "Zielstandort",
+          "targetLocationPlaceholder": "Wählen Sie einen Lagerort...",
+          "cancel": "Abbrechen",
+          "move": "Verschieben",
+          "success": "Bestand erfolgreich verschoben"
+        },        "editProduct": "Produkt bearbeiten",
         "deleteProduct": "Produkt löschen",
         "editProductModal": {
           "title": "Produkt bearbeiten",

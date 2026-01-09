@@ -856,6 +856,7 @@ namespace Homassy.API.Functions
 
             var customization = GetCustomizationByProductAndUser(product.Id, userId.Value);
             var inventoryItems = GetInventoryItemsByProductId(product.Id, includeConsumed: false);
+            var locationFunctions = new LocationFunctions();
 
             var inventoryItemInfos = inventoryItems.Select(item =>
             {
@@ -868,6 +869,15 @@ namespace Homassy.API.Functions
                     CurrentQuantity = item.CurrentQuantity,
                     Unit = item.Unit,
                     ExpirationAt = item.ExpirationAt,
+                    StorageLocation = item.StorageLocationId.HasValue
+                        ? (locationFunctions.GetStorageLocationById(item.StorageLocationId.Value) is var storageLocation && storageLocation != null
+                            ? new LocationInfo
+                            {
+                                PublicId = storageLocation.PublicId,
+                                Name = storageLocation.Name
+                            }
+                            : null)
+                        : null,
                     PurchaseInfo = purchaseInfo != null ? new PurchaseInfo
                     {
                         PublicId = purchaseInfo.PublicId,
@@ -875,7 +885,15 @@ namespace Homassy.API.Functions
                         OriginalQuantity = purchaseInfo.OriginalQuantity,
                         Price = purchaseInfo.Price,
                         Currency = purchaseInfo.Currency,
-                        ShoppingLocationId = purchaseInfo.ShoppingLocationId
+                        ShoppingLocation = purchaseInfo.ShoppingLocationId.HasValue
+                            ? (locationFunctions.GetShoppingLocationById(purchaseInfo.ShoppingLocationId.Value) is var shoppingLocation && shoppingLocation != null
+                                ? new LocationInfo
+                                {
+                                    PublicId = shoppingLocation.PublicId,
+                                    Name = shoppingLocation.Name
+                                }
+                                : null)
+                            : null
                     } : null,
                     ConsumptionLogs = consumptionLogs.Select(log =>
                     {
@@ -941,6 +959,8 @@ namespace Homassy.API.Functions
                                   (familyId.HasValue && item.FamilyId == familyId.Value))
                     .ToList();
 
+                var locationFunctions = new LocationFunctions();
+
                 var inventoryItemInfos = userInventoryItems.Select(item =>
                 {
                     var purchaseInfo = GetPurchaseInfoByInventoryItemId(item.Id);
@@ -952,6 +972,15 @@ namespace Homassy.API.Functions
                         CurrentQuantity = item.CurrentQuantity,
                         Unit = item.Unit,
                         ExpirationAt = item.ExpirationAt,
+                        StorageLocation = item.StorageLocationId.HasValue
+                            ? (locationFunctions.GetStorageLocationById(item.StorageLocationId.Value) is var storageLocation && storageLocation != null
+                                ? new LocationInfo
+                                {
+                                    PublicId = storageLocation.PublicId,
+                                    Name = storageLocation.Name
+                                }
+                                : null)
+                            : null,
                         PurchaseInfo = purchaseInfo != null ? new PurchaseInfo
                         {
                             PublicId = purchaseInfo.PublicId,
@@ -959,7 +988,15 @@ namespace Homassy.API.Functions
                             OriginalQuantity = purchaseInfo.OriginalQuantity,
                             Price = purchaseInfo.Price,
                             Currency = purchaseInfo.Currency,
-                            ShoppingLocationId = purchaseInfo.ShoppingLocationId
+                            ShoppingLocation = purchaseInfo.ShoppingLocationId.HasValue
+                                ? (locationFunctions.GetShoppingLocationById(purchaseInfo.ShoppingLocationId.Value) is var shoppingLocation && shoppingLocation != null
+                                    ? new LocationInfo
+                                    {
+                                        PublicId = shoppingLocation.PublicId,
+                                        Name = shoppingLocation.Name
+                                    }
+                                    : null)
+                                : null
                         } : null,
                         ConsumptionLogs = consumptionLogs.Select(log =>
                         {
@@ -1104,6 +1141,15 @@ namespace Homassy.API.Functions
                     CurrentQuantity = inventoryItem.CurrentQuantity,
                     Unit = inventoryItem.Unit,
                     ExpirationAt = inventoryItem.ExpirationAt,
+                    StorageLocation = inventoryItem.StorageLocationId.HasValue
+                        ? (locationFunctions.GetStorageLocationById(inventoryItem.StorageLocationId.Value) is var storageLocation && storageLocation != null
+                            ? new LocationInfo
+                            {
+                                PublicId = storageLocation.PublicId,
+                                Name = storageLocation.Name
+                            }
+                            : null)
+                        : null,
                     PurchaseInfo = purchaseInfo != null ? new PurchaseInfo
                     {
                         PublicId = purchaseInfo.PublicId,
@@ -1111,7 +1157,15 @@ namespace Homassy.API.Functions
                         OriginalQuantity = purchaseInfo.OriginalQuantity,
                         Price = purchaseInfo.Price,
                         Currency = purchaseInfo.Currency,
-                        ShoppingLocationId = purchaseInfo.ShoppingLocationId
+                        ShoppingLocation = purchaseInfo.ShoppingLocationId.HasValue
+                            ? (locationFunctions.GetShoppingLocationById(purchaseInfo.ShoppingLocationId.Value) is var shoppingLocation && shoppingLocation != null
+                                ? new LocationInfo
+                                {
+                                    PublicId = shoppingLocation.PublicId,
+                                    Name = shoppingLocation.Name
+                                }
+                                : null)
+                            : null
                     } : null,
                     ConsumptionLogs = new List<ConsumptionLogInfo>()
                 };
@@ -1372,6 +1426,15 @@ namespace Homassy.API.Functions
                     CurrentQuantity = trackedItem.CurrentQuantity,
                     Unit = trackedItem.Unit,
                     ExpirationAt = trackedItem.ExpirationAt,
+                    StorageLocation = trackedItem.StorageLocationId.HasValue
+                        ? (locationFunctions.GetStorageLocationById(trackedItem.StorageLocationId.Value) is var storageLocationRef && storageLocationRef != null
+                            ? new LocationInfo
+                            {
+                                PublicId = storageLocationRef.PublicId,
+                                Name = storageLocationRef.Name
+                            }
+                            : null)
+                        : null,
                     PurchaseInfo = purchaseInfo != null ? new PurchaseInfo
                     {
                         PublicId = purchaseInfo.PublicId,
@@ -1379,7 +1442,15 @@ namespace Homassy.API.Functions
                         OriginalQuantity = purchaseInfo.OriginalQuantity,
                         Price = purchaseInfo.Price,
                         Currency = purchaseInfo.Currency,
-                        ShoppingLocationId = purchaseInfo.ShoppingLocationId
+                        ShoppingLocation = purchaseInfo.ShoppingLocationId.HasValue
+                            ? (locationFunctions.GetShoppingLocationById(purchaseInfo.ShoppingLocationId.Value) is var shoppingLocationRef && shoppingLocationRef != null
+                                ? new LocationInfo
+                                {
+                                    PublicId = shoppingLocationRef.PublicId,
+                                    Name = shoppingLocationRef.Name
+                                }
+                                : null)
+                            : null
                     } : null,
                     ConsumptionLogs = consumptionLogs.Select(log =>
                     {
@@ -1561,6 +1632,7 @@ namespace Homassy.API.Functions
 
                 var purchaseInfo = GetPurchaseInfoByInventoryItemId(trackedItem.Id);
                 var consumptionLogs = GetConsumptionLogsByInventoryItemId(trackedItem.Id);
+                var locationFunctions = new LocationFunctions();
 
                 return new InventoryItemInfo
                 {
@@ -1568,6 +1640,15 @@ namespace Homassy.API.Functions
                     CurrentQuantity = trackedItem.CurrentQuantity,
                     Unit = trackedItem.Unit,
                     ExpirationAt = trackedItem.ExpirationAt,
+                    StorageLocation = trackedItem.StorageLocationId.HasValue
+                        ? (locationFunctions.GetStorageLocationById(trackedItem.StorageLocationId.Value) is var storageLocation && storageLocation != null
+                            ? new LocationInfo
+                            {
+                                PublicId = storageLocation.PublicId,
+                                Name = storageLocation.Name
+                            }
+                            : null)
+                        : null,
                     PurchaseInfo = purchaseInfo != null ? new PurchaseInfo
                     {
                         PublicId = purchaseInfo.PublicId,
@@ -1575,7 +1656,15 @@ namespace Homassy.API.Functions
                         OriginalQuantity = purchaseInfo.OriginalQuantity,
                         Price = purchaseInfo.Price,
                         Currency = purchaseInfo.Currency,
-                        ShoppingLocationId = purchaseInfo.ShoppingLocationId
+                        ShoppingLocation = purchaseInfo.ShoppingLocationId.HasValue
+                            ? (locationFunctions.GetShoppingLocationById(purchaseInfo.ShoppingLocationId.Value) is var shoppingLocation && shoppingLocation != null
+                                ? new LocationInfo
+                                {
+                                    PublicId = shoppingLocation.PublicId,
+                                    Name = shoppingLocation.Name
+                                }
+                                : null)
+                            : null
                     } : null,
                     ConsumptionLogs = consumptionLogs.Select(log =>
                     {
@@ -1736,6 +1825,15 @@ namespace Homassy.API.Functions
                         CurrentQuantity = trackedItem.CurrentQuantity,
                         Unit = trackedItem.Unit,
                         ExpirationAt = trackedItem.ExpirationAt,
+                        StorageLocation = trackedItem.StorageLocationId.HasValue
+                            ? (locationFunctions.GetStorageLocationById(trackedItem.StorageLocationId.Value) is var storageLocationRef && storageLocationRef != null
+                                ? new LocationInfo
+                                {
+                                    PublicId = storageLocationRef.PublicId,
+                                    Name = storageLocationRef.Name
+                                }
+                                : null)
+                            : null,
                         PurchaseInfo = purchaseInfo != null ? new PurchaseInfo
                         {
                             PublicId = purchaseInfo.PublicId,
@@ -1743,7 +1841,15 @@ namespace Homassy.API.Functions
                             OriginalQuantity = purchaseInfo.OriginalQuantity,
                             Price = purchaseInfo.Price,
                             Currency = purchaseInfo.Currency,
-                            ShoppingLocationId = purchaseInfo.ShoppingLocationId
+                            ShoppingLocation = purchaseInfo.ShoppingLocationId.HasValue
+                                ? (locationFunctions.GetShoppingLocationById(purchaseInfo.ShoppingLocationId.Value) is var shoppingLocationRef && shoppingLocationRef != null
+                                    ? new LocationInfo
+                                    {
+                                        PublicId = shoppingLocationRef.PublicId,
+                                        Name = shoppingLocationRef.Name
+                                    }
+                                    : null)
+                                : null
                         } : null,
                         ConsumptionLogs = consumptionLogs.Select(log =>
                         {
@@ -1870,6 +1976,7 @@ namespace Homassy.API.Functions
             }
 
             var familyId = SessionInfo.GetFamilyId();
+            var locationFunctions = new LocationFunctions();
 
             var context = new HomassyDbContext();
             await using var transaction = await context.Database.BeginTransactionAsync(cancellationToken);
@@ -1957,6 +2064,15 @@ namespace Homassy.API.Functions
                         CurrentQuantity = trackedItem.CurrentQuantity,
                         Unit = trackedItem.Unit,
                         ExpirationAt = trackedItem.ExpirationAt,
+                        StorageLocation = trackedItem.StorageLocationId.HasValue
+                            ? (locationFunctions.GetStorageLocationById(trackedItem.StorageLocationId.Value) is var storageLocationRef && storageLocationRef != null
+                                ? new LocationInfo
+                                {
+                                    PublicId = storageLocationRef.PublicId,
+                                    Name = storageLocationRef.Name
+                                }
+                                : null)
+                            : null,
                         PurchaseInfo = purchaseInfo != null ? new PurchaseInfo
                         {
                             PublicId = purchaseInfo.PublicId,
@@ -1964,7 +2080,15 @@ namespace Homassy.API.Functions
                             OriginalQuantity = purchaseInfo.OriginalQuantity,
                             Price = purchaseInfo.Price,
                             Currency = purchaseInfo.Currency,
-                            ShoppingLocationId = purchaseInfo.ShoppingLocationId
+                            ShoppingLocation = purchaseInfo.ShoppingLocationId.HasValue
+                                ? (locationFunctions.GetShoppingLocationById(purchaseInfo.ShoppingLocationId.Value) is var shoppingLocationRef && shoppingLocationRef != null
+                                    ? new LocationInfo
+                                    {
+                                        PublicId = shoppingLocationRef.PublicId,
+                                        Name = shoppingLocationRef.Name
+                                    }
+                                    : null)
+                                : null
                         } : null,
                         ConsumptionLogs = new List<ConsumptionLogInfo>()
                     });

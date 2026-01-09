@@ -170,6 +170,8 @@
         "normalStocksCount": "Normális: {count}",
         "noImage": "Nincs kép",
         "expirationInfo": "Lejárati információk",
+        "storageLocation": "Tárolási hely",
+        "shoppingLocation": "Vásárlás helye",
         "purchaseInfo": "Vásárlási információk",
         "purchasedAt": "Vásárlás dátuma",
         "originalQuantity": "Eredeti mennyiség",
@@ -185,6 +187,7 @@
         "consumedAt": "Fogyasztás dátuma",
         "editInventory": "Készlet szerkesztése",
         "deleteItem": "Készlet törlése",
+        "moveItem": "Készlet mozgás",
         "consume": {
           "button": "Fogyasztás",
           "title": "Elem fogyasztása",
@@ -219,6 +222,16 @@
           "cancel": "Mégse",
           "confirm": "Törlés",
           "success": "Készlet sikeresen törölve"
+        },
+        "moveModal": {
+          "title": "Készlet mozgatása",
+          "description": "Válasszon új tároló helyet ehhez a készlet elemhez",
+          "currentLocation": "Jelenlegi hely",
+          "targetLocation": "Cél hely",
+          "targetLocationPlaceholder": "Válasszon tároló helyet...",
+          "cancel": "Mégse",
+          "move": "Mozgatás",
+          "success": "Készlet sikeresen áthelyezve"
         },
         "editProduct": "Termék szerkesztése",
         "deleteProduct": "Termék törlése",

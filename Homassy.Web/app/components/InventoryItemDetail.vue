@@ -27,6 +27,19 @@
       </UFieldGroup>
     </div>
 
+    <!-- Storage Location Section -->
+    <div v-if="item.storageLocation" class="mb-3 space-y-1 text-sm">
+      <h4 class="font-medium text-gray-700 dark:text-gray-300 flex items-center gap-2">
+        <UIcon name="i-lucide-warehouse" class="h-4 w-4" />
+        {{ $t('pages.products.details.storageLocation') }}
+      </h4>
+      <div class="text-gray-600 dark:text-gray-400">
+        <div>
+          {{ item.storageLocation.name }}
+        </div>
+      </div>
+    </div>
+
     <!-- Expiration Section -->
     <div v-if="item.expirationAt" class="mb-3 space-y-1 text-sm">
       <h4 class="font-medium text-gray-700 dark:text-gray-300 flex items-center gap-2">
@@ -51,6 +64,10 @@
         <div v-if="item.purchaseInfo.purchasedAt">
           <span class="font-medium">{{ $t('pages.products.details.purchasedAt') }}:</span>
           {{ formatDate(item.purchaseInfo.purchasedAt) }}
+        </div>
+        <div v-if="item.purchaseInfo.shoppingLocation">
+          <span class="font-medium">{{ $t('pages.products.details.shoppingLocation') }}:</span>
+          {{ item.purchaseInfo.shoppingLocation.name }}
         </div>
         <div>
           <span class="font-medium">{{ $t('pages.products.details.originalQuantity') }}:</span>
@@ -412,13 +429,73 @@
         </div>
       </template>
     </UModal>
+
+    <!-- Move Modal -->
+    <UModal :open="isMoveModalOpen" @update:open="(val) => isMoveModalOpen = val" :dismissible="false">
+      <template #title>
+        {{ $t('pages.products.details.moveModal.title') }}
+      </template>
+
+      <template #description>
+        {{ $t('pages.products.details.moveModal.description') }}
+      </template>
+
+      <template #body>
+        <div class="space-y-4">
+          <!-- Current Location (if exists) -->
+          <div v-if="item.storageLocation" class="p-3 bg-gray-50 dark:bg-gray-800 rounded-lg">
+            <div class="text-sm">
+              <span class="font-medium text-gray-700 dark:text-gray-300">
+                {{ $t('pages.products.details.moveModal.currentLocation') }}:
+              </span>
+              <span class="ml-2 text-gray-900 dark:text-gray-100">
+                {{ item.storageLocation.name }}
+              </span>
+            </div>
+          </div>
+
+          <!-- Target Location -->
+          <div>
+            <label class="block text-sm font-medium mb-1">
+              {{ $t('pages.products.details.moveModal.targetLocation') }} <span class="text-red-500">*</span>
+            </label>
+            <USelect
+              v-model="selectedStorageId"
+              :items="storageOptions"
+              :loading="isLoadingStorages"
+              :disabled="isMoving"
+              :placeholder="$t('pages.products.details.moveModal.targetLocationPlaceholder')"
+              class="w-full"
+            />
+          </div>
+        </div>
+      </template>
+
+      <template #footer>
+        <div class="flex justify-end gap-2">
+          <UButton
+            :label="$t('pages.products.details.moveModal.cancel')"
+            color="neutral"
+            variant="outline"
+            @click="closeMoveModal"
+          />
+          <UButton
+            :label="$t('pages.products.details.moveModal.move')"
+            :loading="isMoving"
+            :disabled="isLoadingStorages || !selectedStorageId"
+            @click="handleMove"
+          />
+        </div>
+      </template>
+    </UModal>
   </div>
 </template>
 
 <script setup lang="ts">
 import { ref, computed } from 'vue'
-import type { InventoryItemInfo, ConsumeInventoryItemRequest, UpdateInventoryItemRequest } from '../types/product'
-import { Unit, Currency } from '../types/enums'
+import type { InventoryItemInfo, ConsumeInventoryItemRequest, UpdateInventoryItemRequest, MoveInventoryItemsRequest } from '../types/product'
+import { Unit, Currency, SelectValueType } from '../types/enums'
+import type { SelectValue } from '../types/selectValue'
 import type { CalendarDate } from '@internationalized/date'
 import { CalendarDate as CalendarDateClass } from '@internationalized/date'
 
@@ -445,7 +522,8 @@ const emit = defineEmits<{
 const { t: $t } = useI18n()
 const { formatDate } = useDateFormat()
 const { inputDateLocale } = useInputDateLocale()
-const { consumeInventoryItem, updateInventoryItem, deleteInventoryItem } = useProductsApi()
+const { consumeInventoryItem, updateInventoryItem, deleteInventoryItem, moveInventoryItems } = useProductsApi()
+const { getSelectValues } = useSelectValueApi()
 const toast = useToast()
 
 // State
@@ -476,6 +554,13 @@ const isUpdating = ref(false)
 const isDeleteModalOpen = ref(false)
 const isDeleting = ref(false)
 
+// Move modal state
+const isMoveModalOpen = ref(false)
+const isMoving = ref(false)
+const isLoadingStorages = ref(false)
+const selectedStorageId = ref<string | null>(null)
+const storageOptions = ref<{ label: string; value: string }[]>([])
+
 // Dropdown menu items
 const dropdownItems = computed(() => [
   [
@@ -483,6 +568,11 @@ const dropdownItems = computed(() => [
       label: $t('pages.products.details.editInventory'),
       icon: 'i-lucide-pencil',
       onSelect: openEditModal
+    },
+    {
+      label: $t('pages.products.details.moveItem'),
+      icon: 'i-lucide-move',
+      onSelect: openMoveModal
     },
     {
       label: $t('pages.products.details.deleteItem'),
@@ -733,6 +823,61 @@ const handleDelete = async () => {
     console.error('Failed to delete inventory item:', error)
   } finally {
     isDeleting.value = false
+  }
+}
+
+// Move modal methods
+const openMoveModal = async () => {
+  isMoveModalOpen.value = true
+  await loadStorageLocations()
+}
+
+const closeMoveModal = () => {
+  isMoveModalOpen.value = false
+  selectedStorageId.value = null
+  storageOptions.value = []
+}
+
+const loadStorageLocations = async () => {
+  isLoadingStorages.value = true
+  try {
+    const response = await getSelectValues(SelectValueType.StorageLocation)
+    if (response.success && response.data) {
+      storageOptions.value = response.data.map((s: SelectValue) => ({
+        label: s.text,
+        value: s.publicId
+      }))
+    }
+  } catch (error) {
+    console.error('Failed to load storage locations:', error)
+  } finally {
+    isLoadingStorages.value = false
+  }
+}
+
+const handleMove = async () => {
+  if (!selectedStorageId.value) {
+    return
+  }
+
+  isMoving.value = true
+
+  try {
+    const request: MoveInventoryItemsRequest = {
+      inventoryItemPublicIds: [props.item.publicId],
+      storageLocationPublicId: selectedStorageId.value
+    }
+
+    const response = await moveInventoryItems(request)
+
+    if (response.success) {
+      closeMoveModal()
+      emit('updated')
+    }
+  } catch (error) {
+    console.error('Failed to move inventory item:', error)
+  } finally {
+    isMoving.value = false
   }
 }
 </script>

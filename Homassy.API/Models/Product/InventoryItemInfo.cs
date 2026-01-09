@@ -8,6 +8,7 @@ namespace Homassy.API.Models.Product
         public decimal CurrentQuantity { get; set; }
         public Unit Unit { get; set; }
         public DateTime? ExpirationAt { get; set; }
+        public LocationInfo? StorageLocation { get; set; }
         public PurchaseInfo? PurchaseInfo { get; set; }
         public List<ConsumptionLogInfo> ConsumptionLogs { get; set; } = new();
     }
