@@ -17,5 +17,21 @@ namespace Homassy.API.Security
 
             return CryptographicOperations.FixedTimeEquals(aBytes, bBytes);
         }
+
+        public static bool ConstantTimeEqualsIgnoreCase(string? a, string? b)
+        {
+            if (a == null || b == null)
+            {
+                return a == b;
+            }
+
+            var aUpper = a.ToUpperInvariant();
+            var bUpper = b.ToUpperInvariant();
+
+            var aBytes = Encoding.UTF8.GetBytes(aUpper);
+            var bBytes = Encoding.UTF8.GetBytes(bUpper);
+
+            return CryptographicOperations.FixedTimeEquals(aBytes, bBytes);
+        }
     }
 }

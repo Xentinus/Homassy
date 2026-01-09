@@ -18,6 +18,11 @@ const email = ref('')
 const cooldownSeconds = ref(0)
 let cooldownInterval: ReturnType<typeof setInterval> | null = null
 
+// Transform input to uppercase automatically
+const handleCodeUpdate = (newCode: string[]) => {
+  code.value = newCode.map(char => char?.toUpperCase() || '')
+}
+
 // Check if user is already authenticated on mount
 onMounted(async () => {
   console.debug('[Login] Checking existing authentication...')
@@ -84,7 +89,7 @@ const requestButtonText = computed(() => {
 })
 
 const schema = z.object({
-  code: z.array(z.string()).length(8, 'Code must be 8 digits')
+  code: z.array(z.string()).length(8, 'Code must be 8 characters')
 })
 
 const emailSchema = z.object({
@@ -161,10 +166,12 @@ async function requestCode() {
           <UFormField name="code" :label="$t('auth.verificationCode')">
             <div class="flex items-center justify-center gap-2">
               <UPinInput
-                v-model="code"
+                :model-value="code"
                 :length="8"
-                placeholder="0"
+                placeholder="A"
+                type="text"
                 :ui="{ root: 'gap-1.5' }"
+                @update:model-value="handleCodeUpdate"
               />
             </div>
           </UFormField>

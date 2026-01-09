@@ -4,6 +4,7 @@ using MimeKit;
 using MimeKit.Text;
 using Homassy.API.Enums;
 using Homassy.API.Functions;
+using Homassy.API.Security;
 using Serilog;
 using System.Reflection;
 using System.Text;
@@ -70,10 +71,7 @@ namespace Homassy.API.Services
 
         public static string GenerateVerificationCode()
         {
-            var codeLength = int.Parse(_configuration!["EmailVerification:CodeLength"]!);
-            var random = new Random();
-            return string.Join("", Enumerable.Range(0, codeLength)
-                .Select(_ => random.Next(0, 10).ToString()));
+            return Cryptography.GenerateShareCode();
         }
 
         public static async Task SendVerificationCodeAsync(string email, string code, UserTimeZone? userTimeZone = null, Language language = Language.English)

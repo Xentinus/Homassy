@@ -1158,7 +1158,7 @@ namespace Homassy.API.Functions
                 throw new ExpiredCredentialsException("Invalid or expired code", ErrorCodes.AuthExpiredCredentials);
             }
 
-            if (!SecureCompare.ConstantTimeEquals(auth.VerificationCode, trimmedCode))
+            if (!SecureCompare.ConstantTimeEqualsIgnoreCase(auth.VerificationCode, trimmedCode))
             {
                 await RecordFailedLoginAttemptAsync(user.Id, auth.FailedLoginAttempts + 1, cancellationToken);
                 Log.Warning($"Invalid verification code for {normalizedEmail}");
