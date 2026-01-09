@@ -81,9 +81,20 @@
               v-model="searchQuery"
               :disabled="!isSearchEnabled"
               :placeholder="$t('pages.shoppingLists.searchPlaceholder')"
-              trailing-icon="i-lucide-search"
               class="flex-1"
-            />
+            >
+              <template #trailing>
+                <UButton
+                  v-if="searchQuery"
+                  icon="i-lucide-x"
+                  size="xs"
+                  color="neutral"
+                  variant="ghost"
+                  :disabled="!isSearchEnabled"
+                  @click="searchQuery = ''"
+                />
+              </template>
+            </UInput>
             <BarcodeScannerButton
               v-if="showCameraButton"
               :disabled="!isSearchEnabled"

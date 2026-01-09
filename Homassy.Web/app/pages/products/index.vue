@@ -24,8 +24,18 @@
               class="flex-1"
               type="text"
               :placeholder="$t('common.searchPlaceholder')"
-              trailing-icon="i-lucide-search"
-            />
+            >
+              <template #trailing>
+                <UButton
+                  v-if="searchQuery"
+                  icon="i-lucide-x"
+                  size="xs"
+                  color="neutral"
+                  variant="ghost"
+                  @click="searchQuery = ''"
+                />
+              </template>
+            </UInput>
             <BarcodeScannerButton v-if="showCameraButton" @scanned="handleBarcodeScanned" />
           </UFieldGroup>
         </div>
@@ -97,8 +107,7 @@ const { getDetailedProducts } = useProductsApi()
 const { t: $t } = useI18n()
 const { showCameraButton } = useCameraAvailability()
 
-// LocalStorage keys for filter settings
-const LAST_SEARCH_QUERY_KEY = 'productsLastSearchQuery'
+// LocalStorage key for filter settings
 const LAST_FILTER_MODE_KEY = 'productsLastFilterMode'
 
 // State
@@ -274,12 +283,7 @@ watch(filterMode, () => {
 // Lifecycle
 onMounted(() => {
   // Restore filter settings from localStorage
-  const savedSearchQuery = localStorage.getItem(LAST_SEARCH_QUERY_KEY)
   const savedFilterMode = localStorage.getItem(LAST_FILTER_MODE_KEY)
-  
-  if (savedSearchQuery) {
-    searchQuery.value = savedSearchQuery
-  }
   
   if (savedFilterMode) {
     filterMode.value = savedFilterMode
@@ -315,14 +319,6 @@ onMounted(() => {
 })
 
 // Watch for filter changes and save to localStorage
-watch(searchQuery, (newValue) => {
-  if (newValue) {
-    localStorage.setItem(LAST_SEARCH_QUERY_KEY, newValue)
-  } else {
-    localStorage.removeItem(LAST_SEARCH_QUERY_KEY)
-  }
-})
-
 watch(filterMode, (newValue) => {
   localStorage.setItem(LAST_FILTER_MODE_KEY, newValue)
 })
