@@ -1,4 +1,12 @@
 {
+  "meta": {
+    "default": {
+      "title": "Homassy - Familienhaushalts-Verwaltung",
+      "description": "Verwalten Sie Ihr Haushaltsinventar, Einkaufslisten und teilen Sie alles mit Ihrer Familie.",
+      "ogTitle": "Homassy - Intelligente Haushaltsverwaltung",
+      "ogDescription": "Organisieren Sie Ihr Hausinventar und Einkäufe mit Ihrer Familie"
+    }
+  },
   "common": {
     "welcome": "Willkommen",
     "cancel": "Abbrechen",

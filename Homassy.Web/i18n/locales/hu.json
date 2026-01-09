@@ -1,4 +1,12 @@
 {
+  "meta": {
+    "default": {
+      "title": "Homassy - Családi háztartáskezelés",
+      "description": "Kezeld háztartásod készletét, bevásárlólistáit, és oszd meg mindent a családoddal.",
+      "ogTitle": "Homassy - Okos háztartáskezelés",
+      "ogDescription": "Szervezd otthonod készletét és bevásárlásait a családoddal"
+    }
+  },
   "common": {
     "welcome": "Üdvözöljük",
     "cancel": "Mégse",

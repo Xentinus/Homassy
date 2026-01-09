@@ -1,5 +1,5 @@
 <script setup>
-const { locale } = useI18n()
+const { locale, t } = useI18n()
 
 useHead({
   meta: [
@@ -13,16 +13,20 @@ useHead({
   }
 })
 
-const title = 'Homassy'
-const description = 'A modern, elegant application built with Nuxt UI.'
+const title = computed(() => t('meta.default.title'))
+const description = computed(() => t('meta.default.description'))
+const ogTitle = computed(() => t('meta.default.ogTitle'))
+const ogDescription = computed(() => t('meta.default.ogDescription'))
 const toaster = { position: 'top-right' }
 
 useSeoMeta({
   title,
   description,
-  ogTitle: title,
-  ogDescription: description,
-  twitterCard: 'summary_large_image'
+  ogTitle,
+  ogDescription,
+  twitterCard: 'summary_large_image',
+  twitterTitle: title,
+  twitterDescription: description
 })
 </script>
 

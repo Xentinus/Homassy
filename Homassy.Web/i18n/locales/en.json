@@ -1,4 +1,12 @@
 {
+  "meta": {
+    "default": {
+      "title": "Homassy - Family Household Management",
+      "description": "Manage your household inventory, shopping lists, and share everything with your family.",
+      "ogTitle": "Homassy - Smart Household Management",
+      "ogDescription": "Organize your home inventory and shopping with your family"
+    }
+  },
   "common": {
     "welcome": "Welcome",
     "cancel": "Cancel",
