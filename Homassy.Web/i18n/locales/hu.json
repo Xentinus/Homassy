@@ -510,7 +510,10 @@
       "descriptionLabel": "Leírás",
       "noFamily": "Még nem vagy tagja egy családnak sem.",
       "createFamilyCard": "Hozz létre egy új családot és hívj meg tagokat",
-      "joinFamilyCard": "Csatlakozz egy meglévő családhoz kóddal"
+      "joinFamilyCard": "Csatlakozz egy meglévő családhoz kóddal",
+      "members": "Családtagok",
+      "currentUserBadge": "Te",
+      "lastSeen": "Utoljára látva"
     },
     "notifications": {
       "title": "Értesítések",

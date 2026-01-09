@@ -269,6 +269,42 @@ namespace Homassy.API.Functions
             return response;
         }
 
+        public List<FamilyMemberResponse> GetFamilyMembersAsync()
+        {
+            var userId = SessionInfo.GetUserId();
+            if (!userId.HasValue)
+            {
+                Log.Warning("Invalid session: User ID not found");
+                throw new UserNotFoundException("User not found");
+            }
+
+            var user = new UserFunctions().GetUserById(userId.Value);
+            if (user == null || !user.FamilyId.HasValue)
+            {
+                throw new InvalidOperationException("You are not a member of any family");
+            }
+
+            var currentPublicId = SessionInfo.GetPublicId();
+            var context = new HomassyDbContext();
+
+            var members = context.Users
+                .Include(u => u.Profile)
+                .Where(u => u.FamilyId == user.FamilyId.Value)
+                .OrderByDescending(u => u.LastLoginAt)
+                .Select(u => new FamilyMemberResponse
+                {
+                    PublicId = u.PublicId,
+                    Name = u.Name,
+                    DisplayName = u.Profile.DisplayName,
+                    LastLoginAt = u.LastLoginAt,
+                    ProfilePictureBase64 = u.Profile.ProfilePictureBase64,
+                    IsCurrentUser = u.PublicId == currentPublicId
+                })
+                .ToList();
+
+            return members;
+        }
+
         public async Task UpdateFamilyAsync(UpdateFamilyRequest request, CancellationToken cancellationToken = default)
         {
             var userId = SessionInfo.GetUserId();

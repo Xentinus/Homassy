@@ -24,6 +24,10 @@
       <USkeleton class="h-4 w-24 mb-2" />
       <USkeleton class="h-8 w-1/3 mb-2" />
       <USkeleton class="h-10 w-full rounded-lg mt-6" />
+      <USkeleton class="h-8 w-1/3 rounded mt-8 mb-4" />
+      <USkeleton class="h-20 w-full rounded-lg mb-3" />
+      <USkeleton class="h-20 w-full rounded-lg mb-3" />
+      <USkeleton class="h-20 w-full rounded-lg" />
     </template>
     <div v-else-if="family" class="space-y-6">
       <div class="rounded-lg border border-primary-200/50 dark:border-primary-700/50 p-4 flex flex-col items-center">
@@ -44,6 +48,31 @@
           <UIcon name="i-lucide-log-out" class="h-4 w-4" />
           {{ $t('profile.family.leave') }}
         </UButton>
+      </div>
+
+      <!-- Family Members Card -->
+      <div class="rounded-lg border border-primary-200/50 dark:border-primary-700/50 p-4">
+        <h2 class="text-lg font-semibold mb-4">{{ $t('profile.family.members') }}</h2>
+        <div class="space-y-3">
+          <div v-for="member in members" :key="member.publicId" class="flex items-center gap-3 p-3 rounded-lg bg-gray-50 dark:bg-gray-800/50">
+            <UAvatar
+              :src="member.profilePictureBase64 ? `data:image/jpeg;base64,${member.profilePictureBase64}` : undefined"
+              :alt="member.displayName || member.name"
+              class="h-12 w-12"
+            />
+            <div class="flex-1">
+              <div class="flex items-center gap-2">
+                <span class="font-medium">{{ member.displayName || member.name }}</span>
+                <div v-if="member.isCurrentUser" class="flex items-center gap-1 px-2 py-0.5 rounded-md border bg-primary-50 dark:bg-primary-900/20 border-primary-200 dark:border-primary-800">
+                  <span class="text-xs font-semibold text-primary-700 dark:text-primary-300">{{ $t('profile.family.currentUserBadge') }}</span>
+                </div>
+              </div>
+              <div class="text-sm text-gray-500 dark:text-gray-400">
+                {{ $t('profile.family.lastSeen') }}: {{ formatTimestamp(member.lastLoginAt) }}
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
     <div v-else class="space-y-6">
@@ -78,15 +107,33 @@
 import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useFamilyApi } from '~/composables/api/useFamilyApi'
-import type { FamilyDetailsResponse } from '~/types/family'
+import type { FamilyDetailsResponse, FamilyMemberResponse } from '~/types/family'
 
 definePageMeta({ layout: 'auth', middleware: 'auth' })
 
-const { getFamily, leaveFamily } = useFamilyApi()
+const { getFamily, getFamilyMembers, leaveFamily } = useFamilyApi()
 const router = useRouter()
+const { t: $t } = useI18n()
 
 const family = ref<FamilyDetailsResponse | null>(null)
+const members = ref<FamilyMemberResponse[]>([])
 const loading = ref(true)
+
+const formatTimestamp = (timestamp: string): string => {
+  const date = new Date(timestamp)
+  const now = new Date()
+  const diffMs = now.getTime() - date.getTime()
+  const diffMins = Math.floor(diffMs / 60000)
+  const diffHours = Math.floor(diffMs / 3600000)
+  const diffDays = Math.floor(diffMs / 86400000)
+
+  if (diffMins < 1) return $t('time.justNow')
+  if (diffMins < 60) return $t('time.minutesAgo', { count: diffMins })
+  if (diffHours < 24) return $t('time.hoursAgo', { count: diffHours })
+  if (diffDays < 7) return $t('time.daysAgo', { count: diffDays })
+
+  return date.toLocaleDateString()
+}
 
 async function fetchFamily() {
   loading.value = true
@@ -95,9 +142,19 @@ async function fetchFamily() {
     family.value = res.data ?? null
   } catch {
     family.value = null
-  } finally {
-    loading.value = false
   }
+
+  if (family.value) {
+    try {
+      const membersRes = await getFamilyMembers()
+      members.value = membersRes.data ?? []
+    } catch (error) {
+      console.error('Failed to load family members:', error)
+      members.value = []
+    }
+  }
+
+  loading.value = false
 }
 
 onMounted(fetchFamily)
@@ -105,6 +162,7 @@ onMounted(fetchFamily)
 async function onLeaveFamily() {
   await leaveFamily()
   family.value = null
+  members.value = []
   router.push('/profile')
 }
 </script>

@@ -512,7 +512,10 @@
       "descriptionLabel": "Description",
       "noFamily": "You are not part of a family yet.",
       "createFamilyCard": "Create a new family and invite members",
-      "joinFamilyCard": "Join an existing family using a code"
+      "joinFamilyCard": "Join an existing family using a code",
+      "members": "Family Members",
+      "currentUserBadge": "You",
+      "lastSeen": "Last seen"
     },
     "notifications": {
       "title": "Notifications",

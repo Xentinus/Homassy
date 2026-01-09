@@ -30,6 +30,18 @@ namespace Homassy.API.Controllers
         }
 
         /// <summary>
+        /// Gets all members of the current user's family.
+        /// </summary>
+        [HttpGet("members")]
+        [MapToApiVersion(1.0)]
+        [ProducesResponseType(typeof(ApiResponse<List<FamilyMemberResponse>>), StatusCodes.Status200OK)]
+        public IActionResult GetFamilyMembers()
+        {
+            var response = new FamilyFunctions().GetFamilyMembersAsync();
+            return Ok(ApiResponse<List<FamilyMemberResponse>>.SuccessResponse(response));
+        }
+
+        /// <summary>
         /// Updates the current user's family information.
         /// </summary>
         [HttpPut]

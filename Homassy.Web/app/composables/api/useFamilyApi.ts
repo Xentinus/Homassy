@@ -7,7 +7,8 @@ import type {
   CreateFamilyRequest,
   UpdateFamilyRequest,
   JoinFamilyRequest,
-  UploadFamilyPictureRequest
+  UploadFamilyPictureRequest,
+  FamilyMemberResponse
 } from '~/types/family'
 
 export const useFamilyApi = () => {
@@ -19,6 +20,15 @@ export const useFamilyApi = () => {
    */
   const getFamily = async () => {
     return await client.get<FamilyDetailsResponse>('/api/v1/Family', {
+      showErrorToast: false
+    })
+  }
+
+  /**
+   * Get all family members
+   */
+  const getFamilyMembers = async () => {
+    return await client.get<FamilyMemberResponse[]>('/api/v1/Family/members', {
       showErrorToast: false
     })
   }
@@ -108,6 +118,7 @@ export const useFamilyApi = () => {
 
   return {
     getFamily,
+    getFamilyMembers,
     createFamily,
     updateFamily,
     joinFamily,

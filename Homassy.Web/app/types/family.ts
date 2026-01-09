@@ -32,3 +32,12 @@ export interface JoinFamilyRequest {
 export interface UploadFamilyPictureRequest {
   familyPictureBase64: string
 }
+
+export interface FamilyMemberResponse {
+  publicId: string
+  name: string
+  displayName: string
+  lastLoginAt: string
+  profilePictureBase64?: string
+  isCurrentUser: boolean
+}
