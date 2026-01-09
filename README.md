@@ -1,6 +1,5 @@
 <div align="center">
   <img src=".github/HomassyLogo.svg" alt="Homassy Logo" width="200"/>
-  
   <h1>Homassy</h1>
 </div>
 
@@ -36,6 +35,7 @@ Homassy is a modern full-stack system designed to simplify household inventory m
 - **Progressive Web App (PWA)** - Web manifest with standalone mode
 - **Responsive design** - Mobile-first approach with touch optimization
 - **SSR & Client-side rendering** - Optimized performance with Nuxt 4
+- **Camera Integration** - Camera availability detection and barcode/QR Code scanning support
 
 ### 🔐 Security
 - 🔑 Passwordless authentication (6-digit email codes)
@@ -58,9 +58,10 @@ Homassy is a modern full-stack system designed to simplify household inventory m
 - 📍 **Locations** - Shopping locations (stores) and storage locations (home/freezer)
 - 🔍 **Product Lookup** - Barcode scanning via Open Food Facts API integration
 - 📊 **Select Values** - Dynamic dropdown options for forms
-- 📱 **Barcode Scanning** - Camera-based scanning with multi-format support
+- 📱 **Barcode Scanning** - Camera-based scanning with multi-format support, camera availability detection
+- 🔎 **Search Highlighting** - Visual highlighting of search results across product and location components
 - 🖼️ **Image Processing** - Browser-side compression and cropping
-- 🌍 **Internationalization** - Full i18n support with 3 languages
+- 🌍 **Internationalization** - Full i18n support with 3 languages (English, German, Hungarian)
 - 🔔 **Notifications** - User notification preferences
 
 ### 📊 Data Quality
@@ -135,9 +136,10 @@ Homassy/
 | **Internationalization** | @nuxtjs/i18n 10.2.1 (en, de, hu) |
 | **API Client** | nuxt-api-party 3.4.2 |
 | **Image Processing** | vue-advanced-cropper 2.8.9 |
-| **Barcode Scanning** | html5-qrcode 2.3.8 |
+| **Barcode Scanning** | vue-qrcode-reader 5.7.3 |
 | **Icons** | @iconify (Heroicons, Lucide) |
 | **Date/Time** | @internationalized/date 3.10.1 |
+| **Image Compression** | browser-image-compression 2.0.2 |
 | **Runtime** | Node.js 22-alpine |
 
 ### Infrastructure
