@@ -402,6 +402,7 @@ const emit = defineEmits<{
 const { t } = useI18n()
 const { inputDateLocale } = useInputDateLocale()
 const { quickPurchaseShoppingListItem, restorePurchaseShoppingListItem, updateShoppingListItem, deleteShoppingListItem } = useShoppingListApi()
+const { isExpired: checkIsExpired, isExpiringWithinTwoWeeks: checkIsExpiringWithinTwoWeeks } = useExpirationCheck()
 const toast = useToast()
 
 // State
@@ -508,22 +509,13 @@ const cardBorderClass = computed(() => {
     return 'border-gray-200 dark:border-gray-700'
   }
 
-  // Normalize dates to start of day
-  const today = new Date()
-  today.setHours(0, 0, 0, 0)
-  
-  targetDate.setHours(0, 0, 0, 0)
-  
-  const twoWeeksFromNow = new Date(today)
-  twoWeeksFromNow.setDate(today.getDate() + 14)
-
   // If date has passed, show danger (red)
-  if (targetDate < today) {
+  if (checkIsExpired(targetDate)) {
     return 'border-red-500 dark:border-red-600'
   }
 
   // If within 2 weeks, show primary (blue)
-  if (targetDate <= twoWeeksFromNow) {
+  if (checkIsExpiringWithinTwoWeeks(targetDate)) {
     return 'border-primary-500 dark:border-primary-600'
   }
 

@@ -405,6 +405,7 @@ const { t: $t } = useI18n()
 const { getSelectValues } = useSelectValueApi()
 const { getShoppingListDetails, createShoppingList, updateShoppingList, deleteShoppingList } = useShoppingListApi()
 const { showCameraButton } = useCameraAvailability()
+const { isExpired: checkIsExpired, isExpiringWithinTwoWeeks: checkIsExpiringWithinTwoWeeks } = useExpirationCheck()
 
 // LocalStorage key for last selected shopping list
 const LAST_SELECTED_LIST_KEY = 'lastSelectedShoppingListId'
@@ -520,12 +521,6 @@ const filteredItems = computed(() => {
   }
 
   // Sort items by urgency and then alphabetically
-  const today = new Date()
-  today.setHours(0, 0, 0, 0) // Reset to start of day
-  
-  const twoWeeksFromNow = new Date(today)
-  twoWeeksFromNow.setDate(today.getDate() + 14)
-
   // Categorize items
   const overdueItems: ShoppingListItemInfo[] = []
   const dueSoonItems: ShoppingListItemInfo[] = []
@@ -535,11 +530,9 @@ const filteredItems = computed(() => {
     const targetDate = getTargetDate(item)
 
     if (targetDate) {
-      targetDate.setHours(0, 0, 0, 0) // Reset to start of day
-      
-      if (targetDate < today) {
+      if (checkIsExpired(targetDate)) {
         overdueItems.push(item)
-      } else if (targetDate <= twoWeeksFromNow) {
+      } else if (checkIsExpiringWithinTwoWeeks(targetDate)) {
         dueSoonItems.push(item)
       } else {
         otherItems.push(item)

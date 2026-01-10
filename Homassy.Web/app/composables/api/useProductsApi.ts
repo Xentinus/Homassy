@@ -2,6 +2,7 @@
  * Products API composable
  * Provides product-related API calls
  */
+import { isExpiringWithinTwoWeeks } from '../useExpirationCheck'
 import type { PagedResult } from '~/types/common'
 import type {
   ProductInfo,
@@ -212,8 +213,10 @@ export const useProductsApi = () => {
         successMessage: $i18n.t('toast.inventoryItemCreated')
       }
     )
-    if (result.success) {
-      eventBus.emit('inventory:created')
+    if (result.success && request.expirationAt) {
+      if (isExpiringWithinTwoWeeks(request.expirationAt)) {
+        eventBus.emit('inventory:created')
+      }
     }
     return result
   }
@@ -248,8 +251,10 @@ export const useProductsApi = () => {
         successMessage: $i18n.t('toast.inventoryItemUpdated')
       }
     )
-    if (result.success) {
-      eventBus.emit('inventory:updated')
+    if (result.success && request.expirationAt) {
+      if (isExpiringWithinTwoWeeks(request.expirationAt)) {
+        eventBus.emit('inventory:updated')
+      }
     }
     return result
   }

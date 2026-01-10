@@ -608,6 +608,7 @@ const { formatDate } = useDateFormat()
 const { inputDateLocale } = useInputDateLocale()
 const { consumeInventoryItem, splitInventoryItem, updateInventoryItem, deleteInventoryItem, moveInventoryItems } = useProductsApi()
 const { getSelectValues } = useSelectValueApi()
+const { isExpired: checkIsExpired, isExpiringSoon: checkIsExpiringSoon } = useExpirationCheck()
 const toast = useToast()
 
 // State
@@ -694,32 +695,9 @@ const currencyOptions = computed(() => [
 ])
 
 // Computed
-const isExpired = computed(() => {
-  if (!props.item.expirationAt) return false
-  
-  const today = new Date()
-  today.setHours(0, 0, 0, 0) // Reset to start of day
-  
-  const expirationDate = new Date(props.item.expirationAt)
-  expirationDate.setHours(0, 0, 0, 0) // Reset to start of day
-  
-  return expirationDate < today
-})
+const isExpired = computed(() => checkIsExpired(props.item.expirationAt))
 
-const isExpiringSoon = computed(() => {
-  if (!props.item.expirationAt || isExpired.value) return false
-  
-  const today = new Date()
-  today.setHours(0, 0, 0, 0) // Reset to start of day
-  
-  const twoWeeksFromNow = new Date(today)
-  twoWeeksFromNow.setDate(today.getDate() + 14)
-  
-  const expirationDate = new Date(props.item.expirationAt)
-  expirationDate.setHours(0, 0, 0, 0) // Reset to start of day
-  
-  return expirationDate >= today && expirationDate <= twoWeeksFromNow
-})
+const isExpiringSoon = computed(() => checkIsExpiringSoon(props.item.expirationAt))
 
 const borderColorClass = computed(() => {
   if (isExpired.value) return 'border-red-500 bg-red-50 dark:bg-red-900/20'
