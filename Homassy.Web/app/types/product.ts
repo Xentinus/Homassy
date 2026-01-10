@@ -152,6 +152,10 @@ export interface SplitInventoryItemResponse {
   newItem: InventoryItemInfo
 }
 
+export interface ExpirationCountResponse {
+  totalCount: number
+}
+
 export interface ConsumeInventoryItemEntry {
   inventoryItemPublicId: string
   quantity: number

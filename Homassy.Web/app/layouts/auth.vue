@@ -14,7 +14,19 @@
           class="flex-1 flex flex-col items-center justify-center h-16 md:h-12 rounded-xl transition duration-150 hover:scale-[1.02] active:scale-95"
           :class="item.active ? 'text-primary-500 font-bold' : 'text-gray-500 dark:text-gray-400 hover:text-primary-500'"
         >
-          <UIcon :name="item.icon" :class="item.active ? 'h-6 w-6 font-bold' : 'h-6 w-6'" />
+          <div class="relative">
+            <!-- Badge for expiration count -->
+            <div
+              v-if="item.badge"
+              class="absolute -top-1.5 -right-1.5 z-10 flex items-center justify-center min-w-[18px] h-[18px] px-1 rounded-full bg-red-500 dark:bg-red-600 shadow-md"
+            >
+              <span class="text-[10px] font-bold text-white leading-none">
+                {{ item.badge }}
+              </span>
+            </div>
+
+            <UIcon :name="item.icon" :class="item.active ? 'h-6 w-6 font-bold' : 'h-6 w-6'" />
+          </div>
           <span class="mt-1 text-xs hidden md:block">{{ item.label }}</span>
         </NuxtLink>
       </div>
@@ -23,18 +35,68 @@
 </template>
 
 <script setup>
-import { computed } from 'vue'
+import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useRoute } from 'vue-router'
+import { useDebounceFn } from '@vueuse/core'
 
 const route = useRoute()
 const { t } = useI18n()
+const { getExpirationCount } = useProductsApi()
+const eventBus = useEventBus()
+
+const expirationCount = ref(0)
+
+const fetchExpirationCount = async () => {
+  try {
+    const response = await getExpirationCount()
+    if (response.success && response.data) {
+      expirationCount.value = response.data.totalCount
+    }
+  } catch (error) {
+    console.error('Failed to fetch expiration count:', error)
+    expirationCount.value = 0
+  }
+}
+
+// Debounce the fetch function with 500ms delay
+const debouncedFetchExpirationCount = useDebounceFn(fetchExpirationCount, 500)
+
+// Handler for all inventory/product mutation events
+const handleInventoryMutation = () => {
+  debouncedFetchExpirationCount()
+}
+
+onMounted(() => {
+  fetchExpirationCount()
+
+  // Listen to all inventory and product mutation events
+  eventBus.on('inventory:created', handleInventoryMutation)
+  eventBus.on('inventory:updated', handleInventoryMutation)
+  eventBus.on('inventory:deleted', handleInventoryMutation)
+  eventBus.on('inventory:consumed', handleInventoryMutation)
+  eventBus.on('inventory:split', handleInventoryMutation)
+  eventBus.on('inventory:moved', handleInventoryMutation)
+  eventBus.on('product:deleted', handleInventoryMutation)
+})
+
+onUnmounted(() => {
+  // Clean up event listeners
+  eventBus.off('inventory:created', handleInventoryMutation)
+  eventBus.off('inventory:updated', handleInventoryMutation)
+  eventBus.off('inventory:deleted', handleInventoryMutation)
+  eventBus.off('inventory:consumed', handleInventoryMutation)
+  eventBus.off('inventory:split', handleInventoryMutation)
+  eventBus.off('inventory:moved', handleInventoryMutation)
+  eventBus.off('product:deleted', handleInventoryMutation)
+})
 
 const navItems = computed(() => [
   {
     label: t('nav.products'),
     to: '/products',
     icon: 'i-lucide-package',
-    active: route.path.startsWith('/products')
+    active: route.path.startsWith('/products'),
+    badge: expirationCount.value > 0 ? expirationCount.value : undefined
   },
   {
     label: t('nav.shoppingLists'),

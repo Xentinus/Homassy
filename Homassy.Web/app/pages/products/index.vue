@@ -208,12 +208,15 @@ const hasMoreProducts = computed(() => {
 
 // Helper function to check if product has expired items
 const hasExpiredItems = (product: DetailedProductInfo): boolean => {
-  const now = new Date()
+  const today = new Date()
+  today.setHours(0, 0, 0, 0) // Reset to start of day
+  
   return product.inventoryItems.some(item => {
     if (!item.expirationAt) return false
     try {
       const expirationDate = new Date(item.expirationAt)
-      return expirationDate < now
+      expirationDate.setHours(0, 0, 0, 0) // Reset to start of day
+      return expirationDate < today
     } catch {
       return false
     }
@@ -222,14 +225,18 @@ const hasExpiredItems = (product: DetailedProductInfo): boolean => {
 
 // Helper function to check if product has items expiring soon (within 2 weeks)
 const hasExpiringSoonItems = (product: DetailedProductInfo): boolean => {
-  const now = new Date()
-  const twoWeeksFromNow = new Date(now.getTime() + 14 * 24 * 60 * 60 * 1000)
+  const today = new Date()
+  today.setHours(0, 0, 0, 0) // Reset to start of day
+  
+  const twoWeeksFromNow = new Date(today)
+  twoWeeksFromNow.setDate(today.getDate() + 14)
 
   return product.inventoryItems.some(item => {
     if (!item.expirationAt) return false
     try {
       const expirationDate = new Date(item.expirationAt)
-      return expirationDate >= now && expirationDate <= twoWeeksFromNow
+      expirationDate.setHours(0, 0, 0, 0) // Reset to start of day
+      return expirationDate >= today && expirationDate <= twoWeeksFromNow
     } catch {
       return false
     }

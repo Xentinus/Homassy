@@ -508,11 +508,17 @@ const cardBorderClass = computed(() => {
     return 'border-gray-200 dark:border-gray-700'
   }
 
-  const now = new Date()
-  const twoWeeksFromNow = new Date(now.getTime() + 14 * 24 * 60 * 60 * 1000)
+  // Normalize dates to start of day
+  const today = new Date()
+  today.setHours(0, 0, 0, 0)
+  
+  targetDate.setHours(0, 0, 0, 0)
+  
+  const twoWeeksFromNow = new Date(today)
+  twoWeeksFromNow.setDate(today.getDate() + 14)
 
   // If date has passed, show danger (red)
-  if (targetDate < now) {
+  if (targetDate < today) {
     return 'border-red-500 dark:border-red-600'
   }
 

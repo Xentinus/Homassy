@@ -115,21 +115,35 @@ const highlightText = (text: string, query: string): string => {
 }
 
 const hasExpiredItems = computed(() => {
-  return props.product.inventoryItems.some(item =>
-    item.expirationAt && isExpired(item.expirationAt)
-  )
+  const today = new Date()
+  today.setHours(0, 0, 0, 0) // Reset to start of day
+  
+  return props.product.inventoryItems.some(item => {
+    if (!item.expirationAt) return false
+    try {
+      const expirationDate = new Date(item.expirationAt)
+      expirationDate.setHours(0, 0, 0, 0) // Reset to start of day
+      return expirationDate < today
+    } catch {
+      return false
+    }
+  })
 })
 
 const hasExpiringSoonItems = computed(() => {
-  const now = new Date()
-  const twoWeeksFromNow = new Date(now.getTime() + 14 * 24 * 60 * 60 * 1000)
+  const today = new Date()
+  today.setHours(0, 0, 0, 0) // Reset to start of day
+  
+  const twoWeeksFromNow = new Date(today)
+  twoWeeksFromNow.setDate(today.getDate() + 14)
 
   return props.product.inventoryItems.some(item => {
     if (!item.expirationAt) return false
     try {
       const expirationDate = new Date(item.expirationAt)
+      expirationDate.setHours(0, 0, 0, 0) // Reset to start of day
       // Within next 2 weeks but NOT yet expired
-      return expirationDate >= now && expirationDate <= twoWeeksFromNow
+      return expirationDate >= today && expirationDate <= twoWeeksFromNow
     } catch {
       return false
     }
@@ -139,10 +153,16 @@ const hasExpiringSoonItems = computed(() => {
 // Helper to check if an item is expiring soon
 const isExpiringSoon = (expirationAt: string): boolean => {
   try {
-    const now = new Date()
-    const twoWeeksFromNow = new Date(now.getTime() + 14 * 24 * 60 * 60 * 1000)
+    const today = new Date()
+    today.setHours(0, 0, 0, 0) // Reset to start of day
+    
+    const twoWeeksFromNow = new Date(today)
+    twoWeeksFromNow.setDate(today.getDate() + 14)
+    
     const expirationDate = new Date(expirationAt)
-    return expirationDate >= now && expirationDate <= twoWeeksFromNow
+    expirationDate.setHours(0, 0, 0, 0) // Reset to start of day
+    
+    return expirationDate >= today && expirationDate <= twoWeeksFromNow
   } catch {
     return false
   }
@@ -196,8 +216,13 @@ const formatDate = (dateString: string): string => {
 
 const isExpired = (expirationAt: string): boolean => {
   try {
+    const today = new Date()
+    today.setHours(0, 0, 0, 0) // Reset to start of day
+    
     const expirationDate = new Date(expirationAt)
-    return expirationDate < new Date()
+    expirationDate.setHours(0, 0, 0, 0) // Reset to start of day
+    
+    return expirationDate < today
   } catch {
     return false
   }

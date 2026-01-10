@@ -18,12 +18,16 @@ import type {
   ConsumeInventoryItemRequest,
   ConsumeMultipleInventoryItemsRequest,
   MoveInventoryItemsRequest,
-  DeleteMultipleInventoryItemsRequest
+  DeleteMultipleInventoryItemsRequest,
+  SplitInventoryItemRequest,
+  SplitInventoryItemResponse,
+  ExpirationCountResponse
 } from '~/types/product'
 
 export const useProductsApi = () => {
   const client = useApiClient()
   const $i18n = useI18n()
+  const eventBus = useEventBus()
 
   /**
    * Get all products with pagination
@@ -110,13 +114,17 @@ export const useProductsApi = () => {
    * Delete product
    */
   const deleteProduct = async (productPublicId: string) => {
-    return await client.delete(
+    const result = await client.delete(
       `/api/v1/Product/${productPublicId}`,
       {
         showSuccessToast: true,
         successMessage: $i18n.t('toast.productDeleted')
       }
     )
+    if (result.success) {
+      eventBus.emit('product:deleted')
+    }
+    return result
   }
 
   /**
@@ -196,7 +204,7 @@ export const useProductsApi = () => {
    * Create inventory item
    */
   const createInventoryItem = async (request: CreateInventoryItemRequest) => {
-    return await client.post<InventoryItemInfo>(
+    const result = await client.post<InventoryItemInfo>(
       '/api/v1/Product/inventory',
       request,
       {
@@ -204,13 +212,17 @@ export const useProductsApi = () => {
         successMessage: $i18n.t('toast.inventoryItemCreated')
       }
     )
+    if (result.success) {
+      eventBus.emit('inventory:created')
+    }
+    return result
   }
 
   /**
    * Quick add inventory item (minimal info)
    */
   const quickAddInventoryItem = async (request: QuickAddInventoryItemRequest) => {
-    return await client.post<InventoryItemInfo>(
+    const result = await client.post<InventoryItemInfo>(
       '/api/v1/Product/inventory/quick',
       request,
       {
@@ -218,13 +230,17 @@ export const useProductsApi = () => {
         successMessage: $i18n.t('toast.itemAddedToInventory')
       }
     )
+    if (result.success) {
+      eventBus.emit('inventory:created')
+    }
+    return result
   }
 
   /**
    * Update inventory item
    */
   const updateInventoryItem = async (inventoryItemPublicId: string, request: UpdateInventoryItemRequest) => {
-    return await client.put<InventoryItemInfo>(
+    const result = await client.put<InventoryItemInfo>(
       `/api/v1/Product/inventory/${inventoryItemPublicId}`,
       request,
       {
@@ -232,26 +248,34 @@ export const useProductsApi = () => {
         successMessage: $i18n.t('toast.inventoryItemUpdated')
       }
     )
+    if (result.success) {
+      eventBus.emit('inventory:updated')
+    }
+    return result
   }
 
   /**
    * Delete inventory item
    */
   const deleteInventoryItem = async (inventoryItemPublicId: string) => {
-    return await client.delete(
+    const result = await client.delete(
       `/api/v1/Product/inventory/${inventoryItemPublicId}`,
       {
         showSuccessToast: true,
         successMessage: $i18n.t('toast.inventoryItemDeleted')
       }
     )
+    if (result.success) {
+      eventBus.emit('inventory:deleted')
+    }
+    return result
   }
 
   /**
    * Consume inventory item
    */
   const consumeInventoryItem = async (inventoryItemPublicId: string, request: ConsumeInventoryItemRequest) => {
-    return await client.post<InventoryItemInfo>(
+    const result = await client.post<InventoryItemInfo>(
       `/api/v1/Product/inventory/${inventoryItemPublicId}/consume`,
       request,
       {
@@ -259,13 +283,17 @@ export const useProductsApi = () => {
         successMessage: $i18n.t('toast.consumptionRecorded')
       }
     )
+    if (result.success) {
+      eventBus.emit('inventory:consumed')
+    }
+    return result
   }
 
   /**
    * Split inventory item into two separate items
    */
   const splitInventoryItem = async (inventoryItemPublicId: string, request: SplitInventoryItemRequest) => {
-    return await client.post<SplitInventoryItemResponse>(
+    const result = await client.post<SplitInventoryItemResponse>(
       `/api/v1/Product/inventory/${inventoryItemPublicId}/split`,
       request,
       {
@@ -273,13 +301,26 @@ export const useProductsApi = () => {
         successMessage: $i18n.t('toast.inventoryItemSplit')
       }
     )
+    if (result.success) {
+      eventBus.emit('inventory:split')
+    }
+    return result
+  }
+
+  /**
+   * Get count of expiring and expired inventory items
+   */
+  const getExpirationCount = async () => {
+    return await client.get<ExpirationCountResponse>(
+      '/api/v1/Product/inventory/expiration-count'
+    )
   }
 
   /**
    * Quick add multiple inventory items
    */
   const quickAddMultipleInventoryItems = async (request: QuickAddMultipleInventoryItemsRequest) => {
-    return await client.post<InventoryItemInfo[]>(
+    const result = await client.post<InventoryItemInfo[]>(
       '/api/v1/Product/inventory/quick/multiple',
       request,
       {
@@ -287,13 +328,17 @@ export const useProductsApi = () => {
         successMessage: $i18n.t('toast.itemsAddedToInventory')
       }
     )
+    if (result.success) {
+      eventBus.emit('inventory:created')
+    }
+    return result
   }
 
   /**
    * Move inventory items to different storage location
    */
   const moveInventoryItems = async (request: MoveInventoryItemsRequest) => {
-    return await client.post<InventoryItemInfo[]>(
+    const result = await client.post<InventoryItemInfo[]>(
       '/api/v1/Product/inventory/move',
       request,
       {
@@ -301,27 +346,35 @@ export const useProductsApi = () => {
         successMessage: $i18n.t('toast.itemsMoved')
       }
     )
+    if (result.success) {
+      eventBus.emit('inventory:moved')
+    }
+    return result
   }
 
   /**
    * Delete multiple inventory items
    */
   const deleteMultipleInventoryItems = async (request: DeleteMultipleInventoryItemsRequest) => {
-    return await client.delete(
+    const result = await client.delete(
       '/api/v1/Product/inventory/multiple',
+      request,
       {
         showSuccessToast: true,
-        successMessage: $i18n.t('toast.itemsDeleted'),
-        body: request
+        successMessage: $i18n.t('toast.itemsDeleted')
       }
     )
+    if (result.success) {
+      eventBus.emit('inventory:deleted')
+    }
+    return result
   }
 
   /**
    * Consume multiple inventory items
    */
   const consumeMultipleInventoryItems = async (request: ConsumeMultipleInventoryItemsRequest) => {
-    return await client.post<InventoryItemInfo[]>(
+    const result = await client.post<InventoryItemInfo[]>(
       '/api/v1/Product/inventory/consume/multiple',
       request,
       {
@@ -329,6 +382,10 @@ export const useProductsApi = () => {
         successMessage: $i18n.t('toast.consumptionRecorded')
       }
     )
+    if (result.success) {
+      eventBus.emit('inventory:consumed')
+    }
+    return result
   }
 
   return {
@@ -350,6 +407,7 @@ export const useProductsApi = () => {
     deleteInventoryItem,
     consumeInventoryItem,
     splitInventoryItem,
+    getExpirationCount,
     quickAddMultipleInventoryItems,
     moveInventoryItems,
     deleteMultipleInventoryItems,

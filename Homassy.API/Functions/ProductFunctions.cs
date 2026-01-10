@@ -14,6 +14,8 @@ namespace Homassy.API.Functions
 {
     public class ProductFunctions
     {
+        private const int EXPIRING_SOON_THRESHOLD_DAYS = 14;
+        
         private static readonly ConcurrentDictionary<int, Product> _productCache = new();
         private static readonly ConcurrentDictionary<int, ProductCustomization> _customizationCache = new();
         private static readonly ConcurrentDictionary<int, ProductInventoryItem> _inventoryItemCache = new();
@@ -1029,6 +1031,54 @@ namespace Homassy.API.Functions
             });
 
             return detailedProductInfos.ToPagedResult(pagination);
+        }
+
+        public async Task<int> GetExpiringAndExpiredInventoryCountAsync(CancellationToken cancellationToken = default)
+        {
+            var userId = SessionInfo.GetUserId();
+            if (!userId.HasValue)
+            {
+                Log.Warning("Invalid session: User ID not found");
+                return 0;
+            }
+
+            var familyId = SessionInfo.GetFamilyId();
+            var today = DateTime.UtcNow.Date;
+            var expiringThreshold = today.AddDays(EXPIRING_SOON_THRESHOLD_DAYS);
+
+            int count;
+
+            if (Inited)
+            {
+                // Use cache
+                count = _inventoryItemCache.Values
+                    .Where(i => !i.IsDeleted && !i.IsFullyConsumed && i.ExpirationAt.HasValue)
+                    .Where(i => familyId.HasValue 
+                        ? (i.UserId == userId || i.FamilyId == familyId)
+                        : i.UserId == userId)
+                    .Count(i => i.ExpirationAt!.Value.Date <= expiringThreshold);
+            }
+            else
+            {
+                // Use database
+                var context = new HomassyDbContext();
+                var query = context.ProductInventoryItems
+                    .AsNoTracking()
+                    .Where(i => !i.IsDeleted && !i.IsFullyConsumed && i.ExpirationAt.HasValue);
+
+                if (familyId.HasValue)
+                {
+                    query = query.Where(i => i.UserId == userId || i.FamilyId == familyId);
+                }
+                else
+                {
+                    query = query.Where(i => i.UserId == userId);
+                }
+
+                count = await query.CountAsync(i => i.ExpirationAt!.Value.Date <= expiringThreshold, cancellationToken);
+            }
+
+            return count;
         }
         #endregion
 

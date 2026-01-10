@@ -120,8 +120,8 @@ export const useApiClient = () => {
   /**
    * DELETE request
    */
-  const del = <T>(endpoint: string, options: Omit<RequestOptions, 'method' | 'body'> = {}) => {
-    return request<T>(endpoint, { ...options, method: 'DELETE' })
+  const del = <T>(endpoint: string, body?: unknown, options: Omit<RequestOptions, 'method'> = {}) => {
+    return request<T>(endpoint, { ...options, method: 'DELETE', body })
   }
 
   return {

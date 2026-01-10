@@ -520,8 +520,11 @@ const filteredItems = computed(() => {
   }
 
   // Sort items by urgency and then alphabetically
-  const now = new Date()
-  const twoWeeksFromNow = new Date(now.getTime() + 14 * 24 * 60 * 60 * 1000)
+  const today = new Date()
+  today.setHours(0, 0, 0, 0) // Reset to start of day
+  
+  const twoWeeksFromNow = new Date(today)
+  twoWeeksFromNow.setDate(today.getDate() + 14)
 
   // Categorize items
   const overdueItems: ShoppingListItemInfo[] = []
@@ -531,10 +534,16 @@ const filteredItems = computed(() => {
   items.forEach(item => {
     const targetDate = getTargetDate(item)
 
-    if (targetDate && targetDate < now) {
-      overdueItems.push(item)
-    } else if (targetDate && targetDate <= twoWeeksFromNow) {
-      dueSoonItems.push(item)
+    if (targetDate) {
+      targetDate.setHours(0, 0, 0, 0) // Reset to start of day
+      
+      if (targetDate < today) {
+        overdueItems.push(item)
+      } else if (targetDate <= twoWeeksFromNow) {
+        dueSoonItems.push(item)
+      } else {
+        otherItems.push(item)
+      }
     } else {
       otherItems.push(item)
     }

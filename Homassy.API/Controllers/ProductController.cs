@@ -140,6 +140,24 @@ namespace Homassy.API.Controllers
             var detailedProducts = new ProductFunctions().GetAllDetailedProductsForUser(pagination);
             return Ok(ApiResponse<PagedResult<DetailedProductInfo>>.SuccessResponse(detailedProducts));
         }
+
+        /// <summary>
+        /// Gets the count of expiring and expired inventory items for the current user.
+        /// </summary>
+        [HttpGet("inventory/expiration-count")]
+        [MapToApiVersion(1.0)]
+        [ProducesResponseType(typeof(ApiResponse<ExpirationCountResponse>), StatusCodes.Status200OK)]
+        public async Task<IActionResult> GetExpirationCount(CancellationToken cancellationToken)
+        {
+            var count = await new ProductFunctions().GetExpiringAndExpiredInventoryCountAsync(cancellationToken);
+
+            var response = new ExpirationCountResponse
+            {
+                TotalCount = count
+            };
+
+            return Ok(ApiResponse<ExpirationCountResponse>.SuccessResponse(response));
+        }
         #endregion
 
         #region InventoryItem

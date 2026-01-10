@@ -696,17 +696,29 @@ const currencyOptions = computed(() => [
 // Computed
 const isExpired = computed(() => {
   if (!props.item.expirationAt) return false
-  const now = new Date()
+  
+  const today = new Date()
+  today.setHours(0, 0, 0, 0) // Reset to start of day
+  
   const expirationDate = new Date(props.item.expirationAt)
-  return expirationDate < now
+  expirationDate.setHours(0, 0, 0, 0) // Reset to start of day
+  
+  return expirationDate < today
 })
 
 const isExpiringSoon = computed(() => {
   if (!props.item.expirationAt || isExpired.value) return false
-  const now = new Date()
-  const twoWeeksFromNow = new Date(now.getTime() + 14 * 24 * 60 * 60 * 1000)
+  
+  const today = new Date()
+  today.setHours(0, 0, 0, 0) // Reset to start of day
+  
+  const twoWeeksFromNow = new Date(today)
+  twoWeeksFromNow.setDate(today.getDate() + 14)
+  
   const expirationDate = new Date(props.item.expirationAt)
-  return expirationDate >= now && expirationDate <= twoWeeksFromNow
+  expirationDate.setHours(0, 0, 0, 0) // Reset to start of day
+  
+  return expirationDate >= today && expirationDate <= twoWeeksFromNow
 })
 
 const borderColorClass = computed(() => {
