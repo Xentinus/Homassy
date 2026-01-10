@@ -105,3 +105,7 @@ export interface QuickPurchaseFromShoppingListItemRequest {
 export interface QuickPurchaseMultipleShoppingListItemsRequest {
   items: QuickPurchaseFromShoppingListItemRequest[]
 }
+
+export interface DeadlineCountResponse {
+  totalCount: number
+}

@@ -1897,6 +1897,49 @@ namespace Homassy.API.Functions
 
             return shoppingListInfos.ToPagedResult(pagination);
         }
+
+        public DeadlineCountResponse GetOverdueAndDueSoonItemsCount()
+        {
+            var userId = SessionInfo.GetUserId();
+            if (!userId.HasValue)
+            {
+                Log.Warning("Invalid session: User ID not found");
+                throw new UserNotFoundException("User not found");
+            }
+
+            var familyId = SessionInfo.GetFamilyId();
+            var today = DateTime.UtcNow.Date;
+            var twoWeeksFromNow = today.AddDays(14);
+
+            // Get shopping list IDs accessible by user
+            var shoppingListIds = GetShoppingListsByUserAndFamily(userId.Value, familyId)
+                .Select(sl => sl.Id)
+                .ToList();
+
+            int count;
+
+            if (Inited)
+            {
+                count = _shoppingListItemCache.Values
+                    .Where(sli => !sli.PurchasedAt.HasValue &&
+                                  shoppingListIds.Contains(sli.ShoppingListId) &&
+                                  ((sli.DeadlineAt.HasValue && sli.DeadlineAt.Value.Date <= twoWeeksFromNow) ||
+                                   (sli.DueAt.HasValue && sli.DueAt.Value.Date <= twoWeeksFromNow)))
+                    .Count();
+            }
+            else
+            {
+                var context = new HomassyDbContext();
+                count = context.ShoppingListItems
+                    .Where(sli => !sli.PurchasedAt.HasValue &&
+                                  shoppingListIds.Contains(sli.ShoppingListId) &&
+                                  ((sli.DeadlineAt.HasValue && sli.DeadlineAt.Value.Date <= twoWeeksFromNow) ||
+                                   (sli.DueAt.HasValue && sli.DueAt.Value.Date <= twoWeeksFromNow)))
+                    .Count();
+            }
+
+            return new DeadlineCountResponse { TotalCount = count };
+        }
         #endregion
     }
 }

@@ -13,6 +13,11 @@ type EventBusEvents = {
   'inventory:split': void
   'inventory:moved': void
   'product:deleted': void
+  'shopping-list-item:created': void
+  'shopping-list-item:updated': void
+  'shopping-list-item:deleted': void
+  'shopping-list-item:purchased': void
+  'shopping-list-item:restored': void
 }
 
 // Create a singleton event bus instance

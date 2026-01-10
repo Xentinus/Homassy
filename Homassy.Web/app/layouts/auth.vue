@@ -42,9 +42,11 @@ import { useDebounceFn } from '@vueuse/core'
 const route = useRoute()
 const { t } = useI18n()
 const { getExpirationCount } = useProductsApi()
+const { getDeadlineCount } = useShoppingListApi()
 const eventBus = useEventBus()
 
 const expirationCount = ref(0)
+const deadlineCount = ref(0)
 
 const fetchExpirationCount = async () => {
   try {
@@ -58,16 +60,35 @@ const fetchExpirationCount = async () => {
   }
 }
 
+const fetchDeadlineCount = async () => {
+  try {
+    const response = await getDeadlineCount()
+    if (response.success && response.data) {
+      deadlineCount.value = response.data.totalCount
+    }
+  } catch (error) {
+    console.error('Failed to fetch deadline count:', error)
+    deadlineCount.value = 0
+  }
+}
+
 // Debounce the fetch function with 500ms delay
 const debouncedFetchExpirationCount = useDebounceFn(fetchExpirationCount, 500)
+const debouncedFetchDeadlineCount = useDebounceFn(fetchDeadlineCount, 500)
 
 // Handler for all inventory/product mutation events
 const handleInventoryMutation = () => {
   debouncedFetchExpirationCount()
 }
 
+// Handler for all shopping list item mutation events
+const handleShoppingListMutation = () => {
+  debouncedFetchDeadlineCount()
+}
+
 onMounted(() => {
   fetchExpirationCount()
+  fetchDeadlineCount()
 
   // Listen to all inventory and product mutation events
   eventBus.on('inventory:created', handleInventoryMutation)
@@ -77,6 +98,13 @@ onMounted(() => {
   eventBus.on('inventory:split', handleInventoryMutation)
   eventBus.on('inventory:moved', handleInventoryMutation)
   eventBus.on('product:deleted', handleInventoryMutation)
+
+  // Listen to all shopping list item mutation events
+  eventBus.on('shopping-list-item:created', handleShoppingListMutation)
+  eventBus.on('shopping-list-item:updated', handleShoppingListMutation)
+  eventBus.on('shopping-list-item:deleted', handleShoppingListMutation)
+  eventBus.on('shopping-list-item:purchased', handleShoppingListMutation)
+  eventBus.on('shopping-list-item:restored', handleShoppingListMutation)
 })
 
 onUnmounted(() => {
@@ -88,6 +116,12 @@ onUnmounted(() => {
   eventBus.off('inventory:split', handleInventoryMutation)
   eventBus.off('inventory:moved', handleInventoryMutation)
   eventBus.off('product:deleted', handleInventoryMutation)
+
+  eventBus.off('shopping-list-item:created', handleShoppingListMutation)
+  eventBus.off('shopping-list-item:updated', handleShoppingListMutation)
+  eventBus.off('shopping-list-item:deleted', handleShoppingListMutation)
+  eventBus.off('shopping-list-item:purchased', handleShoppingListMutation)
+  eventBus.off('shopping-list-item:restored', handleShoppingListMutation)
 })
 
 const navItems = computed(() => [
@@ -102,7 +136,8 @@ const navItems = computed(() => [
     label: t('nav.shoppingLists'),
     to: '/shopping-lists',
     icon: 'i-lucide-shopping-cart',
-    active: route.path.startsWith('/shopping-lists')
+    active: route.path.startsWith('/shopping-lists'),
+    badge: deadlineCount.value > 0 ? deadlineCount.value : undefined
   },
   {
     label: t('nav.activity'),

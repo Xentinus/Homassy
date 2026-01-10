@@ -253,6 +253,18 @@ namespace Homassy.API.Controllers
             var items = await new ShoppingListFunctions().QuickPurchaseMultipleShoppingListItemsAsync(request, cancellationToken);
             return Ok(ApiResponse<List<ShoppingListItemInfo>>.SuccessResponse(items));
         }
+
+        /// <summary>
+        /// Gets the count of shopping list items that are overdue or due soon (within 14 days).
+        /// </summary>
+        [HttpGet("item/deadline-count")]
+        [MapToApiVersion(1.0)]
+        [ProducesResponseType(typeof(ApiResponse<DeadlineCountResponse>), StatusCodes.Status200OK)]
+        public IActionResult GetDeadlineCount()
+        {
+            var count = new ShoppingListFunctions().GetOverdueAndDueSoonItemsCount();
+            return Ok(ApiResponse<DeadlineCountResponse>.SuccessResponse(count));
+        }
         #endregion
     }
 }

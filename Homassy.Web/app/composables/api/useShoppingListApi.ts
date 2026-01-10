@@ -14,12 +14,15 @@ import type {
   CreateMultipleShoppingListItemsRequest,
   DeleteMultipleShoppingListItemsRequest,
   QuickPurchaseFromShoppingListItemRequest,
-  QuickPurchaseMultipleShoppingListItemsRequest
+  QuickPurchaseMultipleShoppingListItemsRequest,
+  DeadlineCountResponse
 } from '~/types/shoppingList'
 
 export const useShoppingListApi = () => {
   const client = useApiClient()
   const $i18n = useI18n()
+  const { emit } = useEventBus()
+  const { isExpiringWithinTwoWeeks } = useExpirationCheck()
 
   /**
    * Get all shopping lists with pagination
@@ -102,7 +105,7 @@ export const useShoppingListApi = () => {
    * Create shopping list item
    */
   const createShoppingListItem = async (item: CreateShoppingListItemRequest) => {
-    return await client.post<ShoppingListItemInfo>(
+    const result = await client.post<ShoppingListItemInfo>(
       '/api/v1/ShoppingList/item',
       item,
       {
@@ -110,13 +113,22 @@ export const useShoppingListApi = () => {
         successMessage: $i18n.t('toast.shoppingItemAdded')
       }
     )
+
+    // Emit event if deadline or due date is within 2 weeks
+    const hasDeadline = item.deadlineAt && isExpiringWithinTwoWeeks(item.deadlineAt)
+    const hasDueDate = item.dueAt && isExpiringWithinTwoWeeks(item.dueAt)
+    if (hasDeadline || hasDueDate) {
+      emit('shopping-list-item:created')
+    }
+
+    return result
   }
 
   /**
    * Update shopping list item
    */
   const updateShoppingListItem = async (publicId: string, item: UpdateShoppingListItemRequest) => {
-    return await client.put<ShoppingListItemInfo>(
+    const result = await client.put<ShoppingListItemInfo>(
       `/api/v1/ShoppingList/item/${publicId}`,
       item,
       {
@@ -124,19 +136,31 @@ export const useShoppingListApi = () => {
         successMessage: $i18n.t('toast.shoppingItemUpdated')
       }
     )
+
+    // Emit event if deadline or due date is within 2 weeks
+    const hasDeadline = item.deadlineAt && isExpiringWithinTwoWeeks(item.deadlineAt)
+    const hasDueDate = item.dueAt && isExpiringWithinTwoWeeks(item.dueAt)
+    if (hasDeadline || hasDueDate) {
+      emit('shopping-list-item:updated')
+    }
+
+    return result
   }
 
   /**
    * Delete shopping list item
    */
   const deleteShoppingListItem = async (publicId: string) => {
-    return await client.delete(
+    const result = await client.delete(
       `/api/v1/ShoppingList/item/${publicId}`,
       {
         showSuccessToast: true,
         successMessage: $i18n.t('toast.shoppingItemDeleted')
       }
     )
+
+    emit('shopping-list-item:deleted')
+    return result
   }
 
   /**
@@ -199,17 +223,38 @@ export const useShoppingListApi = () => {
    * Quick purchase shopping list item (simple - just marks as purchased)
    */
   const quickPurchaseShoppingListItem = async (publicId: string) => {
-    return await client.get<ShoppingListItemInfo>(
+    const result = await client.get<ShoppingListItemInfo>(
       `/api/v1/ShoppingList/item/${publicId}/quick-purchase`
     )
+
+    emit('shopping-list-item:purchased')
+    return result
   }
 
   /**
    * Restore purchase of shopping list item (removes purchase date)
    */
   const restorePurchaseShoppingListItem = async (publicId: string) => {
-    return await client.get<ShoppingListItemInfo>(
+    const result = await client.get<ShoppingListItemInfo>(
       `/api/v1/ShoppingList/item/${publicId}/restore-purchase`
+    )
+
+    // Emit event if deadline or due date is within 2 weeks
+    const hasDeadline = result.deadlineAt && isExpiringWithinTwoWeeks(result.deadlineAt)
+    const hasDueDate = result.dueAt && isExpiringWithinTwoWeeks(result.dueAt)
+    if (hasDeadline || hasDueDate) {
+      emit('shopping-list-item:restored')
+    }
+
+    return result
+  }
+
+  /**
+   * Get count of overdue and due soon shopping list items
+   */
+  const getDeadlineCount = async () => {
+    return await client.get<DeadlineCountResponse>(
+      '/api/v1/ShoppingList/item/deadline-count'
     )
   }
 
@@ -227,6 +272,7 @@ export const useShoppingListApi = () => {
     quickPurchaseItem,
     quickPurchaseMultipleItems,
     quickPurchaseShoppingListItem,
-    restorePurchaseShoppingListItem
+    restorePurchaseShoppingListItem,
+    getDeadlineCount
   }
 }
