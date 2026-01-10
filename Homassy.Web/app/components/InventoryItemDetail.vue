@@ -488,12 +488,96 @@
         </div>
       </template>
     </UModal>
+
+    <!-- Split Modal -->
+    <UModal :open="isSplitModalOpen" @update:open="(val) => isSplitModalOpen = val" :dismissible="false">
+      <template #title>
+        {{ $t('pages.products.details.splitModal.title') }}
+      </template>
+
+      <template #description>
+        {{ $t('pages.products.details.splitModal.description') }}
+      </template>
+
+      <template #body>
+        <div class="space-y-4">
+          <!-- Current quantity info -->
+          <div class="p-3 bg-gray-50 dark:bg-gray-800 rounded-lg">
+            <div class="text-sm text-gray-600 dark:text-gray-400">
+              {{ $t('pages.products.details.splitModal.currentQuantity') }}
+            </div>
+            <div class="text-lg font-semibold">
+              {{ item.currentQuantity }} {{ $t(`enums.unit.${item.unit}`) }}
+            </div>
+          </div>
+
+          <!-- Split quantity input -->
+          <div>
+            <label class="block text-sm font-medium mb-1">
+              {{ $t('pages.products.details.splitModal.splitQuantity') }} <span class="text-red-500">*</span>
+            </label>
+            <UInput
+              v-model.number="splitQuantity"
+              type="number"
+              :min="0.1"
+              :max="item.currentQuantity - 0.1"
+              step="0.1"
+              :placeholder="$t('pages.products.details.splitModal.splitQuantityPlaceholder')"
+              class="w-full"
+            />
+            <p class="text-xs text-gray-500 dark:text-gray-400 mt-1">
+              {{ $t('pages.products.details.splitModal.maxQuantity', { max: (item.currentQuantity - 0.1).toFixed(1) }) }}
+            </p>
+          </div>
+
+          <!-- Quantity stepper buttons -->
+          <div class="flex flex-wrap gap-2">
+            <UButton
+              v-for="step in [-10, -1, -0.1, 0.1, 1, 10]"
+              :key="step"
+              size="sm"
+              variant="outline"
+              :label="step > 0 ? `+${step}` : `${step}`"
+              @click="adjustSplitQuantity(step)"
+            />
+          </div>
+
+          <!-- Remaining quantity preview -->
+          <div class="p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-800">
+            <div class="text-sm text-blue-600 dark:text-blue-400">
+              {{ $t('pages.products.details.splitModal.remainingPreview') }}
+            </div>
+            <div class="text-lg font-semibold text-blue-700 dark:text-blue-300">
+              {{ splitQuantity ? (item.currentQuantity - splitQuantity).toFixed(1) : item.currentQuantity }}
+              {{ $t(`enums.unit.${item.unit}`) }}
+            </div>
+          </div>
+        </div>
+      </template>
+
+      <template #footer>
+        <div class="flex justify-end gap-2">
+          <UButton
+            :label="$t('common.cancel')"
+            color="neutral"
+            variant="outline"
+            @click="closeSplitModal"
+          />
+          <UButton
+            :label="$t('pages.products.details.splitModal.confirm')"
+            :loading="isSplitting"
+            :disabled="!splitQuantity || splitQuantity <= 0 || splitQuantity >= item.currentQuantity"
+            @click="handleSplit"
+          />
+        </div>
+      </template>
+    </UModal>
   </div>
 </template>
 
 <script setup lang="ts">
 import { ref, computed } from 'vue'
-import type { InventoryItemInfo, ConsumeInventoryItemRequest, UpdateInventoryItemRequest, MoveInventoryItemsRequest } from '../types/product'
+import type { InventoryItemInfo, ConsumeInventoryItemRequest, SplitInventoryItemRequest, UpdateInventoryItemRequest, MoveInventoryItemsRequest } from '../types/product'
 import { Unit, Currency, SelectValueType } from '../types/enums'
 import type { SelectValue } from '../types/selectValue'
 import type { CalendarDate } from '@internationalized/date'
@@ -522,7 +606,7 @@ const emit = defineEmits<{
 const { t: $t } = useI18n()
 const { formatDate } = useDateFormat()
 const { inputDateLocale } = useInputDateLocale()
-const { consumeInventoryItem, updateInventoryItem, deleteInventoryItem, moveInventoryItems } = useProductsApi()
+const { consumeInventoryItem, splitInventoryItem, updateInventoryItem, deleteInventoryItem, moveInventoryItems } = useProductsApi()
 const { getSelectValues } = useSelectValueApi()
 const toast = useToast()
 
@@ -531,6 +615,11 @@ const isHistoryExpanded = ref(false)
 const isConsumeModalOpen = ref(false)
 const consumeQuantity = ref<number | null>(null)
 const isConsuming = ref(false)
+
+// Split modal state
+const isSplitModalOpen = ref(false)
+const isSplitting = ref(false)
+const splitQuantity = ref<number | null>(null)
 
 // Edit modal state
 const isEditModalOpen = ref(false)
@@ -568,6 +657,11 @@ const dropdownItems = computed(() => [
       label: $t('pages.products.details.editInventory'),
       icon: 'i-lucide-pencil',
       onSelect: openEditModal
+    },
+    {
+      label: $t('pages.products.details.splitItem'),
+      icon: 'i-lucide-scissors',
+      onSelect: openSplitModal
     },
     {
       label: $t('pages.products.details.moveItem'),
@@ -878,6 +972,70 @@ const handleMove = async () => {
     console.error('Failed to move inventory item:', error)
   } finally {
     isMoving.value = false
+  }
+}
+
+// Split modal methods
+const openSplitModal = () => {
+  splitQuantity.value = Math.min(1, props.item.currentQuantity - 0.1)
+  isSplitModalOpen.value = true
+}
+
+const closeSplitModal = () => {
+  isSplitModalOpen.value = false
+  splitQuantity.value = null
+}
+
+const adjustSplitQuantity = (step: number) => {
+  const currentValue = splitQuantity.value || 0
+  const newValue = currentValue + step
+  const maxAllowed = props.item.currentQuantity - 0.1
+
+  if (newValue < 0.1) {
+    splitQuantity.value = 0.1
+  } else if (newValue > maxAllowed) {
+    splitQuantity.value = Math.round(maxAllowed * 10) / 10
+  } else {
+    splitQuantity.value = Math.round(newValue * 10) / 10
+  }
+}
+
+const handleSplit = async () => {
+  if (!splitQuantity.value || splitQuantity.value <= 0) {
+    toast.add({
+      title: $t('toast.error'),
+      description: $t('pages.products.details.splitModal.invalidQuantity'),
+      color: 'error'
+    })
+    return
+  }
+
+  if (splitQuantity.value >= props.item.currentQuantity) {
+    toast.add({
+      title: $t('toast.error'),
+      description: $t('pages.products.details.splitModal.quantityTooHigh'),
+      color: 'error'
+    })
+    return
+  }
+
+  isSplitting.value = true
+
+  try {
+    const request: SplitInventoryItemRequest = {
+      quantity: splitQuantity.value
+    }
+
+    const response = await splitInventoryItem(props.item.publicId, request)
+
+    if (response.success) {
+      closeSplitModal()
+      emit('updated')
+    }
+  } catch (error) {
+    console.error('Failed to split inventory item:', error)
+  } finally {
+    isSplitting.value = false
   }
 }
 </script>

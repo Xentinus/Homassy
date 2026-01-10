@@ -229,7 +229,23 @@
           "cancel": "Abbrechen",
           "move": "Verschieben",
           "success": "Bestand erfolgreich verschoben"
-        },        "editProduct": "Produkt bearbeiten",
+        },
+        "splitItem": "Bestand aufteilen",
+        "splitModal": {
+          "title": "Bestand aufteilen",
+          "description": "Wählen Sie, wie viel Menge Sie vom ursprünglichen Bestand trennen möchten",
+          "currentQuantity": "Aktuelle Menge",
+          "splitQuantity": "Zu trennende Menge",
+          "splitQuantityPlaceholder": "Menge eingeben",
+          "maxQuantity": "Maximal {max} kann getrennt werden",
+          "remainingPreview": "Verbleibende Menge",
+          "cancel": "Abbrechen",
+          "confirm": "Aufteilen",
+          "invalidQuantity": "Bitte geben Sie eine gültige Menge ein",
+          "quantityTooHigh": "Die zu trennende Menge kann nicht größer oder gleich der aktuellen Menge sein",
+          "success": "Bestand erfolgreich aufgeteilt"
+        },
+        "editProduct": "Produkt bearbeiten",
         "deleteProduct": "Produkt löschen",
         "editProductModal": {
           "title": "Produkt bearbeiten",
@@ -709,6 +725,7 @@
     "itemAddedToInventory": "Artikel zum Inventar hinzugefügt",
     "inventoryItemUpdated": "Inventargegenstand erfolgreich aktualisiert",
     "inventoryItemDeleted": "Inventargegenstand erfolgreich gelöscht",
+    "inventoryItemSplit": "Bestand erfolgreich aufgeteilt",
     "consumptionRecorded": "Verbrauch erfolgreich erfasst",
     "itemsAddedToInventory": "Artikel zum Inventar hinzugefügt",
     "itemsMoved": "Artikel erfolgreich verschoben",

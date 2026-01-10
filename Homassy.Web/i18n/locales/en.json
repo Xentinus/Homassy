@@ -231,7 +231,23 @@
           "cancel": "Cancel",
           "move": "Move",
           "success": "Inventory moved successfully"
-        },        "editProduct": "Edit Product",
+        },
+        "splitItem": "Split Inventory",
+        "splitModal": {
+          "title": "Split Inventory Item",
+          "description": "Select how much quantity you want to split from the original inventory",
+          "currentQuantity": "Current quantity",
+          "splitQuantity": "Quantity to split",
+          "splitQuantityPlaceholder": "Enter quantity",
+          "maxQuantity": "Maximum {max} can be split",
+          "remainingPreview": "Remaining quantity",
+          "cancel": "Cancel",
+          "confirm": "Split",
+          "invalidQuantity": "Please enter a valid quantity",
+          "quantityTooHigh": "Split quantity cannot be greater than or equal to current quantity",
+          "success": "Inventory split successfully"
+        },
+        "editProduct": "Edit Product",
         "deleteProduct": "Delete Product",
         "editProductModal": {
           "title": "Edit Product",
@@ -711,6 +727,7 @@
     "itemAddedToInventory": "Item added to inventory",
     "inventoryItemUpdated": "Inventory item updated successfully",
     "inventoryItemDeleted": "Inventory item deleted successfully",
+    "inventoryItemSplit": "Inventory item split successfully",
     "consumptionRecorded": "Consumption recorded successfully",
     "itemsAddedToInventory": "Items added to inventory",
     "itemsMoved": "Items moved successfully",

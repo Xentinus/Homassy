@@ -233,6 +233,21 @@
           "move": "Mozgatás",
           "success": "Készlet sikeresen áthelyezve"
         },
+        "splitItem": "Készlet felosztás",
+        "splitModal": {
+          "title": "Készlet felosztása",
+          "description": "Válassza ki, mekkora mennyiséget szeretne külön rakni az eredeti készletből",
+          "currentQuantity": "Jelenlegi mennyiség",
+          "splitQuantity": "Leválasztandó mennyiség",
+          "splitQuantityPlaceholder": "Adja meg a mennyiséget",
+          "maxQuantity": "Maximum {max} választható le",
+          "remainingPreview": "Maradt mennyiség",
+          "cancel": "Mégse",
+          "confirm": "Felosztás",
+          "invalidQuantity": "Kérjük, adjon meg egy érvényes mennyiséget",
+          "quantityTooHigh": "A leválasztandó mennyiség nem lehet nagyobb vagy egyenlő a jelenlegi mennyiséggel",
+          "success": "A készlet sikeresen felosztva"
+        },
         "editProduct": "Termék szerkesztése",
         "deleteProduct": "Termék törlése",
         "editProductModal": {
@@ -711,6 +726,7 @@
     "itemAddedToInventory": "Elem hozzáadva a készlethez",
     "inventoryItemUpdated": "Készletelem sikeresen frissítve",
     "inventoryItemDeleted": "Készletelem sikeresen törölve",
+    "inventoryItemSplit": "Készlet elem sikeresen felosztva",
     "consumptionRecorded": "Fogyasztás rögzítve",
     "itemsAddedToInventory": "Elemek hozzáadva a készlethez",
     "itemsMoved": "Elemek sikeresen áthelyezve",

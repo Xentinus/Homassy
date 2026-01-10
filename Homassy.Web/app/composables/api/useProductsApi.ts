@@ -262,6 +262,20 @@ export const useProductsApi = () => {
   }
 
   /**
+   * Split inventory item into two separate items
+   */
+  const splitInventoryItem = async (inventoryItemPublicId: string, request: SplitInventoryItemRequest) => {
+    return await client.post<SplitInventoryItemResponse>(
+      `/api/v1/Product/inventory/${inventoryItemPublicId}/split`,
+      request,
+      {
+        showSuccessToast: true,
+        successMessage: $i18n.t('toast.inventoryItemSplit')
+      }
+    )
+  }
+
+  /**
    * Quick add multiple inventory items
    */
   const quickAddMultipleInventoryItems = async (request: QuickAddMultipleInventoryItemsRequest) => {
@@ -335,6 +349,7 @@ export const useProductsApi = () => {
     updateInventoryItem,
     deleteInventoryItem,
     consumeInventoryItem,
+    splitInventoryItem,
     quickAddMultipleInventoryItems,
     moveInventoryItems,
     deleteMultipleInventoryItems,

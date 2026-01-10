@@ -233,6 +233,25 @@ namespace Homassy.API.Controllers
         }
 
         /// <summary>
+        /// Splits an inventory item into two separate items.
+        /// </summary>
+        [HttpPost("inventory/{inventoryItemPublicId}/split")]
+        [MapToApiVersion(1.0)]
+        [ProducesResponseType(typeof(ApiResponse<SplitInventoryItemResponse>), StatusCodes.Status200OK)]
+        [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status404NotFound)]
+        public async Task<IActionResult> SplitInventoryItem(Guid inventoryItemPublicId, [FromBody] SplitInventoryItemRequest request, CancellationToken cancellationToken)
+        {
+            if (!ModelState.IsValid)
+            {
+                return BadRequest(ApiResponse.ErrorResponse(ErrorCodes.ValidationInvalidRequest));
+            }
+
+            var response = await new ProductFunctions().SplitInventoryItemAsync(inventoryItemPublicId, request, cancellationToken);
+            return Ok(ApiResponse<SplitInventoryItemResponse>.SuccessResponse(response));
+        }
+
+        /// <summary>
         /// Quickly adds multiple inventory items in a single request.
         /// </summary>
         [HttpPost("inventory/quick/multiple")]

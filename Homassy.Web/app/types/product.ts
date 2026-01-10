@@ -143,6 +143,15 @@ export interface ConsumeInventoryItemRequest {
   quantity: number
 }
 
+export interface SplitInventoryItemRequest {
+  quantity: number
+}
+
+export interface SplitInventoryItemResponse {
+  originalItem: InventoryItemInfo
+  newItem: InventoryItemInfo
+}
+
 export interface ConsumeInventoryItemEntry {
   inventoryItemPublicId: string
   quantity: number

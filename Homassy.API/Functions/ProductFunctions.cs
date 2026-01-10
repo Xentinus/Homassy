@@ -2109,6 +2109,248 @@ namespace Homassy.API.Functions
             }
         }
 
+        public async Task<SplitInventoryItemResponse> SplitInventoryItemAsync(Guid inventoryItemPublicId, SplitInventoryItemRequest request, CancellationToken cancellationToken = default)
+        {
+            var userId = SessionInfo.GetUserId();
+            if (!userId.HasValue)
+            {
+                Log.Warning("Invalid session: User ID not found");
+                throw new UserNotFoundException("User not found");
+            }
+
+            var familyId = SessionInfo.GetFamilyId();
+            var inventoryItem = GetInventoryItemByPublicId(inventoryItemPublicId);
+
+            if (inventoryItem == null)
+            {
+                throw new ProductInventoryItemNotFoundException($"Inventory item not found: {inventoryItemPublicId}");
+            }
+
+            // Verify ownership
+            if (inventoryItem.UserId != userId.Value &&
+                (!familyId.HasValue || inventoryItem.FamilyId != familyId.Value))
+            {
+                throw new UnauthorizedException($"You don't have permission to split inventory item {inventoryItemPublicId}");
+            }
+
+            // Validate quantity
+            if (request.Quantity <= 0)
+            {
+                throw new BadRequestException("Quantity must be greater than 0");
+            }
+
+            if (request.Quantity >= inventoryItem.CurrentQuantity)
+            {
+                throw new BadRequestException($"Split quantity must be less than current quantity ({inventoryItem.CurrentQuantity})");
+            }
+
+            // Minimum remaining quantity is 0.1
+            var remainingQuantity = inventoryItem.CurrentQuantity - request.Quantity;
+            if (remainingQuantity < 0.1m)
+            {
+                throw new BadRequestException("Remaining quantity must be at least 0.1");
+            }
+
+            var context = new HomassyDbContext();
+            await using var transaction = await context.Database.BeginTransactionAsync(cancellationToken);
+
+            try
+            {
+                // Get tracked entity
+                var trackedItem = await context.ProductInventoryItems.FindAsync([inventoryItem.Id], cancellationToken);
+                if (trackedItem == null)
+                {
+                    throw new ProductInventoryItemNotFoundException();
+                }
+
+                // Create new inventory item with split quantity
+                var newItem = new ProductInventoryItem
+                {
+                    ProductId = trackedItem.ProductId,
+                    CurrentQuantity = request.Quantity,
+                    Unit = trackedItem.Unit,
+                    ExpirationAt = trackedItem.ExpirationAt,
+                    StorageLocationId = trackedItem.StorageLocationId,
+                    FamilyId = trackedItem.FamilyId,
+                    UserId = trackedItem.FamilyId.HasValue ? null : trackedItem.UserId,
+                    IsFullyConsumed = false
+                };
+
+                context.ProductInventoryItems.Add(newItem);
+                await context.SaveChangesAsync(cancellationToken); // Save to get new item ID
+
+                // Optionally copy purchase info (proportional)
+                var purchaseInfo = GetPurchaseInfoByInventoryItemId(trackedItem.Id);
+                if (purchaseInfo != null)
+                {
+                    var ratio = request.Quantity / trackedItem.CurrentQuantity;
+                    var newPurchaseInfo = new ProductPurchaseInfo
+                    {
+                        ProductInventoryItemId = newItem.Id,
+                        PurchasedAt = purchaseInfo.PurchasedAt,
+                        OriginalQuantity = request.Quantity,
+                        ShoppingLocationId = purchaseInfo.ShoppingLocationId,
+                        ReceiptNumber = purchaseInfo.ReceiptNumber,
+                        Currency = purchaseInfo.Currency
+                    };
+
+                    // Prorate price if exists
+                    if (purchaseInfo.Price.HasValue)
+                    {
+                        newPurchaseInfo.Price = (int)(purchaseInfo.Price.Value * ratio);
+                    }
+
+                    context.ProductPurchaseInfos.Add(newPurchaseInfo);
+                }
+
+                // Update original item quantity
+                trackedItem.CurrentQuantity = remainingQuantity;
+
+                // Create consumption log for audit trail (records the split)
+                var consumptionLog = new ProductConsumptionLog
+                {
+                    ProductInventoryItemId = trackedItem.Id,
+                    UserId = userId.Value,
+                    ConsumedQuantity = request.Quantity,
+                    RemainingQuantity = remainingQuantity,
+                    ConsumedAt = DateTime.UtcNow
+                };
+
+                context.ProductConsumptionLogs.Add(consumptionLog);
+
+                await context.SaveChangesAsync(cancellationToken);
+                await transaction.CommitAsync(cancellationToken);
+
+                // Refresh cache for both items
+                await RefreshInventoryItemCacheAsync(trackedItem.Id, cancellationToken);
+                await RefreshInventoryItemCacheAsync(newItem.Id, cancellationToken);
+
+                // Record activity
+                try
+                {
+                    var product = GetProductById(trackedItem.ProductId);
+                    await new ActivityFunctions().RecordActivityAsync(
+                        userId.Value,
+                        familyId,
+                        Enums.ActivityType.ProductInventoryDecrease,
+                        trackedItem.Id,
+                        product?.Name ?? "Unknown",
+                        trackedItem.Unit,
+                        request.Quantity,
+                        cancellationToken
+                    );
+                }
+                catch (Exception ex)
+                {
+                    Log.Error(ex, $"Failed to record ProductInventoryDecrease activity for split operation on {trackedItem.PublicId}");
+                }
+
+                // Load full details for response
+                var locationFunctions = new LocationFunctions();
+
+                var originalItemPurchaseInfo = GetPurchaseInfoByInventoryItemId(trackedItem.Id);
+                var originalConsumptionLogs = GetConsumptionLogsByInventoryItemId(trackedItem.Id);
+                var originalItem = new InventoryItemInfo
+                {
+                    PublicId = trackedItem.PublicId,
+                    CurrentQuantity = trackedItem.CurrentQuantity,
+                    Unit = trackedItem.Unit,
+                    ExpirationAt = trackedItem.ExpirationAt,
+                    StorageLocation = trackedItem.StorageLocationId.HasValue
+                        ? (locationFunctions.GetStorageLocationById(trackedItem.StorageLocationId.Value) is var storageLocationRef && storageLocationRef != null
+                            ? new LocationInfo
+                            {
+                                PublicId = storageLocationRef.PublicId,
+                                Name = storageLocationRef.Name
+                            }
+                            : null)
+                        : null,
+                    PurchaseInfo = originalItemPurchaseInfo != null ? new PurchaseInfo
+                    {
+                        PublicId = originalItemPurchaseInfo.PublicId,
+                        PurchasedAt = originalItemPurchaseInfo.PurchasedAt,
+                        OriginalQuantity = originalItemPurchaseInfo.OriginalQuantity,
+                        Price = originalItemPurchaseInfo.Price,
+                        Currency = originalItemPurchaseInfo.Currency,
+                        ShoppingLocation = originalItemPurchaseInfo.ShoppingLocationId.HasValue
+                            ? (locationFunctions.GetShoppingLocationById(originalItemPurchaseInfo.ShoppingLocationId.Value) is var shoppingLocationRef && shoppingLocationRef != null
+                                ? new LocationInfo
+                                {
+                                    PublicId = shoppingLocationRef.PublicId,
+                                    Name = shoppingLocationRef.Name
+                                }
+                                : null)
+                            : null
+                    } : null,
+                    ConsumptionLogs = originalConsumptionLogs.Select(log =>
+                    {
+                        var user = log.UserId.HasValue ? new UserFunctions().GetUserById(log.UserId.Value) : null;
+
+                        return new ConsumptionLogInfo
+                        {
+                            PublicId = log.PublicId,
+                            UserName = user?.Name,
+                            ConsumedQuantity = log.ConsumedQuantity,
+                            RemainingQuantity = log.RemainingQuantity,
+                            ConsumedAt = log.ConsumedAt
+                        };
+                    }).ToList()
+                };
+
+                var newItemPurchaseInfo = GetPurchaseInfoByInventoryItemId(newItem.Id);
+                var newItemInfo = new InventoryItemInfo
+                {
+                    PublicId = newItem.PublicId,
+                    CurrentQuantity = newItem.CurrentQuantity,
+                    Unit = newItem.Unit,
+                    ExpirationAt = newItem.ExpirationAt,
+                    StorageLocation = newItem.StorageLocationId.HasValue
+                        ? (locationFunctions.GetStorageLocationById(newItem.StorageLocationId.Value) is var newStorageLocationRef && newStorageLocationRef != null
+                            ? new LocationInfo
+                            {
+                                PublicId = newStorageLocationRef.PublicId,
+                                Name = newStorageLocationRef.Name
+                            }
+                            : null)
+                        : null,
+                    PurchaseInfo = newItemPurchaseInfo != null ? new PurchaseInfo
+                    {
+                        PublicId = newItemPurchaseInfo.PublicId,
+                        PurchasedAt = newItemPurchaseInfo.PurchasedAt,
+                        OriginalQuantity = newItemPurchaseInfo.OriginalQuantity,
+                        Price = newItemPurchaseInfo.Price,
+                        Currency = newItemPurchaseInfo.Currency,
+                        ShoppingLocation = newItemPurchaseInfo.ShoppingLocationId.HasValue
+                            ? (locationFunctions.GetShoppingLocationById(newItemPurchaseInfo.ShoppingLocationId.Value) is var newShoppingLocationRef && newShoppingLocationRef != null
+                                ? new LocationInfo
+                                {
+                                    PublicId = newShoppingLocationRef.PublicId,
+                                    Name = newShoppingLocationRef.Name
+                                }
+                                : null)
+                            : null
+                    } : null,
+                    ConsumptionLogs = new List<ConsumptionLogInfo>() // New item has no consumption logs yet
+                };
+
+                var response = new SplitInventoryItemResponse
+                {
+                    OriginalItem = originalItem,
+                    NewItem = newItemInfo
+                };
+
+                Log.Information($"User {userId.Value} split inventory item {inventoryItemPublicId}: {request.Quantity} {trackedItem.Unit}");
+
+                return response;
+            }
+            catch (Exception ex)
+            {
+                await transaction.RollbackAsync(cancellationToken);
+                Log.Error(ex, $"Failed to split inventory item {inventoryItemPublicId} for user {userId.Value}");
+                throw;
+            }
+        }
+
         public async Task<List<ProductInfo>> CreateMultipleProductsAsync(CreateMultipleProductsRequest request, CancellationToken cancellationToken = default)
         {
             var userId = SessionInfo.GetUserId();
