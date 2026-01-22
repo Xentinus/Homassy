@@ -667,6 +667,63 @@ export const useAuthStore = defineStore('auth', {
           }
         }
       }, refreshTime)
+    },
+
+    /**
+     * Setup visibility change listener to refresh token when tab becomes visible
+     * This handles cases where the browser was backgrounded for a long time
+     */
+    setupVisibilityListener() {
+      // Only run on client
+      if (!import.meta.client) return
+
+      const handleVisibilityChange = async () => {
+        // Only act when page becomes visible
+        if (document.hidden) return
+
+        console.debug('[Auth] Page became visible, checking token expiration')
+
+        // Check if we have an access token
+        if (!this.accessTokenExpiresAt || !this.accessToken) {
+          console.debug('[Auth] No token to refresh')
+          return
+        }
+
+        // Calculate time until expiration
+        const expiresAt = new Date(this.accessTokenExpiresAt).getTime()
+        const now = Date.now()
+        const timeUntilExpiry = expiresAt - now
+
+        // Refresh if token expires in less than 5 minutes or already expired
+        const fiveMinutes = 300000 // 5 minutes in ms
+        if (timeUntilExpiry < fiveMinutes) {
+          console.debug('[Auth] Token expiring soon or expired, refreshing...', {
+            expiresIn: Math.round(timeUntilExpiry / 1000) + 's'
+          })
+
+          try {
+            await this.refreshAccessToken()
+          } catch (error) {
+            console.error('[Auth] Failed to refresh token on visibility change:', error)
+          }
+        } else {
+          console.debug('[Auth] Token still valid', {
+            expiresIn: Math.round(timeUntilExpiry / 1000) + 's'
+          })
+        }
+      }
+
+      // Add event listener
+      document.addEventListener('visibilitychange', handleVisibilityChange)
+
+      // Cleanup function (will be called when store is disposed)
+      if (typeof window !== 'undefined') {
+        window.addEventListener('beforeunload', () => {
+          document.removeEventListener('visibilitychange', handleVisibilityChange)
+        })
+      }
+
+      console.debug('[Auth] Visibility listener setup complete')
     }
   }
 })

@@ -756,7 +756,10 @@
     "shoppingItemsAdded": "Elemek sikeresen hozzáadva",
     "shoppingItemsDeleted": "Elemek sikeresen törölve",
     "itemPurchased": "Termék megvásárolva és hozzáadva a készlethez",
-    "itemsPurchased": "Termékek megvásárolva és hozzáadva a készlethez"
+    "itemsPurchased": "Termékek megvásárolva és hozzáadva a készlethez",
+    "appVersionUpdate": "Új verzió érhető el",
+    "appVersionUpdateDescription": "Frissítsd az alkalmazást a legújabb funkciók használatához.",
+    "refresh": "Frissítés"
   },
   "enums": {
     "unit": {

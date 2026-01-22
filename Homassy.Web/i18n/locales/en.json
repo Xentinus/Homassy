@@ -757,7 +757,10 @@
     "shoppingItemsAdded": "Items added successfully",
     "shoppingItemsDeleted": "Items deleted successfully",
     "itemPurchased": "Item purchased and added to inventory",
-    "itemsPurchased": "Items purchased and added to inventory"
+    "itemsPurchased": "Items purchased and added to inventory",
+    "appVersionUpdate": "New version available",
+    "appVersionUpdateDescription": "Update the app to use the latest features.",
+    "refresh": "Refresh"
   },
   "enums": {
     "unit": {

@@ -26,11 +26,14 @@
     "browser-image-compression": "^2.0.2",
     "eslint": "^9.39.2",
     "nuxt": "^4.2.2",
-    "vue-qrcode-reader": "^5.7.3",
     "nuxt-api-party": "^3.4.2",
     "typescript": "^5.9.3",
     "vue": "^3.5.25",
     "vue-advanced-cropper": "^2.8.9",
+    "vue-qrcode-reader": "^5.7.3",
     "vue-router": "^4.6.4"
+  },
+  "devDependencies": {
+    "@vite-pwa/nuxt": "^1.1.0"
   }
 }
