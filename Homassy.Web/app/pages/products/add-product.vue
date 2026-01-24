@@ -1892,12 +1892,6 @@ const onAddIndividualItem = (event: FormSubmitEvent<any>) => {
   const previousUnit = inventoryFormData.value.unit
   resetInventoryForm()
   inventoryFormData.value.unit = previousUnit
-
-  toast.add({
-    title: t('toast.success'),
-    description: t('pages.addProduct.inventory.itemAdded'),
-    color: 'success'
-  })
 }
 
 // Remove individual item from list

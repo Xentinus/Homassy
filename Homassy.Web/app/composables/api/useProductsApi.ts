@@ -89,11 +89,7 @@ export const useProductsApi = () => {
   const createProduct = async (product: CreateProductRequest) => {
     return await client.post<ProductInfo>(
       '/api/v1/Product',
-      product,
-      {
-        showSuccessToast: true,
-        successMessage: $i18n.t('toast.productCreated')
-      }
+      product
     )
   }
 
@@ -103,11 +99,7 @@ export const useProductsApi = () => {
   const updateProduct = async (productPublicId: string, product: UpdateProductRequest) => {
     return await client.put<ProductInfo>(
       `/api/v1/Product/${productPublicId}`,
-      product,
-      {
-        showSuccessToast: true,
-        successMessage: $i18n.t('toast.productUpdated')
-      }
+      product
     )
   }
 
@@ -116,11 +108,7 @@ export const useProductsApi = () => {
    */
   const deleteProduct = async (productPublicId: string) => {
     const result = await client.delete(
-      `/api/v1/Product/${productPublicId}`,
-      {
-        showSuccessToast: true,
-        successMessage: $i18n.t('toast.productDeleted')
-      }
+      `/api/v1/Product/${productPublicId}`
     )
     if (result.success) {
       eventBus.emit('product:deleted')
@@ -134,11 +122,7 @@ export const useProductsApi = () => {
   const toggleFavorite = async (productPublicId: string) => {
     return await client.post<ProductInfo>(
       `/api/v1/Product/${productPublicId}/favorite`,
-      undefined,
-      {
-        showSuccessToast: true,
-        successMessage: $i18n.t('toast.favoriteStateUpdated')
-      }
+      undefined
     )
   }
 
@@ -148,11 +132,7 @@ export const useProductsApi = () => {
   const createMultipleProducts = async (request: CreateMultipleProductsRequest) => {
     return await client.post<ProductInfo[]>(
       '/api/v1/Product/multiple',
-      request,
-      {
-        showSuccessToast: true,
-        successMessage: $i18n.t('toast.productsCreated')
-      }
+      request
     )
   }
 
@@ -162,11 +142,7 @@ export const useProductsApi = () => {
   const uploadProductImage = async (productPublicId: string, request: UploadProductImageRequest) => {
     return await client.post(
       `/api/v1/Product/${productPublicId}/image`,
-      request,
-      {
-        showSuccessToast: true,
-        successMessage: $i18n.t('toast.imageUploaded')
-      }
+      request
     )
   }
 
@@ -189,11 +165,7 @@ export const useProductsApi = () => {
    */
   const deleteProductImage = async (productPublicId: string) => {
     return await client.delete(
-      `/api/v1/Product/${productPublicId}/image`,
-      {
-        showSuccessToast: true,
-        successMessage: $i18n.t('toast.imageDeleted')
-      }
+      `/api/v1/Product/${productPublicId}/image`
     )
   }
 
@@ -207,11 +179,7 @@ export const useProductsApi = () => {
   const createInventoryItem = async (request: CreateInventoryItemRequest) => {
     const result = await client.post<InventoryItemInfo>(
       '/api/v1/Product/inventory',
-      request,
-      {
-        showSuccessToast: true,
-        successMessage: $i18n.t('toast.inventoryItemCreated')
-      }
+      request
     )
     if (result.success && request.expirationAt) {
       if (isExpiringWithinTwoWeeks(request.expirationAt)) {
@@ -227,11 +195,7 @@ export const useProductsApi = () => {
   const quickAddInventoryItem = async (request: QuickAddInventoryItemRequest) => {
     const result = await client.post<InventoryItemInfo>(
       '/api/v1/Product/inventory/quick',
-      request,
-      {
-        showSuccessToast: true,
-        successMessage: $i18n.t('toast.itemAddedToInventory')
-      }
+      request
     )
     if (result.success) {
       eventBus.emit('inventory:created')
@@ -245,11 +209,7 @@ export const useProductsApi = () => {
   const updateInventoryItem = async (inventoryItemPublicId: string, request: UpdateInventoryItemRequest) => {
     const result = await client.put<InventoryItemInfo>(
       `/api/v1/Product/inventory/${inventoryItemPublicId}`,
-      request,
-      {
-        showSuccessToast: true,
-        successMessage: $i18n.t('toast.inventoryItemUpdated')
-      }
+      request
     )
     if (result.success && request.expirationAt) {
       if (isExpiringWithinTwoWeeks(request.expirationAt)) {
@@ -264,11 +224,7 @@ export const useProductsApi = () => {
    */
   const deleteInventoryItem = async (inventoryItemPublicId: string) => {
     const result = await client.delete(
-      `/api/v1/Product/inventory/${inventoryItemPublicId}`,
-      {
-        showSuccessToast: true,
-        successMessage: $i18n.t('toast.inventoryItemDeleted')
-      }
+      `/api/v1/Product/inventory/${inventoryItemPublicId}`
     )
     if (result.success) {
       eventBus.emit('inventory:deleted')
@@ -282,11 +238,7 @@ export const useProductsApi = () => {
   const consumeInventoryItem = async (inventoryItemPublicId: string, request: ConsumeInventoryItemRequest) => {
     const result = await client.post<InventoryItemInfo>(
       `/api/v1/Product/inventory/${inventoryItemPublicId}/consume`,
-      request,
-      {
-        showSuccessToast: true,
-        successMessage: $i18n.t('toast.consumptionRecorded')
-      }
+      request
     )
     if (result.success) {
       eventBus.emit('inventory:consumed')
@@ -300,11 +252,7 @@ export const useProductsApi = () => {
   const splitInventoryItem = async (inventoryItemPublicId: string, request: SplitInventoryItemRequest) => {
     const result = await client.post<SplitInventoryItemResponse>(
       `/api/v1/Product/inventory/${inventoryItemPublicId}/split`,
-      request,
-      {
-        showSuccessToast: true,
-        successMessage: $i18n.t('toast.inventoryItemSplit')
-      }
+      request
     )
     if (result.success) {
       eventBus.emit('inventory:split')
@@ -327,11 +275,7 @@ export const useProductsApi = () => {
   const quickAddMultipleInventoryItems = async (request: QuickAddMultipleInventoryItemsRequest) => {
     const result = await client.post<InventoryItemInfo[]>(
       '/api/v1/Product/inventory/quick/multiple',
-      request,
-      {
-        showSuccessToast: true,
-        successMessage: $i18n.t('toast.itemsAddedToInventory')
-      }
+      request
     )
     if (result.success) {
       eventBus.emit('inventory:created')
@@ -345,11 +289,7 @@ export const useProductsApi = () => {
   const moveInventoryItems = async (request: MoveInventoryItemsRequest) => {
     const result = await client.post<InventoryItemInfo[]>(
       '/api/v1/Product/inventory/move',
-      request,
-      {
-        showSuccessToast: true,
-        successMessage: $i18n.t('toast.itemsMoved')
-      }
+      request
     )
     if (result.success) {
       eventBus.emit('inventory:moved')
@@ -363,11 +303,7 @@ export const useProductsApi = () => {
   const deleteMultipleInventoryItems = async (request: DeleteMultipleInventoryItemsRequest) => {
     const result = await client.delete(
       '/api/v1/Product/inventory/multiple',
-      request,
-      {
-        showSuccessToast: true,
-        successMessage: $i18n.t('toast.itemsDeleted')
-      }
+      request
     )
     if (result.success) {
       eventBus.emit('inventory:deleted')
@@ -381,11 +317,7 @@ export const useProductsApi = () => {
   const consumeMultipleInventoryItems = async (request: ConsumeMultipleInventoryItemsRequest) => {
     const result = await client.post<InventoryItemInfo[]>(
       '/api/v1/Product/inventory/consume/multiple',
-      request,
-      {
-        showSuccessToast: true,
-        successMessage: $i18n.t('toast.consumptionRecorded')
-      }
+      request
     )
     if (result.success) {
       eventBus.emit('inventory:consumed')

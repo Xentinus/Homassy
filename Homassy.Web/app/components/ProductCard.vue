@@ -626,12 +626,6 @@ const uploadWithProgress = async (base64Data: string) => {
         // If completed or failed, stop polling and update UI
         if (progress.status === 'completed') {
           isUploadingImage.value = false
-          toast.add({
-            title: t('toast.success'),
-            description: t('toast.imageUploaded'),
-            color: 'success',
-            icon: 'i-heroicons-check-circle'
-          })
           emit('updated')
           // Auto-close modal after success
           setTimeout(() => {

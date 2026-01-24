@@ -554,11 +554,6 @@ const handleQuickPurchase = async () => {
   try {
     const response = await quickPurchaseShoppingListItem(props.item.publicId)
     if (response.success) {
-      toast.add({
-        title: t('toast.success'),
-        description: t('shoppingList.itemPurchased'),
-        color: 'success'
-      })
       emit('refresh')
     }
   } catch (error) {
@@ -573,11 +568,6 @@ const handleRestorePurchase = async () => {
   try {
     const response = await restorePurchaseShoppingListItem(props.item.publicId)
     if (response.success) {
-      toast.add({
-        title: t('toast.success'),
-        description: t('shoppingList.purchaseRestored'),
-        color: 'success'
-      })
       closeRestoreModal()
       emit('refresh')
     }
@@ -647,11 +637,6 @@ const handleUpdate = async () => {
 
     const response = await updateShoppingListItem(props.item.publicId, updateData)
     if (response.success) {
-      toast.add({
-        title: t('toast.success'),
-        description: t('shoppingList.itemUpdated'),
-        color: 'success'
-      })
       closeEditModal()
       emit('refresh')
     }
@@ -676,11 +661,6 @@ const handleDelete = async () => {
   try {
     const response = await deleteShoppingListItem(props.item.publicId)
     if (response.success) {
-      toast.add({
-        title: t('toast.success'),
-        description: t('shoppingList.itemDeleted'),
-        color: 'success'
-      })
       closeDeleteModal()
       emit('deleted')
     }

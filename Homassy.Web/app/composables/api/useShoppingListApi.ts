@@ -66,11 +66,7 @@ export const useShoppingListApi = () => {
   const createShoppingList = async (list: CreateShoppingListRequest) => {
     return await client.post<ShoppingListInfo>(
       '/api/v1/ShoppingList',
-      list,
-      {
-        showSuccessToast: true,
-        successMessage: $i18n.t('toast.shoppingListCreated')
-      }
+      list
     )
   }
 
@@ -80,11 +76,7 @@ export const useShoppingListApi = () => {
   const updateShoppingList = async (publicId: string, list: UpdateShoppingListRequest) => {
     return await client.put<ShoppingListInfo>(
       `/api/v1/ShoppingList/${publicId}`,
-      list,
-      {
-        showSuccessToast: true,
-        successMessage: $i18n.t('toast.shoppingListUpdated')
-      }
+      list
     )
   }
 
@@ -93,11 +85,7 @@ export const useShoppingListApi = () => {
    */
   const deleteShoppingList = async (publicId: string) => {
     return await client.delete(
-      `/api/v1/ShoppingList/${publicId}`,
-      {
-        showSuccessToast: true,
-        successMessage: $i18n.t('toast.shoppingListDeleted')
-      }
+      `/api/v1/ShoppingList/${publicId}`
     )
   }
 
@@ -107,11 +95,7 @@ export const useShoppingListApi = () => {
   const createShoppingListItem = async (item: CreateShoppingListItemRequest) => {
     const result = await client.post<ShoppingListItemInfo>(
       '/api/v1/ShoppingList/item',
-      item,
-      {
-        showSuccessToast: true,
-        successMessage: $i18n.t('toast.shoppingItemAdded')
-      }
+      item
     )
 
     // Emit event if deadline or due date is within 2 weeks
@@ -130,11 +114,7 @@ export const useShoppingListApi = () => {
   const updateShoppingListItem = async (publicId: string, item: UpdateShoppingListItemRequest) => {
     const result = await client.put<ShoppingListItemInfo>(
       `/api/v1/ShoppingList/item/${publicId}`,
-      item,
-      {
-        showSuccessToast: true,
-        successMessage: $i18n.t('toast.shoppingItemUpdated')
-      }
+      item
     )
 
     // Emit event if deadline or due date is within 2 weeks
@@ -152,11 +132,7 @@ export const useShoppingListApi = () => {
    */
   const deleteShoppingListItem = async (publicId: string) => {
     const result = await client.delete(
-      `/api/v1/ShoppingList/item/${publicId}`,
-      {
-        showSuccessToast: true,
-        successMessage: $i18n.t('toast.shoppingItemDeleted')
-      }
+      `/api/v1/ShoppingList/item/${publicId}`
     )
 
     emit('shopping-list-item:deleted')
@@ -169,11 +145,7 @@ export const useShoppingListApi = () => {
   const createMultipleShoppingListItems = async (request: CreateMultipleShoppingListItemsRequest) => {
     return await client.post<ShoppingListItemInfo[]>(
       '/api/v1/ShoppingList/item/multiple',
-      request,
-      {
-        showSuccessToast: true,
-        successMessage: $i18n.t('toast.shoppingItemsAdded')
-      }
+      request
     )
   }
 
@@ -183,11 +155,7 @@ export const useShoppingListApi = () => {
   const deleteMultipleShoppingListItems = async (request: DeleteMultipleShoppingListItemsRequest) => {
     return await client.post(
       '/api/v1/ShoppingList/item/multiple',
-      request,
-      {
-        showSuccessToast: true,
-        successMessage: $i18n.t('toast.shoppingItemsDeleted')
-      }
+      request
     )
   }
 
@@ -197,11 +165,7 @@ export const useShoppingListApi = () => {
   const quickPurchaseItem = async (request: QuickPurchaseFromShoppingListItemRequest) => {
     return await client.post(
       '/api/v1/ShoppingList/item/quick-purchase',
-      request,
-      {
-        showSuccessToast: true,
-        successMessage: $i18n.t('toast.itemPurchased')
-      }
+      request
     )
   }
 
@@ -211,11 +175,7 @@ export const useShoppingListApi = () => {
   const quickPurchaseMultipleItems = async (request: QuickPurchaseMultipleShoppingListItemsRequest) => {
     return await client.post(
       '/api/v1/ShoppingList/item/quick-purchase/multiple',
-      request,
-      {
-        showSuccessToast: true,
-        successMessage: $i18n.t('toast.itemsPurchased')
-      }
+      request
     )
   }
 

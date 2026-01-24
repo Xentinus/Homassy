@@ -338,12 +338,6 @@ async function uploadWithProgress(base64Data: string) {
 
         // If completed or failed, stop polling and update UI
         if (progress.status === 'completed') {
-          toast.add({
-            title: t('toast.success'),
-            description: t('toast.profilePictureUploaded'),
-            color: 'success',
-            icon: 'i-heroicons-check-circle'
-          })
           await fetchUserProfile()
           // Auto-close modal after success
           setTimeout(() => {

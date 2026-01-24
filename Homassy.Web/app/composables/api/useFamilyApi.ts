@@ -39,11 +39,7 @@ export const useFamilyApi = () => {
   const createFamily = async (family: CreateFamilyRequest) => {
     return await client.post<FamilyDetailsResponse>(
       '/api/v1/Family/create',
-      family,
-      {
-        showSuccessToast: true,
-        successMessage: $i18n.t('toast.familyCreated')
-      }
+      family
     )
   }
 
@@ -53,11 +49,7 @@ export const useFamilyApi = () => {
   const updateFamily = async (family: UpdateFamilyRequest) => {
     return await client.put<FamilyDetailsResponse>(
       '/api/v1/Family',
-      family,
-      {
-        showSuccessToast: true,
-        successMessage: $i18n.t('toast.familyUpdated')
-      }
+      family
     )
   }
 
@@ -67,11 +59,7 @@ export const useFamilyApi = () => {
   const joinFamily = async (request: JoinFamilyRequest) => {
     return await client.post<FamilyDetailsResponse>(
       '/api/v1/Family/join',
-      request,
-      {
-        showSuccessToast: true,
-        successMessage: $i18n.t('toast.joinedFamily')
-      }
+      request
     )
   }
 
@@ -81,11 +69,7 @@ export const useFamilyApi = () => {
   const leaveFamily = async () => {
     return await client.post(
       '/api/v1/Family/leave',
-      undefined,
-      {
-        showSuccessToast: true,
-        successMessage: $i18n.t('toast.leftFamily')
-      }
+      undefined
     )
   }
 
@@ -95,11 +79,7 @@ export const useFamilyApi = () => {
   const uploadFamilyPicture = async (request: UploadFamilyPictureRequest) => {
     return await client.post(
       '/api/v1/Family/picture',
-      request,
-      {
-        showSuccessToast: true,
-        successMessage: $i18n.t('toast.familyPictureUploaded')
-      }
+      request
     )
   }
 
@@ -108,11 +88,7 @@ export const useFamilyApi = () => {
    */
   const deleteFamilyPicture = async () => {
     return await client.delete(
-      '/api/v1/Family/picture',
-      {
-        showSuccessToast: true,
-        successMessage: $i18n.t('toast.familyPictureDeleted')
-      }
+      '/api/v1/Family/picture'
     )
   }
 

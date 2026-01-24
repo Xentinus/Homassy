@@ -56,10 +56,6 @@ export const useLocationsApi = () => {
         Color: location.color,
         IsFreezer: location.isFreezer,
         IsSharedWithFamily: location.isSharedWithFamily
-      },
-      {
-        showSuccessToast: true,
-        successMessage: $i18n.t('toast.storageLocationCreated')
       }
     )
   }
@@ -79,10 +75,6 @@ export const useLocationsApi = () => {
         Color: location.color,
         IsFreezer: location.isFreezer,
         IsSharedWithFamily: location.isSharedWithFamily
-      },
-      {
-        showSuccessToast: true,
-        successMessage: $i18n.t('toast.storageLocationUpdated')
       }
     )
   }
@@ -92,11 +84,7 @@ export const useLocationsApi = () => {
    */
   const deleteStorageLocation = async (storageLocationPublicId: string) => {
     return await client.delete(
-      `/api/v1/Location/storage/${storageLocationPublicId}`,
-      {
-        showSuccessToast: true,
-        successMessage: $i18n.t('toast.storageLocationDeleted')
-      }
+      `/api/v1/Location/storage/${storageLocationPublicId}`
     )
   }
 
@@ -106,11 +94,7 @@ export const useLocationsApi = () => {
   const createMultipleStorageLocations = async (request: CreateMultipleStorageLocationsRequest) => {
     return await client.post<StorageLocationInfo[]>(
       '/api/v1/Location/storage/multiple',
-      request,
-      {
-        showSuccessToast: true,
-        successMessage: $i18n.t('toast.storageLocationsCreated')
-      }
+      request
     )
   }
 
@@ -120,11 +104,7 @@ export const useLocationsApi = () => {
   const deleteMultipleStorageLocations = async (request: DeleteMultipleStorageLocationsRequest) => {
     return await client.post(
       '/api/v1/Location/storage/multiple',
-      request,
-      {
-        showSuccessToast: true,
-        successMessage: $i18n.t('toast.storageLocationsDeleted')
-      }
+      request
     )
   }
 
@@ -160,11 +140,7 @@ export const useLocationsApi = () => {
   const createShoppingLocation = async (location: ShoppingLocationRequest) => {
     return await client.post<ShoppingLocationInfo>(
       '/api/v1/Location/shopping',
-      location,
-      {
-        showSuccessToast: true,
-        successMessage: $i18n.t('toast.shoppingLocationCreated')
-      }
+      location
     )
   }
 
@@ -177,11 +153,7 @@ export const useLocationsApi = () => {
   ) => {
     return await client.put<ShoppingLocationInfo>(
       `/api/v1/Location/shopping/${shoppingLocationPublicId}`,
-      location,
-      {
-        showSuccessToast: true,
-        successMessage: $i18n.t('toast.shoppingLocationUpdated')
-      }
+      location
     )
   }
 
@@ -190,11 +162,7 @@ export const useLocationsApi = () => {
    */
   const deleteShoppingLocation = async (shoppingLocationPublicId: string) => {
     return await client.delete(
-      `/api/v1/Location/shopping/${shoppingLocationPublicId}`,
-      {
-        showSuccessToast: true,
-        successMessage: $i18n.t('toast.shoppingLocationDeleted')
-      }
+      `/api/v1/Location/shopping/${shoppingLocationPublicId}`
     )
   }
 
@@ -204,11 +172,7 @@ export const useLocationsApi = () => {
   const createMultipleShoppingLocations = async (request: CreateMultipleShoppingLocationsRequest) => {
     return await client.post<ShoppingLocationInfo[]>(
       '/api/v1/Location/shopping/multiple',
-      request,
-      {
-        showSuccessToast: true,
-        successMessage: $i18n.t('toast.shoppingLocationsCreated')
-      }
+      request
     )
   }
 
@@ -218,11 +182,7 @@ export const useLocationsApi = () => {
   const deleteMultipleShoppingLocations = async (request: DeleteMultipleShoppingLocationsRequest) => {
     return await client.post(
       '/api/v1/Location/shopping/multiple',
-      request,
-      {
-        showSuccessToast: true,
-        successMessage: $i18n.t('toast.shoppingLocationsDeleted')
-      }
+      request
     )
   }
 

@@ -149,13 +149,6 @@ export const useAuthStore = defineStore('auth', {
 
           if (response.data) {
             this.setAuthData(response.data)
-
-            toast.add({
-              title: $i18n.t('toast.loggedIn'),
-              description: $i18n.t('toast.welcome', { name: response.data.user.name }),
-              color: 'success',
-              icon: 'i-heroicons-check-circle'
-            })
           }
 
           return response

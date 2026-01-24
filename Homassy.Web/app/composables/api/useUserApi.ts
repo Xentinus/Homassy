@@ -33,11 +33,7 @@ export const useUserApi = () => {
   const updateUserSettings = async (settings: UpdateUserSettingsRequest) => {
     return await client.put<UserProfileResponse>(
       '/api/v1/User/settings',
-      settings,
-      {
-        showSuccessToast: true,
-        successMessage: $i18n.t('toast.settingsUpdatedSuccess')
-      }
+      settings
     )
   }
 
@@ -47,11 +43,7 @@ export const useUserApi = () => {
   const uploadProfilePicture = async (request: UploadUserProfileImageRequest) => {
     return await client.post(
       '/api/v1/User/profile-picture',
-      request,
-      {
-        showSuccessToast: true,
-        successMessage: $i18n.t('toast.profilePictureUploaded')
-      }
+      request
     )
   }
 
@@ -74,11 +66,7 @@ export const useUserApi = () => {
    */
   const deleteProfilePicture = async () => {
     return await client.delete(
-      '/api/v1/User/profile-picture',
-      {
-        showSuccessToast: true,
-        successMessage: $i18n.t('toast.profilePictureDeleted')
-      }
+      '/api/v1/User/profile-picture'
     )
   }
 
@@ -95,11 +83,7 @@ export const useUserApi = () => {
   const updateNotificationPreferences = async (preferences: UpdateNotificationPreferencesRequest) => {
     return await client.put<void>(
       '/api/v1/User/notification',
-      preferences,
-      {
-        showSuccessToast: true,
-        successMessage: $i18n.t('toast.notificationPreferencesUpdated')
-      }
+      preferences
     )
   }
 
