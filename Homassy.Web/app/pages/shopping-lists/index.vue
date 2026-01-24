@@ -115,12 +115,13 @@
     </div>
 
     <!-- Content Section (with padding for fixed header) -->
-    <div class="pt-64 px-4 sm:px-8 lg:px-14 pb-6">
+    <div class="pt-64 px-2 sm:px-4 md:px-6 lg:px-8 pb-6">
       <!-- Loading State -->
-      <div v-if="isLoadingDetails" class="space-y-3">
-        <USkeleton class="h-32 w-full" />
-        <USkeleton class="h-32 w-full" />
-        <USkeleton class="h-32 w-full" />
+      <div v-if="isLoadingDetails" class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+        <USkeleton class="h-48 w-full" />
+        <USkeleton class="h-48 w-full" />
+        <USkeleton class="h-48 w-full" />
+        <USkeleton class="h-48 w-full" />
       </div>
 
       <!-- Empty: No Lists -->
@@ -147,7 +148,7 @@
       </div>
 
       <!-- Items Grid -->
-      <div v-else class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+      <div v-else class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
         <ShoppingListItemCard
           v-for="item in filteredItems"
           :key="item.publicId"

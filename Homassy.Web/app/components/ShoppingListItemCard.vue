@@ -1,98 +1,90 @@
 <template>
   <div
-    class="relative bg-white dark:bg-gray-800 rounded-lg border p-4 space-y-3 cursor-pointer hover:shadow-md transition-shadow"
+    class="group relative bg-gradient-to-br from-white to-gray-50 dark:from-gray-800 dark:to-gray-900 rounded-xl border-2 p-3 cursor-pointer hover:shadow-lg hover:-translate-y-0.5 transition-all duration-200 flex flex-col overflow-hidden card-animate"
     :class="cardBorderClass"
     @click="handleCardClick"
   >
-    <div class="flex gap-4">
-      <!-- Product Image -->
-      <div v-if="item.product?.productPictureBase64" class="flex-shrink-0">
-        <img
-          :src="`data:image/jpeg;base64,${item.product.productPictureBase64}`"
-          :alt="displayName"
-          class="w-20 h-20 md:w-24 md:h-24 object-contain rounded-lg cursor-pointer hover:opacity-90 transition-opacity"
-          @click.stop="isImageOverlayOpen = true"
-        >
-      </div>
-      <div v-else class="flex-shrink-0 w-20 h-20 md:w-24 md:h-24 bg-gray-100 dark:bg-gray-700 rounded-lg flex items-center justify-center">
-        <UIcon name="i-lucide-package" class="h-10 w-10 text-gray-400 dark:text-gray-500" />
-      </div>
-
+    <!-- Header: Title and Action Buttons -->
+    <div class="flex items-start justify-between gap-2">
       <!-- Item Details -->
-      <div class="flex-1 min-w-0 space-y-2">
+      <div class="flex-1 min-w-0 space-y-1">
         <!-- Product Name -->
-        <div class="break-words">
-          <h3 
-            class="text-lg font-semibold break-words"
-            v-html="highlightText(displayName, searchQuery)"
+        <h3 
+          class="text-sm font-bold break-words text-gray-900 dark:text-white"
+          v-html="highlightText(displayName, searchQuery)"
+        />
+        <!-- Brand -->
+        <p 
+          v-if="item.product?.brand" 
+          class="text-xs text-gray-500 dark:text-gray-400 break-words font-medium"
+          v-html="highlightText(item.product.brand, searchQuery)"
+        />
+      </div>
+
+      <!-- Action Button & Image Icon -->
+      <div class="flex items-center gap-0.5 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity duration-200">
+        <!-- Action Menu -->
+        <UDropdownMenu :items="dropdownItems" size="md">
+          <UButton
+            icon="i-lucide-ellipsis-vertical"
+            size="xs"
+            variant="subtle"
+            @click.stop
           />
-          <p 
-            v-if="item.product?.brand" 
-            class="text-sm text-gray-600 dark:text-gray-400 break-words"
-            v-html="highlightText(item.product.brand, searchQuery)"
-          />
-        </div>
+        </UDropdownMenu>
+      </div>
+    </div>
 
-        <!-- Shopping Location with Google Maps -->
-        <div v-if="item.shoppingLocation" class="flex items-center gap-2 text-sm">
-          <UIcon name="i-lucide-map-pin" class="h-4 w-4 text-gray-500" />
-          <span class="text-gray-700 dark:text-gray-300">{{ item.shoppingLocation.name }}</span>
-          <a
-            v-if="item.shoppingLocation.googleMaps"
-            :href="item.shoppingLocation.googleMaps"
-            target="_blank"
-            rel="noopener noreferrer"
-            class="text-primary-500 hover:text-primary-600 dark:hover:text-primary-400 transition-colors"
-          >
-            <UIcon name="i-lucide-external-link" class="h-4 w-4" />
-          </a>
-        </div>
+    <!-- Values Section (at the bottom) -->
+    <div class="mt-auto pt-4 space-y-2.5">
+      <!-- Shopping Location with Google Maps -->
+      <div v-if="item.shoppingLocation" class="flex items-center gap-2 text-xs">
+        <UIcon name="i-lucide-map-pin" class="h-3.5 w-3.5 text-blue-600 dark:text-blue-400 flex-shrink-0" />
+        <span class="text-gray-700 dark:text-gray-300 font-medium break-words line-clamp-1 flex-1">{{ item.shoppingLocation.name }}</span>
+        <a
+          v-if="item.shoppingLocation.googleMaps"
+          :href="item.shoppingLocation.googleMaps"
+          target="_blank"
+          rel="noopener noreferrer"
+          class="text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 transition-colors flex-shrink-0"
+        >
+          <UIcon name="i-lucide-external-link" class="h-3 w-3" />
+        </a>
+      </div>
 
-        <!-- Quantity and Unit -->
-        <div class="flex items-center gap-2 text-sm">
-          <UIcon name="i-lucide-package-2" class="h-4 w-4 text-gray-500" />
-          <span class="font-medium text-gray-900 dark:text-gray-100">
-            {{ item.quantity }} {{ unitLabel }}
-          </span>
-        </div>
+      <!-- Quantity and Unit -->
+      <div class="flex items-center gap-2 text-xs">
+        <UIcon name="i-lucide-package-2" class="h-3.5 w-3.5 text-amber-600 dark:text-amber-400 flex-shrink-0" />
+        <span class="font-bold text-gray-900 dark:text-gray-100">{{ item.quantity }}</span>
+        <span class="text-gray-700 dark:text-gray-300">{{ unitLabel }}</span>
+      </div>
 
-        <!-- Note (if not empty) -->
-        <div v-if="item.note" class="flex items-start gap-2 text-sm">
-          <UIcon name="i-lucide-sticky-note" class="h-4 w-4 text-gray-500 mt-0.5" />
-          <p 
-            class="text-gray-600 dark:text-gray-400 italic"
-            v-html="highlightText(item.note, searchQuery)"
-          />
-        </div>
+      <!-- Note (if not empty) -->
+      <div v-if="item.note" class="flex items-start gap-2 text-xs">
+        <UIcon name="i-lucide-sticky-note" class="h-3.5 w-3.5 text-purple-600 dark:text-purple-400 mt-0.5 flex-shrink-0" />
+        <p 
+          class="text-gray-600 dark:text-gray-400 italic line-clamp-2"
+          v-html="highlightText(item.note, searchQuery)"
+        />
+      </div>
 
-        <!-- Dates -->
-        <div class="flex flex-wrap gap-3 text-xs">
-          <div v-if="item.dueAt" class="flex items-center gap-1 text-gray-600 dark:text-gray-400">
-            <UIcon name="i-lucide-calendar-clock" class="h-3 w-3" />
-            <span>{{ $t('common.due') }}: {{ formatDate(item.dueAt) }}</span>
-          </div>
-          <div v-if="item.deadlineAt" class="flex items-center gap-1 text-gray-600 dark:text-gray-400">
-            <UIcon name="i-lucide-calendar-x" class="h-3 w-3" />
-            <span>{{ $t('common.deadline') }}: {{ formatDate(item.deadlineAt) }}</span>
-          </div>
+      <!-- Dates -->
+      <div v-if="item.dueAt || item.deadlineAt" class="space-y-1.5">
+        <div v-if="item.dueAt" class="flex items-center gap-2 text-xs">
+          <UIcon name="i-lucide-calendar-clock" class="h-3.5 w-3.5 text-orange-600 dark:text-orange-400 flex-shrink-0" />
+          <span class="text-gray-600 dark:text-gray-400">{{ formatDate(item.dueAt) }}</span>
         </div>
-
-        <!-- Purchased Badge -->
-        <div v-if="item.purchasedAt" class="inline-flex items-center gap-1 px-2 py-1 bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 rounded text-xs font-medium">
-          <UIcon name="i-lucide-check-circle" class="h-3 w-3" />
-          <span>{{ $t('common.purchased') }}</span>
+        <div v-if="item.deadlineAt" class="flex items-center gap-2 text-xs">
+          <UIcon name="i-lucide-calendar-x" class="h-3.5 w-3.5 text-red-600 dark:text-red-400 flex-shrink-0" />
+          <span class="text-gray-600 dark:text-gray-400">{{ formatDate(item.deadlineAt) }}</span>
         </div>
       </div>
 
-      <!-- Action Buttons -->
-      <UDropdownMenu :items="dropdownItems" size="md" class="flex-shrink-0 self-start">
-        <UButton
-          icon="i-lucide-ellipsis-vertical"
-          size="sm"
-          variant="subtle"
-          @click.stop
-        />
-      </UDropdownMenu>
+      <!-- Purchased Badge -->
+      <div v-if="item.purchasedAt" class="flex items-center gap-2 px-3 py-1.5 bg-gradient-to-r from-green-50 to-emerald-50 dark:from-green-900/30 dark:to-emerald-900/30 rounded-lg border border-green-300/50 dark:border-green-700/50 shadow-sm">
+        <UIcon name="i-lucide-check-circle-2" class="h-4 w-4 text-green-600 dark:text-green-400 flex-shrink-0" />
+        <span class="text-xs font-bold text-green-700 dark:text-green-300">{{ $t('common.purchased') }}</span>
+      </div>
     </div>
 
     <!-- Purchase Confirmation Modal -->
@@ -107,12 +99,54 @@
 
       <template #body>
         <div class="space-y-3">
+          <!-- Product Image (if available) -->
+          <div v-if="item.product?.productPictureBase64" class="flex justify-center">
+            <img
+              :src="`data:image/jpeg;base64,${item.product.productPictureBase64}`"
+              :alt="displayName"
+              class="w-32 h-32 object-contain rounded-lg cursor-pointer hover:opacity-90 transition-opacity border border-gray-200 dark:border-gray-700"
+              @click="openImageFromModal"
+            >
+          </div>
+          
           <div class="flex items-start gap-3 p-3 bg-gray-50 dark:bg-gray-900/50 rounded-lg">
             <UIcon name="i-lucide-package" class="h-5 w-5 text-gray-500 mt-0.5" />
-            <div class="flex-1">
-              <p class="font-medium">{{ displayName }}</p>
-              <p v-if="item.product?.brand" class="text-sm text-gray-600 dark:text-gray-400">{{ item.product.brand }}</p>
-              <p class="text-sm text-gray-600 dark:text-gray-400 mt-1">{{ item.quantity }} {{ unitLabel }}</p>
+            <div class="flex-1 space-y-2">
+              <div>
+                <p class="font-medium break-words">{{ displayName }}</p>
+                <p v-if="item.product?.brand" class="text-sm text-gray-600 dark:text-gray-400 break-words">{{ item.product.brand }}</p>
+              </div>
+              
+              <!-- Quantity -->
+              <div class="flex items-center gap-2 text-sm">
+                <UIcon name="i-lucide-package-2" class="h-3.5 w-3.5 text-amber-600 dark:text-amber-400 flex-shrink-0" />
+                <span class="font-bold text-gray-900 dark:text-gray-100">{{ item.quantity }}</span>
+                <span class="text-gray-700 dark:text-gray-300">{{ unitLabel }}</span>
+              </div>
+
+              <!-- Shopping Location -->
+              <div v-if="item.shoppingLocation" class="flex items-center gap-2 text-sm">
+                <UIcon name="i-lucide-map-pin" class="h-3.5 w-3.5 text-blue-600 dark:text-blue-400 flex-shrink-0" />
+                <span class="text-gray-700 dark:text-gray-300 font-medium">{{ item.shoppingLocation.name }}</span>
+              </div>
+
+              <!-- Note -->
+              <div v-if="item.note" class="flex items-start gap-2 text-sm">
+                <UIcon name="i-lucide-sticky-note" class="h-3.5 w-3.5 text-purple-600 dark:text-purple-400 mt-0.5 flex-shrink-0" />
+                <p class="text-gray-600 dark:text-gray-400 italic">{{ item.note }}</p>
+              </div>
+
+              <!-- Dates -->
+              <div v-if="item.dueAt || item.deadlineAt" class="space-y-1">
+                <div v-if="item.dueAt" class="flex items-center gap-2 text-sm">
+                  <UIcon name="i-lucide-calendar-clock" class="h-3.5 w-3.5 text-orange-600 dark:text-orange-400 flex-shrink-0" />
+                  <span class="text-gray-600 dark:text-gray-400">{{ formatDate(item.dueAt) }}</span>
+                </div>
+                <div v-if="item.deadlineAt" class="flex items-center gap-2 text-sm">
+                  <UIcon name="i-lucide-calendar-x" class="h-3.5 w-3.5 text-red-600 dark:text-red-400 flex-shrink-0" />
+                  <span class="text-gray-600 dark:text-gray-400">{{ formatDate(item.deadlineAt) }}</span>
+                </div>
+              </div>
             </div>
           </div>
         </div>
@@ -364,7 +398,7 @@
     >
       <div
         v-if="isImageOverlayOpen && item.product?.productPictureBase64"
-        class="fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-4 cursor-pointer"
+        class="fixed inset-0 z-[100] bg-black/80 flex items-center justify-center p-4 cursor-pointer"
         @click.stop="isImageOverlayOpen = false"
         @keydown.esc="isImageOverlayOpen = false"
       >
@@ -399,7 +433,7 @@ const emit = defineEmits<{
   deleted: []
 }>()
 
-const { t } = useI18n()
+const { t, locale } = useI18n()
 const { inputDateLocale } = useInputDateLocale()
 const { quickPurchaseShoppingListItem, restorePurchaseShoppingListItem, updateShoppingListItem, deleteShoppingListItem } = useShoppingListApi()
 const { isExpired: checkIsExpired, isExpiringWithinTwoWeeks: checkIsExpiringWithinTwoWeeks } = useExpirationCheck()
@@ -441,6 +475,27 @@ const displayName = computed(() => {
 const unitLabel = computed(() => {
   if (props.item.unit === null || props.item.unit === undefined) return ''
   return t(`enums.unit.${props.item.unit}`)
+})
+
+// Status checks for dates
+const hasExpiredDate = computed(() => {
+  const deadlineDate = props.item.deadlineAt ? new Date(props.item.deadlineAt) : null
+  const dueDate = props.item.dueAt ? new Date(props.item.dueAt) : null
+  const targetDate = deadlineDate && dueDate
+    ? (deadlineDate < dueDate ? deadlineDate : dueDate)
+    : (deadlineDate || dueDate)
+  
+  return targetDate ? checkIsExpired(targetDate) : false
+})
+
+const hasExpiringDate = computed(() => {
+  const deadlineDate = props.item.deadlineAt ? new Date(props.item.deadlineAt) : null
+  const dueDate = props.item.dueAt ? new Date(props.item.dueAt) : null
+  const targetDate = deadlineDate && dueDate
+    ? (deadlineDate < dueDate ? deadlineDate : dueDate)
+    : (deadlineDate || dueDate)
+  
+  return targetDate ? checkIsExpiringWithinTwoWeeks(targetDate) : false
 })
 
 // Helper function to escape regex special characters
@@ -493,30 +548,16 @@ const unitOptions = computed(() => {
 const cardBorderClass = computed(() => {
   // If purchased, show green border
   if (props.item.purchasedAt) {
-    return 'border-green-500 dark:border-green-600'
+    return 'border-green-400 dark:border-green-500'
   }
 
-  // Check deadline date
-  const deadlineDate = props.item.deadlineAt ? new Date(props.item.deadlineAt) : null
-  const dueDate = props.item.dueAt ? new Date(props.item.dueAt) : null
-
-  // Use the earlier of deadline or due date
-  const targetDate = deadlineDate && dueDate
-    ? (deadlineDate < dueDate ? deadlineDate : dueDate)
-    : (deadlineDate || dueDate)
-
-  if (!targetDate) {
-    return 'border-gray-200 dark:border-gray-700'
+  // Check if has expired or expiring dates
+  if (hasExpiredDate.value) {
+    return 'border-red-400 dark:border-red-500'
   }
 
-  // If date has passed, show danger (red)
-  if (checkIsExpired(targetDate)) {
-    return 'border-red-500 dark:border-red-600'
-  }
-
-  // If within 2 weeks, show primary (blue)
-  if (checkIsExpiringWithinTwoWeeks(targetDate)) {
-    return 'border-primary-500 dark:border-primary-600'
+  if (hasExpiringDate.value) {
+    return 'border-primary-400 dark:border-primary-500'
   }
 
   // Default border
@@ -525,7 +566,12 @@ const cardBorderClass = computed(() => {
 
 // Methods
 const formatDate = (dateString: string): string => {
-  return new Date(dateString).toLocaleDateString()
+  const localeCode = locale.value === 'hu' ? 'hu-HU' : 'en-US'
+  return new Date(dateString).toLocaleDateString(localeCode, { 
+    year: 'numeric', 
+    month: '2-digit', 
+    day: '2-digit' 
+  })
 }
 
 // Card click handler
@@ -547,6 +593,15 @@ const handleCardClick = (event: MouseEvent) => {
 const confirmPurchase = async () => {
   await handleQuickPurchase()
   isPurchaseModalOpen.value = false
+}
+
+// Open image from modal - close modal first, then open overlay
+const openImageFromModal = () => {
+  isPurchaseModalOpen.value = false
+  // Use setTimeout to ensure modal closes before opening overlay
+  setTimeout(() => {
+    isImageOverlayOpen.value = true
+  }, 100)
 }
 
 const handleQuickPurchase = async () => {
@@ -680,3 +735,20 @@ const closeRestoreModal = () => {
   isRestoreModalOpen.value = false
 }
 </script>
+
+<style scoped>
+@keyframes slideInUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.card-animate {
+  animation: slideInUp 0.4s ease-out;
+}
+</style>
