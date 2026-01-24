@@ -97,6 +97,18 @@ namespace Homassy.API.Context
                 .WithOne(n => n.User)
                 .HasForeignKey<UserNotificationPreferences>(n => n.UserId)
                 .OnDelete(DeleteBehavior.Cascade);
+
+            modelBuilder.Entity<User>()
+                .HasMany(u => u.PushSubscriptions)
+                .WithOne(s => s.User)
+                .HasForeignKey(s => s.UserId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            modelBuilder.Entity<UserPushSubscription>(entity =>
+            {
+                entity.HasIndex(e => e.UserId);
+                entity.HasIndex(e => e.Endpoint).IsUnique();
+            });
             #endregion
 
             #region Product Relationships
@@ -196,6 +208,7 @@ namespace Homassy.API.Context
         public DbSet<UserProfile> UserProfiles { get; set; }
         public DbSet<UserAuthentication> UserAuthentications { get; set; }
         public DbSet<UserNotificationPreferences> UserNotificationPreferences { get; set; }
+        public DbSet<UserPushSubscription> UserPushSubscriptions { get; set; }
         public DbSet<Family> Families { get; set; }
         #endregion
 

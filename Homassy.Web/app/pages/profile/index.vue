@@ -93,97 +93,42 @@
 
     <!-- Cards Grid: Settings, Family, ... -->
     <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mt-8">
-      <template v-if="loading">
-        <USkeleton class="h-32 w-full rounded-lg" />
-        <USkeleton class="h-32 w-full rounded-lg" />
-        <USkeleton class="h-32 w-full rounded-lg" />
-      </template>
-      <template v-else>
-        <!-- Settings Card -->
-        <NuxtLink to="/profile/settings">
-          <div class="rounded-lg border border-primary-200/50 dark:border-primary-700/50 p-4 relative hover:border-primary-300 dark:hover:border-primary-700 transition-colors cursor-pointer flex items-center gap-3 h-full">
-            <UIcon name="i-lucide-settings" class="h-7 w-7 text-primary-500 mr-2" />
-            <div class="flex-1">
-              <h2 class="text-base font-semibold mb-1">{{ $t('profile.settings') }}</h2>
-              <div class="space-y-2 text-sm">
-                <div class="flex items-center">
-                  <span class="text-gray-600 dark:text-gray-400 flex-1">{{ $t('profile.language') }}</span>
-                  <span class="font-medium text-right min-w-[80px] w-full justify-end flex">{{ userProfile?.language }}</span>
-                </div>
-                <div class="flex items-center">
-                  <span class="text-gray-600 dark:text-gray-400 flex-1">{{ $t('profile.currency') }}</span>
-                  <span class="font-medium text-right min-w-[80px] w-full justify-end flex">{{ userProfile?.currency }}</span>
-                </div>
-                <div class="flex items-center">
-                  <span class="text-gray-600 dark:text-gray-400 flex-1">{{ $t('profile.timeZone') }}</span>
-                  <span class="font-medium text-right min-w-[80px] w-full justify-end flex">{{ userProfile?.timeZone }}</span>
-                </div>
-              </div>
-            </div>
-            <UIcon name="i-lucide-chevron-right" class="absolute top-3 right-3 text-gray-400" />
-          </div>
-        </NuxtLink>
-
-        <!-- Family Card -->
-        <NuxtLink to="/profile/family">
-          <div class="rounded-lg border border-primary-200/50 dark:border-primary-700/50 p-4 relative hover:border-primary-300 dark:hover:border-primary-700 transition-colors cursor-pointer flex items-center gap-3 h-full">
-            <UIcon name="i-lucide-users" class="h-7 w-7 text-primary-500 mr-2" />
-            <div>
-              <h2 class="text-base font-semibold mb-1">{{ $t('profile.family.title') }}</h2>
-              <div class="text-xs text-gray-500 dark:text-gray-400">{{ $t('profile.family.cardDescription') }}</div>
-            </div>
-            <UIcon name="i-lucide-chevron-right" class="absolute top-3 right-3 text-gray-400" />
-          </div>
-        </NuxtLink>
-
-        <!-- Notifications Card -->
-        <NuxtLink to="/profile/notifications">
-          <div class="rounded-lg border border-primary-200/50 dark:border-primary-700/50 p-4 relative hover:border-primary-300 dark:hover:border-primary-700 transition-colors cursor-pointer flex items-center gap-3 h-full">
-            <UIcon name="i-lucide-bell" class="h-7 w-7 text-primary-500 mr-2" />
-            <div>
-              <h2 class="text-base font-semibold mb-1">{{ $t('profile.notifications.title') }}</h2>
-              <div class="text-xs text-gray-500 dark:text-gray-400">{{ $t('profile.notifications.cardDescription') }}</div>
-            </div>
-            <UIcon name="i-lucide-chevron-right" class="absolute top-3 right-3 text-gray-400" />
-          </div>
-        </NuxtLink>
-
-        <!-- All Products Card -->
-        <NuxtLink to="/profile/products">
-          <div class="rounded-lg border border-primary-200/50 dark:border-primary-700/50 p-4 relative hover:border-primary-300 dark:hover:border-primary-700 transition-colors cursor-pointer flex items-center gap-3 h-full">
-            <UIcon name="i-lucide-package" class="h-7 w-7 text-primary-500 mr-2" />
-            <div>
-              <h2 class="text-base font-semibold mb-1">{{ $t('profile.allProducts.title') }}</h2>
-              <div class="text-xs text-gray-500 dark:text-gray-400">{{ $t('profile.allProducts.cardDescription') }}</div>
-            </div>
-            <UIcon name="i-lucide-chevron-right" class="absolute top-3 right-3 text-gray-400" />
-          </div>
-        </NuxtLink>
-
-        <!-- Shopping Locations Card -->
-        <NuxtLink to="/profile/shopping-locations">
-          <div class="rounded-lg border border-primary-200/50 dark:border-primary-700/50 p-4 relative hover:border-primary-300 dark:hover:border-primary-700 transition-colors cursor-pointer flex items-center gap-3 h-full">
-            <UIcon name="i-lucide-shopping-cart" class="h-7 w-7 text-primary-500 mr-2" />
-            <div>
-              <h2 class="text-base font-semibold mb-1">{{ $t('profile.shoppingLocations.title') }}</h2>
-              <div class="text-xs text-gray-500 dark:text-gray-400">{{ $t('profile.shoppingLocations.cardDescription') }}</div>
-            </div>
-            <UIcon name="i-lucide-chevron-right" class="absolute top-3 right-3 text-gray-400" />
-          </div>
-        </NuxtLink>
-
-        <!-- Storage Locations Card -->
-        <NuxtLink to="/profile/storage-locations">
-          <div class="rounded-lg border border-primary-200/50 dark:border-primary-700/50 p-4 relative hover:border-primary-300 dark:hover:border-primary-700 transition-colors cursor-pointer flex items-center gap-3 h-full">
-            <UIcon name="i-lucide-warehouse" class="h-7 w-7 text-primary-500 mr-2" />
-            <div>
-              <h2 class="text-base font-semibold mb-1">{{ $t('profile.storageLocations.title') }}</h2>
-              <div class="text-xs text-gray-500 dark:text-gray-400">{{ $t('profile.storageLocations.cardDescription') }}</div>
-            </div>
-            <UIcon name="i-lucide-chevron-right" class="absolute top-3 right-3 text-gray-400" />
-          </div>
-        </NuxtLink>
-      </template>
+      <ButtonCard
+        icon="i-lucide-settings"
+        :title="$t('profile.settings')"
+        :description="$t('profile.settingsCardDescription')"
+        to="/profile/settings"
+      />
+      <ButtonCard
+        icon="i-lucide-users"
+        :title="$t('profile.family.title')"
+        :description="$t('profile.family.cardDescription')"
+        to="/profile/family"
+      />
+      <ButtonCard
+        icon="i-lucide-bell"
+        :title="$t('profile.notifications.title')"
+        :description="$t('profile.notifications.cardDescription')"
+        to="/profile/notifications"
+      />
+      <ButtonCard
+        icon="i-lucide-package"
+        :title="$t('profile.allProducts.title')"
+        :description="$t('profile.allProducts.cardDescription')"
+        to="/profile/products"
+      />
+      <ButtonCard
+        icon="i-lucide-shopping-cart"
+        :title="$t('profile.shoppingLocations.title')"
+        :description="$t('profile.shoppingLocations.cardDescription')"
+        to="/profile/shopping-locations"
+      />
+      <ButtonCard
+        icon="i-lucide-warehouse"
+        :title="$t('profile.storageLocations.title')"
+        :description="$t('profile.storageLocations.cardDescription')"
+        to="/profile/storage-locations"
+      />
     </div>
 
     <!-- Version Info -->

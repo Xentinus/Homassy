@@ -3,6 +3,7 @@ using Homassy.API.Enums;
 using Homassy.API.Functions;
 using Homassy.API.Models;
 using Homassy.API.Models.Common;
+using Homassy.API.Models.PushNotification;
 using Homassy.API.Models.User;
 using Homassy.API.Models.ImageUpload;
 using Homassy.API.Services;
@@ -23,11 +24,13 @@ namespace Homassy.API.Controllers
     {
         private readonly IImageProcessingService _imageProcessingService;
         private readonly IProgressTrackerService _progressTrackerService;
+        private readonly IWebPushService _webPushService;
 
-        public UserController(IImageProcessingService imageProcessingService, IProgressTrackerService progressTrackerService)
+        public UserController(IImageProcessingService imageProcessingService, IProgressTrackerService progressTrackerService, IWebPushService webPushService)
         {
             _imageProcessingService = imageProcessingService;
             _progressTrackerService = progressTrackerService;
+            _webPushService = webPushService;
         }
 
         /// <summary>
@@ -241,6 +244,81 @@ namespace Homassy.API.Controllers
 
             var result = await new ActivityFunctions().GetActivitiesAsync(request, cancellationToken);
             return Ok(ApiResponse<PagedResult<Models.Activity.ActivityInfo>>.SuccessResponse(result));
+        }
+
+        /// <summary>
+        /// Gets the VAPID public key for push notification subscription.
+        /// </summary>
+        [HttpGet("push/vapid-key")]
+        [MapToApiVersion(1.0)]
+        [ProducesResponseType(typeof(ApiResponse<VapidPublicKeyResponse>), StatusCodes.Status200OK)]
+        public IActionResult GetVapidPublicKey()
+        {
+            var publicKey = _webPushService.GetVapidPublicKey();
+            return Ok(ApiResponse<VapidPublicKeyResponse>.SuccessResponse(
+                new VapidPublicKeyResponse { PublicKey = publicKey }));
+        }
+
+        /// <summary>
+        /// Subscribes the current device for push notifications.
+        /// </summary>
+        [HttpPost("push/subscribe")]
+        [MapToApiVersion(1.0)]
+        [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status200OK)]
+        [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status400BadRequest)]
+        public async Task<IActionResult> SubscribePush([FromBody] CreatePushSubscriptionRequest request, CancellationToken cancellationToken)
+        {
+            if (!ModelState.IsValid)
+            {
+                return BadRequest(ApiResponse.ErrorResponse(ErrorCodes.ValidationInvalidRequest));
+            }
+
+            await new PushNotificationFunctions().SubscribeAsync(
+                request.Endpoint, request.P256dh, request.Auth, request.UserAgent, cancellationToken);
+            return Ok(ApiResponse.SuccessResponse());
+        }
+
+        /// <summary>
+        /// Unsubscribes the current device from push notifications.
+        /// </summary>
+        [HttpPost("push/unsubscribe")]
+        [MapToApiVersion(1.0)]
+        [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status200OK)]
+        [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status400BadRequest)]
+        public async Task<IActionResult> UnsubscribePush([FromBody] UnsubscribePushRequest request, CancellationToken cancellationToken)
+        {
+            if (!ModelState.IsValid)
+            {
+                return BadRequest(ApiResponse.ErrorResponse(ErrorCodes.ValidationInvalidRequest));
+            }
+
+            await new PushNotificationFunctions().UnsubscribeAsync(request.Endpoint, cancellationToken);
+            return Ok(ApiResponse.SuccessResponse());
+        }
+
+        /// <summary>
+        /// Sends a test push notification to the current device.
+        /// </summary>
+        [HttpPost("push/test")]
+        [MapToApiVersion(1.0)]
+        [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status200OK)]
+        [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status404NotFound)]
+        public async Task<IActionResult> SendTestPushNotification(CancellationToken cancellationToken)
+        {
+            try
+            {
+                await new PushNotificationFunctions().SendTestNotificationAsync(_webPushService, cancellationToken);
+                return Ok(ApiResponse.SuccessResponse());
+            }
+            catch (InvalidOperationException ex)
+            {
+                return BadRequest(ApiResponse.ErrorResponse(ErrorCodes.ValidationInvalidRequest, ex.Message));
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(ApiResponse.ErrorResponse(ErrorCodes.ValidationInvalidRequest, ex.Message));
+            }
         }
     }
 }

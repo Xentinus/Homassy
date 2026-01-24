@@ -71,6 +71,9 @@ try
     builder.Services.AddHostedService<EmailBackgroundService>();
     builder.Services.AddHostedService<TokenCleanupService>();
 
+    builder.Services.AddSingleton<IWebPushService, WebPushService>();
+    builder.Services.AddHostedService<PushNotificationSchedulerService>();
+
     builder.Services.Configure<HttpsSettings>(builder.Configuration.GetSection("Https"));
     builder.Services.Configure<RequestTimeoutSettings>(builder.Configuration.GetSection("RequestTimeout"));
     builder.Services.Configure<HealthCheckOptions>(builder.Configuration.GetSection("HealthChecks"));

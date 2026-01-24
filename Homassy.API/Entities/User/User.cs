@@ -24,5 +24,6 @@ namespace Homassy.API.Entities.User
        public UserProfile? Profile { get; set; }
        public UserNotificationPreferences? NotificationPreferences { get; set; }
        public UserAuthentication? Authentication { get; set; }
+       public ICollection<UserPushSubscription> PushSubscriptions { get; set; } = new List<UserPushSubscription>();
     }
 }
