@@ -20,6 +20,9 @@ RUN npm ci
 
 COPY . .
 
+# Increase Node.js heap to avoid OOM during Nuxt build
+ENV NODE_OPTIONS=--max-old-space-size=4096
+
 # Run build with verbose output and verify success
 RUN npm run build && \
     if [ ! -d ".output" ]; then \
