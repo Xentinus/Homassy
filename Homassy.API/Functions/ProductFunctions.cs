@@ -1053,6 +1053,7 @@ namespace Homassy.API.Functions
                 // Use cache
                 count = _inventoryItemCache.Values
                     .Where(i => !i.IsDeleted && !i.IsFullyConsumed && i.ExpirationAt.HasValue)
+                    .Where(i => _productCache.TryGetValue(i.ProductId, out var product) && !product.IsDeleted)
                     .Where(i => familyId.HasValue 
                         ? (i.UserId == userId || i.FamilyId == familyId)
                         : i.UserId == userId)
