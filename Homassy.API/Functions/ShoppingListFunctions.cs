@@ -1920,9 +1920,12 @@ namespace Homassy.API.Functions
 
             if (Inited)
             {
+                var productFunctions = new ProductFunctions();
                 count = _shoppingListItemCache.Values
                     .Where(sli => !sli.PurchasedAt.HasValue &&
                                   shoppingListIds.Contains(sli.ShoppingListId) &&
+                                  // If item has a product reference, check that product is not deleted
+                                  (sli.ProductId == null || !productFunctions.GetProductById(sli.ProductId.Value)?.IsDeleted == true) &&
                                   ((sli.DeadlineAt.HasValue && sli.DeadlineAt.Value.Date <= twoWeeksFromNow) ||
                                    (sli.DueAt.HasValue && sli.DueAt.Value.Date <= twoWeeksFromNow)))
                     .Count();
@@ -1930,11 +1933,15 @@ namespace Homassy.API.Functions
             else
             {
                 var context = new HomassyDbContext();
-                count = context.ShoppingListItems
-                    .Where(sli => !sli.PurchasedAt.HasValue &&
-                                  shoppingListIds.Contains(sli.ShoppingListId) &&
-                                  ((sli.DeadlineAt.HasValue && sli.DeadlineAt.Value.Date <= twoWeeksFromNow) ||
-                                   (sli.DueAt.HasValue && sli.DueAt.Value.Date <= twoWeeksFromNow)))
+                count = (from sli in context.ShoppingListItems
+                         join p in context.Products on sli.ProductId equals p.Id into products
+                         from p in products.DefaultIfEmpty()
+                         where !sli.PurchasedAt.HasValue &&
+                               shoppingListIds.Contains(sli.ShoppingListId) &&
+                               (sli.ProductId == null || !p.IsDeleted) &&
+                               ((sli.DeadlineAt.HasValue && sli.DeadlineAt.Value.Date <= twoWeeksFromNow) ||
+                                (sli.DueAt.HasValue && sli.DueAt.Value.Date <= twoWeeksFromNow))
+                         select sli)
                     .Count();
             }
 

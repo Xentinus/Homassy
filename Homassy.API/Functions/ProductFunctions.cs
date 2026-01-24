@@ -1064,7 +1064,8 @@ namespace Homassy.API.Functions
                 var context = new HomassyDbContext();
                 var query = context.ProductInventoryItems
                     .AsNoTracking()
-                    .Where(i => !i.IsDeleted && !i.IsFullyConsumed && i.ExpirationAt.HasValue);
+                    .Include(i => i.Product)
+                    .Where(i => !i.IsDeleted && !i.Product!.IsDeleted && !i.IsFullyConsumed && i.ExpirationAt.HasValue);
 
                 if (familyId.HasValue)
                 {
