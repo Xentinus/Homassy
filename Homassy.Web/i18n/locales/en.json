@@ -604,8 +604,7 @@
       "cardDescription": "View your family details, invite code, and manage membership.",
       "create": "Create Family",
       "join": "Join Family",
-      "leave": "Leave Family",
-      "code": "Invite code: {code}",
+      "leave": "Leave Family",      "leaveFailed": "Failed to leave family",      "code": "Invite code: {code}",
       "codeLabel": "Invite code",
       "nameLabel": "Family name",
       "descriptionLabel": "Description",
@@ -613,9 +612,17 @@
       "createFamilyCard": "Create a new family and invite members",
       "joinFamilyCard": "Join an existing family using a code",
       "members": "Family Members",
+      "membersDescription": "All family members and their last login time",
       "currentUserBadge": "You",
-      "lastSeen": "Last seen"
+      "lastSeen": "Last seen",
+      "infoSection": "Family Information",
+      "infoDescription": "Family name, description, and share code"
     },
+    "settingsProfileSection": "Profile Information",
+    "settingsProfileDescription": "Manage your name and display name.",
+    "settingsPreferencesSection": "Preferences",
+    "settingsPreferencesDescription": "Language, currency, and time zone settings.",
+    "saveNameButton": "Save Name",
     "notifications": {
       "title": "Notifications",
       "cardDescription": "Manage your notification preferences, including email, push, and in-app alerts.",

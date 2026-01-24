@@ -1019,9 +1019,9 @@ namespace Homassy.API.Functions
                 }
 
             var hasFamily = user.FamilyId.HasValue;
-            if (hasFamily)
+            if (!hasFamily)
             {
-                throw new BadRequestException("You are already a member of a family. Please leave your current family first.", ErrorCodes.FamilyAlreadyMember);
+                throw new BadRequestException("You are not a member of a family.", ErrorCodes.FamilyAlreadyMember);
             }
 
             var context = new HomassyDbContext();

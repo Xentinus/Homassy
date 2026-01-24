@@ -175,6 +175,7 @@ const toast = useToast()
 
 const userProfile = ref<any>(null)
 const loading = ref(true)
+const isLeavingFamily = ref(false)
 const imageCropperOpen = ref(false)
 const cropperImageSrc = ref('')
 const versionInfo = ref<VersionInfo | null>(null)
@@ -231,8 +232,20 @@ onMounted(async () => {
 })
 
 async function onLeaveFamily() {
-  await leaveFamily()
-  await fetchUserProfile()
+  isLeavingFamily.value = true
+  try {
+    await leaveFamily()
+    await fetchUserProfile()
+  } catch (error) {
+    console.error('Failed to leave family:', error)
+    toast.add({
+      title: t('profile.family.leaveFailed'),
+      color: 'red',
+      icon: 'i-lucide-alert-circle'
+    })
+  } finally {
+    isLeavingFamily.value = false
+  }
 }
 
 const hasAvatar = computed(() => !!userProfile.value?.profilePictureBase64)

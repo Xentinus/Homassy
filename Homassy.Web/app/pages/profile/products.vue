@@ -50,7 +50,7 @@
     </template>
 
     <!-- Empty State -->
-    <div v-else-if="products.length === 0" class="rounded-lg border border-primary-200/50 dark:border-primary-700/50 p-12 text-center">
+    <div v-else-if="products.length === 0" class="rounded-lg p-12 text-center">
       <UIcon name="i-lucide-package" class="h-16 w-16 text-gray-400 mx-auto mb-4" />
       <p class="text-lg font-semibold text-gray-700 dark:text-gray-300 mb-2">
         {{ searchQuery ? $t('pages.products.noResults') : 'Nincsenek termékek' }}

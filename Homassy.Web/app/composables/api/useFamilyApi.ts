@@ -67,10 +67,14 @@ export const useFamilyApi = () => {
    * Leave current family
    */
   const leaveFamily = async () => {
-    return await client.post(
+    const response = await client.post(
       '/api/v1/Family/leave',
       undefined
     )
+    if (!response.success || response.errorCodes?.length) {
+      throw new Error(response.errorCodes?.[0] || 'Failed to leave family')
+    }
+    return response
   }
 
   /**

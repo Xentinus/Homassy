@@ -604,6 +604,7 @@
       "create": "Család létrehozása",
       "join": "Csatlakozás családhoz",
       "leave": "Kilépés a családból",
+      "leaveFailed": "Nem sikerült kilépni a családból",
       "code": "Meghívó kód: {code}",
       "codeLabel": "Meghívó kód",
       "nameLabel": "Család neve",
@@ -612,9 +613,17 @@
       "createFamilyCard": "Hozz létre egy új családot és hívj meg tagokat",
       "joinFamilyCard": "Csatlakozz egy meglévő családhoz kóddal",
       "members": "Családtagok",
+      "membersDescription": "A család összes tagja és utolsó belépésük ideje",
       "currentUserBadge": "Te",
-      "lastSeen": "Utoljára látva"
+      "lastSeen": "Utoljára látva",
+      "infoSection": "Család információi",
+      "infoDescription": "A család neve, leírása és megosztási kódja"
     },
+    "settingsProfileSection": "Profil adatok",
+    "settingsProfileDescription": "Név és megjelenítendő név kezelése.",
+    "settingsPreferencesSection": "Beállítások",
+    "settingsPreferencesDescription": "Nyelv, pénznem és időzóna beállításai.",
+    "saveNameButton": "Név mentése",
     "notifications": {
       "title": "Értesítések",
       "cardDescription": "Kezeld az értesítési beállításaidat, beleértve az email, push és alkalmazáson belüli értesítéseket.",

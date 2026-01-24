@@ -603,6 +603,7 @@
       "create": "Familie erstellen",
       "join": "Familie beitreten",
       "leave": "Familie verlassen",
+      "leaveFailed": "Fehler beim Verlassen der Familie",
       "code": "Einladungscode: {code}",
       "codeLabel": "Einladungscode",
       "nameLabel": "Familienname",
@@ -611,9 +612,17 @@
       "createFamilyCard": "Erstellen Sie eine neue Familie und laden Sie Mitglieder ein",
       "joinFamilyCard": "Treten Sie einer bestehenden Familie mit einem Code bei",
       "members": "Familienmitglieder",
+      "membersDescription": "Alle Familienmitglieder und ihre letzte Anmeldezeit",
       "currentUserBadge": "Du",
-      "lastSeen": "Zuletzt gesehen"
+      "lastSeen": "Zuletzt gesehen",
+      "infoSection": "Familieninformationen",
+      "infoDescription": "Familienname, Beschreibung und Freigabecode"
     },
+    "settingsProfileSection": "Profilinformationen",
+    "settingsProfileDescription": "Verwalten Sie Ihren Namen und Anzeigenamen.",
+    "settingsPreferencesSection": "Voreinstellungen",
+    "settingsPreferencesDescription": "Einstellungen für Sprache, Währung und Zeitzone.",
+    "saveNameButton": "Name speichern",
     "notifications": {
       "title": "Benachrichtigungen",
       "cardDescription": "Verwalten Sie Ihre Benachrichtigungseinstellungen, einschließlich E-Mail, Push und In-App-Benachrichtigungen.",
