@@ -7,4 +7,7 @@ export default defineNuxtPlugin(async () => {
 
   // Load authentication state from cookies on both server and client
   await authStore.loadFromCookies()
+
+  // Setup visibility listener on client to handle long-running background tabs
+  authStore.setupVisibilityListener()
 })

@@ -36,8 +36,66 @@ export default defineNuxtConfig({
     '@nuxt/ui',
     '@pinia/nuxt',
     'nuxt-api-party',
-    '@nuxtjs/i18n'
+    '@nuxtjs/i18n',
+    '@vite-pwa/nuxt'
   ],
+
+  pwa: {
+    registerType: 'autoUpdate',
+    scope: '/',
+    manifest: {
+      name: 'Homassy',
+      short_name: 'Homassy',
+      theme_color: '#c9b8a0',
+      display: 'standalone',
+      start_url: '/',
+      icons: [
+        {
+          src: '/favicon-16x16.png',
+          sizes: '16x16',
+          type: 'image/png'
+        },
+        {
+          src: '/favicon-32x32.png',
+          sizes: '32x32',
+          type: 'image/png'
+        },
+        {
+          src: '/apple-touch-icon-180x180.png',
+          sizes: '180x180',
+          type: 'image/png'
+        }
+      ]
+    },
+    workbox: {
+      navigateFallback: '/',
+      runtimeCaching: [
+        {
+          urlPattern: ({ request }) => request.mode === 'navigate',
+          handler: 'NetworkFirst',
+          options: {
+            cacheName: 'pages-cache',
+            expiration: {
+              maxEntries: 50,
+              maxAgeSeconds: 86400 // 1 day
+            },
+            networkTimeoutSeconds: 10
+          }
+        },
+        {
+          urlPattern: /^https:\/\/.*\.(js|css|woff2?|png|jpg|jpeg|svg|gif|webp|ico)$/,
+          handler: 'CacheFirst',
+          options: {
+            cacheName: 'static-assets',
+            expiration: {
+              maxEntries: 200,
+              maxAgeSeconds: 2592000 // 30 days
+            }
+          }
+        }
+      ]
+    }
+  },
 
   css: [
     '~/assets/css/main.css',
@@ -46,7 +104,8 @@ export default defineNuxtConfig({
 
   runtimeConfig: {
     public: {
-      apiBase: process.env.NUXT_PUBLIC_API_BASE || 'http://localhost:5226'
+      apiBase: process.env.NUXT_PUBLIC_API_BASE || 'http://localhost:5226',
+      appVersion: Date.now().toString()
     }
   },
 
@@ -57,6 +116,13 @@ export default defineNuxtConfig({
     //     changeOrigin: true
     //   }
     // }
+    routeRules: {
+      '/': {
+        headers: {
+          'Cache-Control': 'no-cache, must-revalidate'
+        }
+      }
+    }
   },
 
   devServer: {

@@ -755,7 +755,10 @@
     "shoppingItemsAdded": "Artikel erfolgreich hinzugefügt",
     "shoppingItemsDeleted": "Artikel erfolgreich gelöscht",
     "itemPurchased": "Artikel gekauft und zum Inventar hinzugefügt",
-    "itemsPurchased": "Artikel gekauft und zum Inventar hinzugefügt"
+    "itemsPurchased": "Artikel gekauft und zum Inventar hinzugefügt",
+    "appVersionUpdate": "Neue Version verfügbar",
+    "appVersionUpdateDescription": "Aktualisieren Sie die App, um die neuesten Funktionen zu nutzen.",
+    "refresh": "Aktualisieren"
   },
   "enums": {
     "unit": {

@@ -74,7 +74,7 @@
     </div>
 
     <!-- Sentinel for intersection observer -->
-    <div v-if="hasMoreProducts" ref="sentinelRef" class="w-full">
+    <div v-if="hasMoreProducts" ref="sentinelRef" class="w-full min-h-[1px]">
       <!-- Loading skeletons while loading more -->
       <div v-if="loadingMore" class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 mt-4">
         <USkeleton v-for="i in 8" :key="i" class="h-36 w-full rounded-lg" />
@@ -88,7 +88,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, watch, nextTick, onBeforeUnmount } from 'vue'
+import { ref, computed, onMounted, watch, onBeforeUnmount } from 'vue'
 import { useProductsApi } from '../../composables/api/useProductsApi'
 import type { DetailedProductInfo } from '../../types/product'
 import { normalizeForSearch } from '../../utils/stringUtils'
@@ -118,6 +118,7 @@ const currentPage = ref(1)
 const pageSize = 20
 const loadingMore = ref(false)
 const sentinelRef = ref<HTMLElement | null>(null)
+const observer = ref<IntersectionObserver | null>(null)
 
 // Filter options for select dropdown
 const filterOptions = computed(() => [
@@ -271,22 +272,16 @@ watch(filterMode, () => {
   currentPage.value = 1
 })
 
-// Lifecycle
-onMounted(() => {
-  // Restore filter settings from localStorage
-  const savedFilterMode = localStorage.getItem(LAST_FILTER_MODE_KEY)
-  
-  if (savedFilterMode) {
-    filterMode.value = savedFilterMode
+// Watch for sentinel availability and setup observer
+watch(sentinelRef, (newSentinel) => {
+  // Disconnect previous observer if exists
+  if (observer.value) {
+    observer.value.disconnect()
   }
-  
-  loadProducts()
 
-  // Setup intersection observer for infinite scroll
-  nextTick(() => {
-    if (!sentinelRef.value) return
-
-    const observer = new IntersectionObserver(
+  // Setup new observer if sentinel exists
+  if (newSentinel) {
+    observer.value = new IntersectionObserver(
       (entries) => {
         const [entry] = entries
         if (entry && entry.isIntersecting && hasMoreProducts.value && !loadingMore.value) {
@@ -300,13 +295,27 @@ onMounted(() => {
       }
     )
 
-    observer.observe(sentinelRef.value)
+    observer.value.observe(newSentinel)
+  }
+})
 
-    // Cleanup
-    onBeforeUnmount(() => {
-      observer.disconnect()
-    })
-  })
+// Lifecycle
+onMounted(() => {
+  // Restore filter settings from localStorage
+  const savedFilterMode = localStorage.getItem(LAST_FILTER_MODE_KEY)
+  
+  if (savedFilterMode) {
+    filterMode.value = savedFilterMode
+  }
+  
+  loadProducts()
+})
+
+// Cleanup on unmount
+onBeforeUnmount(() => {
+  if (observer.value) {
+    observer.value.disconnect()
+  }
 })
 
 // Watch for filter changes and save to localStorage
