@@ -30,6 +30,7 @@ namespace Homassy.API.Functions
                 SelectValueType.Languages => GetLanguagesSelectValues(),
                 SelectValueType.Currencies => GetCurrenciesSelectValues(),
                 SelectValueType.TimeZones => GetTimeZonesSelectValues(),
+                SelectValueType.ProductCategory => GetProductCategorySelectValues(),
                 _ => throw new BadRequestException($"Invalid select value type: {type}")
             };
         }
@@ -161,5 +162,19 @@ namespace Homassy.API.Functions
                        .OrderBy(s => s.Text)
                        .ToList();
         }
+
+           private static List<SelectValue> GetProductCategorySelectValues()
+           {
+               return Enum.GetValues(typeof(ProductCategory))
+                          .Cast<ProductCategory>()
+                          .Select(category =>
+                          new SelectValue
+                          {
+                              PublicId = Guid.NewGuid(),
+                              Text = category.ToString()
+                          })
+                          .OrderBy(s => s.Text)
+                          .ToList();
+           }
     }
 }

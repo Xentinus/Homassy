@@ -1,5 +1,6 @@
 ﻿using Homassy.API.Attributes.Validation;
 using Homassy.API.Entities.Common;
+using Homassy.API.Enums;
 using System.ComponentModel.DataAnnotations;
 
 namespace Homassy.API.Entities.Product
@@ -12,9 +13,8 @@ namespace Homassy.API.Entities.Product
         [StringLength(128, MinimumLength = 2)]
         public required string Brand { get; set; }
 
-        [StringLength(128, MinimumLength = 2)]
-        public string? Category { get; set; }
 
+        public ProductCategory? Category { get; set; }
         [ValidBarcode]
         [StringLength(14, MinimumLength = 6)]
         public string? Barcode { get; set; }

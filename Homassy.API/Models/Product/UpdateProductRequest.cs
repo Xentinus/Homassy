@@ -1,4 +1,5 @@
 ﻿using Homassy.API.Attributes.Validation;
+using Homassy.API.Enums;
 using System.ComponentModel.DataAnnotations;
 
 namespace Homassy.API.Models.Product
@@ -13,9 +14,7 @@ namespace Homassy.API.Models.Product
         [SanitizedString]
         public string? Brand { get; set; }
 
-        [StringLength(128, MinimumLength = 2)]
-        [SanitizedString]
-        public string? Category { get; set; }
+        public ProductCategory? Category { get; set; }
 
         [ValidBarcode]
         [StringLength(14, MinimumLength = 6)]

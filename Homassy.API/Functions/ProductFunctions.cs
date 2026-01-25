@@ -526,7 +526,7 @@ namespace Homassy.API.Functions
                 {
                     Name = request.Name.Trim(),
                     Brand = request.Brand.Trim(),
-                    Category = request.Category?.Trim(),
+                    Category = request.Category,
                     Barcode = request.Barcode?.Trim(),
                     IsEatable = request.IsEatable
                 };
@@ -637,9 +637,7 @@ namespace Homassy.API.Functions
 
                 if (request.Category != null)
                 {
-                    product.Category = string.IsNullOrWhiteSpace(request.Category)
-                        ? null
-                        : request.Category.Trim();
+                    product.Category = request.Category;
                     hasChanges = true;
                 }
 
@@ -2432,7 +2430,7 @@ namespace Homassy.API.Functions
                     {
                         Name = productRequest.Name.Trim(),
                         Brand = productRequest.Brand.Trim(),
-                        Category = productRequest.Category?.Trim(),
+                        Category = productRequest.Category,
                         Barcode = productRequest.Barcode?.Trim(),
                         IsEatable = productRequest.IsEatable
                     };

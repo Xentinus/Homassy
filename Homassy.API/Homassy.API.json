@@ -11,7 +11,7 @@
       "name": "MIT License",
       "url": "https://github.com/Xentinus/Homassy/blob/master/LICENSE"
     },
-    "version": "26.0124.1907-dev"
+    "version": "26.0125.1524-dev"
   },
   "paths": {
     "/api/v1/Auth/request-code": {
@@ -7420,11 +7420,13 @@
             "type": "string"
           },
           "category": {
-            "maxLength": 128,
-            "minLength": 2,
-            "type": [
-              "null",
-              "string"
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/ProductCategory"
+              }
             ]
           },
           "barcode": {
@@ -7807,9 +7809,13 @@
             "type": "string"
           },
           "category": {
-            "type": [
-              "null",
-              "string"
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/ProductCategory"
+              }
             ]
           },
           "barcode": {
@@ -8715,6 +8721,9 @@
           }
         }
       },
+      "ProductCategory": {
+        "type": "integer"
+      },
       "ProductImageInfo": {
         "required": [
           "productPublicId",
@@ -8776,9 +8785,13 @@
             "type": "string"
           },
           "category": {
-            "type": [
-              "null",
-              "string"
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/ProductCategory"
+              }
             ]
           },
           "barcode": {
@@ -9638,11 +9651,13 @@
             ]
           },
           "category": {
-            "maxLength": 128,
-            "minLength": 2,
-            "type": [
-              "null",
-              "string"
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/ProductCategory"
+              }
             ]
           },
           "barcode": {

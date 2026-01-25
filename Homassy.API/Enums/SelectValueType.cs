@@ -10,5 +10,6 @@
         Languages = 5,
         Currencies = 6,
         TimeZones = 7,
+           ProductCategory = 8,
     }
 }
