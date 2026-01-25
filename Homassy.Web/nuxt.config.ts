@@ -22,8 +22,7 @@ export default defineNuxtConfig({
         { rel: 'apple-touch-icon', sizes: '167x167', href: '/apple-touch-icon-167x167.png' },
         { rel: 'apple-touch-icon', sizes: '152x152', href: '/apple-touch-icon-152x152.png' },
         { rel: 'apple-touch-icon', href: '/apple-touch-icon.png' },
-        { rel: 'mask-icon', href: '/safari-pinned-tab.svg', color: '#c9b8a0' },
-        { rel: 'manifest', href: '/site.webmanifest' }
+        { rel: 'mask-icon', href: '/safari-pinned-tab.svg', color: '#c9b8a0' }
       ]
     }
   },
@@ -69,7 +68,6 @@ export default defineNuxtConfig({
     },
     workbox: {
       importScripts: ['/sw-push.js'],
-      navigateFallback: '/',
       runtimeCaching: [
         {
           urlPattern: ({ request }) => request.mode === 'navigate',
