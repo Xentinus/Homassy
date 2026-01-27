@@ -173,5 +173,14 @@ export default defineNuxtConfig({
       fallbackLocale: 'en'
     },
     vueI18n: './i18n.config.ts'
+  },
+
+  vite: {
+    esbuild: {
+      drop: ['console', 'debugger']
+    },
+    build: {
+      sourcemap: false
+    }
   }
 })

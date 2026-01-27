@@ -62,7 +62,14 @@ export const usePushNotifications = () => {
 
       return result?.success ?? false
     } catch (error) {
-      console.error('Failed to subscribe to push notifications:', error)
+      const toast = useToast()
+      const { $i18n } = useNuxtApp()
+      toast.add({
+        title: $i18n.t('toast.error'),
+        description: $i18n.t('profile.notifications.pushSubscriptionFailed'),
+        color: 'error',
+        icon: 'i-heroicons-x-circle'
+      })
       return false
     }
   }

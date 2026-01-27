@@ -651,7 +651,8 @@
       "testNotificationNotSubscribed": "Please enable push notifications first to send a test.",
       "testNotificationSent": "Test notification sent successfully.",
       "testNotificationFailed": "Failed to send test notification.",
-      "pushActionOpen": "Open Homassy"
+      "pushActionOpen": "Open Homassy",
+      "pushSubscriptionFailed": "Failed to enable push notifications. Please try again."
     },
     "allProducts": {
       "title": "All Products",

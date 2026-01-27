@@ -652,7 +652,8 @@
       "testNotificationNotSubscribed": "Kérjük, engedélyezd a push értesítéseket a test küldéséhez.",
       "testNotificationSent": "Test értesítés sikeresen elküldve.",
       "testNotificationFailed": "Hiba a test értesítés küldése során.",
-      "pushActionOpen": "Homassy megnyitása"
+      "pushActionOpen": "Homassy megnyitása",
+      "pushSubscriptionFailed": "Nem sikerült engedélyezni a push értesítéseket. Kérlek, próbáld újra."
     },
     "allProducts": {
       "title": "Összes termék",
