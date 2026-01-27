@@ -107,7 +107,7 @@
           />
           
           <p v-if="product.category" class="text-xs text-gray-500 dark:text-gray-500 line-clamp-1 mb-1">
-            {{ product.category }}
+            {{ formatProductCategory(product.category) }}
           </p>
           
           <p 
@@ -268,7 +268,7 @@
             <span class="text-sm font-medium text-gray-700 dark:text-gray-300">
               {{ $t('pages.addProduct.form.category') }}:
             </span>
-            <span class="text-sm ml-2">{{ product.category }}</span>
+            <span class="text-sm ml-2">{{ formatProductCategory(product.category) }}</span>
           </div>
         </div>
       </template>
@@ -423,6 +423,7 @@ import ImageCropper from '~/components/ImageCropper.vue'
 import UploadProgressModal from '~/components/UploadProgressModal.vue'
 import imageCompression from 'browser-image-compression'
 import { extractBase64 } from '~/composables/useImageCrop'
+import { useEnumLabel } from '~/composables/useEnumLabel'
 
 interface Props {
   product: ProductInfo
@@ -448,6 +449,7 @@ const productsApi = useProductsApi()
 const progressApi = useProgressApi()
 const openFoodFactsApi = useOpenFoodFactsApi()
 const router = useRouter()
+const { formatProductCategory } = useEnumLabel()
 
 // Modal states
 const isEditModalOpen = ref(false)

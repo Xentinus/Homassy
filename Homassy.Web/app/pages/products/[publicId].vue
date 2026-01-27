@@ -79,7 +79,7 @@
               <div class="flex flex-wrap gap-4 text-sm justify-center md:justify-start">
                 <div v-if="product.category" class="flex items-center gap-2">
                   <UIcon name="i-lucide-tag" class="text-gray-500" />
-                  <span>{{ product.category }}</span>
+                  <span>{{ formatProductCategory(product.category) }}</span>
                 </div>
                 <div v-if="product.barcode" class="hidden md:flex items-center gap-2">
                   <UIcon name="i-lucide-barcode" class="text-gray-500" />
@@ -274,7 +274,7 @@
               <span class="text-sm font-medium text-gray-700 dark:text-gray-300">
                 {{ $t('pages.products.details.deleteProductModal.category') }}:
               </span>
-              <span class="text-sm ml-2">{{ product.category }}</span>
+              <span class="text-sm ml-2">{{ formatProductCategory(product.category) }}</span>
             </div>
 
             <!-- Barcode -->
@@ -421,6 +421,7 @@ import type { DetailedProductInfo, UpdateProductRequest } from '../../types/prod
 import type { OpenFoodFactsProduct } from '../../types/openFoodFacts'
 import { useProductsApi } from '../../composables/api/useProductsApi'
 import { useOpenFoodFactsApi } from '../../composables/api/useOpenFoodFactsApi'
+import { useEnumLabel } from '../../composables/useEnumLabel'
 
 definePageMeta({
   layout: 'auth',
@@ -432,6 +433,7 @@ const { t: $t } = useI18n()
 const { getProductDetails, toggleFavorite, updateProduct, deleteProduct, uploadProductImage, deleteProductImage } = useProductsApi()
 const { getProductByBarcode } = useOpenFoodFactsApi()
 const toast = useToast()
+const { formatProductCategory } = useEnumLabel()
 
 // State
 const product = ref<DetailedProductInfo | null>(null)

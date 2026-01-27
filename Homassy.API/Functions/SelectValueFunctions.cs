@@ -123,7 +123,6 @@ namespace Homassy.API.Functions
             return Enum.GetValues(typeof(Language))
                        .Cast<Language>()
                        .Select(lang =>
-
                        new SelectValue
                        {
                            PublicId = Guid.NewGuid(),
@@ -138,7 +137,6 @@ namespace Homassy.API.Functions
             return Enum.GetValues(typeof(Currency))
                        .Cast<Currency>()
                        .Select(currency =>
-
                        new SelectValue
                        {
                            PublicId = Guid.NewGuid(),
@@ -153,7 +151,6 @@ namespace Homassy.API.Functions
             return Enum.GetValues(typeof(UserTimeZone))
                        .Cast<UserTimeZone>()
                        .Select(timezone =>
-
                        new SelectValue
                        {
                            PublicId = Guid.NewGuid(),
@@ -163,18 +160,18 @@ namespace Homassy.API.Functions
                        .ToList();
         }
 
-           private static List<SelectValue> GetProductCategorySelectValues()
-           {
-               return Enum.GetValues(typeof(ProductCategory))
-                          .Cast<ProductCategory>()
-                          .Select(category =>
-                          new SelectValue
-                          {
-                              PublicId = Guid.NewGuid(),
-                              Text = category.ToString()
-                          })
-                          .OrderBy(s => s.Text)
-                          .ToList();
-           }
+        private static List<SelectValue> GetProductCategorySelectValues()
+        {
+            return Enum.GetValues(typeof(ProductCategory))
+                       .Cast<ProductCategory>()
+                       .Select(category =>
+                       new SelectValue
+                       {
+                           PublicId = Guid.NewGuid(),
+                           Text = ((int)category).ToString()
+                       })
+                       .OrderBy(s => int.Parse(s.Text))
+                       .ToList();
+        }
     }
 }

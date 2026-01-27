@@ -127,9 +127,10 @@
           <label class="block text-sm font-medium mb-1">
             {{ $t('pages.addProduct.form.category') }}
           </label>
-          <UInput
+          <USelectMenu
             v-model="createForm.category"
-            type="text"
+            :items="categoryOptions"
+            value-key="value"
             :placeholder="$t('pages.addProduct.form.categoryPlaceholder')"
             class="w-full"
           />
@@ -294,17 +295,21 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, onBeforeUnmount, nextTick } from 'vue'
+import { ref, computed, onMounted, onBeforeUnmount, nextTick } from 'vue'
 import { useProductsApi } from '~/composables/api/useProductsApi'
 import { useOpenFoodFactsApi } from '~/composables/api/useOpenFoodFactsApi'
+import { useSelectValueApi } from '~/composables/api/useSelectValueApi'
 import { useCameraAvailability } from '~/composables/useCameraAvailability'
 import type { ProductInfo } from '~/types/product'
 import type { OpenFoodFactsProduct } from '~/types/openFoodFacts'
+import type { SelectValue } from '~/types/selectValue'
+import { ProductCategory, SelectValueType } from '~/types/enums'
 
 definePageMeta({ layout: 'auth', middleware: 'auth' })
 
 const { getProducts, createProduct } = useProductsApi()
 const openFoodFactsApi = useOpenFoodFactsApi()
+const { getSelectValues } = useSelectValueApi()
 const { t } = useI18n()
 const toast = useToast()
 const { showCameraButton } = useCameraAvailability()
@@ -331,7 +336,7 @@ const openFoodFactsProduct = ref<OpenFoodFactsProduct | null>(null)
 const createForm = ref<{
   name: string
   brand: string
-  category: string
+  category: ProductCategory | undefined
   barcode: string
   isEatable: boolean
   isFavorite: boolean
@@ -339,11 +344,20 @@ const createForm = ref<{
 }>({
   name: '',
   brand: '',
-  category: '',
+  category: undefined,
   barcode: '',
   isEatable: false,
   isFavorite: false,
   notes: ''
+})
+
+// Category options for dropdown
+const categoryOptionsRaw = ref<SelectValue[]>([])
+const categoryOptions = computed(() => {
+  return categoryOptionsRaw.value.map(cat => ({
+    label: t(`enums.productCategory.${cat.text}`),
+    value: parseInt(cat.text)
+  }))
 })
 
 // Intersection observer
@@ -605,6 +619,13 @@ onMounted(async () => {
   await loadProducts(true)
   await nextTick()
   setupIntersectionObserver()
+})
+
+onMounted(async () => {
+  const response = await getSelectValues(SelectValueType.ProductCategory)
+  if (response.success && response.data) {
+    categoryOptionsRaw.value = response.data
+  }
 })
 
 onBeforeUnmount(() => {

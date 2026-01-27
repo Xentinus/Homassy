@@ -13,7 +13,7 @@ export const useSelectValueApi = () => {
    * @param type - SelectValueType enum (units, currencies, timezones, etc.)
    */
   const getSelectValues = async (type: SelectValueType): Promise<ApiResponse<SelectValue[]>> => {
-    return await $api<ApiResponse<SelectValue[]>>(`/api/v1/SelectValue/${type}`, {
+    return await $api<ApiResponse<SelectValue[]>>(`/api/v1.0/SelectValue/${type}`, {
       method: 'GET'
     })
   }

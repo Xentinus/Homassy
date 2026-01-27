@@ -113,8 +113,10 @@
                 </UFormField>
 
                 <UFormField :label="t('pages.addProduct.form.category')" name="category">
-                  <UInput
+                  <USelectMenu
                     v-model="productFormData.category"
+                    :items="categoryOptions"
+                    value-key="value"
                     :placeholder="t('pages.addProduct.form.categoryPlaceholder')"
                     :disabled="isCreating"
                     class="w-full"
@@ -588,7 +590,8 @@ import type { ProductInfo, CreateProductRequest } from '~/types/product'
 import type { ShoppingLocationInfo, CreateShoppingLocationRequest } from '~/types/location'
 import type { CreateShoppingListItemRequest } from '~/types/shoppingList'
 import type { OpenFoodFactsProduct } from '~/types/openFoodFacts'
-import { Unit } from '~/types/enums'
+import type { SelectValue } from '~/types/selectValue'
+import { Unit, ProductCategory, SelectValueType } from '~/types/enums'
 import type { FormSubmitEvent } from '#ui/types'
 
 // Middleware & Layout
@@ -607,6 +610,7 @@ const { getProducts, createProduct } = useProductsApi()
 const { getShoppingLocations, createShoppingLocation } = useLocationsApi()
 const { createShoppingListItem } = useShoppingListApi()
 const { getProductByBarcode } = useOpenFoodFactsApi()
+const { getSelectValues } = useSelectValueApi()
 const { showCameraButton } = useCameraAvailability()
 
 // =========================
@@ -618,6 +622,14 @@ const shoppingListId = ref<string | null>(null)
 onMounted(() => {
   activeTab.value = 0
   shoppingLocationTab.value = 0
+})
+
+// Fetch category options
+onMounted(async () => {
+  const response = await getSelectValues(SelectValueType.ProductCategory)
+  if (response.success && response.data) {
+    categoryOptionsRaw.value = response.data
+  }
 })
 
 onMounted(() => {
@@ -677,13 +689,20 @@ const isSearching = ref(false)
 const productFormData = ref<CreateProductRequest>({
   name: '',
   brand: '',
-  category: '',
+  category: undefined,
   barcode: '',
   isEatable: false,
   notes: '',
   isFavorite: false
 })
 const isCreating = ref(false)
+const categoryOptionsRaw = ref<SelectValue[]>([])
+const categoryOptions = computed(() => {
+  return categoryOptionsRaw.value.map(cat => ({
+    label: t(`enums.productCategory.${cat.text}`),
+    value: parseInt(cat.text)
+  }))
+})
 const isQueryingBarcode = ref(false)
 const openFoodFactsProduct = ref<OpenFoodFactsProduct | null>(null)
 const isOpenFoodFactsModalOpen = ref(false)
@@ -745,7 +764,7 @@ const isCreatingItem = ref(false)
 const createProductSchema = z.object({
   name: z.string().min(2, 'Name must be at least 2 characters').max(128, 'Name must not exceed 128 characters'),
   brand: z.string().min(2, 'Brand must be at least 2 characters').max(128, 'Brand must not exceed 128 characters'),
-  category: z.string().max(128, 'Category must not exceed 128 characters').optional().or(z.literal('')),
+  category: z.nativeEnum(ProductCategory).optional(),
   barcode: z.string().max(50, 'Barcode must not exceed 50 characters').optional().or(z.literal('')),
   isEatable: z.boolean().optional().default(false),
   notes: z.string().max(500, 'Notes must not exceed 500 characters').optional().or(z.literal('')),

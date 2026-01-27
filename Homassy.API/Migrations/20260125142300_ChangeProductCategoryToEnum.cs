@@ -10,18 +10,12 @@ namespace Homassy.API.Migrations
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
         {
-            // Null out existing string values to avoid conversion errors when changing to integer
-            migrationBuilder.Sql("UPDATE \"Products\" SET \"Category\" = NULL;");
-
-            migrationBuilder.AlterColumn<int>(
-                name: "Category",
-                table: "Products",
-                type: "integer",
-                nullable: true,
-                oldClrType: typeof(string),
-                oldType: "character varying(128)",
-                oldMaxLength: 128,
-                oldNullable: true);
+            // Explicitly convert the column type using USING clause
+            migrationBuilder.Sql(@"
+                ALTER TABLE ""Products"" 
+                ALTER COLUMN ""Category"" TYPE integer 
+                USING NULL::integer;
+            ");
         }
 
         /// <inheritdoc />

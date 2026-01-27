@@ -113,8 +113,10 @@
                 </UFormField>
 
                 <UFormField :label="t('pages.addProduct.form.category')" name="category">
-                  <UInput
+                  <USelectMenu
                     v-model="formData.category"
+                    :items="categoryOptions"
+                    value-key="value"
                     :placeholder="t('pages.addProduct.form.categoryPlaceholder')"
                     :disabled="isCreating"
                     class="w-full"
@@ -1099,10 +1101,12 @@ import type { CalendarDate } from '@internationalized/date'
 import { useProductsApi } from '~/composables/api/useProductsApi'
 import { useLocationsApi } from '~/composables/api/useLocationsApi'
 import { useOpenFoodFactsApi } from '~/composables/api/useOpenFoodFactsApi'
+import { useSelectValueApi } from '~/composables/api/useSelectValueApi'
 import type { ProductInfo, CreateProductRequest, CreateInventoryItemRequest } from '~/types/product'
 import type { StorageLocationInfo, StorageLocationRequest, ShoppingLocationInfo, ShoppingLocationRequest } from '~/types/location'
 import type { OpenFoodFactsProduct } from '~/types/openFoodFacts'
-import { Unit, Currency } from '~/types/enums'
+import type { SelectValue } from '~/types/selectValue'
+import { Unit, Currency, ProductCategory, SelectValueType } from '~/types/enums'
 
 definePageMeta({
   layout: 'auth',
@@ -1190,10 +1194,18 @@ const locationSentinelRef = ref<HTMLElement | null>(null)
 
 // Create form state
 const isCreating = ref(false)
+const { getSelectValues } = useSelectValueApi()
+const categoryOptionsRaw = ref<SelectValue[]>([])
+const categoryOptions = computed(() => {
+  return categoryOptionsRaw.value.map(cat => ({
+    label: t(`enums.productCategory.${cat.text}`),
+    value: parseInt(cat.text)
+  }))
+})
 const formData = ref<CreateProductRequest>({
   name: '',
   brand: '',
-  category: '',
+  category: undefined,
   barcode: '',
   isEatable: false,
   notes: '',
@@ -1303,7 +1315,7 @@ const createProductSchema = z.object({
     .min(1, 'A termék neve kötelező'),
   brand: z.string({ required_error: 'A márka kötelező' })
     .min(1, 'A márka kötelező'),
-  category: z.string().optional(),
+  category: z.nativeEnum(ProductCategory).optional(),
   barcode: z.string().optional(),
   isEatable: z.boolean().optional().default(false),
   notes: z.string().optional(),
@@ -1546,8 +1558,17 @@ watch(currentStep, async (newStep) => {
 })
 
 // Reset tab to search when component mounts
-onMounted(() => {
+onMounted(async () => {
   activeTab.value = 0
+  // Fetch product categories
+  try {
+    const response = await getSelectValues(SelectValueType.ProductCategory)
+    if (response.success && response.data) {
+      categoryOptionsRaw.value = response.data
+    }
+  } catch (error) {
+    console.error('Failed to load categories:', error)
+  }
 })
 
 // Reset pagination when search changes
@@ -1745,7 +1766,7 @@ const onCreateProduct = async (event: FormSubmitEvent<CreateProductSchema>) => {
     const productData: CreateProductRequest = {
       name: event.data.name,
       brand: event.data.brand,
-      category: event.data.category?.trim() || null,
+      category: event.data.category || null,
       barcode: event.data.barcode?.trim() || null,
       notes: event.data.notes?.trim() || null,
       isEatable: event.data.isEatable,
