@@ -73,13 +73,13 @@
                 v-else
                 class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4"
               >
-                <ProductCard
+                <SelectableProductCard
                   v-for="product in searchResults"
                   :key="product.publicId"
                   :product="product"
-                  :is-active="selectedCardId === product.publicId"
                   :search-query="searchQuery"
-                  @click="onProductCardClick(product)"
+                  :is-selected="selectedCardId === product.publicId"
+                  @select="onProductCardClick"
                 />
               </div>
             </div>

@@ -1,15 +1,10 @@
 ﻿<template>
   <div>
     <div
-      class="rounded-lg border-2 transition-all duration-200 h-full flex flex-col"
-      :class="[
-        isActive
-          ? 'border-primary-500 bg-primary-50 dark:bg-primary-900/10'
-          : 'border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800'
-      ]"
+      class="group relative bg-gradient-to-br from-white to-gray-50 dark:from-gray-800 dark:to-gray-900 rounded-xl border-2 p-3 transition-all duration-200 flex flex-col overflow-hidden card-animate"
+      :class="cardBorderClass"
     >
-      <div class="p-3 flex flex-col h-full">
-        <!-- Product Image -->
+      <!-- Product Image -->
         <div class="aspect-square bg-gray-100 dark:bg-gray-800 rounded-md mb-2 overflow-hidden flex items-center justify-center relative">
           <img
             v-if="product.productPictureBase64"
@@ -33,7 +28,7 @@
           >
           
           <!-- Action Icons - Top Right -->
-          <div v-if="editable" class="absolute top-1 right-1 flex gap-1">
+          <div v-if="editable" class="absolute top-1 right-1 flex gap-1 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity duration-200">
             <!-- Upload Image Button (shown when no image) -->
             <UButton
               v-if="!product.productPictureBase64"
@@ -77,45 +72,44 @@
           </div>
         </div>
         
-        <!-- Product Info -->
-        <div class="flex-1 flex flex-col">
-          <div class="flex items-start gap-1 mb-1">
-            <h3 
-              class="text-sm font-semibold line-clamp-2 flex-1 text-gray-900 dark:text-white"
-              v-html="highlightText(product.name, searchQuery)"
+      <!-- Product Info -->
+      <div class="flex-1 flex flex-col">
+        <div class="flex items-start gap-2 mb-1">
+          <h3 
+            class="text-sm font-bold break-words flex-1 text-gray-900 dark:text-white"
+            v-html="highlightText(product.name, searchQuery)"
+          />
+          <div class="flex gap-1 flex-shrink-0">
+            <UIcon
+              v-if="product.isEatable"
+              name="i-lucide-utensils"
+              class="h-3.5 w-3.5 text-amber-600 dark:text-amber-400 flex-shrink-0"
+              :title="$t('common.eatable')"
             />
-            <div class="flex gap-1 flex-shrink-0">
-              <UIcon
-                v-if="product.isEatable"
-                name="i-lucide-utensils"
-                class="h-4 w-4 text-primary-500"
-                :title="$t('common.eatable')"
-              />
-              <UIcon
-                v-if="product.isFavorite"
-                name="i-lucide-heart"
-                class="h-4 w-4 text-primary-500"
-                :title="$t('common.favorite')"
-              />
-            </div>
+            <UIcon
+              v-if="product.isFavorite"
+              name="i-lucide-heart"
+              class="h-3.5 w-3.5 text-pink-600 dark:text-pink-400 flex-shrink-0"
+              :title="$t('common.favorite')"
+            />
           </div>
-          
-          <p 
-            v-if="product.brand" 
-            class="text-xs text-gray-600 dark:text-gray-400 line-clamp-1 mb-1"
-            v-html="highlightText(product.brand, searchQuery)"
-          />
-          
-          <p v-if="product.category" class="text-xs text-gray-500 dark:text-gray-500 line-clamp-1 mb-1">
-            {{ formatProductCategory(product.category) }}
-          </p>
-          
-          <p 
-            v-if="product.barcode" 
-            class="text-xs text-gray-500 dark:text-gray-500 font-mono line-clamp-1"
-            v-html="highlightText(product.barcode, searchQuery)"
-          />
         </div>
+        
+        <p 
+          v-if="product.brand" 
+          class="text-xs text-gray-500 dark:text-gray-400 break-words font-medium line-clamp-1 mb-1"
+          v-html="highlightText(product.brand, searchQuery)"
+      />
+        
+        <p v-if="product.category" class="text-xs text-gray-500 dark:text-gray-500 line-clamp-1 mb-1">
+          {{ formatProductCategory(product.category) }}
+        </p>
+        
+        <p 
+          v-if="product.barcode" 
+          class="text-xs text-gray-500 dark:text-gray-500 font-mono line-clamp-1"
+          v-html="highlightText(product.barcode, searchQuery)"
+        />
       </div>
     </div>
 
@@ -509,6 +503,17 @@ watch(() => editForm.value.barcode, (newValue) => {
   }
 })
 
+// Dynamic border classes based on state
+const cardBorderClass = computed(() => {
+  if (props.isActive) {
+    return 'border-primary-400 dark:border-primary-500'
+  }
+  if (props.product.isFavorite) {
+    return 'border-pink-400 dark:border-pink-500'
+  }
+  return 'border-gray-200 dark:border-gray-700'
+})
+
 // Helper function to escape regex special characters
 const escapeRegex = (str: string): string => {
   return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
@@ -526,6 +531,8 @@ const highlightText = (text: string, query: string): string => {
   const regex = new RegExp(`(${escapeRegex(normalizedQuery)})`, 'gi')
   return text.replace(regex, '<span class="font-bold text-primary-600 dark:text-primary-400 bg-primary-100 dark:bg-primary-900/30 px-1 py-0.5 rounded">$1</span>')
 }
+
+// Card click handler - REMOVED: No longer clickable
 
 // Dropdown menu items
 const dropdownItems = computed(() => {
@@ -868,3 +875,20 @@ const handleDelete = async () => {
   }
 }
 </script>
+
+<style scoped>
+@keyframes slideInUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.card-animate {
+  animation: slideInUp 0.4s ease-out;
+}
+</style>

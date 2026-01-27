@@ -2,15 +2,8 @@
   <div
     role="button"
     tabindex="0"
-    class="cursor-pointer transition-colors relative flex flex-col"
-    :class="[
-      'p-2 md:p-4 rounded-lg border-2 bg-white dark:bg-gray-800 hover:shadow-sm transition-shadow hover:bg-gray-50/50 dark:hover:bg-gray-700/50',
-      hasExpiredItems
-        ? 'border-red-500 dark:border-red-400'
-        : hasExpiringSoonItems
-          ? 'border-primary-500 dark:border-primary-400'
-          : 'border-neutral-300 dark:border-neutral-700'
-    ]"
+    class="group relative bg-gradient-to-br from-white to-gray-50 dark:from-gray-800 dark:to-gray-900 rounded-xl border-2 p-3 cursor-pointer hover:shadow-lg hover:-translate-y-0.5 transition-all duration-200 flex flex-col overflow-hidden card-animate"
+    :class="cardBorderClass"
     @click="navigateToProduct"
     @keydown.enter="navigateToProduct"
     @keydown.space.prevent="navigateToProduct"
@@ -19,18 +12,18 @@
     <div class="space-y-1 mb-2">
       <!-- Product Name -->
       <h3 
-        class="font-semibold text-sm text-gray-900 dark:text-white break-words"
+        class="font-bold text-sm text-gray-900 dark:text-white break-words"
         v-html="highlightText(product.name, searchQuery)"
       />
       
       <!-- Brand -->
-      <div class="text-xs text-gray-500 dark:text-gray-400 break-words">
+      <div class="text-xs text-gray-500 dark:text-gray-400 break-words font-medium">
         <span v-html="highlightText(product.brand || '-', searchQuery)" />
       </div>
 
       <!-- Barcode -->
       <div v-if="product.barcode" class="flex items-center gap-1 text-xs text-gray-500 dark:text-gray-400">
-        <UIcon name="i-lucide-barcode" class="h-3 w-3 flex-shrink-0" />
+        <UIcon name="i-lucide-barcode" class="h-3 w-3 text-gray-400 dark:text-gray-500 flex-shrink-0" />
         <span class="font-mono break-all" v-html="highlightText(product.barcode, searchQuery)" />
       </div>
 
@@ -39,12 +32,12 @@
         <UIcon
           v-if="product.isEatable"
           name="i-lucide-utensils"
-          class="h-4 w-4 text-primary-500"
+          class="h-3.5 w-3.5 text-amber-600 dark:text-amber-400 flex-shrink-0"
         />
         <UIcon
           v-if="product.isFavorite"
           name="i-lucide-heart"
-          class="h-4 w-4 text-primary-500"
+          class="h-3.5 w-3.5 text-pink-600 dark:text-pink-400 flex-shrink-0"
         />
       </div>
     </div>
@@ -57,20 +50,20 @@
 
       <div v-else class="flex items-center gap-1.5" :class="{ 'justify-end': visibleBadgeCount < 3 }">
         <!-- Normal Icon + Count -->
-        <div v-if="normalItems.length > 0" class="flex items-center gap-1 px-1.5 py-1 rounded-md border bg-gray-50 dark:bg-gray-700/50 border-gray-200 dark:border-gray-600">
-          <UIcon name="i-lucide-check-circle" class="h-3.5 w-3.5 text-gray-500 dark:text-gray-400 flex-shrink-0" />
+        <div v-if="normalItems.length > 0" class="flex items-center gap-1 px-1.5 py-1 rounded-md border bg-gray-50 dark:bg-gray-700/50 border-gray-200 dark:border-gray-600 shadow-sm">
+          <UIcon name="i-lucide-check-circle" class="h-3.5 w-3.5 text-gray-600 dark:text-gray-400 flex-shrink-0" />
           <span class="text-xs font-semibold text-gray-700 dark:text-gray-300">{{ normalItems.length }}</span>
         </div>
 
         <!-- Expiring Soon Icon + Count -->
-        <div v-if="expiringSoonItems.length > 0" class="flex items-center gap-1 px-1.5 py-1 rounded-md border bg-primary-50 dark:bg-primary-900/20 border-primary-200 dark:border-primary-800">
-          <UIcon name="i-lucide-clock" class="h-3.5 w-3.5 text-primary-500 flex-shrink-0" />
-          <span class="text-xs font-semibold text-primary-700 dark:text-primary-300">{{ expiringSoonItems.length }}</span>
+        <div v-if="expiringSoonItems.length > 0" class="flex items-center gap-1 px-1.5 py-1 rounded-md border bg-amber-50 dark:bg-amber-900/20 border-amber-200 dark:border-amber-800 shadow-sm">
+          <UIcon name="i-lucide-clock" class="h-3.5 w-3.5 text-amber-600 dark:text-amber-400 flex-shrink-0" />
+          <span class="text-xs font-semibold text-amber-700 dark:text-amber-300">{{ expiringSoonItems.length }}</span>
         </div>
 
         <!-- Expired Icon + Count -->
-        <div v-if="expiredItems.length > 0" class="flex items-center gap-1 px-1.5 py-1 rounded-md border bg-red-50 dark:bg-red-900/20 border-red-200 dark:border-red-800">
-          <UIcon name="i-lucide-alert-circle" class="h-3.5 w-3.5 text-red-500 dark:text-red-400 flex-shrink-0" />
+        <div v-if="expiredItems.length > 0" class="flex items-center gap-1 px-1.5 py-1 rounded-md border bg-red-50 dark:bg-red-900/20 border-red-200 dark:border-red-800 shadow-sm">
+          <UIcon name="i-lucide-alert-circle" class="h-3.5 w-3.5 text-red-600 dark:text-red-400 flex-shrink-0" />
           <span class="text-xs font-semibold text-red-700 dark:text-red-300">{{ expiredItems.length }}</span>
         </div>
       </div>
@@ -96,6 +89,17 @@ const props = withDefaults(defineProps<Props>(), {
 
 const { t } = useI18n()
 const { isExpired: checkIsExpired, isExpiringSoon: checkIsExpiringSoon } = useExpirationCheck()
+
+// Dynamic border classes based on status
+const cardBorderClass = computed(() => {
+  if (hasExpiredItems.value) {
+    return 'border-red-400 dark:border-red-500'
+  }
+  if (hasExpiringSoonItems.value) {
+    return 'border-amber-400 dark:border-amber-500'
+  }
+  return 'border-gray-200 dark:border-gray-700'
+})
 
 // Helper function to escape regex special characters
 const escapeRegex = (str: string): string => {
@@ -206,3 +210,20 @@ const navigateToProduct = () => {
   router.push(`/products/${props.product.publicId}`)
 }
 </script>
+
+<style scoped>
+@keyframes slideInUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.card-animate {
+  animation: slideInUp 0.4s ease-out;
+}
+</style>
