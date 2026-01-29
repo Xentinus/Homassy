@@ -36,83 +36,17 @@
 
       <!-- Product Details -->
       <div v-else-if="product" class="space-y-6">
-        <!-- Product Info Card -->
-        <div class="relative bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-6 space-y-4">
-          <div class="flex flex-col md:flex-row gap-6 items-center md:items-start">
-            <!-- Product Image -->
-            <div v-if="product.productPictureBase64" class="flex-shrink-0">
-              <img
-                :src="`data:image/jpeg;base64,${product.productPictureBase64}`"
-                :alt="product.name"
-                class="w-24 h-24 md:w-32 md:h-32 object-contain rounded-lg cursor-pointer hover:opacity-90 transition-opacity"
-                @click="isImageOverlayOpen = true"
-              >
-            </div>
-            <div v-else class="flex-shrink-0 w-24 h-24 md:w-32 md:h-32 bg-gray-100 dark:bg-gray-700 rounded-lg flex flex-col items-center justify-center">
-              <UIcon name="i-lucide-package" class="h-12 w-12 text-gray-400 dark:text-gray-500" />
-              <span class="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                {{ $t('pages.products.details.noImage') }}
-              </span>
-            </div>
+        <ProductInfoCard
+          :product="product"
+          @image-click="isImageOverlayOpen = true"
+          @toggle-favorite="handleToggleFavorite"
+        />
 
-            <!-- Product Details -->
-            <div class="flex-1 space-y-3 text-center md:text-left">
-              <div>
-                <h2 class="text-2xl font-bold break-words">{{ product.name }}</h2>
-                <p class="text-lg text-gray-600 dark:text-gray-400 break-words">{{ product.brand }}</p>
-                
-                <!-- Status Icons -->
-                <div class="flex items-center gap-2 mt-2 justify-center md:justify-start">
-                  <UIcon
-                    v-if="product.isEatable"
-                    name="i-lucide-utensils"
-                    class="h-5 w-5 text-primary-500"
-                  />
-                  <UIcon
-                    :name="product.isFavorite ? 'i-lucide-heart' : 'i-lucide-heart-plus'"
-                    class="h-5 w-5 text-primary-500 cursor-pointer hover:opacity-80 transition-opacity"
-                    @click="handleToggleFavorite"
-                  />
-                </div>
-              </div>
-
-              <div class="flex flex-wrap gap-4 text-sm justify-center md:justify-start">
-                <div v-if="product.category" class="flex items-center gap-2">
-                  <UIcon name="i-lucide-tag" class="text-gray-500" />
-                  <span>{{ formatProductCategory(product.category) }}</span>
-                </div>
-                <div v-if="product.barcode" class="hidden md:flex items-center gap-2">
-                  <UIcon name="i-lucide-barcode" class="text-gray-500" />
-                  <span>{{ product.barcode }}</span>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <!-- Inventory Items Section -->
-        <div class="space-y-4">
-          <h3 class="text-xl font-semibold flex items-center gap-2">
-            <UIcon name="i-lucide-package-2" class="text-primary-500" />
-            {{ $t('pages.products.details.inventoryHeader') }}
-          </h3>
-
-          <div v-if="product.inventoryItems.length === 0" class="text-center py-8 text-gray-500 dark:text-gray-400">
-            {{ $t('pages.products.details.noInventoryItems') }}
-          </div>
-
-          <div v-else class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-            <InventoryItemDetail
-              v-for="item in sortedInventoryItems"
-              :key="item.publicId"
-              :item="item"
-              :product-name="product.name"
-              @consumed="loadProductDetails"
-              @updated="loadProductDetails"
-              @deleted="loadProductDetails"
-            />
-          </div>
-        </div>
+        <InventoryItemsSection
+          :items="sortedInventoryItems"
+          :product-name="product.name"
+          @refresh="loadProductDetails"
+        />
       </div>
     </div>
 

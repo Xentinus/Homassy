@@ -1,10 +1,13 @@
 ﻿<template>
-  <div class="rounded-lg border p-4 transition-all" :class="borderColorClass">
+  <div
+    class="rounded-xl p-4 shadow-sm transition-all duration-200 hover:shadow-lg hover:-translate-y-0.5 slideInUp"
+    :class="backgroundClass"
+  >
     <!-- Header: Quantity + Actions -->
-    <div class="flex items-center justify-between mb-3">
-      <div class="flex items-center gap-2">
-        <UIcon name="i-lucide-package-2" class="h-5 w-5 text-primary-500" />
-        <span class="text-lg font-semibold">
+    <div class="flex items-center justify-between mb-4">
+      <div class="flex items-center gap-3">
+        <UIcon :name="quantityIcon" class="h-6 w-6" :class="quantityIconColor" />
+        <span class="text-lg font-semibold text-gray-900 dark:text-white">
           {{ item.currentQuantity }} {{ $t(`enums.unit.${item.unit}`) }}
         </span>
       </div>
@@ -15,25 +18,26 @@
           :label="$t('pages.products.details.consume.button')"
           icon="i-lucide-utensils"
           size="sm"
+          color="primary"
           @click="openConsumeModal"
         />
         <UDropdownMenu :items="dropdownItems" size="md">
           <UButton
             icon="i-lucide-ellipsis-vertical"
             size="sm"
-            variant="subtle"
+            variant="ghost"
           />
         </UDropdownMenu>
       </UFieldGroup>
     </div>
 
     <!-- Storage Location Section -->
-    <div v-if="item.storageLocation" class="mb-3 space-y-1 text-sm">
-      <h4 class="font-medium text-gray-700 dark:text-gray-300 flex items-center gap-2">
-        <UIcon name="i-lucide-warehouse" class="h-4 w-4" />
+    <div v-if="item.storageLocation" class="mb-3 space-y-1">
+      <h4 class="text-sm font-semibold text-gray-700 dark:text-gray-300 flex items-center gap-2">
+        <UIcon name="i-lucide-warehouse" class="h-4 w-4 text-primary-600 dark:text-primary-400" />
         {{ $t('pages.products.details.storageLocation') }}
       </h4>
-      <div class="text-gray-600 dark:text-gray-400">
+      <div class="text-gray-700 dark:text-gray-300 pl-6 text-sm">
         <div>
           {{ item.storageLocation.name }}
         </div>
@@ -41,12 +45,12 @@
     </div>
 
     <!-- Expiration Section -->
-    <div v-if="item.expirationAt" class="mb-3 space-y-1 text-sm">
-      <h4 class="font-medium text-gray-700 dark:text-gray-300 flex items-center gap-2">
-        <UIcon :name="expirationIcon" class="h-4 w-4" />
+    <div v-if="item.expirationAt" class="mb-3 space-y-1">
+      <h4 class="text-sm font-semibold text-gray-700 dark:text-gray-300 flex items-center gap-2">
+        <UIcon :name="expirationIcon" class="h-4 w-4" :class="expirationTextColorClass" />
         {{ $t('pages.products.details.expirationInfo') }}
       </h4>
-      <div class="text-gray-600 dark:text-gray-400" :class="expirationTextColorClass">
+      <div class="pl-6 text-sm" :class="expirationTextColorClass">
         <div>
           <span class="font-medium">{{ $t('common.expirationDate') }}:</span>
           {{ formatDate(item.expirationAt) }}
@@ -55,12 +59,12 @@
     </div>
 
     <!-- Purchase Info Section -->
-    <div v-if="item.purchaseInfo" class="mb-3 space-y-1 text-sm">
-      <h4 class="font-medium text-gray-700 dark:text-gray-300 flex items-center gap-2">
-        <UIcon name="i-lucide-shopping-cart" class="h-4 w-4" />
+    <div v-if="item.purchaseInfo" class="mb-3 space-y-1">
+      <h4 class="text-sm font-semibold text-gray-700 dark:text-gray-300 flex items-center gap-2">
+        <UIcon name="i-lucide-shopping-cart" class="h-4 w-4 text-pink-600 dark:text-pink-400" />
         {{ $t('pages.products.details.purchaseInfo') }}
       </h4>
-      <div class="text-gray-600 dark:text-gray-400">
+      <div class="text-gray-700 dark:text-gray-300 space-y-0.5 pl-6 text-sm">
         <div v-if="item.purchaseInfo.purchasedAt">
           <span class="font-medium">{{ $t('pages.products.details.purchasedAt') }}:</span>
           {{ formatDate(item.purchaseInfo.purchasedAt) }}
@@ -85,14 +89,16 @@
     </div>
 
     <!-- Consumption History Section -->
-    <div v-if="item.purchaseInfo || item.consumptionLogs.length > 0" class="space-y-2">
+    <div v-if="item.purchaseInfo || item.consumptionLogs.length > 0" class="space-y-3">
       <button
-        class="flex items-center gap-2 text-sm font-medium text-primary-600 dark:text-primary-400 hover:text-primary-700 dark:hover:text-primary-300 transition-colors"
+        class="flex items-center gap-2 text-sm font-semibold text-primary-600 dark:text-primary-400 hover:text-primary-700 dark:hover:text-primary-300 transition-colors hover:-translate-x-0.5 duration-200"
         @click="isHistoryExpanded = !isHistoryExpanded"
       >
         <UIcon name="i-lucide-history" class="h-4 w-4" />
         <UIcon :name="isHistoryExpanded ? 'i-lucide-chevron-up' : 'i-lucide-chevron-down'" class="h-4 w-4" />
-        {{ isHistoryExpanded ? $t('pages.products.details.hideConsumptionHistory') : $t('pages.products.details.viewConsumptionHistory') }}
+        <span>
+          {{ isHistoryExpanded ? $t('pages.products.details.hideConsumptionHistory') : $t('pages.products.details.viewConsumptionHistory') }}
+        </span>
       </button>
 
       <Transition
@@ -103,7 +109,7 @@
         leave-from-class="max-h-[500px] opacity-100"
         leave-to-class="max-h-0 opacity-0"
       >
-        <div v-show="isHistoryExpanded" class="overflow-hidden">
+        <div v-show="isHistoryExpanded" class="overflow-hidden pt-2">
           <UTimeline
             color="primary"
             size="sm"
@@ -699,10 +705,24 @@ const isExpired = computed(() => checkIsExpired(props.item.expirationAt))
 
 const isExpiringSoon = computed(() => checkIsExpiringSoon(props.item.expirationAt))
 
-const borderColorClass = computed(() => {
-  if (isExpired.value) return 'border-red-500 bg-red-50 dark:bg-red-900/20'
-  if (isExpiringSoon.value) return 'border-primary-500 bg-primary-50 dark:bg-primary-900/20'
-  return 'border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800'
+const backgroundClass = computed(() => {
+  if (isExpired.value)
+    return 'bg-gradient-to-br from-red-50 to-red-100/50 dark:from-red-900/30 dark:to-red-800/20'
+  if (isExpiringSoon.value)
+    return 'bg-gradient-to-br from-amber-50 to-amber-100/50 dark:from-amber-900/30 dark:to-amber-800/20'
+  return 'bg-gradient-to-br from-white to-gray-50 dark:from-gray-800 dark:to-gray-900'
+})
+
+const quantityIcon = computed(() => {
+  if (isExpired.value) return 'i-lucide-alert-circle'
+  if (isExpiringSoon.value) return 'i-lucide-clock'
+  return 'i-lucide-package-2'
+})
+
+const quantityIconColor = computed(() => {
+  if (isExpired.value) return 'text-red-600 dark:text-red-400'
+  if (isExpiringSoon.value) return 'text-amber-600 dark:text-amber-400'
+  return 'text-primary-600 dark:text-primary-400'
 })
 
 const expirationTextColorClass = computed(() => {

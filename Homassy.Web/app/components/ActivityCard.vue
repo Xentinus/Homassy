@@ -1,6 +1,6 @@
 <template>
   <div
-    class="p-4 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 hover:shadow-sm transition-shadow"
+    class="p-4 rounded-xl shadow-sm bg-gradient-to-br from-white to-gray-50 dark:from-gray-800 dark:to-gray-900 hover:shadow-lg hover:-translate-y-0.5 transition-all duration-200 slideInUp"
   >
     <!-- Header: User info and timestamp -->
     <div class="flex items-start gap-3 mb-3">
@@ -10,13 +10,13 @@
           v-if="userInfo?.profilePictureBase64"
           :src="`data:image/jpeg;base64,${userInfo.profilePictureBase64}`"
           :alt="userInfo.displayName || userInfo.name"
-          class="h-10 w-10 rounded-full object-cover"
+          class="h-10 w-10 rounded-full object-cover ring-2 ring-gray-200 dark:ring-gray-700"
         >
         <div
           v-else
-          class="h-10 w-10 rounded-full bg-primary-100 dark:bg-primary-900 flex items-center justify-center"
+          class="h-10 w-10 rounded-full bg-gradient-to-br from-primary-400 to-primary-600 flex items-center justify-center"
         >
-          <span class="text-primary-600 dark:text-primary-300 font-semibold text-sm">
+          <span class="text-white font-semibold text-sm">
             {{ getInitials(userInfo?.displayName || userInfo?.name || '?') }}
           </span>
         </div>
@@ -25,17 +25,17 @@
       <!-- User name and timestamp -->
       <div class="flex-1 min-w-0">
         <div class="flex items-center justify-between gap-2">
-          <p class="font-semibold text-sm text-gray-900 dark:text-white truncate">
+          <p class="font-semibold text-gray-900 dark:text-white truncate">
             {{ userInfo?.displayName || userInfo?.name || 'Unknown User' }}
           </p>
-          <span class="text-xs text-gray-500 dark:text-gray-400 flex-shrink-0">
+          <span class="text-xs text-gray-500 dark:text-gray-500 flex-shrink-0">
             {{ formatTimestamp(activity.timestamp) }}
           </span>
         </div>
 
         <!-- Activity type badge -->
         <div class="flex items-center gap-2 mt-1">
-          <span class="text-sm font-medium text-primary-600 dark:text-primary-400">
+          <span class="text-sm text-gray-600 dark:text-gray-400">
             {{ $t(`enums.activityType.${activity.activityType}`) }}
           </span>
         </div>
@@ -43,18 +43,18 @@
     </div>
 
     <!-- Activity details -->
-    <div class="ml-13 space-y-1">
+    <div class="ml-13 space-y-2">
       <!-- Record name -->
       <div class="flex items-center gap-2">
-        <UIcon :name="getActivityIcon(activity.activityType)" class="h-4 w-4 text-gray-400" />
-        <p class="text-sm text-gray-700 dark:text-gray-300">
+        <UIcon :name="getActivityIcon(activity.activityType)" class="h-4 w-4" :class="getActivityIconColor(activity.activityType)" />
+        <p class="text-sm font-medium text-gray-900 dark:text-white">
           {{ activity.recordName }}
         </p>
       </div>
 
       <!-- Quantity and unit (if available) -->
       <div v-if="activity.quantity != null && activity.unit != null" class="flex items-center gap-2">
-        <UIcon name="i-lucide-scale" class="h-4 w-4 text-gray-400" />
+        <UIcon name="i-lucide-scale" class="h-4 w-4 text-amber-600 dark:text-amber-400" />
         <p class="text-sm text-gray-700 dark:text-gray-300">
           {{ formatQuantity(activity.quantity) }} {{ $t(`enums.unit.${activity.unit}`) }}
         </p>
@@ -127,5 +127,27 @@ const getActivityIcon = (activityType: ActivityType): string => {
     return 'i-lucide-users'
   }
   return 'i-lucide-activity'
+}
+
+// Get semantic icon color for activity type
+const getActivityIconColor = (activityType: ActivityType): string => {
+  if (activityType >= ActivityType.ProductCreate && activityType <= ActivityType.ProductPhotoDownloadFromOpenFoodFacts) {
+    return 'text-primary-600 dark:text-primary-400'
+  }
+  if (activityType >= ActivityType.ProductInventoryCreate && activityType <= ActivityType.ProductInventoryDelete) {
+    return 'text-amber-600 dark:text-amber-400'
+  }
+  if (activityType >= ActivityType.ShoppingListCreate && activityType <= ActivityType.ShoppingListDelete) {
+    return 'text-pink-600 dark:text-pink-400'
+  }
+  if ((activityType >= ActivityType.ShoppingListItemAdd && activityType <= ActivityType.ShoppingListItemDelete) ||
+      activityType === ActivityType.ShoppingListItemQuickPurchase ||
+      activityType === ActivityType.ShoppingListItemRestorePurchase) {
+    return 'text-pink-600 dark:text-pink-400'
+  }
+  if (activityType >= ActivityType.FamilyCreate && activityType <= ActivityType.FamilyLeave) {
+    return 'text-primary-600 dark:text-primary-400'
+  }
+  return 'text-gray-600 dark:text-gray-400'
 }
 </script>

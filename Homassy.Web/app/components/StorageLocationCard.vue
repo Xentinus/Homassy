@@ -1,11 +1,11 @@
 <template>
   <div>
     <div
-      class="p-4 rounded-lg border-2 transition-all duration-200 cursor-pointer hover:shadow-md"
+      class="p-4 rounded-xl shadow-sm transition-all duration-200 cursor-pointer hover:shadow-lg hover:-translate-y-0.5 slideInUp"
       :class="[
         isActive
-          ? 'border-primary-500 bg-primary-50 dark:bg-primary-900/10'
-          : 'border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800'
+          ? 'bg-gradient-to-br from-primary-50 to-primary-100/50 dark:from-primary-900/30 dark:to-primary-800/20'
+          : 'bg-gradient-to-br from-white to-gray-50 dark:from-gray-800 dark:to-gray-900'
       ]"
       @click="handleCardClick"
     >
@@ -22,7 +22,7 @@
 
           <!-- Name -->
           <h3 
-            class="font-semibold text-sm line-clamp-2 text-gray-900 dark:text-white flex-1"
+            class="font-semibold text-gray-900 dark:text-white flex-1 line-clamp-2"
             v-html="highlightText(location.name, searchQuery)"
           />
 
@@ -30,7 +30,7 @@
           <UIcon
             v-if="location.isFreezer"
             name="i-lucide-snowflake"
-            class="h-4 w-4 text-blue-500 flex-shrink-0"
+            class="h-4 w-4 text-blue-600 dark:text-blue-400 flex-shrink-0"
             :title="$t('profile.storageLocations.freezer')"
           />
 
@@ -38,7 +38,7 @@
           <UIcon
             v-if="location.isSharedWithFamily"
             name="i-lucide-users"
-            class="h-4 w-4 text-primary-500 flex-shrink-0"
+            class="h-4 w-4 text-primary-600 dark:text-primary-400 flex-shrink-0"
             :title="$t('profile.storageLocations.sharedWithFamily')"
           />
 
@@ -47,7 +47,7 @@
             <UButton
               icon="i-lucide-ellipsis-vertical"
               size="sm"
-              variant="subtle"
+              variant="ghost"
               @click.stop
             />
           </UDropdownMenu>
@@ -56,7 +56,7 @@
         <!-- Description (only if not empty) -->
         <p
           v-if="location.description && location.description.trim() !== ''"
-          class="text-xs text-gray-600 dark:text-gray-400 line-clamp-2"
+          class="text-sm text-gray-700 dark:text-gray-300 line-clamp-2"
           v-html="highlightText(location.description, searchQuery)"
         />
       </div>
