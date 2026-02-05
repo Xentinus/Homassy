@@ -857,3 +857,6 @@ logs
 .env
 .env.*
 !.env.example
+
+Tasks files
+/_tasks/*.md

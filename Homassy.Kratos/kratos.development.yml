@@ -1,0 +1,33 @@
+# Development environment overrides for Kratos
+# This file is merged with kratos.yml when running in development mode
+
+version: v1.2.0
+
+log:
+  level: debug
+  format: text
+  leak_sensitive_values: true
+
+selfservice:
+  flows:
+    login:
+      lifespan: 30m
+    registration:
+      lifespan: 30m
+    recovery:
+      lifespan: 2h
+    verification:
+      lifespan: 2h
+
+  methods:
+    code:
+      config:
+        lifespan: 30m
+
+session:
+  lifespan: 168h  # 7 days for development convenience
+
+# Development-specific SMTP settings (can use MailHog/Mailpit for local testing)
+# courier:
+#   smtp:
+#     connection_uri: smtp://mailhog:1025/?disable_starttls=true

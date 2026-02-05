@@ -12,6 +12,7 @@ services:
       - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
     volumes:
       - postgres-data:/var/lib/postgresql/data
+      - ./Homassy.Kratos/init-kratos-schema.sql:/docker-entrypoint-initdb.d/init-kratos-schema.sql:ro
     networks:
       - homassy-network
     healthcheck:
@@ -35,6 +36,36 @@ services:
         condition: service_healthy
     restart: "no"
 
+  homassy.kratos:
+    container_name: homassy-kratos
+    image: oryd/kratos:v1.2.0
+    ports:
+      - "4433:4433"
+      - "4434:4434"
+    environment:
+      # Database connection (Kratos standard env var)
+      - DSN=postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@${DATABASE_HOST}:${DATABASE_PORT}/${POSTGRES_DB}?sslmode=disable&search_path=kratos
+      # Secrets (Kratos standard env vars)
+      - SECRETS_COOKIE=${KRATOS_COOKIE_SECRET:-PLEASE-CHANGE-ME-I-AM-VERY-INSECURE!}
+      - SECRETS_CIPHER=${KRATOS_CIPHER_SECRET:-32-character-cipher-key-here-012}
+    volumes:
+      - ./Homassy.Kratos/kratos.yml:/etc/config/kratos/kratos.yml:ro
+      - ./Homassy.Kratos/identity.schema.json:/etc/config/kratos/identity.schema.json:ro
+      - ./Homassy.Kratos/templates:/etc/config/kratos/templates:ro
+    entrypoint: /bin/sh
+    command: ["-c", "kratos migrate sql -e --yes -c /etc/config/kratos/kratos.yml && kratos serve -c /etc/config/kratos/kratos.yml --dev --watch-courier"]
+    networks:
+      - homassy-network
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:4433/health/alive"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
   homassy.api:
     container_name: homassy-api
     image: ${DOCKER_REGISTRY-}homassyapi
@@ -53,6 +84,8 @@ services:
       - POSTGRES_DB=${POSTGRES_DB}
       - POSTGRES_USER=${POSTGRES_USER}
       - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+      - Kratos__PublicUrl=http://homassy-kratos:4433
+      - Kratos__AdminUrl=http://homassy-kratos:4434
     networks:
       - homassy-network
     depends_on:
@@ -60,6 +93,8 @@ services:
         condition: service_healthy
       homassy.migrator:
         condition: service_completed_successfully
+      homassy.kratos:
+        condition: service_healthy
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8080/api/v1.0/health"]
       interval: 10s
@@ -79,6 +114,7 @@ services:
     environment:
       - NODE_ENV=development
       - NUXT_PUBLIC_API_BASE=http://localhost:5226
+      - NUXT_PUBLIC_KRATOS_URL=http://localhost:4433
     volumes:
       - ./Homassy.Web:/app
       - /app/node_modules
@@ -88,6 +124,8 @@ services:
       postgres:
         condition: service_healthy
       homassy.api:
+        condition: service_healthy
+      homassy.kratos:
         condition: service_healthy
 
 networks:

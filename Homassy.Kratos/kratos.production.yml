@@ -1,0 +1,43 @@
+# Production environment overrides for Kratos
+# This file is merged with kratos.yml when running in production mode
+
+version: v1.2.0
+
+log:
+  level: warn
+  format: json
+  leak_sensitive_values: false
+
+selfservice:
+  flows:
+    login:
+      lifespan: 10m
+    registration:
+      lifespan: 10m
+    recovery:
+      lifespan: 1h
+      notify_unknown_recipients: false
+    verification:
+      lifespan: 1h
+      notify_unknown_recipients: false
+
+  methods:
+    code:
+      config:
+        lifespan: 15m
+
+session:
+  lifespan: 720h  # 30 days
+  cookie:
+    persistent: true
+    same_site: Lax
+
+# Production security settings
+hashers:
+  algorithm: argon2
+  argon2:
+    parallelism: 2
+    memory: 262144  # 256 MB
+    iterations: 3
+    salt_length: 16
+    key_length: 32

@@ -1,169 +1,330 @@
 {
-  "version": "2.0.0",
-  "tasks": [
-    {
-      "label": "Docker: Compose Up",
-      "type": "shell",
-      "command": "docker-compose up --build",
-      "problemMatcher": [],
-      "group": {
-        "kind": "build",
-        "isDefault": true
-      },
-      "presentation": {
-        "reveal": "always",
-        "panel": "new",
-        "focus": true
-      },
-      "icon": {
-        "id": "rocket",
-        "color": "terminal.ansiGreen"
-      }
-    },
-    {
-      "label": "Docker: Compose Up (Background)",
-      "type": "shell",
-      "command": "docker-compose up -d --build",
-      "problemMatcher": [],
-      "presentation": {
-        "reveal": "always",
-        "panel": "shared"
-      },
-      "icon": {
-        "id": "play",
-        "color": "terminal.ansiGreen"
-      }
-    },
-    {
-      "label": "Docker: Compose Down",
-      "type": "shell",
-      "command": "docker-compose down",
-      "problemMatcher": [],
-      "presentation": {
-        "reveal": "always",
-        "panel": "shared"
-      },
-      "icon": {
-        "id": "debug-stop",
-        "color": "terminal.ansiRed"
-      }
-    },
-    {
-      "label": "Docker: Compose Restart",
-      "type": "shell",
-      "command": "docker-compose restart",
-      "problemMatcher": [],
-      "presentation": {
-        "reveal": "always",
-        "panel": "shared"
-      },
-      "icon": {
-        "id": "debug-restart",
-        "color": "terminal.ansiYellow"
-      }
-    },
-    {
-      "label": "Docker: View Logs",
-      "type": "shell",
-      "command": "docker-compose logs -f",
-      "problemMatcher": [],
-      "presentation": {
-        "reveal": "always",
-        "panel": "dedicated",
-        "focus": true
-      },
-      "icon": {
-        "id": "output",
-        "color": "terminal.ansiBlue"
-      }
-    },
-    {
-      "label": "Docker: Rebuild Containers",
-      "type": "shell",
-      "command": "docker-compose down && docker-compose up --build",
-      "problemMatcher": [],
-      "presentation": {
-        "reveal": "always",
-        "panel": "new",
-        "focus": true
-      },
-      "icon": {
-        "id": "sync",
-        "color": "terminal.ansiYellow"
-      }
-    },
-    {
-      "label": "Docker: Clean & Rebuild",
-      "type": "shell",
-      "command": "docker-compose down -v && docker system prune -f && docker-compose up --build",
-      "problemMatcher": [],
-      "presentation": {
-        "reveal": "always",
-        "panel": "new",
-        "focus": true
-      },
-      "icon": {
-        "id": "trash",
-        "color": "terminal.ansiRed"
-      }
-    },
-    {
-      "label": "Docker: Frontend Only (Up)",
-      "type": "shell",
-      "command": "docker-compose -f docker-compose.web-only.yml up --build",
-      "problemMatcher": [],
-      "presentation": {
-        "reveal": "always",
-        "panel": "new",
-        "focus": true
-      },
-      "icon": {
-        "id": "browser",
-        "color": "terminal.ansiCyan"
-      }
-    },
-    {
-      "label": "Docker: Frontend Only (Background)",
-      "type": "shell",
-      "command": "docker-compose -f docker-compose.web-only.yml up -d --build",
-      "problemMatcher": [],
-      "presentation": {
-        "reveal": "always",
-        "panel": "shared"
-      },
-      "icon": {
-        "id": "browser",
-        "color": "terminal.ansiCyan"
-      }
-    },
-    {
-      "label": "Docker: Frontend Only (Down)",
-      "type": "shell",
-      "command": "docker-compose -f docker-compose.web-only.yml down",
-      "problemMatcher": [],
-      "presentation": {
-        "reveal": "always",
-        "panel": "shared"
-      },
-      "icon": {
-        "id": "debug-stop",
-        "color": "terminal.ansiCyan"
-      }
-    },
-    {
-      "label": "Docker: Frontend Only (Logs)",
-      "type": "shell",
-      "command": "docker-compose -f docker-compose.web-only.yml logs -f",
-      "problemMatcher": [],
-      "presentation": {
-        "reveal": "always",
-        "panel": "dedicated",
-        "focus": true
-      },
-      "icon": {
-        "id": "output",
-        "color": "terminal.ansiCyan"
-      }
-    }
-  ]
+	"version": "2.0.0",
+	"tasks": [
+		{
+			"label": "Docker: Compose Up",
+			"type": "shell",
+			"command": "docker-compose up --build",
+			"problemMatcher": [],
+			"group": {
+				"kind": "build",
+				"isDefault": true
+			},
+			"presentation": {
+				"reveal": "always",
+				"panel": "new",
+				"focus": true
+			},
+			"icon": {
+				"id": "rocket",
+				"color": "terminal.ansiGreen"
+			}
+		},
+		{
+			"label": "Docker: Compose Up (Background)",
+			"type": "shell",
+			"command": "docker-compose up -d --build",
+			"problemMatcher": [],
+			"presentation": {
+				"reveal": "always",
+				"panel": "shared"
+			},
+			"icon": {
+				"id": "play",
+				"color": "terminal.ansiGreen"
+			}
+		},
+		{
+			"label": "Docker: Compose Down",
+			"type": "shell",
+			"command": "docker-compose down",
+			"problemMatcher": [],
+			"presentation": {
+				"reveal": "always",
+				"panel": "shared"
+			},
+			"icon": {
+				"id": "debug-stop",
+				"color": "terminal.ansiRed"
+			}
+		},
+		{
+			"label": "Docker: Compose Restart",
+			"type": "shell",
+			"command": "docker-compose restart",
+			"problemMatcher": [],
+			"presentation": {
+				"reveal": "always",
+				"panel": "shared"
+			},
+			"icon": {
+				"id": "debug-restart",
+				"color": "terminal.ansiYellow"
+			}
+		},
+		{
+			"label": "Docker: View Logs",
+			"type": "shell",
+			"command": "docker-compose logs -f",
+			"problemMatcher": [],
+			"presentation": {
+				"reveal": "always",
+				"panel": "dedicated",
+				"focus": true
+			},
+			"icon": {
+				"id": "output",
+				"color": "terminal.ansiBlue"
+			}
+		},
+		{
+			"label": "Docker: Rebuild Containers",
+			"type": "shell",
+			"command": "docker-compose down && docker-compose up --build",
+			"problemMatcher": [],
+			"presentation": {
+				"reveal": "always",
+				"panel": "new",
+				"focus": true
+			},
+			"icon": {
+				"id": "sync",
+				"color": "terminal.ansiYellow"
+			}
+		},
+		{
+			"label": "Docker: Clean & Rebuild",
+			"type": "shell",
+			"command": "docker-compose down -v && docker system prune -f && docker-compose up --build",
+			"problemMatcher": [],
+			"presentation": {
+				"reveal": "always",
+				"panel": "new",
+				"focus": true
+			},
+			"icon": {
+				"id": "trash",
+				"color": "terminal.ansiRed"
+			}
+		},
+		{
+			"label": "Docker: Frontend Only (Up)",
+			"type": "shell",
+			"command": "docker-compose -f docker-compose.web-only.yml up --build",
+			"problemMatcher": [],
+			"presentation": {
+				"reveal": "always",
+				"panel": "new",
+				"focus": true
+			},
+			"icon": {
+				"id": "browser",
+				"color": "terminal.ansiCyan"
+			}
+		},
+		{
+			"label": "Docker: Frontend Only (Background)",
+			"type": "shell",
+			"command": "docker-compose -f docker-compose.web-only.yml up -d --build",
+			"problemMatcher": [],
+			"presentation": {
+				"reveal": "always",
+				"panel": "shared"
+			},
+			"icon": {
+				"id": "browser",
+				"color": "terminal.ansiCyan"
+			}
+		},
+		{
+			"label": "Docker: Frontend Only (Down)",
+			"type": "shell",
+			"command": "docker-compose -f docker-compose.web-only.yml down",
+			"problemMatcher": [],
+			"presentation": {
+				"reveal": "always",
+				"panel": "shared"
+			},
+			"icon": {
+				"id": "debug-stop",
+				"color": "terminal.ansiCyan"
+			}
+		},
+		{
+			"label": "Docker: Frontend Only (Logs)",
+			"type": "shell",
+			"command": "docker-compose -f docker-compose.web-only.yml logs -f",
+			"problemMatcher": [],
+			"presentation": {
+				"reveal": "always",
+				"panel": "dedicated",
+				"focus": true
+			},
+			"icon": {
+				"id": "output",
+				"color": "terminal.ansiCyan"
+			}
+		},
+		{
+			"label": "Kratos Logs",
+			"type": "shell",
+			"command": "docker-compose logs homassy.kratos 2>&1 | tail -100",
+			"isBackground": false
+		},
+		{
+			"label": "Kratos Test",
+			"type": "shell",
+			"command": "docker-compose down && docker-compose up -d postgres homassy.kratos && sleep 15 && docker-compose logs homassy.kratos 2>&1 | tail -80"
+		},
+		{
+			"label": "Kratos Logs",
+			"type": "shell",
+			"command": "docker-compose logs homassy.kratos 2>&1 | tail -100"
+		},
+		{
+			"label": "Kratos Test 2",
+			"type": "shell",
+			"command": "docker-compose down && docker-compose up -d postgres homassy.kratos && sleep 15 && docker-compose logs homassy.kratos 2>&1 | tail -50"
+		},
+		{
+			"label": "Kratos Logs 2",
+			"type": "shell",
+			"command": "docker-compose logs homassy.kratos 2>&1 | tail -60"
+		},
+		{
+			"label": "Check kratos.yml",
+			"type": "shell",
+			"command": "head -30 ./Homassy.Kratos/kratos.yml"
+		},
+		{
+			"label": "Kratos Force Rebuild",
+			"type": "shell",
+			"command": "docker-compose down -v && docker-compose rm -f homassy.kratos && docker-compose up -d postgres && sleep 10 && docker-compose up -d homassy.kratos && sleep 10 && docker-compose logs homassy.kratos 2>&1 | tail -50"
+		},
+		{
+			"label": "Kratos Logs 3",
+			"type": "shell",
+			"command": "docker-compose logs homassy.kratos 2>&1 | tail -60"
+		},
+		{
+			"label": "Docker Status",
+			"type": "shell",
+			"command": "docker-compose ps -a"
+		},
+		{
+			"label": "Kratos Fresh Start",
+			"type": "shell",
+			"command": "docker rm -f homassy-kratos 2>/dev/null; docker-compose up -d homassy.kratos && sleep 5 && docker logs homassy-kratos 2>&1 --since 5s | tail -60"
+		},
+		{
+			"label": "Full Kratos Log",
+			"type": "shell",
+			"command": "docker logs homassy-kratos 2>&1 | head -100"
+		},
+		{
+			"label": "Kratos Test 3",
+			"type": "shell",
+			"command": "docker rm -f homassy-kratos 2>/dev/null; docker-compose up -d homassy.kratos && sleep 8 && docker logs homassy-kratos 2>&1 | tail -30"
+		},
+		{
+			"label": "Kratos New Log",
+			"type": "shell",
+			"command": "docker logs homassy-kratos 2>&1 | head -50"
+		},
+		{
+			"label": "Check BOM",
+			"type": "shell",
+			"command": "file ./Homassy.Kratos/kratos.yml && head -c 10 ./Homassy.Kratos/kratos.yml | xxd"
+		},
+		{
+			"label": "Remove BOM",
+			"type": "shell",
+			"command": "sed -i '' '1s/^\\xef\\xbb\\xbf//' ./Homassy.Kratos/kratos.yml && head -c 10 ./Homassy.Kratos/kratos.yml | xxd"
+		},
+		{
+			"label": "Kratos Test Final",
+			"type": "shell",
+			"command": "docker rm -f homassy-kratos 2>/dev/null; docker-compose up -d homassy.kratos && sleep 8 && docker logs homassy-kratos 2>&1 | tail -30"
+		},
+		{
+			"label": "Kratos Final Log",
+			"type": "shell",
+			"command": "docker logs homassy-kratos 2>&1 | tail -40"
+		},
+		{
+			"label": "Check all files",
+			"type": "shell",
+			"command": "file ./Homassy.Kratos/*.json ./Homassy.Kratos/*.yml && head -c 5 ./Homassy.Kratos/identity.schema.json | xxd"
+		},
+		{
+			"label": "Remove all BOM",
+			"type": "shell",
+			"command": "sed -i '' '1s/^\\xef\\xbb\\xbf//' ./Homassy.Kratos/identity.schema.json ./Homassy.Kratos/kratos.development.yml ./Homassy.Kratos/kratos.production.yml && file ./Homassy.Kratos/*.json ./Homassy.Kratos/*.yml"
+		},
+		{
+			"label": "Kratos Final Test",
+			"type": "shell",
+			"command": "docker rm -f homassy-kratos 2>/dev/null; docker-compose up -d homassy.kratos && sleep 8 && docker logs homassy-kratos 2>&1 | tail -30"
+		},
+		{
+			"label": "Full Kratos Logs",
+			"type": "shell",
+			"command": "docker logs homassy-kratos 2>&1"
+		},
+		{
+			"label": "Kratos with Migration",
+			"type": "shell",
+			"command": "docker rm -f homassy-kratos 2>/dev/null; docker-compose up -d homassy.kratos && sleep 15 && docker logs homassy-kratos 2>&1 | tail -40"
+		},
+		{
+			"label": "Kratos Migration Logs",
+			"type": "shell",
+			"command": "docker logs homassy-kratos 2>&1 | tail -50"
+		},
+		{
+			"label": "Kratos Migration v2",
+			"type": "shell",
+			"command": "docker rm -f homassy-kratos 2>/dev/null; docker-compose up -d homassy.kratos && sleep 15 && docker logs homassy-kratos 2>&1 | tail -40"
+		},
+		{
+			"label": "Full Kratos Log v2",
+			"type": "shell",
+			"command": "docker logs homassy-kratos 2>&1"
+		},
+		{
+			"label": "Kratos Final v3",
+			"type": "shell",
+			"command": "docker rm -f homassy-kratos 2>/dev/null; docker-compose up -d homassy.kratos && sleep 20 && docker logs homassy-kratos 2>&1 | tail -50"
+		},
+		{
+			"label": "Kratos Final Log v3",
+			"type": "shell",
+			"command": "docker logs homassy-kratos 2>&1"
+		},
+		{
+			"label": "Final Check",
+			"type": "shell",
+			"command": "docker-compose ps && echo '---' && curl -s http://localhost:4433/health/alive"
+		},
+		{
+			"label": "Phase 1 Test 1 - Container Status",
+			"type": "shell",
+			"command": "docker-compose ps"
+		},
+		{
+			"label": "Phase 1 Test 2 - Health Ready",
+			"type": "shell",
+			"command": "curl -s http://localhost:4433/health/ready | jq"
+		},
+		{
+			"label": "Phase 1 Test 3 - Kratos Tables",
+			"type": "shell",
+			"command": "docker exec homassy-postgres psql -U postgres -d homassy -c \"SELECT table_schema, table_name FROM information_schema.tables WHERE table_schema = 'kratos' ORDER BY table_name LIMIT 20;\""
+		},
+		{
+			"label": "Phase 1 Test 3b - Kratos Tables",
+			"type": "shell",
+			"command": "docker exec homassy-postgres bash -c \"psql -U \\$POSTGRES_USER -d \\$POSTGRES_DB -c \\\"SELECT table_schema, table_name FROM information_schema.tables WHERE table_schema = 'kratos' ORDER BY table_name LIMIT 20;\\\"\""
+		}
+	]
 }
