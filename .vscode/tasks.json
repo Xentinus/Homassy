@@ -325,6 +325,21 @@
 			"label": "Phase 1 Test 3b - Kratos Tables",
 			"type": "shell",
 			"command": "docker exec homassy-postgres bash -c \"psql -U \\$POSTGRES_USER -d \\$POSTGRES_DB -c \\\"SELECT table_schema, table_name FROM information_schema.tables WHERE table_schema = 'kratos' ORDER BY table_name LIMIT 20;\\\"\""
+		},
+		{
+			"label": "Phase 2 Test - Kratos Restart",
+			"type": "shell",
+			"command": "docker rm -f homassy-kratos 2>/dev/null; docker-compose up -d homassy.kratos && sleep 15 && docker logs homassy-kratos 2>&1 | tail -50"
+		},
+		{
+			"label": "Phase 2 - Full Kratos Logs",
+			"type": "shell",
+			"command": "docker logs homassy-kratos 2>&1"
+		},
+		{
+			"label": "Phase 2 - Health Check",
+			"type": "shell",
+			"command": "curl -s http://localhost:4433/health/alive | jq && curl -s http://localhost:4433/health/ready | jq"
 		}
 	]
 }
