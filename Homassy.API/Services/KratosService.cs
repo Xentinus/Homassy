@@ -21,6 +21,16 @@ namespace Homassy.API.Services
         Task<KratosIdentity?> GetIdentityAsync(string identityId, CancellationToken cancellationToken = default);
 
         /// <summary>
+        /// Gets an identity by email from the Admin API.
+        /// </summary>
+        Task<KratosIdentity?> GetIdentityByEmailAsync(string email, CancellationToken cancellationToken = default);
+
+        /// <summary>
+        /// Creates a new identity with the given traits.
+        /// </summary>
+        Task<KratosIdentity?> CreateIdentityAsync(KratosTraits traits, bool verifyEmail = true, CancellationToken cancellationToken = default);
+
+        /// <summary>
         /// Updates an identity's traits.
         /// </summary>
         Task<KratosIdentity?> UpdateIdentityTraitsAsync(string identityId, KratosTraits traits, CancellationToken cancellationToken = default);
@@ -153,6 +163,80 @@ namespace Homassy.API.Services
             catch (Exception ex)
             {
                 Log.Error(ex, $"Error getting Kratos identity {identityId}");
+                return null;
+            }
+        }
+
+        /// <inheritdoc/>
+        public async Task<KratosIdentity?> GetIdentityByEmailAsync(string email, CancellationToken cancellationToken = default)
+        {
+            try
+            {
+                // Use the credentials_identifier filter to find by email
+                var encodedEmail = Uri.EscapeDataString(email);
+                var requestUrl = $"{_adminUrl}/admin/identities?credentials_identifier={encodedEmail}";
+                var response = await _httpClient.GetAsync(requestUrl, cancellationToken);
+
+                if (!response.IsSuccessStatusCode)
+                {
+                    Log.Warning($"Kratos get identity by email failed with status {response.StatusCode}");
+                    return null;
+                }
+
+                var content = await response.Content.ReadAsStringAsync(cancellationToken);
+                var identities = JsonSerializer.Deserialize<List<KratosIdentity>>(content, _jsonOptions);
+                
+                return identities?.FirstOrDefault();
+            }
+            catch (Exception ex)
+            {
+                Log.Error(ex, $"Error getting Kratos identity by email {email}");
+                return null;
+            }
+        }
+
+        /// <inheritdoc/>
+        public async Task<KratosIdentity?> CreateIdentityAsync(KratosTraits traits, bool verifyEmail = true, CancellationToken cancellationToken = default)
+        {
+            try
+            {
+                var requestUrl = $"{_adminUrl}/admin/identities";
+                
+                var createPayload = new
+                {
+                    schema_id = "default",
+                    state = "active",
+                    traits,
+                    verifiable_addresses = verifyEmail ? new[]
+                    {
+                        new
+                        {
+                            value = traits.Email,
+                            via = "email",
+                            verified = true, // Mark as verified for migrated users
+                            status = "completed"
+                        }
+                    } : null
+                };
+
+                var json = JsonSerializer.Serialize(createPayload, _jsonOptions);
+                using var content = new StringContent(json, System.Text.Encoding.UTF8, "application/json");
+
+                var response = await _httpClient.PostAsync(requestUrl, content, cancellationToken);
+
+                if (!response.IsSuccessStatusCode)
+                {
+                    var errorContent = await response.Content.ReadAsStringAsync(cancellationToken);
+                    Log.Warning($"Kratos create identity failed with status {response.StatusCode}: {errorContent}");
+                    return null;
+                }
+
+                var responseContent = await response.Content.ReadAsStringAsync(cancellationToken);
+                return JsonSerializer.Deserialize<KratosIdentity>(responseContent, _jsonOptions);
+            }
+            catch (Exception ex)
+            {
+                Log.Error(ex, $"Error creating Kratos identity for email {traits.Email}");
                 return null;
             }
         }

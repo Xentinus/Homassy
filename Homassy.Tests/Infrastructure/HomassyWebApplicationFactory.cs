@@ -93,6 +93,55 @@ public class MockKratosService : IKratosService
             .ToList();
         return Task.FromResult(identities);
     }
+
+    public Task<KratosIdentity?> GetIdentityByEmailAsync(string email, CancellationToken cancellationToken = default)
+    {
+        var identity = _testSessions.Values
+            .Select(s => s.Identity)
+            .FirstOrDefault(i => i.Traits?.Email?.Equals(email, StringComparison.OrdinalIgnoreCase) == true);
+        return Task.FromResult(identity);
+    }
+
+    public Task<KratosIdentity?> CreateIdentityAsync(KratosTraits traits, bool verifyEmail = true, CancellationToken cancellationToken = default)
+    {
+        var identity = new KratosIdentity
+        {
+            Id = Guid.NewGuid().ToString(),
+            SchemaId = "default",
+            SchemaUrl = "mock://schema",
+            State = "active",
+            Traits = traits,
+            VerifiableAddresses = verifyEmail && !string.IsNullOrEmpty(traits.Email)
+                ? new List<KratosVerifiableAddress>
+                {
+                    new KratosVerifiableAddress
+                    {
+                        Id = Guid.NewGuid().ToString(),
+                        Value = traits.Email,
+                        Verified = true,
+                        Via = "email",
+                        Status = "completed"
+                    }
+                }
+                : new List<KratosVerifiableAddress>(),
+            CreatedAt = DateTime.UtcNow,
+            UpdatedAt = DateTime.UtcNow
+        };
+        
+        // Store in a test session for retrieval
+        var session = new KratosSession
+        {
+            Id = Guid.NewGuid().ToString(),
+            Active = true,
+            Identity = identity,
+            AuthenticatedAt = DateTime.UtcNow,
+            IssuedAt = DateTime.UtcNow,
+            ExpiresAt = DateTime.UtcNow.AddHours(1)
+        };
+        _testSessions[$"mock-created-{identity.Id}"] = session;
+        
+        return Task.FromResult<KratosIdentity?>(identity);
+    }
 }
 
 public class HomassyWebApplicationFactory : WebApplicationFactory<Program>

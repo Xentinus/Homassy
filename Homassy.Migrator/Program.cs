@@ -1,16 +1,20 @@
 using Homassy.API.Context;
+using Homassy.Migrator.Migrations;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Npgsql;
 using System.Data.Common;
 
+// Parse command line arguments
+var command = args.Length > 0 ? args[0] : "migrate";
+var isDryRun = args.Contains("--dry-run");
+
 Console.WriteLine("=== Homassy Database Migrator ===");
+Console.WriteLine($"Command: {command}");
 
 try
 {
     // Load configuration
-    // Note: We use the API's appsettings.json from the published output
-    // Environment variables will override these settings
     var configuration = new ConfigurationBuilder()
         .SetBasePath(Directory.GetCurrentDirectory())
         .AddJsonFile("appsettings.json", optional: true)
@@ -34,13 +38,56 @@ try
     // Set configuration for HomassyDbContext
     HomassyDbContext.SetConfiguration(configuration);
 
-    // Run migrations
-    Console.WriteLine("Applying database migrations...");
-
+    // Create DbContext
     var optionsBuilder = new DbContextOptionsBuilder<HomassyDbContext>();
     optionsBuilder.UseNpgsql(connectionString);
-
     await using var context = new HomassyDbContext(optionsBuilder.Options);
+
+    // Execute command
+    switch (command.ToLower())
+    {
+        case "migrate":
+            await RunEfMigrationsAsync(context);
+            break;
+
+        case "migrate-to-kratos":
+            await RunEfMigrationsAsync(context); // Ensure DB is up to date first
+            await RunKratosMigrationAsync(context, configuration, isDryRun);
+            break;
+
+        case "verify-kratos":
+            await VerifyKratosMigrationAsync(context, configuration);
+            break;
+
+        case "kratos-stats":
+            await ShowKratosStatsAsync(context, configuration);
+            break;
+
+        default:
+            Console.WriteLine($"Unknown command: {command}");
+            Console.WriteLine("Available commands:");
+            Console.WriteLine("  migrate              - Run EF Core database migrations (default)");
+            Console.WriteLine("  migrate-to-kratos    - Migrate users to Kratos identity system");
+            Console.WriteLine("                         Options: --dry-run");
+            Console.WriteLine("  verify-kratos        - Verify Kratos migration status");
+            Console.WriteLine("  kratos-stats         - Show Kratos migration statistics");
+            Environment.Exit(1);
+            break;
+    }
+
+    Console.WriteLine("\nOperation completed successfully");
+    Environment.Exit(0);
+}
+catch (Exception ex)
+{
+    Console.Error.WriteLine($"FATAL ERROR: {ex.GetType().Name}: {ex.Message}");
+    Console.Error.WriteLine($"Stack Trace: {ex.StackTrace}");
+    Environment.Exit(1);
+}
+
+static async Task RunEfMigrationsAsync(HomassyDbContext context)
+{
+    Console.WriteLine("\n--- Running EF Core Migrations ---");
 
     var pendingMigrations = await context.Database.GetPendingMigrationsAsync();
     var pendingCount = pendingMigrations.Count();
@@ -60,15 +107,53 @@ try
         await context.Database.MigrateAsync();
         Console.WriteLine("✓ All migrations applied successfully");
     }
-
-    Console.WriteLine("Migration process completed successfully");
-    Environment.Exit(0);
 }
-catch (Exception ex)
+
+static async Task RunKratosMigrationAsync(HomassyDbContext context, IConfiguration configuration, bool dryRun)
 {
-    Console.Error.WriteLine($"FATAL ERROR during migration: {ex.GetType().Name}: {ex.Message}");
-    Console.Error.WriteLine($"Stack Trace: {ex.StackTrace}");
-    Environment.Exit(1);
+    Console.WriteLine("\n--- Running Kratos User Migration ---");
+
+    if (dryRun)
+    {
+        Console.WriteLine("⚠️  DRY RUN MODE - No changes will be made");
+    }
+
+    var migration = new KratosUserMigration(context, configuration);
+    var summary = await migration.MigrateAllUsersAsync(dryRun);
+
+    if (summary.FailedCount > 0)
+    {
+        Console.WriteLine("\n⚠️  Some users failed to migrate. Check the output above for details.");
+        Environment.Exit(2); // Partial success
+    }
+}
+
+static async Task VerifyKratosMigrationAsync(HomassyDbContext context, IConfiguration configuration)
+{
+    Console.WriteLine("\n--- Verifying Kratos Migration ---");
+
+    var migration = new KratosUserMigration(context, configuration);
+    var allMigrated = await migration.VerifyMigrationAsync();
+
+    if (!allMigrated)
+    {
+        Environment.Exit(3); // Verification failed
+    }
+}
+
+static async Task ShowKratosStatsAsync(HomassyDbContext context, IConfiguration configuration)
+{
+    Console.WriteLine("\n--- Kratos Migration Statistics ---");
+
+    var migration = new KratosUserMigration(context, configuration);
+    var (total, migrated, pending) = await migration.GetMigrationStatsAsync();
+
+    Console.WriteLine($"Total Users:      {total}");
+    Console.WriteLine($"Migrated Users:   {migrated}");
+    Console.WriteLine($"Pending Migration: {pending}");
+
+    var percentage = total > 0 ? (migrated * 100.0 / total) : 100;
+    Console.WriteLine($"Progress:         {percentage:F1}%");
 }
 
 static async Task WaitForDatabaseAsync(string connectionString, int maxAttempts, int delaySeconds)

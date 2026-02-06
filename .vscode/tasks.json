@@ -815,6 +815,36 @@
 			"type": "shell",
 			"command": "cd Homassy.Web && npm run build",
 			"group": "build"
+		},
+		{
+			"label": "Run All Tests",
+			"type": "shell",
+			"command": "cd /Users/xentinus/Development/Homassy && dotnet test Homassy.Tests/Homassy.Tests.csproj --verbosity normal",
+			"group": "test"
+		},
+		{
+			"label": "Run All Tests v2",
+			"type": "shell",
+			"command": "cd /Users/xentinus/Development/Homassy && dotnet test Homassy.Tests/Homassy.Tests.csproj --verbosity normal",
+			"group": "test"
+		},
+		{
+			"label": "Run All Tests v3",
+			"type": "shell",
+			"command": "cd /Users/xentinus/Development/Homassy && dotnet test Homassy.Tests/Homassy.Tests.csproj --verbosity normal 2>&1 | tail -50",
+			"group": "test"
+		},
+		{
+			"label": "Show Failed Tests",
+			"type": "shell",
+			"command": "cd /Users/xentinus/Development/Homassy && dotnet test Homassy.Tests/Homassy.Tests.csproj --verbosity normal --filter \"FullyQualifiedName~Failed\" 2>&1; echo '---'; dotnet test Homassy.Tests/Homassy.Tests.csproj --verbosity normal 2>&1 | grep -E '(Failed|Error|Exception)' | head -30",
+			"group": "test"
+		},
+		{
+			"label": "Failed Test Details",
+			"type": "shell",
+			"command": "cd /Users/xentinus/Development/Homassy && dotnet test Homassy.Tests/Homassy.Tests.csproj --verbosity normal --logger \"console;verbosity=detailed\" 2>&1 | grep -A 20 'Failed '",
+			"group": "test"
 		}
 	]
 }
