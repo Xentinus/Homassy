@@ -340,6 +340,433 @@
 			"label": "Phase 2 - Health Check",
 			"type": "shell",
 			"command": "curl -s http://localhost:4433/health/alive | jq && curl -s http://localhost:4433/health/ready | jq"
+		},
+		{
+			"label": "Build API",
+			"type": "shell",
+			"command": "cd Homassy.API && dotnet build",
+			"isBackground": false,
+			"group": "build"
+		},
+		{
+			"label": "Build Homassy.API",
+			"type": "shell",
+			"command": "dotnet build Homassy.API/Homassy.API.csproj",
+			"isBackground": false,
+			"group": "build"
+		},
+		{
+			"label": "Build API v2",
+			"type": "shell",
+			"command": "dotnet build Homassy.API/Homassy.API.csproj",
+			"isBackground": false,
+			"group": "build"
+		},
+		{
+			"label": "Build API v3",
+			"type": "shell",
+			"command": "cd Homassy.API && dotnet build 2>&1",
+			"isBackground": false,
+			"group": "build"
+		},
+		{
+			"label": "Run Tests",
+			"type": "shell",
+			"command": "cd Homassy.Tests && dotnet test 2>&1",
+			"isBackground": false,
+			"group": "test"
+		},
+		{
+			"label": "Build Tests",
+			"type": "shell",
+			"command": "cd Homassy.Tests && dotnet build 2>&1 | head -100",
+			"isBackground": false,
+			"group": "test"
+		},
+		{
+			"label": "Build Tests v2",
+			"type": "shell",
+			"command": "dotnet build Homassy.Tests/Homassy.Tests.csproj 2>&1 | tail -60",
+			"isBackground": false,
+			"group": "test"
+		},
+		{
+			"label": "Build Tests v3",
+			"type": "shell",
+			"command": "dotnet build Homassy.Tests/Homassy.Tests.csproj 2>&1 | grep -E '(error|warning|Build succeeded|Build FAILED)' | tail -30",
+			"isBackground": false,
+			"group": "test"
+		},
+		{
+			"label": "Build Tests v4",
+			"type": "shell",
+			"command": "dotnet build Homassy.Tests/Homassy.Tests.csproj 2>&1 | tail -20",
+			"isBackground": false,
+			"group": "test"
+		},
+		{
+			"label": "Run Tests v2",
+			"type": "shell",
+			"command": "cd Homassy.Tests && dotnet test --logger \"console;verbosity=detailed\" 2>&1 | tail -100",
+			"isBackground": false,
+			"group": "test"
+		},
+		{
+			"label": "Run Tests Final",
+			"type": "shell",
+			"command": "cd Homassy.Tests && dotnet test 2>&1 | tail -50",
+			"isBackground": false,
+			"group": "test"
+		},
+		{
+			"label": "Run Unit Tests",
+			"type": "shell",
+			"command": "cd Homassy.Tests && dotnet test --filter 'FullyQualifiedName~Unit' 2>&1 | tail -40",
+			"isBackground": false,
+			"group": "test"
+		},
+		{
+			"label": "Unit Tests Only",
+			"type": "shell",
+			"command": "cd Homassy.Tests && dotnet test --filter 'Category=Unit|FullyQualifiedName~Unit' --no-build 2>&1 | tail -50",
+			"isBackground": false,
+			"group": "test"
+		},
+		{
+			"label": "Full Test Run",
+			"type": "shell",
+			"command": "dotnet build Homassy.Tests/Homassy.Tests.csproj && cd Homassy.Tests && dotnet test --no-build 2>&1 | tail -20",
+			"isBackground": false,
+			"group": "test"
+		},
+		{
+			"label": "Show Failed Tests",
+			"type": "shell",
+			"command": "cd Homassy.Tests && dotnet test --no-build 2>&1 | grep -E '(Failed |Error Message:|Total tests:)' | head -50",
+			"isBackground": false,
+			"group": "test"
+		},
+		{
+			"label": "Count Tests",
+			"type": "shell",
+			"command": "cd Homassy.Tests && dotnet test --no-build --list-tests 2>&1 | grep -c 'Test Method'",
+			"isBackground": false,
+			"group": "test"
+		},
+		{
+			"label": "Clean and Build Tests",
+			"type": "shell",
+			"command": "cd Homassy.Tests && rm -rf bin obj && dotnet build 2>&1 | tail -10",
+			"isBackground": false,
+			"group": "build"
+		},
+		{
+			"label": "Clean Build Tests v2",
+			"type": "shell",
+			"command": "dotnet clean Homassy.Tests/Homassy.Tests.csproj && dotnet build Homassy.Tests/Homassy.Tests.csproj 2>&1 | tail -15",
+			"isBackground": false,
+			"group": "build"
+		},
+		{
+			"label": "Test Summary",
+			"type": "shell",
+			"command": "cd Homassy.Tests && dotnet test 2>&1 | grep -E '(^Failed|^Passed|Total tests:|^Test Run|Failed!)' | head -20",
+			"isBackground": false,
+			"group": "test"
+		},
+		{
+			"label": "Migrator Logs",
+			"type": "shell",
+			"command": "docker logs homassy-migrator 2>&1 | tail -50",
+			"isBackground": false,
+			"group": "test"
+		},
+		{
+			"label": "Create Migration",
+			"type": "shell",
+			"command": "cd Homassy.API && dotnet ef migrations add AddKratosIdentityId --context HomassyDbContext 2>&1",
+			"isBackground": false,
+			"group": "build"
+		},
+		{
+			"label": "Create Migration v2",
+			"type": "shell",
+			"command": "cd Homassy.API && dotnet ef migrations add AddKratosIdentityId --context HomassyDbContext 2>&1 | tail -30",
+			"isBackground": false,
+			"group": "build"
+		},
+		{
+			"label": "Run Migrator",
+			"type": "shell",
+			"command": "docker-compose up -d --build homassy.migrator 2>&1 | tail -30",
+			"isBackground": false,
+			"group": "build"
+		},
+		{
+			"label": "Build and Run Migrator",
+			"type": "shell",
+			"command": "docker-compose build homassy.migrator && docker-compose up homassy.migrator 2>&1 | tail -50",
+			"isBackground": false,
+			"group": "build"
+		},
+		{
+			"label": "Clean and Run Migrator",
+			"type": "shell",
+			"command": "docker rm -f homassy-migrator 2>/dev/null; docker container prune -f 2>/dev/null; docker-compose up homassy.migrator 2>&1 | tail -30",
+			"isBackground": false,
+			"group": "build"
+		},
+		{
+			"label": "Start All Services",
+			"type": "shell",
+			"command": "docker-compose up -d 2>&1 | tail -20",
+			"isBackground": false,
+			"group": "build"
+		},
+		{
+			"label": "Check Status",
+			"type": "shell",
+			"command": "docker-compose ps 2>&1",
+			"isBackground": false,
+			"group": "build"
+		},
+		{
+			"label": "Rebuild and Start",
+			"type": "shell",
+			"command": "docker-compose up -d --build 2>&1 && sleep 10 && docker-compose ps 2>&1",
+			"isBackground": false,
+			"group": "build"
+		},
+		{
+			"label": "Service Status",
+			"type": "shell",
+			"command": "docker-compose ps 2>&1",
+			"isBackground": false,
+			"group": "test"
+		},
+		{
+			"label": "Health Checks",
+			"type": "shell",
+			"command": "sleep 15 && docker-compose ps && curl -s http://localhost:5226/health/alive | head -5",
+			"isBackground": false,
+			"group": "test"
+		},
+		{
+			"label": "Final Health Check",
+			"type": "shell",
+			"command": "docker-compose ps && curl -s http://localhost:5226/health/alive",
+			"isBackground": false,
+			"group": "test"
+		},
+		{
+			"label": "API Health",
+			"type": "shell",
+			"command": "sleep 20 && curl -s http://localhost:5226/health/alive && echo '\n---' && docker logs homassy-api 2>&1 | tail -30",
+			"isBackground": false,
+			"group": "test"
+		},
+		{
+			"label": "API Health and Logs",
+			"type": "shell",
+			"command": "curl -s http://localhost:5226/health/alive && echo '' && docker logs homassy-api 2>&1 | tail -40",
+			"isBackground": false,
+			"group": "test"
+		},
+		{
+			"label": "Rebuild API",
+			"type": "shell",
+			"command": "docker rm -f homassy-api 2>/dev/null; docker-compose up -d --build homassy.api && sleep 20 && curl -s http://localhost:5226/health/alive | head -20",
+			"isBackground": false,
+			"group": "test"
+		},
+		{
+			"label": "Check Health",
+			"type": "shell",
+			"command": "docker-compose ps && echo '---' && curl -s http://localhost:5226/health/alive",
+			"isBackground": false,
+			"group": "test"
+		},
+		{
+			"label": "Force Rebuild",
+			"type": "shell",
+			"command": "docker rm -f homassy-api homassy-migrator 2>/dev/null; docker-compose build --no-cache homassy.api homassy.migrator 2>&1 | tail -20",
+			"isBackground": false,
+			"group": "test"
+		},
+		{
+			"label": "Build & Start",
+			"type": "shell",
+			"command": "docker-compose build --no-cache homassy.api 2>&1 && docker-compose up -d && sleep 30 && docker-compose ps",
+			"isBackground": false,
+			"group": "test"
+		},
+		{
+			"label": "Check Status",
+			"type": "shell",
+			"command": "docker-compose ps && curl -s http://localhost:5226/health/alive && echo '' && docker logs homassy-api 2>&1 | tail -20",
+			"isBackground": false,
+			"group": "test"
+		},
+		{
+			"label": "Start Services",
+			"type": "shell",
+			"command": "docker-compose up -d homassy.migrator homassy.api 2>&1 | tail -30",
+			"isBackground": false,
+			"group": "test"
+		},
+		{
+			"label": "Wait & Check",
+			"type": "shell",
+			"command": "sleep 30 && docker-compose ps && echo '---' && curl -s http://localhost:5226/health/alive",
+			"isBackground": false,
+			"group": "test"
+		},
+		{
+			"label": "API Logs",
+			"type": "shell",
+			"command": "docker logs homassy-api 2>&1 | tail -50",
+			"isBackground": false,
+			"group": "test"
+		},
+		{
+			"label": "Restart API",
+			"type": "shell",
+			"command": "docker rm -f homassy-api 2>/dev/null; docker-compose up -d homassy.api && sleep 40 && docker-compose ps",
+			"isBackground": false,
+			"group": "test"
+		},
+		{
+			"label": "Check Final",
+			"type": "shell",
+			"command": "docker-compose ps && curl -s http://localhost:5226/api/v1.0/health/ready | head -20",
+			"isBackground": false,
+			"group": "test"
+		},
+		{
+			"label": "Test Auth Endpoints",
+			"type": "shell",
+			"command": "echo 'Auth Config:' && curl -s http://localhost:5226/api/v1.0/auth/config | jq && echo '\nAuth Me (unauthenticated):' && curl -s http://localhost:5226/api/v1.0/auth/me",
+			"isBackground": false,
+			"group": "test"
+		},
+		{
+			"label": "Run Tests",
+			"type": "shell",
+			"command": "cd Homassy.Tests && dotnet test --no-restore --verbosity normal 2>&1 | tail -100",
+			"isBackground": false,
+			"group": "test"
+		},
+		{
+			"label": "Run Tests v2",
+			"type": "shell",
+			"command": "cd Homassy.Tests && dotnet test --no-restore --verbosity normal 2>&1 | head -200",
+			"isBackground": false,
+			"group": "test"
+		},
+		{
+			"label": "Run Unit Tests",
+			"type": "shell",
+			"command": "cd Homassy.Tests && dotnet test --no-restore --filter \"FullyQualifiedName~Unit\" 2>&1 | tail -50",
+			"isBackground": false,
+			"group": "test"
+		},
+		{
+			"label": "Test Single",
+			"type": "shell",
+			"command": "cd Homassy.Tests && dotnet test --filter \"FullyQualifiedName=Homassy.Tests.Unit.UserFunctionsTests.CreateUserAsync_ValidRequest_CreatesUser\" --verbosity detailed 2>&1 | tail -100",
+			"isBackground": false,
+			"group": "test"
+		},
+		{
+			"label": "Unit Tests v2",
+			"type": "shell",
+			"command": "cd Homassy.Tests && dotnet test --no-restore --filter \"FullyQualifiedName~Unit\" 2>&1 | tail -30",
+			"isBackground": false,
+			"group": "test"
+		},
+		{
+			"label": "All Tests v3",
+			"type": "shell",
+			"command": "cd Homassy.Tests && dotnet test --no-restore --verbosity normal 2>&1 | tail -20",
+			"isBackground": false,
+			"group": "test"
+		},
+		{
+			"label": "Test Summary",
+			"type": "shell",
+			"command": "cd Homassy.Tests && dotnet test --no-restore 2>&1 | grep -E '^(Test summary|Passed|Failed|Total tests)'",
+			"isBackground": false,
+			"group": "test"
+		},
+		{
+			"label": "Test Results",
+			"type": "shell",
+			"command": "cd Homassy.Tests && dotnet test 2>&1 | grep -E '(Failed|Passed|Total|Test Run)' | tail -10",
+			"isBackground": false,
+			"group": "test"
+		},
+		{
+			"label": "SelectValue Tests",
+			"type": "shell",
+			"command": "cd Homassy.Tests && dotnet test --filter \"FullyQualifiedName~SelectValueControllerTests\" --verbosity normal 2>&1 | tail -80",
+			"isBackground": false,
+			"group": "test"
+		},
+		{
+			"label": "Final Test Run",
+			"type": "shell",
+			"command": "cd Homassy.Tests && dotnet test --verbosity normal 2>&1 | grep -E '(Failed|^  Error Message:|^    Expected:)' | head -30",
+			"isBackground": false,
+			"group": "test"
+		},
+		{
+			"label": "Single Test Debug",
+			"type": "shell",
+			"command": "cd Homassy.Tests && dotnet test --filter \"FullyQualifiedName~SelectValueController.GetSelectValues_ShoppingLocation_ReturnsCreatedLocation\" --verbosity detailed 2>&1 | tail -50",
+			"isBackground": false,
+			"group": "test"
+		},
+		{
+			"label": "All Tests Final",
+			"type": "shell",
+			"command": "cd Homassy.Tests && dotnet test 2>&1 | tail -10",
+			"isBackground": false,
+			"group": "test"
+		},
+		{
+			"label": "Debug Failing Test",
+			"type": "shell",
+			"command": "cd Homassy.Tests && dotnet test --filter \"FullyQualifiedName~UserControllerTests.GetProfile_WithValidToken_ReturnsProfile\" --verbosity detailed 2>&1 | tail -70",
+			"isBackground": false,
+			"group": "test"
+		},
+		{
+			"label": "Isolated Test",
+			"type": "shell",
+			"command": "cd Homassy.Tests && dotnet test --no-restore --filter \"FullyQualifiedName~UserControllerTests.GetProfile_WithValidToken_ReturnsProfile\" 2>&1 | tail -30",
+			"isBackground": false,
+			"group": "test"
+		},
+		{
+			"label": "Final Suite Run",
+			"type": "shell",
+			"command": "cd Homassy.Tests && dotnet test --no-restore 2>&1 | tail -5",
+			"isBackground": false,
+			"group": "test"
+		},
+		{
+			"label": "Suite Summary",
+			"type": "shell",
+			"command": "cd Homassy.Tests && dotnet test 2>&1 | grep -E '(Failed!|Passed!)' | tail -1",
+			"isBackground": false,
+			"group": "test"
+		},
+		{
+			"label": "Result",
+			"type": "shell",
+			"command": "cd Homassy.Tests && dotnet test 2>&1 | grep -E '(- Failed:|~ |Done)' | tail -3",
+			"isBackground": false,
+			"group": "test"
 		}
 	]
 }

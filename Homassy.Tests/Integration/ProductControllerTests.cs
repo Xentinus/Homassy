@@ -310,7 +310,7 @@ public class ProductControllerTests : IClassFixture<HomassyWebApplicationFactory
             {
                 Name = "Test Milk",
                 Brand = "Test Dairy",
-                Category = "Dairy",
+                Category = ProductCategory.Milk,
                 Barcode = "1234567890128", // Valid EAN-13 barcode with correct checksum
                 IsEatable = true,
                 Notes = "Test notes",
@@ -348,7 +348,7 @@ public class ProductControllerTests : IClassFixture<HomassyWebApplicationFactory
             var updateRequest = new UpdateProductRequest
             {
                 Name = "Updated Milk",
-                Category = "Updated Dairy"
+                Category = ProductCategory.Milk
             };
             var updateResponse = await _client.PutAsJsonAsync($"/api/v1.0/product/{createdProductId}", updateRequest);
             var updateBody = await updateResponse.Content.ReadAsStringAsync();
@@ -1214,7 +1214,7 @@ public class ProductControllerTests : IClassFixture<HomassyWebApplicationFactory
             {
                 Products =
                 [
-                    new CreateProductRequest { Name = "Product 1", Brand = "Brand A", Category = "Food" },
+                    new CreateProductRequest { Name = "Product 1", Brand = "Brand A", Category = ProductCategory.Grain },
                     new CreateProductRequest { Name = "Product 2", Brand = "Brand B", IsEatable = false },
                     new CreateProductRequest { Name = "Product 3", Brand = "Brand C", IsFavorite = true }
                 ]

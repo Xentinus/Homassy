@@ -1,16 +1,26 @@
-using System.Net.Http.Headers;
-using System.Net.Http.Json;
-using Homassy.API.Models.Auth;
-using Homassy.API.Models.Common;
-using Homassy.API.Models.User;
+using Homassy.API.Context;
+using Homassy.API.Entities.User;
+using Homassy.API.Enums;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace Homassy.Tests.Infrastructure;
+
+/// <summary>
+/// Test authentication helper.
+/// Creates test users and manages mock Kratos authentication for integration tests.
+/// </summary>
 public class TestAuthHelper
 {
     private readonly HomassyWebApplicationFactory _factory;
     private readonly HttpClient _client;
+    private string? _currentTestUserId;
 
-    private const int CacheRefreshDelayMs = 6000;
+    // Mock auth response for compatibility with existing tests
+    public class AuthResponse
+    {
+        public string AccessToken { get; set; } = string.Empty;
+        public string RefreshToken { get; set; } = string.Empty;
+    }
 
     public TestAuthHelper(HomassyWebApplicationFactory factory, HttpClient client)
     {
@@ -18,84 +28,115 @@ public class TestAuthHelper
         _client = client;
     }
 
-    public async Task<(string Email, AuthResponse Auth)> CreateAndAuthenticateUserAsync(string? nameSuffix = null)
+    /// <summary>
+    /// Creates a test user and returns mock authentication credentials.
+    /// This creates a user in the database with a mock Kratos identity ID
+    /// and sets up the authentication headers for testing.
+    /// </summary>
+    public async Task<(string email, AuthResponse auth)> CreateAndAuthenticateUserAsync(string testPrefix)
     {
-        var uniqueEmail = $"test-{nameSuffix ?? Guid.NewGuid().ToString()[..8]}@example.com";
-        var userName = $"Test User {nameSuffix ?? ""}".Trim();
+        var email = $"{testPrefix}-{Guid.NewGuid():N}@test.homassy.local";
+        var kratosIdentityId = Guid.NewGuid().ToString();
+        var displayName = $"Test User {testPrefix}";
 
-        // Clean up any existing user with this email to ensure fresh registration
-        await _factory.CleanupTestUserAsync(uniqueEmail);
+        // Create user in database
+        using var scope = _factory.Services.CreateScope();
+        var context = scope.ServiceProvider.GetRequiredService<HomassyDbContext>();
 
-        // Register
-        var registerRequest = new CreateUserRequest
+        var user = new User
         {
-            Email = uniqueEmail,
-            Name = userName
+            PublicId = Guid.NewGuid(),
+            Email = email,
+            Name = displayName,
+            KratosIdentityId = kratosIdentityId,
+            CreatedAt = DateTime.UtcNow,
+            LastLoginAt = DateTime.UtcNow,
+            Status = UserStatus.Active
         };
-        var registerResponse = await _client.PostAsJsonAsync("/api/v1.0/auth/register", registerRequest);
 
-        // Check if registration succeeded
-        if (!registerResponse.IsSuccessStatusCode)
-        {
-            var errorContent = await registerResponse.Content.ReadAsStringAsync();
-            throw new InvalidOperationException($"Registration failed for {uniqueEmail}. Status: {registerResponse.StatusCode}, Response: {errorContent}");
-        }
+        context.Users.Add(user);
+        await context.SaveChangesAsync();
 
-        // Get verification code from DB with retry to handle timing issues
-        // The registration API may return before the database transaction is fully visible
-        string? verificationCode = null;
-        const int maxRetries = 15;
-        const int retryDelayMs = 300;
-        
-        for (int attempt = 1; attempt <= maxRetries; attempt++)
+        // Create profile for the user
+        var profile = new UserProfile
         {
-            verificationCode = _factory.GetVerificationCodeForEmail(uniqueEmail);
-            if (!string.IsNullOrEmpty(verificationCode))
-            {
-                break;
-            }
-            
-            if (attempt < maxRetries)
-            {
-                await Task.Delay(retryDelayMs);
-            }
-        }
-        
-        if (string.IsNullOrEmpty(verificationCode))
-        {
-            throw new InvalidOperationException($"Failed to get verification code for {uniqueEmail}");
-        }
-
-        // Verify and get tokens
-        var verifyRequest = new VerifyLoginRequest
-        {
-            Email = uniqueEmail,
-            VerificationCode = verificationCode
+            UserId = user.Id,
+            DisplayName = displayName,
+            DefaultCurrency = Currency.Huf,
+            DefaultLanguage = Language.Hungarian,
+            DefaultTimeZone = UserTimeZone.CentralEuropeStandardTime
         };
-        var verifyResponse = await _client.PostAsJsonAsync("/api/v1.0/auth/verify-code", verifyRequest);
-        var authContent = await verifyResponse.Content.ReadFromJsonAsync<ApiResponse<AuthResponse>>();
+        context.UserProfiles.Add(profile);
+        await context.SaveChangesAsync();
 
-        if (authContent?.Data == null)
+        _currentTestUserId = kratosIdentityId;
+
+        // Register this session with the mock Kratos service
+        _factory.RegisterTestSession(kratosIdentityId, email, displayName, user.Id);
+
+        var auth = new AuthResponse
         {
-            throw new InvalidOperationException($"Failed to authenticate user {uniqueEmail}");
-        }
+            AccessToken = $"mock-session-{kratosIdentityId}",
+            RefreshToken = $"mock-refresh-{kratosIdentityId}"
+        };
 
-        // Wait for cache to refresh (CacheManagementService refreshes every 5 seconds)
-        await Task.Delay(CacheRefreshDelayMs);
-
-        return (uniqueEmail, authContent.Data);
+        return (email, auth);
     }
 
-    public void SetAuthToken(string accessToken)
+    /// <summary>
+    /// Sets the authentication token header for subsequent requests.
+    /// </summary>
+    public void SetAuthToken(string token)
     {
-        _client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", accessToken);
+        // Clear any existing auth
+        _client.DefaultRequestHeaders.Remove("X-Session-Token");
+        _client.DefaultRequestHeaders.Remove("Cookie");
+        _client.DefaultRequestHeaders.Authorization = null;
+
+        // Use X-Session-Token header for mock Kratos auth
+        _client.DefaultRequestHeaders.Add("X-Session-Token", token);
     }
 
+    /// <summary>
+    /// Clears the authentication token.
+    /// </summary>
     public void ClearAuthToken()
     {
-        _client.DefaultRequestHeaders.Authorization = null;
+        ClearAuth();
     }
 
+    /// <summary>
+    /// Sets a mock Kratos session token header for testing protected endpoints.
+    /// </summary>
+    public void SetMockSessionToken(string sessionToken)
+    {
+        _client.DefaultRequestHeaders.Remove("X-Session-Token");
+        _client.DefaultRequestHeaders.Add("X-Session-Token", sessionToken);
+    }
+
+    /// <summary>
+    /// Sets the session cookie for Kratos authentication.
+    /// </summary>
+    public void SetMockSessionCookie(string sessionCookie)
+    {
+        _client.DefaultRequestHeaders.Remove("Cookie");
+        _client.DefaultRequestHeaders.Add("Cookie", $"ory_kratos_session={sessionCookie}");
+    }
+
+    /// <summary>
+    /// Clears all authentication headers.
+    /// </summary>
+    public void ClearAuth()
+    {
+        _client.DefaultRequestHeaders.Remove("X-Session-Token");
+        _client.DefaultRequestHeaders.Remove("Cookie");
+        _client.DefaultRequestHeaders.Authorization = null;
+        _currentTestUserId = null;
+    }
+
+    /// <summary>
+    /// Cleans up a test user from the database.
+    /// </summary>
     public async Task CleanupUserAsync(string email)
     {
         await _factory.CleanupTestUserAsync(email);

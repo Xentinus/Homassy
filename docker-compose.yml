@@ -96,7 +96,7 @@ services:
       homassy.kratos:
         condition: service_healthy
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8080/api/v1.0/health"]
+      test: ["CMD", "curl", "-f", "http://localhost:8080/api/v1.0/health/ready"]
       interval: 10s
       timeout: 5s
       retries: 5

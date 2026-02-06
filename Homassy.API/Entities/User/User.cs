@@ -6,6 +6,12 @@ namespace Homassy.API.Entities.User
 {
     public class User : RecordChangeEntity
     {
+        /// <summary>
+        /// Kratos identity ID (UUID) linking this user to their Kratos identity.
+        /// </summary>
+        [StringLength(36)]
+        public string? KratosIdentityId { get; set; }
+
         public int? FamilyId { get; set; }
 
         [EmailAddress]
@@ -20,10 +26,9 @@ namespace Homassy.API.Entities.User
         public DateTime LastLoginAt { get; set; } = DateTime.UtcNow;
         public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 
-       // Navigation properties
-       public UserProfile? Profile { get; set; }
-       public UserNotificationPreferences? NotificationPreferences { get; set; }
-       public UserAuthentication? Authentication { get; set; }
-       public ICollection<UserPushSubscription> PushSubscriptions { get; set; } = new List<UserPushSubscription>();
+        // Navigation properties
+        public UserProfile? Profile { get; set; }
+        public UserNotificationPreferences? NotificationPreferences { get; set; }
+        public ICollection<UserPushSubscription> PushSubscriptions { get; set; } = new List<UserPushSubscription>();
     }
 }

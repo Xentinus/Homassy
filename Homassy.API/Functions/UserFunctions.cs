@@ -21,28 +21,18 @@ namespace Homassy.API.Functions
     {
         private static readonly ConcurrentDictionary<int, User> _userCache = new();
         private static readonly ConcurrentDictionary<int, UserProfile> _userProfileCache = new();
-        private static readonly ConcurrentDictionary<int, UserAuthentication> _userAuthCache = new();
+        // _userAuthCache removed - using Kratos for authentication
         private static readonly ConcurrentDictionary<int, UserNotificationPreferences> _userNotificationPrefsCache = new();
 
-        private static IEmailQueueService? _emailQueueService;
-        private readonly AccountLockoutService _lockoutService;
+        // _emailQueueService removed - Kratos handles authentication emails
 
         public static bool Inited = false;
 
         public UserFunctions()
         {
-            _lockoutService = new AccountLockoutService();
         }
 
-        public UserFunctions(AccountLockoutService lockoutService)
-        {
-            _lockoutService = lockoutService;
-        }
-
-        public static void SetEmailQueueService(IEmailQueueService emailQueueService)
-        {
-            _emailQueueService = emailQueueService;
-        }
+        // SetEmailQueueService removed - Kratos handles authentication emails
 
         #region Cache Management
         public async Task InitializeCacheAsync(CancellationToken cancellationToken = default)
@@ -54,8 +44,7 @@ namespace Homassy.API.Functions
             var profiles = await context.UserProfiles
                 .ToListAsync(cancellationToken);
 
-            var authentications = await context.UserAuthentications
-                .ToListAsync(cancellationToken);
+            // UserAuthentications removed - using Kratos for authentication
 
             var notificationPreferences = await context.UserNotificationPreferences
                 .ToListAsync(cancellationToken);
@@ -72,10 +61,7 @@ namespace Homassy.API.Functions
                     _userProfileCache[profile.UserId] = profile;
                 }
 
-                foreach (var authentication in authentications)
-                {
-                    _userAuthCache[authentication.UserId] = authentication;
-                }
+                // Authentication cache removed - using Kratos
 
                 foreach (var notificationPreference in notificationPreferences)
                 {
@@ -173,49 +159,7 @@ namespace Homassy.API.Functions
             }
         }
 
-        public async Task RefreshUserAuthCacheAsync(int recordId, CancellationToken cancellationToken = default)
-        {
-            try
-            {
-                var context = new HomassyDbContext();
-                var userAuth = await context.UserAuthentications
-                    .FirstOrDefaultAsync(u => u.Id == recordId, cancellationToken);
-
-                if (userAuth != null)
-                {
-                    var existsInCache = _userAuthCache.ContainsKey(userAuth.UserId);
-
-                    if (existsInCache)
-                    {
-                        _userAuthCache[userAuth.UserId] = userAuth;
-                        Log.Debug($"Refreshed user authentication {userAuth.UserId} in cache.");
-                    }
-                    else
-                    {
-                        _userAuthCache[userAuth.UserId] = userAuth;
-                        Log.Debug($"Added user authentication {userAuth.UserId} to cache.");
-                    }
-                }
-                else
-                {
-                    var cacheEntry = _userAuthCache.FirstOrDefault(kvp => kvp.Value.Id == recordId);
-                    if (cacheEntry.Value != null)
-                    {
-                        _userAuthCache.TryRemove(cacheEntry.Key, out _);
-                        Log.Debug($"Removed deleted user authentication record {recordId} (userId: {cacheEntry.Key}) from cache.");
-                    }
-                    else
-                    {
-                        Log.Debug($"User authentication record {recordId} not found in DB or cache.");
-                    }
-                }
-            }
-            catch (Exception ex)
-            {
-                Log.Error(ex, $"Failed to refresh cache for user authentication record {recordId}.");
-                throw;
-            }
-        }
+        // RefreshUserAuthCacheAsync removed - using Kratos for authentication
 
         public async Task RefreshUserNotificationCacheAsync(int recordId, CancellationToken cancellationToken = default)
         {
@@ -301,25 +245,7 @@ namespace Homassy.API.Functions
             return profile;
         }
 
-        public UserAuthentication? GetUserAuthenticationByUserId(int? userId)
-        {
-            if (userId == null) return null;
-            UserAuthentication? auth = null;
-
-            if (Inited)
-            {
-                _userAuthCache.TryGetValue((int)userId, out auth);
-            }
-
-            if (auth == null)
-            {
-                var context = new HomassyDbContext();
-                auth = context.UserAuthentications
-                    .FirstOrDefault(a => a.UserId == userId);
-            }
-
-            return auth;
-        }
+        // GetUserAuthenticationByUserId removed - using Kratos for authentication
 
         public UserNotificationPreferences? GetUserNotificationPreferencesByUserId(int? userId)
         {
@@ -354,11 +280,10 @@ namespace Homassy.API.Functions
                 {
                     // Compose user data from all caches
                     _userProfileCache.TryGetValue((int)userId, out var profile);
-                    _userAuthCache.TryGetValue((int)userId, out var auth);
+                    // Auth cache removed - using Kratos
                     _userNotificationPrefsCache.TryGetValue((int)userId, out var notificationPrefs);
                     
                     user.Profile = profile;
-                    user.Authentication = auth;
                     user.NotificationPreferences = notificationPrefs;
                 }
             }
@@ -368,7 +293,7 @@ namespace Homassy.API.Functions
                 var context = new HomassyDbContext();
                 user = context.Users
                     .Include(i => i.Profile)
-                    .Include(i => i.Authentication)
+                    // Authentication include removed - using Kratos
                     .Include(i => i.NotificationPreferences)
                     .FirstOrDefault(u => u.Id == userId);
             }
@@ -388,10 +313,9 @@ namespace Homassy.API.Functions
                 {
                     // Compose user data from all caches
                     _userProfileCache.TryGetValue(user.Id, out var profile);
-                    _userAuthCache.TryGetValue(user.Id, out var auth);
+                    // Auth cache removed - using Kratos
                     _userNotificationPrefsCache.TryGetValue(user.Id, out var notificationPrefs);
                     user.Profile = profile;
-                    user.Authentication = auth;
                     user.NotificationPreferences = notificationPrefs;
                 }
             }
@@ -401,7 +325,6 @@ namespace Homassy.API.Functions
                 var context = new HomassyDbContext();
                 user = context.Users
                     .Include(i => i.Profile)
-                    .Include(i => i.Authentication)
                     .Include(i => i.NotificationPreferences)
                     .FirstOrDefault(u => u.PublicId == publicId);
             }
@@ -422,10 +345,9 @@ namespace Homassy.API.Functions
                 {
                     // Compose user data from all caches
                     _userProfileCache.TryGetValue(user.Id, out var profile);
-                    _userAuthCache.TryGetValue(user.Id, out var auth);
+                    // Auth cache removed - using Kratos
                     _userNotificationPrefsCache.TryGetValue(user.Id, out var notificationPrefs);
                     user.Profile = profile;
-                    user.Authentication = auth;
                     user.NotificationPreferences = notificationPrefs;
                 }
             }
@@ -435,7 +357,7 @@ namespace Homassy.API.Functions
                 var context = new HomassyDbContext();
                 user = context.Users
                     .Include(i => i.Profile)
-                    .Include(i => i.Authentication)
+                    // Authentication include removed - using Kratos
                     .Include(i => i.NotificationPreferences)
                     .FirstOrDefault(u => u.Email == normalizedEmail);
             }
@@ -458,6 +380,26 @@ namespace Homassy.API.Functions
                 var context = new HomassyDbContext();
                 user = context.Users
                     .FirstOrDefault(u => u.PublicId == publicId);
+            }
+
+            return user;
+        }
+
+        public User? GetUserByKratosIdentityId(string? kratosIdentityId)
+        {
+            if (string.IsNullOrEmpty(kratosIdentityId)) return null;
+            User? user = null;
+
+            if (Inited)
+            {
+                user = _userCache.Values.FirstOrDefault(u => u.KratosIdentityId == kratosIdentityId);
+            }
+
+            if (user == null)
+            {
+                var context = new HomassyDbContext();
+                user = context.Users
+                    .FirstOrDefault(u => u.KratosIdentityId == kratosIdentityId);
             }
 
             return user;
@@ -545,11 +487,10 @@ namespace Homassy.API.Functions
                     {
                         // Compose user data from all caches
                         _userProfileCache.TryGetValue(id, out var profile);
-                        _userAuthCache.TryGetValue(id, out var auth);
+                        // Auth cache removed - using Kratos
                         _userNotificationPrefsCache.TryGetValue(id, out var notificationPrefs);
 
                         user.Profile = profile;
-                        user.Authentication = auth;
                         user.NotificationPreferences = notificationPrefs;
 
                         result.Add(user);
@@ -570,7 +511,7 @@ namespace Homassy.API.Functions
                 var context = new HomassyDbContext();
                 var dbUsers = context.Users
                     .Include(i => i.Profile)
-                    .Include(i => i.Authentication)
+                    // Authentication include removed - using Kratos
                     .Include(i => i.NotificationPreferences)
                     .Where(u => missingIds.Contains(u.Id))
                     .ToList();
@@ -678,67 +619,8 @@ namespace Homassy.API.Functions
             return result;
         }
 
-        public UserAuthentication? GetUserAuthByUserId(int? userId)
-        {
-            if (userId == null) return null;
-            UserAuthentication? auth = null;
-
-            if (Inited)
-            {
-                _userAuthCache.TryGetValue((int)userId, out auth);
-            }
-
-            if (auth == null)
-            {
-                var context = new HomassyDbContext();
-                auth = context.UserAuthentications
-                    .FirstOrDefault(a => a.UserId == userId);
-            }
-
-            return auth;
-        }
-
-        public List<UserAuthentication> GetUserAuthsByUserIds(List<int?> userIds)
-        {
-            if (userIds == null || !userIds.Any()) return new List<UserAuthentication>();
-
-            var validIds = userIds.Where(id => id.HasValue).Select(id => id!.Value).ToList();
-            if (!validIds.Any()) return new List<UserAuthentication>();
-
-            var result = new List<UserAuthentication>();
-            var missingIds = new List<int>();
-
-            if (Inited)
-            {
-                foreach (var id in validIds)
-                {
-                    if (_userAuthCache.TryGetValue(id, out var auth))
-                    {
-                        result.Add(auth);
-                    }
-                    else
-                    {
-                        missingIds.Add(id);
-                    }
-                }
-            }
-            else
-            {
-                missingIds = validIds;
-            }
-
-            if (missingIds.Count > 0)
-            {
-                var context = new HomassyDbContext();
-                var dbAuths = context.UserAuthentications
-                    .Where(a => missingIds.Contains(a.UserId))
-                    .ToList();
-
-                result.AddRange(dbAuths);
-            }
-
-            return result;
-        }
+        // GetUserAuthByUserId removed - using Kratos for authentication
+        // GetUserAuthsByUserIds removed - using Kratos for authentication
 
         public UserNotificationPreferences? GetUserPrefsByUserId(int? userId)
         {
@@ -827,10 +709,7 @@ namespace Homassy.API.Functions
                 DefaultCurrency = defaultCurrency
             };
 
-            var authentication = new UserAuthentication
-            {
-                User = user
-            };
+            // UserAuthentication removed - using Kratos for authentication
 
             var notificationPreferences = new UserNotificationPreferences
             {
@@ -843,7 +722,7 @@ namespace Homassy.API.Functions
             {
                 context.Users.Add(user);
                 context.Set<UserProfile>().Add(profile);
-                context.Set<UserAuthentication>().Add(authentication);
+                // UserAuthentication no longer created - Kratos manages identity
                 context.Set<UserNotificationPreferences>().Add(notificationPreferences);
                 await context.SaveChangesAsync(cancellationToken);
                 await transaction.CommitAsync(cancellationToken);
@@ -858,67 +737,7 @@ namespace Homassy.API.Functions
             return user;
         }
 
-        public async Task RegisterAsync(CreateUserRequest request, Language? browserLanguage = null, UserTimeZone? browserTimeZone = null, CancellationToken cancellationToken = default)
-        {
-            if (string.IsNullOrWhiteSpace(request.Email) || !request.Email.Contains('@'))
-            {
-                throw new BadRequestException("Invalid email address", ErrorCodes.ValidationInvalidEmail);
-            }
-
-            if (string.IsNullOrWhiteSpace(request.Name))
-            {
-                throw new BadRequestException("Name is required", ErrorCodes.ValidationNameRequired);
-            }
-
-            var normalizedEmail = request.Email.ToLowerInvariant().Trim();
-
-            var existingUser = GetUserByEmailAddress(normalizedEmail);
-            if (existingUser != null)
-            {
-                Log.Information($"Registration attempt for existing email {normalizedEmail}");
-                return;
-            }
-
-            var user = await CreateUserAsync(request, browserLanguage, browserTimeZone, cancellationToken);
-
-            var code = EmailService.GenerateVerificationCode();
-            var expirationMinutes = int.Parse(ConfigService.GetValue("EmailVerification:CodeExpirationMinutes"));
-            var expiry = DateTime.UtcNow.AddMinutes(expirationMinutes);
-
-            var context = new HomassyDbContext();
-            await using var transaction = await context.Database.BeginTransactionAsync(cancellationToken);
-            try
-            {
-                var userAuth = await context.Set<UserAuthentication>().FirstOrDefaultAsync(a => a.UserId == user.Id, cancellationToken);
-
-                if (userAuth == null)
-                {
-                    Log.Warning($"UserAuthentication not found for user {user.Id}");
-                    throw new UserNotFoundException("User authentication data not found", ErrorCodes.UserAuthNotFound);
-                }
-
-                userAuth.VerificationCode = code;
-                userAuth.VerificationCodeExpiry = expiry;
-                context.Update(userAuth);
-
-                await context.SaveChangesAsync(cancellationToken);
-                await transaction.CommitAsync(cancellationToken);
-            }
-            catch (Exception ex)
-            {
-                await transaction.RollbackAsync(cancellationToken);
-                Log.Error(ex, $"Error setting verification code for user {user.Id}");
-                throw;
-            }
-
-            var profile = GetUserProfileByUserId(user.Id);
-            var timezone = profile?.DefaultTimeZone ?? UserTimeZone.CentralEuropeStandardTime;
-            var language = profile?.DefaultLanguage ?? browserLanguage ?? Language.English;
-
-            await SendEmailAsync(new EmailTask(user.Email, code, timezone, language, EmailType.Registration));
-
-            Log.Information($"New user registered: {normalizedEmail}, registration email with verification code sent");
-        }
+        // RegisterAsync removed - Kratos handles user registration directly
 
         public async Task<FamilyInfo> JoinFamilyAsync(JoinFamilyRequest request, CancellationToken cancellationToken = default)
         {
@@ -1072,364 +891,7 @@ namespace Homassy.API.Functions
         }
         #endregion
 
-        #region Authentication Management
-        public async Task RequestVerificationCodeAsync(string email, CancellationToken cancellationToken = default)
-        {
-            if (string.IsNullOrWhiteSpace(email) || !email.Contains('@'))
-            {
-                throw new BadRequestException("Invalid email address", ErrorCodes.ValidationInvalidEmail);
-            }
-
-            var normalizedEmail = email.ToLowerInvariant().Trim();
-
-            var user = GetAllUserDataByEmail(normalizedEmail);
-
-            if (user == null || user.Authentication == null)
-            {
-                Log.Information($"User not found for {normalizedEmail}");
-                return;
-            }
-
-            var code = EmailService.GenerateVerificationCode();
-            var expirationMinutes = int.Parse(ConfigService.GetValue("EmailVerification:CodeExpirationMinutes"));
-            var expiry = DateTime.UtcNow.AddMinutes(expirationMinutes);
-
-            var context = new HomassyDbContext();
-            await using var transaction = await context.Database.BeginTransactionAsync(cancellationToken);
-            try
-            {
-                var userAuth = await context.Set<UserAuthentication>().FirstOrDefaultAsync(a => a.UserId == user.Id, cancellationToken);
-
-                if (userAuth == null)
-                {
-                    Log.Warning($"UserAuthentication not found for user {user.Id}");
-                    throw new UserNotFoundException("User authentication data not found", ErrorCodes.UserAuthNotFound);
-                }
-
-                userAuth.VerificationCode = code;
-                userAuth.VerificationCodeExpiry = expiry;
-
-                await context.SaveChangesAsync(cancellationToken);
-                await transaction.CommitAsync(cancellationToken);
-            }
-            catch (Exception ex)
-            {
-                await transaction.RollbackAsync(cancellationToken);
-                Log.Error(ex, $"Error setting verification code for user {user.Id}");
-                throw;
-            }
-
-            var profile = user.Profile ?? GetUserProfileByUserId(user.Id);
-            var timezone = profile?.DefaultTimeZone ?? UserTimeZone.CentralEuropeStandardTime;
-            var language = profile?.DefaultLanguage ?? Language.English;
-
-            await SendEmailAsync(new EmailTask(user.Email, code, timezone, language, EmailType.Verification));
-        }
-
-        public async Task<AuthResponse> VerifyCodeAsync(string email, string code, CancellationToken cancellationToken = default)
-        {
-            if (string.IsNullOrWhiteSpace(email) || string.IsNullOrWhiteSpace(code))
-            {
-                throw new BadRequestException("Email and code are required", ErrorCodes.ValidationEmailCodeRequired);
-            }
-
-            var normalizedEmail = email.ToLowerInvariant().Trim();
-            var trimmedCode = code.Trim();
-
-            var user = GetAllUserDataByEmail(normalizedEmail);
-
-            if (user == null || user.Authentication == null)
-            {
-                Log.Warning($"User not found for email {normalizedEmail}");
-                throw new InvalidCredentialsException("Invalid email or code", ErrorCodes.AuthInvalidCredentials);
-            }
-
-            var auth = user.Authentication;
-
-            if (_lockoutService.IsLockedOut(auth.LockedOutUntil))
-            {
-                Log.Warning($"Account locked for {normalizedEmail} until {auth.LockedOutUntil}");
-                throw new AccountLockedException(auth.LockedOutUntil!.Value);
-            }
-
-            if (auth.VerificationCodeExpiry == null || auth.VerificationCodeExpiry < DateTime.UtcNow)
-            {
-                Log.Warning($"Expired verification code for {normalizedEmail}");
-                throw new ExpiredCredentialsException("Invalid or expired code", ErrorCodes.AuthExpiredCredentials);
-            }
-
-            if (!SecureCompare.ConstantTimeEqualsIgnoreCase(auth.VerificationCode, trimmedCode))
-            {
-                await RecordFailedLoginAttemptAsync(user.Id, auth.FailedLoginAttempts + 1, cancellationToken);
-                Log.Warning($"Invalid verification code for {normalizedEmail}");
-                throw new InvalidCredentialsException("Invalid or expired code", ErrorCodes.AuthInvalidCredentials);
-            }
-
-            var isFirstLogin = user.Status == UserStatus.PendingVerification;
-
-            var accessToken = JwtService.GenerateAccessToken(user);
-            var refreshToken = JwtService.GenerateRefreshToken();
-            var tokenFamily = JwtService.GenerateTokenFamily();
-            var accessTokenExpiry = JwtService.GetAccessTokenExpiration();
-            var refreshTokenExpiry = JwtService.GetRefreshTokenExpiration();
-
-            var context = new HomassyDbContext();
-            await using var transaction = await context.Database.BeginTransactionAsync(cancellationToken);
-            try
-            {
-                var userAuth = await context.Set<UserAuthentication>().FirstOrDefaultAsync(a => a.UserId == user.Id, cancellationToken);
-                var userEntity = await context.Users.FindAsync([user.Id], cancellationToken);
-
-                if (userAuth == null || userEntity == null)
-                {
-                    Log.Warning($"User or UserAuthentication not found for user {user.Id}");
-                    throw new UserNotFoundException("User authentication data not found", ErrorCodes.UserAuthNotFound);
-                }
-
-                if (isFirstLogin)
-                {
-                    userEntity.Status = UserStatus.Active;
-                    Log.Information($"Email verified for new user {normalizedEmail}");
-                }
-
-                userAuth.AccessToken = accessToken;
-                userAuth.AccessTokenExpiry = accessTokenExpiry;
-                userAuth.RefreshToken = refreshToken;
-                userAuth.RefreshTokenExpiry = refreshTokenExpiry;
-                userAuth.TokenFamily = tokenFamily;
-                userAuth.PreviousRefreshToken = null;
-                userAuth.PreviousRefreshTokenExpiry = null;
-                userAuth.VerificationCode = null;
-                userAuth.VerificationCodeExpiry = null;
-                userAuth.FailedLoginAttempts = 0;
-                userAuth.LastFailedLoginAt = null;
-                userAuth.LockedOutUntil = null;
-                userEntity.LastLoginAt = DateTime.UtcNow;
-
-                await context.SaveChangesAsync(cancellationToken);
-                await transaction.CommitAsync(cancellationToken);
-            }
-            catch (Exception ex)
-            {
-                await transaction.RollbackAsync(cancellationToken);
-                Log.Error(ex, $"Error completing authentication for user {user.Id}");
-                throw;
-            }
-
-            Log.Information($"User {normalizedEmail} successfully authenticated with new token family");
-
-            var profile = user.Profile ?? GetUserProfileByUserId(user.Id);
-
-            var authResponse = new AuthResponse
-            {
-                AccessToken = accessToken,
-                RefreshToken = refreshToken,
-                AccessTokenExpiresAt = accessTokenExpiry,
-                RefreshTokenExpiresAt = refreshTokenExpiry,
-                User = new UserInfo
-                {
-                    Name = user.Name,
-                    DisplayName = profile?.DisplayName ?? user.Name,
-                    ProfilePictureBase64 = profile?.ProfilePictureBase64,
-                    TimeZone = (profile?.DefaultTimeZone ?? UserTimeZone.CentralEuropeStandardTime).ToTimeZoneId(),
-                    Language = (profile?.DefaultLanguage ?? Language.Hungarian).ToLanguageCode(),
-                    Currency = (profile?.DefaultCurrency ?? Currency.Huf).ToCurrencyCode()
-                }
-            };
-
-            return authResponse;
-        }
-
-        private async Task RecordFailedLoginAttemptAsync(int userId, int newFailedAttempts, CancellationToken cancellationToken)
-        {
-            var context = new HomassyDbContext();
-            await using var transaction = await context.Database.BeginTransactionAsync(cancellationToken);
-            try
-            {
-                var userAuth = await context.Set<UserAuthentication>().FirstOrDefaultAsync(a => a.UserId == userId, cancellationToken);
-
-                if (userAuth == null)
-                {
-                    return;
-                }
-
-                userAuth.FailedLoginAttempts = newFailedAttempts;
-                userAuth.LastFailedLoginAt = DateTime.UtcNow;
-
-                if (_lockoutService.ShouldLockout(newFailedAttempts))
-                {
-                    userAuth.LockedOutUntil = _lockoutService.CalculateLockoutExpiry(newFailedAttempts);
-                    Log.Warning($"Account locked for user {userId} until {userAuth.LockedOutUntil} after {newFailedAttempts} failed attempts");
-                }
-
-                await context.SaveChangesAsync(cancellationToken);
-                await transaction.CommitAsync(cancellationToken);
-            }
-            catch (Exception ex)
-            {
-                await transaction.RollbackAsync(cancellationToken);
-                Log.Error(ex, $"Error recording failed login attempt for user {userId}");
-            }
-        }
-
-        public async Task<RefreshTokenResponse> RefreshTokenAsync(Guid userPublicId, string currentRefreshToken, CancellationToken cancellationToken = default)
-        {
-            // Validate input parameters
-            if (userPublicId == Guid.Empty)
-            {
-                Log.Warning("Invalid user public ID provided for token refresh");
-                throw new BadRequestException("Invalid user ID", ErrorCodes.ValidationInvalidRequest);
-            }
-
-            if (string.IsNullOrWhiteSpace(currentRefreshToken))
-            {
-                throw new BadRequestException("Refresh token is required", ErrorCodes.ValidationRefreshTokenRequired);
-            }
-
-            // Get user by public ID (not from SessionInfo)
-            var user = GetUserByPublicId(userPublicId);
-
-            if (user == null)
-            {
-                Log.Warning($"User not found for publicId {userPublicId} during token refresh");
-                throw new UserNotFoundException("User not found", ErrorCodes.UserNotFound);
-            }
-
-            var userId = user.Id;
-
-            // Get full user data including authentication
-            var fullUserData = GetAllUserDataById(userId);
-
-            if (fullUserData == null || fullUserData.Authentication == null)
-            {
-                Log.Warning($"User authentication data not found for userId {userId}");
-                throw new UserNotFoundException("User authentication not found", ErrorCodes.UserAuthNotFound);
-            }
-
-            var auth = fullUserData.Authentication;
-
-            var isCurrentToken = SecureCompare.ConstantTimeEquals(auth.RefreshToken, currentRefreshToken);
-
-            var isPreviousToken = !string.IsNullOrEmpty(auth.PreviousRefreshToken) &&
-                                  SecureCompare.ConstantTimeEquals(auth.PreviousRefreshToken, currentRefreshToken) &&
-                                  auth.PreviousRefreshTokenExpiry != null &&
-                                  auth.PreviousRefreshTokenExpiry > DateTime.UtcNow;
-
-            if (!isCurrentToken && !isPreviousToken)
-            {
-                if (auth.TokenFamily.HasValue)
-                {
-                    Log.Warning($"Potential token theft detected for user {userId}. Token reuse attempted. Invalidating all tokens.");
-                    await InvalidateAllUserTokensAsync(userId, cancellationToken);
-                    throw new InvalidCredentialsException("Invalid refresh token. All sessions invalidated for security.", ErrorCodes.AuthTokenTheftDetected);
-                }
-
-                Log.Warning($"Invalid refresh token for user {userId}");
-                throw new InvalidCredentialsException("Invalid refresh token", ErrorCodes.AuthInvalidRefreshToken);
-            }
-
-            if (isCurrentToken && (auth.RefreshTokenExpiry == null || auth.RefreshTokenExpiry < DateTime.UtcNow))
-            {
-                Log.Warning($"Expired refresh token for user {userId}");
-                throw new ExpiredCredentialsException("Expired refresh token", ErrorCodes.AuthExpiredCredentials);
-            }
-
-            var newAccessToken = JwtService.GenerateAccessToken(user);
-            var newRefreshToken = JwtService.GenerateRefreshToken();
-            var accessTokenExpiry = JwtService.GetAccessTokenExpiration();
-            var refreshTokenExpiry = JwtService.GetRefreshTokenExpiration();
-            var previousTokenGracePeriod = JwtService.GetPreviousRefreshTokenGracePeriod();
-
-            var context = new HomassyDbContext();
-            await using var transaction = await context.Database.BeginTransactionAsync(cancellationToken);
-            try
-            {
-                var userAuth = await context.Set<UserAuthentication>().FirstOrDefaultAsync(a => a.UserId == userId, cancellationToken);
-
-                if (userAuth == null)
-                {
-                    Log.Warning($"UserAuthentication not found for user {userId}");
-                    throw new UserNotFoundException("User authentication data not found", ErrorCodes.UserAuthNotFound);
-                }
-
-                if (isCurrentToken)
-                {
-                    userAuth.PreviousRefreshToken = auth.RefreshToken;
-                    userAuth.PreviousRefreshTokenExpiry = previousTokenGracePeriod;
-                }
-
-                userAuth.AccessToken = newAccessToken;
-                userAuth.AccessTokenExpiry = accessTokenExpiry;
-                userAuth.RefreshToken = newRefreshToken;
-                userAuth.RefreshTokenExpiry = refreshTokenExpiry;
-
-                if (userAuth.TokenFamily == null)
-                {
-                    userAuth.TokenFamily = JwtService.GenerateTokenFamily();
-                }
-
-                var userEntity = await context.Users.FindAsync([userId], cancellationToken);
-                if (userEntity != null)
-                {
-                    userEntity.LastLoginAt = DateTime.UtcNow;
-                    context.Users.Update(userEntity);
-                }
-
-                await context.SaveChangesAsync(cancellationToken);
-                await transaction.CommitAsync(cancellationToken);
-            }
-            catch (Exception ex)
-            {
-                await transaction.RollbackAsync(cancellationToken);
-                Log.Error(ex, $"Error refreshing token for user {userId}");
-                throw;
-            }
-
-            Log.Information($"Token rotated for user {userId}");
-
-            var refreshResponse = new RefreshTokenResponse
-            {
-                AccessToken = newAccessToken,
-                RefreshToken = newRefreshToken,
-                AccessTokenExpiresAt = accessTokenExpiry,
-                RefreshTokenExpiresAt = refreshTokenExpiry
-            };
-
-            return refreshResponse;
-        }
-
-        private async Task InvalidateAllUserTokensAsync(int userId, CancellationToken cancellationToken = default)
-        {
-            var context = new HomassyDbContext();
-            await using var transaction = await context.Database.BeginTransactionAsync(cancellationToken);
-            try
-            {
-                var userAuth = await context.Set<UserAuthentication>().FirstOrDefaultAsync(a => a.UserId == userId, cancellationToken);
-
-                if (userAuth != null)
-                {
-                    userAuth.AccessToken = null;
-                    userAuth.AccessTokenExpiry = null;
-                    userAuth.RefreshToken = null;
-                    userAuth.RefreshTokenExpiry = null;
-                    userAuth.PreviousRefreshToken = null;
-                    userAuth.PreviousRefreshTokenExpiry = null;
-                    userAuth.TokenFamily = null;
-
-                    await context.SaveChangesAsync(cancellationToken);
-                    await transaction.CommitAsync(cancellationToken);
-
-                    Log.Warning($"All tokens invalidated for user {userId} due to potential token theft");
-                }
-            }
-            catch (Exception ex)
-            {
-                await transaction.RollbackAsync(cancellationToken);
-                Log.Error(ex, $"Error invalidating tokens for user {userId}");
-                throw;
-            }
-        }
-        #endregion
+        // Authentication Management region removed - using Kratos for authentication
 
         #region Profile Management
         public UserProfileResponse GetProfileAsync()
@@ -1655,48 +1117,8 @@ namespace Homassy.API.Functions
         }
         #endregion
 
-        #region Logout
-        public async Task LogoutAsync(CancellationToken cancellationToken = default)
-        {
-            var userId = SessionInfo.GetUserId();
-            if (!userId.HasValue)
-            {
-                Log.Warning("Invalid session: User ID not found");
-                throw new UserNotFoundException("User not found", ErrorCodes.UserNotFound);
-            }
-
-            var context = new HomassyDbContext();
-            await using var transaction = await context.Database.BeginTransactionAsync(cancellationToken);
-            try
-            {
-                var userAuth = await context.Set<UserAuthentication>().FirstOrDefaultAsync(a => a.UserId == userId, cancellationToken);
-
-                if (userAuth == null)
-                {
-                    Log.Warning($"UserAuthentication not found for user {userId}");
-                    throw new UserNotFoundException("User authentication data not found", ErrorCodes.UserAuthNotFound);
-                }
-
-                userAuth.AccessToken = null;
-                userAuth.AccessTokenExpiry = null;
-                userAuth.RefreshToken = null;
-                userAuth.RefreshTokenExpiry = null;
-                userAuth.TokenFamily = null;
-                userAuth.PreviousRefreshToken = null;
-                userAuth.PreviousRefreshTokenExpiry = null;
-
-                await context.SaveChangesAsync(cancellationToken);
-                await transaction.CommitAsync(cancellationToken);
-            }
-            catch (Exception ex)
-            {
-                await transaction.RollbackAsync(cancellationToken);
-                Log.Error(ex, $"Error during logout for user {userId}");
-                throw;
-            }
-
-            Log.Information($"User {userId} logged out");
-        }
+        #region Current User
+        // LogoutAsync removed - using Kratos for session management
 
         public UserInfo GetCurrentUser()
         {
@@ -1734,6 +1156,253 @@ namespace Homassy.API.Functions
             };
 
             return userInfo;
+        }
+        #endregion
+
+        #region Kratos Integration
+        /// <summary>
+        /// Gets user info from a Kratos session combined with local user data.
+        /// </summary>
+        public UserInfo GetUserInfoFromKratosSession(Models.Kratos.KratosSession session, User user)
+        {
+            var traits = session.Identity.Traits;
+
+            return new UserInfo
+            {
+                Name = traits.Name ?? user.Name,
+                DisplayName = traits.DisplayName ?? traits.Name ?? user.Name,
+                ProfilePictureBase64 = traits.ProfilePictureBase64,
+                TimeZone = traits.DefaultTimezone ?? "Europe/Budapest",
+                Language = traits.DefaultLanguage ?? "hu",
+                Currency = traits.DefaultCurrency ?? "HUF"
+            };
+        }
+
+        /// <summary>
+        /// Creates a local user record from a Kratos identity.
+        /// </summary>
+        public async Task<User?> CreateUserFromKratosAsync(Models.Kratos.KratosIdentity identity, CancellationToken cancellationToken = default)
+        {
+            try
+            {
+                var context = new HomassyDbContext();
+                await using var transaction = await context.Database.BeginTransactionAsync(cancellationToken);
+
+                var user = new User
+                {
+                    KratosIdentityId = identity.Id,
+                    Email = identity.Traits.Email.ToLowerInvariant().Trim(),
+                    Name = identity.Traits.Name ?? identity.Traits.Email.Split('@')[0],
+                    Status = identity.State == "active" ? UserStatus.Active : UserStatus.PendingVerification,
+                    FamilyId = identity.Traits.FamilyId,
+                    LastLoginAt = DateTime.UtcNow,
+                    CreatedAt = DateTime.UtcNow
+                };
+
+                context.Users.Add(user);
+                await context.SaveChangesAsync(cancellationToken);
+
+                // Create user profile from Kratos traits
+                var profile = new UserProfile
+                {
+                    UserId = user.Id,
+                    DisplayName = identity.Traits.DisplayName ?? identity.Traits.Name ?? user.Name,
+                    ProfilePictureBase64 = identity.Traits.ProfilePictureBase64,
+                    DateOfBirth = !string.IsNullOrEmpty(identity.Traits.DateOfBirth) 
+                        ? DateTime.TryParse(identity.Traits.DateOfBirth, out var dob) ? dob : null 
+                        : null,
+                    Gender = identity.Traits.Gender,
+                    DefaultCurrency = ParseCurrency(identity.Traits.DefaultCurrency),
+                    DefaultTimeZone = ParseTimeZone(identity.Traits.DefaultTimezone),
+                    DefaultLanguage = ParseLanguage(identity.Traits.DefaultLanguage)
+                };
+
+                context.UserProfiles.Add(profile);
+
+                // Create default notification preferences
+                var notificationPrefs = new UserNotificationPreferences
+                {
+                    UserId = user.Id,
+                    EmailNotificationsEnabled = true,
+                    EmailWeeklySummaryEnabled = true,
+                    PushNotificationsEnabled = true,
+                    PushWeeklySummaryEnabled = true,
+                    InAppNotificationsEnabled = true
+                };
+
+                context.UserNotificationPreferences.Add(notificationPrefs);
+                await context.SaveChangesAsync(cancellationToken);
+                await transaction.CommitAsync(cancellationToken);
+
+                // Update cache
+                _userCache[user.Id] = user;
+                _userProfileCache[user.Id] = profile;
+                _userNotificationPrefsCache[user.Id] = notificationPrefs;
+
+                Log.Information($"Created local user {user.Id} for Kratos identity {identity.Id}");
+                return user;
+            }
+            catch (Exception ex)
+            {
+                Log.Error(ex, $"Failed to create local user for Kratos identity {identity.Id}");
+                return null;
+            }
+        }
+
+        /// <summary>
+        /// Syncs a local user record with Kratos identity data.
+        /// </summary>
+        public async Task<User?> SyncUserFromKratosAsync(Models.Kratos.KratosIdentity identity, CancellationToken cancellationToken = default)
+        {
+            try
+            {
+                var context = new HomassyDbContext();
+                var user = await context.Users.FirstOrDefaultAsync(u => u.KratosIdentityId == identity.Id, cancellationToken);
+
+                if (user == null)
+                {
+                    // Try to find by email and link
+                    user = await context.Users.FirstOrDefaultAsync(u => u.Email == identity.Traits.Email.ToLowerInvariant().Trim(), cancellationToken);
+                    
+                    if (user == null)
+                    {
+                        return await CreateUserFromKratosAsync(identity, cancellationToken);
+                    }
+
+                    user.KratosIdentityId = identity.Id;
+                }
+
+                // Update user fields from Kratos
+                user.Name = identity.Traits.Name ?? user.Name;
+                user.Email = identity.Traits.Email.ToLowerInvariant().Trim();
+                user.FamilyId = identity.Traits.FamilyId ?? user.FamilyId;
+                user.Status = identity.State == "active" ? UserStatus.Active : user.Status;
+
+                // Update profile if exists
+                var profile = await context.UserProfiles.FirstOrDefaultAsync(p => p.UserId == user.Id, cancellationToken);
+                if (profile != null)
+                {
+                    profile.DisplayName = identity.Traits.DisplayName ?? identity.Traits.Name ?? profile.DisplayName;
+                    profile.ProfilePictureBase64 = identity.Traits.ProfilePictureBase64 ?? profile.ProfilePictureBase64;
+                    profile.DefaultCurrency = ParseCurrency(identity.Traits.DefaultCurrency);
+                    profile.DefaultTimeZone = ParseTimeZone(identity.Traits.DefaultTimezone);
+                    profile.DefaultLanguage = ParseLanguage(identity.Traits.DefaultLanguage);
+                    
+                    if (!string.IsNullOrEmpty(identity.Traits.DateOfBirth) && DateTime.TryParse(identity.Traits.DateOfBirth, out var dob))
+                    {
+                        profile.DateOfBirth = dob;
+                    }
+                    
+                    profile.Gender = identity.Traits.Gender ?? profile.Gender;
+                }
+
+                await context.SaveChangesAsync(cancellationToken);
+
+                // Update cache
+                _userCache[user.Id] = user;
+                if (profile != null)
+                {
+                    _userProfileCache[user.Id] = profile;
+                }
+
+                Log.Debug($"Synced user {user.Id} with Kratos identity {identity.Id}");
+                return user;
+            }
+            catch (Exception ex)
+            {
+                Log.Error(ex, $"Failed to sync user with Kratos identity {identity.Id}");
+                return null;
+            }
+        }
+
+        /// <summary>
+        /// Links an existing user to a Kratos identity.
+        /// </summary>
+        public async Task LinkUserToKratosAsync(int userId, string kratosIdentityId, CancellationToken cancellationToken = default)
+        {
+            try
+            {
+                var context = new HomassyDbContext();
+                var user = await context.Users.FirstOrDefaultAsync(u => u.Id == userId, cancellationToken);
+
+                if (user == null)
+                {
+                    Log.Warning($"Cannot link user {userId} to Kratos - user not found");
+                    return;
+                }
+
+                user.KratosIdentityId = kratosIdentityId;
+                await context.SaveChangesAsync(cancellationToken);
+
+                // Update cache
+                _userCache[userId] = user;
+
+                Log.Information($"Linked user {userId} to Kratos identity {kratosIdentityId}");
+            }
+            catch (Exception ex)
+            {
+                Log.Error(ex, $"Failed to link user {userId} to Kratos identity {kratosIdentityId}");
+            }
+        }
+
+        /// <summary>
+        /// Updates the last login time for a user.
+        /// </summary>
+        public async Task UpdateLastLoginAsync(int userId, CancellationToken cancellationToken = default)
+        {
+            try
+            {
+                var context = new HomassyDbContext();
+                var user = await context.Users.FirstOrDefaultAsync(u => u.Id == userId, cancellationToken);
+
+                if (user == null) return;
+
+                user.LastLoginAt = DateTime.UtcNow;
+                await context.SaveChangesAsync(cancellationToken);
+
+                // Update cache
+                _userCache[userId] = user;
+            }
+            catch (Exception ex)
+            {
+                Log.Error(ex, $"Failed to update last login for user {userId}");
+            }
+        }
+
+        private static Currency ParseCurrency(string? currencyCode)
+        {
+            return currencyCode?.ToUpperInvariant() switch
+            {
+                "HUF" => Currency.Huf,
+                "EUR" => Currency.Eur,
+                "USD" => Currency.Usd,
+                _ => Currency.Huf
+            };
+        }
+
+        private static UserTimeZone ParseTimeZone(string? timezoneId)
+        {
+            return timezoneId switch
+            {
+                "Europe/Budapest" => UserTimeZone.CentralEuropeStandardTime,
+                "Europe/Berlin" => UserTimeZone.CentralEuropeStandardTime,
+                "Europe/London" => UserTimeZone.GreenwichStandardTime,
+                "America/New_York" => UserTimeZone.EasternStandardTime,
+                "America/Los_Angeles" => UserTimeZone.PacificStandardTime,
+                "UTC" => UserTimeZone.UTC,
+                _ => UserTimeZone.CentralEuropeStandardTime
+            };
+        }
+
+        private static Language ParseLanguage(string? languageCode)
+        {
+            return languageCode?.ToLowerInvariant() switch
+            {
+                "hu" => Language.Hungarian,
+                "de" => Language.German,
+                "en" => Language.English,
+                _ => Language.Hungarian
+            };
         }
         #endregion
 
@@ -1829,30 +1498,6 @@ namespace Homassy.API.Functions
         }
         #endregion
 
-        #region Email Helpers
-        private static async Task SendEmailAsync(EmailTask task)
-        {
-            var queued = false;
-
-            if (_emailQueueService != null)
-            {
-                queued = await _emailQueueService.TryQueueEmailAsync(task);
-            }
-
-            if (!queued)
-            {
-                Log.Debug($"Sending email synchronously to {task.Email} (queue unavailable or full)");
-                switch (task.Type)
-                {
-                    case EmailType.Verification:
-                        await EmailService.SendVerificationCodeAsync(task.Email, task.Code, task.TimeZone, task.Language);
-                        break;
-                    case EmailType.Registration:
-                        await EmailService.SendRegistrationEmailAsync(task.Email, task.Email, task.Code, task.TimeZone, task.Language);
-                        break;
-                }
-            }
-        }
-        #endregion
+        // Email Helpers removed - Kratos handles authentication emails
     }
 }

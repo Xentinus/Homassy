@@ -99,7 +99,7 @@ public class HttpsRedirectTests : IClassFixture<HttpsRedirectTests.HttpsEnabledW
                 Homassy.API.Context.HomassyDbContext.SetConfiguration(configuration);
                 Homassy.API.Services.ConfigService.Initialize(configuration);
                 Homassy.API.Services.EmailService.Initialize(configuration);
-                Homassy.API.Services.JwtService.Initialize(configuration);
+                // JwtService.Initialize removed - using Kratos for authentication
             });
 
             return base.CreateHost(builder);
@@ -170,7 +170,7 @@ public class HttpsDisabledTests : IClassFixture<HttpsDisabledTests.HttpsDisabled
                 Homassy.API.Context.HomassyDbContext.SetConfiguration(configuration);
                 Homassy.API.Services.ConfigService.Initialize(configuration);
                 Homassy.API.Services.EmailService.Initialize(configuration);
-                Homassy.API.Services.JwtService.Initialize(configuration);
+                // JwtService.Initialize removed - using Kratos for authentication
             });
 
             return base.CreateHost(builder);

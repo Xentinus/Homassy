@@ -29,7 +29,9 @@ public class EmailServiceHealthCheck : IHealthCheck
 
         if (string.IsNullOrWhiteSpace(smtpServer) || string.IsNullOrWhiteSpace(smtpPortStr))
         {
-            return HealthCheckResult.Unhealthy(
+            // Return Degraded instead of Unhealthy when email is not configured
+            // This allows the app to run without email (e.g., in development with Kratos handling emails)
+            return HealthCheckResult.Degraded(
                 "Email configuration is missing",
                 data: new Dictionary<string, object>
                 {
