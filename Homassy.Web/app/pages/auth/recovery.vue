@@ -1,11 +1,11 @@
 ﻿<script setup lang="ts">
 /**
- * Register Page (Kratos Version)
- * Handles user registration using Ory Kratos flows
+ * Account Recovery Page (Kratos Version)
+ * Handles account recovery when user can't login
  */
 import * as z from 'zod'
 import type { FormSubmitEvent } from '@nuxt/ui'
-import type { RegistrationFlow } from '@ory/client'
+import type { RecoveryFlow } from '@ory/client'
 
 definePageMeta({
   layout: 'public'
@@ -14,33 +14,24 @@ definePageMeta({
 const router = useRouter()
 const route = useRoute()
 const kratos = useKratos()
-const webauthn = useWebAuthn()
 const authStore = useAuthStore()
 const toast = useToast()
 const { t } = useI18n()
 
 const loading = ref(true)
 const submitting = ref(false)
-const flow = ref<RegistrationFlow | null>(null)
+const flow = ref<RecoveryFlow | null>(null)
 const error = ref<string | null>(null)
-const step = ref<'details' | 'code'>('details')
+const success = ref(false)
 const email = ref('')
 const code = ref<string[]>([])
+const codeSent = ref(false)
 const cooldownSeconds = ref(0)
 let cooldownInterval: ReturnType<typeof setInterval> | null = null
 
-// Form state
-const formState = reactive({
-  email: '',
-  name: '',
-  displayName: ''
-})
-
-// Schema for registration form
-const schema = z.object({
-  email: z.string({ required_error: t('validation.emailRequired') }).email(t('validation.emailInvalid')),
-  name: z.string({ required_error: t('validation.nameRequired') }).min(1, t('validation.nameRequired')),
-  displayName: z.string().optional()
+// Schema for email input
+const emailSchema = z.object({
+  email: z.string({ required_error: t('validation.emailRequired') }).email(t('validation.emailInvalid'))
 })
 
 // Schema for code verification
@@ -48,7 +39,7 @@ const codeSchema = z.object({
   code: z.array(z.string()).length(6, t('validation.codeMustBe6'))
 })
 
-type Schema = z.output<typeof schema>
+type EmailSchema = z.output<typeof emailSchema>
 type CodeSchema = z.output<typeof codeSchema>
 
 // Transform code input to uppercase
@@ -63,48 +54,41 @@ onBeforeUnmount(() => {
   }
 })
 
-// Check if user is already authenticated on mount
+// Initialize flow on mount
 onMounted(async () => {
-  console.debug('[Register] Checking existing authentication...')
-  
-  // Initialize auth state
-  await authStore.initialize()
-
-  // If already authenticated, redirect to activity
-  if (authStore.isAuthenticated) {
-    console.debug('[Register] User is authenticated, redirecting to activity')
-    await router.push('/activity')
-    return
-  }
-
-  // Check for flow ID in URL (redirect from Kratos)
+  // Check for flow ID in URL
   const flowId = route.query.flow as string
   
   try {
     if (flowId) {
       // Get existing flow
-      flow.value = await kratos.getRegistrationFlow(flowId)
+      flow.value = await kratos.getRecoveryFlow(flowId)
+      
+      // Check if recovery was already completed
+      if (flow.value.state === 'passed_challenge') {
+        success.value = true
+      }
     } else {
       // Create new flow
-      flow.value = await kratos.createRegistrationFlow()
+      flow.value = await kratos.createRecoveryFlow()
     }
 
     // Check for errors in flow
     const errors = kratos.getFlowErrors(flow.value)
     if (errors.length > 0) {
-      error.value = errors[0]
+      error.value = errors[0] ?? null
     }
   } catch (e: any) {
-    console.error('[Register] Failed to initialize registration flow:', e)
-    error.value = e.message || t('auth.registrationFlowError')
+    console.error('[Recovery] Failed to initialize recovery flow:', e)
+    error.value = e.message || t('auth.recoveryFlowError')
     
     // If flow expired, create a new one
     if (e.code === '410' || e.message?.includes('expired')) {
       try {
-        flow.value = await kratos.createRegistrationFlow()
+        flow.value = await kratos.createRecoveryFlow()
         error.value = null
       } catch (retryError) {
-        console.error('[Register] Failed to create new flow:', retryError)
+        console.error('[Recovery] Failed to create new flow:', retryError)
       }
     }
   } finally {
@@ -131,9 +115,9 @@ function startCooldown() {
 }
 
 /**
- * Submit registration details (step 1)
+ * Request recovery code
  */
-async function submitDetails(event: FormSubmitEvent<Schema>) {
+async function requestCode(event: FormSubmitEvent<EmailSchema>) {
   if (!flow.value) return
 
   submitting.value = true
@@ -142,142 +126,31 @@ async function submitDetails(event: FormSubmitEvent<Schema>) {
   try {
     const csrfToken = kratos.getCsrfToken(flow.value.ui.nodes) || ''
 
-    // Submit registration with code method
-    await kratos.submitRegistrationFlow(flow.value.id, {
+    await kratos.submitRecoveryFlow(flow.value.id, {
       method: 'code',
       csrf_token: csrfToken,
-      traits: {
-        email: event.data.email,
-        name: event.data.name,
-        display_name: event.data.displayName || event.data.name,
-        default_language: 'en',
-        default_currency: 'EUR',
-        default_timezone: Intl.DateTimeFormat().resolvedOptions().timeZone
-      }
+      email: event.data.email
     })
 
-    // If we get here without error, move to code verification
     email.value = event.data.email
-    step.value = 'code'
+    codeSent.value = true
     startCooldown()
 
     toast.add({
       title: t('toast.codeSent'),
-      description: t('toast.checkEmailForCode'),
+      description: t('toast.checkEmailForRecoveryCode'),
       color: 'success',
       icon: 'i-heroicons-envelope'
     })
   } catch (e: any) {
-    console.error('[Register] Registration failed:', e)
-    
-    // Check if the error response contains a code input - this means code was sent
-    if (e.response?.data?.ui?.nodes) {
-      const hasCodeInput = e.response.data.ui.nodes.some(
-        (node: any) => node.attributes?.name === 'code'
-      )
-      if (hasCodeInput) {
-        email.value = event.data.email
-        step.value = 'code'
-        startCooldown()
-        
-        toast.add({
-          title: t('toast.codeSent'),
-          description: t('toast.checkEmailForCode'),
-          color: 'success',
-          icon: 'i-heroicons-envelope'
-        })
-        return
-      }
-    }
-
-    error.value = e.message || t('auth.registrationError')
-  } finally {
-    submitting.value = false
-  }
-}
-
-/**
- * Verify registration code (step 2)
- */
-async function verifyCode(event: FormSubmitEvent<CodeSchema>) {
-  if (!flow.value) return
-
-  submitting.value = true
-  error.value = null
-
-  try {
-    const codeString = event.data.code.join('')
-    const csrfToken = kratos.getCsrfToken(flow.value.ui.nodes) || ''
-
-    // Submit code to complete registration
-    await kratos.submitRegistrationFlow(flow.value.id, {
-      method: 'code',
-      csrf_token: csrfToken,
-      code: codeString
-    })
-
-    // Refresh auth state
-    await authStore.refreshSession()
-
-    toast.add({
-      title: t('toast.registrationSuccess'),
-      description: t('toast.accountCreated'),
-      color: 'success',
-      icon: 'i-heroicons-check-circle'
-    })
-
-    // Redirect to activity
-    await router.push('/activity')
-  } catch (e: any) {
-    console.error('[Register] Code verification failed:', e)
-    error.value = e.message || t('auth.invalidCode')
-  } finally {
-    submitting.value = false
-  }
-}
-
-/**
- * Resend verification code
- */
-async function resendCode() {
-  if (cooldownSeconds.value > 0 || !flow.value) return
-
-  submitting.value = true
-
-  try {
-    // Create a new registration flow and resubmit
-    flow.value = await kratos.createRegistrationFlow()
-    
-    const csrfToken = kratos.getCsrfToken(flow.value.ui.nodes) || ''
-
-    await kratos.submitRegistrationFlow(flow.value.id, {
-      method: 'code',
-      csrf_token: csrfToken,
-      traits: {
-        email: email.value,
-        name: formState.name,
-        display_name: formState.displayName || formState.name,
-        default_language: 'en',
-        default_currency: 'EUR',
-        default_timezone: Intl.DateTimeFormat().resolvedOptions().timeZone
-      }
-    })
-
-    startCooldown()
-    
-    toast.add({
-      title: t('toast.codeSent'),
-      description: t('toast.checkEmailForCode'),
-      color: 'success',
-      icon: 'i-heroicons-envelope'
-    })
-  } catch (e: any) {
-    // Code sent even on "error" response
+    // Check if code was sent (some errors still mean code was sent)
     if (e.response?.data?.ui?.nodes?.some((node: any) => node.attributes?.name === 'code')) {
+      email.value = event.data.email
+      codeSent.value = true
       startCooldown()
       toast.add({
         title: t('toast.codeSent'),
-        description: t('toast.checkEmailForCode'),
+        description: t('toast.checkEmailForRecoveryCode'),
         color: 'success',
         icon: 'i-heroicons-envelope'
       })
@@ -290,28 +163,135 @@ async function resendCode() {
 }
 
 /**
- * Go back to details step
+ * Verify recovery code
+ */
+async function verifyCode(event: FormSubmitEvent<CodeSchema>) {
+  if (!flow.value) return
+
+  submitting.value = true
+  error.value = null
+
+  try {
+    const codeString = event.data.code.join('')
+    const csrfToken = kratos.getCsrfToken(flow.value.ui.nodes) || ''
+
+    await kratos.submitRecoveryFlow(flow.value.id, {
+      method: 'code',
+      csrf_token: csrfToken,
+      code: codeString
+    })
+
+    // Recovery successful - user should be logged in with a recovery session
+    await authStore.refreshSession()
+
+    success.value = true
+
+    toast.add({
+      title: t('toast.recoverySuccess'),
+      description: t('toast.recoverySuccessDescription'),
+      color: 'success',
+      icon: 'i-heroicons-check-circle'
+    })
+
+    // Redirect to settings to set up new passkey
+    setTimeout(() => {
+      router.push('/settings')
+    }, 2000)
+  } catch (e: any) {
+    // Check if recovery succeeded
+    if (e.response?.data?.state === 'passed_challenge') {
+      await authStore.refreshSession()
+      success.value = true
+      toast.add({
+        title: t('toast.recoverySuccess'),
+        description: t('toast.recoverySuccessDescription'),
+        color: 'success',
+        icon: 'i-heroicons-check-circle'
+      })
+      setTimeout(() => {
+        router.push('/settings')
+      }, 2000)
+    } else {
+      error.value = e.message || t('auth.invalidCode')
+    }
+  } finally {
+    submitting.value = false
+  }
+}
+
+/**
+ * Go back to email input
  */
 function goBack() {
-  step.value = 'details'
+  codeSent.value = false
   code.value = []
   error.value = null
+}
+
+/**
+ * Resend recovery code
+ */
+async function resendCode() {
+  if (cooldownSeconds.value > 0 || !flow.value) return
+
+  submitting.value = true
+  error.value = null
+
+  try {
+    // Create a new flow and resubmit
+    flow.value = await kratos.createRecoveryFlow()
+    
+    const csrfToken = kratos.getCsrfToken(flow.value.ui.nodes) || ''
+
+    await kratos.submitRecoveryFlow(flow.value.id, {
+      method: 'code',
+      csrf_token: csrfToken,
+      email: email.value
+    })
+
+    startCooldown()
+    
+    toast.add({
+      title: t('toast.codeSent'),
+      description: t('toast.checkEmailForRecoveryCode'),
+      color: 'success',
+      icon: 'i-heroicons-envelope'
+    })
+  } catch (e: any) {
+    if (e.response?.data?.ui?.nodes?.some((node: any) => node.attributes?.name === 'code')) {
+      startCooldown()
+      toast.add({
+        title: t('toast.codeSent'),
+        description: t('toast.checkEmailForRecoveryCode'),
+        color: 'success',
+        icon: 'i-heroicons-envelope'
+      })
+    } else {
+      error.value = e.message || t('auth.failedToSendCode')
+    }
+  } finally {
+    submitting.value = false
+  }
 }
 </script>
 
 <template>
-  <div class="flex flex-col items-center justify-center gap-4 p-4 min-h-[calc(100vh-var(--header-height)-var(--footer-height))]">
+  <div class="flex flex-col items-center justify-center gap-4 p-4 min-h-[calc(100vh-var(--header-height))]">
     <UPageCard class="w-full max-w-md">
       <div class="space-y-6">
         <!-- Header -->
         <div class="flex flex-col text-center">
           <div class="mb-2">
-            <UIcon name="i-lucide-user-plus" class="size-8 shrink-0 inline-block" />
+            <UIcon 
+              :name="success ? 'i-heroicons-check-circle' : 'i-heroicons-arrow-path'" 
+              :class="['size-8 shrink-0 inline-block', success ? 'text-green-500' : '']" 
+            />
           </div>
-          <h2 class="text-xl text-pretty font-semibold text-highlighted">{{ $t('auth.createAccount') }}</h2>
-          <p class="mt-1 text-base text-pretty text-muted">
-            {{ $t('auth.alreadyHaveAccount') }}
-            <ULink to="/auth/login" class="text-primary font-medium">{{ $t('auth.signIn') }}</ULink>.
+          <h2 class="text-xl text-pretty font-semibold text-highlighted">
+            {{ success ? $t('auth.accountRecovered') : $t('auth.recoverAccount') }}
+          </h2>
+          <p v-if="!success" class="mt-1 text-base text-pretty text-muted">
+            {{ $t('auth.recoverAccountDescription') }}
           </p>
         </div>
 
@@ -331,44 +311,36 @@ function goBack() {
           @close="error = null"
         />
 
-        <!-- Step 1: Details -->
-        <div v-if="!loading && step === 'details'">
-          <UForm :schema="schema" :state="formState" class="space-y-5" @submit="submitDetails">
-            <UFormField name="email" :label="$t('auth.email')">
+        <!-- Success State -->
+        <div v-if="success && !loading" class="text-center">
+          <p class="text-muted mb-4">{{ $t('auth.accountRecoveredMessage') }}</p>
+          <p class="text-sm text-muted">{{ $t('auth.redirectingToSettings') }}</p>
+        </div>
+
+        <!-- Email Input -->
+        <div v-if="!loading && !success && !codeSent">
+          <UForm :schema="emailSchema" :state="{ email }" class="space-y-5" @submit="requestCode">
+            <UFormField name="email" :label="$t('auth.emailAddress')">
               <UInput
-                v-model="formState.email"
+                v-model="email"
                 type="email"
                 :placeholder="$t('auth.enterYourEmail')"
                 class="w-full"
+                size="lg"
               />
             </UFormField>
 
-            <UFormField name="name" :label="$t('profile.name')">
-              <UInput
-                v-model="formState.name"
-                type="text"
-                :placeholder="$t('auth.enterYourName')"
-                class="w-full"
-              />
-            </UFormField>
-
-            <UFormField name="displayName" :label="$t('auth.displayNameOptional')">
-              <UInput
-                v-model="formState.displayName"
-                type="text"
-                :placeholder="$t('auth.enterDisplayName')"
-                class="w-full"
-              />
-            </UFormField>
-
-            <UButton type="submit" block :loading="submitting">
-              {{ $t('auth.continue') }}
+            <UButton type="submit" block size="lg" :loading="submitting">
+              <template #leading>
+                <UIcon name="i-heroicons-envelope" class="size-5" />
+              </template>
+              {{ $t('auth.sendRecoveryCode') }}
             </UButton>
           </UForm>
         </div>
 
-        <!-- Step 2: Code Verification -->
-        <div v-if="!loading && step === 'code'">
+        <!-- Code Input -->
+        <div v-if="!loading && !success && codeSent">
           <div class="mb-4 text-center">
             <p class="text-sm text-muted">
               {{ $t('auth.codeSentTo') }} <strong>{{ email }}</strong>
@@ -384,7 +356,7 @@ function goBack() {
           </div>
 
           <UForm :schema="codeSchema" :state="{ code }" class="space-y-5" @submit="verifyCode">
-            <UFormField name="code" :label="$t('auth.verificationCode')">
+            <UFormField name="code" :label="$t('auth.recoveryCode')">
               <div class="flex items-center justify-center gap-2">
                 <UPinInput
                   :model-value="code"
@@ -398,8 +370,8 @@ function goBack() {
               </div>
             </UFormField>
 
-            <UButton type="submit" block :loading="submitting">
-              {{ $t('auth.verifyAndCreate') }}
+            <UButton type="submit" block size="lg" :loading="submitting">
+              {{ $t('auth.verifyAndRecover') }}
             </UButton>
           </UForm>
 
@@ -414,6 +386,13 @@ function goBack() {
               {{ cooldownSeconds > 0 ? `${$t('auth.resendIn')} ${cooldownSeconds}s` : $t('auth.resendCode') }}
             </UButton>
           </div>
+        </div>
+
+        <!-- Back to login link -->
+        <div v-if="!loading && !success" class="text-center pt-4 border-t border-default">
+          <ULink to="/auth/login" class="text-sm text-muted hover:text-primary">
+            {{ $t('auth.backToLogin') }}
+          </ULink>
         </div>
       </div>
     </UPageCard>

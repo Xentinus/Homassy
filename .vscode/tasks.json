@@ -767,6 +767,54 @@
 			"command": "cd Homassy.Tests && dotnet test 2>&1 | grep -E '(- Failed:|~ |Done)' | tail -3",
 			"isBackground": false,
 			"group": "test"
+		},
+		{
+			"label": "Install Kratos Dependencies",
+			"type": "shell",
+			"command": "cd Homassy.Web && npm install @ory/client @simplewebauthn/browser",
+			"group": "build"
+		},
+		{
+			"label": "Write Auth Store",
+			"type": "shell",
+			"command": "cd Homassy.Web && node _write-auth.js && rm _write-auth.js",
+			"group": "build"
+		},
+		{
+			"label": "Write Auth Store v2",
+			"type": "shell",
+			"command": "cd Homassy.Web && node _write-auth.js && rm _write-auth.js",
+			"group": "build"
+		},
+		{
+			"label": "Build Frontend",
+			"type": "shell",
+			"command": "cd Homassy.Web && npm run build 2>&1 | head -150",
+			"group": "build"
+		},
+		{
+			"label": "Frontend Build",
+			"type": "shell",
+			"command": "cd Homassy.Web && npm run build",
+			"group": "build"
+		},
+		{
+			"label": "Nuxt Prepare",
+			"type": "shell",
+			"command": "cd Homassy.Web && npx nuxt prepare",
+			"group": "build"
+		},
+		{
+			"label": "Final Build",
+			"type": "shell",
+			"command": "cd Homassy.Web && npm run build 2>&1 | tail -30",
+			"group": "build"
+		},
+		{
+			"label": "Build Check",
+			"type": "shell",
+			"command": "cd Homassy.Web && npm run build",
+			"group": "build"
 		}
 	]
 }

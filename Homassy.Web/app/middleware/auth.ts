@@ -1,79 +1,65 @@
 ﻿/**
- * Authentication middleware
- * Protects routes that require authentication
+ * Authentication middleware (Kratos Version)
+ * Protects routes that require authentication using Ory Kratos sessions
  */
 export default defineNuxtRouteMiddleware(async (to) => {
   const authStore = useAuthStore()
 
   console.debug(`[Middleware] Checking auth for route: ${to.path}`)
-  console.debug(`[Middleware] isAuthenticated before restore: ${authStore.isAuthenticated}`)
+  console.debug(`[Middleware] isAuthenticated before init: ${authStore.isAuthenticated}`)
   console.debug(`[Middleware] Running in: ${import.meta.server ? 'SSR' : 'Client'}`)
 
-  // Attempt to restore session from cookies if needed
-  if (!authStore.isAuthenticated) {
-    console.debug('[Middleware] Restoring from cookies...')
-    await authStore.loadFromCookies()
-  }
-
-  console.debug(`[Middleware] isAuthenticated after restore: ${authStore.isAuthenticated}`)
-  console.debug(`[Middleware] hasTokens: ${!!authStore.accessToken && !!authStore.refreshToken}`)
-
-  // SSR: Validate tokens exist, but don't assume they're valid
+  // SSR: Allow render - client will validate Kratos session
+  // Kratos sessions are managed via httpOnly cookies, so SSR can't check them directly
   if (import.meta.server) {
-    const hasTokens = authStore.accessToken && authStore.refreshToken
-    console.debug(`[Middleware] SSR: hasTokens=${hasTokens}`)
-    
-    if (!hasTokens) {
-      console.debug('[Middleware] SSR: No tokens, redirecting to login')
-      return navigateTo('/auth/login')
-    }
-    
-    // Allow SSR to render, but client will validate tokens
-    // If tokens are invalid, client-side will catch and redirect
-    console.debug('[Middleware] SSR: Tokens exist, allowing render (client will validate)')
+    console.debug('[Middleware] SSR: Allowing render, client will validate Kratos session')
     return
   }
 
-  // Client-side: Validate tokens and recover user data
+  // Client-side: Initialize auth state and validate Kratos session
   if (import.meta.client) {
-    const hasTokens = authStore.accessToken && authStore.refreshToken
+    // Initialize auth state if not already done
+    if (!authStore.initialized) {
+      console.debug('[Middleware] Initializing auth state...')
+      await authStore.initialize()
+    }
+
+    const hasSession = authStore.session?.active === true
     const hasUser = !!authStore.user
-    
-    console.debug(`[Middleware] Client: hasTokens=${hasTokens}, hasUser=${hasUser}`)
-    
-    if (hasTokens && !hasUser) {
-      // Tokens exist but no user - attempt recovery
-      console.debug('[Middleware] Attempting token-based recovery...')
+
+    console.debug(`[Middleware] Client: hasSession=${hasSession}, hasUser=${hasUser}`)
+
+    if (!hasSession || !hasUser) {
+      // No valid session - redirect to login
+      console.debug('[Middleware] No valid Kratos session, redirecting to login')
+      authStore.clearAuthData()
+      return navigateTo('/auth/login')
+    }
+
+    // Check if session is expired
+    if (!authStore.isSessionValid()) {
+      console.debug('[Middleware] Kratos session expired, attempting refresh...')
       try {
-        await authStore.refreshAccessToken()
-        console.debug('[Middleware] Token refreshed successfully')
-        
-        // Double-check authentication after refresh
-        if (!authStore.isAuthenticated) {
-          console.error('[Middleware] Still not authenticated after refresh')
+        const refreshed = await authStore.refreshSession()
+        if (!refreshed) {
+          console.debug('[Middleware] Session refresh failed, redirecting to login')
           authStore.clearAuthData()
           return navigateTo('/auth/login')
         }
       } catch (e) {
-        console.error('[Middleware] Token refresh failed, clearing auth and redirecting:', e)
-        // Immediate clear - don't wait for async logout
+        console.error('[Middleware] Session refresh error:', e)
         authStore.clearAuthData()
         return navigateTo('/auth/login')
       }
-    } else if (!hasTokens) {
-      // No tokens at all
-      console.debug('[Middleware] No tokens found, redirecting to login')
-      authStore.clearAuthData()
-      return navigateTo('/auth/login')
     }
   }
 
   console.debug(`[Middleware] Final isAuthenticated: ${authStore.isAuthenticated}`)
 
-  // Check if user is authenticated after attempting restore
+  // Final check - must be authenticated
   if (!authStore.isAuthenticated) {
-    // Redirect to login page
     console.debug(`[Middleware] Redirecting to login, redirect=${to.fullPath}`)
     return navigateTo('/auth/login')
   }
 })
+

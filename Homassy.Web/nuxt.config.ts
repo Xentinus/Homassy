@@ -104,6 +104,7 @@ export default defineNuxtConfig({
   runtimeConfig: {
     public: {
       apiBase: process.env.NUXT_PUBLIC_API_BASE || 'http://localhost:5226',
+      kratosPublicUrl: process.env.NUXT_PUBLIC_KRATOS_URL || 'http://localhost:4433',
       appVersion: Date.now().toString()
     }
   },

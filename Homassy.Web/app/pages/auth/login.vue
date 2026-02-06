@@ -1,129 +1,122 @@
 ﻿<script setup lang="ts">
-import * as z from 'zod'
-import type { FormSubmitEvent } from '@nuxt/ui'
-import { useAuthApi } from '../../composables/api/useAuthApi'
+/**
+ * Login Page (Kratos Version)
+ * Handles authentication using Ory Kratos flows
+ */
+import type { LoginFlow } from '@ory/client'
 
 definePageMeta({
   layout: 'public'
 })
 
 const router = useRouter()
-const authApi = useAuthApi()
+const route = useRoute()
+const kratos = useKratos()
 const authStore = useAuthStore()
+const { t } = useI18n()
 
-const loading = ref(false)
-const requestingCode = ref(false)
-const code = ref<string[]>([])
-const email = ref('')
-const cooldownSeconds = ref(0)
-let cooldownInterval: ReturnType<typeof setInterval> | null = null
-
-// Transform input to uppercase automatically
-const handleCodeUpdate = (newCode: string[]) => {
-  code.value = newCode.map(char => char?.toUpperCase() || '')
-}
+const loading = ref(true)
+const flow = ref<LoginFlow | null>(null)
+const error = ref<string | null>(null)
+const authMethod = ref<'passkey' | 'code'>('passkey')
 
 // Check if user is already authenticated on mount
 onMounted(async () => {
   console.debug('[Login] Checking existing authentication...')
   
-  // Load tokens from cookies if not already loaded
-  await authStore.loadFromCookies()
+  // Initialize auth state
+  await authStore.initialize()
 
-  // If already authenticated with valid user, redirect to activity
+  // If already authenticated, redirect to activity
   if (authStore.isAuthenticated) {
     console.debug('[Login] User is authenticated, redirecting to activity')
-    loading.value = true
-    try {
-      await router.push('/activity')
-    } finally {
-      loading.value = false
-    }
+    await router.push('/activity')
     return
   }
 
-  // If tokens exist but no user, they're likely invalid - clear them
-  const { accessToken, refreshToken } = authStore.getTokensFromCookies()
-  if ((accessToken || refreshToken) && !authStore.user) {
-    console.debug('[Login] Tokens exist but no user - clearing invalid tokens')
-    authStore.clearAuthData()
-  }
+  // Check for flow ID in URL (redirect from Kratos)
+  const flowId = route.query.flow as string
   
-  console.debug('[Login] Ready for login')
-})
+  try {
+    if (flowId) {
+      // Get existing flow
+      flow.value = await kratos.getLoginFlow(flowId)
+    } else {
+      // Create new flow
+      flow.value = await kratos.createLoginFlow()
+    }
 
-onBeforeUnmount(() => {
-  if (cooldownInterval) {
-    clearInterval(cooldownInterval)
-  }
-})
+    // Check for errors in flow
+    const errors = kratos.getFlowErrors(flow.value)
+    if (errors.length > 0) {
+      error.value = errors[0]
+    }
 
-const startCooldown = () => {
-  cooldownSeconds.value = 30
-  
-  if (cooldownInterval) {
-    clearInterval(cooldownInterval)
-  }
-  
-  cooldownInterval = setInterval(() => {
-    cooldownSeconds.value--
-    if (cooldownSeconds.value <= 0) {
-      if (cooldownInterval) {
-        clearInterval(cooldownInterval)
+    // Check available methods and set default
+    if (flow.value) {
+      const hasPasskey = kratos.hasWebAuthn(flow.value)
+      const hasCode = kratos.hasCode(flow.value)
+      
+      if (hasPasskey) {
+        authMethod.value = 'passkey'
+      } else if (hasCode) {
+        authMethod.value = 'code'
       }
     }
-  }, 1000)
-}
-
-const canRequestCode = computed(() => {
-  return email.value.length > 0 && cooldownSeconds.value === 0 && !requestingCode.value
-})
-
-const { t } = useI18n()
-
-const requestButtonText = computed(() => {
-  if (cooldownSeconds.value > 0) {
-    return `${t('auth.wait')} ${cooldownSeconds.value}s`
-  }
-  return requestingCode.value ? t('auth.sending') : t('auth.requestCode')
-})
-
-const schema = z.object({
-  code: z.array(z.string()).length(8, 'Code must be 8 characters')
-})
-
-const emailSchema = z.object({
-  email: z.string({ required_error: 'Email is required' }).email('Invalid email address')
-})
-
-type Schema = z.output<typeof schema>
-
-async function onSubmit(event: FormSubmitEvent<Schema>) {
-  try {
-    loading.value = true
-    // Join digits to a single string (no hyphen)
-    const rawCode = event.data.code.join('')
-    await authApi.verifyCode(email.value, rawCode)
-    await router.push('/activity')
-  } catch (error) {
-    console.error('Login failed:', error)
+  } catch (e: any) {
+    console.error('[Login] Failed to initialize login flow:', e)
+    error.value = e.message || t('auth.loginFlowError')
+    
+    // If flow expired, create a new one
+    if (e.code === '410' || e.message?.includes('expired')) {
+      try {
+        flow.value = await kratos.createLoginFlow()
+        error.value = null
+      } catch (retryError) {
+        console.error('[Login] Failed to create new flow:', retryError)
+      }
+    }
   } finally {
     loading.value = false
   }
+})
+
+/**
+ * Handle successful login
+ */
+async function handleLoginSuccess() {
+  console.debug('[Login] Login successful, redirecting...')
+  
+  // Check for return URL
+  const returnTo = route.query.return_to as string
+  if (returnTo) {
+    await router.push(returnTo)
+  } else {
+    await router.push('/activity')
+  }
 }
 
-async function requestCode() {
-  if (!canRequestCode.value) return
-  
-  try {
-    requestingCode.value = true
-    await authApi.requestCode(email.value)
-    startCooldown()
-  } catch (error) {
-    console.error('Failed to request code:', error)
-  } finally {
-    requestingCode.value = false
-  }
+/**
+ * Handle login error
+ */
+function handleLoginError(errorMsg: string) {
+  error.value = errorMsg
+}
+
+/**
+ * Switch to code-based login
+ */
+function switchToCode() {
+  authMethod.value = 'code'
+  error.value = null
+}
+
+/**
+ * Switch to passkey login
+ */
+function switchToPasskey() {
+  authMethod.value = 'passkey'
+  error.value = null
 }
 </script>
 
@@ -131,55 +124,77 @@ async function requestCode() {
   <div class="flex flex-col items-center justify-center gap-4 p-4 min-h-[calc(100vh-var(--header-height))]">
     <UPageCard class="w-full max-w-md">
       <div class="space-y-6">
+        <!-- Header -->
         <div class="flex flex-col text-center">
           <div class="mb-2">
-            <UIcon name="i-lucide-mail" class="size-8 shrink-0 inline-block" />
+            <UIcon name="i-lucide-log-in" class="size-8 shrink-0 inline-block" />
           </div>
           <h2 class="text-xl text-pretty font-semibold text-highlighted">{{ $t('auth.signIn') }}</h2>
-          <p class="mt-1 text-base text-pretty text-muted">{{ $t('auth.enterEmail') }}</p>
+          <p class="mt-1 text-base text-pretty text-muted">{{ $t('auth.welcomeBack') }}</p>
           <p class="mt-1 text-sm text-pretty text-muted">
             {{ $t('auth.dontHaveAccount') }}
             <ULink to="/auth/register" class="text-primary font-medium">{{ $t('auth.signUp') }}</ULink>.
           </p>
         </div>
 
-        <UForm :schema="emailSchema" :state="{ email }" class="space-y-5">
-          <UFormField name="email">
-            <template #label>
-              <div class="flex items-center justify-between w-full">
-                <span>{{ $t('auth.emailAddress') }}</span>
-                <UButton
-                  size="xs"
-                  variant="ghost"
-                  :disabled="!canRequestCode"
-                  @click="requestCode"
-                >
-                  {{ requestButtonText }}
-                </UButton>
-              </div>
-            </template>
-            <UInput v-model="email" type="email" :placeholder="$t('auth.enterYourEmail')" class="w-full" />
-          </UFormField>
-        </UForm>
+        <!-- Loading State -->
+        <div v-if="loading" class="flex justify-center py-8">
+          <UIcon name="i-heroicons-arrow-path" class="size-8 animate-spin text-muted" />
+        </div>
 
-        <UForm :schema="schema" :state="{ code }" class="space-y-5" @submit="onSubmit">
-          <UFormField name="code" :label="$t('auth.verificationCode')">
-            <div class="flex items-center justify-center gap-2">
-              <UPinInput
-                :model-value="code"
-                :length="8"
-                placeholder="A"
-                type="text"
-                :ui="{ root: 'gap-1.5' }"
-                @update:model-value="handleCodeUpdate"
-              />
+        <!-- Error Alert -->
+        <UAlert
+          v-if="error && !loading"
+          color="error"
+          variant="soft"
+          :title="$t('auth.error')"
+          :description="error"
+          :close-button="{ icon: 'i-heroicons-x-mark', color: 'gray', variant: 'link' }"
+          @close="error = null"
+        />
+
+        <!-- Auth Methods -->
+        <div v-if="flow && !loading" class="space-y-6">
+          <!-- Passkey Login -->
+          <div v-if="authMethod === 'passkey'">
+            <AuthPasskeyLogin
+              :flow="flow"
+              @success="handleLoginSuccess"
+              @error="handleLoginError"
+              @fallback="switchToCode"
+            />
+          </div>
+
+          <!-- Code Login -->
+          <div v-if="authMethod === 'code'">
+            <AuthCodeLogin
+              :flow="flow"
+              @success="handleLoginSuccess"
+              @error="handleLoginError"
+            />
+            
+            <!-- Switch to passkey -->
+            <div v-if="kratos.hasWebAuthn(flow)" class="text-center mt-4">
+              <UButton
+                variant="link"
+                size="sm"
+                @click="switchToPasskey"
+              >
+                <template #leading>
+                  <UIcon name="i-heroicons-finger-print" class="size-4" />
+                </template>
+                {{ $t('auth.usePasskey') }}
+              </UButton>
             </div>
-          </UFormField>
+          </div>
+        </div>
 
-          <UButton type="submit" block :loading="loading">
-            {{ $t('auth.verifyAndSignIn') }}
-          </UButton>
-        </UForm>
+        <!-- Recovery Link -->
+        <div v-if="!loading" class="text-center pt-4 border-t border-default">
+          <ULink to="/auth/recovery" class="text-sm text-muted hover:text-primary">
+            {{ $t('auth.forgotAccount') }}
+          </ULink>
+        </div>
       </div>
     </UPageCard>
   </div>
