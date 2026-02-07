@@ -113,8 +113,8 @@ export const useWebAuthn = () => {
       // The onclick attribute contains the WebAuthn options
       if (attrs.onclick) {
         try {
-          // Parse the onclick which contains: __ory_webauthn_...({...})
-          const match = attrs.onclick.match(/__ory_webauthn_\w+\((.*)\)/s)
+          // Parse the onclick which contains: __ory_webauthn_...({...}) or __oryWebAuthn...({...})
+          const match = attrs.onclick.match(/(?:__ory_webauthn_\w+|__oryWebAuthn\w+)\((.*)\)/s)
           if (match && match[1]) {
             const options = JSON.parse(match[1])
             return JSON.stringify(options)
@@ -251,29 +251,61 @@ export const useWebAuthn = () => {
   /**
    * Parse Kratos WebAuthn options from the flow UI
    * Returns the options in a format suitable for @simplewebauthn/browser
+   * Works for login, registration, and settings flows
    */
   const parseKratosWebAuthnOptions = (nodes: UiNode[], isRegistration: boolean): PublicKeyCredentialCreationOptionsJSON | PublicKeyCredentialRequestOptionsJSON | null => {
     // Look for the script node that contains WebAuthn configuration
     const scriptNode = nodes.find(
       (node) =>
-        node.group === 'webauthn' &&
+        (node.group === 'webauthn' || node.group === 'passkey') &&
         node.attributes.node_type === 'script'
     )
 
     if (!scriptNode) {
+      console.debug('[WebAuthn] No script node found in flow')
       return null
     }
 
+    // Possible trigger names for different flows
+    const triggerNames = isRegistration 
+      ? ['webauthn_register_trigger', 'passkey_register_trigger']
+      : ['webauthn_login_trigger', 'passkey_login_trigger']
+    
     // Look for the trigger node that contains the options
-    const triggerName = isRegistration ? 'webauthn_register_trigger' : 'webauthn_login_trigger'
     const triggerNode = nodes.find(
       (node) =>
-        node.group === 'webauthn' &&
-        node.attributes.node_type === 'input' &&
-        (node.attributes as UiNodeInputAttributes).name === triggerName
+        (node.group === 'webauthn' || node.group === 'passkey') &&
+        (node.attributes.node_type === 'input' || node.attributes.node_type === 'button') &&
+        triggerNames.includes((node.attributes as UiNodeInputAttributes).name)
     )
 
     if (!triggerNode) {
+      console.debug('[WebAuthn] No trigger node found. Looking for options in script...')
+      
+      // Fallback: try to extract options from script node text
+      const scriptText = (scriptNode.attributes as any).text || (scriptNode.attributes as any).src
+      if (scriptText && typeof scriptText === 'string') {
+        // Look for embedded publicKey options in script
+        const pkMatch = scriptText.match(/publicKey\s*[=:]\s*({[\s\S]*?})\s*[,;}\n]/m)
+        if (pkMatch && pkMatch[1]) {
+          try {
+            // This is risky - the script may contain JS objects, not valid JSON
+            // Try to evaluate it safely
+            const cleanJson = pkMatch[1]
+              .replace(/'/g, '"')
+              .replace(/(\w+):/g, '"$1":')
+            const options = JSON.parse(cleanJson)
+            return options
+          } catch (e) {
+            console.debug('[WebAuthn] Failed to parse publicKey from script:', e)
+          }
+        }
+      }
+      
+      console.debug('[WebAuthn] Available nodes:', 
+        nodes.filter(n => n.group === 'webauthn' || n.group === 'passkey')
+          .map(n => ({ group: n.group, type: n.attributes.node_type, name: (n.attributes as any).name }))
+      )
       return null
     }
 
@@ -282,18 +314,35 @@ export const useWebAuthn = () => {
     // Parse the onclick attribute which contains the WebAuthn options
     if (attrs.onclick) {
       try {
-        // Format: __ory_webauthn_registration({...}) or __ory_webauthn_login({...})
-        const match = attrs.onclick.match(/__ory_webauthn_\w+\(([\s\S]*)\)/m)
+        // Format variations:
+        // - __ory_webauthn_registration({...}) - older Kratos
+        // - window.__oryWebAuthnRegistration({...}) - newer Kratos (camelCase)
+        const match = attrs.onclick.match(/(?:__ory_webauthn_\w+|__oryWebAuthn\w+)\(([\s\S]*)\)/m)
         if (match && match[1]) {
           const optionsString = match[1]
           const options = JSON.parse(optionsString)
           return options.publicKey
         }
       } catch (e) {
-        console.error('[WebAuthn] Failed to parse Kratos WebAuthn options:', e)
+        console.error('[WebAuthn] Failed to parse Kratos WebAuthn options from onclick:', e)
       }
     }
 
+    // Fallback: try to extract from onclickTrigger if onclick is not present
+    if ((attrs as any).onclickTrigger) {
+      try {
+        const trigger = (attrs as any).onclickTrigger
+        const match = trigger.match(/(?:__ory_webauthn_\w+|__oryWebAuthn\w+)\(([\s\S]*)\)/m)
+        if (match && match[1]) {
+          const options = JSON.parse(match[1])
+          return options.publicKey
+        }
+      } catch (e) {
+        console.error('[WebAuthn] Failed to parse from onclickTrigger:', e)
+      }
+    }
+
+    console.debug('[WebAuthn] Trigger node found but no onclick/options:', attrs)
     return null
   }
 

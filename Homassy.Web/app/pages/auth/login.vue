@@ -27,8 +27,11 @@ onMounted(async () => {
   // Initialize auth state
   await authStore.initialize()
 
-  // If already authenticated, redirect to activity
-  if (authStore.isAuthenticated) {
+  // Check for refresh query parameter (re-authentication required)
+  const refreshRequired = route.query.refresh === 'true'
+
+  // If already authenticated and NOT a refresh request, redirect to activity
+  if (authStore.isAuthenticated && !refreshRequired) {
     console.debug('[Login] User is authenticated, redirecting to activity')
     await router.push('/activity')
     return
@@ -42,8 +45,8 @@ onMounted(async () => {
       // Get existing flow
       flow.value = await kratos.getLoginFlow(flowId)
     } else {
-      // Create new flow
-      flow.value = await kratos.createLoginFlow()
+      // Create new flow (with refresh if required for re-authentication)
+      flow.value = await kratos.createLoginFlow(refreshRequired)
     }
 
     // Check for errors in flow

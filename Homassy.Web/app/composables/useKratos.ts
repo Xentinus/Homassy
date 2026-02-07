@@ -11,13 +11,22 @@ import {
   type VerificationFlow,
   type SettingsFlow,
   type Session,
+  type Identity,
   type UiNodeInputAttributes,
   type UpdateLoginFlowBody,
   type UpdateRegistrationFlowBody,
   type UpdateRecoveryFlowBody,
   type UpdateVerificationFlowBody,
+  type UpdateSettingsFlowBody,
   type UiNode
 } from '@ory/client'
+
+export interface WebAuthnCredential {
+  id: string
+  displayName: string
+  createdAt: string
+  publicKey?: string
+}
 
 export interface KratosConfig {
   publicUrl: string
@@ -278,6 +287,108 @@ export const useKratos = () => {
   }
 
   /**
+   * Submit a settings flow (e.g., to register/remove WebAuthn credentials)
+   */
+  const submitSettingsFlow = async (flowId: string, body: UpdateSettingsFlowBody): Promise<SettingsFlow> => {
+    try {
+      const response = await kratos.updateSettingsFlow({
+        flow: flowId,
+        updateSettingsFlowBody: body
+      })
+      return response.data
+    } catch (error: any) {
+      console.error('[Kratos] Error submitting settings flow:', error)
+      throw parseKratosError(error)
+    }
+  }
+
+  /**
+   * Extract WebAuthn credentials from an identity
+   */
+  const getWebAuthnCredentials = (identity: Identity): WebAuthnCredential[] => {
+    const credentials: WebAuthnCredential[] = []
+    
+    if (!identity.credentials) {
+      return credentials
+    }
+
+    // Check for webauthn credentials
+    const webauthnCred = identity.credentials['webauthn']
+    if (webauthnCred?.identifiers) {
+      webauthnCred.identifiers.forEach((id, index) => {
+        credentials.push({
+          id: id,
+          displayName: `Passkey ${index + 1}`,
+          createdAt: webauthnCred.created_at || new Date().toISOString()
+        })
+      })
+    }
+
+    // Also check for passkey credentials (newer Kratos versions)
+    const passkeyCred = identity.credentials['passkey']
+    if (passkeyCred?.identifiers) {
+      passkeyCred.identifiers.forEach((id, index) => {
+        credentials.push({
+          id: id,
+          displayName: `Passkey ${credentials.length + index + 1}`,
+          createdAt: passkeyCred.created_at || new Date().toISOString()
+        })
+      })
+    }
+
+    return credentials
+  }
+
+  /**
+   * Extract WebAuthn credentials from settings flow UI nodes
+   * This is more reliable as it includes display names
+   */
+  const getWebAuthnCredentialsFromFlow = (flow: SettingsFlow): WebAuthnCredential[] => {
+    const credentials: WebAuthnCredential[] = []
+    
+    // Find webauthn_remove nodes - each represents a registered credential
+    flow.ui.nodes.forEach((node) => {
+      if (node.group === 'webauthn' && 
+          node.attributes.node_type === 'input' &&
+          (node.attributes as UiNodeInputAttributes).name === 'webauthn_remove') {
+        const attrs = node.attributes as UiNodeInputAttributes
+        credentials.push({
+          id: attrs.value as string,
+          displayName: node.meta?.label?.text || `Passkey ${credentials.length + 1}`,
+          createdAt: '' // Not available in flow
+        })
+      }
+      // Also check passkey_remove for newer Kratos versions
+      if (node.group === 'passkey' && 
+          node.attributes.node_type === 'input' &&
+          (node.attributes as UiNodeInputAttributes).name === 'passkey_remove') {
+        const attrs = node.attributes as UiNodeInputAttributes
+        credentials.push({
+          id: attrs.value as string,
+          displayName: node.meta?.label?.text || `Passkey ${credentials.length + 1}`,
+          createdAt: '' // Not available in flow
+        })
+      }
+    })
+
+    return credentials
+  }
+
+  /**
+   * Check if WebAuthn registration is available in settings flow
+   */
+  const hasWebAuthnRegistration = (flow: SettingsFlow): boolean => {
+    return flow.ui.nodes.some(
+      (node) =>
+        (node.group === 'webauthn' || node.group === 'passkey') &&
+        (node.attributes.node_type === 'input' || node.attributes.node_type === 'button') &&
+        ((node.attributes as UiNodeInputAttributes).name === 'webauthn_register_trigger' ||
+         (node.attributes as UiNodeInputAttributes).name === 'passkey_register_trigger' ||
+         (node.attributes as UiNodeInputAttributes).name === 'passkey_settings_register')
+    )
+  }
+
+  /**
    * Logout from all sessions
    */
   const logout = async (): Promise<void> => {
@@ -491,6 +602,10 @@ export const useKratos = () => {
     // Settings
     createSettingsFlow,
     getSettingsFlow,
+    submitSettingsFlow,
+    getWebAuthnCredentials,
+    getWebAuthnCredentialsFromFlow,
+    hasWebAuthnRegistration,
     
     // Logout
     logout,
