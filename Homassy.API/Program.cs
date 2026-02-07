@@ -49,8 +49,7 @@ try
     HomassyDbContext.SetConfiguration(builder.Configuration);
 
     ConfigService.Initialize(builder.Configuration);
-    EmailService.Initialize(builder.Configuration);
-    // JWT removed - using Kratos for authentication
+    // EmailService and JWT removed - using Kratos for authentication
 
     builder.Services.AddDbContext<HomassyDbContext>(options =>
         options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection")));
@@ -65,9 +64,7 @@ try
     builder.Services.AddSingleton<IImageProcessingService, ImageProcessingService>();
     builder.Services.AddSingleton<IProgressTrackerService, ProgressTrackerService>();
 
-    builder.Services.AddSingleton<EmailQueueService>();
-    builder.Services.AddSingleton<IEmailQueueService>(sp => sp.GetRequiredService<EmailQueueService>());
-    builder.Services.AddHostedService<EmailBackgroundService>();
+    // Email services removed - Kratos Courier handles authentication emails
     // TokenCleanupService removed - using Kratos for session management
 
     // Kratos service registration
@@ -79,7 +76,7 @@ try
     builder.Services.Configure<HttpsSettings>(builder.Configuration.GetSection("Https"));
     builder.Services.Configure<RequestTimeoutSettings>(builder.Configuration.GetSection("RequestTimeout"));
     builder.Services.Configure<HealthCheckOptions>(builder.Configuration.GetSection("HealthChecks"));
-    builder.Services.Configure<AccountLockoutSettings>(builder.Configuration.GetSection("Security:AccountLockout"));
+    // AccountLockoutSettings removed - Kratos handles rate limiting and lockout
     builder.Services.Configure<GracefulShutdownSettings>(builder.Configuration.GetSection("GracefulShutdown"));
     
     var httpsSettings = builder.Configuration.GetSection("Https").Get<HttpsSettings>() ?? new HttpsSettings();

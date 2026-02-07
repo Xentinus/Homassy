@@ -18,6 +18,7 @@ const emit = defineEmits<{
   (e: 'success'): void
   (e: 'error', error: string): void
   (e: 'emailSubmitted', email: string): void
+  (e: 'flowUpdate', flow: LoginFlow): void
   (e: 'back'): void
 }>()
 
@@ -50,8 +51,9 @@ const emailSchema = z.object({
   email: z.string({ required_error: t('validation.emailRequired') }).email(t('validation.emailInvalid'))
 })
 
+// Each code character must be non-empty
 const codeSchema = z.object({
-  code: z.array(z.string()).length(6, t('validation.codeMustBe6'))
+  code: z.array(z.string().min(1, t('validation.codeIncomplete'))).length(6, t('validation.codeMustBe6'))
 })
 
 type EmailSchema = z.output<typeof emailSchema>
@@ -133,6 +135,8 @@ async function requestCode() {
         (node: any) => node.attributes?.name === 'code'
       )
       if (hasCodeInput) {
+        // Emit flow update to parent
+        emit('flowUpdate', error.response.data as LoginFlow)
         codeSent.value = true
         startCooldown()
         emit('emailSubmitted', emailValue.value)
@@ -165,11 +169,12 @@ async function verifyCode(event: FormSubmitEvent<CodeSchema>) {
     // Get CSRF token
     const csrfToken = kratos.getCsrfToken(props.flow.ui.nodes) || ''
 
-    // Submit code to complete login
+    // Submit code to complete login - identifier (email) is required
     await kratos.submitLoginFlow(props.flow.id, {
       method: 'code',
       csrf_token: csrfToken,
-      code: codeString
+      code: codeString,
+      identifier: emailValue.value
     })
 
     // Refresh auth state
@@ -185,6 +190,11 @@ async function verifyCode(event: FormSubmitEvent<CodeSchema>) {
     emit('success')
   } catch (error: any) {
     console.error('[CodeLogin] Code verification failed:', error)
+    
+    // Update flow if Kratos returned new state
+    if (error.response?.data?.ui) {
+      emit('flowUpdate', error.response.data as LoginFlow)
+    }
     
     const errorMsg = error.message || t('auth.invalidCode')
     toast.add({

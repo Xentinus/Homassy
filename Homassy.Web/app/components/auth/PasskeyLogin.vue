@@ -58,7 +58,10 @@ async function authenticate() {
     const options = webauthn.parseKratosWebAuthnOptions(props.flow.ui.nodes, false)
     
     if (!options) {
-      throw new Error('Could not parse WebAuthn options from flow')
+      // No WebAuthn options available - fallback to code login
+      console.debug('[PasskeyLogin] No WebAuthn options in flow, falling back to code')
+      emit('fallback')
+      return
     }
 
     // Start WebAuthn authentication ceremony

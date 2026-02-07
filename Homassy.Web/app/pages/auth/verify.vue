@@ -33,9 +33,9 @@ const emailSchema = z.object({
   email: z.string({ required_error: t('validation.emailRequired') }).email(t('validation.emailInvalid'))
 })
 
-// Schema for code verification
+// Schema for code verification - each character must be non-empty
 const codeSchema = z.object({
-  code: z.array(z.string()).length(6, t('validation.codeMustBe6'))
+  code: z.array(z.string().min(1, t('validation.codeIncomplete'))).length(6, t('validation.codeMustBe6'))
 })
 
 type EmailSchema = z.output<typeof emailSchema>
@@ -150,6 +150,8 @@ async function requestCode(event: FormSubmitEvent<EmailSchema>) {
   } catch (e: any) {
     // Check if code was sent (some errors still mean code was sent)
     if (e.response?.data?.ui?.nodes?.some((node: any) => node.attributes?.name === 'code')) {
+      // Update flow with new state from Kratos
+      flow.value = e.response.data as VerificationFlow
       email.value = event.data.email
       codeSent.value = true
       startCooldown()
@@ -183,7 +185,8 @@ async function verifyCode(event: FormSubmitEvent<CodeSchema>) {
     await kratos.submitVerificationFlow(flow.value.id, {
       method: 'code',
       csrf_token: csrfToken,
-      code: codeString
+      code: codeString,
+      email: email.value
     })
 
     success.value = true
@@ -205,6 +208,10 @@ async function verifyCode(event: FormSubmitEvent<CodeSchema>) {
         icon: 'i-heroicons-check-circle'
       })
     } else {
+      // Update flow with new state from Kratos (for CSRF token refresh)
+      if (e.response?.data?.ui) {
+        flow.value = e.response.data as VerificationFlow
+      }
       error.value = e.message || t('auth.invalidCode')
     }
   } finally {
@@ -252,6 +259,8 @@ async function resendCode() {
     })
   } catch (e: any) {
     if (e.response?.data?.ui?.nodes?.some((node: any) => node.attributes?.name === 'code')) {
+      // Update flow with new state from Kratos
+      flow.value = e.response.data as VerificationFlow
       startCooldown()
       toast.add({
         title: t('toast.codeSent'),

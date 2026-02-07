@@ -845,6 +845,216 @@
 			"type": "shell",
 			"command": "cd /Users/xentinus/Development/Homassy && dotnet test Homassy.Tests/Homassy.Tests.csproj --verbosity normal --logger \"console;verbosity=detailed\" 2>&1 | grep -A 20 'Failed '",
 			"group": "test"
+		},
+		{
+			"label": "Frontend: Install Dependencies",
+			"type": "shell",
+			"command": "cd Homassy.Web && npm install",
+			"isBackground": false,
+			"group": "build"
+		},
+		{
+			"label": "Frontend: Install and Build",
+			"type": "shell",
+			"command": "cd Homassy.Web && npm install && cd .. && docker compose build web",
+			"isBackground": false,
+			"group": "build"
+		},
+		{
+			"label": "Docker: Rebuild Web",
+			"type": "shell",
+			"command": "docker compose up -d --build web",
+			"isBackground": false,
+			"group": "build"
+		},
+		{
+			"label": "Docker: Rebuild All",
+			"type": "shell",
+			"command": "docker compose up -d --build",
+			"isBackground": false,
+			"group": "build"
+		},
+		{
+			"label": "Docker: Status",
+			"type": "shell",
+			"command": "docker compose ps",
+			"isBackground": false,
+			"group": "build"
+		},
+		{
+			"label": "Test: Frontend",
+			"type": "shell",
+			"command": "curl -s http://localhost:3000 | head -20",
+			"isBackground": false,
+			"group": "test"
+		},
+		{
+			"label": "Docker: Rebuild Web No-Cache",
+			"type": "shell",
+			"command": "docker compose build homassy.web --no-cache",
+			"isBackground": false,
+			"group": "build"
+		},
+		{
+			"label": "Docker: Restart Web",
+			"type": "shell",
+			"command": "docker compose up -d homassy.web",
+			"isBackground": false,
+			"group": "build"
+		},
+		{
+			"label": "Test: Frontend v2",
+			"type": "shell",
+			"command": "sleep 10 && curl -s http://localhost:3000 2>/dev/null | head -5 || echo 'Connection failed'",
+			"isBackground": false,
+			"group": "test"
+		},
+		{
+			"label": "Docker: Full Web Rebuild",
+			"type": "shell",
+			"command": "docker compose build homassy.web --no-cache && docker compose up -d homassy.web",
+			"isBackground": false,
+			"group": "build"
+		},
+		{
+			"label": "Test: Frontend v3",
+			"type": "shell",
+			"command": "sleep 5 && curl -s http://localhost:3000 2>/dev/null | head -5 || echo 'Connection failed'",
+			"isBackground": false,
+			"group": "test"
+		},
+		{
+			"label": "Test: Frontend v4",
+			"type": "shell",
+			"command": "sleep 8 && curl -s http://localhost:3000 2>/dev/null | head -10 || echo 'Request failed'",
+			"isBackground": false,
+			"group": "test"
+		},
+		{
+			"label": "Docker: Web Logs",
+			"type": "shell",
+			"command": "docker logs homassy-web 2>&1 | tail -30",
+			"isBackground": false,
+			"group": "test"
+		},
+		{
+			"label": "Check: @ory modules",
+			"type": "shell",
+			"command": "docker exec homassy-web ls -la /app/node_modules/@ory 2>&1 || echo 'Directory does not exist'",
+			"isBackground": false,
+			"group": "test"
+		},
+		{
+			"label": "Check: package.json in container",
+			"type": "shell",
+			"command": "docker exec homassy-web cat /app/package.json | grep -A1 '@ory'",
+			"isBackground": false,
+			"group": "test"
+		},
+		{
+			"label": "Check: package-lock.json in container",
+			"type": "shell",
+			"command": "docker exec homassy-web grep -c '@ory/client' /app/package-lock.json || echo 'Not found'",
+			"isBackground": false,
+			"group": "test"
+		},
+		{
+			"label": "Docker: Rebuild Web with Fresh NodeModules",
+			"type": "shell",
+			"command": "docker compose down homassy.web && docker volume ls -q | grep -i node | xargs -r docker volume rm 2>/dev/null; docker compose up -d --build homassy.web",
+			"isBackground": false,
+			"group": "build"
+		},
+		{
+			"label": "Test: Frontend v5",
+			"type": "shell",
+			"command": "sleep 15 && curl -s http://localhost:3000 2>/dev/null | head -5 || echo 'Request failed'",
+			"isBackground": false,
+			"group": "test"
+		},
+		{
+			"label": "Docker: Complete Web Rebuild",
+			"type": "shell",
+			"command": "docker compose stop homassy.web && docker compose rm -f homassy.web && docker volume prune -f && docker compose up -d --build homassy.web",
+			"isBackground": false,
+			"group": "build"
+		},
+		{
+			"label": "Docker: Status v2",
+			"type": "shell",
+			"command": "docker compose ps",
+			"isBackground": false,
+			"group": "test"
+		},
+		{
+			"label": "Docker: Start Web + Logs",
+			"type": "shell",
+			"command": "docker compose up -d --build homassy.web && sleep 20 && docker logs homassy-web 2>&1 | tail -20",
+			"isBackground": false,
+			"group": "build"
+		},
+		{
+			"label": "Check: @ory in container",
+			"type": "shell",
+			"command": "docker exec homassy-web ls /app/node_modules/@ory 2>&1 || echo '@ory directory missing'",
+			"isBackground": false,
+			"group": "test"
+		},
+		{
+			"label": "Docker: Up All",
+			"type": "shell",
+			"command": "docker compose up -d",
+			"isBackground": false,
+			"group": "build"
+		},
+		{
+			"label": "Check: @ory after startup",
+			"type": "shell",
+			"command": "sleep 10 && docker exec homassy-web ls /app/node_modules/@ory 2>&1 || echo '@ory directory missing'",
+			"isBackground": false,
+			"group": "test"
+		},
+		{
+			"label": "Fix: Remove empty directory",
+			"type": "shell",
+			"command": "rm -rf Homassy.Kratos/init-kratos-schema.sql",
+			"isBackground": false,
+			"group": "build"
+		},
+		{
+			"label": "Docker: Up All Services",
+			"type": "shell",
+			"command": "docker compose up -d --build",
+			"isBackground": false,
+			"group": "build"
+		},
+		{
+			"label": "Docker: Check Status",
+			"type": "shell",
+			"command": "sleep 5 && docker compose ps",
+			"isBackground": false,
+			"group": "test"
+		},
+		{
+			"label": "Docker: Full Status Check",
+			"type": "shell",
+			"command": "sleep 20 && docker compose ps",
+			"isBackground": false,
+			"group": "test"
+		},
+		{
+			"label": "Docker: All Containers",
+			"type": "shell",
+			"command": "docker compose ps -a",
+			"isBackground": false,
+			"group": "test"
+		},
+		{
+			"label": "Run: All Tests",
+			"type": "shell",
+			"command": "dotnet test Homassy.Tests --verbosity minimal",
+			"isBackground": false,
+			"group": "test"
 		}
 	]
 }

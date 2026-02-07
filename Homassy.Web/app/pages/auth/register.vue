@@ -6,6 +6,7 @@
 import * as z from 'zod'
 import type { FormSubmitEvent } from '@nuxt/ui'
 import type { RegistrationFlow } from '@ory/client'
+import { getBrowserKratosTimezone } from '~/utils/enumMappers'
 
 definePageMeta({
   layout: 'public'
@@ -25,6 +26,8 @@ const flow = ref<RegistrationFlow | null>(null)
 const error = ref<string | null>(null)
 const step = ref<'details' | 'code'>('details')
 const email = ref('')
+const name = ref('')
+const displayName = ref('')
 const code = ref<string[]>([])
 const cooldownSeconds = ref(0)
 let cooldownInterval: ReturnType<typeof setInterval> | null = null
@@ -43,9 +46,9 @@ const schema = z.object({
   displayName: z.string().optional()
 })
 
-// Schema for code verification
+// Schema for code verification - each character must be non-empty
 const codeSchema = z.object({
-  code: z.array(z.string()).length(6, t('validation.codeMustBe6'))
+  code: z.array(z.string().min(1, t('validation.codeIncomplete'))).length(6, t('validation.codeMustBe6'))
 })
 
 type Schema = z.output<typeof schema>
@@ -84,6 +87,31 @@ onMounted(async () => {
     if (flowId) {
       // Get existing flow
       flow.value = await kratos.getRegistrationFlow(flowId)
+      
+      // Check if flow is already in sent_email state (code was sent)
+      if ((flow.value as any).state === 'sent_email') {
+        // Flow already had code sent, show code input
+        // Extract all stored trait values from flow
+        const emailNode = flow.value.ui.nodes.find(
+          (node: any) => node.attributes?.name === 'traits.email'
+        )
+        const nameNode = flow.value.ui.nodes.find(
+          (node: any) => node.attributes?.name === 'traits.name'
+        )
+        const displayNameNode = flow.value.ui.nodes.find(
+          (node: any) => node.attributes?.name === 'traits.display_name'
+        )
+        if (emailNode) {
+          email.value = (emailNode.attributes as any)?.value || ''
+        }
+        if (nameNode) {
+          name.value = (nameNode.attributes as any)?.value || ''
+        }
+        if (displayNameNode) {
+          displayName.value = (displayNameNode.attributes as any)?.value || ''
+        }
+        step.value = 'code'
+      }
     } else {
       // Create new flow
       flow.value = await kratos.createRegistrationFlow()
@@ -152,12 +180,14 @@ async function submitDetails(event: FormSubmitEvent<Schema>) {
         display_name: event.data.displayName || event.data.name,
         default_language: 'en',
         default_currency: 'EUR',
-        default_timezone: Intl.DateTimeFormat().resolvedOptions().timeZone
+        default_timezone: getBrowserKratosTimezone()
       }
     })
 
     // If we get here without error, move to code verification
     email.value = event.data.email
+    name.value = event.data.name
+    displayName.value = event.data.displayName || event.data.name
     step.value = 'code'
     startCooldown()
 
@@ -176,7 +206,11 @@ async function submitDetails(event: FormSubmitEvent<Schema>) {
         (node: any) => node.attributes?.name === 'code'
       )
       if (hasCodeInput) {
+        // Update the flow with the new state (important for CSRF token!)
+        flow.value = e.response.data as RegistrationFlow
         email.value = event.data.email
+        name.value = event.data.name
+        displayName.value = event.data.displayName || event.data.name
         step.value = 'code'
         startCooldown()
         
@@ -209,11 +243,17 @@ async function verifyCode(event: FormSubmitEvent<CodeSchema>) {
     const codeString = event.data.code.join('')
     const csrfToken = kratos.getCsrfToken(flow.value.ui.nodes) || ''
 
-    // Submit code to complete registration
+    // Submit code to complete registration - all traits are required
     await kratos.submitRegistrationFlow(flow.value.id, {
       method: 'code',
       csrf_token: csrfToken,
-      code: codeString
+      code: codeString,
+      'traits.email': email.value,
+      'traits.name': name.value,
+      'traits.display_name': displayName.value,
+      'traits.default_language': 'en',
+      'traits.default_currency': 'EUR',
+      'traits.default_timezone': getBrowserKratosTimezone()
     })
 
     // Refresh auth state
@@ -230,6 +270,12 @@ async function verifyCode(event: FormSubmitEvent<CodeSchema>) {
     await router.push('/activity')
   } catch (e: any) {
     console.error('[Register] Code verification failed:', e)
+    
+    // Update flow if Kratos returned new state
+    if (e.response?.data?.ui) {
+      flow.value = e.response.data as RegistrationFlow
+    }
+    
     error.value = e.message || t('auth.invalidCode')
   } finally {
     submitting.value = false
@@ -259,7 +305,7 @@ async function resendCode() {
         display_name: formState.displayName || formState.name,
         default_language: 'en',
         default_currency: 'EUR',
-        default_timezone: Intl.DateTimeFormat().resolvedOptions().timeZone
+        default_timezone: getBrowserKratosTimezone()
       }
     })
 
@@ -272,8 +318,9 @@ async function resendCode() {
       icon: 'i-heroicons-envelope'
     })
   } catch (e: any) {
-    // Code sent even on "error" response
+    // Code sent even on "error" response - update flow with new state
     if (e.response?.data?.ui?.nodes?.some((node: any) => node.attributes?.name === 'code')) {
+      flow.value = e.response.data as RegistrationFlow
       startCooldown()
       toast.add({
         title: t('toast.codeSent'),

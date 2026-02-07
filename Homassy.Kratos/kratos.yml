@@ -129,6 +129,8 @@ identity:
 
 courier:
   smtp:
+    # Uses COURIER_SMTP_CONNECTION_URI, COURIER_SMTP_FROM_ADDRESS, COURIER_SMTP_FROM_NAME env vars
+    # Fallback to mailhog if not set
     connection_uri: smtp://mailhog:1025/?disable_starttls=true
     from_address: noreply@homassy.local
     from_name: Homassy

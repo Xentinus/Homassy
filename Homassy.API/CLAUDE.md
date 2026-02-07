@@ -26,16 +26,16 @@ Homassy.API is a home storage management system built with ASP.NET Core. The pro
 
 - **No Repository Pattern**: Functions layer directly accesses DbContext for simplicity
 - **Cache-First Architecture**: Heavy use of in-memory caching with database trigger-based invalidation
-- **Passwordless Authentication**: Email verification codes instead of traditional passwords
+- **Ory Kratos Authentication**: Self-hosted identity management with passwordless login (verification codes)
 - **Functions Over Services**: Business logic in dedicated Functions classes rather than traditional service layer
 - **Soft Delete by Default**: All entities support soft deletion via inheritance
 - **Session via AsyncLocal**: User context stored in thread-local storage for easy access throughout the application
-- **Static Service Initialization**: Services like JwtService, EmailService, ConfigService use static initialization
+- **Static Service Initialization**: Services like ConfigService use static initialization
 - **Standardized API Responses**: All endpoints return consistent `ApiResponse<T>` structure
-- **Async Email Queue**: Background email processing with retry logic for improved reliability
+- **Kratos Email Delivery**: Kratos Courier handles authentication emails (verification, recovery, login codes)
 - **Correlation ID Tracking**: Request tracing across the application for distributed systems
 - **Health Check Integration**: Kubernetes-compatible health probes for monitoring and orchestration
-- **Refresh Token Rotation**: Token theft detection and prevention through automatic rotation
+- **Kratos Session Management**: Secure session handling via Kratos with configurable lifespans
 - **Centralized Exception Handling**: GlobalExceptionMiddleware for consistent error responses
 - **Per-Endpoint Timeouts**: Configurable timeout enforcement to prevent long-running requests
 - **Request/Response Logging**: Sanitized logging with sensitive data filtering for observability
@@ -58,12 +58,14 @@ Homassy.API is a home storage management system built with ASP.NET Core. The pro
 - **Entity Framework Core 10.0.0** - ORM
 - **Npgsql 10.0.0** - PostgreSQL provider
 
-### Authentication
-- **JWT Bearer Tokens** - Access and refresh token system
-- **Microsoft.IdentityModel.Tokens 8.15.0**
+### Authentication & Identity
+- **Ory Kratos** - Self-hosted identity management
+- Session-based authentication with cookie/token support
+- Passwordless login via email verification codes
+- Account recovery and settings management via Kratos flows
 
 ### Email
-- **MailKit 4.14.1** - Email delivery
+- **Kratos Courier** - Handles authentication-related emails through Kratos
 
 ### Logging
 - **Serilog 9.0.0** - Structured logging
@@ -561,131 +563,122 @@ catch (Exception ex)
 
 ## Authentication & Authorization
 
-### Passwordless Authentication Flow
+### Ory Kratos Integration
 
-The system uses email-based verification codes instead of traditional passwords:
+The system uses **Ory Kratos** as a self-hosted identity management solution. All authentication flows (login, registration, recovery, settings) are handled by Kratos.
 
-1. **Request Verification Code**
-   - User submits email address
-   - System generates 6-digit code
-   - Code sent via email
-   - Code expires after configurable minutes
+#### Architecture Overview
 
-2. **Verify Code & Login**
-   - User submits email + verification code
-   - System validates code
-   - Returns access token + refresh token
-   - First login changes status from `PendingVerification` to `Active`
-
-3. **Token Usage**
-   - Access token included in `Authorization: Bearer <token>` header
-   - Access token expires after short period (configurable)
-   - Refresh token used to obtain new access token
-
-**Security Features:**
-- **Generic Messages**: Authentication endpoints return generic messages to prevent user enumeration
-- **Security Delays**: Random delays (100-400ms) on failures to prevent timing attacks
-- **Constant-Time Comparison**: Uses `SecureCompare.ConstantTimeEquals()` for sensitive comparisons
-
-**Example - Request Code:**
-```csharp
-[HttpPost("request-code")]
-public async Task<IActionResult> RequestVerificationCode([FromBody] LoginRequest request)
-{
-    var genericMessage = "If this email is registered, a verification code will be sent.";
-
-    try
-    {
-        await new UserFunctions().RequestVerificationCodeAsync(request.Email);
-    }
-    catch (AuthException ex)
-    {
-        Log.Warning($"Auth error during request-code: {ex.Message}");
-    }
-
-    await Task.Delay(Random.Shared.Next(100, 300));
-    return Ok(ApiResponse.SuccessResponse(genericMessage));
-}
+```
+┌─────────────────┐     ┌─────────────────┐     ┌─────────────────┐
+│   Frontend      │────▶│  Ory Kratos     │────▶│  PostgreSQL     │
+│   (Nuxt.js)     │◀────│  (Identity)     │◀────│  (Kratos DB)    │
+└────────┬────────┘     └─────────────────┘     └─────────────────┘
+         │                       │
+         ▼                       ▼
+┌─────────────────┐     ┌─────────────────┐
+│   Homassy API   │────▶│  PostgreSQL     │
+│   (.NET Core)   │◀────│  (App DB)       │
+└─────────────────┘     └─────────────────┘
 ```
 
-### JWT Token System
+**Key Components:**
+- **Kratos Public API** (port 4433): Handles user-facing authentication flows
+- **Kratos Admin API** (port 4434): Internal API for identity management
+- **Kratos Courier**: Sends authentication emails (verification codes, recovery links)
 
-#### Access Tokens
+#### Authentication Flow
 
-Short-lived JWT tokens containing user claims:
+1. **Login/Registration**
+   - Frontend initiates flow via Kratos self-service endpoints
+   - User enters email address
+   - Kratos sends 6-digit verification code via email
+   - User submits code to complete authentication
+   - Kratos creates session cookie
+
+2. **Session Validation**
+   - API validates Kratos session via `KratosAuthenticationHandler`
+   - Session data stored in `HttpContext.Items["KratosSession"]`
+   - Local user record synced with Kratos identity
+
+3. **Accessing Protected Endpoints**
+   - Frontend includes Kratos session cookie in requests
+   - API middleware validates session with Kratos
+   - `SessionInfo` populated with user context
+
+#### KratosAuthenticationHandler
+
+Custom authentication handler that validates Kratos sessions:
 
 ```csharp
-Claims:
-- ClaimTypes.NameIdentifier: User.PublicId (Guid)
-- "FamilyId": User.FamilyId (if user belongs to a family)
-```
-
-**Configuration:**
-- Issuer validation
-- Audience validation
-- Lifetime validation
-- Signing key validation
-- **No clock skew** (`ClockSkew = TimeSpan.Zero`)
-
-#### Refresh Tokens
-
-Long-lived random tokens for obtaining new access tokens:
-
-- **Generation**: 64-byte cryptographically random string (Base64 encoded)
-- **Storage**: Stored in `UserAuthentication` table
-- **Expiry**: Configurable (typically days/weeks)
-- **Usage**: Exchange for new access token via `/auth/refresh` endpoint
-
-**Refresh Flow:**
-```csharp
-[Authorize]
-[HttpPost("refresh")]
-public async Task<IActionResult> RefreshToken([FromBody] RefreshTokenRequest request)
+public class KratosAuthenticationHandler : AuthenticationHandler<KratosAuthenticationOptions>
 {
-    try
+    protected override async Task<AuthenticateResult> HandleAuthenticateAsync()
     {
-        var refreshResponse = await new UserFunctions().RefreshTokenAsync(request.RefreshToken);
-        return Ok(ApiResponse<RefreshTokenResponse>.SuccessResponse(refreshResponse));
-    }
-    catch (AuthException ex)
-    {
-        // Error handling...
+        // Extract session token from cookie or Authorization header
+        var kratosSession = await _kratosService.ValidateSessionAsync(token);
+        
+        if (kratosSession == null)
+            return AuthenticateResult.Fail("Invalid or expired session");
+
+        // Create claims from Kratos identity
+        var claims = new List<Claim>
+        {
+            new Claim(ClaimTypes.NameIdentifier, kratosSession.Identity.Id),
+            new Claim(ClaimTypes.Email, kratosSession.Identity.Traits.Email)
+        };
+
+        // Store session in HttpContext for later use
+        Context.Items["KratosSession"] = kratosSession;
+        
+        return AuthenticateResult.Success(ticket);
     }
 }
 ```
 
-#### Refresh Token Rotation
+#### User Synchronization
 
-The system implements refresh token rotation for enhanced security against token theft:
+Local user records are synchronized with Kratos identities:
 
-**How It Works:**
-- When a refresh token is used, it's immediately invalidated
-- A new refresh token is issued with each refresh operation
-- The previous token is stored temporarily with an expiry date
-- If an old token is reused, it indicates potential token theft
-- On theft detection: All tokens for that user are invalidated (forced logout)
+```csharp
+public async Task<User?> EnsureLocalUserAsync(KratosSession session, CancellationToken ct)
+{
+    var kratosId = session.Identity.Id;
+    var email = session.Identity.Traits.Email;
+    var name = session.Identity.Traits.Name;
 
-**Database Fields:**
-- `RefreshToken` - Current valid refresh token
-- `RefreshTokenExpiry` - Current token expiration
-- `PreviousRefreshToken` - Last used token (for grace period detection)
-- `PreviousRefreshTokenExpiry` - Grace period expiration
+    // Find or create local user by Kratos ID
+    var user = await FindByKratosIdAsync(kratosId, ct);
+    
+    if (user == null)
+    {
+        user = await CreateUserFromKratosAsync(kratosId, email, name, ct);
+    }
+    else
+    {
+        // Sync any changed traits
+        await SyncUserTraitsAsync(user, session.Identity.Traits, ct);
+    }
+    
+    return user;
+}
+```
 
-**Benefits:**
-- Detects and prevents token replay attacks
-- Limits damage if a refresh token is compromised
-- Provides automatic cleanup via `TokenCleanupService`
-- Follows OAuth 2.0 security best practices
+#### Kratos Configuration
 
-**Cleanup:**
-The `TokenCleanupService` background service runs hourly to clean up expired tokens, preventing database bloat.
+Kratos is configured via `kratos.yml`:
+
+- **Passwordless Login**: Uses 6-digit codes sent via email
+- **Session Lifespan**: 24 hours (configurable)
+- **Cookie Settings**: SameSite=Lax, HttpOnly, Secure in production
+- **Email Templates**: Customizable templates for verification, recovery
 
 ### Authorization
 
-The system uses attribute-based authorization:
+The system uses ASP.NET Core's attribute-based authorization:
 
 ```csharp
-[Authorize]  // Entire controller requires authentication
+[Authorize]  // Entire controller requires Kratos session
 public class UserController : ControllerBase
 {
     [HttpGet("profile")]  // Inherits [Authorize]
@@ -695,12 +688,12 @@ public class UserController : ControllerBase
 // Or per-endpoint:
 public class AuthController : ControllerBase
 {
-    [HttpPost("request-code")]  // No authentication required
-    public IActionResult RequestCode() { ... }
+    [HttpGet("config")]  // No authentication required
+    public IActionResult GetConfig() { ... }
 
     [Authorize]
-    [HttpPost("logout")]  // Requires authentication
-    public IActionResult Logout() { ... }
+    [HttpGet("me")]  // Requires valid Kratos session
+    public IActionResult GetCurrentUser() { ... }
 }
 ```
 
@@ -712,27 +705,13 @@ public class AuthController : ControllerBase
 
 ### User Registration
 
-Registration is **feature-flagged** and can be disabled:
+Registration is handled entirely by Kratos:
 
-```csharp
-[HttpPost("register")]
-public async Task<IActionResult> Register([FromBody] CreateUserRequest request)
-{
-    var registrationEnabled = bool.Parse(ConfigService.GetValueOrDefault("RegistrationEnabled", "false"));
-
-    if (!registrationEnabled)
-    {
-        return StatusCode(403, ApiResponse.ErrorResponse("Registration is currently disabled"));
-    }
-
-    // Process registration...
-}
-```
-
-- Configuration-based feature toggle
-- Generic success message (prevents user enumeration)
-- Creates user in `PendingVerification` status
-- Sends verification code via email
+- Frontend initiates registration flow via Kratos
+- Kratos validates email and sends verification code
+- On successful verification, Kratos creates identity
+- API syncs local user record on first authenticated request
+- Registration can be disabled via Kratos configuration
 
 ---
 
@@ -740,24 +719,21 @@ public async Task<IActionResult> Register([FromBody] CreateUserRequest request)
 
 ### AuthController
 
-Handles authentication and token management (no `[Authorize]` at class level).
+Provides user session management for Kratos authentication (no `[Authorize]` at class level).
 
 **Endpoints:**
 
 | Method | Endpoint | Auth | Description |
 |--------|----------|------|-------------|
-| POST | `/request-code` | No | Request email verification code |
-| POST | `/verify-code` | No | Verify code and login |
-| POST | `/refresh` | Yes | Refresh access token |
-| POST | `/logout` | Yes | Logout user |
-| GET | `/me` | Yes | Get current user info |
-| POST | `/register` | No | User registration (config-gated) |
+| GET | `/me` | Yes | Get current user info (syncs local user) |
+| GET | `/session` | Yes | Get Kratos session information |
+| POST | `/sync` | Yes | Force sync local user with Kratos |
+| GET | `/config` | No | Get Kratos configuration URLs for frontend |
 
 **Key Patterns:**
-- Generic messages on sensitive operations
-- Security delays on failures
-- Exception mapping to HTTP status codes
-- Feature flags for registration
+- Kratos session validation via middleware
+- Automatic local user synchronization
+- Kratos configuration endpoint for frontend integration
 
 ### UserController
 
@@ -1045,8 +1021,8 @@ app.MapControllers();
 8. **HSTS** - HTTP Strict Transport Security (if enabled)
 9. **CORS** - Cross-Origin Resource Sharing (configurable origins)
 10. **Rate Limiting** - Global and per-endpoint request throttling
-11. **Authentication** - JWT token validation
-12. **Session Info** - Extracts user context from JWT claims
+11. **Authentication** - Kratos session validation
+12. **Session Info** - Extracts user context from Kratos session
 13. **Controllers** - Route to endpoints
 
 ### Response Compression

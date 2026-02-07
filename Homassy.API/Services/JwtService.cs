@@ -1,109 +1,13 @@
-﻿using Homassy.API.Entities.User;
-using Homassy.API.Enums;
-using Homassy.API.Extensions;
-using Microsoft.IdentityModel.Tokens;
-using System.IdentityModel.Tokens.Jwt;
-using System.Security.Claims;
-using System.Security.Cryptography;
-using System.Text;
+﻿// DEPRECATED: This file is kept for backward compatibility only.
+// JWT authentication is now handled by Ory Kratos session tokens.
+// This file should be deleted in future cleanup.
 
 namespace Homassy.API.Services
 {
+    [Obsolete("JWT authentication is now handled by Ory Kratos. This class will be removed.")]
     public static class JwtService
     {
-        private static IConfiguration? _configuration;
-
-        public static void Initialize(IConfiguration configuration)
-        {
-            _configuration = configuration;
-        }
-
-        public static string GenerateAccessToken(User user)
-        {
-            var securityKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_configuration!["Jwt:SecretKey"]!));
-            var credentials = new SigningCredentials(securityKey, SecurityAlgorithms.HmacSha256);
-
-            var claims = new List<Claim>
-            {
-                new Claim(ClaimTypes.NameIdentifier, user.PublicId.ToString()),
-            };
-
-            if (user.FamilyId.HasValue)
-            {
-                claims.Add(new Claim("FamilyId", user.FamilyId.Value.ToString()));
-            }
-
-            var token = new JwtSecurityToken(
-                issuer: _configuration["Jwt:Issuer"],
-                audience: _configuration["Jwt:Audience"],
-                claims: claims,
-                expires: DateTime.UtcNow.AddMinutes(int.Parse(_configuration["Jwt:AccessTokenExpirationMinutes"]!)),
-                signingCredentials: credentials
-            );
-
-            return new JwtSecurityTokenHandler().WriteToken(token);
-        }
-
-        public static string GenerateRefreshToken()
-        {
-            var randomNumber = new byte[64];
-            using var rng = RandomNumberGenerator.Create();
-            rng.GetBytes(randomNumber);
-            return Convert.ToBase64String(randomNumber);
-        }
-
-        public static Guid GenerateTokenFamily()
-        {
-            return Guid.NewGuid();
-        }
-
-        public static DateTime GetAccessTokenExpiration()
-        {
-            return DateTime.UtcNow.AddMinutes(int.Parse(_configuration!["Jwt:AccessTokenExpirationMinutes"]!));
-        }
-
-        public static DateTime GetRefreshTokenExpiration()
-        {
-            return DateTime.UtcNow.AddDays(int.Parse(_configuration!["Jwt:RefreshTokenExpirationDays"]!));
-        }
-
-        public static DateTime GetPreviousRefreshTokenGracePeriod()
-        {
-            var gracePeriodSeconds = int.Parse(_configuration!["Jwt:RefreshTokenGracePeriodSeconds"] ?? "30");
-            return DateTime.UtcNow.AddSeconds(gracePeriodSeconds);
-        }
-
-        public static ClaimsPrincipal? GetPrincipalFromExpiredToken(string token)
-        {
-            var tokenValidationParameters = new TokenValidationParameters
-            {
-                ValidateIssuer = true,
-                ValidateAudience = true,
-                ValidateLifetime = false,
-                ValidateIssuerSigningKey = true,
-                ValidIssuer = _configuration!["Jwt:Issuer"],
-                ValidAudience = _configuration["Jwt:Audience"],
-                IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_configuration["Jwt:SecretKey"]!))
-            };
-
-            var tokenHandler = new JwtSecurityTokenHandler();
-
-            try
-            {
-                var principal = tokenHandler.ValidateToken(token, tokenValidationParameters, out var securityToken);
-
-                if (securityToken is not JwtSecurityToken jwtSecurityToken ||
-                    !jwtSecurityToken.Header.Alg.Equals(SecurityAlgorithms.HmacSha256, StringComparison.InvariantCultureIgnoreCase))
-                {
-                    return null;
-                }
-
-                return principal;
-            }
-            catch
-            {
-                return null;
-            }
-        }
+        // All JWT functionality has been migrated to Ory Kratos session management.
+        // See: Homassy.API/Security/KratosAuthenticationHandler.cs for the new auth flow.
     }
 }

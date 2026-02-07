@@ -27,6 +27,7 @@ export interface KratosError {
   code: string
   message: string
   details?: Record<string, unknown>
+  response?: any  // Preserve original axios response for flow state updates
 }
 
 export interface FlowError {
@@ -361,13 +362,17 @@ export const useKratos = () => {
    * Parse Kratos error response into a more usable format
    */
   const parseKratosError = (error: any): KratosError => {
+    // Preserve the original response for flow state updates
+    const response = error.response
+    
     // Handle flow errors (e.g., expired flow)
     if (error.response?.data?.error) {
       const flowError = error.response.data as FlowError
       return {
         code: flowError.error.code.toString(),
         message: flowError.error.message || flowError.error.reason,
-        details: { status: flowError.error.status }
+        details: { status: flowError.error.status },
+        response
       }
     }
 
@@ -379,7 +384,8 @@ export const useKratos = () => {
         return {
           code: firstError.id?.toString() || 'validation_error',
           message: firstError.text,
-          details: { messages }
+          details: { messages },
+          response
         }
       }
     }
@@ -394,7 +400,8 @@ export const useKratos = () => {
             return {
               code: errorMsg.id?.toString() || 'field_error',
               message: errorMsg.text,
-              details: { field: (node.attributes as any)?.name }
+              details: { field: (node.attributes as any)?.name },
+              response
             }
           }
         }
@@ -404,7 +411,8 @@ export const useKratos = () => {
     // Generic error
     return {
       code: error.response?.status?.toString() || 'unknown',
-      message: error.message || 'An unexpected error occurred'
+      message: error.message || 'An unexpected error occurred',
+      response
     }
   }
 

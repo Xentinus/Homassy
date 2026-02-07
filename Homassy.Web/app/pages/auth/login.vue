@@ -171,6 +171,7 @@ function switchToPasskey() {
               :flow="flow"
               @success="handleLoginSuccess"
               @error="handleLoginError"
+              @flowUpdate="flow = $event"
             />
             
             <!-- Switch to passkey -->

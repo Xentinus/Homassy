@@ -314,6 +314,29 @@ export const useAuthStore = defineStore('auth', {
       return true
     },
 
+    /**
+     * Setup visibility listener to refresh session when user returns to tab
+     * This handles long-running background tabs
+     */
+    setupVisibilityListener() {
+      // Only run on client
+      if (import.meta.server) {
+        return
+      }
+
+      document.addEventListener('visibilitychange', async () => {
+        if (document.visibilityState === 'visible' && this.isAuthenticated) {
+          console.debug('[Auth] Tab became visible, checking session validity...')
+          
+          // Only refresh if session might be stale (older than 5 minutes since last check)
+          if (!this.isSessionValid()) {
+            console.debug('[Auth] Session may be stale, refreshing...')
+            await this.refreshSession()
+          }
+        }
+      })
+    },
+
     // =====================================================
     // Legacy methods for backward compatibility
     // These are no-ops or redirects to new Kratos-based methods
