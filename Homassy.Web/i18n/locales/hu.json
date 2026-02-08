@@ -9,6 +9,7 @@
   },
   "common": {
     "welcome": "Üdvözöljük",
+    "or": "vagy",
     "cancel": "Mégse",
     "confirm": "Megerősítés",
     "save": "Mentés",
@@ -142,8 +143,16 @@
     "passkeyNotSupported": "A jelszókulcsok nem támogatottak ezen az eszközön vagy böngészőben.",
     "passkeyWithBiometrics": "Használd a Face ID-t, Touch ID-t vagy az eszköz PIN kódját",
     "passkeyError": "A jelszókulcs hitelesítés sikertelen. Próbáld újra.",
+    "noPasskeyRegistered": "Nincs jelszókulcs regisztrálva ehhez a fiókhoz. Kérjük, használd az email kódos belépést.",
+    "enterEmailFirst": "Kérjük, először add meg az email címedet",
+    "enterEmailToSeeOptions": "Add meg az email címed a belépési lehetőségek megtekintéséhez",
     "useEmailCode": "E-mail kód használata helyette",
-    "registrationError": "A regisztráció sikertelen. Próbáld újra."
+    "registrationError": "A regisztráció sikertelen. Próbáld újra.",
+    "enterEmailOrUsePasskey": "Add meg az e-mail címedet, vagy válaszd ki a jelszókulcsot a javaslatokból",
+    "passkeyAvailable": "Jelszókulcs elérhető",
+    "sendCodeToEmail": "Kód küldése e-mailben",
+    "orContinueWithCode": "vagy folytatás kóddal",
+    "selectYourPasskey": "Válaszd ki a jelszókulcsod a böngésző javaslatai közül"
   },
   "validation": {
     "emailRequired": "Az email cím megadása kötelező",
@@ -780,6 +789,8 @@
       "reauthDescription": "Biztonsági okokból újra be kell jelentkezned a jelszókulcs hozzáadásához.",
       "loadFailed": "Nem sikerült betölteni a jelszókulcsokat.",
       "deleteFailed": "Nem sikerült törölni a jelszókulcsot.",
+      "cannotDeleteLastPasskey": "Nem törölheted az utolsó jelszókulcsodat, mert kizárnád magad a fiókodból. Először adj hozzá egy másik jelszókulcsot vagy hitelesítési módszert.",
+      "lastPasskey": "Elsődleges",
       "registrationFailed": "Nem sikerült regisztrálni a jelszókulcsot.",
       "webauthnNotAvailable": "A WebAuthn nem érhető el a jelenlegi beállítási folyamatban.",
       "webauthnOptionsError": "Nem sikerült lekérni a WebAuthn beállításokat a szerverről.",

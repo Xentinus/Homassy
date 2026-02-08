@@ -368,6 +368,89 @@ export const useWebAuthn = () => {
     return body
   }
 
+  /**
+   * Start conditional WebAuthn authentication (browser autofill)
+   * This allows the browser to suggest passkeys in the autofill dropdown
+   * when the user focuses on an input with autocomplete="username webauthn"
+   * 
+   * @param options - WebAuthn request options from Kratos
+   * @param abortSignal - Optional AbortSignal to cancel the authentication
+   * @returns Promise that resolves with the authentication result
+   */
+  const startConditionalAuthentication = async (
+    options: PublicKeyCredentialRequestOptionsJSON,
+    abortSignal?: AbortSignal
+  ): Promise<WebAuthnResult> => {
+    if (!isSupported()) {
+      return {
+        success: false,
+        error: 'WebAuthn is not supported by this browser'
+      }
+    }
+
+    // Check if conditional UI is supported
+    const autofillSupported = await supportsAutofill()
+    if (!autofillSupported) {
+      return {
+        success: false,
+        error: 'Conditional UI (autofill) is not supported by this browser'
+      }
+    }
+
+    try {
+      console.debug('[WebAuthn] Starting conditional authentication (autofill mode)...')
+      
+      const response = await startAuthentication({
+        optionsJSON: options,
+        useBrowserAutofill: true
+      })
+      
+      console.debug('[WebAuthn] Conditional authentication successful')
+      return {
+        success: true,
+        response
+      }
+    } catch (error: any) {
+      // AbortError is expected when the user cancels or we abort programmatically
+      if (error.name === 'AbortError' || abortSignal?.aborted) {
+        console.debug('[WebAuthn] Conditional authentication was cancelled')
+        return {
+          success: false,
+          error: 'cancelled'
+        }
+      }
+      
+      console.error('[WebAuthn] Conditional authentication failed:', error)
+      
+      if (error.name === 'NotAllowedError') {
+        return {
+          success: false,
+          error: 'Passkey authentication was cancelled or timed out'
+        }
+      }
+      
+      return {
+        success: false,
+        error: error.message || 'Passkey authentication failed'
+      }
+    }
+  }
+
+  /**
+   * Create minimal WebAuthn options for conditional UI
+   * When we don't have specific options from Kratos, we can create minimal options
+   * that allow the browser to suggest any available passkey for this RP
+   */
+  const createMinimalConditionalOptions = (rpId: string): PublicKeyCredentialRequestOptionsJSON => {
+    return {
+      challenge: '', // Will be filled by the browser for conditional UI
+      rpId,
+      timeout: 60000,
+      userVerification: 'preferred',
+      allowCredentials: [] // Empty to allow any credential for this RP
+    }
+  }
+
   return {
     // Feature detection
     isSupported,
@@ -383,6 +466,10 @@ export const useWebAuthn = () => {
     
     // WebAuthn ceremonies
     register,
-    authenticate
+    authenticate,
+    
+    // Conditional UI (browser autofill)
+    startConditionalAuthentication,
+    createMinimalConditionalOptions
   }
 }

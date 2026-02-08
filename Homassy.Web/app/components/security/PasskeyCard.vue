@@ -11,9 +11,19 @@
 
         <!-- Info -->
         <div class="flex-1 min-w-0">
-          <h3 class="font-semibold text-gray-900 dark:text-white truncate">
-            {{ passkey.displayName }}
-          </h3>
+          <div class="flex items-center gap-2">
+            <h3 class="font-semibold text-gray-900 dark:text-white truncate">
+              {{ passkey.displayName }}
+            </h3>
+            <UBadge
+              v-if="passkey.canDelete === false"
+              color="warning"
+              variant="soft"
+              size="xs"
+            >
+              {{ $t('profile.security.lastPasskey') }}
+            </UBadge>
+          </div>
           <p v-if="formattedDate" class="text-xs text-gray-500 dark:text-gray-400">
             {{ $t('profile.security.addedOn') }} {{ formattedDate }}
           </p>
@@ -105,18 +115,25 @@ const formattedDate = computed(() => {
 })
 
 // Dropdown menu items
-const dropdownItems = computed(() => [
-  [
-    {
-      label: t('common.delete'),
-      icon: 'i-lucide-trash-2',
-      color: 'error' as const,
-      onSelect: () => {
-        isDeleteModalOpen.value = true
+const dropdownItems = computed(() => {
+  const canDelete = props.passkey.canDelete !== false
+  
+  return [
+    [
+      {
+        label: canDelete ? t('common.delete') : t('profile.security.cannotDeleteLastPasskey'),
+        icon: 'i-lucide-trash-2',
+        color: canDelete ? 'error' as const : 'neutral' as const,
+        disabled: !canDelete,
+        onSelect: () => {
+          if (canDelete) {
+            isDeleteModalOpen.value = true
+          }
+        }
       }
-    }
+    ]
   ]
-])
+})
 
 async function handleDelete() {
   isDeleting.value = true

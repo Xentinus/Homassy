@@ -1,7 +1,14 @@
 ﻿<script setup lang="ts">
 /**
- * PasskeyLogin Component
+ * PasskeyLogin Component (Fallback)
  * Handles WebAuthn/Passkey authentication with Kratos
+ * 
+ * This component serves as a fallback for browsers that don't support
+ * Conditional UI (WebAuthn autofill). The main login flow now uses
+ * Conditional UI when available, but this component can be used:
+ * 1. When conditional UI is not supported
+ * 2. For explicit "Sign in with Passkey" button experiences
+ * 3. For re-authentication flows
  */
 import type { LoginFlow } from '@ory/client'
 import { useKratos } from '~/composables/useKratos'
@@ -10,6 +17,8 @@ import { useAuthStore } from '~/stores/auth'
 
 const props = defineProps<{
   flow: LoginFlow
+  /** Email/identifier to use for the login (optional, can be empty for discoverable credentials) */
+  identifier?: string
 }>()
 
 const emit = defineEmits<{
@@ -27,12 +36,14 @@ const loading = ref(false)
 const errorMessage = ref<string | null>(null)
 const isSupported = ref(false)
 const hasPlatformAuth = ref(false)
+const supportsConditionalUI = ref(false)
 
 // Check WebAuthn support on mount
 onMounted(async () => {
   isSupported.value = webauthn.isSupported()
   if (isSupported.value) {
     hasPlatformAuth.value = await webauthn.hasPlatformAuthenticator()
+    supportsConditionalUI.value = await webauthn.supportsAutofill()
   }
 })
 
@@ -74,10 +85,10 @@ async function authenticate() {
     // Get CSRF token from flow
     const csrfToken = kratos.getCsrfToken(props.flow.ui.nodes) || ''
 
-    // Submit to Kratos - identifier is resolved from the passkey credential
+    // Submit to Kratos - use provided identifier or empty (discoverable credentials)
     await kratos.submitLoginFlow(props.flow.id, {
       method: 'webauthn',
-      identifier: '', // Resolved from passkey credential
+      identifier: props.identifier || '', // Use provided email or resolve from passkey credential
       csrf_token: csrfToken,
       webauthn_login: JSON.stringify(result.response)
     })

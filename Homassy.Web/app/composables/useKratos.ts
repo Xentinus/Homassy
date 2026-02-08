@@ -26,6 +26,7 @@ export interface WebAuthnCredential {
   displayName: string
   createdAt: string
   publicKey?: string
+  canDelete?: boolean // false when it's the last credential
 }
 
 export interface KratosConfig {
@@ -355,7 +356,8 @@ export const useKratos = () => {
         credentials.push({
           id: attrs.value as string,
           displayName: node.meta?.label?.text || `Passkey ${credentials.length + 1}`,
-          createdAt: '' // Not available in flow
+          createdAt: '', // Not available in flow
+          canDelete: !attrs.disabled // Kratos sets disabled=true when it would lock out user
         })
       }
       // Also check passkey_remove for newer Kratos versions
@@ -366,7 +368,8 @@ export const useKratos = () => {
         credentials.push({
           id: attrs.value as string,
           displayName: node.meta?.label?.text || `Passkey ${credentials.length + 1}`,
-          createdAt: '' // Not available in flow
+          createdAt: '', // Not available in flow
+          canDelete: !attrs.disabled // Kratos sets disabled=true when it would lock out user
         })
       }
     })
@@ -389,27 +392,43 @@ export const useKratos = () => {
   }
 
   /**
-   * Logout from all sessions
+   * Get logout URL for browser navigation
+   * Returns the Kratos logout URL with return_to parameter
    */
-  const logout = async (): Promise<void> => {
+  const getLogoutUrl = async (returnTo?: string): Promise<string | null> => {
     try {
-      // First, create a logout flow to get the logout token
-      const response = await kratos.createBrowserLogoutFlow()
-      const logoutUrl = response.data.logout_url
-      
-      // Perform the logout by navigating to the logout URL
-      if (typeof window !== 'undefined' && logoutUrl) {
-        // Extract the logout_token from the URL
-        const url = new URL(logoutUrl)
-        const token = url.searchParams.get('logout_token')
-        
-        if (token) {
-          await kratos.updateLogoutFlow({ token })
-        }
-      }
+      const response = await kratos.createBrowserLogoutFlow({
+        returnTo: returnTo
+      })
+      return response.data.logout_url || null
     } catch (error: any) {
       // 401 means already logged out
       if (error.response?.status === 401) {
+        return null
+      }
+      console.error('[Kratos] Error creating logout flow:', error)
+      throw parseKratosError(error)
+    }
+  }
+
+  /**
+   * Logout from all sessions using browser navigation
+   * This ensures httpOnly cookies are properly cleared
+   */
+  const logout = async (returnTo?: string): Promise<void> => {
+    try {
+      const logoutUrl = await getLogoutUrl(returnTo)
+      
+      if (typeof window !== 'undefined' && logoutUrl) {
+        // Use browser navigation to properly clear session cookies
+        window.location.href = logoutUrl
+      }
+    } catch (error: any) {
+      // 401 means already logged out - just redirect
+      if (error.response?.status === 401) {
+        if (typeof window !== 'undefined') {
+          window.location.href = returnTo || '/'
+        }
         return
       }
       console.error('[Kratos] Error during logout:', error)
@@ -433,11 +452,12 @@ export const useKratos = () => {
 
   /**
    * Check if WebAuthn/Passkey is available in the login flow
+   * Checks for both 'webauthn' and 'passkey' groups
    */
   const hasWebAuthn = (flow: LoginFlow | RegistrationFlow): boolean => {
     return flow.ui.nodes.some(
       (node) =>
-        node.group === 'webauthn' &&
+        (node.group === 'webauthn' || node.group === 'passkey') &&
         node.attributes.node_type === 'input'
     )
   }
@@ -609,6 +629,7 @@ export const useKratos = () => {
     
     // Logout
     logout,
+    getLogoutUrl,
     
     // Helpers
     getCsrfToken,

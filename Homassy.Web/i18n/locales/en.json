@@ -9,6 +9,7 @@
   },
   "common": {
     "welcome": "Welcome",
+    "or": "or",
     "cancel": "Cancel",
     "save": "Save",
     "delete": "Delete",
@@ -142,8 +143,16 @@
     "passkeyNotSupported": "Passkeys are not supported on this device or browser.",
     "passkeyWithBiometrics": "Use Face ID, Touch ID, or your device PIN",
     "passkeyError": "Passkey authentication failed. Please try again.",
+    "noPasskeyRegistered": "No passkey is registered for this account. Please use email code to sign in.",
+    "enterEmailFirst": "Please enter your email address first",
+    "enterEmailToSeeOptions": "Enter your email to see sign-in options",
     "useEmailCode": "Use email code instead",
-    "registrationError": "Registration failed. Please try again."
+    "registrationError": "Registration failed. Please try again.",
+    "enterEmailOrUsePasskey": "Enter your email or select a passkey from the suggestions",
+    "passkeyAvailable": "Passkey available",
+    "sendCodeToEmail": "Send code to email",
+    "orContinueWithCode": "or continue with code",
+    "selectYourPasskey": "Select your passkey from the browser suggestions"
   },
   "validation": {
     "emailRequired": "Email is required",
@@ -779,6 +788,8 @@
       "reauthDescription": "For security reasons, you need to sign in again to add a passkey.",
       "loadFailed": "Failed to load passkeys.",
       "deleteFailed": "Failed to delete passkey.",
+      "cannotDeleteLastPasskey": "You cannot remove your last passkey as it would lock you out of your account. Add another passkey or authentication method first.",
+      "lastPasskey": "Primary",
       "registrationFailed": "Failed to register passkey.",
       "webauthnNotAvailable": "WebAuthn is not available in the current settings flow.",
       "webauthnOptionsError": "Failed to get WebAuthn options from server.",

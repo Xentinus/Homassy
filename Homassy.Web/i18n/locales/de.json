@@ -9,6 +9,7 @@
   },
   "common": {
     "welcome": "Willkommen",
+    "or": "oder",
     "cancel": "Abbrechen",
     "save": "Speichern",
     "delete": "Löschen",
@@ -140,8 +141,16 @@
     "passkeyNotSupported": "Passkeys werden auf diesem Gerät oder Browser nicht unterstützt.",
     "passkeyWithBiometrics": "Verwenden Sie Face ID, Touch ID oder Ihren Geräte-PIN",
     "passkeyError": "Passkey-Authentifizierung fehlgeschlagen. Bitte versuchen Sie es erneut.",
+    "noPasskeyRegistered": "Für dieses Konto ist kein Passkey registriert. Bitte verwenden Sie den E-Mail-Code zur Anmeldung.",
+    "enterEmailFirst": "Bitte geben Sie zuerst Ihre E-Mail-Adresse ein",
+    "enterEmailToSeeOptions": "Geben Sie Ihre E-Mail-Adresse ein, um die Anmeldeoptionen zu sehen",
     "useEmailCode": "Stattdessen E-Mail-Code verwenden",
-    "registrationError": "Registrierung fehlgeschlagen. Bitte versuchen Sie es erneut."
+    "registrationError": "Registrierung fehlgeschlagen. Bitte versuchen Sie es erneut.",
+    "enterEmailOrUsePasskey": "Geben Sie Ihre E-Mail ein oder wählen Sie einen Passkey aus den Vorschlägen",
+    "passkeyAvailable": "Passkey verfügbar",
+    "sendCodeToEmail": "Code per E-Mail senden",
+    "orContinueWithCode": "oder mit Code fortfahren",
+    "selectYourPasskey": "Wählen Sie Ihren Passkey aus den Browser-Vorschlägen"
   },
   "validation": {
     "emailRequired": "E-Mail-Adresse ist erforderlich",
@@ -778,6 +787,8 @@
       "reauthDescription": "Aus Sicherheitsgründen müssen Sie sich erneut anmelden, um einen Passkey hinzuzufügen.",
       "loadFailed": "Passkeys konnten nicht geladen werden.",
       "deleteFailed": "Passkey konnte nicht gelöscht werden.",
+      "cannotDeleteLastPasskey": "Sie können Ihren letzten Passkey nicht löschen, da Sie sich sonst aus Ihrem Konto aussperren würden. Fügen Sie zuerst einen weiteren Passkey oder eine andere Authentifizierungsmethode hinzu.",
+      "lastPasskey": "Primär",
       "registrationFailed": "Passkey konnte nicht registriert werden.",
       "webauthnNotAvailable": "WebAuthn ist im aktuellen Einstellungsablauf nicht verfügbar.",
       "webauthnOptionsError": "WebAuthn-Optionen konnten nicht vom Server abgerufen werden.",

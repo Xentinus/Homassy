@@ -18,8 +18,10 @@
 
 <script setup lang="ts">
 const router = useRouter()
+const route = useRoute()
 const authStore = useAuthStore()
 const { t } = useI18n()
+const toast = useToast()
 
 const features = computed(() => [
   {
@@ -54,25 +56,47 @@ const features = computed(() => [
   }
 ])
 
+/**
+ * Handle logout success notification
+ */
+function handleLogoutSuccess() {
+  const logoutParam = route.query.logout
+  const logoutFlag = localStorage.getItem('homassy_logout_success')
+  
+  if (logoutParam === 'success' || logoutFlag === 'true') {
+    // Clear the flag
+    localStorage.removeItem('homassy_logout_success')
+    
+    // Show toast notification
+    toast.add({
+      title: t('toast.loggedOut'),
+      description: t('toast.signedOut'),
+      color: 'success',
+      icon: 'i-heroicons-arrow-left-on-rectangle'
+    })
+    
+    // Clean up the URL by removing the query parameter
+    if (logoutParam) {
+      router.replace({ path: '/', query: {} })
+    }
+  }
+}
+
 // Check if user is already authenticated on mount
 onMounted(async () => {
   console.debug('[Index] Checking existing authentication...')
+  
+  // Handle logout success toast first
+  handleLogoutSuccess()
 
-  // Load tokens from cookies if not already loaded
-  await authStore.loadFromCookies()
+  // Initialize auth state
+  await authStore.initialize()
 
   // If already authenticated with valid user, redirect to activity
   if (authStore.isAuthenticated) {
     console.debug('[Index] User is authenticated, redirecting to activity')
     await router.push('/activity')
     return
-  }
-
-  // If tokens exist but no user, they're likely invalid - clear them
-  const { accessToken, refreshToken } = authStore.getTokensFromCookies()
-  if ((accessToken || refreshToken) && !authStore.user) {
-    console.debug('[Index] Tokens exist but no user - clearing invalid tokens')
-    authStore.clearAuthData()
   }
 
   console.debug('[Index] Ready to show landing page')

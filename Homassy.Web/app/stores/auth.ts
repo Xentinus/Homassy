@@ -219,7 +219,7 @@ export const useAuthStore = defineStore('auth', {
 
     /**
      * Logout user
-     * Ends the Kratos session
+     * Ends the Kratos session via browser navigation
      */
     async logout() {
       // Guard: If already logging out, return the existing promise
@@ -241,35 +241,31 @@ export const useAuthStore = defineStore('auth', {
 
       this.logoutPromise = (async () => {
         try {
-          const { $i18n } = useNuxtApp()
-          const toast = useToast()
           const kratos = useKratos()
-
-          try {
-            await kratos.logout()
-          } catch (error) {
-            console.error('[Auth] Kratos logout failed:', error)
-          }
-
-          // Clear local state
+          
+          // Clear local state first (before browser redirect)
           this.clearAuthData()
-
-          // Show toast notification
-          toast.add({
-            title: $i18n.t('toast.loggedOut'),
-            description: $i18n.t('toast.signedOut'),
-            color: 'success',
-            icon: 'i-heroicons-arrow-left-on-rectangle'
-          })
-
-          // Redirect to home
+          
+          // Set flag to show toast on landing page after redirect
           if (typeof window !== 'undefined') {
-            await navigateTo('/')
+            localStorage.setItem('homassy_logout_success', 'true')
           }
+
+          // Perform logout via browser navigation
+          // This will redirect to Kratos which clears httpOnly cookies
+          // then redirects back to /?logout=success
+          const returnUrl = typeof window !== 'undefined' 
+            ? `${window.location.origin}/?logout=success`
+            : '/?logout=success'
+          
+          await kratos.logout(returnUrl)
+          
+          // Note: Code below this won't execute because browser redirects
         } catch (composableError) {
-          console.warn('[Auth] Composables not available during logout', composableError)
+          console.warn('[Auth] Logout failed, forcing redirect', composableError)
           this.clearAuthData()
           if (typeof window !== 'undefined') {
+            localStorage.setItem('homassy_logout_success', 'true')
             window.location.href = '/'
           }
         }

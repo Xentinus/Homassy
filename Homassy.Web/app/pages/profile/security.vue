@@ -185,12 +185,27 @@ async function handleDeletePasskey(credentialId: string) {
     await loadPasskeys()
   } catch (error: any) {
     console.error('[Security] Failed to delete passkey:', error)
-    errorMessage.value = error.message || t('profile.security.deleteFailed')
-    toast.add({
-      title: t('common.error'),
-      description: t('profile.security.deleteFailed'),
-      color: 'error'
-    })
+    
+    // Check for "last credential" error from Kratos
+    const errorMsg = error.message || error.response?.data?.error?.message || ''
+    const isLastCredentialError = errorMsg.toLowerCase().includes('lock you out') ||
+                                   errorMsg.toLowerCase().includes('would lock you out')
+    
+    if (isLastCredentialError) {
+      errorMessage.value = t('profile.security.cannotDeleteLastPasskey')
+      toast.add({
+        title: t('common.error'),
+        description: t('profile.security.cannotDeleteLastPasskey'),
+        color: 'warning'
+      })
+    } else {
+      errorMessage.value = error.message || t('profile.security.deleteFailed')
+      toast.add({
+        title: t('common.error'),
+        description: t('profile.security.deleteFailed'),
+        color: 'error'
+      })
+    }
   } finally {
     isDeleting.value = false
   }
