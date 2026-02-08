@@ -47,6 +47,7 @@ namespace Homassy.API.Models.Kratos
     /// <summary>
     /// User traits stored in Kratos identity.
     /// Maps to Homassy.Kratos/identity.schema.json
+    /// Optional fields use JsonIgnore to omit null values (Kratos schema doesn't accept null).
     /// </summary>
     public class KratosTraits
     {
@@ -60,24 +61,28 @@ namespace Homassy.API.Models.Kratos
         public string? DisplayName { get; set; }
 
         [JsonPropertyName("profile_picture_base64")]
+        [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
         public string? ProfilePictureBase64 { get; set; }
 
         [JsonPropertyName("date_of_birth")]
+        [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
         public string? DateOfBirth { get; set; }
 
         [JsonPropertyName("gender")]
+        [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
         public string? Gender { get; set; }
 
         [JsonPropertyName("default_currency")]
         public string DefaultCurrency { get; set; } = "HUF";
 
         [JsonPropertyName("default_timezone")]
-        public string DefaultTimezone { get; set; } = "Europe/Budapest";
+        public string DefaultTimezone { get; set; } = "CentralEuropeStandardTime";
 
         [JsonPropertyName("default_language")]
         public string DefaultLanguage { get; set; } = "hu";
 
         [JsonPropertyName("family_id")]
+        [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
         public int? FamilyId { get; set; }
     }
 

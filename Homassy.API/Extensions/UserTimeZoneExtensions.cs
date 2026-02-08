@@ -59,6 +59,56 @@ namespace Homassy.API.Extensions
             };
         }
 
+        /// <summary>
+        /// Converts UserTimeZone to Kratos identity schema timezone enum.
+        /// Kratos only supports: CentralEuropeStandardTime, GMTStandardTime, EasternStandardTime,
+        /// PacificStandardTime, WEuropeStandardTime, TokyoStandardTime
+        /// </summary>
+        public static string ToKratosTimezoneEnum(this UserTimeZone timeZone)
+        {
+            return timeZone switch
+            {
+                // Direct mappings
+                UserTimeZone.CentralEuropeStandardTime => "CentralEuropeStandardTime",
+                UserTimeZone.GreenwichStandardTime => "GMTStandardTime",
+                UserTimeZone.EasternStandardTime => "EasternStandardTime",
+                UserTimeZone.PacificStandardTime => "PacificStandardTime",
+                UserTimeZone.TokyoStandardTime => "TokyoStandardTime",
+
+                // Map to closest Kratos enum
+                UserTimeZone.UTC => "GMTStandardTime",
+                UserTimeZone.CentralStandardTime => "EasternStandardTime",
+                UserTimeZone.MountainStandardTime => "PacificStandardTime",
+                UserTimeZone.AlaskanStandardTime => "PacificStandardTime",
+                UserTimeZone.HawaiianStandardTime => "PacificStandardTime",
+                UserTimeZone.AtlanticStandardTime => "EasternStandardTime",
+                UserTimeZone.ArgentinaStandardTime => "EasternStandardTime",
+                UserTimeZone.BrazilianStandardTime => "EasternStandardTime",
+                UserTimeZone.EasternEuropeStandardTime => "CentralEuropeStandardTime",
+                UserTimeZone.RussianStandardTime => "CentralEuropeStandardTime",
+                UserTimeZone.TurkeyStandardTime => "CentralEuropeStandardTime",
+                UserTimeZone.ArabianStandardTime => "CentralEuropeStandardTime",
+                UserTimeZone.PakistanStandardTime => "CentralEuropeStandardTime",
+                UserTimeZone.IndiaStandardTime => "CentralEuropeStandardTime",
+                UserTimeZone.BangladeshStandardTime => "TokyoStandardTime",
+                UserTimeZone.ChinaStandardTime => "TokyoStandardTime",
+                UserTimeZone.SingaporeStandardTime => "TokyoStandardTime",
+                UserTimeZone.KoreaStandardTime => "TokyoStandardTime",
+                UserTimeZone.AustralianWesternStandardTime => "TokyoStandardTime",
+                UserTimeZone.AustralianCentralStandardTime => "TokyoStandardTime",
+                UserTimeZone.AustralianEasternStandardTime => "TokyoStandardTime",
+                UserTimeZone.NewZealandStandardTime => "TokyoStandardTime",
+                UserTimeZone.SouthAfricaStandardTime => "CentralEuropeStandardTime",
+                UserTimeZone.EgyptStandardTime => "CentralEuropeStandardTime",
+                UserTimeZone.WestAfricaStandardTime => "GMTStandardTime",
+                UserTimeZone.IsraelStandardTime => "CentralEuropeStandardTime",
+                UserTimeZone.SaudiArabiaStandardTime => "CentralEuropeStandardTime",
+                UserTimeZone.IranStandardTime => "CentralEuropeStandardTime",
+
+                _ => "CentralEuropeStandardTime"
+            };
+        }
+
         public static UserTimeZone FromTimeZoneId(string timeZoneId)
         {
             return timeZoneId switch

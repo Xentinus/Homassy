@@ -69,7 +69,8 @@ namespace Homassy.API.Services
             _jsonOptions = new JsonSerializerOptions
             {
                 PropertyNameCaseInsensitive = true,
-                PropertyNamingPolicy = JsonNamingPolicy.SnakeCaseLower
+                PropertyNamingPolicy = JsonNamingPolicy.SnakeCaseLower,
+                DefaultIgnoreCondition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull
             };
         }
 
@@ -220,6 +221,8 @@ namespace Homassy.API.Services
                 };
 
                 var json = JsonSerializer.Serialize(createPayload, _jsonOptions);
+                Log.Debug($"Creating Kratos identity with payload: {json}");
+                
                 using var content = new StringContent(json, System.Text.Encoding.UTF8, "application/json");
 
                 var response = await _httpClient.PostAsync(requestUrl, content, cancellationToken);
@@ -232,6 +235,7 @@ namespace Homassy.API.Services
                 }
 
                 var responseContent = await response.Content.ReadAsStringAsync(cancellationToken);
+                Log.Debug($"Kratos identity created successfully for {traits.Email}");
                 return JsonSerializer.Deserialize<KratosIdentity>(responseContent, _jsonOptions);
             }
             catch (Exception ex)
@@ -263,6 +267,8 @@ namespace Homassy.API.Services
                 };
 
                 var json = JsonSerializer.Serialize(updatePayload, _jsonOptions);
+                Log.Debug($"Updating Kratos identity {identityId} with payload: {json}");
+                
                 using var content = new StringContent(json, System.Text.Encoding.UTF8, "application/json");
 
                 var response = await _httpClient.PutAsync(requestUrl, content, cancellationToken);
@@ -275,6 +281,7 @@ namespace Homassy.API.Services
                 }
 
                 var responseContent = await response.Content.ReadAsStringAsync(cancellationToken);
+                Log.Debug($"Kratos identity {identityId} updated successfully");
                 return JsonSerializer.Deserialize<KratosIdentity>(responseContent, _jsonOptions);
             }
             catch (Exception ex)

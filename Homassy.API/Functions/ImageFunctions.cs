@@ -1,4 +1,5 @@
 using Homassy.API.Context;
+using Homassy.API.Entities.User;
 using Homassy.API.Enums;
 using Homassy.API.Exceptions;
 using Homassy.API.Models;
@@ -12,10 +13,12 @@ namespace Homassy.API.Functions
     public class ImageFunctions
     {
         private readonly IImageProcessingService _imageProcessingService;
+        private readonly IKratosService? _kratosService;
 
-        public ImageFunctions(IImageProcessingService imageProcessingService)
+        public ImageFunctions(IImageProcessingService imageProcessingService, IKratosService? kratosService = null)
         {
             _imageProcessingService = imageProcessingService;
+            _kratosService = kratosService;
         }
 
         public async Task<ProductImageInfo> UploadProductImageAsync(UploadProductImageRequest request, IProgress<ProgressInfo>? progress = null, CancellationToken cancellationToken = default)
@@ -254,6 +257,12 @@ namespace Homassy.API.Functions
 
                 Log.Information($"User {userId} uploaded profile picture");
 
+                // Sync to Kratos (non-blocking)
+                if (_kratosService != null)
+                {
+                    await SyncProfilePictureToKratosAsync(userId.Value, profile.ProfilePictureBase64, cancellationToken);
+                }
+
                 return new UserProfileImageInfo
                 {
                     ImageBase64 = processedImage.Base64,
@@ -301,12 +310,61 @@ namespace Homassy.API.Functions
                 await transaction.CommitAsync(cancellationToken);
 
                 Log.Information($"User {userId} deleted profile picture");
+
+                // Sync to Kratos (non-blocking)
+                if (_kratosService != null)
+                {
+                    await SyncProfilePictureToKratosAsync(userId.Value, null, cancellationToken);
+                }
             }
             catch (Exception ex)
             {
                 await transaction.RollbackAsync(cancellationToken);
                 Log.Error(ex, $"Failed to delete profile picture for user {userId}");
                 throw;
+            }
+        }
+
+        /// <summary>
+        /// Syncs profile picture change to Kratos identity traits.
+        /// Non-blocking: logs warning on failure but doesn't throw.
+        /// </summary>
+        private async Task SyncProfilePictureToKratosAsync(int userId, string? profilePictureBase64, CancellationToken cancellationToken)
+        {
+            try
+            {
+                var context = new HomassyDbContext();
+                var user = await context.Users.FirstOrDefaultAsync(u => u.Id == userId, cancellationToken);
+                
+                if (user == null || string.IsNullOrEmpty(user.KratosIdentityId))
+                {
+                    Log.Debug($"User {userId} has no Kratos identity ID, skipping Kratos sync");
+                    return;
+                }
+
+                var profile = await context.UserProfiles.FirstOrDefaultAsync(p => p.UserId == userId, cancellationToken);
+                if (profile == null)
+                {
+                    Log.Debug($"UserProfile not found for user {userId}, skipping Kratos sync");
+                    return;
+                }
+
+                var traits = UserFunctions.BuildKratosTraitsFromProfile(user, profile);
+                var result = await _kratosService!.UpdateIdentityTraitsAsync(user.KratosIdentityId, traits, cancellationToken);
+                
+                if (result != null)
+                {
+                    Log.Debug($"Synced user {userId} profile picture to Kratos identity {user.KratosIdentityId}");
+                }
+                else
+                {
+                    Log.Warning($"Failed to sync user {userId} profile picture to Kratos identity {user.KratosIdentityId}");
+                }
+            }
+            catch (Exception ex)
+            {
+                // Non-blocking: log warning but don't fail the request
+                Log.Warning(ex, $"Error syncing user {userId} profile picture to Kratos: {ex.Message}");
             }
         }
     }

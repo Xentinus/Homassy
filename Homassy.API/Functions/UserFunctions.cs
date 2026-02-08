@@ -948,7 +948,7 @@ namespace Homassy.API.Functions
             return profileResponse;
         }
 
-        public async Task UpdateUserProfileAsync(UpdateUserSettingsRequest request, CancellationToken cancellationToken = default)
+        public async Task UpdateUserProfileAsync(UpdateUserSettingsRequest request, IKratosService? kratosService = null, CancellationToken cancellationToken = default)
         {
             var userId = SessionInfo.GetUserId();
             if (!userId.HasValue)
@@ -1025,6 +1025,12 @@ namespace Homassy.API.Functions
                 await transaction.CommitAsync(cancellationToken);
 
                 Log.Information($"User {userId} updated their settings");
+
+                // Sync to Kratos (non-blocking)
+                if (kratosService != null && userEntity != null && profile != null)
+                {
+                    await SyncUserProfileToKratosAsync(userEntity, profile, kratosService, cancellationToken);
+                }
             }
             catch (Exception ex)
             {
@@ -1246,6 +1252,64 @@ namespace Homassy.API.Functions
             {
                 Log.Error(ex, $"Failed to create local user for Kratos identity {identity.Id}");
                 return null;
+            }
+        }
+
+        /// <summary>
+        /// Builds KratosTraits from local User and UserProfile data.
+        /// Used for syncing profile changes back to Kratos.
+        /// Note: Optional fields are set to null (not empty string) so JsonIgnore works properly.
+        /// </summary>
+        public static Models.Kratos.KratosTraits BuildKratosTraitsFromProfile(User user, Entities.User.UserProfile profile)
+        {
+            return new Models.Kratos.KratosTraits
+            {
+                Email = user.Email,
+                Name = user.Name,
+                DisplayName = profile.DisplayName,
+                // Convert empty string to null for JsonIgnore to work
+                ProfilePictureBase64 = string.IsNullOrEmpty(profile.ProfilePictureBase64) ? null : profile.ProfilePictureBase64,
+                DateOfBirth = profile.DateOfBirth?.ToString("yyyy-MM-dd"),
+                Gender = string.IsNullOrEmpty(profile.Gender) ? null : profile.Gender,
+                // Use ToKratosCurrencyEnum() for Kratos schema compatibility (maps unsupported currencies to EUR)
+                DefaultCurrency = profile.DefaultCurrency.ToKratosCurrencyEnum(),
+                // Use ToKratosTimezoneEnum() for Kratos schema compatibility
+                DefaultTimezone = profile.DefaultTimeZone.ToKratosTimezoneEnum(),
+                DefaultLanguage = profile.DefaultLanguage.ToLanguageCode(),
+                FamilyId = user.FamilyId
+            };
+        }
+
+        /// <summary>
+        /// Syncs local user profile data to Kratos identity traits.
+        /// Non-blocking: logs warning on failure but doesn't throw.
+        /// </summary>
+        public async Task SyncUserProfileToKratosAsync(User user, Entities.User.UserProfile profile, IKratosService kratosService, CancellationToken cancellationToken = default)
+        {
+            if (string.IsNullOrEmpty(user.KratosIdentityId))
+            {
+                Log.Debug($"User {user.Id} has no Kratos identity ID, skipping Kratos sync");
+                return;
+            }
+
+            try
+            {
+                var traits = BuildKratosTraitsFromProfile(user, profile);
+                var result = await kratosService.UpdateIdentityTraitsAsync(user.KratosIdentityId, traits, cancellationToken);
+                
+                if (result != null)
+                {
+                    Log.Debug($"Synced user {user.Id} profile to Kratos identity {user.KratosIdentityId}");
+                }
+                else
+                {
+                    Log.Warning($"Failed to sync user {user.Id} profile to Kratos identity {user.KratosIdentityId}");
+                }
+            }
+            catch (Exception ex)
+            {
+                // Non-blocking: log warning but don't fail the request
+                Log.Warning(ex, $"Error syncing user {user.Id} profile to Kratos: {ex.Message}");
             }
         }
 
