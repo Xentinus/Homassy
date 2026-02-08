@@ -469,10 +469,11 @@ const requestButtonText = computed(() => {
                 <UInput
                   v-model="email"
                   type="email"
+                  name="email"
                   :placeholder="$t('auth.enterYourEmail')"
                   class="w-full"
                   size="lg"
-                  autocomplete="username webauthn"
+                  autocomplete="email"
                 />
               </UFormField>
 

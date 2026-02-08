@@ -353,10 +353,12 @@ export const useKratos = () => {
           node.attributes.node_type === 'input' &&
           (node.attributes as UiNodeInputAttributes).name === 'webauthn_remove') {
         const attrs = node.attributes as UiNodeInputAttributes
+        // Extract display_name and added_at from label context (not from label.text which contains "Remove security key...")
+        const context = node.meta?.label?.context as { display_name?: string; added_at?: string } | undefined
         credentials.push({
           id: attrs.value as string,
-          displayName: node.meta?.label?.text || `Passkey ${credentials.length + 1}`,
-          createdAt: '', // Not available in flow
+          displayName: context?.display_name || `Passkey ${credentials.length + 1}`,
+          createdAt: context?.added_at || '',
           canDelete: !attrs.disabled // Kratos sets disabled=true when it would lock out user
         })
       }
@@ -365,10 +367,12 @@ export const useKratos = () => {
           node.attributes.node_type === 'input' &&
           (node.attributes as UiNodeInputAttributes).name === 'passkey_remove') {
         const attrs = node.attributes as UiNodeInputAttributes
+        // Extract display_name and added_at from label context (not from label.text which contains "Remove security key...")
+        const context = node.meta?.label?.context as { display_name?: string; added_at?: string } | undefined
         credentials.push({
           id: attrs.value as string,
-          displayName: node.meta?.label?.text || `Passkey ${credentials.length + 1}`,
-          createdAt: '', // Not available in flow
+          displayName: context?.display_name || `Passkey ${credentials.length + 1}`,
+          createdAt: context?.added_at || '',
           canDelete: !attrs.disabled // Kratos sets disabled=true when it would lock out user
         })
       }
