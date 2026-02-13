@@ -1,43 +1,160 @@
-# Production environment overrides for Kratos
-# This file is merged with kratos.yml when running in production mode
+# Complete Kratos production configuration
+# Environment variables in docker-compose.production.yml override these values
 
 version: v1.2.0
 
-log:
-  level: warn
-  format: json
-  leak_sensitive_values: false
+# DSN is overridden by DSN env var
+dsn: postgres://placeholder:placeholder@localhost:5432/kratos
+
+serve:
+  public:
+    # Overridden by SERVE_PUBLIC_BASE_URL env var
+    base_url: https://homassy-kratos.kellner.dev
+    cors:
+      enabled: true
+      # Overridden by SERVE_PUBLIC_CORS_ALLOWED_ORIGINS_0 env var
+      allowed_origins:
+        - https://homassy.kellner.dev
+      allowed_methods:
+        - POST
+        - GET
+        - PUT
+        - PATCH
+        - DELETE
+      allowed_headers:
+        - Authorization
+        - Cookie
+        - Content-Type
+        - X-Session-Token
+      exposed_headers:
+        - Content-Type
+        - Set-Cookie
+      allow_credentials: true
+  admin:
+    base_url: http://localhost:4434
 
 selfservice:
-  flows:
-    login:
-      lifespan: 10m
-    registration:
-      lifespan: 10m
-    recovery:
-      lifespan: 1h
-      notify_unknown_recipients: false
-    verification:
-      lifespan: 1h
-      notify_unknown_recipients: false
+  # Overridden by SELFSERVICE_DEFAULT_BROWSER_RETURN_URL env var
+  default_browser_return_url: https://homassy.kellner.dev
+  allowed_return_urls:
+    - https://homassy.kellner.dev
 
   methods:
     code:
+      passwordless_enabled: true
+      enabled: true
       config:
         lifespan: 15m
+    webauthn:
+      enabled: true
+      config:
+        passwordless: true
+        rp:
+          display_name: Homassy
+          # Overridden by SELFSERVICE_METHODS_WEBAUTHN_CONFIG_RP_ID env var
+          id: kellner.dev
+          origins:
+            - https://homassy.kellner.dev
 
-session:
-  lifespan: 720h  # 30 days
+  flows:
+    error:
+      ui_url: https://homassy.kellner.dev/auth/error
+
+    settings:
+      ui_url: https://homassy.kellner.dev/auth/settings
+      privileged_session_max_age: 15m
+      required_aal: aal1
+
+    recovery:
+      enabled: true
+      ui_url: https://homassy.kellner.dev/auth/recovery
+      use: code
+      lifespan: 1h
+      notify_unknown_recipients: false
+
+    verification:
+      enabled: true
+      ui_url: https://homassy.kellner.dev/auth/verify
+      use: code
+      lifespan: 1h
+      notify_unknown_recipients: false
+      after:
+        default_browser_return_url: https://homassy.kellner.dev
+
+    logout:
+      after:
+        default_browser_return_url: https://homassy.kellner.dev/auth/login
+
+    login:
+      ui_url: https://homassy.kellner.dev/auth/login
+      lifespan: 10m
+      after:
+        default_browser_return_url: https://homassy.kellner.dev
+        code:
+          default_browser_return_url: https://homassy.kellner.dev
+        webauthn:
+          default_browser_return_url: https://homassy.kellner.dev
+
+    registration:
+      enabled: true
+      ui_url: https://homassy.kellner.dev/auth/register
+      lifespan: 10m
+      after:
+        default_browser_return_url: https://homassy.kellner.dev
+        code:
+          default_browser_return_url: https://homassy.kellner.dev
+        webauthn:
+          default_browser_return_url: https://homassy.kellner.dev
+
+log:
+  level: warning
+  format: json
+  leak_sensitive_values: false
+
+secrets:
   cookie:
-    persistent: true
-    same_site: Lax
+    # Overridden by SECRETS_COOKIE env var
+    - PLEASE-CHANGE-ME-PLACEHOLDER
+  cipher:
+    # Overridden by SECRETS_CIPHER env var
+    - 32-character-cipher-placeholder!
 
-# Production security settings
+ciphers:
+  algorithm: xchacha20-poly1305
+
 hashers:
   algorithm: argon2
   argon2:
     parallelism: 2
-    memory: 262144  # 256 MB
+    memory: 256MB
     iterations: 3
     salt_length: 16
     key_length: 32
+
+identity:
+  default_schema_id: default
+  schemas:
+    - id: default
+      url: file:///etc/config/kratos/identity.schema.json
+
+courier:
+  smtp:
+    # Overridden by COURIER_SMTP_CONNECTION_URI env var
+    connection_uri: smtp://localhost:1025
+    from_address: noreply@kellner.dev
+    from_name: Homassy
+  template_override_path: /etc/config/kratos/templates
+
+session:
+  lifespan: 720h
+  cookie:
+    name: ory_kratos_session
+    persistent: true
+    same_site: Lax
+    # Overridden by SESSION_COOKIE_DOMAIN env var
+    domain: .kellner.dev
+
+cookies:
+  # Overridden by COOKIES_DOMAIN env var
+  domain: .kellner.dev
+  same_site: Lax

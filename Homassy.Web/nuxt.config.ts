@@ -180,7 +180,24 @@ export default defineNuxtConfig({
       drop: ['console', 'debugger']
     },
     build: {
-      sourcemap: false
+      sourcemap: false,
+      // Reduce memory usage during build
+      minify: 'esbuild',
+      rollupOptions: {
+        maxParallelFileOps: 2,
+        output: {
+          manualChunks: undefined
+        }
+      }
+    }
+  },
+
+  // Reduce Nitro build memory
+  nitro: {
+    minify: true,
+    sourceMap: false,
+    rollupConfig: {
+      maxParallelFileOps: 2
     }
   }
 })
