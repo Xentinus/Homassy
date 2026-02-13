@@ -100,6 +100,12 @@
         to="/profile/settings"
       />
       <ButtonCard
+        icon="i-lucide-shield"
+        :title="$t('profile.security.title')"
+        :description="$t('profile.security.cardDescription')"
+        to="/profile/security"
+      />
+      <ButtonCard
         icon="i-lucide-users"
         :title="$t('profile.family.title')"
         :description="$t('profile.family.cardDescription')"

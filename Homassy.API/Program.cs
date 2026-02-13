@@ -6,14 +6,13 @@ using Homassy.API.Infrastructure;
 using Homassy.API.Middleware;
 using Homassy.API.Models.ApplicationSettings;
 using Homassy.API.Models.HealthCheck;
+using Homassy.API.Security;
 using Homassy.API.Services;
 using Homassy.API.Services.Background;
 using Homassy.API.Services.Sanitization;
-using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.OpenApi;
 using Microsoft.AspNetCore.ResponseCompression;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.IdentityModel.Tokens;
 using Serilog;
 using Serilog.Events;
 using System.IO.Compression;
@@ -50,8 +49,7 @@ try
     HomassyDbContext.SetConfiguration(builder.Configuration);
 
     ConfigService.Initialize(builder.Configuration);
-    EmailService.Initialize(builder.Configuration);
-    JwtService.Initialize(builder.Configuration);
+    // EmailService and JWT removed - using Kratos for authentication
 
     builder.Services.AddDbContext<HomassyDbContext>(options =>
         options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection")));
@@ -66,10 +64,11 @@ try
     builder.Services.AddSingleton<IImageProcessingService, ImageProcessingService>();
     builder.Services.AddSingleton<IProgressTrackerService, ProgressTrackerService>();
 
-    builder.Services.AddSingleton<EmailQueueService>();
-    builder.Services.AddSingleton<IEmailQueueService>(sp => sp.GetRequiredService<EmailQueueService>());
-    builder.Services.AddHostedService<EmailBackgroundService>();
-    builder.Services.AddHostedService<TokenCleanupService>();
+    // Email services removed - Kratos Courier handles authentication emails
+    // TokenCleanupService removed - using Kratos for session management
+
+    // Kratos service registration
+    builder.Services.AddHttpClient<IKratosService, KratosService>();
 
     builder.Services.AddSingleton<IWebPushService, WebPushService>();
     builder.Services.AddHostedService<PushNotificationSchedulerService>();
@@ -77,7 +76,7 @@ try
     builder.Services.Configure<HttpsSettings>(builder.Configuration.GetSection("Https"));
     builder.Services.Configure<RequestTimeoutSettings>(builder.Configuration.GetSection("RequestTimeout"));
     builder.Services.Configure<HealthCheckOptions>(builder.Configuration.GetSection("HealthChecks"));
-    builder.Services.Configure<AccountLockoutSettings>(builder.Configuration.GetSection("Security:AccountLockout"));
+    // AccountLockoutSettings removed - Kratos handles rate limiting and lockout
     builder.Services.Configure<GracefulShutdownSettings>(builder.Configuration.GetSection("GracefulShutdown"));
     
     var httpsSettings = builder.Configuration.GetSection("Https").Get<HttpsSettings>() ?? new HttpsSettings();
@@ -140,26 +139,11 @@ try
         options.SubstituteApiVersionInUrl = true;
     });
 
-    builder.Services.AddAuthentication(options =>
-    {
-        options.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
-        options.DefaultChallengeScheme = JwtBearerDefaults.AuthenticationScheme;
-    })
-    .AddJwtBearer(options =>
-    {
-        options.TokenValidationParameters = new TokenValidationParameters
-        {
-            ValidateIssuer = true,
-            ValidateAudience = true,
-            ValidateLifetime = true,
-            ValidateIssuerSigningKey = true,
-            ValidIssuer = builder.Configuration["Jwt:Issuer"],
-            ValidAudience = builder.Configuration["Jwt:Audience"],
-            IssuerSigningKey = new SymmetricSecurityKey(
-                Encoding.UTF8.GetBytes(builder.Configuration["Jwt:SecretKey"]!)),
-            ClockSkew = TimeSpan.Zero
-        };
-    });
+    // Kratos-based authentication - session validation happens in KratosSessionMiddleware
+    // This sets up a basic authentication scheme for the [Authorize] attribute
+    builder.Services.AddAuthentication("Kratos")
+        .AddScheme<Microsoft.AspNetCore.Authentication.AuthenticationSchemeOptions, KratosAuthenticationHandler>(
+            "Kratos", options => { });
 
     builder.Services.AddAuthorization();
 
@@ -250,8 +234,7 @@ try
 
     var app = builder.Build();
 
-    var emailQueueService = app.Services.GetRequiredService<IEmailQueueService>();
-    UserFunctions.SetEmailQueueService(emailQueueService);
+    // Email queue service setup removed - Kratos handles authentication emails
 
     using (var scope = app.Services.CreateScope())
     {
@@ -302,6 +285,8 @@ try
 
     app.UseCors("HomassyPolicy");
     app.UseMiddleware<RateLimitingMiddleware>();
+    app.UseMiddleware<KratosSessionMiddleware>();
+    app.UseAuthentication();
     app.UseAuthorization();
     app.UseMiddleware<SessionInfoMiddleware>();
     app.MapControllers();

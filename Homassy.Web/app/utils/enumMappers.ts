@@ -1,6 +1,91 @@
 import type { Language, Currency, UserTimeZone } from '~/types/enums'
 
 /**
+ * Valid Kratos timezone values (Windows-style timezone IDs)
+ */
+export type KratosTimezone = 
+  | 'CentralEuropeStandardTime'
+  | 'GMTStandardTime'
+  | 'EasternStandardTime'
+  | 'PacificStandardTime'
+  | 'WEuropeStandardTime'
+  | 'TokyoStandardTime'
+
+/**
+ * Map IANA timezone to Kratos timezone string
+ * Kratos identity schema expects Windows-style timezone IDs
+ * @param ianaTimezone - IANA timezone identifier (e.g., "Europe/Budapest")
+ * @returns Kratos timezone string
+ */
+export function ianaToKratosTimezone(ianaTimezone: string): KratosTimezone {
+  const map: Record<string, KratosTimezone> = {
+    // Central Europe (CET/CEST)
+    'Europe/Budapest': 'CentralEuropeStandardTime',
+    'Europe/Prague': 'CentralEuropeStandardTime',
+    'Europe/Vienna': 'CentralEuropeStandardTime',
+    'Europe/Warsaw': 'CentralEuropeStandardTime',
+    'Europe/Bratislava': 'CentralEuropeStandardTime',
+    'Europe/Ljubljana': 'CentralEuropeStandardTime',
+    'Europe/Zagreb': 'CentralEuropeStandardTime',
+    'Europe/Belgrade': 'CentralEuropeStandardTime',
+    'Europe/Sarajevo': 'CentralEuropeStandardTime',
+    'Europe/Skopje': 'CentralEuropeStandardTime',
+    
+    // Western Europe (CET/CEST but different Windows zone)
+    'Europe/Berlin': 'WEuropeStandardTime',
+    'Europe/Paris': 'WEuropeStandardTime',
+    'Europe/Amsterdam': 'WEuropeStandardTime',
+    'Europe/Brussels': 'WEuropeStandardTime',
+    'Europe/Rome': 'WEuropeStandardTime',
+    'Europe/Madrid': 'WEuropeStandardTime',
+    'Europe/Zurich': 'WEuropeStandardTime',
+    'Europe/Stockholm': 'WEuropeStandardTime',
+    'Europe/Oslo': 'WEuropeStandardTime',
+    'Europe/Copenhagen': 'WEuropeStandardTime',
+    
+    // GMT/BST
+    'Europe/London': 'GMTStandardTime',
+    'Europe/Dublin': 'GMTStandardTime',
+    'Europe/Lisbon': 'GMTStandardTime',
+    'Atlantic/Reykjavik': 'GMTStandardTime',
+    'UTC': 'GMTStandardTime',
+    'Etc/UTC': 'GMTStandardTime',
+    'Etc/GMT': 'GMTStandardTime',
+    
+    // Eastern US
+    'America/New_York': 'EasternStandardTime',
+    'America/Detroit': 'EasternStandardTime',
+    'America/Toronto': 'EasternStandardTime',
+    'America/Montreal': 'EasternStandardTime',
+    
+    // Pacific US
+    'America/Los_Angeles': 'PacificStandardTime',
+    'America/Vancouver': 'PacificStandardTime',
+    'America/Tijuana': 'PacificStandardTime',
+    
+    // Japan
+    'Asia/Tokyo': 'TokyoStandardTime',
+    'Asia/Seoul': 'TokyoStandardTime',
+  }
+  
+  return map[ianaTimezone] ?? 'CentralEuropeStandardTime'
+}
+
+/**
+ * Get user's timezone as Kratos timezone string
+ * Uses browser's Intl API to detect timezone
+ * @returns Kratos timezone string
+ */
+export function getBrowserKratosTimezone(): KratosTimezone {
+  try {
+    const ianaTimezone = Intl.DateTimeFormat().resolvedOptions().timeZone
+    return ianaToKratosTimezone(ianaTimezone)
+  } catch {
+    return 'CentralEuropeStandardTime'
+  }
+}
+
+/**
  * Map language code to Language enum
  * @param code - Language code (e.g., "hu", "de", "en")
  * @returns Language enum value

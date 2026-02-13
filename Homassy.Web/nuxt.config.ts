@@ -104,7 +104,7 @@ export default defineNuxtConfig({
   runtimeConfig: {
     public: {
       apiBase: process.env.NUXT_PUBLIC_API_BASE || 'http://localhost:5226',
-      appVersion: Date.now().toString()
+      kratosPublicUrl: process.env.NUXT_PUBLIC_KRATOS_URL || 'http://localhost:4433'
     }
   },
 
@@ -180,7 +180,24 @@ export default defineNuxtConfig({
       drop: ['console', 'debugger']
     },
     build: {
-      sourcemap: false
+      sourcemap: false,
+      // Reduce memory usage during build
+      minify: 'esbuild',
+      rollupOptions: {
+        maxParallelFileOps: 2,
+        output: {
+          manualChunks: undefined
+        }
+      }
+    }
+  },
+
+  // Reduce Nitro build memory
+  nitro: {
+    minify: true,
+    sourceMap: false,
+    rollupConfig: {
+      maxParallelFileOps: 2
     }
   }
 })

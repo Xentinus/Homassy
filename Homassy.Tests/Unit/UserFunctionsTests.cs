@@ -1,3 +1,4 @@
+using System.Net.Http;
 using Homassy.API.Context;
 using Homassy.API.Functions;
 using Homassy.API.Models.User;
@@ -10,10 +11,13 @@ namespace Homassy.Tests.Unit;
 public class UserFunctionsTests : IClassFixture<HomassyWebApplicationFactory>
 {
     private readonly HomassyWebApplicationFactory _factory;
+    private readonly HttpClient _client;
 
     public UserFunctionsTests(HomassyWebApplicationFactory factory)
     {
         _factory = factory;
+        // Create a client to ensure the server is started
+        _client = _factory.CreateClient();
         
         // Ensure static services are configured for unit tests that bypass the factory
         EnsureConfigurationInitialized();
@@ -30,7 +34,7 @@ public class UserFunctionsTests : IClassFixture<HomassyWebApplicationFactory>
 
         HomassyDbContext.SetConfiguration(configuration);
         ConfigService.Initialize(configuration);
-        JwtService.Initialize(configuration);
+        // JwtService.Initialize removed - using Kratos for authentication
     }
 
     [Fact]

@@ -1,10 +1,13 @@
 ﻿using Asp.Versioning;
+using Homassy.API.Context;
+using Homassy.API.Entities.User;
 using Homassy.API.Enums;
 using Homassy.API.Exceptions;
 using Homassy.API.Extensions;
 using Homassy.API.Functions;
-using Homassy.API.Models.Auth;
+using Homassy.API.Middleware;
 using Homassy.API.Models.Common;
+using Homassy.API.Models.Kratos;
 using Homassy.API.Models.User;
 using Homassy.API.Services;
 using Microsoft.AspNetCore.Authorization;
@@ -15,266 +18,198 @@ namespace Homassy.API.Controllers
 {
     /// <summary>
     /// Authentication and authorization endpoints.
+    /// Authentication is handled by Ory Kratos. This controller provides user session management.
     /// </summary>
     [ApiVersion(1.0)]
     [Route("api/v{version:apiVersion}/[controller]")]
     [ApiController]
     public class AuthController : ControllerBase
     {
-        /// <summary>
-        /// Requests a verification code to be sent to the user's email address.
-        /// </summary>
-        [HttpPost("request-code")]
-        [MapToApiVersion(1.0)]
-        [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status200OK)]
-        [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status400BadRequest)]
-        public async Task<IActionResult> RequestVerificationCode([FromBody] LoginRequest request, CancellationToken cancellationToken)
+        private readonly IKratosService _kratosService;
+
+        public AuthController(IKratosService kratosService)
         {
-            if (!ModelState.IsValid)
-            {
-                return BadRequest(ApiResponse.ErrorResponse(ErrorCodes.ValidationInvalidRequest));
-            }
-
-            try
-            {
-                await new UserFunctions().RequestVerificationCodeAsync(request.Email, cancellationToken);
-            }
-            catch (BadRequestException ex)
-            {
-                return BadRequest(ApiResponse.ErrorResponse(ex.ErrorCode));
-            }
-            catch (AuthException ex)
-            {
-                Log.Warning($"Auth error during request-code: {ex.Message}");
-            }
-            catch (Exception ex)
-            {
-                Log.Error(ex, $"Unexpected error during request-code");
-            }
-
-            // Security: constant time response to prevent user enumeration
-            await Task.Delay(Random.Shared.Next(100, 300), cancellationToken);
-            return Ok(ApiResponse.SuccessResponse());
-        }
-
-        /// <summary>
-        /// Verifies the email verification code and returns authentication tokens.
-        /// </summary>
-        [HttpPost("verify-code")]
-        [MapToApiVersion(1.0)]
-        [ProducesResponseType(typeof(ApiResponse<AuthResponse>), StatusCodes.Status200OK)]
-        [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status400BadRequest)]
-        public async Task<IActionResult> VerifyCode([FromBody] VerifyLoginRequest request, CancellationToken cancellationToken)
-        {
-            if (!ModelState.IsValid)
-            {
-                return BadRequest(ApiResponse.ErrorResponse(ErrorCodes.ValidationInvalidRequest));
-            }
-
-            var authResponse = await new UserFunctions().VerifyCodeAsync(request.Email, request.VerificationCode, cancellationToken);
-            return Ok(ApiResponse<AuthResponse>.SuccessResponse(authResponse));
-        }
-
-        /// <summary>
-        /// Refreshes the access token using a valid refresh token.
-        /// This endpoint accepts EXPIRED access tokens and validates them for user identification only.
-        /// The refresh token must still be valid and belong to the user from the access token.
-        /// </summary>
-        [HttpPost("refresh")]
-        [MapToApiVersion(1.0)]
-        [ProducesResponseType(typeof(ApiResponse<RefreshTokenResponse>), StatusCodes.Status200OK)]
-        [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status400BadRequest)]
-        [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status401Unauthorized)]
-        public async Task<IActionResult> RefreshToken([FromBody] RefreshTokenRequest request, CancellationToken cancellationToken)
-        {
-            if (!ModelState.IsValid)
-            {
-                return BadRequest(ApiResponse.ErrorResponse(ErrorCodes.ValidationInvalidRequest));
-            }
-
-            try
-            {
-                // Extract user ID from expired access token
-                var principal = JwtService.GetPrincipalFromExpiredToken(request.AccessToken);
-
-                if (principal == null)
-                {
-                    Log.Warning("Failed to extract claims from expired access token");
-                    return Unauthorized(ApiResponse.ErrorResponse(ErrorCodes.AuthInvalidCredentials));
-                }
-
-                var publicIdClaim = principal.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
-
-                if (string.IsNullOrWhiteSpace(publicIdClaim) || !Guid.TryParse(publicIdClaim, out var userPublicId))
-                {
-                    Log.Warning("Invalid or missing user ID claim in access token");
-                    return Unauthorized(ApiResponse.ErrorResponse(ErrorCodes.AuthInvalidCredentials));
-                }
-
-                // Pass the extracted user ID to the refresh function
-                var refreshResponse = await new UserFunctions().RefreshTokenAsync(
-                    userPublicId,
-                    request.RefreshToken,
-                    cancellationToken
-                );
-
-                return Ok(ApiResponse<RefreshTokenResponse>.SuccessResponse(refreshResponse));
-            }
-            catch (InvalidCredentialsException ex)
-            {
-                return Unauthorized(ApiResponse.ErrorResponse(ex.ErrorCode));
-            }
-            catch (ExpiredCredentialsException ex)
-            {
-                return Unauthorized(ApiResponse.ErrorResponse(ex.ErrorCode));
-            }
-            catch (UserNotFoundException ex)
-            {
-                return Unauthorized(ApiResponse.ErrorResponse(ex.ErrorCode));
-            }
-            catch (BadRequestException ex)
-            {
-                return BadRequest(ApiResponse.ErrorResponse(ex.ErrorCode));
-            }
-            catch (Exception ex)
-            {
-                Log.Error(ex, "Unexpected error during token refresh");
-                return StatusCode(500, ApiResponse.ErrorResponse(ErrorCodes.SystemUnexpectedError));
-            }
-        }
-
-        /// <summary>
-        /// Logs out the current user and invalidates their refresh token.
-        /// </summary>
-        [Authorize]
-        [HttpPost("logout")]
-        [MapToApiVersion(1.0)]
-        [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status200OK)]
-        [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status401Unauthorized)]
-        public async Task<IActionResult> Logout(CancellationToken cancellationToken)
-        {
-            try
-            {
-                await new UserFunctions().LogoutAsync(cancellationToken);
-            }
-            catch (UserNotFoundException ex)
-            {
-                // User already logged out or deleted - still return success
-                Log.Warning($"User not found during logout: {ex.Message}");
-            }
-            
-            return Ok(ApiResponse.SuccessResponse());
+            _kratosService = kratosService;
         }
 
         /// <summary>
         /// Gets the current authenticated user's information.
+        /// Requires a valid Kratos session.
         /// </summary>
         [Authorize]
         [HttpGet("me")]
         [MapToApiVersion(1.0)]
         [ProducesResponseType(typeof(ApiResponse<UserInfo>), StatusCodes.Status200OK)]
         [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status401Unauthorized)]
-        public IActionResult GetCurrentUser()
+        public async Task<IActionResult> GetCurrentUser(CancellationToken cancellationToken)
         {
-            var userInfo = new UserFunctions().GetCurrentUser();
+            var kratosSession = HttpContext.GetKratosSession();
+            
+            if (kratosSession == null)
+            {
+                return Unauthorized(ApiResponse.ErrorResponse(ErrorCodes.AuthInvalidCredentials));
+            }
+
+            // Ensure local user record exists and is synced with Kratos
+            var user = await EnsureLocalUserAsync(kratosSession, cancellationToken);
+            
+            if (user == null)
+            {
+                Log.Error($"Failed to create/sync local user for Kratos identity {kratosSession.Identity.Id}");
+                return StatusCode(500, ApiResponse.ErrorResponse(ErrorCodes.SystemUnexpectedError));
+            }
+
+            var userInfo = new UserFunctions().GetUserInfoFromKratosSession(kratosSession, user);
             return Ok(ApiResponse<UserInfo>.SuccessResponse(userInfo));
         }
 
         /// <summary>
-        /// Registers a new user account.
+        /// Gets the current Kratos session information.
         /// </summary>
-        [HttpPost("register")]
+        [Authorize]
+        [HttpGet("session")]
         [MapToApiVersion(1.0)]
-        [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status200OK)]
-        [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status400BadRequest)]
-        [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status403Forbidden)]
-        public async Task<IActionResult> Register([FromBody] CreateUserRequest request, CancellationToken cancellationToken)
+        [ProducesResponseType(typeof(ApiResponse<KratosSessionInfo>), StatusCodes.Status200OK)]
+        [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status401Unauthorized)]
+        public IActionResult GetSession()
         {
-            if (!ModelState.IsValid)
+            var kratosSession = HttpContext.GetKratosSession();
+            
+            if (kratosSession == null)
             {
-                return BadRequest(ApiResponse.ErrorResponse(ErrorCodes.ValidationInvalidRequest));
+                return Unauthorized(ApiResponse.ErrorResponse(ErrorCodes.AuthInvalidCredentials));
             }
 
-            // Check if registration is enabled
-            var registrationEnabledValue = ConfigService.GetValueOrDefault("RegistrationEnabled", "false");
-            var registrationEnabled = !string.IsNullOrEmpty(registrationEnabledValue) && bool.Parse(registrationEnabledValue);
-
-            if (!registrationEnabled)
+            var sessionInfo = new KratosSessionInfo
             {
-                Log.Warning("Registration attempt while registration is disabled");
-                return StatusCode(403, ApiResponse.ErrorResponse(ErrorCodes.AuthRegistrationDisabled));
-            }
+                SessionId = kratosSession.Id,
+                IdentityId = kratosSession.Identity.Id,
+                Email = kratosSession.Identity.Traits.Email,
+                Name = kratosSession.Identity.Traits.Name,
+                ExpiresAt = kratosSession.ExpiresAt,
+                AuthenticatedAt = kratosSession.AuthenticatedAt,
+                AuthenticationMethod = kratosSession.AuthenticationMethods?.FirstOrDefault()?.Method ?? "unknown"
+            };
 
-            // Extract browser language from Accept-Language header
-            var acceptLanguage = Request.Headers.AcceptLanguage.FirstOrDefault();
-            var browserLanguage = ParseAcceptLanguage(acceptLanguage);
-
-            // Extract timezone from X-Timezone header
-            var timezoneHeader = Request.Headers["X-Timezone"].FirstOrDefault();
-            var browserTimeZone = ParseTimeZone(timezoneHeader);
-
-            try
-            {
-                await new UserFunctions().RegisterAsync(request, browserLanguage, browserTimeZone, cancellationToken);
-            }
-            catch (BadRequestException ex)
-            {
-                return BadRequest(ApiResponse.ErrorResponse(ex.ErrorCode));
-            }
-            catch (AuthException ex)
-            {
-                Log.Warning($"Auth error during registration: {ex.Message}");
-            }
-            catch (Exception ex)
-            {
-                Log.Error(ex, $"Unexpected error during registration");
-            }
-
-            // Security: constant time response to prevent user enumeration
-            await Task.Delay(Random.Shared.Next(100, 300), cancellationToken);
-            return Ok(ApiResponse.SuccessResponse());
+            return Ok(ApiResponse<KratosSessionInfo>.SuccessResponse(sessionInfo));
         }
 
         /// <summary>
-        /// Parses the Accept-Language header and returns the corresponding Language enum.
+        /// Synchronizes the local user record with Kratos identity data.
+        /// Call this after updating profile in Kratos.
         /// </summary>
-        private static Language ParseAcceptLanguage(string? acceptLanguage)
+        [Authorize]
+        [HttpPost("sync")]
+        [MapToApiVersion(1.0)]
+        [ProducesResponseType(typeof(ApiResponse<UserInfo>), StatusCodes.Status200OK)]
+        [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status401Unauthorized)]
+        public async Task<IActionResult> SyncUser(CancellationToken cancellationToken)
         {
-            if (string.IsNullOrWhiteSpace(acceptLanguage))
+            var kratosSession = HttpContext.GetKratosSession();
+            
+            if (kratosSession == null)
             {
-                return Language.English;
+                return Unauthorized(ApiResponse.ErrorResponse(ErrorCodes.AuthInvalidCredentials));
             }
 
-            // Accept-Language format: "hu-HU,hu;q=0.9,en-US;q=0.8,en;q=0.7"
-            // Take the first language code (highest priority)
-            var primaryLanguage = acceptLanguage
-                .Split(',')
-                .FirstOrDefault()?
-                .Split(';')
-                .FirstOrDefault()?
-                .Trim();
-
-            if (string.IsNullOrWhiteSpace(primaryLanguage))
+            // Force refresh the Kratos identity data
+            var identity = await _kratosService.GetIdentityAsync(kratosSession.Identity.Id, cancellationToken);
+            
+            if (identity == null)
             {
-                return Language.English;
+                return Unauthorized(ApiResponse.ErrorResponse(ErrorCodes.AuthInvalidCredentials));
             }
 
-            var languageCode = primaryLanguage.Split('-').FirstOrDefault()?.ToLowerInvariant();
+            // Update local user with latest Kratos data
+            var user = await new UserFunctions().SyncUserFromKratosAsync(identity, cancellationToken);
+            
+            if (user == null)
+            {
+                return StatusCode(500, ApiResponse.ErrorResponse(ErrorCodes.SystemUnexpectedError));
+            }
 
-            return LanguageExtensions.FromLanguageCode(languageCode ?? "en");
+            var userInfo = new UserFunctions().GetUserInfoFromKratosSession(kratosSession, user);
+            return Ok(ApiResponse<UserInfo>.SuccessResponse(userInfo));
         }
 
         /// <summary>
-        /// Parses the X-Timezone header and returns the corresponding UserTimeZone enum.
+        /// Gets the Kratos configuration URLs for frontend use.
         /// </summary>
-        private static UserTimeZone ParseTimeZone(string? timezoneId)
+        [HttpGet("config")]
+        [MapToApiVersion(1.0)]
+        [ProducesResponseType(typeof(ApiResponse<KratosConfig>), StatusCodes.Status200OK)]
+        public IActionResult GetKratosConfig([FromServices] IConfiguration configuration)
         {
-            if (string.IsNullOrWhiteSpace(timezoneId))
+            var config = new KratosConfig
             {
-                return UserTimeZone.CentralEuropeStandardTime;
+                PublicUrl = configuration["Kratos:PublicUrl"] ?? "http://localhost:4433",
+                LoginUrl = "/self-service/login/browser",
+                RegistrationUrl = "/self-service/registration/browser",
+                LogoutUrl = "/self-service/logout/browser",
+                SettingsUrl = "/self-service/settings/browser",
+                RecoveryUrl = "/self-service/recovery/browser",
+                VerificationUrl = "/self-service/verification/browser"
+            };
+
+            return Ok(ApiResponse<KratosConfig>.SuccessResponse(config));
+        }
+
+        /// <summary>
+        /// Ensures a local User record exists for the Kratos identity.
+        /// Creates one if it doesn't exist.
+        /// </summary>
+        private async Task<User?> EnsureLocalUserAsync(KratosSession session, CancellationToken cancellationToken)
+        {
+            var user = new UserFunctions().GetUserByKratosIdentityId(session.Identity.Id);
+
+            if (user != null)
+            {
+                // Update last login time
+                await new UserFunctions().UpdateLastLoginAsync(user.Id, cancellationToken);
+                return user;
             }
 
-            return UserTimeZoneExtensions.FromTimeZoneId(timezoneId.Trim());
+            // Check if user exists by email (migration case)
+            user = new UserFunctions().GetUserByEmailAddress(session.Identity.Traits.Email);
+
+            if (user != null)
+            {
+                // Link existing user to Kratos identity
+                await new UserFunctions().LinkUserToKratosAsync(user.Id, session.Identity.Id, cancellationToken);
+                await new UserFunctions().UpdateLastLoginAsync(user.Id, cancellationToken);
+                return user;
+            }
+
+            // Create new local user record
+            return await new UserFunctions().CreateUserFromKratosAsync(session.Identity, cancellationToken);
         }
+    }
+
+    /// <summary>
+    /// Kratos session information for API response.
+    /// </summary>
+    public class KratosSessionInfo
+    {
+        public string SessionId { get; set; } = string.Empty;
+        public string IdentityId { get; set; } = string.Empty;
+        public string Email { get; set; } = string.Empty;
+        public string? Name { get; set; }
+        public DateTime? ExpiresAt { get; set; }
+        public DateTime? AuthenticatedAt { get; set; }
+        public string AuthenticationMethod { get; set; } = string.Empty;
+    }
+
+    /// <summary>
+    /// Kratos configuration for frontend use.
+    /// </summary>
+    public class KratosConfig
+    {
+        public string PublicUrl { get; set; } = string.Empty;
+        public string LoginUrl { get; set; } = string.Empty;
+        public string RegistrationUrl { get; set; } = string.Empty;
+        public string LogoutUrl { get; set; } = string.Empty;
+        public string SettingsUrl { get; set; } = string.Empty;
+        public string RecoveryUrl { get; set; } = string.Empty;
+        public string VerificationUrl { get; set; } = string.Empty;
     }
 }

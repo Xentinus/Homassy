@@ -9,6 +9,7 @@
       - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
     volumes:
       - postgres-data:/var/lib/postgresql/data
+      - ./Homassy.Kratos/init-kratos-schema.sql:/docker-entrypoint-initdb.d/init-kratos-schema.sql:ro
     networks:
       - homassy-network
     healthcheck:
@@ -31,6 +32,63 @@
       postgres:
         condition: service_healthy
 
+  homassy.kratos:
+    container_name: homassy-kratos
+    image: oryd/kratos:v1.2.0
+    restart: unless-stopped
+    ports:
+      - "4433:4433"
+      - "4434:4434"
+    environment:
+      # Database - Kratos DSN (this is the correct env var name)
+      - DSN=postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@${DATABASE_HOST}:${DATABASE_PORT:-5432}/${POSTGRES_KRATOS_DB:-kratos}?sslmode=disable
+      # Secrets (Kratos env var format)
+      - SECRETS_COOKIE=${KRATOS_COOKIE_SECRET}
+      - SECRETS_CIPHER=${KRATOS_CIPHER_SECRET}
+      # Serve URLs
+      - SERVE_PUBLIC_BASE_URL=${KRATOS_PUBLIC_URL}
+      - SERVE_PUBLIC_CORS_ALLOWED_ORIGINS_0=${KRATOS_BROWSER_RETURN_URL}
+      # Selfservice URLs
+      - SELFSERVICE_DEFAULT_BROWSER_RETURN_URL=${KRATOS_BROWSER_RETURN_URL}
+      - SELFSERVICE_ALLOWED_RETURN_URLS_0=${KRATOS_BROWSER_RETURN_URL}
+      # WebAuthn
+      - SELFSERVICE_METHODS_WEBAUTHN_CONFIG_RP_ID=${KRATOS_WEBAUTHN_RP_ID}
+      - SELFSERVICE_METHODS_WEBAUTHN_CONFIG_RP_ORIGINS_0=${KRATOS_BROWSER_RETURN_URL}
+      # Flow UI URLs
+      - SELFSERVICE_FLOWS_LOGIN_UI_URL=${KRATOS_BROWSER_RETURN_URL}/auth/login
+      - SELFSERVICE_FLOWS_REGISTRATION_UI_URL=${KRATOS_BROWSER_RETURN_URL}/auth/register
+      - SELFSERVICE_FLOWS_SETTINGS_UI_URL=${KRATOS_BROWSER_RETURN_URL}/auth/settings
+      - SELFSERVICE_FLOWS_VERIFICATION_UI_URL=${KRATOS_BROWSER_RETURN_URL}/auth/verify
+      - SELFSERVICE_FLOWS_RECOVERY_UI_URL=${KRATOS_BROWSER_RETURN_URL}/auth/recovery
+      - SELFSERVICE_FLOWS_ERROR_UI_URL=${KRATOS_BROWSER_RETURN_URL}/auth/error
+      - SELFSERVICE_FLOWS_LOGOUT_AFTER_DEFAULT_BROWSER_RETURN_URL=${KRATOS_BROWSER_RETURN_URL}/auth/login
+      - SELFSERVICE_FLOWS_LOGIN_AFTER_DEFAULT_BROWSER_RETURN_URL=${KRATOS_BROWSER_RETURN_URL}
+      - SELFSERVICE_FLOWS_REGISTRATION_AFTER_DEFAULT_BROWSER_RETURN_URL=${KRATOS_BROWSER_RETURN_URL}
+      - SELFSERVICE_FLOWS_VERIFICATION_AFTER_DEFAULT_BROWSER_RETURN_URL=${KRATOS_BROWSER_RETURN_URL}
+      # Cookies
+      - SESSION_COOKIE_DOMAIN=${KRATOS_COOKIE_DOMAIN}
+      - COOKIES_DOMAIN=${KRATOS_COOKIE_DOMAIN}
+      # SMTP/Courier
+      - COURIER_SMTP_CONNECTION_URI=smtp://${EMAIL_USERNAME}:${EMAIL_PASSWORD}@${EMAIL_SMTP_SERVER}:${EMAIL_SMTP_PORT}/
+      - COURIER_SMTP_FROM_ADDRESS=${EMAIL_SENDER_EMAIL}
+      - COURIER_SMTP_FROM_NAME=${EMAIL_SENDER_NAME:-Homassy}
+    volumes:
+      - ./Homassy.Kratos/kratos.yml:/etc/config/kratos/kratos.yml:ro
+      - ./Homassy.Kratos/identity.schema.json:/etc/config/kratos/identity.schema.json:ro
+      - ./Homassy.Kratos/templates:/etc/config/kratos/templates:ro
+    command: serve -c /etc/config/kratos/kratos.yml --watch-courier
+    networks:
+      - homassy-network
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:4433/health/alive"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 20s
+
   homassy.api:
     container_name: homassy-api
     image: ${DOCKER_REGISTRY-}homassyapi
@@ -40,12 +98,8 @@
     environment:
       - ASPNETCORE_ENVIRONMENT=Production
       - ConnectionStrings__DefaultConnection=${DB_CONNECTION_STRING_DOCKER}
-      - Jwt__SecretKey=${JWT_SECRET_KEY}
-      - Email__SmtpServer=${EMAIL_SMTP_SERVER}
-      - Email__SmtpPort=${EMAIL_SMTP_PORT}
-      - Email__SenderEmail=${EMAIL_SENDER_EMAIL}
-      - Email__Username=${EMAIL_USERNAME}
-      - Email__Password=${EMAIL_PASSWORD}
+      - Kratos__PublicUrl=http://homassy-kratos:4433
+      - Kratos__AdminUrl=http://homassy-kratos:4434
       - AppSettings__RegistrationEnabled=${REGISTRATION_ENABLED}
     networks:
       - homassy-network
@@ -54,6 +108,8 @@
         condition: service_healthy
       homassy.migrator:
         condition: service_completed_successfully
+      homassy.kratos:
+        condition: service_healthy
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8080/api/v1.0/health"]
       interval: 30s
@@ -70,12 +126,15 @@
     environment:
       - NODE_ENV=production
       - NUXT_PUBLIC_API_BASE=${NUXT_PUBLIC_API_BASE}
+      - NUXT_PUBLIC_KRATOS_URL=${KRATOS_PUBLIC_URL}
     networks:
       - homassy-network
     depends_on:
       postgres:
         condition: service_healthy
       homassy.api:
+        condition: service_healthy
+      homassy.kratos:
         condition: service_healthy
 
 networks:

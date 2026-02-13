@@ -16,13 +16,12 @@ Homassy is a modern full-stack system designed to simplify household inventory m
 **Backend:**
 - **.NET 10.0** Web API with modern C# patterns
 - **PostgreSQL** database with Entity Framework Core
-- **JWT-based authentication** with passwordless email verification and token rotation
+- **Ory Kratos** self-hosted identity management with passwordless email verification
 - **In-memory caching** with database trigger-based invalidation
 - **Controller → Functions** pattern (no traditional repository layer)
 - **Production-ready middleware** - Exception handling, CORS, compression, logging
 - **Response compression** - Brotli and Gzip for optimized bandwidth
 - **Request correlation** - X-Correlation-ID tracking across all requests
-- **Background services** - Email queue, token cleanup with automated maintenance
 - **Health monitoring** - Endpoint health checks with dependency monitoring
 - **Full async cancellation** - CancellationToken support across all operations
 
@@ -38,9 +37,8 @@ Homassy is a modern full-stack system designed to simplify household inventory m
 - **Camera Integration** - Camera availability detection and barcode/QR Code scanning support
 
 ### 🔐 Security
-- 🔑 Passwordless authentication (6-digit email codes)
-- 🎫 JWT access and refresh tokens with rotation and theft detection
-- 🔄 Refresh token rotation with grace period for improved security
+- 🔑 Passwordless authentication via Ory Kratos
+- 🔐 Kratos session-based authentication with configurable lifespans
 - 🚦 Two-tier rate limiting (global + endpoint-specific) with standard headers
 - 🛡️ Comprehensive security headers (CSP, HSTS, X-Frame-Options, etc.)
 - 🧹 Input sanitization with automatic XSS attack prevention
@@ -101,6 +99,10 @@ Homassy/
 ├── Homassy.Migrator/     🔄 Database Migration Tool
 │   ├── Program.cs
 │   └── Dockerfile
+├── Homassy.Kratos/       🔐 Ory Kratos Configuration
+│   ├── kratos.yml        ⚙️ Kratos configuration
+│   ├── identity.schema.json  📋 Identity schema
+│   └── templates/        📧 Email templates
 ├── Homassy.Tests/        🧪 Test Suite (xUnit)
 │   ├── Integration/      ✅ Integration tests (100+ tests)
 │   ├── Unit/             🔬 Unit tests
@@ -116,13 +118,11 @@ Homassy/
 |----------|------------|
 | **Framework** | ASP.NET Core 10.0 |
 | **Database** | PostgreSQL + EF Core 10.0 |
-| **Authentication** | JWT Bearer Tokens (with rotation) |
-| **Email** | MailKit 4.14.1 (async queue) |
+| **Authentication** | Ory Kratos (self-hosted identity) |
 | **Logging** | Serilog 9.0.0 (structured) |
 | **API Versioning** | Asp.Versioning 8.1.0 |
 | **Health Checks** | Microsoft.Extensions.Diagnostics.HealthChecks |
 | **Compression** | Brotli + Gzip (built-in) |
-| **Background Services** | IHostedService (email queue, token cleanup) |
 | **Testing** | xUnit 2.9.3 + WebApplicationFactory |
 | **External APIs** | Open Food Facts API v2 |
 
@@ -147,6 +147,7 @@ Homassy/
 |----------|------------|
 | **Containerization** | Docker + Docker Compose |
 | **Database** | PostgreSQL 16 |
+| **Identity** | Ory Kratos (self-hosted) |
 | **Web Server** | Kestrel (ASP.NET Core) |
 | **Node Server** | Node.js 22 (Nuxt SSR) |
 

@@ -1,0 +1,124 @@
+{
+  "$id": "https://homassy.kellner.dev/schemas/identity.schema.json",
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Homassy Identity Schema",
+  "type": "object",
+  "properties": {
+    "traits": {
+      "type": "object",
+      "properties": {
+        "email": {
+          "type": "string",
+          "format": "email",
+          "title": "Email",
+          "minLength": 3,
+          "maxLength": 320,
+          "ory.sh/kratos": {
+            "credentials": {
+              "webauthn": {
+                "identifier": true
+              },
+              "code": {
+                "identifier": true,
+                "via": "email"
+              }
+            },
+            "verification": {
+              "via": "email"
+            },
+            "recovery": {
+              "via": "email"
+            }
+          }
+        },
+        "name": {
+          "type": "string",
+          "title": "Full Name",
+          "minLength": 1,
+          "maxLength": 255
+        },
+        "display_name": {
+          "type": "string",
+          "title": "Display Name",
+          "minLength": 1,
+          "maxLength": 100
+        },
+        "profile_picture_base64": {
+          "type": "string",
+          "title": "Profile Picture (Base64)",
+          "maxLength": 5000000
+        },
+        "date_of_birth": {
+          "type": "string",
+          "format": "date",
+          "title": "Date of Birth"
+        },
+        "gender": {
+          "type": "string",
+          "title": "Gender",
+          "maxLength": 50
+        },
+        "default_currency": {
+          "type": "string",
+          "title": "Default Currency",
+          "enum": ["HUF", "EUR", "USD", "GBP", "CHF", "PLN", "CZK", "RON"],
+          "default": "HUF"
+        },
+        "default_timezone": {
+          "type": "string",
+          "title": "Default Timezone",
+          "enum": [
+            "CentralEuropeStandardTime",
+            "GMTStandardTime",
+            "EasternStandardTime",
+            "PacificStandardTime",
+            "WEuropeStandardTime",
+            "TokyoStandardTime"
+          ],
+          "default": "CentralEuropeStandardTime"
+        },
+        "default_language": {
+          "type": "string",
+          "title": "Default Language",
+          "enum": ["hu", "de", "en"],
+          "default": "hu"
+        },
+        "family_id": {
+          "type": "integer",
+          "title": "Family ID",
+          "minimum": 1
+        },
+        "notification_preferences": {
+          "type": "object",
+          "title": "Notification Preferences",
+          "properties": {
+            "email_notifications": {
+              "type": "boolean",
+              "default": true
+            },
+            "push_notifications": {
+              "type": "boolean",
+              "default": true
+            },
+            "expiring_products_reminder": {
+              "type": "boolean",
+              "default": true
+            },
+            "shopping_list_updates": {
+              "type": "boolean",
+              "default": true
+            }
+          },
+          "default": {
+            "email_notifications": true,
+            "push_notifications": true,
+            "expiring_products_reminder": true,
+            "shopping_list_updates": true
+          }
+        }
+      },
+      "required": ["email", "name", "display_name"],
+      "additionalProperties": false
+    }
+  }
+}

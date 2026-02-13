@@ -264,9 +264,7 @@ namespace Homassy.API.Services
                     await new UserFunctions().RefreshUserCacheAsync(change.RecordId);
                     break;
 
-                case TableNames.UserAuthentications:
-                    await new UserFunctions().RefreshUserAuthCacheAsync(change.RecordId);
-                    break;
+                // UserAuthentications cache removed - using Kratos for auth
 
                 case TableNames.UserNotificationPreferences:
                     await new UserFunctions().RefreshUserNotificationCacheAsync(change.RecordId);

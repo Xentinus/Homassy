@@ -1,0 +1,149 @@
+version: v1.2.0
+
+# DSN is set via KRATOS_DSN environment variable
+
+serve:
+  public:
+    base_url: http://localhost:4433
+    cors:
+      enabled: true
+      allowed_origins:
+        - http://localhost:3000
+      allowed_methods:
+        - POST
+        - GET
+        - PUT
+        - PATCH
+        - DELETE
+      allowed_headers:
+        - Authorization
+        - Cookie
+        - Content-Type
+        - X-Session-Token
+      exposed_headers:
+        - Content-Type
+        - Set-Cookie
+      allow_credentials: true
+  admin:
+    base_url: http://localhost:4434
+
+selfservice:
+  default_browser_return_url: http://localhost:3000
+  allowed_return_urls:
+    - http://localhost:3000
+
+  methods:
+    code:
+      passwordless_enabled: true
+      enabled: true
+      config:
+        lifespan: 15m
+    webauthn:
+      enabled: true
+      config:
+        passwordless: true
+        rp:
+          display_name: Homassy
+          id: localhost
+          origins:
+            - http://localhost:3000
+
+  flows:
+    error:
+      ui_url: http://localhost:3000/auth/error
+
+    settings:
+      ui_url: http://localhost:3000/auth/settings
+      privileged_session_max_age: 15m
+      required_aal: aal1
+
+    recovery:
+      enabled: true
+      ui_url: http://localhost:3000/auth/recovery
+      use: code
+      lifespan: 1h
+      notify_unknown_recipients: false
+
+    verification:
+      enabled: true
+      ui_url: http://localhost:3000/auth/verify
+      use: code
+      lifespan: 1h
+      notify_unknown_recipients: false
+      after:
+        default_browser_return_url: http://localhost:3000
+
+    logout:
+      after:
+        default_browser_return_url: http://localhost:3000/auth/login
+
+    login:
+      ui_url: http://localhost:3000/auth/login
+      lifespan: 10m
+      after:
+        default_browser_return_url: http://localhost:3000
+        code:
+          default_browser_return_url: http://localhost:3000
+        webauthn:
+          default_browser_return_url: http://localhost:3000
+
+    registration:
+      enabled: true
+      ui_url: http://localhost:3000/auth/register
+      lifespan: 10m
+      after:
+        default_browser_return_url: http://localhost:3000
+        code:
+          default_browser_return_url: http://localhost:3000
+        webauthn:
+          default_browser_return_url: http://localhost:3000
+
+log:
+  level: info
+  format: json
+  leak_sensitive_values: false
+
+secrets:
+  cookie:
+    - PLEASE-CHANGE-ME-I-AM-VERY-INSECURE!
+  cipher:
+    - 32-character-cipher-key-here-012
+
+ciphers:
+  algorithm: xchacha20-poly1305
+
+hashers:
+  algorithm: argon2
+  argon2:
+    parallelism: 1
+    memory: 128MB
+    iterations: 2
+    salt_length: 16
+    key_length: 16
+
+identity:
+  default_schema_id: default
+  schemas:
+    - id: default
+      url: file:///etc/config/kratos/identity.schema.json
+
+courier:
+  smtp:
+    # Uses COURIER_SMTP_CONNECTION_URI, COURIER_SMTP_FROM_ADDRESS, COURIER_SMTP_FROM_NAME env vars
+    # Fallback to mailhog if not set
+    connection_uri: smtp://mailhog:1025/?disable_starttls=true
+    from_address: noreply@homassy.local
+    from_name: Homassy
+  template_override_path: /etc/config/kratos/templates
+
+session:
+  lifespan: 720h
+  cookie:
+    name: ory_kratos_session
+    persistent: true
+    same_site: Lax
+    domain: localhost
+
+cookies:
+  domain: localhost
+  same_site: Lax

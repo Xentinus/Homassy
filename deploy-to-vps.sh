@@ -231,9 +231,13 @@ build_amd64_images() {
 
     # Build Web
     log "Building Web image..."
+    log "Using KRATOS_PUBLIC_URL: $KRATOS_PUBLIC_URL"
+    log "Using VPS_API_BASE: $VPS_API_BASE"
     DOCKER_BUILDKIT=1 docker build \
         --platform linux/amd64 \
         --target production \
+        --build-arg NUXT_PUBLIC_KRATOS_URL="${KRATOS_PUBLIC_URL}" \
+        --build-arg NUXT_PUBLIC_API_BASE="${VPS_API_BASE}" \
         -t homassyweb:latest \
         -f Homassy.Web/Dockerfile \
         Homassy.Web || error "Failed to build Web image"
@@ -340,6 +344,34 @@ transfer_env_file() {
     success "Environment file transferred (API base set to $VPS_API_BASE)"
 }
 
+transfer_kratos_config() {
+    log "Transferring Kratos configuration files..."
+
+    # Remove any existing Kratos config (in case it was a file instead of directory)
+    eval "$SSH_CMD 'sudo rm -rf $DEPLOY_PATH/Homassy.Kratos'" || \
+        warn "Could not remove existing Kratos directory"
+
+    # Create Kratos directory on VPS with proper permissions
+    eval "$SSH_CMD 'sudo mkdir -p $DEPLOY_PATH/Homassy.Kratos/templates && sudo chown -R $VPS_USER:$VPS_USER $DEPLOY_PATH/Homassy.Kratos'" || \
+        error "Failed to create Kratos config directory"
+
+    # Transfer kratos.yml (production config)
+    eval "$SCP_CMD '$SCRIPT_DIR/Homassy.Kratos/kratos.production.yml' '$VPS_USER@$VPS_HOST:$DEPLOY_PATH/Homassy.Kratos/kratos.yml'" || \
+        error "Failed to transfer kratos.yml"
+
+    # Transfer identity schema
+    eval "$SCP_CMD '$SCRIPT_DIR/Homassy.Kratos/identity.schema.json' '$VPS_USER@$VPS_HOST:$DEPLOY_PATH/Homassy.Kratos/'" || \
+        error "Failed to transfer identity.schema.json"
+
+    # Transfer templates directory
+    if [[ -d "$SCRIPT_DIR/Homassy.Kratos/templates" ]]; then
+        eval "$SCP_CMD -r '$SCRIPT_DIR/Homassy.Kratos/templates/' '$VPS_USER@$VPS_HOST:$DEPLOY_PATH/Homassy.Kratos/'" || \
+            error "Failed to transfer Kratos templates"
+    fi
+
+    success "Kratos configuration transferred"
+}
+
 # =============================================================================
 # Deployment Phase
 # =============================================================================
@@ -375,6 +407,10 @@ stop_existing_containers() {
         log "No running containers found"
     fi
 
+    # Force remove kratos container to clear cached mount config
+    log "Cleaning up Kratos container (clearing mount cache)..."
+    eval "$SSH_CMD 'docker rm -f homassy-kratos 2>/dev/null || true'"
+
     # Verify postgres-data volume exists and warn if not
     local volume_exists=$(eval "$SSH_CMD 'docker volume ls -q | grep -w $VOLUME_NAME'" || echo "")
 
@@ -391,6 +427,14 @@ stop_existing_containers() {
 
 start_services() {
     log "Starting services with production configuration..."
+
+    # Verify Kratos config files are actual files (not directories from failed mounts)
+    log "Verifying Kratos configuration..."
+    eval "$SSH_CMD 'test -f $DEPLOY_PATH/Homassy.Kratos/kratos.yml'" || \
+        error "kratos.yml is missing or not a file. Re-run deployment."
+    eval "$SSH_CMD 'test -f $DEPLOY_PATH/Homassy.Kratos/identity.schema.json'" || \
+        error "identity.schema.json is missing or not a file. Re-run deployment."
+    success "Kratos config files verified"
 
     # Ensure network exists
     eval "$SSH_CMD 'docker network inspect $NETWORK_NAME >/dev/null 2>&1 || docker network create $NETWORK_NAME'" || \
@@ -563,6 +607,7 @@ main() {
     transfer_docker_images
     transfer_compose_files
     transfer_env_file
+    transfer_kratos_config
 
     echo ""
     success "Transfer phase complete"

@@ -28,7 +28,7 @@ public class EmailServiceHealthCheckTests
     }
 
     [Fact]
-    public async Task CheckHealthAsync_WhenSmtpServerNotConfigured_ReturnsUnhealthy()
+    public async Task CheckHealthAsync_WhenSmtpServerNotConfigured_ReturnsDegraded()
     {
         var config = new Dictionary<string, string?>
         {
@@ -39,12 +39,13 @@ public class EmailServiceHealthCheckTests
 
         var result = await healthCheck.CheckHealthAsync(new HealthCheckContext());
 
-        Assert.Equal(HealthStatus.Unhealthy, result.Status);
+        // Returns Degraded (not Unhealthy) because email is optional when Kratos handles emails
+        Assert.Equal(HealthStatus.Degraded, result.Status);
         Assert.Contains("configuration is missing", result.Description);
     }
 
     [Fact]
-    public async Task CheckHealthAsync_WhenSmtpPortNotConfigured_ReturnsUnhealthy()
+    public async Task CheckHealthAsync_WhenSmtpPortNotConfigured_ReturnsDegraded()
     {
         var config = new Dictionary<string, string?>
         {
@@ -55,12 +56,13 @@ public class EmailServiceHealthCheckTests
 
         var result = await healthCheck.CheckHealthAsync(new HealthCheckContext());
 
-        Assert.Equal(HealthStatus.Unhealthy, result.Status);
+        // Returns Degraded (not Unhealthy) because email is optional when Kratos handles emails
+        Assert.Equal(HealthStatus.Degraded, result.Status);
         Assert.Contains("configuration is missing", result.Description);
     }
 
     [Fact]
-    public async Task CheckHealthAsync_WhenSmtpServerEmpty_ReturnsUnhealthy()
+    public async Task CheckHealthAsync_WhenSmtpServerEmpty_ReturnsDegraded()
     {
         var config = new Dictionary<string, string?>
         {
@@ -71,7 +73,8 @@ public class EmailServiceHealthCheckTests
 
         var result = await healthCheck.CheckHealthAsync(new HealthCheckContext());
 
-        Assert.Equal(HealthStatus.Unhealthy, result.Status);
+        // Returns Degraded (not Unhealthy) because email is optional when Kratos handles emails
+        Assert.Equal(HealthStatus.Degraded, result.Status);
     }
 
     [Fact]

@@ -1,22 +1,18 @@
 using Homassy.API.Services.Background;
-using Microsoft.Extensions.DependencyInjection;
 
 namespace Homassy.Tests.Unit;
 
+/// <summary>
+/// Tests for TokenCleanupService.
+/// Note: TokenCleanupService is now a no-op since Kratos handles session management.
+/// These tests verify the service starts and stops gracefully.
+/// </summary>
 public class TokenCleanupServiceTests
 {
-    private static IServiceScopeFactory CreateMockScopeFactory()
-    {
-        var services = new ServiceCollection();
-        var serviceProvider = services.BuildServiceProvider();
-        return serviceProvider.GetRequiredService<IServiceScopeFactory>();
-    }
-
     [Fact]
     public async Task ExecuteAsync_WhenCancelled_StopsGracefully()
     {
-        var scopeFactory = CreateMockScopeFactory();
-        var service = new TokenCleanupService(scopeFactory);
+        var service = new TokenCleanupService();
         var cts = new CancellationTokenSource();
 
         var startTask = service.StartAsync(cts.Token);
@@ -30,11 +26,9 @@ public class TokenCleanupServiceTests
     }
 
     [Fact]
-    public void Constructor_WithValidScopeFactory_DoesNotThrow()
+    public void Constructor_DoesNotThrow()
     {
-        var scopeFactory = CreateMockScopeFactory();
-
-        var exception = Record.Exception(() => new TokenCleanupService(scopeFactory));
+        var exception = Record.Exception(() => new TokenCleanupService());
 
         Assert.Null(exception);
     }

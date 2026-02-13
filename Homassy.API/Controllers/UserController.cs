@@ -25,12 +25,18 @@ namespace Homassy.API.Controllers
         private readonly IImageProcessingService _imageProcessingService;
         private readonly IProgressTrackerService _progressTrackerService;
         private readonly IWebPushService _webPushService;
+        private readonly IKratosService _kratosService;
 
-        public UserController(IImageProcessingService imageProcessingService, IProgressTrackerService progressTrackerService, IWebPushService webPushService)
+        public UserController(
+            IImageProcessingService imageProcessingService, 
+            IProgressTrackerService progressTrackerService, 
+            IWebPushService webPushService,
+            IKratosService kratosService)
         {
             _imageProcessingService = imageProcessingService;
             _progressTrackerService = progressTrackerService;
             _webPushService = webPushService;
+            _kratosService = kratosService;
         }
 
         /// <summary>
@@ -59,7 +65,7 @@ namespace Homassy.API.Controllers
                 return BadRequest(ApiResponse.ErrorResponse(ErrorCodes.ValidationInvalidRequest));
             }
 
-            await new UserFunctions().UpdateUserProfileAsync(request, cancellationToken);
+            await new UserFunctions().UpdateUserProfileAsync(request, _kratosService, cancellationToken);
             return Ok(ApiResponse.SuccessResponse());
         }
 
@@ -77,7 +83,7 @@ namespace Homassy.API.Controllers
                 return BadRequest(ApiResponse.ErrorResponse(ErrorCodes.ValidationInvalidRequest));
             }
 
-            var imageInfo = await new ImageFunctions(_imageProcessingService).UploadUserProfileImageAsync(request, null, cancellationToken);
+            var imageInfo = await new ImageFunctions(_imageProcessingService, _kratosService).UploadUserProfileImageAsync(request, null, cancellationToken);
             return Ok(ApiResponse<UserProfileImageInfo>.SuccessResponse(imageInfo));
         }
 
@@ -109,7 +115,7 @@ namespace Homassy.API.Controllers
                         _progressTrackerService.UpdateProgress(jobId, info.Percentage, info.Stage, info.Status);
                     });
 
-                    await new ImageFunctions(_imageProcessingService).UploadUserProfileImageAsync(request, progress, cancellationToken);
+                    await new ImageFunctions(_imageProcessingService, _kratosService).UploadUserProfileImageAsync(request, progress, cancellationToken);
                     
                     _progressTrackerService.CompleteJob(jobId);
                 }
@@ -137,7 +143,7 @@ namespace Homassy.API.Controllers
         [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status400BadRequest)]
         public async Task<IActionResult> DeleteProfilePicture(CancellationToken cancellationToken)
         {
-            await new ImageFunctions(_imageProcessingService).DeleteUserProfileImageAsync(cancellationToken);
+            await new ImageFunctions(_imageProcessingService, _kratosService).DeleteUserProfileImageAsync(cancellationToken);
             return Ok(ApiResponse.SuccessResponse());
         }
 

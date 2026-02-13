@@ -633,6 +633,10 @@ namespace Homassy.API.Migrations
                     b.Property<bool>("IsDeleted")
                         .HasColumnType("boolean");
 
+                    b.Property<string>("KratosIdentityId")
+                        .HasMaxLength(36)
+                        .HasColumnType("character varying(36)");
+
                     b.Property<DateTime>("LastLoginAt")
                         .HasColumnType("timestamp with time zone");
 
@@ -656,76 +660,6 @@ namespace Homassy.API.Migrations
                     b.HasKey("Id");
 
                     b.ToTable("Users");
-                });
-
-            modelBuilder.Entity("Homassy.API.Entities.User.UserAuthentication", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("integer");
-
-                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
-
-                    b.Property<string>("AccessToken")
-                        .HasColumnType("text");
-
-                    b.Property<DateTime?>("AccessTokenExpiry")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<DateTime?>("BanExpiresAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<int>("FailedLoginAttempts")
-                        .HasColumnType("integer");
-
-                    b.Property<bool>("IsDeleted")
-                        .HasColumnType("boolean");
-
-                    b.Property<DateTime?>("LastFailedLoginAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<DateTime?>("LockedOutUntil")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<string>("PreviousRefreshToken")
-                        .HasColumnType("text");
-
-                    b.Property<DateTime?>("PreviousRefreshTokenExpiry")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<Guid>("PublicId")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uuid")
-                        .HasDefaultValueSql("gen_random_uuid()");
-
-                    b.Property<string>("RecordChange")
-                        .IsRequired()
-                        .HasColumnType("text");
-
-                    b.Property<string>("RefreshToken")
-                        .HasColumnType("text");
-
-                    b.Property<DateTime?>("RefreshTokenExpiry")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<Guid?>("TokenFamily")
-                        .HasColumnType("uuid");
-
-                    b.Property<int>("UserId")
-                        .HasColumnType("integer");
-
-                    b.Property<string>("VerificationCode")
-                        .HasColumnType("text");
-
-                    b.Property<DateTime?>("VerificationCodeExpiry")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("UserId")
-                        .IsUnique();
-
-                    b.ToTable("UserAuthentications");
                 });
 
             modelBuilder.Entity("Homassy.API.Entities.User.UserNotificationPreferences", b =>
@@ -958,17 +892,6 @@ namespace Homassy.API.Migrations
                     b.Navigation("ShoppingList");
                 });
 
-            modelBuilder.Entity("Homassy.API.Entities.User.UserAuthentication", b =>
-                {
-                    b.HasOne("Homassy.API.Entities.User.User", "User")
-                        .WithOne("Authentication")
-                        .HasForeignKey("Homassy.API.Entities.User.UserAuthentication", "UserId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("User");
-                });
-
             modelBuilder.Entity("Homassy.API.Entities.User.UserNotificationPreferences", b =>
                 {
                     b.HasOne("Homassy.API.Entities.User.User", "User")
@@ -1033,8 +956,6 @@ namespace Homassy.API.Migrations
 
             modelBuilder.Entity("Homassy.API.Entities.User.User", b =>
                 {
-                    b.Navigation("Authentication");
-
                     b.Navigation("NotificationPreferences");
 
                     b.Navigation("Profile");
