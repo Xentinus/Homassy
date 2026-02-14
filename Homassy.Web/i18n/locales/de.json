@@ -150,7 +150,14 @@
     "passkeyAvailable": "Passkey verfügbar",
     "sendCodeToEmail": "Code per E-Mail senden",
     "orContinueWithCode": "oder mit Code fortfahren",
-    "selectYourPasskey": "Wählen Sie Ihren Passkey aus den Browser-Vorschlägen"
+    "selectYourPasskey": "Wählen Sie Ihren Passkey aus den Browser-Vorschlägen",
+    "alreadyLoggedIn": {
+      "title": "Bereits angemeldet",
+      "description": "Sie sind derzeit angemeldet als {email}",
+      "continueButton": "Fortfahren",
+      "switchAccountButton": "Mit anderem Konto anmelden"
+    },
+    "switchAccountError": "Abmelden fehlgeschlagen. Bitte versuchen Sie es erneut."
   },
   "validation": {
     "emailRequired": "E-Mail-Adresse ist erforderlich",

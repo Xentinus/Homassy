@@ -152,7 +152,14 @@
     "passkeyAvailable": "Jelszókulcs elérhető",
     "sendCodeToEmail": "Kód küldése e-mailben",
     "orContinueWithCode": "vagy folytatás kóddal",
-    "selectYourPasskey": "Válaszd ki a jelszókulcsod a böngésző javaslatai közül"
+    "selectYourPasskey": "Válaszd ki a jelszókulcsod a böngésző javaslatai közül",
+    "alreadyLoggedIn": {
+      "title": "Már be vagy jelentkezve",
+      "description": "Jelenleg be vagy jelentkezve mint {email}",
+      "continueButton": "Folytatás",
+      "switchAccountButton": "Bejelentkezés másik fiókba"
+    },
+    "switchAccountError": "Nem sikerült kijelentkezni. Kérjük, próbáld újra."
   },
   "validation": {
     "emailRequired": "Az email cím megadása kötelező",

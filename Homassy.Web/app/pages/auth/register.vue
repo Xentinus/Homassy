@@ -24,6 +24,8 @@ const loading = ref(true)
 const submitting = ref(false)
 const flow = ref<RegistrationFlow | null>(null)
 const error = ref<string | null>(null)
+
+// Registration flow state
 const step = ref<'details' | 'code'>('details')
 const email = ref('')
 const name = ref('')
@@ -73,11 +75,20 @@ onMounted(async () => {
   // Initialize auth state
   await authStore.initialize()
 
-  // If already authenticated, redirect to activity
+  // If already authenticated, automatically log out to proceed with registration
   if (authStore.isAuthenticated) {
-    console.debug('[Register] User is authenticated, redirecting to activity')
-    await router.push('/activity')
-    return
+    console.debug('[Register] User is already authenticated, logging out to proceed with registration')
+    try {
+      // Logout and create fresh registration flow
+      flow.value = await kratos.logoutAndCreateFlow('registration')
+      loading.value = false
+      return
+    } catch (logoutError) {
+      console.error('[Register] Failed to logout:', logoutError)
+      error.value = t('auth.switchAccountError')
+      loading.value = false
+      return
+    }
   }
 
   // Check for flow ID in URL (redirect from Kratos)
@@ -124,6 +135,23 @@ onMounted(async () => {
     }
   } catch (e: any) {
     console.error('[Register] Failed to initialize registration flow:', e)
+    
+    // Check if error is "already logged in"
+    if (e.message?.toLowerCase().includes('already logged in')) {
+      // Session might have been created after initialize() - logout and retry
+      console.debug('[Register] Detected session after initialize, logging out')
+      try {
+        flow.value = await kratos.logoutAndCreateFlow('registration')
+        loading.value = false
+        return
+      } catch (logoutError) {
+        console.error('[Register] Failed to logout:', logoutError)
+        error.value = t('auth.switchAccountError')
+        loading.value = false
+        return
+      }
+    }
+    
     error.value = e.message || t('auth.registrationFlowError')
     
     // If flow expired, create a new one

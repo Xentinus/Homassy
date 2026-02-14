@@ -92,13 +92,6 @@ onMounted(async () => {
   // Initialize auth state
   await authStore.initialize()
 
-  // If already authenticated with valid user, redirect to activity
-  if (authStore.isAuthenticated) {
-    console.debug('[Index] User is authenticated, redirecting to activity')
-    await router.push('/activity')
-    return
-  }
-
   console.debug('[Index] Ready to show landing page')
 })
 

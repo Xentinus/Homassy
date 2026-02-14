@@ -441,6 +441,48 @@ export const useKratos = () => {
   }
 
   /**
+   * Logout current session and create a fresh flow
+   * Used when user wants to switch accounts while already logged in
+   * @param flowType - Type of flow to create after logout ('login' or 'registration')
+   * @returns The newly created flow, or null if logout failed
+   */
+  const logoutAndCreateFlow = async (
+    flowType: 'login' | 'registration'
+  ): Promise<LoginFlow | RegistrationFlow | null> => {
+    try {
+      console.debug(`[Kratos] Logging out to create fresh ${flowType} flow`)
+      
+      // 1. Get logout URL
+      const logoutUrl = await getLogoutUrl()
+      
+      // 2. Execute logout by calling the logout URL
+      if (logoutUrl) {
+        await $fetch(logoutUrl, {
+          method: 'GET',
+          credentials: 'include'
+        })
+        console.debug('[Kratos] Logout successful')
+      }
+      
+      // 3. Clear auth store
+      const authStore = useAuthStore()
+      authStore.logout()
+      
+      // 4. Create new flow
+      if (flowType === 'login') {
+        console.debug('[Kratos] Creating fresh login flow')
+        return await createLoginFlow(false)
+      } else {
+        console.debug('[Kratos] Creating fresh registration flow')
+        return await createRegistrationFlow()
+      }
+    } catch (error: any) {
+      console.error(`[Kratos] Failed to logout and create ${flowType} flow:`, error)
+      throw parseKratosError(error)
+    }
+  }
+
+  /**
    * Extract CSRF token from a flow's UI nodes
    */
   const getCsrfToken = (nodes: UiNode[]): string | undefined => {
@@ -634,6 +676,7 @@ export const useKratos = () => {
     // Logout
     logout,
     getLogoutUrl,
+    logoutAndCreateFlow,
     
     // Helpers
     getCsrfToken,

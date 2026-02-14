@@ -152,7 +152,14 @@
     "passkeyAvailable": "Passkey available",
     "sendCodeToEmail": "Send code to email",
     "orContinueWithCode": "or continue with code",
-    "selectYourPasskey": "Select your passkey from the browser suggestions"
+    "selectYourPasskey": "Select your passkey from the browser suggestions",
+    "alreadyLoggedIn": {
+      "title": "Already Logged In",
+      "description": "You are currently logged in as {email}",
+      "continueButton": "Continue",
+      "switchAccountButton": "Sign in to another account"
+    },
+    "switchAccountError": "Failed to sign out. Please try again."
   },
   "validation": {
     "emailRequired": "Email is required",
