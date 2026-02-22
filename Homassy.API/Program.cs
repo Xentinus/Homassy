@@ -24,6 +24,7 @@ Log.Logger = new LoggerConfiguration()
     .MinimumLevel.Debug()
     .MinimumLevel.Override("Microsoft", LogEventLevel.Information)
     .MinimumLevel.Override("Microsoft.AspNetCore", LogEventLevel.Warning)
+    .MinimumLevel.Override("Microsoft.AspNetCore.Authentication", LogEventLevel.Warning)
     .MinimumLevel.Override("Microsoft.EntityFrameworkCore", LogEventLevel.Warning)
     .MinimumLevel.Override("System", LogEventLevel.Warning)
     .Enrich.FromLogContext()
@@ -49,7 +50,6 @@ try
     HomassyDbContext.SetConfiguration(builder.Configuration);
 
     ConfigService.Initialize(builder.Configuration);
-    // EmailService and JWT removed - using Kratos for authentication
 
     builder.Services.AddDbContext<HomassyDbContext>(options =>
         options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection")));
@@ -64,9 +64,6 @@ try
     builder.Services.AddSingleton<IImageProcessingService, ImageProcessingService>();
     builder.Services.AddSingleton<IProgressTrackerService, ProgressTrackerService>();
 
-    // Email services removed - Kratos Courier handles authentication emails
-    // TokenCleanupService removed - using Kratos for session management
-
     // Kratos service registration
     builder.Services.AddHttpClient<IKratosService, KratosService>();
 
@@ -76,9 +73,8 @@ try
     builder.Services.Configure<HttpsSettings>(builder.Configuration.GetSection("Https"));
     builder.Services.Configure<RequestTimeoutSettings>(builder.Configuration.GetSection("RequestTimeout"));
     builder.Services.Configure<HealthCheckOptions>(builder.Configuration.GetSection("HealthChecks"));
-    // AccountLockoutSettings removed - Kratos handles rate limiting and lockout
     builder.Services.Configure<GracefulShutdownSettings>(builder.Configuration.GetSection("GracefulShutdown"));
-    
+
     var httpsSettings = builder.Configuration.GetSection("Https").Get<HttpsSettings>() ?? new HttpsSettings();
     var gracefulShutdownSettings = builder.Configuration.GetSection("GracefulShutdown").Get<GracefulShutdownSettings>() ?? new GracefulShutdownSettings();
 
@@ -227,14 +223,9 @@ try
             tags: ["db", "ready"])
         .AddCheck<OpenFoodFactsHealthCheck>(
             "openfoodfacts",
-            tags: ["external"])
-        .AddCheck<EmailServiceHealthCheck>(
-            "email",
             tags: ["external"]);
 
     var app = builder.Build();
-
-    // Email queue service setup removed - Kratos handles authentication emails
 
     using (var scope = app.Services.CreateScope())
     {

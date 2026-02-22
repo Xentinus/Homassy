@@ -186,6 +186,7 @@
       "title": "Homassy",
       "description": "Kezeld a háztartási készleted, bevásárlólistáid és oszd meg mindent a családoddal.",
       "heroBadge": "Ingyenes és nyílt forráskódú",
+      "heroLink": "Összes funkció megtekintése ↓",
       "keyFeatures": "Főbb funkciók",
       "features": {
         "userAuth": {

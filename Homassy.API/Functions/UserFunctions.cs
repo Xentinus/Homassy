@@ -21,18 +21,13 @@ namespace Homassy.API.Functions
     {
         private static readonly ConcurrentDictionary<int, User> _userCache = new();
         private static readonly ConcurrentDictionary<int, UserProfile> _userProfileCache = new();
-        // _userAuthCache removed - using Kratos for authentication
         private static readonly ConcurrentDictionary<int, UserNotificationPreferences> _userNotificationPrefsCache = new();
-
-        // _emailQueueService removed - Kratos handles authentication emails
 
         public static bool Inited = false;
 
         public UserFunctions()
         {
         }
-
-        // SetEmailQueueService removed - Kratos handles authentication emails
 
         #region Cache Management
         public async Task InitializeCacheAsync(CancellationToken cancellationToken = default)
@@ -43,8 +38,6 @@ namespace Homassy.API.Functions
 
             var profiles = await context.UserProfiles
                 .ToListAsync(cancellationToken);
-
-            // UserAuthentications removed - using Kratos for authentication
 
             var notificationPreferences = await context.UserNotificationPreferences
                 .ToListAsync(cancellationToken);
@@ -60,8 +53,6 @@ namespace Homassy.API.Functions
                 {
                     _userProfileCache[profile.UserId] = profile;
                 }
-
-                // Authentication cache removed - using Kratos
 
                 foreach (var notificationPreference in notificationPreferences)
                 {
@@ -159,8 +150,6 @@ namespace Homassy.API.Functions
             }
         }
 
-        // RefreshUserAuthCacheAsync removed - using Kratos for authentication
-
         public async Task RefreshUserNotificationCacheAsync(int recordId, CancellationToken cancellationToken = default)
         {
             try
@@ -245,8 +234,6 @@ namespace Homassy.API.Functions
             return profile;
         }
 
-        // GetUserAuthenticationByUserId removed - using Kratos for authentication
-
         public UserNotificationPreferences? GetUserNotificationPreferencesByUserId(int? userId)
         {
             if (userId == null) return null;
@@ -271,33 +258,30 @@ namespace Homassy.API.Functions
         {
             if (userId == null) return null;
             User? user = null;
-            
+
             if (Inited)
             {
                 _userCache.TryGetValue((int)userId, out user);
-                
+
                 if (user != null)
                 {
-                    // Compose user data from all caches
                     _userProfileCache.TryGetValue((int)userId, out var profile);
-                    // Auth cache removed - using Kratos
                     _userNotificationPrefsCache.TryGetValue((int)userId, out var notificationPrefs);
-                    
+
                     user.Profile = profile;
                     user.NotificationPreferences = notificationPrefs;
                 }
             }
-            
+
             if (user == null)
             {
                 var context = new HomassyDbContext();
                 user = context.Users
                     .Include(i => i.Profile)
-                    // Authentication include removed - using Kratos
                     .Include(i => i.NotificationPreferences)
                     .FirstOrDefault(u => u.Id == userId);
             }
-            
+
             return user;
         }
 
@@ -311,9 +295,7 @@ namespace Homassy.API.Functions
                 user = _userCache.Values.FirstOrDefault(u => u.PublicId == publicId);
                 if (user != null)
                 {
-                    // Compose user data from all caches
                     _userProfileCache.TryGetValue(user.Id, out var profile);
-                    // Auth cache removed - using Kratos
                     _userNotificationPrefsCache.TryGetValue(user.Id, out var notificationPrefs);
                     user.Profile = profile;
                     user.NotificationPreferences = notificationPrefs;
@@ -343,9 +325,7 @@ namespace Homassy.API.Functions
                 user = _userCache.Values.FirstOrDefault(u => u.Email == normalizedEmail);
                 if (user != null)
                 {
-                    // Compose user data from all caches
                     _userProfileCache.TryGetValue(user.Id, out var profile);
-                    // Auth cache removed - using Kratos
                     _userNotificationPrefsCache.TryGetValue(user.Id, out var notificationPrefs);
                     user.Profile = profile;
                     user.NotificationPreferences = notificationPrefs;
@@ -357,7 +337,6 @@ namespace Homassy.API.Functions
                 var context = new HomassyDbContext();
                 user = context.Users
                     .Include(i => i.Profile)
-                    // Authentication include removed - using Kratos
                     .Include(i => i.NotificationPreferences)
                     .FirstOrDefault(u => u.Email == normalizedEmail);
             }
@@ -485,9 +464,7 @@ namespace Homassy.API.Functions
                 {
                     if (_userCache.TryGetValue(id, out var user))
                     {
-                        // Compose user data from all caches
                         _userProfileCache.TryGetValue(id, out var profile);
-                        // Auth cache removed - using Kratos
                         _userNotificationPrefsCache.TryGetValue(id, out var notificationPrefs);
 
                         user.Profile = profile;
@@ -511,7 +488,6 @@ namespace Homassy.API.Functions
                 var context = new HomassyDbContext();
                 var dbUsers = context.Users
                     .Include(i => i.Profile)
-                    // Authentication include removed - using Kratos
                     .Include(i => i.NotificationPreferences)
                     .Where(u => missingIds.Contains(u.Id))
                     .ToList();
@@ -619,9 +595,6 @@ namespace Homassy.API.Functions
             return result;
         }
 
-        // GetUserAuthByUserId removed - using Kratos for authentication
-        // GetUserAuthsByUserIds removed - using Kratos for authentication
-
         public UserNotificationPreferences? GetUserPrefsByUserId(int? userId)
         {
             if (userId == null) return null;
@@ -709,8 +682,6 @@ namespace Homassy.API.Functions
                 DefaultCurrency = defaultCurrency
             };
 
-            // UserAuthentication removed - using Kratos for authentication
-
             var notificationPreferences = new UserNotificationPreferences
             {
                 User = user
@@ -736,8 +707,6 @@ namespace Homassy.API.Functions
 
             return user;
         }
-
-        // RegisterAsync removed - Kratos handles user registration directly
 
         public async Task<FamilyInfo> JoinFamilyAsync(JoinFamilyRequest request, CancellationToken cancellationToken = default)
         {
@@ -890,8 +859,6 @@ namespace Homassy.API.Functions
             }
         }
         #endregion
-
-        // Authentication Management region removed - using Kratos for authentication
 
         #region Profile Management
         public UserProfileResponse GetProfileAsync()
@@ -1124,7 +1091,6 @@ namespace Homassy.API.Functions
         #endregion
 
         #region Current User
-        // LogoutAsync removed - using Kratos for session management
 
         public UserInfo GetCurrentUser()
         {
@@ -1239,11 +1205,6 @@ namespace Homassy.API.Functions
                 context.UserNotificationPreferences.Add(notificationPrefs);
                 await context.SaveChangesAsync(cancellationToken);
                 await transaction.CommitAsync(cancellationToken);
-
-                // Update cache
-                _userCache[user.Id] = user;
-                _userProfileCache[user.Id] = profile;
-                _userNotificationPrefsCache[user.Id] = notificationPrefs;
 
                 Log.Information($"Created local user {user.Id} for Kratos identity {identity.Id}");
                 return user;
@@ -1362,13 +1323,6 @@ namespace Homassy.API.Functions
 
                 await context.SaveChangesAsync(cancellationToken);
 
-                // Update cache
-                _userCache[user.Id] = user;
-                if (profile != null)
-                {
-                    _userProfileCache[user.Id] = profile;
-                }
-
                 Log.Debug($"Synced user {user.Id} with Kratos identity {identity.Id}");
                 return user;
             }
@@ -1398,9 +1352,6 @@ namespace Homassy.API.Functions
                 user.KratosIdentityId = kratosIdentityId;
                 await context.SaveChangesAsync(cancellationToken);
 
-                // Update cache
-                _userCache[userId] = user;
-
                 Log.Information($"Linked user {userId} to Kratos identity {kratosIdentityId}");
             }
             catch (Exception ex)
@@ -1423,9 +1374,6 @@ namespace Homassy.API.Functions
 
                 user.LastLoginAt = DateTime.UtcNow;
                 await context.SaveChangesAsync(cancellationToken);
-
-                // Update cache
-                _userCache[userId] = user;
             }
             catch (Exception ex)
             {
@@ -1561,7 +1509,5 @@ namespace Homassy.API.Functions
             }
         }
         #endregion
-
-        // Email Helpers removed - Kratos handles authentication emails
     }
 }

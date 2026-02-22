@@ -42,13 +42,13 @@ namespace Homassy.API.Services
                     try
                     {
                         await Task.Delay(TimeSpan.FromSeconds(5), stoppingToken);
-                        
+
                         // Only log if LISTEN is not active
                         if (!_isListenActive)
                         {
                             Log.Debug("Fallback polling active (LISTEN degraded)");
                         }
-                        
+
                         await ProcessTableChangesAsync(stoppingToken);
                     }
                     catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested)
@@ -191,7 +191,7 @@ namespace Homassy.API.Services
             {
                 using var scope = _scopeFactory.CreateScope();
                 var context = scope.ServiceProvider.GetRequiredService<HomassyDbContext>();
-                
+
                 var maxId = await context.TableRecordChanges
                     .AsNoTracking()
                     .MaxAsync(t => (int?)t.Id, cancellationToken);
@@ -219,7 +219,7 @@ namespace Homassy.API.Services
             {
                 using var scope = _scopeFactory.CreateScope();
                 var context = scope.ServiceProvider.GetRequiredService<HomassyDbContext>();
-                
+
                 var newChanges = await context.TableRecordChanges
                     .AsNoTracking()
                     .Where(t => t.Id > _lastProcessedId)
@@ -263,8 +263,6 @@ namespace Homassy.API.Services
                 case TableNames.Users:
                     await new UserFunctions().RefreshUserCacheAsync(change.RecordId);
                     break;
-
-                // UserAuthentications cache removed - using Kratos for auth
 
                 case TableNames.UserNotificationPreferences:
                     await new UserFunctions().RefreshUserNotificationCacheAsync(change.RecordId);
