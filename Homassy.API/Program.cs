@@ -69,6 +69,7 @@ try
 
     builder.Services.AddSingleton<IWebPushService, WebPushService>();
     builder.Services.AddHostedService<PushNotificationSchedulerService>();
+    builder.Services.AddHostedService<ShoppingListActivityMonitorService>();
 
     builder.Services.Configure<HttpsSettings>(builder.Configuration.GetSection("Https"));
     builder.Services.Configure<RequestTimeoutSettings>(builder.Configuration.GetSection("RequestTimeout"));
