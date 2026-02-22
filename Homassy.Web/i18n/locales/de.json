@@ -157,7 +157,9 @@
       "continueButton": "Fortfahren",
       "switchAccountButton": "Mit anderem Konto anmelden"
     },
-    "switchAccountError": "Abmelden fehlgeschlagen. Bitte versuchen Sie es erneut."
+    "switchAccountError": "Abmelden fehlgeschlagen. Bitte versuchen Sie es erneut.",
+    "registrationDisabled": "Registrierung derzeit nicht verfügbar",
+    "registrationDisabledDescription": "Das Erstellen neuer Konten ist momentan nicht möglich."
   },
   "validation": {
     "emailRequired": "E-Mail-Adresse ist erforderlich",

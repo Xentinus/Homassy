@@ -26,10 +26,12 @@ namespace Homassy.API.Controllers
     public class AuthController : ControllerBase
     {
         private readonly IKratosService _kratosService;
+        private readonly IConfiguration _configuration;
 
-        public AuthController(IKratosService kratosService)
+        public AuthController(IKratosService kratosService, IConfiguration configuration)
         {
             _kratosService = kratosService;
+            _configuration = configuration;
         }
 
         /// <summary>
@@ -48,6 +50,20 @@ namespace Homassy.API.Controllers
             if (kratosSession == null)
             {
                 return Unauthorized(ApiResponse.ErrorResponse(ErrorCodes.AuthInvalidCredentials));
+            }
+
+            // If registration is disabled, block creation of brand-new local users
+            var registrationEnabled = _configuration.GetValue<bool>("RegistrationEnabled", true);
+            if (!registrationEnabled)
+            {
+                var existingUser = new UserFunctions().GetUserByKratosIdentityId(kratosSession.Identity.Id)
+                    ?? new UserFunctions().GetUserByEmailAddress(kratosSession.Identity.Traits.Email);
+
+                if (existingUser == null)
+                {
+                    Log.Warning($"Registration is disabled. Blocking new user creation for Kratos identity {kratosSession.Identity.Id}");
+                    return StatusCode(403, ApiResponse.ErrorResponse(ErrorCodes.AuthRegistrationDisabled));
+                }
             }
 
             // Ensure local user record exists and is synced with Kratos
@@ -134,21 +150,23 @@ namespace Homassy.API.Controllers
 
         /// <summary>
         /// Gets the Kratos configuration URLs for frontend use.
+        /// Includes RegistrationEnabled flag so the frontend can conditionally render registration UI.
         /// </summary>
         [HttpGet("config")]
         [MapToApiVersion(1.0)]
         [ProducesResponseType(typeof(ApiResponse<KratosConfig>), StatusCodes.Status200OK)]
-        public IActionResult GetKratosConfig([FromServices] IConfiguration configuration)
+        public IActionResult GetKratosConfig()
         {
             var config = new KratosConfig
             {
-                PublicUrl = configuration["Kratos:PublicUrl"] ?? "http://localhost:4433",
+                PublicUrl = _configuration["Kratos:PublicUrl"] ?? "http://localhost:4433",
                 LoginUrl = "/self-service/login/browser",
                 RegistrationUrl = "/self-service/registration/browser",
                 LogoutUrl = "/self-service/logout/browser",
                 SettingsUrl = "/self-service/settings/browser",
                 RecoveryUrl = "/self-service/recovery/browser",
-                VerificationUrl = "/self-service/verification/browser"
+                VerificationUrl = "/self-service/verification/browser",
+                RegistrationEnabled = _configuration.GetValue<bool>("RegistrationEnabled", true)
             };
 
             return Ok(ApiResponse<KratosConfig>.SuccessResponse(config));
@@ -211,5 +229,6 @@ namespace Homassy.API.Controllers
         public string SettingsUrl { get; set; } = string.Empty;
         public string RecoveryUrl { get; set; } = string.Empty;
         public string VerificationUrl { get; set; } = string.Empty;
+        public bool RegistrationEnabled { get; set; } = true;
     }
 }

@@ -24,6 +24,7 @@ const loading = ref(true)
 const submitting = ref(false)
 const flow = ref<RegistrationFlow | null>(null)
 const error = ref<string | null>(null)
+const registrationEnabled = ref(true)
 
 // Registration flow state
 const step = ref<'details' | 'code'>('details')
@@ -71,6 +72,22 @@ onBeforeUnmount(() => {
 // Check if user is already authenticated on mount
 onMounted(async () => {
   console.debug('[Register] Checking existing authentication...')
+
+  // Check if registration is enabled before initializing Kratos flow
+  try {
+    const nuxtApp = useNuxtApp()
+    const $api = nuxtApp.$api as any
+    const configResponse = await $api('/api/v1.0/auth/config') as any
+    registrationEnabled.value = configResponse?.data?.registrationEnabled ?? true
+  } catch {
+    // If config fetch fails, default to enabled so we don't block registration unnecessarily
+    registrationEnabled.value = true
+  }
+
+  if (!registrationEnabled.value) {
+    loading.value = false
+    return
+  }
   
   // Initialize auth state
   await authStore.initialize()
@@ -379,7 +396,7 @@ function goBack() {
     <UPageCard class="w-full max-w-md">
       <div class="space-y-6">
         <!-- Header -->
-        <div class="flex flex-col text-center">
+        <div v-if="registrationEnabled" class="flex flex-col text-center">
           <div class="mb-2">
             <UIcon name="i-lucide-user-plus" class="size-8 shrink-0 inline-block" />
           </div>
@@ -390,6 +407,20 @@ function goBack() {
           </p>
         </div>
 
+        <!-- Registration Disabled State -->
+        <div v-if="!registrationEnabled && !loading" class="text-center space-y-4">
+          <div class="flex justify-center">
+            <UIcon name="i-heroicons-lock-closed" class="size-12 text-muted" />
+          </div>
+          <div>
+            <h3 class="text-lg font-semibold text-highlighted">{{ $t('auth.registrationDisabled') }}</h3>
+            <p class="mt-1 text-sm text-muted">{{ $t('auth.registrationDisabledDescription') }}</p>
+          </div>
+          <UButton to="/auth/login" variant="soft">
+            {{ $t('auth.signIn') }}
+          </UButton>
+        </div>
+
         <!-- Loading State -->
         <div v-if="loading" class="flex justify-center py-8">
           <UIcon name="i-heroicons-arrow-path" class="size-8 animate-spin text-muted" />
@@ -397,7 +428,7 @@ function goBack() {
 
         <!-- Error Alert -->
         <UAlert
-          v-if="error && !loading"
+          v-if="registrationEnabled && error && !loading"
           color="error"
           variant="soft"
           :title="$t('auth.error')"
@@ -407,7 +438,7 @@ function goBack() {
         />
 
         <!-- Step 1: Details -->
-        <div v-if="!loading && step === 'details'">
+        <div v-if="registrationEnabled && !loading && step === 'details'">
           <UForm :schema="schema" :state="formState" class="space-y-5" @submit="submitDetails">
             <UFormField name="email" :label="$t('auth.email')">
               <UInput
@@ -443,7 +474,7 @@ function goBack() {
         </div>
 
         <!-- Step 2: Code Verification -->
-        <div v-if="!loading && step === 'code'">
+        <div v-if="registrationEnabled && !loading && step === 'code'">
           <div class="mb-4 text-center">
             <p class="text-sm text-muted">
               {{ $t('auth.codeSentTo') }} <strong>{{ email }}</strong>

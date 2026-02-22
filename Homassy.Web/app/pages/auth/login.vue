@@ -23,6 +23,7 @@ const toast = useToast()
 const loading = ref(true)
 const flow = ref<LoginFlow | null>(null)
 const error = ref<string | null>(null)
+const registrationEnabled = ref(true)
 
 // Already logged in state
 const showAlreadyLoggedIn = ref(false)
@@ -61,6 +62,16 @@ onBeforeUnmount(() => {
 // Initialize login flow
 onMounted(async () => {
   console.debug('[Login] Initializing login flow...')
+
+  // Fetch auth config to check if registration is enabled
+  try {
+    const nuxtApp = useNuxtApp()
+    const $api = nuxtApp.$api as any
+    const configResponse = await $api('/api/v1.0/auth/config') as any
+    registrationEnabled.value = configResponse?.data?.registrationEnabled ?? true
+  } catch {
+    registrationEnabled.value = true
+  }
   
   // Initialize auth state
   await authStore.initialize()
@@ -494,7 +505,7 @@ const requestButtonText = computed(() => {
           </div>
           <h2 class="text-xl text-pretty font-semibold text-highlighted">{{ $t('auth.signIn') }}</h2>
           <p class="mt-1 text-base text-pretty text-muted">{{ $t('auth.welcomeBack') }}</p>
-          <p class="mt-1 text-sm text-pretty text-muted">
+          <p class="mt-1 text-sm text-pretty text-muted" v-if="registrationEnabled">
             {{ $t('auth.dontHaveAccount') }}
             <ULink to="/auth/register" class="text-primary font-medium">{{ $t('auth.signUp') }}</ULink>.
           </p>

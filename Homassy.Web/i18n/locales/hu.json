@@ -159,7 +159,9 @@
       "continueButton": "Folytatás",
       "switchAccountButton": "Bejelentkezés másik fiókba"
     },
-    "switchAccountError": "Nem sikerült kijelentkezni. Kérjük, próbáld újra."
+    "switchAccountError": "Nem sikerült kijelentkezni. Kérjük, próbáld újra.",
+    "registrationDisabled": "A regisztráció jelenleg nem elérhető",
+    "registrationDisabledDescription": "Jelenleg nem lehet új fiókot létrehozni."
   },
   "validation": {
     "emailRequired": "Az email cím megadása kötelező",

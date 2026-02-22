@@ -159,7 +159,9 @@
       "continueButton": "Continue",
       "switchAccountButton": "Sign in to another account"
     },
-    "switchAccountError": "Failed to sign out. Please try again."
+    "switchAccountError": "Failed to sign out. Please try again.",
+    "registrationDisabled": "Registration is currently unavailable",
+    "registrationDisabledDescription": "Creating new accounts is not available at the moment."
   },
   "validation": {
     "emailRequired": "Email is required",

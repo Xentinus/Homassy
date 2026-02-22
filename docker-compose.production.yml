@@ -101,6 +101,7 @@
       - Kratos__PublicUrl=http://homassy-kratos:4433
       - Kratos__AdminUrl=http://homassy-kratos:4434
       - AppSettings__RegistrationEnabled=${REGISTRATION_ENABLED}
+      - RegistrationEnabled=${REGISTRATION_ENABLED}
     networks:
       - homassy-network
     depends_on:

@@ -90,6 +90,7 @@ services:
       - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
       - Kratos__PublicUrl=http://homassy-kratos:4433
       - Kratos__AdminUrl=http://homassy-kratos:4434
+      - RegistrationEnabled=${REGISTRATION_ENABLED:-true}
     networks:
       - homassy-network
     depends_on:
