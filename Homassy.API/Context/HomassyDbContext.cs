@@ -86,9 +86,6 @@ namespace Homassy.API.Context
                 .HasForeignKey<UserProfile>(p => p.UserId)
                 .OnDelete(DeleteBehavior.Cascade);
 
-            // UserAuthentication relationship removed - using Kratos for authentication
-            // The User.KratosIdentityId field links to Kratos identity
-
             modelBuilder.Entity<User>()
                 .HasOne(u => u.NotificationPreferences)
                 .WithOne(n => n.User)
@@ -203,7 +200,6 @@ namespace Homassy.API.Context
         #region User Related DbSets
         public DbSet<User> Users { get; set; }
         public DbSet<UserProfile> UserProfiles { get; set; }
-        // UserAuthentications DbSet removed - using Kratos for authentication
         public DbSet<UserNotificationPreferences> UserNotificationPreferences { get; set; }
         public DbSet<UserPushSubscription> UserPushSubscriptions { get; set; }
         public DbSet<Family> Families { get; set; }

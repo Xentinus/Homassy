@@ -186,6 +186,7 @@
       "title": "Homassy",
       "description": "Manage your household inventory, shopping lists, and share everything with your family.",
       "heroBadge": "Free & Open Source",
+      "heroLink": "See all features ↓",
       "keyFeatures": "Key Features",
       "features": {
         "userAuth": {

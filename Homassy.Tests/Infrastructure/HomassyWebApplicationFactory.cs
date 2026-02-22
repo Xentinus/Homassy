@@ -188,11 +188,9 @@ public class HomassyWebApplicationFactory : WebApplicationFactory<Program>
         // Ensure static services are initialized before host creation
         builder.ConfigureServices((context, services) =>
         {
-            // Re-initialize static services with test configuration
             var configuration = context.Configuration;
             Homassy.API.Context.HomassyDbContext.SetConfiguration(configuration);
             Homassy.API.Services.ConfigService.Initialize(configuration);
-            // EmailService and JwtService removed - using Kratos for authentication
         });
 
         return base.CreateHost(builder);
@@ -251,8 +249,6 @@ public class HomassyWebApplicationFactory : WebApplicationFactory<Program>
         MockKratos.RegisterSession($"mock-session-{kratosIdentityId}", session);
     }
 
-    // GetVerificationCodeForEmail removed - Kratos handles authentication
-
     public int? GetUserIdByEmail(string email)
     {
         using var scope = Services.CreateScope();
@@ -301,6 +297,4 @@ public class HomassyWebApplicationFactory : WebApplicationFactory<Program>
             await context.SaveChangesAsync();
         }
     }
-
-    // GetFailedLoginAttempts and GetLockedOutUntil removed - Kratos handles lockout
 }

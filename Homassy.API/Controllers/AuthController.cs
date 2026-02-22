@@ -144,6 +144,9 @@ namespace Homassy.API.Controllers
                 return StatusCode(500, ApiResponse.ErrorResponse(ErrorCodes.SystemUnexpectedError));
             }
 
+            // Update last login time
+            await new UserFunctions().UpdateLastLoginAsync(user.Id, cancellationToken);
+
             var userInfo = new UserFunctions().GetUserInfoFromKratosSession(kratosSession, user);
             return Ok(ApiResponse<UserInfo>.SuccessResponse(userInfo));
         }

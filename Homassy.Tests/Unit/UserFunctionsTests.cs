@@ -34,7 +34,6 @@ public class UserFunctionsTests : IClassFixture<HomassyWebApplicationFactory>
 
         HomassyDbContext.SetConfiguration(configuration);
         ConfigService.Initialize(configuration);
-        // JwtService.Initialize removed - using Kratos for authentication
     }
 
     [Fact]

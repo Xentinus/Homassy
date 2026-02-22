@@ -532,8 +532,6 @@ const highlightText = (text: string, query: string): string => {
   return text.replace(regex, '<span class="font-bold text-primary-600 dark:text-primary-400 bg-primary-100 dark:bg-primary-900/30 px-1 py-0.5 rounded">$1</span>')
 }
 
-// Card click handler - REMOVED: No longer clickable
-
 // Dropdown menu items
 const dropdownItems = computed(() => {
   const items = [
