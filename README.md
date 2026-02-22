@@ -60,7 +60,7 @@ Homassy is a modern full-stack system designed to simplify household inventory m
 - 🔎 **Search Highlighting** - Visual highlighting of search results across product and location components
 - 🖼️ **Image Processing** - Browser-side compression and cropping
 - 🌍 **Internationalization** - Full i18n support with 3 languages (English, German, Hungarian)
-- 🔔 **Notifications** - User notification preferences
+- 🔔 **Push Notifications** - Daily alerts at 7 AM for products expiring within 14 days, weekly summaries every Monday, and real-time notifications when a family member adds items to a shared shopping list
 
 ### 📊 Data Quality
 - ✅ Advanced barcode validation with checksum verification (EAN-13, EAN-8, UPC-A, UPC-E, Code-128)

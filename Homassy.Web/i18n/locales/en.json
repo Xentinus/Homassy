@@ -223,7 +223,7 @@
         },
         "notifications": {
           "title": "Push Notifications",
-          "description": "Get notified when a family member buys an item, updates the inventory, or completes a shopping trip."
+          "description": "Receive daily alerts at 7 AM about products expiring within 14 days, weekly summaries every Monday, and real-time notifications when new items are added to a shared family shopping list by another member."
         },
         "activityFeed": {
           "title": "Family Activity Feed",
@@ -741,11 +741,11 @@
       "emailDailyDescription": "Sent every day at 7:00 AM.",
       "emailWeeklyDescription": "Sent every Monday at 7:00 AM.",
       "pushSection": "Push Notifications",
-      "pushDescription": "Get instant notifications on your device.",
+      "pushDescription": "Receive push notifications for expiring products and family shopping list activity.",
       "pushNotifications": "Daily push notification",
       "pushWeeklySummary": "Weekly push summary",
-      "pushDailyDescription": "Sent every day at 7:00 AM.",
-      "pushWeeklyDescription": "Sent every Monday at 7:00 AM.",
+      "pushDailyDescription": "Sent every day at 7:00 AM. Alerts you about products expiring within the next 14 days. Also notifies you when a family member adds items to a shared shopping list.",
+      "pushWeeklyDescription": "Sent every Monday at 7:00 AM. A 14-day expiry overview for the coming week.",
       "inAppSection": "In-App Notifications",
       "inAppDescription": "See notifications within the app.",
       "inAppNotifications": "In-app notifications",

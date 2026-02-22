@@ -221,7 +221,7 @@
         },
         "notifications": {
           "title": "Push-Benachrichtigungen",
-          "description": "Erhalten Sie Benachrichtigungen, wenn ein Familienmitglied einen Artikel kauft, das Inventar aktualisiert oder eine Einkaufstour abschließt."
+          "description": "Täglich um 7 Uhr erhalten Sie Hinweise zu Produkten, die in 14 Tagen ablaufen, jeden Montag eine Wochenzusammenfassung und sofortige Benachrichtigungen, wenn ein anderes Familienmitglied neue Artikel zur gemeinsamen Einkaufsliste hinzufügt."
         },
         "activityFeed": {
           "title": "Familien-Aktivitäts-Feed",
@@ -741,11 +741,11 @@
       "emailDailyDescription": "Täglich um 7:00 Uhr gesendet.",
       "emailWeeklyDescription": "Jeden Montag um 7:00 Uhr gesendet.",
       "pushSection": "Push-Benachrichtigungen",
-      "pushDescription": "Erhalten Sie sofortige Benachrichtigungen auf Ihrem Gerät.",
+      "pushDescription": "Push-Benachrichtigungen für ablaufende Produkte und Aktivitäten in gemeinsamen Einkaufslisten.",
       "pushNotifications": "Tägliche Push-Benachrichtigung",
       "pushWeeklySummary": "Wöchentliche Push-Zusammenfassung",
-      "pushDailyDescription": "Täglich um 7:00 Uhr gesendet.",
-      "pushWeeklyDescription": "Jeden Montag um 7:00 Uhr gesendet.",
+      "pushDailyDescription": "Täglich um 7:00 Uhr gesendet. Weist Sie auf Produkte hin, die in den nächsten 14 Tagen ablaufen. Benachrichtigt Sie außerdem, wenn ein Familienmitglied neue Artikel zur gemeinsamen Einkaufsliste hinzufügt.",
+      "pushWeeklyDescription": "Jeden Montag um 7:00 Uhr gesendet. Gibt einen Überblick über die Abläufe der nächsten 14 Tage.",
       "inAppSection": "In-App-Benachrichtigungen",
       "inAppDescription": "Sehen Sie Benachrichtigungen innerhalb der App.",
       "inAppNotifications": "In-App-Benachrichtigungen",
