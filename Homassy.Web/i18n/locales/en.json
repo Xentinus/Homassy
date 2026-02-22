@@ -185,11 +185,12 @@
     "home": {
       "title": "Homassy",
       "description": "Manage your household inventory, shopping lists, and share everything with your family.",
+      "heroBadge": "Free & Open Source",
       "keyFeatures": "Key Features",
       "features": {
         "userAuth": {
           "title": "User Authentication",
-          "description": "Passwordless email-code login. Secure token-based authentication for signing in and out."
+          "description": "Passwordless sign-in with email verification codes or passkeys (Face ID, Touch ID, device PIN). Secure session-based authentication."
         },
         "familyManagement": {
           "title": "Family Management",
@@ -210,7 +211,46 @@
         "barcodeQuality": {
           "title": "Barcode and Data Quality",
           "description": "Barcode scanning and validation, Open Food Facts data, secure image uploads."
+        },
+        "passkey": {
+          "title": "Passkey & Email Sign-in",
+          "description": "Sign in with Face ID, Touch ID, or your device PIN — no password required. Email verification codes are always available as a fallback."
+        },
+        "pwa": {
+          "title": "Progressive Web App",
+          "description": "Install Homassy on any phone or desktop directly from the browser. No app store needed — updates happen automatically."
+        },
+        "notifications": {
+          "title": "Push Notifications",
+          "description": "Get notified when a family member buys an item, updates the inventory, or completes a shopping trip."
+        },
+        "activityFeed": {
+          "title": "Family Activity Feed",
+          "description": "A live timeline of everything happening in your household — who bought what, added a product, or consumed an item."
         }
+      },
+      "highlights": {
+        "title": "Why Homassy?",
+        "description": "Built for real households, with privacy and collaboration at its core.",
+        "items": {
+          "openSource": {
+            "title": "Open Source & Self-hosted",
+            "description": "Homassy is AGPL-3.0 licensed. Run it on your own server and keep full control of your data."
+          },
+          "multiLanguage": {
+            "title": "3 Languages",
+            "description": "Full support for English, German, and Hungarian, with more languages planned for the future."
+          },
+          "familyFirst": {
+            "title": "Designed for Families",
+            "description": "Shared inventory, shopping lists, and activity feeds — everything syncs in real time across all family members."
+          }
+        }
+      },
+      "cta": {
+        "title": "Ready to organise your home?",
+        "description": "Join Homassy and bring order to your household inventory and shopping.",
+        "button": "Get started"
       }
     },
     "products": {

@@ -51,6 +51,8 @@
     <UFooter>
       <template #left>
         <p class="text-sm text-muted flex items-center gap-2">
+          <span>{{ copyrightText }}</span>
+          <USeparator orientation="vertical" class="h-4" />
           <span>{{ t('footer.madeWith') }}</span>
           <UIcon
             name="i-lucide-heart"
@@ -58,7 +60,7 @@
           />
           <span>{{ t('footer.by') }}</span>
           <a
-            href="https://github.com/Xentinus"
+            href="https://kellner.dev/"
             target="_blank"
             rel="noopener"
             class="font-semibold hover:underline"
@@ -87,6 +89,12 @@ const handleLocaleChange = (newLocale: string) => {
     $i18n.setLocale(newLocale)
   }
 }
+
+const startYear = 2025
+const currentYear = new Date().getFullYear()
+const copyrightText = computed(() =>
+  currentYear > startYear ? `\u00a9 ${startYear}\u2013${currentYear}` : `\u00a9 ${startYear}`
+)
 
 const authItems = computed<NavigationMenuItem[]>(() => [
   {

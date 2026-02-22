@@ -3,15 +3,30 @@
     <UPageHero
       :title="$t('pages.home.title')"
       :description="$t('pages.home.description')"
+      :badge="{ label: $t('pages.home.heroBadge') }"
       orientation="horizontal"
     >
-      <img src="/favicon.svg" alt="Homassy Logo" class="hidden lg :block w-full max-w-[256px]">
+      <img src="/favicon.svg" alt="Homassy Logo" class="hidden lg:block w-full max-w-[256px]">
     </UPageHero>
 
     <UPageSection
       id="features"
       :title="$t('pages.home.keyFeatures')"
       :features="features"
+    />
+
+    <UPageSection
+      id="highlights"
+      :title="$t('pages.home.highlights.title')"
+      :description="$t('pages.home.highlights.description')"
+      :features="highlights"
+    />
+
+    <UPageSection
+      id="cta"
+      :title="$t('pages.home.cta.title')"
+      :description="$t('pages.home.cta.description')"
+      :links="[{ label: $t('pages.home.cta.button'), to: '/auth/register', color: 'primary', size: 'xl', icon: 'i-lucide-arrow-right' }]"
     />
   </div>
 </template>
@@ -53,6 +68,44 @@ const features = computed(() => [
     icon: 'i-lucide-barcode',
     title: t('pages.home.features.barcodeQuality.title'),
     description: t('pages.home.features.barcodeQuality.description')
+  },
+  {
+    icon: 'i-lucide-fingerprint',
+    title: t('pages.home.features.passkey.title'),
+    description: t('pages.home.features.passkey.description')
+  },
+  {
+    icon: 'i-lucide-smartphone',
+    title: t('pages.home.features.pwa.title'),
+    description: t('pages.home.features.pwa.description')
+  },
+  {
+    icon: 'i-lucide-bell',
+    title: t('pages.home.features.notifications.title'),
+    description: t('pages.home.features.notifications.description')
+  },
+  {
+    icon: 'i-lucide-activity',
+    title: t('pages.home.features.activityFeed.title'),
+    description: t('pages.home.features.activityFeed.description')
+  }
+])
+
+const highlights = computed(() => [
+  {
+    icon: 'i-lucide-lock-open',
+    title: t('pages.home.highlights.items.openSource.title'),
+    description: t('pages.home.highlights.items.openSource.description')
+  },
+  {
+    icon: 'i-lucide-globe',
+    title: t('pages.home.highlights.items.multiLanguage.title'),
+    description: t('pages.home.highlights.items.multiLanguage.description')
+  },
+  {
+    icon: 'i-lucide-heart-handshake',
+    title: t('pages.home.highlights.items.familyFirst.title'),
+    description: t('pages.home.highlights.items.familyFirst.description')
   }
 ])
 

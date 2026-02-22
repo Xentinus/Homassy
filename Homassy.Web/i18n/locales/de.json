@@ -183,11 +183,12 @@
     "home": {
       "title": "Homassy",
       "description": "Verwalten Sie Ihr Haushaltsinventar, Einkaufslisten und teilen Sie alles mit Ihrer Familie.",
+      "heroBadge": "Kostenlos & Open Source",
       "keyFeatures": "Hauptfunktionen",
       "features": {
         "userAuth": {
           "title": "Benutzerauthentifizierung",
-          "description": "Passwortlose E-Mail-Code-Anmeldung. Sichere token-basierte Authentifizierung zum An- und Abmelden."
+          "description": "Passwortlose Anmeldung mit E-Mail-Bestätigungscodes oder Passkeys (Face ID, Touch ID, Geräte-PIN). Sichere sitzungsbasierte Authentifizierung."
         },
         "familyManagement": {
           "title": "Familienverwaltung",
@@ -208,7 +209,46 @@
         "barcodeQuality": {
           "title": "Barcode und Datenqualität",
           "description": "Barcode-Scannen und -Validierung, Open Food Facts-Daten, sichere Bild-Uploads."
+        },
+        "passkey": {
+          "title": "Passkey & E-Mail-Anmeldung",
+          "description": "Melden Sie sich mit Face ID, Touch ID oder Ihrem Geräte-PIN an – kein Passwort erforderlich. E-Mail-Bestätigungscodes stehen immer als Fallback zur Verfügung."
+        },
+        "pwa": {
+          "title": "Progressive Web App",
+          "description": "Installieren Sie Homassy direkt aus dem Browser auf jedem Telefon oder Desktop. Kein App-Store nötig – Updates erfolgen automatisch."
+        },
+        "notifications": {
+          "title": "Push-Benachrichtigungen",
+          "description": "Erhalten Sie Benachrichtigungen, wenn ein Familienmitglied einen Artikel kauft, das Inventar aktualisiert oder eine Einkaufstour abschließt."
+        },
+        "activityFeed": {
+          "title": "Familien-Aktivitäts-Feed",
+          "description": "Ein Live-Zeitstrahl aller Vorgänge in Ihrem Haushalt – wer was gekauft, hinzugefügt oder verbraucht hat."
         }
+      },
+      "highlights": {
+        "title": "Warum Homassy?",
+        "description": "Entwickelt für echte Haushalte – mit Datenschutz und Zusammenarbeit als Grundprinzip.",
+        "items": {
+          "openSource": {
+            "title": "Open Source & selbst gehostet",
+            "description": "Homassy steht unter der AGPL-3.0-Lizenz. Betreiben Sie es auf Ihrem eigenen Server und behalten Sie die volle Kontrolle über Ihre Daten."
+          },
+          "multiLanguage": {
+            "title": "3 Sprachen",
+            "description": "Vollständige Unterstützung für Englisch, Deutsch und Ungarisch – weitere Sprachen sind geplant."
+          },
+          "familyFirst": {
+            "title": "Für Familien entwickelt",
+            "description": "Gemeinsames Inventar, Einkaufslisten und Aktivitäts-Feeds – alles wird in Echtzeit für alle Familienmitglieder synchronisiert."
+          }
+        }
+      },
+      "cta": {
+        "title": "Bereit, Ihren Haushalt zu organisieren?",
+        "description": "Treten Sie Homassy bei und bringen Sie Ordnung in Ihr Haushaltsinventar und Ihre Einkäufe.",
+        "button": "Loslegen"
       }
     },
     "products": {

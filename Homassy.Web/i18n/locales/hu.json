@@ -185,11 +185,12 @@
     "home": {
       "title": "Homassy",
       "description": "Kezeld a háztartási készleted, bevásárlólistáid és oszd meg mindent a családoddal.",
+      "heroBadge": "Ingyenes és nyílt forráskódú",
       "keyFeatures": "Főbb funkciók",
       "features": {
         "userAuth": {
           "title": "Felhasználói hitelesítés",
-          "description": "Jelszó nélküli e-mail kódos bejelentkezés. Biztonságos token alapú hitelesítés be- és kijelentkezéshez."
+          "description": "Jelszó nélküli bejelentkezés e-mail ellenőrző kóddal vagy jelszókulccsal (Face ID, Touch ID, eszköz PIN). Biztonságos munkamenet alapú hitelesítés."
         },
         "familyManagement": {
           "title": "Családkezelés",
@@ -210,7 +211,46 @@
         "barcodeQuality": {
           "title": "Vonalkód és adatminőség",
           "description": "Vonalkód szkennelés és ellenőrzés, Open Food Facts adatok, biztonságos képfeltöltés."
+        },
+        "passkey": {
+          "title": "Jelszókulcs és e-mail bejelentkezés",
+          "description": "Jelentkezz be Face ID-val, Touch ID-val vagy eszközöd PIN-kódjával – jelszóra nincs szükség. Az e-mailes ellenőrző kód mindig elérhető tartalék lehetőségként."
+        },
+        "pwa": {
+          "title": "Progresszív webalkalmazás",
+          "description": "Telepítsd a Homassyt közvetlenül a böngészőből bármely telefonra vagy asztali számítógépre. Nincs szükség alkalmazásbolthoz – a frissítések automatikusan megtörténnek."
+        },
+        "notifications": {
+          "title": "Push értesítések",
+          "description": "Értesítést kapsz, ha egy családtag megvásárol egy terméket, frissíti a készletet vagy befejez egy bevásárlást."
+        },
+        "activityFeed": {
+          "title": "Családi tevékenységi hírfolyam",
+          "description": "Élő idősor a háztartásban zajló eseményekről – ki mit vett, adott hozzá a készlethez vagy fogyasztott el."
         }
+      },
+      "highlights": {
+        "title": "Miért a Homassy?",
+        "description": "Valódi háztartásokra tervezve, az adatvédelemre és az együttműködésre helyezve a hangsúlyt.",
+        "items": {
+          "openSource": {
+            "title": "Nyílt forráskódú és saját szerveres",
+            "description": "A Homassy AGPL-3.0 licenc alatt áll. Futtasd a saját szerveredre, és tartsd teljes ellenőrzés alatt az adataidat."
+          },
+          "multiLanguage": {
+            "title": "3 nyelv",
+            "description": "Teljes körű angol, német és magyar nyelvtámogatás – további nyelvek tervezés alatt állnak."
+          },
+          "familyFirst": {
+            "title": "Családokra tervezve",
+            "description": "Megosztott készlet, bevásárlólisták és tevékenységi hírfolyam – minden valós időben szinkronizálódik az összes családtag között."
+          }
+        }
+      },
+      "cta": {
+        "title": "Készen állsz rendbe rakni az otthonod?",
+        "description": "Csatlakozz a Homassyhez és hozz rendet a háztartási készletedbe és bevásárlásaidba.",
+        "button": "Kezdjük el"
       }
     },
     "products": {
