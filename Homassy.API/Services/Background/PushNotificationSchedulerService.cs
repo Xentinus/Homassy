@@ -102,49 +102,11 @@ public sealed class PushNotificationSchedulerService : BackgroundService
         var today = userLocalTime.Date;
         var isMonday = userLocalTime.DayOfWeek == DayOfWeek.Monday;
 
-        // If both daily and weekly are enabled on Monday, send only weekly to avoid duplicate
-        var shouldSendDaily = userData.PushNotificationsEnabled && 
-                             !(isMonday && userData.PushWeeklySummaryEnabled);
-
-        // Daily notification (skip if Monday and weekly is also enabled)
-        if (shouldSendDaily)
-        {
-            await SendDailyNotificationAsync(context, userData, today, cancellationToken);
-        }
-
         // Weekly notification (Monday)
         if (userData.PushWeeklySummaryEnabled && isMonday)
         {
             await SendWeeklyNotificationAsync(context, userData, today, cancellationToken);
         }
-    }
-
-    private async Task SendDailyNotificationAsync(
-        HomassyDbContext context,
-        EligibleUserData userData,
-        DateTime today,
-        CancellationToken cancellationToken)
-    {
-        var subscriptions = await context.UserPushSubscriptions
-            .Where(s => s.UserId == userData.UserId && !s.IsDeleted)
-            .ToListAsync(cancellationToken);
-
-        // Check deduplication: skip if already sent today to all devices
-        if (subscriptions.All(s => s.LastDailyNotificationSentAt?.Date == today))
-            return;
-
-        // Get expiring count
-        var count = await PushNotificationFunctions.GetExpiringCountForUserAsync(
-            userData.UserId, userData.FamilyId, context, cancellationToken);
-
-        // Skip if nothing to report for daily
-        if (count == 0)
-            return;
-
-        var (title, body) = PushNotificationContentService.GetDailyNotificationContent(userData.Language, count);
-
-        var actionTitle = GetActionTitle(userData.Language);
-        await SendToSubscriptionsAsync(context, subscriptions, title, body, actionTitle, today, isWeekly: false, cancellationToken);
     }
 
     private async Task SendWeeklyNotificationAsync(

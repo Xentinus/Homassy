@@ -4,31 +4,6 @@ namespace Homassy.API.Services
 {
     public static class PushNotificationContentService
     {
-        public static (string Title, string Body) GetDailyNotificationContent(Language language, int expiringCount)
-        {
-            return language switch
-            {
-                Language.Hungarian => (
-                    "Lejárat figyelmeztetés",
-                    expiringCount == 1
-                        ? "1 termék hamarosan lejár vagy már lejárt a készletedben."
-                        : $"{expiringCount} termék hamarosan lejár vagy már lejárt a készletedben."
-                ),
-                Language.German => (
-                    "Ablauferinnerung",
-                    expiringCount == 1
-                        ? "1 Produkt läuft bald ab oder ist bereits abgelaufen."
-                        : $"{expiringCount} Produkte laufen bald ab oder sind bereits abgelaufen."
-                ),
-                _ => (
-                    "Expiration Reminder",
-                    expiringCount == 1
-                        ? "1 product is expiring soon or has already expired in your inventory."
-                        : $"{expiringCount} products are expiring soon or have already expired in your inventory."
-                )
-            };
-        }
-
         public static (string Title, string Body) GetWeeklyNotificationContent(Language language, int expiringCount)
         {
             return language switch
