@@ -138,12 +138,15 @@ identity:
       url: file:///etc/config/kratos/identity.schema.json
 
 courier:
-  smtp:
-    # Overridden by COURIER_SMTP_CONNECTION_URI env var
-    connection_uri: smtp://localhost:1025
-    from_address: noreply@kellner.dev
-    from_name: Homassy
-  template_override_path: /etc/config/kratos/templates
+  delivery_strategy: http
+  http:
+    request_config:
+      url: http://homassy-email:8080/kratos/webhook
+      method: POST
+      body: file:///etc/config/kratos/webhook_body.jsonnet
+      headers:
+        Content-Type: application/json
+        X-Api-Key: REPLACE_EMAIL_SERVICE_API_KEY
 
 session:
   lifespan: 720h

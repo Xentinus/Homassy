@@ -68,19 +68,20 @@
       # Cookies
       - SESSION_COOKIE_DOMAIN=${KRATOS_COOKIE_DOMAIN}
       - COOKIES_DOMAIN=${KRATOS_COOKIE_DOMAIN}
-      # SMTP/Courier
-      - COURIER_SMTP_CONNECTION_URI=smtp://${EMAIL_USERNAME}:${EMAIL_PASSWORD}@${EMAIL_SMTP_SERVER}:${EMAIL_SMTP_PORT}/
-      - COURIER_SMTP_FROM_ADDRESS=${EMAIL_SENDER_EMAIL}
-      - COURIER_SMTP_FROM_NAME=${EMAIL_SENDER_NAME:-Homassy}
+      # Email microservice
+      - EMAIL_SERVICE_API_KEY=${EMAIL_SERVICE_API_KEY}
     volumes:
       - ./Homassy.Kratos/kratos.yml:/etc/config/kratos/kratos.yml:ro
       - ./Homassy.Kratos/identity.schema.json:/etc/config/kratos/identity.schema.json:ro
-      - ./Homassy.Kratos/templates:/etc/config/kratos/templates:ro
-    command: serve -c /etc/config/kratos/kratos.yml --watch-courier
+      - ./Homassy.Kratos/webhook_body.jsonnet:/etc/config/kratos/webhook_body.jsonnet:ro
+    entrypoint: /bin/sh
+    command: ["-c", "sed \"s|REPLACE_EMAIL_SERVICE_API_KEY|${EMAIL_SERVICE_API_KEY}|g\" /etc/config/kratos/kratos.yml > /tmp/kratos.yml && kratos serve -c /tmp/kratos.yml --watch-courier"]
     networks:
       - homassy-network
     depends_on:
       postgres:
+        condition: service_healthy
+      homassy.email:
         condition: service_healthy
     healthcheck:
       test: ["CMD", "wget", "-q", "--spider", "http://localhost:4433/health/alive"]
@@ -137,6 +138,28 @@
         condition: service_healthy
       homassy.kratos:
         condition: service_healthy
+
+  homassy.email:
+    container_name: homassy-email
+    image: ${DOCKER_REGISTRY-}homassyemail
+    restart: unless-stopped
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Production
+      - ASPNETCORE_URLS=http://+:8080
+      - Email__SmtpServer=${EMAIL_SMTP_SERVER}
+      - Email__SmtpPort=${EMAIL_SMTP_PORT}
+      - Email__SenderEmail=${EMAIL_SENDER_EMAIL}
+      - Email__Username=${EMAIL_USERNAME}
+      - Email__Password=${EMAIL_PASSWORD}
+      - Email__ApiKey=${EMAIL_SERVICE_API_KEY}
+    networks:
+      - homassy-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/health/live"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 20s
 
 networks:
   homassy-network:
