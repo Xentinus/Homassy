@@ -32,16 +32,6 @@
       <template v-else>
         <div class="space-y-4">
           <div class="flex items-center justify-between">
-            <label class="text-sm font-medium">{{ $t('profile.notifications.emailNotifications') }}</label>
-            <USwitch 
-              v-model="form.emailNotificationsEnabled" 
-              @update:modelValue="onSave"
-              :disabled="isSaving"
-              :loading="isSaving"
-            />
-          </div>
-          <p class="text-xs text-gray-500 dark:text-gray-400">{{ $t('profile.notifications.emailDailyDescription') }}</p>
-          <div class="flex items-center justify-between">
             <label class="text-sm font-medium">{{ $t('profile.notifications.emailWeeklySummary') }}</label>
             <USwitch 
               v-model="form.emailWeeklySummaryEnabled"
@@ -51,6 +41,18 @@
             />
           </div>
           <p class="text-xs text-gray-500 dark:text-gray-400">{{ $t('profile.notifications.emailWeeklyDescription') }}</p>
+          <UButton
+            v-if="form.emailWeeklySummaryEnabled"
+            color="primary"
+            variant="solid"
+            class="w-full font-semibold mt-4 mb-3"
+            icon="i-lucide-mail"
+            @click="sendTestEmailNotification"
+            :disabled="isSaving || testingEmail"
+            :loading="testingEmail"
+          >
+            {{ $t('profile.notifications.testEmail') }}
+          </UButton>
         </div>
       </template>
     </div>
@@ -94,18 +96,19 @@
             <USwitch 
               v-model="form.pushWeeklySummaryEnabled"
               @update:modelValue="onSave"
-              :disabled="isSaving"
+              :disabled="isSaving || !form.pushNotificationsEnabled"
               :loading="isSaving"
             />
           </div>
           <p class="text-xs text-gray-500 dark:text-gray-400">{{ $t('profile.notifications.pushWeeklyDescription') }}</p>
           <UButton 
+            v-if="form.pushNotificationsEnabled && pushSubscribed"
             color="primary" 
             variant="solid" 
             class="w-full font-semibold mt-4 mb-3" 
             icon="i-lucide-send"
             @click="sendTestNotification"
-            :disabled="isSaving || testingNotification || pushPermission !== 'granted'"
+            :disabled="isSaving || testingNotification"
             :loading="testingNotification"
           >
             {{ $t('profile.notifications.testNotification') }}
@@ -114,37 +117,13 @@
       </template>
     </div>
 
-    <!-- In-App Notifications Section -->
-    <div class="space-y-4">
-      <div class="flex items-center gap-3">
-        <UIcon name="i-lucide-inbox" class="text-2xl text-primary" />
-        <div>
-          <h3 class="text-md font-semibold text-gray-900 dark:text-gray-100">{{ $t('profile.notifications.inAppSection') }}</h3>
-          <p class="text-xs text-gray-500 dark:text-gray-400">{{ $t('profile.notifications.inAppDescription') }}</p>
-        </div>
-      </div>
-
-      <template v-if="loadingData">
-        <USkeleton class="h-12 w-full rounded-lg" />
-      </template>
-      <template v-else>
-        <div class="flex items-center justify-between">
-          <label class="text-sm font-medium">{{ $t('profile.notifications.inAppNotifications') }}</label>
-          <USwitch 
-            v-model="form.inAppNotificationsEnabled"
-            @update:modelValue="onSave"
-            :disabled="isSaving"
-            :loading="isSaving"
-          />
-        </div>
-      </template>
-    </div>
+    <!-- In-App Notifications Section (coming soon) -->
   </div>
 </template>
 
 <script setup lang="ts">
 definePageMeta({ layout: 'auth', middleware: 'auth' })
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, watch } from 'vue'
 
 import { useUserApi } from '~/composables/api/useUserApi'
 import { usePushNotifications } from '~/composables/usePushNotifications'
@@ -161,8 +140,9 @@ const loadingData = ref(true)
 const loadingPush = ref(true)
 const isSaving = ref(false)
 const testingNotification = ref(false)
+const testingEmail = ref(false)
 const pushSubscribed = ref(false)
-const { getNotificationPreferences, updateNotificationPreferences, sendTestPushNotification } = useUserApi()
+const { getNotificationPreferences, updateNotificationPreferences, sendTestPushNotification, sendTestEmailSummary } = useUserApi()
 const { isSupported, permissionStatus, subscribe, unsubscribe, isSubscribed } = usePushNotifications()
 
 const pushSupported = computed(() => isSupported.value)
@@ -208,6 +188,13 @@ const toast = useToast()
 const { $i18n } = useNuxtApp()
 const router = useRouter()
 
+// When push notifications are disabled, also disable weekly push summary
+watch(() => form.value.pushNotificationsEnabled, (enabled) => {
+  if (!enabled) {
+    form.value.pushWeeklySummaryEnabled = false
+  }
+})
+
 async function onSave() {
   isSaving.value = true
   try {
@@ -219,9 +206,14 @@ async function onSave() {
       if (!success) {
         form.value.pushNotificationsEnabled = false
         form.value.pushWeeklySummaryEnabled = false
+        const isPermissionIssue = Notification.permission !== 'granted'
         toast.add({
           title: $i18n.t('toast.error'),
-          description: $i18n.t('profile.notifications.pushPermissionRequired'),
+          description: $i18n.t(
+            isPermissionIssue
+              ? 'profile.notifications.pushPermissionRequired'
+              : 'profile.notifications.pushSubscriptionFailed'
+          ),
           color: 'error',
           icon: 'i-heroicons-x-circle'
         })
@@ -285,6 +277,39 @@ async function sendTestNotification() {
     })
   } finally {
     testingNotification.value = false
+  }
+}
+
+async function sendTestEmailNotification() {
+  testingEmail.value = true
+  try {
+    const result = await sendTestEmailSummary()
+
+    if (result?.success) {
+      toast.add({
+        title: $i18n.t('toast.success'),
+        description: $i18n.t('profile.notifications.testEmailSent'),
+        color: 'success',
+        icon: 'i-heroicons-check-circle'
+      })
+    } else {
+      toast.add({
+        title: $i18n.t('toast.error'),
+        description: $i18n.t('profile.notifications.testEmailFailed'),
+        color: 'error',
+        icon: 'i-heroicons-x-circle'
+      })
+    }
+  } catch (error) {
+    console.error('Failed to send test email:', error)
+    toast.add({
+      title: $i18n.t('toast.error'),
+      description: $i18n.t('profile.notifications.testEmailFailed'),
+      color: 'error',
+      icon: 'i-heroicons-x-circle'
+    })
+  } finally {
+    testingEmail.value = false
   }
 }
 </script>

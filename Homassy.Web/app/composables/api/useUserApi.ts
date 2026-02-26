@@ -95,6 +95,13 @@ export const useUserApi = () => {
   }
 
   /**
+   * Send test email summary
+   */
+  const sendTestEmailSummary = async () => {
+    return await client.post('/api/v1/User/email/test', {}, { showErrorToast: false })
+  }
+
+  /**
    * Get multiple users by their public IDs
    * @param publicIds - Array of user public IDs (GUIDs)
    * @returns List of UserInfo objects
@@ -159,6 +166,7 @@ export const useUserApi = () => {
     getNotificationPreferences,
     updateNotificationPreferences,
     sendTestPushNotification,
+    sendTestEmailSummary,
     getUsersByPublicIds,
     getActivities
   }

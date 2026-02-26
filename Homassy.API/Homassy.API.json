@@ -11,7 +11,7 @@
       "name": "MIT License",
       "url": "https://github.com/Xentinus/Homassy/blob/master/LICENSE"
     },
-    "version": "26.0207.1144-dev"
+    "version": "26.0226.1301-dev"
   },
   "paths": {
     "/api/v1/Auth/me": {
@@ -169,7 +169,7 @@
         "tags": [
           "Auth"
         ],
-        "summary": "Gets the Kratos configuration URLs for frontend use.",
+        "summary": "Gets the Kratos configuration URLs for frontend use.\nIncludes RegistrationEnabled flag so the frontend can conditionally render registration UI.",
         "responses": {
           "200": {
             "description": "OK",
@@ -7781,6 +7781,9 @@
           },
           "verificationUrl": {
             "type": "string"
+          },
+          "registrationEnabled": {
+            "type": "boolean"
           }
         },
         "description": "Kratos configuration for frontend use."

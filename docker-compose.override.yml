@@ -21,6 +21,11 @@ services:
       - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
       - DATABASE_HOST=${DATABASE_HOST}
       - DATABASE_PORT=${DATABASE_PORT}
+      - NotificationsService__ApiKey=${NOTIFICATIONS_SERVICE_API_KEY:-dev-notifications-key}
+
+  homassy.notifications:
+    environment:
+      - ConnectionStrings__DefaultConnection=${DB_CONNECTION_STRING_DOCKER}
 
   homassy.web:
     environment:

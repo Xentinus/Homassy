@@ -24,6 +24,9 @@
 
   <ItemGroup>
     <ProjectReference Include="..\Homassy.API\Homassy.API.csproj" />
+    <ProjectReference Include="..\Homassy.Notifications\Homassy.Notifications.csproj">
+      <Aliases>NotificationsProject</Aliases>
+    </ProjectReference>
   </ItemGroup>
 
   <ItemGroup>

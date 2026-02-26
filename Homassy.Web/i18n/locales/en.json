@@ -752,6 +752,7 @@
       "pushNotSupported": "Push notifications are not supported in this browser.",
       "pushDenied": "Push notifications are blocked. Please enable them in your browser settings.",
       "pushPermissionRequired": "Browser permission is required for push notifications.",
+      "pushSubscriptionFailed": "Failed to enable push notifications. Please try again.",
       "saveFailed": "Failed to save notification preferences.",
       "testNotification": "Send Test Notification",
       "testNotificationTitle": "Homassy test notification",
@@ -759,8 +760,10 @@
       "testNotificationNotSubscribed": "Please enable push notifications first to send a test.",
       "testNotificationSent": "Test notification sent successfully.",
       "testNotificationFailed": "Failed to send test notification.",
-      "pushActionOpen": "Open Homassy",
-      "pushSubscriptionFailed": "Failed to enable push notifications. Please try again."
+      "testEmail": "Send Test Email Summary",
+      "testEmailSent": "Test email summary sent successfully.",
+      "testEmailFailed": "Failed to send test email.",
+      "pushActionOpen": "Open Homassy"
     },
     "allProducts": {
       "title": "All Products",

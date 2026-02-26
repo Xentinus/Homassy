@@ -91,6 +91,9 @@ services:
       - Kratos__PublicUrl=http://homassy-kratos:4433
       - Kratos__AdminUrl=http://homassy-kratos:4434
       - RegistrationEnabled=${REGISTRATION_ENABLED:-true}
+      - NotificationsService__BaseUrl=http://homassy-notifications:8080
+      - NotificationsService__ApiKey=${NOTIFICATIONS_SERVICE_API_KEY:-dev-notifications-key}
+      - WebPush__VapidPublicKey=${VAPID_PUBLIC_KEY}
     networks:
       - homassy-network
     depends_on:
@@ -99,6 +102,8 @@ services:
       homassy.migrator:
         condition: service_completed_successfully
       homassy.kratos:
+        condition: service_healthy
+      homassy.notifications:
         condition: service_healthy
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8080/api/v1.0/health/ready"]
@@ -150,6 +155,43 @@ services:
       - Email__ApiKey=${EMAIL_SERVICE_API_KEY}
     networks:
       - homassy-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/health/live"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+  homassy.notifications:
+    container_name: homassy-notifications
+    image: ${DOCKER_REGISTRY-}homassynotifications
+    build:
+      context: .
+      dockerfile: Homassy.Notifications/Dockerfile
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Development
+      - ASPNETCORE_URLS=http://+:8080
+      - ConnectionStrings__DefaultConnection=Host=${DATABASE_HOST};Port=${DATABASE_PORT};Database=${POSTGRES_DB};Username=${POSTGRES_USER};Password=${POSTGRES_PASSWORD}
+      - DATABASE_HOST=${DATABASE_HOST}
+      - DATABASE_PORT=${DATABASE_PORT}
+      - POSTGRES_DB=${POSTGRES_DB}
+      - POSTGRES_USER=${POSTGRES_USER}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+      - WebPush__VapidSubject=${VAPID_SUBJECT:-mailto:noreply@homassy.com}
+      - WebPush__VapidPublicKey=${VAPID_PUBLIC_KEY}
+      - WebPush__VapidPrivateKey=${VAPID_PRIVATE_KEY}
+      - Notifications__ApiKey=${NOTIFICATIONS_SERVICE_API_KEY:-dev-notifications-key}
+      - EmailService__BaseUrl=http://homassy-email:8080
+      - EmailService__ApiKey=${EMAIL_SERVICE_API_KEY}
+    networks:
+      - homassy-network
+    depends_on:
+      postgres:
+        condition: service_healthy
+      homassy.migrator:
+        condition: service_completed_successfully
+      homassy.email:
+        condition: service_healthy
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8080/health/live"]
       interval: 10s

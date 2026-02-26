@@ -5,5 +5,6 @@ public enum EmailType
     LoginCode,
     RegistrationCode,
     VerificationCode,
-    RecoveryCode
+    RecoveryCode,
+    WeeklySummary
 }

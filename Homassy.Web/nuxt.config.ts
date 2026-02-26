@@ -42,6 +42,10 @@ export default defineNuxtConfig({
   pwa: {
     registerType: 'autoUpdate',
     scope: '/',
+    devOptions: {
+      enabled: true,
+      type: 'module'
+    },
     manifest: {
       name: 'Homassy',
       short_name: 'Homassy',
@@ -177,7 +181,8 @@ export default defineNuxtConfig({
 
   vite: {
     esbuild: {
-      drop: ['console', 'debugger']
+      // Only drop console/debugger in production builds
+      drop: process.env.NODE_ENV === 'production' ? ['console', 'debugger'] : []
     },
     build: {
       sourcemap: false,

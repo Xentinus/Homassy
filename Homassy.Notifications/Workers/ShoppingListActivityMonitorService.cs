@@ -1,9 +1,10 @@
 ﻿using Homassy.API.Context;
 using Homassy.API.Enums;
+using Homassy.Notifications.Services;
 using Microsoft.EntityFrameworkCore;
 using Serilog;
 
-namespace Homassy.API.Services.Background;
+namespace Homassy.Notifications.Workers;
 
 /// <summary>
 /// Background service that monitors family shopping lists for new item additions.
@@ -91,7 +92,7 @@ public sealed class ShoppingListActivityMonitorService : BackgroundService
                 .Select(sl => new { sl.Id, sl.Name, sl.FamilyId })
                 .ToDictionaryAsync(sl => sl.Id, sl => sl, cancellationToken);
 
-            // Step 4: Identify families that have at least 2 active members
+            // Step 4: Identify families with at least 2 active members
             var familyIds = listInfo.Values.Select(sl => sl.FamilyId!.Value).Distinct().ToList();
             var eligibleFamilyIds = await context.Users
                 .Where(u => u.FamilyId != null && familyIds.Contains(u.FamilyId!.Value) && !u.IsDeleted)
@@ -170,7 +171,6 @@ public sealed class ShoppingListActivityMonitorService : BackgroundService
         ShoppingListSession session,
         CancellationToken cancellationToken)
     {
-        // Select family members who did NOT contribute and have push notifications enabled with active subscriptions
         var contributingIds = session.ContributingUserIds;
 
         var recipients = await context.Users
