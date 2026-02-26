@@ -35,6 +35,7 @@ Homassy is a modern full-stack system designed to simplify household inventory m
 - **@nuxtjs/i18n** - Multi-language support (English, German, Hungarian)
 - **Progressive Web App (PWA)** - Web manifest with standalone mode
 - **Responsive design** - Mobile-first approach with touch optimization
+- **Pull-to-refresh** - Native-feel pull-to-refresh on all major data pages via a reusable `usePullToRefresh` composable and `PullToRefreshIndicator` component (damped touch physics, threshold-based trigger, spinner feedback)
 - **SSR & Client-side rendering** - Optimized performance with Nuxt 4
 - **Camera Integration** - Camera availability detection and barcode/QR Code scanning support
 
@@ -106,7 +107,7 @@ Homassy/
 ├── Homassy.Web/          🎨 Vue.js 3 + Nuxt 4 Web App (Frontend)
 │   ├── app/
 │   │   ├── pages/        🔖 File-based routing (15+ pages)
-│   │   ├── components/   🧩 Reusable Vue components (12 components)
+│   │   ├── components/   🧩 Reusable Vue components
 │   │   ├── composables/  🎣 Composition API helpers
 │   │   │   └── api/      📡 API client wrappers (11 services)
 │   │   ├── stores/       🗃️ Pinia state management (auth)
