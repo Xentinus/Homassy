@@ -39,6 +39,15 @@ export default defineNuxtConfig({
     '@vite-pwa/nuxt'
   ],
 
+  imports: {
+    presets: [
+      {
+        from: 'vue-i18n',
+        imports: ['useI18n']
+      }
+    ]
+  },
+
   pwa: {
     registerType: 'autoUpdate',
     scope: '/',
@@ -72,19 +81,10 @@ export default defineNuxtConfig({
     },
     workbox: {
       importScripts: ['/sw-push.js'],
+      // Let @vite-pwa/nuxt handle navigation routes via its built-in allowlist.
+      // A custom 'navigate' mode handler here conflicts with the PWA navigation
+      // route allowlist and causes the "not being used" warning.
       runtimeCaching: [
-        {
-          urlPattern: ({ request }) => request.mode === 'navigate',
-          handler: 'NetworkFirst',
-          options: {
-            cacheName: 'pages-cache',
-            expiration: {
-              maxEntries: 50,
-              maxAgeSeconds: 86400 // 1 day
-            },
-            networkTimeoutSeconds: 10
-          }
-        },
         {
           urlPattern: /^https:\/\/.*\.(js|css|woff2?|png|jpg|jpeg|svg|gif|webp|ico)$/,
           handler: 'CacheFirst',

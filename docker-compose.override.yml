@@ -30,3 +30,4 @@ services:
   homassy.web:
     environment:
       - NUXT_PUBLIC_API_BASE=http://localhost:5226
+      - NUXT_PUBLIC_KRATOS_URL=http://localhost:4433

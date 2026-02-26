@@ -19,6 +19,12 @@
 
     <!-- Content Section with padding to account for fixed header -->
     <div class="pt-32 px-4 sm:px-8 lg:px-14 pb-6">
+      <PullToRefreshIndicator
+        :pull-distance="pullDistance"
+        :is-pulling="isPulling"
+        :is-refreshing="isRefreshing"
+        :is-ready="isReady"
+      />
       <!-- Loading State -->
       <div v-if="isLoading" class="space-y-6">
         <USkeleton class="h-64 w-full" />
@@ -368,6 +374,8 @@ const { getProductDetails, toggleFavorite, updateProduct, deleteProduct, uploadP
 const { getProductByBarcode } = useOpenFoodFactsApi()
 const toast = useToast()
 const { formatProductCategory } = useEnumLabel()
+
+const { pullDistance, isPulling, isRefreshing, isReady } = usePullToRefresh(() => loadProductDetails())
 
 // State
 const product = ref<DetailedProductInfo | null>(null)

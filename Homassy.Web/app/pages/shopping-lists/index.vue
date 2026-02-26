@@ -116,6 +116,12 @@
 
     <!-- Content Section (with padding for fixed header) -->
     <div class="pt-64 px-2 sm:px-4 md:px-6 lg:px-8 pb-6">
+      <PullToRefreshIndicator
+        :pull-distance="pullDistance"
+        :is-pulling="isPulling"
+        :is-refreshing="isRefreshing"
+        :is-ready="isReady"
+      />
       <!-- Loading State -->
       <div v-if="isLoadingDetails" class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
         <USkeleton class="h-48 w-full" />
@@ -407,6 +413,11 @@ const { getSelectValues } = useSelectValueApi()
 const { getShoppingListDetails, createShoppingList, updateShoppingList, deleteShoppingList } = useShoppingListApi()
 const { showCameraButton } = useCameraAvailability()
 const { isExpired: checkIsExpired, isExpiringWithinTwoWeeks: checkIsExpiringWithinTwoWeeks } = useExpirationCheck()
+
+const { pullDistance, isPulling, isRefreshing, isReady } = usePullToRefresh(async () => {
+  await loadShoppingLists()
+  if (selectedListId.value) await loadListDetails(selectedListId.value)
+})
 
 // LocalStorage key for last selected shopping list
 const LAST_SELECTED_LIST_KEY = 'lastSelectedShoppingListId'

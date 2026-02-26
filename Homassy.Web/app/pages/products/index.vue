@@ -52,6 +52,13 @@
     <!-- Content Section with padding to account for fixed header -->
     <div class="pt-56 px-4 sm:px-8 lg:px-14 pb-6">
 
+    <PullToRefreshIndicator
+      :pull-distance="pullDistance"
+      :is-pulling="isPulling"
+      :is-refreshing="isRefreshing"
+      :is-ready="isReady"
+    />
+
     <!-- Loading State -->
     <div v-if="isLoading" class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
       <USkeleton v-for="i in 8" :key="i" class="h-36 w-full rounded-lg" />
@@ -103,6 +110,8 @@ const { getDetailedProducts } = useProductsApi()
 const { isExpired: checkIsExpired, isExpiringSoon: checkIsExpiringSoon } = useExpirationCheck()
 const { t: $t } = useI18n()
 const { showCameraButton } = useCameraAvailability()
+
+const { pullDistance, isPulling, isRefreshing, isReady } = usePullToRefresh(() => loadProducts())
 
 // LocalStorage key for filter settings
 const LAST_FILTER_MODE_KEY = 'productsLastFilterMode'

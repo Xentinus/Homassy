@@ -42,6 +42,13 @@
     <!-- Content Section with padding to account for fixed header -->
     <div class="pt-40 px-4 sm:px-8 lg:px-14 pb-6">
 
+    <PullToRefreshIndicator
+      :pull-distance="pullDistance"
+      :is-pulling="isPulling"
+      :is-refreshing="isRefreshing"
+      :is-ready="isReady"
+    />
+
     <!-- Loading State -->
     <template v-if="loading">
       <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
@@ -313,6 +320,8 @@ const { getSelectValues } = useSelectValueApi()
 const { t } = useI18n()
 const toast = useToast()
 const { showCameraButton } = useCameraAvailability()
+
+const { pullDistance, isPulling, isRefreshing, isReady } = usePullToRefresh(() => loadProducts(true))
 
 const loading = ref(true)
 const loadingMore = ref(false)

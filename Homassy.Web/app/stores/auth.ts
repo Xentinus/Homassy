@@ -88,6 +88,11 @@ export const useAuthStore = defineStore('auth', {
         return
       }
 
+      // Guard: only run on client — Kratos session cookies are not accessible server-side
+      if (import.meta.server) {
+        return
+      }
+
       console.debug('[Auth] Initializing auth state...')
       this.isLoading = true
 
