@@ -16,6 +16,8 @@
 9. [Cross-Cutting Concerns](#cross-cutting-concerns)
 10. [Development Guidelines](#development-guidelines)
 
+> **Controllers:** AuthController · UserController · FamilyController · ProductController · LocationController · ShoppingListController · SelectValueController · OpenFoodFactsController · VersionController · HealthController · ErrorCodesController · ProgressController
+
 ---
 
 ## Overview
@@ -42,6 +44,12 @@ Homassy.API is a home storage management system built with ASP.NET Core. The pro
 - **Input Sanitization**: Automatic XSS protection via `[SanitizedString]` validation attribute
 - **Barcode Validation**: Multi-format barcode validation with checksum verification (EAN-13, EAN-8, UPC-A, UPC-E, Code-128)
 - **Image Processing**: Secure image upload with magic number validation, format detection, and dimension constraints
+- **Async Progress Tracking**: Long-running operations (e.g. image uploads) tracked via `ProgressTrackerService` with job IDs
+- **Push Notifications**: Web Push API (VAPID) for browser push notifications with per-user subscription management
+- **Activity Feed**: Per-family activity log tracking create/update/delete operations across entities
+- **Error Code System**: Typed `ErrorCodes` enum with descriptions instead of plain string messages in all API error responses
+- **Account Lockout**: Automatic account lockout after repeated failed login attempts via `AccountLockoutService`
+- **Graceful Shutdown**: Configurable drain period before process exit, ensuring in-flight requests complete
 - **CORS Support**: Configurable cross-origin resource sharing for web clients
 - **Response Compression**: Brotli and Gzip for improved performance
 
@@ -88,88 +96,156 @@ Homassy.API/
 ├── Context/               Database context and session management
 │   ├── HomassyDbContext.cs
 │   └── SessionInfo.cs
+├── Attributes/           Custom validation attributes
+│   └── Validation/
+│       ├── SanitizedStringAttribute.cs
+│       └── ValidBarcodeAttribute.cs
+├── Constants/              Application-wide constants
+│   ├── ErrorCodeDescriptions.cs   Error code enum → human-readable map
+│   └── TableNames.cs
+├── Context/               Database context and session management
+│   ├── HomassyDbContext.cs
+│   ├── HomassyDbContextFactory.cs
+│   └── SessionInfo.cs
 ├── Controllers/           HTTP endpoint handlers (thin layer)
 │   ├── AuthController.cs
-│   ├── UserController.cs
+│   ├── ErrorCodesController.cs    Error code reference (public)
 │   ├── FamilyController.cs
-│   ├── ProductController.cs
-│   ├── LocationController.cs
-│   ├── ShoppingListController.cs
 │   ├── HealthController.cs
-│   ├── VersionController.cs
+│   ├── LocationController.cs
 │   ├── OpenFoodFactsController.cs
-│   └── SelectValueController.cs
+│   ├── ProductController.cs
+│   ├── ProgressController.cs      Job progress tracking
+│   ├── SelectValueController.cs
+│   ├── ShoppingListController.cs
+│   ├── UserController.cs
+│   └── VersionController.cs
 ├── Entities/              Database entity models
-│   ├── Common/           Base entities and shared models
+│   ├── Activity/
+│   │   └── Activity.cs
+│   ├── Common/           Base entities
 │   │   ├── BaseEntity.cs
 │   │   ├── SoftDeleteEntity.cs
-│   │   └── RecordChangeEntity.cs
-│   ├── Family/           Family-related entities
-│   ├── Location/         Location entities (shopping/storage)
-│   ├── Product/          Product entities
-│   ├── ShoppingList/     Shopping list entities
-│   └── User/             User-related entities
+│   │   ├── RecordChangeEntity.cs
+│   │   └── TableRecordChange.cs
+│   ├── Family/
+│   │   └── Family.cs
+│   ├── Location/
+│   │   ├── LocationBase.cs
+│   │   ├── ShoppingLocation.cs
+│   │   └── StorageLocation.cs
+│   ├── Product/
+│   │   ├── Product.cs
+│   │   ├── ProductConsumptionLog.cs
+│   │   ├── ProductCustomization.cs
+│   │   ├── ProductInventoryItem.cs
+│   │   └── ProductPurchaseInfo.cs
+│   ├── ShoppingList/
+│   │   ├── ShoppingList.cs
+│   │   └── ShoppingListItem.cs
+│   └── User/
+│       ├── User.cs
+│       ├── UserNotificationPreferences.cs
+│       ├── UserProfile.cs
+│       └── UserPushSubscription.cs
 ├── Enums/                Application enumerations
-│   └── SelectValueType.cs
+│   ├── ActivityType.cs
+│   ├── BarcodeFormat.cs
+│   ├── Currency.cs
+│   ├── ErrorCode.cs               Typed error codes for all API error responses
+│   ├── ImageFormat.cs
+│   ├── ImageValidationError.cs
+│   ├── Language.cs
+│   ├── ProductCategory.cs
+│   ├── SelectValueType.cs
+│   ├── Unit.cs
+│   ├── UserStatus.cs
+│   └── UserTimeZone.cs
 ├── Exceptions/           Custom exception classes
-│   ├── AuthException.cs
-│   ├── BadRequestException.cs
-│   ├── UserNotFoundException.cs
-│   ├── FamilyNotFoundException.cs
+│   ├── AccountLockedException.cs  429 – account temporarily locked
+│   ├── AuthException.cs           Base auth exception with StatusCode
 │   ├── LocationException.cs
 │   ├── ProductException.cs
-│   ├── ShoppingListException.cs
-│   └── RequestTimeoutException.cs
+│   ├── RequestTimeoutException.cs
+│   └── ShoppingListException.cs
 ├── Extensions/           Extension methods
 │   ├── CurrencyExtensions.cs
-│   ├── HttpContextExtensions.cs
+│   ├── HttpContextExtensions.cs    GetKratosSession() helper
 │   ├── LanguageExtensions.cs
+│   ├── QueryableExtensions.cs
+│   ├── RequestLoggingMiddlewareExtensions.cs
+│   ├── StringExtensions.cs
 │   ├── UnitExtensions.cs
 │   └── UserTimeZoneExtensions.cs
 ├── Functions/            Business logic layer (replaces traditional services)
-│   ├── UserFunctions.cs
+│   ├── ActivityFunctions.cs       Activity feed queries
 │   ├── FamilyFunctions.cs
-│   ├── ProductFunctions.cs
+│   ├── ImageFunctions.cs          Image upload/delete for products & profiles
 │   ├── LocationFunctions.cs
-│   ├── ShoppingListFunctions.cs
+│   ├── ProductFunctions.cs
+│   ├── PushNotificationFunctions.cs  Subscribe/unsubscribe/send notifications
 │   ├── SelectValueFunctions.cs
+│   ├── ShoppingListFunctions.cs
+│   ├── TimeZoneFunctions.cs
 │   ├── UnitFunctions.cs
-│   └── TimeZoneFunctions.cs
-├── Infrastructure/       Infrastructure components (triggers, etc.)
+│   └── UserFunctions.cs
+├── HealthChecks/         Health check implementations
+│   └── OpenFoodFactsHealthCheck.cs
+├── Infrastructure/       Infrastructure components
 │   └── DatabaseTriggerInitializer.cs
 ├── Middleware/           Custom middleware
 │   ├── CorrelationIdMiddleware.cs
 │   ├── GlobalExceptionMiddleware.cs
+│   ├── KratosSessionMiddleware.cs  Validates Kratos session + populates HttpContext
 │   ├── RateLimitingMiddleware.cs
 │   ├── RequestLoggingMiddleware.cs
 │   ├── RequestTimeoutMiddleware.cs
 │   └── SessionInfoMiddleware.cs
 ├── Migrations/           EF Core database migrations
 ├── Models/               DTOs and request/response models
-│   ├── ApplicationSettings/  Application settings (HTTPS, HSTS, Timeouts)
-│   ├── Auth/            Authentication models
-│   ├── Common/          Shared models (ApiResponse, SelectValue, VersionInfo)
-│   ├── Family/          Family DTOs
-│   ├── HealthCheck/     Health check models
-│   ├── Location/        Location DTOs
-│   ├── OpenFoodFacts/   Open Food Facts API models
-│   ├── Product/         Product DTOs
-│   ├── RateLimit/       Rate limiting models
-│   ├── ShoppingList/    Shopping list DTOs
-│   └── User/            User DTOs
+│   ├── Activity/         Activity feed DTOs (ActivityInfo, GetActivitiesRequest)
+│   ├── ApplicationSettings/  (HttpsSettings, GracefulShutdownSettings, etc.)
+│   ├── Barcode/          Barcode validation result models
+│   ├── Common/           Shared models (ApiResponse, PagedResult, SelectValue, VersionInfo)
+│   ├── Family/
+│   ├── HealthCheck/
+│   ├── ImageUpload/      Image upload request/response models
+│   ├── Kratos/           Kratos session/config models
+│   ├── Location/
+│   ├── OpenFoodFacts/
+│   ├── Product/
+│   ├── ProgressInfo.cs   Progress tracking DTO
+│   ├── PushNotification/ (CreatePushSubscriptionRequest, VapidPublicKeyResponse, etc.)
+│   ├── RateLimit/
+│   ├── RequestLoggingOptions.cs
+│   ├── ShoppingList/
+│   └── User/
 ├── Security/            Security utilities
 │   └── SecureCompare.cs
 └── Services/            Application services
-    ├── Background/      Background services
+    ├── Background/      Background hosted services
+    │   ├── PushNotificationSchedulerService.cs
+    │   ├── ShoppingListActivityMonitorService.cs
     │   └── TokenCleanupService.cs
-    ├── HealthChecks/    Health check implementations
-    │   └── OpenFoodFactsHealthCheck.cs
-    ├── CacheManagementService.cs
+    ├── Sanitization/
+    │   ├── IInputSanitizationService.cs
+    │   └── InputSanitizationService.cs
+    ├── AccountLockoutService.cs
+    ├── BarcodeValidationService.cs
+    ├── CacheManagementService.cs  (IHostedService – cache invalidation)
     ├── ConfigService.cs
-    ├── JwtService.cs
+    ├── GracefulShutdownService.cs (IHostedService – drain on shutdown)
+    ├── IBarcodeValidationService.cs
+    ├── IImageProcessingService.cs
+    ├── IWebPushService.cs
+    ├── ImageProcessingService.cs
+    ├── KratosService.cs
     ├── OpenFoodFactsService.cs
-    ├── RateLimitCleanupService.cs
-    └── RateLimitService.cs
+    ├── ProgressTrackerService.cs
+    ├── PushNotificationContentService.cs
+    ├── RateLimitCleanupService.cs (IHostedService)
+    ├── RateLimitService.cs
+    └── WebPushService.cs
 ```
 
 ---
@@ -196,20 +272,9 @@ Controllers are kept deliberately thin and focused on HTTP concerns:
 [MapToApiVersion(1.0)]
 public IActionResult GetProfile()
 {
-    try
-    {
-        var profileResponse = new UserFunctions().GetProfileAsync();
-        return Ok(ApiResponse<UserProfileResponse>.SuccessResponse(profileResponse));
-    }
-    catch (UserNotFoundException ex)
-    {
-        return NotFound(ApiResponse.ErrorResponse(ex.Message));
-    }
-    catch (Exception ex)
-    {
-        Log.Error($"Unexpected error getting user profile: {ex.Message}");
-        return StatusCode(500, ApiResponse.ErrorResponse("An error occurred while retrieving user profile"));
-    }
+    var profileResponse = new UserFunctions().GetProfileAsync();
+    return Ok(ApiResponse<UserProfileResponse>.SuccessResponse(profileResponse));
+    // Exceptions bubble up to GlobalExceptionMiddleware
 }
 ```
 
@@ -481,14 +546,13 @@ return BadRequest(ApiResponse.ErrorResponse(validationErrors));
 Controllers use the `[ApiController]` attribute for automatic model validation:
 
 ```csharp
-[HttpPost("register")]
-public async Task<IActionResult> Register([FromBody] CreateUserRequest request)
+[HttpPost("settings")]
+public async Task<IActionResult> UpdateSettings([FromBody] UpdateUserSettingsRequest request)
 {
     if (!ModelState.IsValid)
     {
-        return BadRequest(ApiResponse.ErrorResponse("Invalid request data"));
+        return BadRequest(ApiResponse.ErrorResponse(ErrorCodes.ValidationInvalidRequest));
     }
-
     // Process request...
 }
 ```
@@ -499,57 +563,43 @@ public async Task<IActionResult> Register([FromBody] CreateUserRequest request)
 
 ### Exception Handling Pattern
 
-All controllers follow a consistent exception handling pattern:
+Most controllers rely on `GlobalExceptionMiddleware` for exception handling (no try-catch boilerplate required). Minimal try-catch is used only when a specific response shape is needed:
 
 ```csharp
-try
+[HttpGet("{id}")]
+public async Task<IActionResult> GetProduct(Guid id, CancellationToken cancellationToken)
 {
-    var result = await new SomeFunctions().DoSomethingAsync();
-    return Ok(ApiResponse<ResultType>.SuccessResponse(result));
-}
-catch (AuthException ex)
-{
-    return ex.StatusCode switch
-    {
-        400 => BadRequest(ApiResponse.ErrorResponse(ex.Message)),
-        401 => Unauthorized(ApiResponse.ErrorResponse(ex.Message)),
-        403 => StatusCode(403, ApiResponse.ErrorResponse(ex.Message)),
-        _ => StatusCode(500, ApiResponse.ErrorResponse("An error occurred"))
-    };
-}
-catch (UserNotFoundException ex)
-{
-    return NotFound(ApiResponse.ErrorResponse(ex.Message));
-}
-catch (BadRequestException ex)
-{
-    return BadRequest(ApiResponse.ErrorResponse(ex.Message));
-}
-catch (Exception ex)
-{
-    Log.Error($"Unexpected error: {ex.Message}");
-    return StatusCode(500, ApiResponse.ErrorResponse("An error occurred"));
+    // No try-catch needed — GlobalExceptionMiddleware handles all exceptions
+    var product = await new ProductFunctions().GetProductAsync(id, cancellationToken);
+    return Ok(ApiResponse<ProductResponse>.SuccessResponse(product));
 }
 ```
 
+**Error Codes System:**
+
+All API errors use a typed `ErrorCodes` enum (in `Enums/ErrorCode.cs`) rather than raw strings, with human-readable descriptions in `Constants/ErrorCodeDescriptions.cs`. This ensures consistency and makes error codes discoverable via the `ErrorCodesController`:
+
+```csharp
+return BadRequest(ApiResponse.ErrorResponse(ErrorCodes.ValidationInvalidRequest));
+return Unauthorized(ApiResponse.ErrorResponse(ErrorCodes.AuthInvalidCredentials));
+return StatusCode(403, ApiResponse.ErrorResponse(ErrorCodes.AuthRegistrationDisabled));
+```
+
 **Custom Exception Hierarchy:**
-- `AuthException` - Base authentication exception with `StatusCode` property
-- `UserNotFoundException` - User not found (404)
-- `FamilyNotFoundException` - Family not found (404)
-- `BadRequestException` - Invalid request (400)
-- `UnauthorizedException` - Unauthorized access (401)
-- `InvalidCredentialsException` - Invalid credentials
-- `ExpiredCredentialsException` - Expired credentials
-- `ProductNotFoundException` - Product not found (404)
-- `ShoppingListNotFoundException` - Shopping list not found (404)
-- `ShoppingListItemNotFoundException` - Shopping list item not found (404)
-- `ShoppingListAccessDeniedException` - Access denied to shopping list (401)
-- `InvalidShoppingListItemException` - Invalid shopping list item (400)
-- `ShoppingLocationNotFoundException` - Shopping location not found (404)
-- `StorageLocationNotFoundException` - Storage location not found (404)
+- `AuthException` - Base authentication exception with `StatusCode` and `ErrorCode` property
+- `AccountLockedException` - Account locked after too many attempts (429) – subclass of `AuthException`
+- `LocationException` – Wraps location-related errors (not found, access denied, invalid)
+- `ProductException` – Wraps product-related errors (not found, access denied, invalid)
+- `ShoppingListException` – Wraps shopping list errors (not found, access denied, item not found, etc.)
 - `RequestTimeoutException` - Request timeout (504)
 
-**Note:** Most exception mapping is handled by `GlobalExceptionMiddleware`, which catches unhandled exceptions and maps them to appropriate HTTP status codes. `OperationCanceledException` is handled separately (499 for client cancellation).
+**GlobalExceptionMiddleware mapping:**
+- `AuthException` → custom `StatusCode` from exception
+- `AccountLockedException` → 429 with `LockedUntil` and `RemainingSeconds` in response
+- `ProductException`, `LocationException`, `ShoppingListException` → 404 / 403 depending on subtype
+- `RequestTimeoutException` → 504 Gateway Timeout
+- `OperationCanceledException` → 499 Client Closed Request
+- All other exceptions → 500 Internal Server Error (no stack trace exposed)
 
 ---
 
@@ -594,38 +644,51 @@ The system uses **Ory Kratos** as a self-hosted identity management solution. Al
    - Local user record synced with Kratos identity
 
 3. **Accessing Protected Endpoints**
-   - Frontend includes Kratos session cookie in requests
-   - API middleware validates session with Kratos
-   - `SessionInfo` populated with user context
+   - Frontend includes Kratos session cookie (`ory_kratos_session`) or `X-Session-Token` header
+   - `KratosSessionMiddleware` calls Kratos `/sessions/whoami` to validate the session
+   - On success, sets `context.User` claims and stores session in `HttpContext.Items["KratosSession"]`
+   - `SessionInfo` middleware populates the per-request `AsyncLocal` context with user/family IDs
+
+#### KratosSessionMiddleware
+
+Validates every incoming request's Kratos session **before** the ASP.NET Core authentication pipeline:
+
+```csharp
+public class KratosSessionMiddleware
+{
+    public async Task InvokeAsync(HttpContext context)
+    {
+        // Skip public paths: /health, /openapi, /api/v1/version, /api/v1/errorcodes
+        if (ShouldSkipAuthentication(context.Request.Path)) { ... }
+
+        // Extract from cookie (ory_kratos_session) or X-Session-Token header
+        var session = await kratosService.GetSessionAsync(cookie, token, ct);
+
+        if (session != null && session.Active)
+        {
+            // Build ClaimsPrincipal from Kratos identity
+            context.User = new ClaimsPrincipal(identity);
+            // Store for later use by controllers
+            context.Items["KratosSession"] = session;
+        }
+
+        await _next(context);
+    }
+}
+```
+
+Controllers access the session via an extension method:
+```csharp
+var kratosSession = HttpContext.GetKratosSession(); // returns KratosSession?
+```
 
 #### KratosAuthenticationHandler
 
-Custom authentication handler that validates Kratos sessions:
+A lightweight custom `AuthenticationHandler` registered under the `"Kratos"` scheme. It reads the `ClaimsPrincipal` that was **already set** by `KratosSessionMiddleware`, allowing ASP.NET Core's `[Authorize]` attribute to work without re-validating the session.
 
 ```csharp
-public class KratosAuthenticationHandler : AuthenticationHandler<KratosAuthenticationOptions>
-{
-    protected override async Task<AuthenticateResult> HandleAuthenticateAsync()
-    {
-        // Extract session token from cookie or Authorization header
-        var kratosSession = await _kratosService.ValidateSessionAsync(token);
-        
-        if (kratosSession == null)
-            return AuthenticateResult.Fail("Invalid or expired session");
-
-        // Create claims from Kratos identity
-        var claims = new List<Claim>
-        {
-            new Claim(ClaimTypes.NameIdentifier, kratosSession.Identity.Id),
-            new Claim(ClaimTypes.Email, kratosSession.Identity.Traits.Email)
-        };
-
-        // Store session in HttpContext for later use
-        Context.Items["KratosSession"] = kratosSession;
-        
-        return AuthenticateResult.Success(ticket);
-    }
-}
+builder.Services.AddAuthentication("Kratos")
+    .AddScheme<AuthenticationSchemeOptions, KratosAuthenticationHandler>("Kratos", _ => { });
 ```
 
 #### User Synchronization
@@ -702,8 +765,10 @@ Registration is handled entirely by Kratos:
 - Frontend initiates registration flow via Kratos
 - Kratos validates email and sends verification code
 - On successful verification, Kratos creates identity
-- API syncs local user record on first authenticated request
-- Registration can be disabled via Kratos configuration
+- API syncs local user record on first authenticated request (via `GET /auth/me`)
+- Registration can be disabled via `"RegistrationEnabled": false` in `appsettings.json`
+  - When disabled, existing local users can still log in, new users are blocked with **403**
+  - The `GET /auth/config` endpoint exposes this flag so the frontend can hide the registration UI
 
 ---
 
@@ -729,22 +794,32 @@ Provides user session management for Kratos authentication (no `[Authorize]` at 
 
 ### UserController
 
-Manages user profile and settings (all endpoints require `[Authorize]`).
+Manages user profile, settings, activity, and push notifications (all endpoints require `[Authorize]`).
 
 **Endpoints:**
 
 | Method | Endpoint | Description |
 |--------|----------|-------------|
 | GET | `/profile` | Get user profile |
-| PUT | `/settings` | Update user settings |
-| POST | `/profile-picture` | Upload profile picture (Base64) |
+| PUT | `/settings` | Update user settings and preferences |
+| POST | `/profile-picture` | Upload profile picture synchronously (legacy) |
+| POST | `/profile-picture/upload-async` | Upload profile picture asynchronously (returns job ID) |
 | DELETE | `/profile-picture` | Delete profile picture |
+| GET | `/notification` | Get notification preferences |
+| PUT | `/notification` | Update notification preferences |
+| GET | `/bulk` | Get multiple users by comma-separated public IDs (`?publicIds=...`) |
+| GET | `/activities` | Paginated activity history with optional filters |
+| GET | `/push/vapid-key` | Get VAPID public key for push subscription |
+| POST | `/push/subscribe` | Subscribe device for push notifications |
+| POST | `/push/unsubscribe` | Unsubscribe device from push notifications |
+| POST | `/push/test` | Send a test push notification to current device |
 
 **Key Patterns:**
 - All endpoints require authentication
-- Consistent error handling
 - Base64 image upload for profile pictures
-- Automatic user context from `SessionInfo`
+- Async image upload returns a `jobId`; track progress via `GET /progress/{jobId}`
+- Push notifications use Web Push API (VAPID)
+- Activity feed supports pagination (`pageNumber`, `pageSize`, `returnAll`) and filtering by type/date/user
 
 ### FamilyController
 
@@ -978,6 +1053,53 @@ Provides dropdown/select list values for UI components (all endpoints require `[
 - Alphabetically ordered for better UX
 - User/family context from SessionInfo
 
+### ErrorCodesController
+
+Exposes all typed error codes as a public reference (no authentication required).
+
+**Endpoints:**
+
+| Method | Endpoint | Auth | Description |
+|--------|----------|------|-------------|
+| GET | `/` | No | Get all error codes with descriptions, grouped by category |
+| GET | `/{group}` | No | Get error codes for a specific group prefix (e.g., `AUTH`, `USER`, `PRODUCT`, `VALIDATION`) |
+
+**Key Patterns:**
+- Public endpoint – no authentication required
+- Error codes are `ErrorCode` enum values serialized as strings grouped by prefix
+- Useful for frontend i18n and debugging
+
+### ProgressController
+
+Tracks progress of long-running background jobs (e.g., async image uploads). All endpoints require `[Authorize]`.
+
+**Endpoints:**
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/{jobId}` | Get progress status of a job (percentage, stage, status, errorMessage) |
+| DELETE | `/{jobId}` | Cancel a running job |
+
+**Response Shape:**
+```json
+{
+  "Success": true,
+  "Data": {
+    "jobId": "3fa85f64-...",
+    "percentage": 45,
+    "stage": "processing",
+    "status": "running",
+    "errorMessage": null
+  }
+}
+```
+
+**Key Patterns:**
+- Jobs created by async endpoints (e.g., `POST /user/profile-picture/upload-async`)
+- Polling-based progress tracking via `IProgressTrackerService`
+- Returns 404 if job ID unknown
+- DELETE cancels the job via `CancellationTokenSource`
+
 ---
 
 ## Cross-Cutting Concerns
@@ -988,34 +1110,45 @@ The middleware pipeline is configured in a specific order in `Program.cs`:
 
 ```csharp
 app.UseResponseCompression();
-app.Use(async (context, next) => { /* Response Headers Middleware */ });
+app.Use(async (context, next) => { /* Security + App Headers */ });
 app.UseMiddleware<CorrelationIdMiddleware>();
 app.UseMiddleware<RequestTimeoutMiddleware>();
-app.UseMiddleware<RequestLoggingMiddleware>();
+app.UseRequestLogging(builder.Configuration); // extension method
 app.UseMiddleware<GlobalExceptionMiddleware>();
-app.UseHttpsRedirection();
-app.UseHsts(); // If configured
-app.UseCors();
+
+// OpenAPI only in Development
+if (app.Environment.IsDevelopment()) app.MapOpenApi();
+
+// HSTS + HTTPS only if enabled and not Development
+if (httpsSettings.Enabled && httpsSettings.Hsts.Enabled && !app.Environment.IsDevelopment()) app.UseHsts();
+if (httpsSettings.Enabled && !app.Environment.IsDevelopment()) app.UseHttpsRedirection();
+
+app.UseCors("HomassyPolicy");
 app.UseMiddleware<RateLimitingMiddleware>();
-app.UseAuthentication();
-app.UseMiddleware<SessionInfoMiddleware>();
+app.UseMiddleware<KratosSessionMiddleware>(); // validates Kratos session first
+app.UseAuthentication();                     // reads ClaimsPrincipal set by KratosSessionMiddleware
+app.UseAuthorization();
+app.UseMiddleware<SessionInfoMiddleware>();   // populates AsyncLocal from claims
 app.MapControllers();
 ```
 
 **Order matters:**
 1. **Response Compression** - Brotli and Gzip compression for responses
-2. **Response Headers** - Adds security headers (CSP, X-Frame-Options, HSTS, etc.) and app metadata
-3. **Correlation ID** - Generates/propagates X-Correlation-ID for request tracing
+2. **Response Headers** - Adds security headers (CSP, X-Frame-Options, HSTS, etc.) and app metadata; removes `Server` / `X-Powered-By`
+3. **Correlation ID** - Generates/propagates `X-Correlation-ID` for request tracing
 4. **Request Timeout** - Enforces per-endpoint timeout limits
-5. **Request Logging** - Logs HTTP requests/responses (sanitized)
+5. **Request Logging** - Logs HTTP requests/responses (sanitized) via extension method `UseRequestLogging`
 6. **Global Exception Handler** - Catches and maps all unhandled exceptions
-7. **HTTPS Redirection** - Forces HTTPS
-8. **HSTS** - HTTP Strict Transport Security (if enabled)
-9. **CORS** - Cross-Origin Resource Sharing (configurable origins)
-10. **Rate Limiting** - Global and per-endpoint request throttling
-11. **Authentication** - Kratos session validation
-12. **Session Info** - Extracts user context from Kratos session
-13. **Controllers** - Route to endpoints
+7. **OpenAPI** - Swagger UI (development only)
+8. **HSTS** - HTTP Strict Transport Security (non-dev, if enabled)
+9. **HTTPS Redirection** - Forces HTTPS (non-dev, if enabled)
+10. **CORS** - Cross-Origin Resource Sharing (configurable origins, allows localhost always)
+11. **Rate Limiting** - Global and per-endpoint request throttling
+12. **Kratos Session** - Calls Kratos `/sessions/whoami`, sets `context.User` and `HttpContext.Items["KratosSession"]`
+13. **Authentication** - Reads the `ClaimsPrincipal` already set by KratosSessionMiddleware
+14. **Authorization** - Enforces `[Authorize]` attributes
+15. **Session Info** - Extracts user/family IDs from claims into `AsyncLocal` (`SessionInfo`)
+16. **Controllers** - Route to endpoints
 
 ### Response Compression
 
@@ -1211,6 +1344,136 @@ X-Application-Version: <version>
 - Enforces HTTPS (HSTS)
 - Content Security Policy protection
 - Request tracing (X-Request-ID)
+
+### Error Code System
+
+All API error responses use a typed `ErrorCode` enum (`Enums/ErrorCode.cs`) rather than arbitrary strings.
+
+**Benefits:**
+- Frontend can switch on stable integer/string codes rather than free-text messages
+- Codes are grouped by prefix: `AUTH_*`, `USER_*`, `FAMILY_*`, `PRODUCT_*`, `LOCATION_*`, `SHOPPING_LIST_*`, `VALIDATION_*`, `SYSTEM_*`, `PROGRESS_*`
+- Human-readable descriptions available via `ErrorCodeDescriptions.GetAllErrorCodes()`
+- `ErrorCodesController` exposes them publicly for documentation/debugging
+
+**Usage:**
+```csharp
+// In controllers or functions:
+return BadRequest(ApiResponse.ErrorResponse(ErrorCodes.ValidationInvalidRequest));
+return Unauthorized(ApiResponse.ErrorResponse(ErrorCodes.AuthInvalidCredentials));
+return StatusCode(429, ApiResponse.ErrorResponse(ErrorCodes.AuthAccountLocked));
+```
+
+**Discovering codes:**
+```
+GET /api/v1.0/errorcodes           → all codes
+GET /api/v1.0/errorcodes/AUTH      → only AUTH_* codes
+GET /api/v1.0/errorcodes/PRODUCT   → only PRODUCT_* codes
+```
+
+### Push Notifications (Web Push / VAPID)
+
+The application supports browser push notifications via the Web Push API.
+
+**Components:**
+- `IWebPushService` / `WebPushService` – sends push messages using VAPID keys configured in `appsettings.json`
+- `PushNotificationContentService` – builds notification content/payload
+- `PushNotificationFunctions` – subscription lifecycle (subscribe, unsubscribe, test)
+- `PushNotificationSchedulerService` – background service that schedules/sends notifications
+- `UserPushSubscription` entity – stores each device's endpoint, p256dh, auth keys
+- `UserNotificationPreferences` entity – per-user opt-in/out controls
+
+**Subscription Lifecycle:**
+```
+1. GET /user/push/vapid-key      → frontend gets VAPID public key
+2. Browser creates PushSubscription using the key
+3. POST /user/push/subscribe     → stores endpoint + keys in DB
+4. POST /user/push/unsubscribe   → removes subscription from DB
+5. POST /user/push/test          → sends a test notification
+```
+
+**VAPID configuration in appsettings.json:**
+```json
+{
+  "WebPush": {
+    "VapidPublicKey": "...",
+    "VapidPrivateKey": "...",
+    "VapidSubject": "mailto:admin@example.com"
+  }
+}
+```
+
+### Activity Feed
+
+A per-family audit log of create/update/delete operations across entities.
+
+**Components:**
+- `Activity` entity (`Entities/Activity/Activity.cs`) – stores actor, entity type, action, and timestamp
+- `ActivityFunctions` – queries the activity feed with pagination and filtering
+- `ActivityType` enum – categorises activities (product added, shopping list updated, etc.)
+- `ShoppingListActivityMonitorService` – background service that monitors changes and creates activity entries
+
+**Querying via UserController:**
+```
+GET /api/v1.0/user/activities
+  ?activityType=1             (optional filter by ActivityType enum value)
+  &startDate=2026-01-01       (optional)
+  &endDate=2026-02-01         (optional)
+  &userPublicId=<guid>        (optional, filter by user)
+  &pageNumber=1
+  &pageSize=20
+  &returnAll=false
+```
+
+Returns `PagedResult<ActivityInfo>` with total count for cursor-style pagination.
+
+### Account Lockout
+
+Automatic lockout after repeated failed authentication attempts.
+
+**Components:**
+- `AccountLockoutService` – tracks failed attempts and determines lockout state
+- `AccountLockedException` – `AuthException` subclass with `LockedUntil` and `RemainingSeconds` properties; maps to HTTP 429
+
+**Flow:**
+```
+1. User fails authentication
+2. AccountLockoutService increments failure counter
+3. After threshold exceeded, account locked until LockedUntil timestamp
+4. All login attempts return 429 with RemainingSeconds until unlock
+5. Lockout expires automatically; service resets counter
+```
+
+**Error Response when locked:**
+```json
+{
+  "Success": false,
+  "Errors": ["AUTH_ACCOUNT_LOCKED"],
+  "Data": {
+    "lockedUntil": "2026-02-26T10:45:00Z",
+    "remainingSeconds": 300
+  }
+}
+```
+
+### Graceful Shutdown
+
+Configurable drain period to allow in-flight requests to complete before process exit.
+
+**Configuration:**
+```json
+{
+  "GracefulShutdown": {
+    "Enabled": true,
+    "TimeoutSeconds": 10
+  }
+}
+```
+
+**Behavior:**
+- `GracefulShutdownService` listens to `IHostApplicationLifetime.ApplicationStopping`
+- On shutdown signal, waits `TimeoutSeconds` before exiting
+- Kestrel `AddServerHeader = false` is also set when enabled
+- Ensures rolling restarts (Kubernetes, Docker Swarm) don't drop active requests
 
 ### Input Sanitization & XSS Protection
 
@@ -2040,7 +2303,7 @@ Log.Error($"Unexpected error: {ex.Message}");
 
 ### Background Services
 
-Four background services run continuously as hosted services:
+Six hosted services run as `IHostedService`:
 
 **1. CacheManagementService**
 - Monitors `TableRecordChanges` for database changes
@@ -2051,19 +2314,35 @@ Four background services run continuously as hosted services:
 **2. RateLimitCleanupService**
 - Periodically cleans up expired rate limit entries
 - Prevents memory leaks from abandoned rate limit buckets
-- Configurable cleanup interval
 - Maintains rate limiting performance
 
-**3. TokenCleanupService**
-- Runs hourly to clean expired authentication tokens
-- Cleans up expired verification codes from `UserAuthentication` table
-- Cleans up expired previous refresh tokens (refresh token rotation)
-- Prevents accumulation of stale security data
-- Uses EF Core bulk updates for efficiency
+**3. GracefulShutdownService**
+- Listens for `ApplicationStopping` lifetime event
+- Waits a configurable drain period (`GracefulShutdown:TimeoutSeconds`) before process exits
+- Allows in-flight requests to complete during rolling restarts
+- Configured via `appsettings.json`: `"GracefulShutdown": { "Enabled": true, "TimeoutSeconds": 10 }`
+
+**4. PushNotificationSchedulerService** _(in `Services/Background/`)_
+- Scheduled background service for sending batched push notifications
+- Works with `IWebPushService` (VAPID Web Push)
+
+**5. ShoppingListActivityMonitorService** _(in `Services/Background/`)_
+- Monitors shopping list changes and logs activity feed entries
+- Detects item additions, removals, and status changes
+
+**6. TokenCleanupService** _(in `Services/Background/`)_
+- Runs periodically to clean up stale data
 - Scoped database access per execution
 
 **Registration:**
-All services are registered as `IHostedService` in `Program.cs` and run continuously until application shutdown.
+```csharp
+builder.Services.AddHostedService<CacheManagementService>();
+builder.Services.AddHostedService<RateLimitCleanupService>();
+builder.Services.AddHostedService<GracefulShutdownService>();
+builder.Services.AddHostedService<PushNotificationSchedulerService>();
+builder.Services.AddHostedService<ShoppingListActivityMonitorService>();
+// TokenCleanupService also registered as IHostedService
+```
 
 ### Application Services
 
@@ -2509,31 +2788,35 @@ Homassy.API is a modern ASP.NET Core Web API with a unique architecture optimize
 
 - **Controller → Functions** pattern simplifies architecture
 - **In-memory caching** with database triggers provides excellent performance
-- **Passwordless authentication** improves security and user experience
+- **Ory Kratos** session-based passwordless authentication (no JWT, no refresh tokens)
+- **KratosSessionMiddleware** validates sessions before ASP.NET Core's auth pipeline
 - **Entity inheritance** provides soft delete and change tracking automatically
-- **Standardized responses** ensure API consistency
+- **Standardized responses** with typed `ErrorCode` enum for all API errors
 - **Comprehensive middleware** provides rate limiting, security headers, request tracing, and session management
-- **Background email queue** with retry logic improves reliability and non-blocking delivery
 - **Correlation ID tracking** enables distributed tracing across the application
 - **Health checks** provide monitoring and Kubernetes-compatible orchestration support
-- **Refresh token rotation** enhances security against token theft and replay attacks
 - **Centralized exception handling** simplifies controller code and ensures consistent error responses
 - **Request/response logging** with sensitive data filtering improves observability
 - **Per-endpoint timeouts** prevent long-running requests from consuming resources
-- **Input sanitization** with automatic XSS protection via validation attributes
+- **Input sanitization** with automatic XSS protection via `[SanitizedString]` validation attribute
 - **Barcode validation** with multi-format support and checksum verification (EAN-13, EAN-8, UPC-A, UPC-E, Code-128)
 - **Image processing** with magic number validation, format detection, and secure upload system
+- **Async progress tracking** for long-running jobs (image uploads) via `ProgressTrackerService` and `ProgressController`
+- **Web Push notifications** (VAPID) with per-device subscription management and scheduled sending
+- **Activity feed** per-family audit log with pagination and filtering
+- **Account lockout** after repeated failed auth attempts (429 with unlock timer)
+- **Graceful shutdown** drain period for zero-downtime rolling restarts
 - **Open Food Facts integration** enriches product data with barcode lookup and nutrition information
 - **CancellationToken support** throughout for proper async operation handling and timeouts
 - **Response compression** (Brotli/Gzip) improves performance for large payloads
-- **CORS support** enables web client integration
+- **CORS support** enables web client integration (localhost always allowed)
 
 This architecture prioritizes:
 - **Performance**: Aggressive caching, response compression, efficient async operations
-- **Security**: JWT authentication with token rotation, rate limiting, security headers, input sanitization, magic number validation, constant-time comparisons, sanitized logging
-- **Data Quality**: Barcode validation with checksum verification, image format validation, input sanitization, comprehensive validation attributes
-- **Observability**: Correlation IDs, request logging, health checks, structured logging with Serilog
-- **Resilience**: Retry logic, timeout enforcement, graceful degradation, health monitoring
+- **Security**: Kratos session auth, rate limiting, account lockout, security headers, input sanitization, magic number validation, sanitized logging
+- **Data Quality**: Barcode validation with checksum verification, image format validation, input sanitization, typed error codes
+- **Observability**: Correlation IDs, request logging, health checks, activity feed, structured logging with Serilog
+- **Resilience**: Graceful shutdown, timeout enforcement, graceful degradation, health monitoring
 - **Maintainability**: Clear separation of concerns, consistent patterns, centralized error handling
 - **Developer Experience**: Simple patterns, minimal boilerplate, easy to extend, comprehensive documentation
 - **DevOps Readiness**: Kubernetes-compatible health probes, version endpoint, configurable timeouts, container-friendly design
