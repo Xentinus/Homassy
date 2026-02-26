@@ -7,7 +7,7 @@
 
 ## 📖 Overview
 
-Homassy is a modern full-stack system designed to simplify household inventory management, shopping lists, and product tracking for families. The system consists of a high-performance ASP.NET Core backend API and a modern Vue.js 3 (Nuxt 4) web application frontend.
+Homassy is a modern full-stack system designed to simplify household inventory management, shopping lists, and product tracking for families. The system consists of a high-performance ASP.NET Core backend API, a dedicated email microservice, and a modern Vue.js 3 (Nuxt 4) web application frontend.
 
 ## ✨ Key Features
 
@@ -17,6 +17,7 @@ Homassy is a modern full-stack system designed to simplify household inventory m
 - **.NET 10.0** Web API with modern C# patterns
 - **PostgreSQL** database with Entity Framework Core
 - **Ory Kratos** self-hosted identity management with passwordless email verification
+- **Homassy.Email** dedicated email microservice with queue-based delivery and retry logic
 - **In-memory caching** with database trigger-based invalidation
 - **Controller → Functions** pattern (no traditional repository layer)
 - **Production-ready middleware** - Exception handling, CORS, compression, logging
@@ -47,6 +48,7 @@ Homassy is a modern full-stack system designed to simplify household inventory m
 - ⏱️ Timing attack protection with constant-time comparisons
 - ⏳ Request timeout protection with per-endpoint configuration
 - 🛑 Global exception handling with standardized error responses
+- 🔑 API key authentication for internal service-to-service communication
 
 ### 🎯 Functionality
 - 👤 **User Management** - Profiles, settings, profile pictures, activity feed
@@ -61,6 +63,7 @@ Homassy is a modern full-stack system designed to simplify household inventory m
 - 🖼️ **Image Processing** - Browser-side compression and cropping
 - 🌍 **Internationalization** - Full i18n support with 3 languages (English, German, Hungarian)
 - 🔔 **Push Notifications** - Daily alerts at 7 AM for products expiring within 14 days, weekly summaries every Monday, and real-time notifications when a family member adds items to a shared shopping list
+- 📧 **Transactional Email** - Multilingual OTP emails (EN/HU/DE) for login, registration, verification, and recovery
 
 ### 📊 Data Quality
 - ✅ Advanced barcode validation with checksum verification (EAN-13, EAN-8, UPC-A, UPC-E, Code-128)
@@ -81,6 +84,16 @@ Homassy/
 │   ├── Services/         ⚙️ Infrastructure services
 │   ├── Middleware/       🔧 Exception handling, CORS, compression, logging, rate limiting
 │   └── CLAUDE.md         📚 Detailed architecture documentation
+├── Homassy.Email/        📧 Transactional Email Microservice
+│   ├── Endpoints/        🌐 KratosWebhookEndpoint, SendEmailEndpoint
+│   ├── Enums/            📋 EmailType (LoginCode, RegistrationCode, VerificationCode, RecoveryCode)
+│   ├── HealthChecks/     💓 SMTP connectivity health probe
+│   ├── Middleware/       🔑 API key authentication (constant-time)
+│   ├── Models/           📋 EmailMessage, KratosWebhookRequest, SendEmailRequest
+│   ├── Services/         ⚙️ EmailContentService, EmailQueueService, EmailSenderService, TemplateRendererService
+│   ├── Templates/        📄 Embedded HTML template (CodeEmail.html)
+│   ├── Workers/          ⏳ EmailWorkerService (BackgroundService with retry)
+│   └── CLAUDE.md         📚 Architecture documentation
 ├── Homassy.Web/          🎨 Vue.js 3 + Nuxt 4 Web App (Frontend)
 │   ├── app/
 │   │   ├── pages/        🔖 File-based routing (15+ pages)
@@ -97,12 +110,14 @@ Homassy/
 │   ├── nuxt.config.ts    ⚙️ Nuxt configuration
 │   └── Dockerfile        🐳 Multi-stage Docker build
 ├── Homassy.Migrator/     🔄 Database Migration Tool
-│   ├── Program.cs
-│   └── Dockerfile
+│   ├── Migrations/       📋 KratosUserMigration (one-time user migration)
+│   ├── Program.cs        🎯 CLI entry point (migrate, migrate-to-kratos, verify-kratos, kratos-stats)
+│   └── Dockerfile        🐳 Run-and-exit container
 ├── Homassy.Kratos/       🔐 Ory Kratos Configuration
-│   ├── kratos.yml        ⚙️ Kratos configuration
-│   ├── identity.schema.json  📋 Identity schema
-│   └── templates/        📧 Email templates
+│   ├── kratos.yml            ⚙️ Base configuration (HTTP courier → Homassy.Email)
+│   ├── kratos.production.yml ⚙️ Production overrides
+│   ├── identity.schema.json  📋 Identity schema (traits, notification preferences)
+│   └── webhook_body.jsonnet  📨 Courier webhook payload template
 ├── Homassy.Tests/        🧪 Test Suite (xUnit)
 │   ├── Integration/      ✅ Integration tests (100+ tests)
 │   ├── Unit/             🔬 Unit tests
@@ -113,7 +128,7 @@ Homassy/
 
 ## 🛠️ Technology Stack
 
-### Backend
+### Backend (Homassy.API)
 | Category | Technology |
 |----------|------------|
 | **Framework** | ASP.NET Core 10.0 |
@@ -126,7 +141,16 @@ Homassy/
 | **Testing** | xUnit 2.9.3 + WebApplicationFactory |
 | **External APIs** | Open Food Facts API v2 |
 
-### Frontend
+### Email Service (Homassy.Email)
+| Category | Technology |
+|----------|------------|
+| **Framework** | ASP.NET Core 10.0 (Minimal API) |
+| **SMTP Client** | MailKit 4.9 (STARTTLS) |
+| **Queue** | System.Threading.Channels (bounded, cap 500) |
+| **Logging** | Serilog (structured) |
+| **Languages** | English, Hungarian, German |
+
+### Frontend (Homassy.Web)
 | Category | Technology |
 |----------|------------|
 | **Framework** | Vue.js 3.5.25 + Nuxt 4.2.2 |
@@ -148,6 +172,7 @@ Homassy/
 | **Containerization** | Docker + Docker Compose |
 | **Database** | PostgreSQL 16 |
 | **Identity** | Ory Kratos (self-hosted) |
+| **Email Delivery** | Homassy.Email microservice (MailKit SMTP) |
 | **Web Server** | Kestrel (ASP.NET Core) |
 | **Node Server** | Node.js 22 (Nuxt SSR) |
 
