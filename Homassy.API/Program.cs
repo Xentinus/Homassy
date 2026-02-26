@@ -8,7 +8,6 @@ using Homassy.API.Models.ApplicationSettings;
 using Homassy.API.Models.HealthCheck;
 using Homassy.API.Security;
 using Homassy.API.Services;
-using Homassy.API.Services.Background;
 using Homassy.API.Services.Sanitization;
 using Microsoft.AspNetCore.OpenApi;
 using Microsoft.AspNetCore.ResponseCompression;
@@ -67,9 +66,8 @@ try
     // Kratos service registration
     builder.Services.AddHttpClient<IKratosService, KratosService>();
 
-    builder.Services.AddSingleton<IWebPushService, WebPushService>();
-    builder.Services.AddHostedService<PushNotificationSchedulerService>();
-    builder.Services.AddHostedService<ShoppingListActivityMonitorService>();
+    // Notifications service proxy client
+    builder.Services.AddHttpClient<NotificationsServiceClient>();
 
     builder.Services.Configure<HttpsSettings>(builder.Configuration.GetSection("Https"));
     builder.Services.Configure<RequestTimeoutSettings>(builder.Configuration.GetSection("RequestTimeout"));

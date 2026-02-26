@@ -1,7 +1,8 @@
-﻿using Homassy.API.Entities.User;
+﻿extern alias NotificationsProject;
+using Homassy.API.Entities.User;
 using Homassy.API.Enums;
-using Homassy.API.Services;
-using Homassy.API.Services.Background;
+using NotificationsProject::Homassy.Notifications.Services;
+using NotificationsProject::Homassy.Notifications.Workers;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace Homassy.Tests.Unit;

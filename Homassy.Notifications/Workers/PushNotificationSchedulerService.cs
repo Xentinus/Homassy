@@ -1,12 +1,12 @@
-using Homassy.API.Context;
+﻿using Homassy.API.Context;
 using Homassy.API.Entities.User;
 using Homassy.API.Enums;
 using Homassy.API.Extensions;
-using Homassy.API.Functions;
+using Homassy.Notifications.Services;
 using Microsoft.EntityFrameworkCore;
 using Serilog;
 
-namespace Homassy.API.Services.Background;
+namespace Homassy.Notifications.Workers;
 
 public sealed class PushNotificationSchedulerService : BackgroundService
 {
@@ -53,6 +53,7 @@ public sealed class PushNotificationSchedulerService : BackgroundService
 
         using var scope = _scopeFactory.CreateScope();
         var context = scope.ServiceProvider.GetRequiredService<HomassyDbContext>();
+        var inventoryService = scope.ServiceProvider.GetRequiredService<InventoryExpirationService>();
 
         var eligibleUsers = await GetEligibleUsersAsync(context, cancellationToken);
 
@@ -68,7 +69,7 @@ public sealed class PushNotificationSchedulerService : BackgroundService
         {
             try
             {
-                await ProcessUserNotificationsAsync(context, userData, utcNow, cancellationToken);
+                await ProcessUserNotificationsAsync(context, inventoryService, userData, utcNow, cancellationToken);
             }
             catch (Exception ex)
             {
@@ -79,18 +80,17 @@ public sealed class PushNotificationSchedulerService : BackgroundService
 
     private async Task ProcessUserNotificationsAsync(
         HomassyDbContext context,
+        InventoryExpirationService inventoryService,
         EligibleUserData userData,
         DateTime utcNow,
         CancellationToken cancellationToken)
     {
-        // Convert current UTC time to user's local time
         var timeZoneId = userData.TimeZone.ToTimeZoneId();
         var tz = TimeZoneInfo.FindSystemTimeZoneById(timeZoneId);
         var userLocalTime = TimeZoneInfo.ConvertTimeFromUtc(utcNow, tz);
 
         Log.Information("User {UserId} local time: {LocalTime} (timezone: {TZ})", userData.UserId, userLocalTime, timeZoneId);
 
-        // Check if it's 7 AM in user's timezone
         if (userLocalTime.Hour != 07)
         {
             Log.Information("Skipping user {UserId} - not send time (current hour: {Hour})", userData.UserId, userLocalTime.Hour);
@@ -102,15 +102,15 @@ public sealed class PushNotificationSchedulerService : BackgroundService
         var today = userLocalTime.Date;
         var isMonday = userLocalTime.DayOfWeek == DayOfWeek.Monday;
 
-        // Weekly notification (Monday)
         if (userData.PushWeeklySummaryEnabled && isMonday)
         {
-            await SendWeeklyNotificationAsync(context, userData, today, cancellationToken);
+            await SendWeeklyNotificationAsync(context, inventoryService, userData, today, cancellationToken);
         }
     }
 
     private async Task SendWeeklyNotificationAsync(
         HomassyDbContext context,
+        InventoryExpirationService inventoryService,
         EligibleUserData userData,
         DateTime today,
         CancellationToken cancellationToken)
@@ -119,17 +119,15 @@ public sealed class PushNotificationSchedulerService : BackgroundService
             .Where(s => s.UserId == userData.UserId && !s.IsDeleted)
             .ToListAsync(cancellationToken);
 
-        // Check deduplication
         if (subscriptions.All(s => s.LastWeeklyNotificationSentAt?.Date == today))
             return;
 
-        var count = await PushNotificationFunctions.GetExpiringCountForUserAsync(
-            userData.UserId, userData.FamilyId, context, cancellationToken);
+        var count = await inventoryService.GetExpiringCountForUserAsync(
+            userData.UserId, userData.FamilyId, cancellationToken);
 
-        // Weekly always sends (even with 0 count)
         var (title, body) = PushNotificationContentService.GetWeeklyNotificationContent(userData.Language, count);
-
         var actionTitle = GetActionTitle(userData.Language);
+
         await SendToSubscriptionsAsync(context, subscriptions, title, body, actionTitle, today, isWeekly: true, cancellationToken);
     }
 
@@ -147,7 +145,6 @@ public sealed class PushNotificationSchedulerService : BackgroundService
 
         foreach (var subscription in subscriptions)
         {
-            // Skip if already sent to this device today
             if (isWeekly && subscription.LastWeeklyNotificationSentAt?.Date == today)
                 continue;
             if (!isWeekly && subscription.LastDailyNotificationSentAt?.Date == today)
@@ -166,7 +163,6 @@ public sealed class PushNotificationSchedulerService : BackgroundService
             }
             else
             {
-                // Subscription invalid - soft delete
                 subscription.DeleteRecord();
                 hasChanges = true;
                 Log.Information("Removed invalid push subscription {Endpoint} for user {UserId}",
@@ -180,15 +176,12 @@ public sealed class PushNotificationSchedulerService : BackgroundService
         }
     }
 
-    private static string GetActionTitle(Language language)
+    private static string GetActionTitle(Language language) => language switch
     {
-        return language switch
-        {
-            Language.German => "Homassy öffnen",
-            Language.English => "Open Homassy",
-            _ => "Homassy megnyitása"
-        };
-    }
+        Language.German => "Homassy öffnen",
+        Language.English => "Open Homassy",
+        _ => "Homassy megnyitása"
+    };
 
     private static async Task<List<EligibleUserData>> GetEligibleUsersAsync(
         HomassyDbContext context,
@@ -214,7 +207,7 @@ public sealed class PushNotificationSchedulerService : BackgroundService
     }
 }
 
-internal class EligibleUserData
+internal sealed class EligibleUserData
 {
     public int UserId { get; init; }
     public int? FamilyId { get; init; }

@@ -7,7 +7,7 @@
 
 ## 📖 Overview
 
-Homassy is a modern full-stack system designed to simplify household inventory management, shopping lists, and product tracking for families. The system consists of a high-performance ASP.NET Core backend API, a dedicated email microservice, and a modern Vue.js 3 (Nuxt 4) web application frontend.
+Homassy is a modern full-stack system designed to simplify household inventory management, shopping lists, and product tracking for families. The system consists of a high-performance ASP.NET Core backend API, a dedicated email microservice, a dedicated push notifications microservice, and a modern Vue.js 3 (Nuxt 4) web application frontend.
 
 ## ✨ Key Features
 
@@ -18,6 +18,7 @@ Homassy is a modern full-stack system designed to simplify household inventory m
 - **PostgreSQL** database with Entity Framework Core
 - **Ory Kratos** self-hosted identity management with passwordless email verification
 - **Homassy.Email** dedicated email microservice with queue-based delivery and retry logic
+- **Homassy.Notifications** dedicated push notifications microservice (WebPush VAPID, background workers, email scheduling)
 - **In-memory caching** with database trigger-based invalidation
 - **Controller → Functions** pattern (no traditional repository layer)
 - **Production-ready middleware** - Exception handling, CORS, compression, logging
@@ -85,14 +86,22 @@ Homassy/
 │   ├── Middleware/       🔧 Exception handling, CORS, compression, logging, rate limiting
 │   └── CLAUDE.md         📚 Detailed architecture documentation
 ├── Homassy.Email/        📧 Transactional Email Microservice
-│   ├── Endpoints/        🌐 KratosWebhookEndpoint, SendEmailEndpoint
-│   ├── Enums/            📋 EmailType (LoginCode, RegistrationCode, VerificationCode, RecoveryCode)
+│   ├── Endpoints/        🌐 KratosWebhookEndpoint, SendEmailEndpoint, WeeklySummaryEndpoint
+│   ├── Enums/            📋 EmailType (LoginCode, RegistrationCode, VerificationCode, RecoveryCode, WeeklySummary)
 │   ├── HealthChecks/     💓 SMTP connectivity health probe
 │   ├── Middleware/       🔑 API key authentication (constant-time)
-│   ├── Models/           📋 EmailMessage, KratosWebhookRequest, SendEmailRequest
+│   ├── Models/           📋 EmailMessage, KratosWebhookRequest, SendEmailRequest, WeeklySummaryRequest
 │   ├── Services/         ⚙️ EmailContentService, EmailQueueService, EmailSenderService, TemplateRendererService
-│   ├── Templates/        📄 Embedded HTML template (CodeEmail.html)
+│   ├── Templates/        📄 Embedded HTML templates (CodeEmail.html, WeeklySummaryEmail.html)
 │   ├── Workers/          ⏳ EmailWorkerService (BackgroundService with retry)
+│   └── CLAUDE.md         📚 Architecture documentation
+├── Homassy.Notifications/ 🔔 Push Notifications Microservice
+│   ├── Endpoints/        🌐 TestPushEndpoint (POST /push/test), TestEmailEndpoint (POST /email/test)
+│   ├── HealthChecks/     💓 Database + WebPush connectivity probes
+│   ├── Middleware/       🔑 API key authentication (constant-time)
+│   ├── Models/           📋 ExpiringProductItem, TestPushRequest, WeeklySummaryEmailRequest
+│   ├── Services/         ⚙️ WebPushService, PushNotificationContentService, InventoryExpirationService, EmailServiceClient
+│   ├── Workers/          ⏳ PushNotificationSchedulerService, ShoppingListActivityMonitorService, EmailWeeklySummaryService
 │   └── CLAUDE.md         📚 Architecture documentation
 ├── Homassy.Web/          🎨 Vue.js 3 + Nuxt 4 Web App (Frontend)
 │   ├── app/
@@ -150,6 +159,15 @@ Homassy/
 | **Logging** | Serilog (structured) |
 | **Languages** | English, Hungarian, German |
 
+### Notifications Service (Homassy.Notifications)
+| Category | Technology |
+|----------|------------|
+| **Framework** | ASP.NET Core 10.0 (Minimal API) |
+| **Push Notifications** | WebPush (VAPID protocol) |
+| **Background Workers** | .NET BackgroundService (3 workers) |
+| **DB Access** | EF Core (shared via ProjectReference → Homassy.API) |
+| **Logging** | Serilog (structured) |
+
 ### Frontend (Homassy.Web)
 | Category | Technology |
 |----------|------------|
@@ -173,6 +191,7 @@ Homassy/
 | **Database** | PostgreSQL 16 |
 | **Identity** | Ory Kratos (self-hosted) |
 | **Email Delivery** | Homassy.Email microservice (MailKit SMTP) |
+| **Push Notifications** | Homassy.Notifications microservice (WebPush VAPID) |
 | **Web Server** | Kestrel (ASP.NET Core) |
 | **Node Server** | Node.js 22 (Nuxt SSR) |
 

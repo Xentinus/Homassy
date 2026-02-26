@@ -752,6 +752,7 @@
       "pushNotSupported": "Push-Benachrichtigungen werden in diesem Browser nicht unterstützt.",
       "pushDenied": "Push-Benachrichtigungen sind blockiert. Bitte aktivieren Sie sie in Ihren Browsereinstellungen.",
       "pushPermissionRequired": "Für Push-Benachrichtigungen ist eine Browser-Berechtigung erforderlich.",
+      "pushSubscriptionFailed": "Push-Benachrichtigungen konnten nicht aktiviert werden. Bitte versuche es erneut.",
       "saveFailed": "Benachrichtigungseinstellungen konnten nicht gespeichert werden.",
       "testNotification": "Test-Benachrichtigung senden",
       "testNotificationTitle": "Homassy Testbenachrichtigung",
@@ -759,6 +760,9 @@
       "testNotificationNotSubscribed": "Bitte aktivieren Sie zuerst Push-Benachrichtigungen zum Senden eines Tests.",
       "testNotificationSent": "Test-Benachrichtigung erfolgreich gesendet.",
       "testNotificationFailed": "Fehler beim Senden der Test-Benachrichtigung.",
+      "testEmail": "Test-E-Mail-Zusammenfassung senden",
+      "testEmailSent": "Test-E-Mail-Zusammenfassung erfolgreich gesendet.",
+      "testEmailFailed": "Fehler beim Senden der Test-E-Mail.",
       "pushActionOpen": "Homassy öffnen"
     },
     "allProducts": {

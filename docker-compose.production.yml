@@ -103,6 +103,8 @@
       - Kratos__AdminUrl=http://homassy-kratos:4434
       - AppSettings__RegistrationEnabled=${REGISTRATION_ENABLED}
       - RegistrationEnabled=${REGISTRATION_ENABLED}
+      - NotificationsService__BaseUrl=http://homassy-notifications:8080
+      - NotificationsService__ApiKey=${NOTIFICATIONS_SERVICE_API_KEY}
     networks:
       - homassy-network
     depends_on:
@@ -111,6 +113,8 @@
       homassy.migrator:
         condition: service_completed_successfully
       homassy.kratos:
+        condition: service_healthy
+      homassy.notifications:
         condition: service_healthy
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8080/api/v1.0/health"]
@@ -154,6 +158,36 @@
       - Email__ApiKey=${EMAIL_SERVICE_API_KEY}
     networks:
       - homassy-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/health/live"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 20s
+
+  homassy.notifications:
+    container_name: homassy-notifications
+    image: ${DOCKER_REGISTRY-}homassynotifications
+    restart: unless-stopped
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Production
+      - ASPNETCORE_URLS=http://+:8080
+      - ConnectionStrings__DefaultConnection=${DB_CONNECTION_STRING_DOCKER}
+      - WebPush__VapidSubject=${VAPID_SUBJECT}
+      - WebPush__VapidPublicKey=${VAPID_PUBLIC_KEY}
+      - WebPush__VapidPrivateKey=${VAPID_PRIVATE_KEY}
+      - Notifications__ApiKey=${NOTIFICATIONS_SERVICE_API_KEY}
+      - EmailService__BaseUrl=http://homassy-email:8080
+      - EmailService__ApiKey=${EMAIL_SERVICE_API_KEY}
+    networks:
+      - homassy-network
+    depends_on:
+      postgres:
+        condition: service_healthy
+      homassy.migrator:
+        condition: service_completed_successfully
+      homassy.email:
+        condition: service_healthy
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8080/health/live"]
       interval: 30s

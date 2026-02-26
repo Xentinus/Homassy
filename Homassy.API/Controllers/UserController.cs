@@ -1,4 +1,5 @@
 ﻿using Asp.Versioning;
+using Homassy.API.Context;
 using Homassy.API.Enums;
 using Homassy.API.Functions;
 using Homassy.API.Models;
@@ -6,6 +7,7 @@ using Homassy.API.Models.Common;
 using Homassy.API.Models.PushNotification;
 using Homassy.API.Models.User;
 using Homassy.API.Models.ImageUpload;
+using Homassy.API.Infrastructure;
 using Homassy.API.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -24,18 +26,18 @@ namespace Homassy.API.Controllers
     {
         private readonly IImageProcessingService _imageProcessingService;
         private readonly IProgressTrackerService _progressTrackerService;
-        private readonly IWebPushService _webPushService;
+        private readonly NotificationsServiceClient _notificationsClient;
         private readonly IKratosService _kratosService;
 
         public UserController(
             IImageProcessingService imageProcessingService, 
             IProgressTrackerService progressTrackerService, 
-            IWebPushService webPushService,
+            NotificationsServiceClient notificationsClient,
             IKratosService kratosService)
         {
             _imageProcessingService = imageProcessingService;
             _progressTrackerService = progressTrackerService;
-            _webPushService = webPushService;
+            _notificationsClient = notificationsClient;
             _kratosService = kratosService;
         }
 
@@ -260,7 +262,7 @@ namespace Homassy.API.Controllers
         [ProducesResponseType(typeof(ApiResponse<VapidPublicKeyResponse>), StatusCodes.Status200OK)]
         public IActionResult GetVapidPublicKey()
         {
-            var publicKey = _webPushService.GetVapidPublicKey();
+            var publicKey = ConfigService.GetValue("WebPush:VapidPublicKey");
             return Ok(ApiResponse<VapidPublicKeyResponse>.SuccessResponse(
                 new VapidPublicKeyResponse { PublicKey = publicKey }));
         }
@@ -312,19 +314,44 @@ namespace Homassy.API.Controllers
         [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status404NotFound)]
         public async Task<IActionResult> SendTestPushNotification(CancellationToken cancellationToken)
         {
-            try
+            var userId = SessionInfo.GetUserId();
+            if (!userId.HasValue)
             {
-                await new PushNotificationFunctions().SendTestNotificationAsync(_webPushService, cancellationToken);
-                return Ok(ApiResponse.SuccessResponse());
+                return Unauthorized(ApiResponse.ErrorResponse(ErrorCodes.AuthUnauthorized));
             }
-            catch (InvalidOperationException ex)
+
+            var success = await _notificationsClient.SendTestPushAsync(userId.Value, cancellationToken);
+            if (!success)
             {
-                return BadRequest(ApiResponse.ErrorResponse(ErrorCodes.ValidationInvalidRequest, ex.Message));
+                return BadRequest(ApiResponse.ErrorResponse(ErrorCodes.ValidationInvalidRequest, "Failed to send test push notification."));
             }
-            catch (Exception ex)
+
+            return Ok(ApiResponse.SuccessResponse());
+        }
+
+        /// <summary>
+        /// Sends a test email summary to the current user.
+        /// </summary>
+        [HttpPost("email/test")]
+        [MapToApiVersion(1.0)]
+        [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status200OK)]
+        [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status404NotFound)]
+        public async Task<IActionResult> SendTestEmail(CancellationToken cancellationToken)
+        {
+            var userId = SessionInfo.GetUserId();
+            if (!userId.HasValue)
             {
-                return BadRequest(ApiResponse.ErrorResponse(ErrorCodes.ValidationInvalidRequest, ex.Message));
+                return Unauthorized(ApiResponse.ErrorResponse(ErrorCodes.AuthUnauthorized));
             }
+
+            var success = await _notificationsClient.SendTestEmailAsync(userId.Value, cancellationToken);
+            if (!success)
+            {
+                return BadRequest(ApiResponse.ErrorResponse(ErrorCodes.ValidationInvalidRequest, "Failed to send test email."));
+            }
+
+            return Ok(ApiResponse.SuccessResponse());
         }
     }
 }

@@ -11,6 +11,7 @@ namespace Homassy.API.Entities.User
         // Email notifications
         public bool EmailNotificationsEnabled { get; set; } = false;
         public bool EmailWeeklySummaryEnabled { get; set; } = false;
+        public DateTime? LastWeeklyEmailSentAt { get; set; }
 
         // Push notifications
         public bool PushNotificationsEnabled { get; set; } = false;

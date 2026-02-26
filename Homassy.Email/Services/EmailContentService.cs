@@ -1,4 +1,5 @@
 ﻿using Homassy.Email.Enums;
+using Homassy.Email.Models;
 
 namespace Homassy.Email.Services;
 
@@ -225,4 +226,109 @@ public sealed class EmailContentService : IEmailContentService
         "de" => Language.German,
         _ => Language.English
     };
+
+    // ─── Weekly Summary ──────────────────────────────────────────────────────────
+
+    public string GetWeeklySummarySubject(Language language) => language switch
+    {
+        Language.Hungarian => "Homassy - Heti összefoglaló",
+        Language.German => "Homassy - Wochenzusammenfassung",
+        _ => "Homassy - Weekly Summary"
+    };
+
+    public string GetWeeklySummaryGreeting(Language language) => language switch
+    {
+        Language.Hungarian => "Heti összefoglaló",
+        Language.German => "Wochenzusammenfassung",
+        _ => "Weekly Summary"
+    };
+
+    public string GetWeeklySummaryMessage(Language language, string? name)
+    {
+        var greeting = string.IsNullOrWhiteSpace(name) ? string.Empty : language switch
+        {
+            Language.Hungarian => $"Szia, {name}! ",
+            Language.German => $"Hallo, {name}! ",
+            _ => $"Hello, {name}! "
+        };
+
+        return greeting + language switch
+        {
+            Language.Hungarian => "Íme a készletedben lévő lejárt és hamarosan lejáró termékek heti összefoglalója.",
+            Language.German => "Hier ist die wöchentliche Zusammenfassung der abgelaufenen und bald ablaufenden Produkte in Ihrem Inventar.",
+            _ => "Here is your weekly summary of expired and soon-to-expire products in your inventory."
+        };
+    }
+
+    public string GetExpiredSectionHeader(Language language) => language switch
+    {
+        Language.Hungarian => "⚠️ Lejárt termékek",
+        Language.German => "⚠️ Abgelaufene Produkte",
+        _ => "⚠️ Expired Products"
+    };
+
+    public string GetExpiringSoonSectionHeader(Language language) => language switch
+    {
+        Language.Hungarian => "🕐 Hamarosan lejáró termékek",
+        Language.German => "🕐 Bald ablaufende Produkte",
+        _ => "🕐 Expiring Soon"
+    };
+
+    public string GetNoExpiringItemsMessage(Language language) => language switch
+    {
+        Language.Hungarian => "✅ Nincs lejárt vagy hamarosan lejáró terméked — szép hetet!",
+        Language.German => "✅ Keine abgelaufenen oder bald ablaufenden Produkte — schöne Woche!",
+        _ => "✅ No expired or expiring products — have a great week!"
+    };
+
+    public string GetWeeklySummaryPlainText(Language language, string? name, ExpiringProductDto[] expiredItems, ExpiringProductDto[] expiringSoonItems)
+    {
+        var sb = new System.Text.StringBuilder();
+
+        var greeting = string.IsNullOrWhiteSpace(name)
+            ? GetWeeklySummaryGreeting(language)
+            : language switch
+            {
+                Language.Hungarian => $"Szia, {name}!",
+                Language.German => $"Hallo, {name}!",
+                _ => $"Hello, {name}!"
+            };
+
+        sb.AppendLine(greeting);
+        sb.AppendLine();
+
+        if (expiredItems.Length == 0 && expiringSoonItems.Length == 0)
+        {
+            sb.AppendLine(GetNoExpiringItemsMessage(language));
+        }
+        else
+        {
+            if (expiredItems.Length > 0)
+            {
+                sb.AppendLine(GetExpiredSectionHeader(language));
+                foreach (var item in expiredItems)
+                {
+                    var brand = string.IsNullOrWhiteSpace(item.Brand) ? string.Empty : $" ({item.Brand})";
+                    sb.AppendLine($"- {item.Name}{brand}: {item.ExpirationDate:yyyy-MM-dd}");
+                }
+                sb.AppendLine();
+            }
+
+            if (expiringSoonItems.Length > 0)
+            {
+                sb.AppendLine(GetExpiringSoonSectionHeader(language));
+                foreach (var item in expiringSoonItems)
+                {
+                    var brand = string.IsNullOrWhiteSpace(item.Brand) ? string.Empty : $" ({item.Brand})";
+                    sb.AppendLine($"- {item.Name}{brand}: {item.ExpirationDate:yyyy-MM-dd}");
+                }
+                sb.AppendLine();
+            }
+        }
+
+        sb.AppendLine(GetFooterCopyright(language));
+        sb.AppendLine(GetFooterAutoMessage(language));
+
+        return sb.ToString();
+    }
 }
