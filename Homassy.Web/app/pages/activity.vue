@@ -14,6 +14,13 @@
     <!-- Content Section with padding to account for fixed header -->
     <div class="pt-40 px-4 sm:px-8 lg:px-14 pb-6">
 
+    <PullToRefreshIndicator
+      :pull-distance="pullDistance"
+      :is-pulling="isPulling"
+      :is-refreshing="isRefreshing"
+      :is-ready="isReady"
+    />
+
     <!-- Loading State (Initial) -->
     <div v-if="isInitialLoading" class="space-y-4">
       <div
@@ -106,6 +113,14 @@ definePageMeta({
 
 const { t: $t } = useI18n()
 const { getActivities, getUsersByPublicIds } = useUserApi()
+
+const { pullDistance, isPulling, isRefreshing, isReady } = usePullToRefresh(async () => {
+  activities.value = []
+  currentPage.value = 1
+  hasNextPage.value = true
+  userCache.value = new Map()
+  await loadInitialActivities()
+})
 
 // State
 const activities = ref<ActivityInfo[]>([])
