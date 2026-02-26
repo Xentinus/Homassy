@@ -99,7 +99,6 @@ Homassy.API/
 │   ├── VersionController.cs
 │   ├── OpenFoodFactsController.cs
 │   └── SelectValueController.cs
-├── EmailTemplates/        HTML email templates (embedded resources)
 ├── Entities/              Database entity models
 │   ├── Common/           Base entities and shared models
 │   │   ├── BaseEntity.cs
@@ -111,7 +110,6 @@ Homassy.API/
 │   ├── ShoppingList/     Shopping list entities
 │   └── User/             User-related entities
 ├── Enums/                Application enumerations
-│   ├── EmailType.cs
 │   └── SelectValueType.cs
 ├── Exceptions/           Custom exception classes
 │   ├── AuthException.cs
@@ -150,7 +148,6 @@ Homassy.API/
 ├── Models/               DTOs and request/response models
 │   ├── ApplicationSettings/  Application settings (HTTPS, HSTS, Timeouts)
 │   ├── Auth/            Authentication models
-│   ├── Background/      Background service models (EmailTask)
 │   ├── Common/          Shared models (ApiResponse, SelectValue, VersionInfo)
 │   ├── Family/          Family DTOs
 │   ├── HealthCheck/     Health check models
@@ -164,16 +161,11 @@ Homassy.API/
 │   └── SecureCompare.cs
 └── Services/            Application services
     ├── Background/      Background services
-    │   ├── EmailBackgroundService.cs
-    │   ├── EmailQueueService.cs
-    │   ├── IEmailQueueService.cs
     │   └── TokenCleanupService.cs
     ├── HealthChecks/    Health check implementations
-    │   ├── EmailServiceHealthCheck.cs
     │   └── OpenFoodFactsHealthCheck.cs
     ├── CacheManagementService.cs
     ├── ConfigService.cs
-    ├── EmailService.cs
     ├── JwtService.cs
     ├── OpenFoodFactsService.cs
     ├── RateLimitCleanupService.cs
@@ -2062,19 +2054,7 @@ Four background services run continuously as hosted services:
 - Configurable cleanup interval
 - Maintains rate limiting performance
 
-**3. EmailBackgroundService**
-- Async email queue processor for non-blocking email delivery
-- **Retry logic with exponential backoff:**
-  - Maximum 3 retry attempts per email
-  - Delays: 1 second, 5 seconds, 15 seconds
-- Handles two email types:
-  - `EmailType.Verification` - Verification code emails
-  - `EmailType.Registration` - Registration confirmation emails
-- Gracefully handles cancellation on shutdown
-- Detailed logging for troubleshooting delivery issues
-- Consumes from `EmailQueueService`
-
-**4. TokenCleanupService**
+**3. TokenCleanupService**
 - Runs hourly to clean expired authentication tokens
 - Cleans up expired verification codes from `UserAuthentication` table
 - Cleans up expired previous refresh tokens (refresh token rotation)
@@ -2158,51 +2138,6 @@ class RateLimitStatus {
 **Usage:**
 Used by `RateLimitingMiddleware` to track and enforce rate limits per IP address.
 
-#### EmailQueueService
-
-Email task queue using System.Threading.Channels for efficient async processing:
-
-**Features:**
-- Bounded channel with capacity (default: 200 tasks)
-- Thread-safe queue operations
-- Non-blocking enqueue with timeout (5 seconds)
-- Blocking dequeue for background service consumption
-- Returns success/failure status on enqueue
-- Integrates with correlation ID for tracing
-
-**Methods:**
-```csharp
-Task<bool> TryQueueEmailAsync(EmailTask task)  // Non-blocking enqueue
-ValueTask<EmailTask> DequeueAsync(CancellationToken ct)  // Blocking dequeue
-int Count { get; }  // Current queue size
-```
-
-**EmailTask Model:**
-```csharp
-record EmailTask(
-    string Email,
-    string Code,
-    string TimeZone,
-    EmailType Type  // Verification or Registration
-);
-```
-
-**Usage:**
-```csharp
-var success = await emailQueue.TryQueueEmailAsync(new EmailTask(
-    "user@example.com",
-    "123456",
-    "America/New_York",
-    EmailType.Verification
-));
-```
-
-**Benefits:**
-- Non-blocking email delivery (doesn't slow down API responses)
-- Retry logic for failed deliveries
-- Queue overflow protection
-- Monitoring via queue count
-
 ### Health Checks
 
 The application implements ASP.NET Core Health Checks for monitoring and orchestration:
@@ -2215,15 +2150,7 @@ The application implements ASP.NET Core Health Checks for monitoring and orchest
 - Tests database connectivity
 - Part of readiness probe for deployment orchestration
 
-**2. EmailServiceHealthCheck**
-- Check type: Custom implementation
-- Tags: `["external"]`
-- Tests SMTP server connectivity
-- Attempts to connect and disconnect from configured SMTP server
-- Uses StartTls security
-- Returns health status based on connection success
-
-**3. OpenFoodFactsHealthCheck**
+**2. OpenFoodFactsHealthCheck**
 - Check type: Custom implementation
 - Tags: `["external"]`
 - Tests external API connectivity
@@ -2268,10 +2195,6 @@ Three health endpoints provided by `HealthController`:
     "openfoodfacts": {
       "Status": "Healthy",
       "Duration": "150ms"
-    },
-    "emailservice": {
-      "Status": "Healthy",
-      "Duration": "80ms"
     }
   }
 }
@@ -2297,7 +2220,7 @@ Three health endpoints provided by `HealthController`:
 - Kubernetes-compatible probes for container orchestration
 - Monitoring system integration (Prometheus, Datadog, etc.)
 - Automated health status tracking
-- Dependency monitoring (database, SMTP, external APIs)
+- Dependency monitoring (database, external APIs)
 - Early detection of infrastructure issues
 
 ---
