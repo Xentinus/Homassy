@@ -18,9 +18,9 @@
   <ItemGroup>
     <None Include="docker-compose.yml" />
     <None Include="docker-compose.override.yml" />
-    <None Include="docker-compose.debug.yml" />
-    <None Include="docker-compose.release.yml" />
+    <None Include="docker-compose.production.yml" />
     <None Include=".dockerignore" />
+    <None Include=".env" />
     <None Include=".env.example" />
   </ItemGroup>
   <ItemGroup>

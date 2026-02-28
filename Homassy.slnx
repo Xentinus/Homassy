@@ -1,6 +1,8 @@
 <Solution>
   <Project Path="Homassy.API/Homassy.API.csproj" />
   <Project Path="Homassy.Email/Homassy.Email.csproj" />
+  <Project Path="Homassy.Migrator/Homassy.Migrator.csproj" />
+  <Project Path="Homassy.Notifications/Homassy.Notifications.csproj" />
   <Project Path="Homassy.Tests/Homassy.Tests.csproj" />
   <Project Path="Homassy.dcproj">
     <BuildType Project="Release" />

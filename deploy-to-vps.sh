@@ -18,7 +18,7 @@ set -euo pipefail
 readonly SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 readonly COMPOSE_FILE="docker-compose.production.yml"
 readonly ENV_FILE=".env"
-readonly SERVICES=("homassymigrator" "homassyapi" "homassyweb")
+readonly SERVICES=("homassymigrator" "homassyapi" "homassyweb" "homassyemail" "homassynotifications")
 readonly POSTGRES_IMAGE="postgres:16"
 readonly VOLUME_NAME="postgres-data"
 readonly NETWORK_NAME="homassy-network"
@@ -242,6 +242,26 @@ build_amd64_images() {
         -f Homassy.Web/Dockerfile \
         Homassy.Web || error "Failed to build Web image"
 
+    # Build Email
+    log "Building Email image..."
+    DOCKER_BUILDKIT=1 docker build \
+        --platform linux/amd64 \
+        --target final \
+        --build-arg BUILD_CONFIGURATION=Release \
+        -t homassyemail:latest \
+        -f Homassy.Email/Dockerfile \
+        . || error "Failed to build Email image"
+
+    # Build Notifications
+    log "Building Notifications image..."
+    DOCKER_BUILDKIT=1 docker build \
+        --platform linux/amd64 \
+        --target final \
+        --build-arg BUILD_CONFIGURATION=Release \
+        -t homassynotifications:latest \
+        -f Homassy.Notifications/Dockerfile \
+        . || error "Failed to build Notifications image"
+
     success "All AMD64 images built successfully"
 }
 
@@ -393,13 +413,13 @@ stop_existing_containers() {
     log "Checking for existing containers..."
 
     # Check if containers are running
-    local running=$(eval "$SSH_CMD 'cd $DEPLOY_PATH && docker compose ps -q 2>/dev/null'" || echo "")
+    local running=$(eval "$SSH_CMD 'cd $DEPLOY_PATH && docker compose -f $COMPOSE_FILE ps -q 2>/dev/null'" || echo "")
 
     if [[ -n "$running" ]]; then
         log "Found running containers, stopping gracefully..."
 
         # Use docker compose down but preserve volumes
-        eval "$SSH_CMD 'cd $DEPLOY_PATH && docker compose down --remove-orphans'" || \
+        eval "$SSH_CMD 'cd $DEPLOY_PATH && docker compose -f $COMPOSE_FILE down --remove-orphans'" || \
             error "Failed to stop containers"
 
         success "Containers stopped"
@@ -553,7 +573,7 @@ show_deployment_status() {
 
     # Show running containers
     log "Running containers:"
-    eval "$SSH_CMD 'cd $DEPLOY_PATH && docker compose ps'"
+    eval "$SSH_CMD 'cd $DEPLOY_PATH && docker compose -f $COMPOSE_FILE ps'"
     echo ""
 
     # Show volume status
