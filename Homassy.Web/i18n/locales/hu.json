@@ -252,6 +252,23 @@
         "title": "Készen állsz rendbe rakni az otthonod?",
         "description": "Csatlakozz a Homassyhez és hozz rendet a háztartási készletedbe és bevásárlásaidba.",
         "button": "Kezdjük el"
+      },
+      "stats": {
+        "title": "A Homassy számokban",
+        "description": "Valós adatok a Homassyt minden nap használó háztartásoktól.",
+        "groups": {
+          "products": "Termékek",
+          "shopping": "Vásárlás",
+          "locations": "Helyszínek"
+        },
+        "labels": {
+          "products": "Követett termékek",
+          "inventoryItems": "Készlet tételek",
+          "shoppingLists": "Bevásárlólisták",
+          "purchasedItems": "Megvásárolt tételek",
+          "shoppingLocations": "Bevásárlóhelyek",
+          "storageLocations": "Tárolóhelyek"
+        }
       }
     },
     "products": {

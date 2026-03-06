@@ -8,6 +8,7 @@ using Homassy.API.Models.ApplicationSettings;
 using Homassy.API.Models.HealthCheck;
 using Homassy.API.Security;
 using Homassy.API.Services;
+using Homassy.API.Services.Background;
 using Homassy.API.Services.Sanitization;
 using Microsoft.AspNetCore.OpenApi;
 using Microsoft.AspNetCore.ResponseCompression;
@@ -62,6 +63,8 @@ try
     builder.Services.AddSingleton<IBarcodeValidationService, BarcodeValidationService>();
     builder.Services.AddSingleton<IImageProcessingService, ImageProcessingService>();
     builder.Services.AddSingleton<IProgressTrackerService, ProgressTrackerService>();
+    builder.Services.AddSingleton<StatisticsService>();
+    builder.Services.AddHostedService<StatisticsRefreshWorker>();
 
     // Kratos service registration
     builder.Services.AddHttpClient<IKratosService, KratosService>();

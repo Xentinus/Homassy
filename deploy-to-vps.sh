@@ -41,6 +41,7 @@ IMAGE_EXPORT_DIR="/tmp/homassy-images"
 SSH_CMD=""
 SCP_CMD=""
 RSYNC_CMD=""
+CONTROL_PATH="/tmp/homassy-deploy-ssh-$$.sock"
 IS_UPDATE=false
 USE_SSHPASS=false
 
@@ -67,6 +68,8 @@ success() {
 
 cleanup_on_error() {
     local exit_code=$?
+    # Close the SSH ControlMaster socket if it was opened
+    [[ -S "$CONTROL_PATH" ]] && ssh -O exit -o ControlPath="$CONTROL_PATH" placeholder 2>/dev/null || true
     error "Deployment failed with exit code $exit_code"
 }
 
@@ -132,7 +135,7 @@ verify_env_file() {
 verify_ssh_connectivity() {
     log "Testing SSH connectivity to VPS..."
 
-    local ssh_base_opts="-o ConnectTimeout=10 -o StrictHostKeyChecking=no"
+    local ssh_base_opts="-o ConnectTimeout=10 -o StrictHostKeyChecking=no -o ControlMaster=auto -o ControlPath=$CONTROL_PATH -o ControlPersist=10m"
     local ssh_cmd=""
     local scp_cmd=""
     local rsync_cmd=""
@@ -399,12 +402,18 @@ transfer_kratos_config() {
 load_images_on_vps() {
     log "Loading Docker images on VPS..."
 
+    # Build a single remote script to load all images in one SSH session,
+    # avoiding multiple reconnections that can trigger server-side rate limiting.
+    local remote_script=""
     for service in "${SERVICES[@]}"; do
-        log "Loading ${service}..."
-
-        eval "$SSH_CMD 'docker load -i $DEPLOY_PATH/images/${service}.tar'" || \
-            error "Failed to load ${service} image"
+        log "Queuing ${service} for loading..."
+        remote_script+="echo 'Loading ${service}...' && docker load -i $DEPLOY_PATH/images/${service}.tar && "
     done
+    # Strip trailing ' && '
+    remote_script="${remote_script% && }"
+
+    eval "$SSH_CMD '$remote_script'" || \
+        error "Failed to load images on VPS"
 
     success "All images loaded on VPS"
 }
@@ -646,6 +655,9 @@ main() {
     # Cleanup phase
     cleanup_local_tar_files
     cleanup_remote_tar_files
+
+    # Close the persistent SSH ControlMaster connection
+    [[ -S "$CONTROL_PATH" ]] && ssh -O exit -o ControlPath="$CONTROL_PATH" placeholder 2>/dev/null || true
 
     show_deployment_status
 }

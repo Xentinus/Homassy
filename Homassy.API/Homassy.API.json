@@ -11,7 +11,7 @@
       "name": "MIT License",
       "url": "https://github.com/Xentinus/Homassy/blob/master/LICENSE"
     },
-    "version": "26.0226.1301-dev"
+    "version": "26.0304.1914-dev"
   },
   "paths": {
     "/api/v1/Auth/me": {
@@ -4662,6 +4662,36 @@
         }
       }
     },
+    "/api/v1/Statistics": {
+      "get": {
+        "tags": [
+          "Statistics"
+        ],
+        "summary": "Returns the nightly-cached global statistics for the platform.\nThe cache is refreshed once per day by the background worker.",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponseOfGlobalStatisticsResponse"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponseOfGlobalStatisticsResponse"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponseOfGlobalStatisticsResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/User/profile": {
       "get": {
         "tags": [
@@ -5510,6 +5540,76 @@
         }
       }
     },
+    "/api/v1/User/email/test": {
+      "post": {
+        "tags": [
+          "User"
+        ],
+        "summary": "Sends a test email summary to the current user.",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponse"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponse"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponse"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponse"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponse"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponse"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/Version": {
       "get": {
         "tags": [
@@ -5781,6 +5881,37 @@
               },
               {
                 "$ref": "#/components/schemas/FamilyInfo"
+              }
+            ]
+          },
+          "errorCodes": {
+            "type": [
+              "null",
+              "array"
+            ],
+            "items": {
+              "type": "string"
+            }
+          },
+          "timestamp": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "ApiResponseOfGlobalStatisticsResponse": {
+        "type": "object",
+        "properties": {
+          "success": {
+            "type": "boolean"
+          },
+          "data": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/GlobalStatisticsResponse"
               }
             ]
           },
@@ -7666,6 +7797,74 @@
             "type": "boolean"
           }
         }
+      },
+      "GlobalStatisticsResponse": {
+        "type": "object",
+        "properties": {
+          "totalProducts": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "description": "Total number of non-deleted products across all families.",
+            "format": "int64"
+          },
+          "totalInventoryItems": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "description": "Total number of non-deleted product inventory items.",
+            "format": "int64"
+          },
+          "totalShoppingLists": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "description": "Total number of non-deleted shopping lists.",
+            "format": "int64"
+          },
+          "totalPurchasedItems": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "description": "Total number of shopping list items that have been purchased.",
+            "format": "int64"
+          },
+          "totalShoppingLocations": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "description": "Total number of non-deleted shopping locations.",
+            "format": "int64"
+          },
+          "totalStorageLocations": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "description": "Total number of non-deleted storage locations.",
+            "format": "int64"
+          },
+          "lastUpdatedUtc": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "UTC timestamp of the last successful statistics refresh; null before the first refresh.",
+            "format": "date-time"
+          }
+        },
+        "description": "Global platform statistics cached nightly by the StatisticsRefreshWorker."
       },
       "HealthCheckResponse": {
         "required": [
@@ -9794,6 +9993,9 @@
     },
     {
       "name": "ShoppingList"
+    },
+    {
+      "name": "Statistics"
     },
     {
       "name": "User"

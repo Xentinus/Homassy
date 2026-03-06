@@ -250,6 +250,23 @@
         "title": "Bereit, Ihren Haushalt zu organisieren?",
         "description": "Treten Sie Homassy bei und bringen Sie Ordnung in Ihr Haushaltsinventar und Ihre Einkäufe.",
         "button": "Loslegen"
+      },
+      "stats": {
+        "title": "Homassy in Zahlen",
+        "description": "Echte Daten von Haushalten, die Homassy täglich nutzen.",
+        "groups": {
+          "products": "Produkte",
+          "shopping": "Einkaufen",
+          "locations": "Standorte"
+        },
+        "labels": {
+          "products": "Verfolgte Produkte",
+          "inventoryItems": "Inventarposten",
+          "shoppingLists": "Einkaufslisten",
+          "purchasedItems": "Gekaufte Artikel",
+          "shoppingLocations": "Einkaufsorte",
+          "storageLocations": "Lagerorte"
+        }
       }
     },
     "products": {
