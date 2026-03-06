@@ -252,6 +252,23 @@
         "title": "Ready to organise your home?",
         "description": "Join Homassy and bring order to your household inventory and shopping.",
         "button": "Get started"
+      },
+      "stats": {
+        "title": "Homassy in Numbers",
+        "description": "Real data from households using Homassy every day.",
+        "groups": {
+          "products": "Products",
+          "shopping": "Shopping",
+          "locations": "Locations"
+        },
+        "labels": {
+          "products": "Tracked Products",
+          "inventoryItems": "Inventory Items",
+          "shoppingLists": "Shopping Lists",
+          "purchasedItems": "Purchased Items",
+          "shoppingLocations": "Shopping Locations",
+          "storageLocations": "Storage Locations"
+        }
       }
     },
     "products": {

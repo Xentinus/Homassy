@@ -15,6 +15,8 @@
       :features="features"
     />
 
+    <HomepageStats />
+
     <UPageSection
       id="highlights"
       :title="$t('pages.home.highlights.title')"
