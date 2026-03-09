@@ -7,6 +7,12 @@ const isPaused = ref(false)
 const scanError = ref<string | null>(null)
 const detectedBarcode = ref<string | null>(null)
 const scanCallback = ref<((barcode: string) => void) | null>(null)
+const detectedCandidates = ref<string[]>([])
+
+// Buffer for accumulating detected codes before committing
+let bufferTimer: ReturnType<typeof setTimeout> | null = null
+let candidateSet = new Set<string>()
+const BUFFER_MS = 800
 
 /**
  * Composable for barcode scanning using device camera
@@ -73,6 +79,37 @@ export const useBarcodeScanner = () => {
     isScanning.value = true
     scanCallback.value = onSuccess
     isPaused.value = false
+    detectedCandidates.value = []
+    candidateSet.clear()
+    if (bufferTimer) {
+      clearTimeout(bufferTimer)
+      bufferTimer = null
+    }
+  }
+
+  /**
+   * Commit buffered candidates: auto-select if only one, show list if multiple
+   */
+  const commitCandidates = () => {
+    bufferTimer = null
+    const candidates = Array.from(candidateSet)
+    candidateSet.clear()
+
+    if (candidates.length === 0) return
+
+    if (candidates.length === 1) {
+      const barcode = candidates[0]
+      playBeep()
+      detectedBarcode.value = barcode
+      const callback = scanCallback.value
+      stopScanner()
+      isScannerOpen.value = false
+      if (callback) callback(barcode)
+    } else {
+      // Multiple candidates – pause and let user choose
+      isPaused.value = true
+      detectedCandidates.value = candidates
+    }
   }
 
   /**
@@ -82,20 +119,41 @@ export const useBarcodeScanner = () => {
   const handleDetect = (detectedCodes: any[]) => {
     if (isPaused.value || !isScanning.value || detectedCodes.length === 0) return
 
-    const barcode = detectedCodes[0].rawValue
+    // Accumulate all unique raw values seen in this frame
+    for (const code of detectedCodes) {
+      candidateSet.add(code.rawValue)
+    }
 
+    // Reset the debounce timer on every frame that brings new data
+    if (bufferTimer) clearTimeout(bufferTimer)
+    bufferTimer = setTimeout(commitCandidates, BUFFER_MS)
+  }
+
+  /**
+   * User selected one barcode from the multi-detection list
+   */
+  const selectCandidate = (barcode: string) => {
+    detectedCandidates.value = []
+    candidateSet.clear()
     playBeep()
     detectedBarcode.value = barcode
-
-    // Store callback before stopping scanner (which clears it)
     const callback = scanCallback.value
-
     stopScanner()
     isScannerOpen.value = false
+    if (callback) callback(barcode)
+  }
 
-    if (callback) {
-      callback(barcode)
+  /**
+   * Dismiss the candidate list and resume live scanning
+   */
+  const dismissCandidates = () => {
+    detectedCandidates.value = []
+    candidateSet.clear()
+    if (bufferTimer) {
+      clearTimeout(bufferTimer)
+      bufferTimer = null
     }
+    isPaused.value = false
   }
 
   /**
@@ -155,19 +213,24 @@ export const useBarcodeScanner = () => {
           const detectedCodes = await barcodeDetector.detect(await createImageBitmap(blob))
 
           if (detectedCodes.length > 0) {
-            // Success - barcode found
-            const barcode = detectedCodes[0].rawValue
-            playBeep()
-            detectedBarcode.value = barcode
+            if (detectedCodes.length === 1) {
+              // Single result – auto-confirm
+              const barcode = detectedCodes[0].rawValue
+              playBeep()
+              detectedBarcode.value = barcode
 
-            // Store callback before stopping scanner (which clears it)
-            const callback = scanCallback.value
+              const callback = scanCallback.value
 
-            stopScanner()
-            isScannerOpen.value = false
+              stopScanner()
+              isScannerOpen.value = false
 
-            if (callback) {
-              callback(barcode)
+              if (callback) {
+                callback(barcode)
+              }
+            } else {
+              // Multiple results – let user choose
+              detectedCandidates.value = [...new Set(detectedCodes.map((c: any) => c.rawValue as string))]
+              // Keep isPaused = true; frozen image stays visible until user picks
             }
           } else {
             // No barcode found in snapshot - wait 2 seconds then resume video
@@ -200,6 +263,12 @@ export const useBarcodeScanner = () => {
     isScanning.value = false
     isPaused.value = false
     scanCallback.value = null
+    detectedCandidates.value = []
+    candidateSet.clear()
+    if (bufferTimer) {
+      clearTimeout(bufferTimer)
+      bufferTimer = null
+    }
   }
 
   /**
@@ -252,6 +321,9 @@ export const useBarcodeScanner = () => {
     handleDetect,
     handleCameraError,
     openScanner,
-    closeScanner
+    closeScanner,
+    detectedCandidates,
+    selectCandidate,
+    dismissCandidates
   }
 }

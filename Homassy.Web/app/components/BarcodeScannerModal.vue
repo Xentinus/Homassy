@@ -14,18 +14,27 @@
     </template>
 
     <template #description>
-      {{ t('barcodeScanner.description') }}
+      {{ activeDescription }}
     </template>
 
     <template #body>
       <div class="space-y-4">
+        <!-- Mode Tabs -->
+        <UTabs
+          :items="scanTabs"
+          :default-value="'barcode'"
+          :model-value="scanMode"
+          @update:model-value="handleTabChange"
+        />
+
         <!-- Camera Preview -->
         <div class="relative cursor-pointer" @click="handleCameraClick">
           <QrcodeStream
             v-if="isScannerOpen"
+            :key="scanMode"
             :paused="isPaused"
             :constraints="{ facingMode: 'environment' }"
-            :formats="['linear_codes', 'matrix_codes']"
+            :formats="activeFormats"
             :track="trackFunction"
             @detect="handleDetect"
             @camera-on="handleCameraOn"
@@ -41,6 +50,34 @@
                 alt="Captured frame"
                 class="w-full h-full object-cover"
               />
+            </div>
+
+            <!-- Multi-detection candidate selection overlay -->
+            <div
+              v-if="detectedCandidates.length > 1"
+              class="absolute inset-0 flex flex-col items-center justify-center gap-2 bg-black/70 p-4"
+            >
+              <p class="text-sm font-semibold text-white text-center">
+                {{ t('barcodeScanner.multipleDetected') }}
+              </p>
+              <UButton
+                v-for="candidate in detectedCandidates"
+                :key="candidate"
+                color="primary"
+                variant="solid"
+                class="w-full truncate"
+                @click.stop="selectCandidate(candidate)"
+              >
+                {{ candidate }}
+              </UButton>
+              <UButton
+                color="neutral"
+                variant="outline"
+                class="w-full mt-1"
+                @click.stop="handleDismissCandidates"
+              >
+                {{ t('barcodeScanner.retry') }}
+              </UButton>
             </div>
 
             <!-- Scanning Animation Overlay (Primary Color) -->
@@ -79,7 +116,7 @@
 </template>
 
 <script setup lang="ts">
-import { watch, nextTick, ref } from 'vue'
+import { watch, nextTick, ref, computed } from 'vue'
 import { QrcodeStream } from 'vue-qrcode-reader'
 import { useBarcodeScanner } from '../composables/useBarcodeScanner'
 
@@ -99,15 +136,42 @@ const {
   closeScanner,
   captureAndScan,
   handleDetect,
-  handleCameraError
+  handleCameraError,
+  detectedCandidates,
+  selectCandidate,
+  dismissCandidates
 } = useBarcodeScanner()
 
 const isCapturing = ref(false)
 const frozenImage = ref<string | null>(null)
 const videoRef = ref<HTMLVideoElement | null>(null)
+const scanMode = ref<'barcode' | 'qrcode'>('barcode')
+
+const scanTabs = computed(() => [
+  { value: 'barcode', label: t('barcodeScanner.tabs.barcode') },
+  { value: 'qrcode', label: t('barcodeScanner.tabs.qrcode') }
+])
+
+const activeFormats = computed(() =>
+  scanMode.value === 'barcode' ? ['linear_codes'] : ['matrix_codes']
+)
+
+const activeDescription = computed(() =>
+  scanMode.value === 'barcode'
+    ? t('barcodeScanner.description')
+    : t('barcodeScanner.descriptionQr')
+)
+
+const handleTabChange = (value: string) => {
+  if (value === scanMode.value) return
+  scanMode.value = value as 'barcode' | 'qrcode'
+  // Clear any frozen state when switching tabs
+  frozenImage.value = null
+  dismissCandidates()
+}
 
 // Watch for modal open and start scanner
-watch(isScannerOpen, async (isOpen) => {
+watch(isScannerOpen, async (isOpen: boolean) => {
   if (isOpen) {
     // Clear frozen image when opening scanner
     frozenImage.value = null
@@ -122,12 +186,18 @@ const handleUpdateOpen = async (value: boolean) => {
     await closeScanner()
     frozenImage.value = null
     videoRef.value = null
+    scanMode.value = 'barcode'
   }
 }
 
 const handleCameraOn = () => {
   // Camera successfully started
   scanError.value = null
+}
+
+const handleDismissCandidates = () => {
+  frozenImage.value = null
+  dismissCandidates()
 }
 
 const trackFunction = (detectedCodes: any[], ctx: CanvasRenderingContext2D) => {

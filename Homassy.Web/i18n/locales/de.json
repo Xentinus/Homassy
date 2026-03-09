@@ -1837,7 +1837,14 @@
   "barcodeScanner": {
     "title": "Barcode scannen",
     "description": "Richten Sie die Kamera auf den Produktbarcode",
+    "descriptionQr": "Richten Sie die Kamera auf den QR-Code",
     "instructions": "Platzieren Sie den Barcode im Rahmen oder tippen Sie auf das Bild zum Aufnehmen und Scannen",
+    "tabs": {
+      "barcode": "Barcode",
+      "qrcode": "QR-Code"
+    },
+    "multipleDetected": "Mehrere Codes erkannt – wählen Sie einen aus",
+    "retry": "Wiederholen",
     "errors": {
       "permissionDenied": "Kamerazugriff verweigert. Bitte aktivieren Sie die Kamera in Ihren Einstellungen.",
       "noCameraFound": "Keine Kamera auf diesem Gerät gefunden",
