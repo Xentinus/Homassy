@@ -1845,6 +1845,10 @@
     },
     "multipleDetected": "Mehrere Codes erkannt – wählen Sie einen aus",
     "retry": "Wiederholen",
+    "torchOn": "Taschenlampe einschalten",
+    "torchOff": "Taschenlampe ausschalten",
+    "zoomIn": "Vergrößern",
+    "zoomOut": "Verkleinern",
     "errors": {
       "permissionDenied": "Kamerazugriff verweigert. Bitte aktivieren Sie die Kamera in Ihren Einstellungen.",
       "noCameraFound": "Keine Kamera auf diesem Gerät gefunden",

@@ -1848,6 +1848,10 @@
     },
     "multipleDetected": "Több kód érzékelve – válassz egyet",
     "retry": "Újra",
+    "torchOn": "Zseblámpa bekapcsolása",
+    "torchOff": "Zseblámpa kikapcsolása",
+    "zoomIn": "Közelítés",
+    "zoomOut": "Távolítás",
     "errors": {
       "permissionDenied": "A kamera hozzáférés megtagadva. Kérjük, engedélyezd a kamerát a beállításokban.",
       "noCameraFound": "Nem található kamera az eszközön",

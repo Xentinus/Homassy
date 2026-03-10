@@ -28,11 +28,12 @@
         />
 
         <!-- Camera Preview -->
-        <div class="relative cursor-pointer" @click="handleCameraClick">
+        <div ref="streamWrapperRef" class="relative cursor-pointer" @click="handleCameraClick">
           <QrcodeStream
             v-if="isScannerOpen"
             :key="scanMode"
             :paused="isPaused"
+            :torch="torchEnabled"
             :constraints="{ facingMode: 'environment' }"
             :formats="activeFormats"
             :track="trackFunction"
@@ -40,6 +41,19 @@
             @camera-on="handleCameraOn"
             @error="handleCameraError"
           >
+            <!-- Torch toggle button (floating, top-right) -->
+            <div class="absolute top-2 right-2 z-10">
+              <UButton
+                v-if="torchSupported"
+                :icon="torchEnabled ? 'i-lucide-flashlight-off' : 'i-lucide-flashlight'"
+                color="neutral"
+                variant="solid"
+                size="sm"
+                :aria-label="torchEnabled ? t('barcodeScanner.torchOff') : t('barcodeScanner.torchOn')"
+                @click.stop="toggleTorch"
+              />
+            </div>
+
             <!-- Frozen Image Overlay -->
             <div
               v-if="frozenImage"
@@ -96,6 +110,32 @@
           </QrcodeStream>
         </div>
 
+        <!-- Zoom controls -->
+        <div
+          v-if="zoomSupported"
+          class="flex items-center justify-center gap-3"
+        >
+          <UButton
+            icon="i-lucide-minus"
+            color="neutral"
+            variant="outline"
+            size="sm"
+            :disabled="zoomLevel <= zoomMin"
+            :aria-label="t('barcodeScanner.zoomOut')"
+            @click="setZoom(zoomLevel - zoomStep)"
+          />
+          <span class="text-sm font-medium w-10 text-center tabular-nums">{{ zoomDisplay }}</span>
+          <UButton
+            icon="i-lucide-plus"
+            color="neutral"
+            variant="outline"
+            size="sm"
+            :disabled="zoomLevel >= zoomMax"
+            :aria-label="t('barcodeScanner.zoomIn')"
+            @click="setZoom(zoomLevel + zoomStep)"
+          />
+        </div>
+
         <!-- Instructions -->
         <p class="text-sm text-center text-gray-600 dark:text-gray-400">
           {{ t('barcodeScanner.instructions') }}
@@ -139,12 +179,22 @@ const {
   handleCameraError,
   detectedCandidates,
   selectCandidate,
-  dismissCandidates
+  dismissCandidates,
+  torchEnabled,
+  torchSupported,
+  initTorchAndZoom,
+  toggleTorch,
+  zoomLevel,
+  zoomMin,
+  zoomMax,
+  zoomStep,
+  setZoom
 } = useBarcodeScanner()
 
 const isCapturing = ref(false)
 const frozenImage = ref<string | null>(null)
 const videoRef = ref<HTMLVideoElement | null>(null)
+const streamWrapperRef = ref<HTMLDivElement | null>(null)
 const scanMode = ref<'barcode' | 'qrcode'>('barcode')
 
 const scanTabs = computed(() => [
@@ -162,12 +212,21 @@ const activeDescription = computed(() =>
     : t('barcodeScanner.descriptionQr')
 )
 
+const zoomSupported = computed(() => zoomMin.value < zoomMax.value)
+
+const zoomDisplay = computed(() => {
+  const v = zoomLevel.value
+  return Number.isInteger(v) ? `${v}x` : `${v.toFixed(1)}x`
+})
+
 const handleTabChange = (value: string) => {
   if (value === scanMode.value) return
   scanMode.value = value as 'barcode' | 'qrcode'
   // Clear any frozen state when switching tabs
   frozenImage.value = null
   dismissCandidates()
+  // Reset zoom when tab changes (camera remounts)
+  zoomLevel.value = 1
 }
 
 // Watch for modal open and start scanner
@@ -187,12 +246,13 @@ const handleUpdateOpen = async (value: boolean) => {
     frozenImage.value = null
     videoRef.value = null
     scanMode.value = 'barcode'
+    zoomLevel.value = 1
   }
 }
 
-const handleCameraOn = () => {
-  // Camera successfully started
+const handleCameraOn = async (capabilities: any) => {
   scanError.value = null
+  await initTorchAndZoom(capabilities, streamWrapperRef.value)
 }
 
 const handleDismissCandidates = () => {
@@ -240,8 +300,8 @@ const handleCameraClick = () => {
     isCapturing.value = false
   }, 300)
 
-  // Get video element from QrcodeStream
-  const video = document.querySelector('.qrcode-stream-camera') as HTMLVideoElement
+  // Get video element from within the QrcodeStream wrapper (v5 renders a plain <video> tag)
+  const video = streamWrapperRef.value?.querySelector('video') as HTMLVideoElement | null
   if (!video) return
 
   videoRef.value = video
