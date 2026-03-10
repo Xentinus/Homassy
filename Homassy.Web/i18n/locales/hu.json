@@ -1840,7 +1840,18 @@
   "barcodeScanner": {
     "title": "Vonalkód beolvasása",
     "description": "Irányítsd a kamerát a termék vonalkódjára",
+    "descriptionQr": "Irányítsd a kamerát a QR kódra",
     "instructions": "Helyezd a vonalkódot a keretbe vagy koppints a képre a pillanatkép beolvasásához",
+    "tabs": {
+      "barcode": "Vonalkód",
+      "qrcode": "QR kód"
+    },
+    "multipleDetected": "Több kód érzékelve – válassz egyet",
+    "retry": "Újra",
+    "torchOn": "Zseblámpa bekapcsolása",
+    "torchOff": "Zseblámpa kikapcsolása",
+    "zoomIn": "Közelítés",
+    "zoomOut": "Távolítás",
     "errors": {
       "permissionDenied": "A kamera hozzáférés megtagadva. Kérjük, engedélyezd a kamerát a beállításokban.",
       "noCameraFound": "Nem található kamera az eszközön",

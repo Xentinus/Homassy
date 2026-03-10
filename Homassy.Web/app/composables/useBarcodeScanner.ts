@@ -1,4 +1,4 @@
-import { ref, onUnmounted, type Ref } from 'vue'
+import { ref, onUnmounted, nextTick, type Ref } from 'vue'
 
 // Global state shared across all instances
 const isScannerOpen = ref(false)
@@ -7,6 +7,25 @@ const isPaused = ref(false)
 const scanError = ref<string | null>(null)
 const detectedBarcode = ref<string | null>(null)
 const scanCallback = ref<((barcode: string) => void) | null>(null)
+const detectedCandidates = ref<string[]>([])
+
+// Buffer for stable detection: tracks how many frames each barcode appeared in
+let bufferTimer: ReturnType<typeof setTimeout> | null = null
+let candidateFrameCount = new Map<string, number>() // barcode → frames seen
+let totalFrameCount = 0
+const BUFFER_MS = 1000          // accumulation window (ms)
+const STABILITY_THRESHOLD = 0.5 // barcode must appear in ≥50% of frames
+
+// Torch / flashlight state
+const torchEnabled = ref(false)
+const torchSupported = ref(false)
+let videoTrack: MediaStreamTrack | null = null
+
+// Zoom state
+const zoomLevel = ref(1)
+const zoomMin = ref(1)
+const zoomMax = ref(1)
+const zoomStep = ref(0.5)
 
 /**
  * Composable for barcode scanning using device camera
@@ -73,6 +92,118 @@ export const useBarcodeScanner = () => {
     isScanning.value = true
     scanCallback.value = onSuccess
     isPaused.value = false
+    detectedCandidates.value = []
+    candidateFrameCount.clear()
+    totalFrameCount = 0
+    if (bufferTimer) {
+      clearTimeout(bufferTimer)
+      bufferTimer = null
+    }
+  }
+
+  /**
+   * Short haptic feedback on detection (mobile only)
+   */
+  const vibrateOnDetect = () => {
+    navigator.vibrate?.(100)
+  }
+
+  /**
+   * Initialise torch and zoom capabilities from the camera-on event payload.
+   * Torch is controlled via the :torch prop on QrcodeStream (library handles it).
+   * Zoom still requires video track access for applyConstraints.
+   *
+   * @param capabilities - MediaTrackCapabilities emitted by @camera-on
+   * @param containerEl  - The wrapper element containing the <video> tag (for zoom track lookup)
+   */
+  const initTorchAndZoom = async (capabilities: any, containerEl?: HTMLElement | null) => {
+    if (!capabilities) return
+
+    // Torch support: library controls it via :torch prop — we only need the flag
+    torchSupported.value = capabilities.torch === true
+
+    // Zoom support: read range from capabilities
+    if (capabilities.zoom?.min !== undefined && capabilities.zoom?.max !== undefined
+        && capabilities.zoom.max > capabilities.zoom.min) {
+      zoomMin.value = capabilities.zoom.min
+      zoomMax.value = capabilities.zoom.max
+      zoomStep.value = capabilities.zoom.step ?? 0.5
+      const defaultZoom = Math.min(capabilities.zoom.max, Math.max(capabilities.zoom.min, 2))
+      zoomLevel.value = defaultZoom
+
+      // Get video track for applyConstraints (zoom only)
+      await nextTick()
+      const root: ParentNode = containerEl ?? document
+      const videoEl = root.querySelector('video') as HTMLVideoElement | null
+      const stream = videoEl?.srcObject as MediaStream | null
+      videoTrack = stream?.getVideoTracks()[0] ?? null
+
+      // Apply default 2x zoom immediately
+      if (videoTrack) {
+        try {
+          await videoTrack.applyConstraints({ advanced: [{ zoom: defaultZoom } as any] })
+        } catch (err) {
+          console.error('Default zoom failed:', err)
+        }
+      }
+    }
+  }
+
+  /**
+   * Toggle torch on/off.
+   * Actual torch activation is handled by the :torch prop on QrcodeStream;
+   * this method just flips the reactive flag.
+   */
+  const toggleTorch = () => {
+    if (!torchSupported.value) return
+    torchEnabled.value = !torchEnabled.value
+  }
+
+  /**
+   * Set zoom level, clamped to device capabilities
+   */
+  const setZoom = async (value: number) => {
+    if (!videoTrack) return
+    const clamped = Math.min(zoomMax.value, Math.max(zoomMin.value, value))
+    zoomLevel.value = clamped
+    try {
+      await videoTrack.applyConstraints({ advanced: [{ zoom: clamped } as any] })
+    } catch (err) {
+      console.error('Zoom failed:', err)
+    }
+  }
+
+  /**
+   * Commit buffered candidates: auto-select if only one, show list if multiple
+   */
+  const commitCandidates = () => {
+    bufferTimer = null
+
+    // Only keep barcodes seen in ≥50% of all frames (stable detections)
+    const stableCandidates = Array.from(candidateFrameCount.entries())
+      .filter(([, count]) => totalFrameCount > 0 && count / totalFrameCount >= STABILITY_THRESHOLD)
+      .map(([barcode]) => barcode)
+
+    candidateFrameCount.clear()
+    totalFrameCount = 0
+
+    // No stable candidates → noise only, restart window silently
+    if (stableCandidates.length === 0) return
+
+    if (stableCandidates.length === 1) {
+      const barcode = stableCandidates[0]
+      playBeep()
+      vibrateOnDetect()
+      detectedBarcode.value = barcode
+      const callback = scanCallback.value
+      stopScanner()
+      isScannerOpen.value = false
+      if (callback) callback(barcode)
+    } else {
+      // Multiple stable candidates – pause and let user choose
+      isPaused.value = true
+      detectedCandidates.value = stableCandidates
+    }
   }
 
   /**
@@ -82,20 +213,47 @@ export const useBarcodeScanner = () => {
   const handleDetect = (detectedCodes: any[]) => {
     if (isPaused.value || !isScanning.value || detectedCodes.length === 0) return
 
-    const barcode = detectedCodes[0].rawValue
+    // Count how many frames each barcode value appears in
+    totalFrameCount++
+    for (const code of detectedCodes) {
+      const val: string = code.rawValue
+      candidateFrameCount.set(val, (candidateFrameCount.get(val) ?? 0) + 1)
+    }
 
+    // Fixed-length window: start timer only once per window
+    if (!bufferTimer) {
+      bufferTimer = setTimeout(commitCandidates, BUFFER_MS)
+    }
+  }
+
+  /**
+   * User selected one barcode from the multi-detection list
+   */
+  const selectCandidate = (barcode: string) => {
+    detectedCandidates.value = []
+    candidateFrameCount.clear()
+    totalFrameCount = 0
     playBeep()
+    vibrateOnDetect()
     detectedBarcode.value = barcode
-
-    // Store callback before stopping scanner (which clears it)
     const callback = scanCallback.value
-
     stopScanner()
     isScannerOpen.value = false
+    if (callback) callback(barcode)
+  }
 
-    if (callback) {
-      callback(barcode)
+  /**
+   * Dismiss the candidate list and resume live scanning
+   */
+  const dismissCandidates = () => {
+    detectedCandidates.value = []
+    candidateFrameCount.clear()
+    totalFrameCount = 0
+    if (bufferTimer) {
+      clearTimeout(bufferTimer)
+      bufferTimer = null
     }
+    isPaused.value = false
   }
 
   /**
@@ -155,19 +313,25 @@ export const useBarcodeScanner = () => {
           const detectedCodes = await barcodeDetector.detect(await createImageBitmap(blob))
 
           if (detectedCodes.length > 0) {
-            // Success - barcode found
-            const barcode = detectedCodes[0].rawValue
-            playBeep()
-            detectedBarcode.value = barcode
+            if (detectedCodes.length === 1) {
+              // Single result – auto-confirm
+              const barcode = detectedCodes[0].rawValue
+              playBeep()
+              vibrateOnDetect()
+              detectedBarcode.value = barcode
 
-            // Store callback before stopping scanner (which clears it)
-            const callback = scanCallback.value
+              const callback = scanCallback.value
 
-            stopScanner()
-            isScannerOpen.value = false
+              stopScanner()
+              isScannerOpen.value = false
 
-            if (callback) {
-              callback(barcode)
+              if (callback) {
+                callback(barcode)
+              }
+            } else {
+              // Multiple results – let user choose
+              detectedCandidates.value = [...new Set(detectedCodes.map((c: any) => c.rawValue as string))]
+              // Keep isPaused = true; frozen image stays visible until user picks
             }
           } else {
             // No barcode found in snapshot - wait 2 seconds then resume video
@@ -200,6 +364,21 @@ export const useBarcodeScanner = () => {
     isScanning.value = false
     isPaused.value = false
     scanCallback.value = null
+    detectedCandidates.value = []
+    candidateFrameCount.clear()
+    totalFrameCount = 0
+    if (bufferTimer) {
+      clearTimeout(bufferTimer)
+      bufferTimer = null
+    }
+    // Reset torch (library cleans up via :torch prop going false)
+    torchEnabled.value = false
+    torchSupported.value = false
+    videoTrack = null
+    // Reset zoom
+    zoomLevel.value = 1
+    zoomMin.value = 1
+    zoomMax.value = 1
   }
 
   /**
@@ -252,6 +431,18 @@ export const useBarcodeScanner = () => {
     handleDetect,
     handleCameraError,
     openScanner,
-    closeScanner
+    closeScanner,
+    detectedCandidates,
+    selectCandidate,
+    dismissCandidates,
+    torchEnabled,
+    torchSupported,
+    initTorchAndZoom,
+    toggleTorch,
+    zoomLevel,
+    zoomMin,
+    zoomMax,
+    zoomStep,
+    setZoom
   }
 }

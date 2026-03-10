@@ -1838,7 +1838,18 @@
   "barcodeScanner": {
     "title": "Scan Barcode",
     "description": "Point the camera at the product barcode",
+    "descriptionQr": "Point the camera at the QR code",
     "instructions": "Place the barcode inside the frame or tap the image to capture and scan",
+    "tabs": {
+      "barcode": "Barcode",
+      "qrcode": "QR Code"
+    },
+    "multipleDetected": "Multiple codes detected – select one",
+    "retry": "Retry",
+    "torchOn": "Turn on flashlight",
+    "torchOff": "Turn off flashlight",
+    "zoomIn": "Zoom in",
+    "zoomOut": "Zoom out",
     "errors": {
       "permissionDenied": "Camera access denied. Please enable camera permissions in your settings.",
       "noCameraFound": "No camera found on this device",
