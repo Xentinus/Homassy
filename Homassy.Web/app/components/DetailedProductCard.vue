@@ -42,29 +42,16 @@
       </div>
     </div>
 
-    <!-- Stock Summary Icons - Bottom Right -->
+    <!-- Stock Count by Unit -->
     <div class="mt-auto">
       <p v-if="product.inventoryItems.length === 0" class="text-xs text-gray-400 italic text-center py-1">
         {{ $t('common.noData') }}
       </p>
-
-      <div v-else class="flex items-center gap-1.5" :class="{ 'justify-end': visibleBadgeCount < 3 }">
-        <!-- Normal Icon + Count -->
-        <div v-if="normalItems.length > 0" class="flex items-center gap-1 px-1.5 py-1 rounded-md border bg-gray-50 dark:bg-gray-700/50 border-gray-200 dark:border-gray-600 shadow-sm">
-          <UIcon name="i-lucide-check-circle" class="h-3.5 w-3.5 text-gray-600 dark:text-gray-400 flex-shrink-0" />
-          <span class="text-xs font-semibold text-gray-700 dark:text-gray-300">{{ normalItems.length }}</span>
-        </div>
-
-        <!-- Expiring Soon Icon + Count -->
-        <div v-if="expiringSoonItems.length > 0" class="flex items-center gap-1 px-1.5 py-1 rounded-md border bg-amber-50 dark:bg-amber-900/20 border-amber-200 dark:border-amber-800 shadow-sm">
-          <UIcon name="i-lucide-clock" class="h-3.5 w-3.5 text-amber-600 dark:text-amber-400 flex-shrink-0" />
-          <span class="text-xs font-semibold text-amber-700 dark:text-amber-300">{{ expiringSoonItems.length }}</span>
-        </div>
-
-        <!-- Expired Icon + Count -->
-        <div v-if="expiredItems.length > 0" class="flex items-center gap-1 px-1.5 py-1 rounded-md border bg-red-50 dark:bg-red-900/20 border-red-200 dark:border-red-800 shadow-sm">
-          <UIcon name="i-lucide-alert-circle" class="h-3.5 w-3.5 text-red-600 dark:text-red-400 flex-shrink-0" />
-          <span class="text-xs font-semibold text-red-700 dark:text-red-300">{{ expiredItems.length }}</span>
+      <div v-else class="flex flex-col gap-1">
+        <div v-for="entry in stockByUnit" :key="entry.unit" class="flex items-center gap-2 text-xs">
+          <UIcon name="i-lucide-package-2" class="h-3.5 w-3.5 text-amber-600 dark:text-amber-400 flex-shrink-0" />
+          <span class="font-bold text-gray-900 dark:text-gray-100">{{ entry.quantity }}</span>
+          <span class="text-gray-700 dark:text-gray-300">{{ entry.unitLabel }}</span>
         </div>
       </div>
     </div>
@@ -90,13 +77,27 @@ const props = withDefaults(defineProps<Props>(), {
 const { t } = useI18n()
 const { isExpired: checkIsExpired, isExpiringSoon: checkIsExpiringSoon } = useExpirationCheck()
 
+// Aggregate inventory quantities by unit
+const stockByUnit = computed(() => {
+  const map = new Map<number, number>()
+  for (const item of props.product.inventoryItems) {
+    const unit = item.unit as number
+    map.set(unit, (map.get(unit) ?? 0) + item.currentQuantity)
+  }
+  return Array.from(map.entries()).map(([unit, quantity]) => ({
+    unit,
+    quantity: Number.isInteger(quantity) ? quantity : parseFloat(quantity.toFixed(3)),
+    unitLabel: t(`enums.unit.${unit}`)
+  }))
+})
+
 // Dynamic border classes based on status
 const cardBorderClass = computed(() => {
   if (hasExpiredItems.value) {
     return 'border-red-400 dark:border-red-500'
   }
   if (hasExpiringSoonItems.value) {
-    return 'border-amber-400 dark:border-amber-500'
+    return 'border-primary-400 dark:border-primary-500'
   }
   return 'border-gray-200 dark:border-gray-700'
 })
@@ -139,43 +140,6 @@ const hasExpiringSoonItems = computed(() => {
       return false
     }
   })
-})
-
-// Helper to check if an item is expiring soon
-const isExpiringSoon = (expirationAt: string): boolean => {
-  try {
-    return checkIsExpiringSoon(expirationAt)
-  } catch {
-    return false
-  }
-}
-
-// Group inventory items by category
-const expiredItems = computed(() => {
-  return props.product.inventoryItems.filter(item =>
-    item.expirationAt && isExpired(item.expirationAt)
-  )
-})
-
-const expiringSoonItems = computed(() => {
-  return props.product.inventoryItems.filter(item =>
-    item.expirationAt && isExpiringSoon(item.expirationAt) && !isExpired(item.expirationAt)
-  )
-})
-
-const normalItems = computed(() => {
-  return props.product.inventoryItems.filter(item =>
-    !item.expirationAt || (!isExpired(item.expirationAt) && !isExpiringSoon(item.expirationAt))
-  )
-})
-
-// Count visible badges
-const visibleBadgeCount = computed(() => {
-  let count = 0
-  if (expiredItems.value.length > 0) count++
-  if (expiringSoonItems.value.length > 0) count++
-  if (normalItems.value.length > 0) count++
-  return count
 })
 
 const getUnitLabel = (unit: Unit): string => {
