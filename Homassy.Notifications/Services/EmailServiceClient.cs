@@ -70,4 +70,47 @@ public sealed class EmailServiceClient
         Language.English => "en",
         _ => "hu"
     };
+
+    public async Task<bool> SendAutomationNotificationAsync(
+        string to,
+        Language language,
+        string? name,
+        string productName,
+        string actionType,
+        decimal? consumedQuantity = null,
+        string? unit = null,
+        CancellationToken ct = default)
+    {
+        var request = new
+        {
+            To = to,
+            Language = GetLanguageCode(language),
+            Name = name,
+            ProductName = productName,
+            ActionType = actionType,
+            ConsumedQuantity = consumedQuantity,
+            Unit = unit
+        };
+
+        try
+        {
+            var response = await _httpClient.PostAsJsonAsync("/email/automation-notification", request, ct);
+
+            if (!response.IsSuccessStatusCode)
+            {
+                var body = await response.Content.ReadAsStringAsync(ct);
+                _logger.LogError(
+                    "Email service returned {StatusCode} for automation notification to {Email}: {Body}",
+                    response.StatusCode, to, body);
+                return false;
+            }
+
+            return true;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to send automation notification email to {Email}", to);
+            return false;
+        }
+    }
 }

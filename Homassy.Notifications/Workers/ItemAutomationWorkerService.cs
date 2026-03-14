@@ -59,6 +59,7 @@ public sealed class ItemAutomationWorkerService : BackgroundService
 
         using var scope = _scopeFactory.CreateScope();
         var context = scope.ServiceProvider.GetRequiredService<HomassyDbContext>();
+        var emailClient = scope.ServiceProvider.GetRequiredService<EmailServiceClient>();
 
         var dueAutomations = await context.ItemAutomations
             .Include(a => a.ProductInventoryItem)
@@ -78,7 +79,7 @@ public sealed class ItemAutomationWorkerService : BackgroundService
         {
             try
             {
-                await ProcessSingleAutomationAsync(context, automation, cancellationToken);
+                await ProcessSingleAutomationAsync(context, emailClient, automation, cancellationToken);
             }
             catch (Exception ex)
             {
@@ -107,12 +108,53 @@ public sealed class ItemAutomationWorkerService : BackgroundService
 
     private async Task ProcessSingleAutomationAsync(
         HomassyDbContext context,
+        EmailServiceClient emailClient,
         ItemAutomation automation,
         CancellationToken cancellationToken)
     {
         var inventoryItem = automation.ProductInventoryItem;
+
+        // Skip if inventory item was not loaded (e.g. soft-deleted by global query filter)
+        if (inventoryItem == null)
+        {
+            Log.Information("Skipping automation {AutomationId} — inventory item not found (possibly deleted)",
+                automation.Id);
+
+            var deletedExecution = new ItemAutomationExecution
+            {
+                ItemAutomationId = automation.Id,
+                Status = AutomationExecutionStatus.Skipped,
+                Notes = "Inventory item not found (deleted)"
+            };
+            context.ItemAutomationExecutions.Add(deletedExecution);
+
+            automation.IsEnabled = false;
+            await context.SaveChangesAsync(cancellationToken);
+            return;
+        }
+
         var product = inventoryItem.Product;
         var productName = product?.Name ?? "Unknown";
+
+        // Skip if product or inventory item has been deleted (soft-deleted)
+        if (inventoryItem.IsDeleted || (product != null && product.IsDeleted))
+        {
+            Log.Information("Skipping automation {AutomationId} — item or product has been deleted",
+                automation.Id);
+
+            var deletedExecution = new ItemAutomationExecution
+            {
+                ItemAutomationId = automation.Id,
+                Status = AutomationExecutionStatus.Skipped,
+                Notes = "Item or product has been deleted"
+            };
+            context.ItemAutomationExecutions.Add(deletedExecution);
+
+            // Disable the automation since the item is gone
+            automation.IsEnabled = false;
+            await context.SaveChangesAsync(cancellationToken);
+            return;
+        }
 
         // Skip if item is fully consumed
         if (inventoryItem.IsFullyConsumed)
@@ -136,11 +178,11 @@ public sealed class ItemAutomationWorkerService : BackgroundService
 
         if (automation.ActionType == AutomationActionType.AutoConsume)
         {
-            await ExecuteAutoConsumeAsync(context, automation, inventoryItem, productName, cancellationToken);
+            await ExecuteAutoConsumeAsync(context, emailClient, automation, inventoryItem, productName, cancellationToken);
         }
         else
         {
-            await ExecuteNotifyOnlyAsync(context, automation, productName, cancellationToken);
+            await ExecuteNotifyOnlyAsync(context, emailClient, automation, productName, cancellationToken);
         }
 
         // Recalculate next execution time
@@ -154,6 +196,7 @@ public sealed class ItemAutomationWorkerService : BackgroundService
 
     private async Task ExecuteAutoConsumeAsync(
         HomassyDbContext context,
+        EmailServiceClient emailClient,
         ItemAutomation automation,
         ProductInventoryItem inventoryItem,
         string productName,
@@ -189,8 +232,8 @@ public sealed class ItemAutomationWorkerService : BackgroundService
             context.ItemAutomationExecutions.Add(insufficientExecution);
 
             // Send a notification about the insufficient quantity
-            await SendNotificationToOwnerAsync(context, automation, productName,
-                isReminder: true, cancellationToken: cancellationToken);
+            await SendNotificationToOwnerAsync(context, emailClient, automation, productName,
+                "insufficient_quantity", cancellationToken);
             return;
         }
 
@@ -251,11 +294,12 @@ public sealed class ItemAutomationWorkerService : BackgroundService
 
         // Send notification confirming the auto-consumption
         var unitStr = automation.ConsumeUnit?.ToString() ?? "";
-        await SendAutoConsumeNotificationAsync(context, automation, productName, consumeQuantity, unitStr, cancellationToken);
+        await SendAutoConsumeNotificationAsync(context, emailClient, automation, productName, consumeQuantity, unitStr, cancellationToken);
     }
 
     private async Task ExecuteNotifyOnlyAsync(
         HomassyDbContext context,
+        EmailServiceClient emailClient,
         ItemAutomation automation,
         string productName,
         CancellationToken cancellationToken)
@@ -270,12 +314,13 @@ public sealed class ItemAutomationWorkerService : BackgroundService
 
         Log.Information("Automation {AutomationId}: sending reminder for {Product}", automation.Id, productName);
 
-        await SendNotificationToOwnerAsync(context, automation, productName,
-            isReminder: true, cancellationToken: cancellationToken);
+        await SendNotificationToOwnerAsync(context, emailClient, automation, productName,
+            "notify_only", cancellationToken);
     }
 
     private async Task SendAutoConsumeNotificationAsync(
         HomassyDbContext context,
+        EmailServiceClient emailClient,
         ItemAutomation automation,
         string productName,
         decimal quantity,
@@ -307,13 +352,17 @@ public sealed class ItemAutomationWorkerService : BackgroundService
         }
 
         await context.SaveChangesAsync(cancellationToken);
+
+        // Send email notification
+        await SendEmailNotificationAsync(context, emailClient, ownerUserId.Value, language, productName, "auto_consume", quantity, unit, cancellationToken);
     }
 
     private async Task SendNotificationToOwnerAsync(
         HomassyDbContext context,
+        EmailServiceClient emailClient,
         ItemAutomation automation,
         string productName,
-        bool isReminder,
+        string emailActionType,
         CancellationToken cancellationToken)
     {
         var ownerUserId = await GetOwnerUserIdAsync(context, automation, cancellationToken);
@@ -322,25 +371,60 @@ public sealed class ItemAutomationWorkerService : BackgroundService
         var language = await GetUserLanguageAsync(context, ownerUserId.Value, cancellationToken);
         var subscriptions = await GetUserPushSubscriptionsAsync(context, ownerUserId.Value, cancellationToken);
 
-        if (subscriptions.Count == 0) return;
-
-        var (title, body) = PushNotificationContentService.GetAutomationReminderContent(language, productName);
-        var actionTitle = GetActionTitle(language);
-
-        foreach (var subscription in subscriptions)
+        if (subscriptions.Count > 0)
         {
-            var success = await _webPushService.SendNotificationAsync(
-                subscription, title, body, "/profile/automation", actionTitle, cancellationToken);
+            var (title, body) = PushNotificationContentService.GetAutomationReminderContent(language, productName);
+            var actionTitle = GetActionTitle(language);
 
-            if (!success)
+            foreach (var subscription in subscriptions)
             {
-                subscription.DeleteRecord();
-                Log.Information("Removed invalid push subscription {Endpoint} for user {UserId}",
-                    subscription.Endpoint, ownerUserId.Value);
+                var success = await _webPushService.SendNotificationAsync(
+                    subscription, title, body, "/profile/automation", actionTitle, cancellationToken);
+
+                if (!success)
+                {
+                    subscription.DeleteRecord();
+                    Log.Information("Removed invalid push subscription {Endpoint} for user {UserId}",
+                        subscription.Endpoint, ownerUserId.Value);
+                }
             }
+
+            await context.SaveChangesAsync(cancellationToken);
         }
 
-        await context.SaveChangesAsync(cancellationToken);
+        // Send email notification
+        await SendEmailNotificationAsync(context, emailClient, ownerUserId.Value, language, productName, emailActionType, null, null, cancellationToken);
+    }
+
+    private static async Task SendEmailNotificationAsync(
+        HomassyDbContext context,
+        EmailServiceClient emailClient,
+        int userId,
+        Language language,
+        string productName,
+        string actionType,
+        decimal? quantity,
+        string? unit,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            var user = await context.Users
+                .AsNoTracking()
+                .Where(u => u.Id == userId)
+                .Select(u => new { u.Email, u.Name, EmailEnabled = u.NotificationPreferences != null && u.NotificationPreferences.EmailNotificationsEnabled })
+                .FirstOrDefaultAsync(cancellationToken);
+
+            if (user == null || !user.EmailEnabled || string.IsNullOrWhiteSpace(user.Email))
+                return;
+
+            await emailClient.SendAutomationNotificationAsync(
+                user.Email, language, user.Name, productName, actionType, quantity, unit, cancellationToken);
+        }
+        catch (Exception ex)
+        {
+            Log.Error(ex, "Failed to send automation email for user {UserId}, product {Product}", userId, productName);
+        }
     }
 
     private void RecalculateNextExecution(ItemAutomation automation)

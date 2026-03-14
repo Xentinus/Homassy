@@ -4,4 +4,5 @@ public interface ITemplateRendererService
 {
     string Render(Dictionary<string, string> tokens);
     string RenderWeeklySummary(Dictionary<string, string> tokens);
+    string RenderAutomationNotification(Dictionary<string, string> tokens);
 }
