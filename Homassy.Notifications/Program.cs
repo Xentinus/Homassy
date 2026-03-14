@@ -41,6 +41,7 @@ try
     builder.Services.AddHostedService<PushNotificationSchedulerService>();
     builder.Services.AddHostedService<ShoppingListActivityMonitorService>();
     builder.Services.AddHostedService<EmailWeeklySummaryService>();
+    builder.Services.AddHostedService<ItemAutomationWorkerService>();
 
     // Health checks
     builder.Services.AddHealthChecks()

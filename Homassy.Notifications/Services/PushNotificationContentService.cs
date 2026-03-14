@@ -69,4 +69,44 @@ public static class PushNotificationContentService
             _ => ("Homassy teszt értesítés", "Ez egy teszt push értesítés a Homassytól.", "Homassy megnyitása")
         };
     }
+
+    public static (string Title, string Body) GetAutomationNotificationContent(
+        Language language, string productName, decimal quantity, string unit)
+    {
+        return language switch
+        {
+            Language.Hungarian => (
+                "Automatikus felhasználás",
+                $"{quantity} {unit} felhasználva a(z) \"{productName}\" termékből."
+            ),
+            Language.German => (
+                "Automatischer Verbrauch",
+                $"{quantity} {unit} von \"{productName}\" wurde verbraucht."
+            ),
+            _ => (
+                "Automatic Consumption",
+                $"{quantity} {unit} of \"{productName}\" has been consumed."
+            )
+        };
+    }
+
+    public static (string Title, string Body) GetAutomationReminderContent(
+        Language language, string productName)
+    {
+        return language switch
+        {
+            Language.Hungarian => (
+                "Felhasználási emlékeztető",
+                $"Ideje felhasználni a(z) \"{productName}\" terméket."
+            ),
+            Language.German => (
+                "Verbrauchserinnerung",
+                $"Es ist Zeit, \"{productName}\" zu verwenden."
+            ),
+            _ => (
+                "Usage Reminder",
+                $"It's time to use \"{productName}\"."
+            )
+        };
+    }
 }
