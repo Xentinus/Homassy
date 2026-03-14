@@ -82,7 +82,14 @@ public static class ErrorCodeDescriptions
         [ErrorCodes.SystemUnexpectedError] = "An unexpected error occurred.",
         [ErrorCodes.SystemRequestTimeout] = "Request timed out.",
         [ErrorCodes.SystemRequestCancelled] = "Request was cancelled by the client.",
-        [ErrorCodes.SystemUnauthorizedAccess] = "Unauthorized access."
+        [ErrorCodes.SystemUnauthorizedAccess] = "Unauthorized access.",
+
+        // Automation Errors
+        [ErrorCodes.AutomationNotFound] = "Automation rule not found.",
+        [ErrorCodes.AutomationInvalidSchedule] = "Invalid automation schedule configuration.",
+        [ErrorCodes.AutomationItemFullyConsumed] = "Cannot execute automation: item is fully consumed.",
+        [ErrorCodes.AutomationAccessDenied] = "Access denied to this automation rule.",
+        [ErrorCodes.AutomationInsufficientQuantity] = "Insufficient quantity to execute automation."
     }.ToFrozenDictionary();
 
     public static IReadOnlyList<ErrorCodeInfo> GetAllErrorCodes()

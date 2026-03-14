@@ -92,4 +92,12 @@ public static class ErrorCodes
     #region Progress Tracking Errors (PROGRESS-0xxx)
     public const string ProgressJobNotFound = "PROGRESS-0001";
     #endregion
+
+    #region Automation Errors (AUTOMATION-0xxx)
+    public const string AutomationNotFound = "AUTOMATION-0001";
+    public const string AutomationInvalidSchedule = "AUTOMATION-0002";
+    public const string AutomationItemFullyConsumed = "AUTOMATION-0003";
+    public const string AutomationAccessDenied = "AUTOMATION-0004";
+    public const string AutomationInsufficientQuantity = "AUTOMATION-0005";
+    #endregion
 }

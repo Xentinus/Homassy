@@ -32,5 +32,6 @@ namespace Homassy.API.Entities.Product
         public StorageLocation? StorageLocation { get; set; }
         public ProductPurchaseInfo? PurchaseInfo { get; set; }
         public ICollection<ProductConsumptionLog>? ConsumptionLogs { get; set; }
+        public ICollection<ItemAutomation>? Automations { get; set; }
     }
 }
