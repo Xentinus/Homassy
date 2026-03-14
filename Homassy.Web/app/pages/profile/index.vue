@@ -135,6 +135,12 @@
         :description="$t('profile.storageLocations.cardDescription')"
         to="/profile/storage-locations"
       />
+      <ButtonCard
+        icon="i-lucide-timer"
+        :title="$t('profile.automation.title')"
+        :description="$t('profile.automation.cardDescription')"
+        to="/profile/automation"
+      />
     </div>
 
     <!-- Version Info -->

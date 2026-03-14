@@ -1,4 +1,5 @@
 ﻿export * from './useAuthApi'
+export * from './useAutomationApi'
 export * from './useErrorCodesApi'
 export * from './useFamilyApi'
 export * from './useHealthApi'
