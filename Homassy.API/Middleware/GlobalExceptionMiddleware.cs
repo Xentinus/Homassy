@@ -80,6 +80,13 @@ namespace Homassy.API.Middleware
                 ShoppingListAccessDeniedException ex => (StatusCodes.Status403Forbidden, ex.ErrorCode),
                 InvalidShoppingListItemException ex => (StatusCodes.Status400BadRequest, ex.ErrorCode),
 
+                // Automation exceptions
+                AutomationNotFoundException ex => (StatusCodes.Status404NotFound, ex.ErrorCode),
+                AutomationAccessDeniedException ex => (StatusCodes.Status403Forbidden, ex.ErrorCode),
+                AutomationInvalidScheduleException ex => (StatusCodes.Status400BadRequest, ex.ErrorCode),
+                AutomationItemFullyConsumedException ex => (StatusCodes.Status400BadRequest, ex.ErrorCode),
+                AutomationInsufficientQuantityException ex => (StatusCodes.Status400BadRequest, ex.ErrorCode),
+
                 // Timeout exceptions
                 RequestTimeoutException ex => (StatusCodes.Status504GatewayTimeout, ex.ErrorCode),
 
