@@ -11,7 +11,7 @@
       "name": "MIT License",
       "url": "https://github.com/Xentinus/Homassy/blob/master/LICENSE"
     },
-    "version": "26.0314.2121-dev"
+    "version": "26.0315.1159-dev"
   },
   "paths": {
     "/api/v1/Auth/me": {
@@ -7661,7 +7661,10 @@
             "format": "uuid"
           },
           "inventoryItemPublicId": {
-            "type": "string",
+            "type": [
+              "null",
+              "string"
+            ],
             "format": "uuid"
           },
           "productName": {
@@ -7669,6 +7672,26 @@
           },
           "productBrand": {
             "type": "string"
+          },
+          "productPublicId": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "uuid"
+          },
+          "shoppingListPublicId": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "uuid"
+          },
+          "shoppingListName": {
+            "type": [
+              "null",
+              "string"
+            ]
           },
           "scheduleType": {
             "$ref": "#/components/schemas/ScheduleType"
@@ -7682,13 +7705,13 @@
             ],
             "format": "int32"
           },
-          "scheduledDayOfWeek": {
+          "scheduledDaysOfWeek": {
             "oneOf": [
               {
                 "type": "null"
               },
               {
-                "$ref": "#/components/schemas/DayOfWeek"
+                "$ref": "#/components/schemas/DaysOfWeek"
               }
             ]
           },
@@ -7718,6 +7741,25 @@
             "format": "double"
           },
           "consumeUnit": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/Unit"
+              }
+            ]
+          },
+          "addQuantity": {
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d+)?$",
+            "type": [
+              "null",
+              "number",
+              "string"
+            ],
+            "format": "double"
+          },
+          "addUnit": {
             "oneOf": [
               {
                 "type": "null"
@@ -7837,7 +7879,6 @@
       },
       "CreateAutomationRequest": {
         "required": [
-          "inventoryItemPublicId",
           "scheduleType",
           "scheduledTime",
           "actionType"
@@ -7845,7 +7886,24 @@
         "type": "object",
         "properties": {
           "inventoryItemPublicId": {
-            "type": "string",
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "uuid"
+          },
+          "productPublicId": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "uuid"
+          },
+          "shoppingListPublicId": {
+            "type": [
+              "null",
+              "string"
+            ],
             "format": "uuid"
           },
           "scheduleType": {
@@ -7862,13 +7920,13 @@
             ],
             "format": "int32"
           },
-          "scheduledDayOfWeek": {
+          "scheduledDaysOfWeek": {
             "oneOf": [
               {
                 "type": "null"
               },
               {
-                "$ref": "#/components/schemas/DayOfWeek"
+                "$ref": "#/components/schemas/DaysOfWeek"
               }
             ]
           },
@@ -7901,6 +7959,26 @@
             "format": "double"
           },
           "consumeUnit": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/Unit"
+              }
+            ]
+          },
+          "addQuantity": {
+            "minimum": 0.001,
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d+)?$",
+            "type": [
+              "null",
+              "number",
+              "string"
+            ],
+            "format": "double"
+          },
+          "addUnit": {
             "oneOf": [
               {
                 "type": "null"
@@ -8342,7 +8420,7 @@
       "Currency": {
         "type": "integer"
       },
-      "DayOfWeek": {
+      "DaysOfWeek": {
         "type": "integer"
       },
       "DeadlineCountResponse": {
@@ -10281,13 +10359,13 @@
             ],
             "format": "int32"
           },
-          "scheduledDayOfWeek": {
+          "scheduledDaysOfWeek": {
             "oneOf": [
               {
                 "type": "null"
               },
               {
-                "$ref": "#/components/schemas/DayOfWeek"
+                "$ref": "#/components/schemas/DaysOfWeek"
               }
             ]
           },
@@ -10338,6 +10416,40 @@
                 "$ref": "#/components/schemas/Unit"
               }
             ]
+          },
+          "addQuantity": {
+            "minimum": 0.001,
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d+)?$",
+            "type": [
+              "null",
+              "number",
+              "string"
+            ],
+            "format": "double"
+          },
+          "addUnit": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/Unit"
+              }
+            ]
+          },
+          "shoppingListPublicId": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "uuid"
+          },
+          "productPublicId": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "uuid"
           },
           "isEnabled": {
             "type": [

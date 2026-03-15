@@ -457,7 +457,7 @@ public sealed class ItemAutomationWorkerService : BackgroundService
             automation.ScheduleType,
             automation.ScheduledTime,
             automation.IntervalDays,
-            automation.ScheduledDayOfWeek,
+            automation.ScheduledDaysOfWeek,
             automation.ScheduledDayOfMonth,
             userTimeZone,
             automation.LastExecutedAt);

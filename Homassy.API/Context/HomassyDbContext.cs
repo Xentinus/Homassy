@@ -146,7 +146,19 @@ namespace Homassy.API.Context
                 .HasMany(i => i.Automations)
                 .WithOne(a => a.ProductInventoryItem)
                 .HasForeignKey(a => a.ProductInventoryItemId)
-                .OnDelete(DeleteBehavior.Cascade);
+                .OnDelete(DeleteBehavior.SetNull);
+
+            modelBuilder.Entity<ItemAutomation>()
+                .HasOne(a => a.Product)
+                .WithMany()
+                .HasForeignKey(a => a.ProductId)
+                .OnDelete(DeleteBehavior.SetNull);
+
+            modelBuilder.Entity<ItemAutomation>()
+                .HasOne(a => a.ShoppingList)
+                .WithMany()
+                .HasForeignKey(a => a.ShoppingListId)
+                .OnDelete(DeleteBehavior.SetNull);
 
             modelBuilder.Entity<ItemAutomation>()
                 .HasMany(a => a.Executions)
@@ -157,6 +169,8 @@ namespace Homassy.API.Context
             modelBuilder.Entity<ItemAutomation>(entity =>
             {
                 entity.HasIndex(e => e.ProductInventoryItemId);
+                entity.HasIndex(e => e.ProductId);
+                entity.HasIndex(e => e.ShoppingListId);
                 entity.HasIndex(e => new { e.IsEnabled, e.NextExecutionAt });
             });
 

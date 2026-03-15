@@ -36,4 +36,18 @@ namespace Homassy.API.Exceptions
 
         public AutomationInsufficientQuantityException(string message = "Insufficient quantity to execute automation") : base(message) { }
     }
+
+    public class AutomationShoppingListNotFoundException : Exception
+    {
+        public string ErrorCode { get; } = ErrorCodes.AutomationShoppingListNotFound;
+
+        public AutomationShoppingListNotFoundException(string message = "Shopping list not found for automation") : base(message) { }
+    }
+
+    public class AutomationProductNotFoundException : Exception
+    {
+        public string ErrorCode { get; } = ErrorCodes.AutomationProductNotFound;
+
+        public AutomationProductNotFoundException(string message = "Product not found for automation") : base(message) { }
+    }
 }

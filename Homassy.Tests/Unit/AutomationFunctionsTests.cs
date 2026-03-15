@@ -7,6 +7,21 @@ namespace Homassy.Tests.Unit;
 
 public class AutomationFunctionsTests
 {
+    /// <summary>
+    /// Helper to convert DayOfWeek to DaysOfWeek flags for test readability.
+    /// </summary>
+    private static DaysOfWeek ToDaysOfWeek(DayOfWeek day) => day switch
+    {
+        DayOfWeek.Monday => DaysOfWeek.Monday,
+        DayOfWeek.Tuesday => DaysOfWeek.Tuesday,
+        DayOfWeek.Wednesday => DaysOfWeek.Wednesday,
+        DayOfWeek.Thursday => DaysOfWeek.Thursday,
+        DayOfWeek.Friday => DaysOfWeek.Friday,
+        DayOfWeek.Saturday => DaysOfWeek.Saturday,
+        DayOfWeek.Sunday => DaysOfWeek.Sunday,
+        _ => DaysOfWeek.None,
+    };
+
     #region CalculateNextExecutionAt - Interval Schedule
 
     [Fact]
@@ -164,7 +179,7 @@ public class AutomationFunctionsTests
     {
         // Arrange - next Monday at 09:00
         var scheduledTime = new TimeOnly(9, 0);
-        var targetDay = DayOfWeek.Monday;
+        var targetDays = DaysOfWeek.Monday;
         var userTimeZone = UserTimeZone.UTC;
 
         // Act
@@ -172,7 +187,7 @@ public class AutomationFunctionsTests
             ScheduleType.FixedDate,
             scheduledTime,
             null,
-            targetDay, null,
+            targetDays, null,
             userTimeZone);
 
         // Assert
@@ -189,11 +204,14 @@ public class AutomationFunctionsTests
 
         foreach (DayOfWeek day in Enum.GetValues<DayOfWeek>())
         {
+            var daysFlag = ToDaysOfWeek(day);
+            if (daysFlag == DaysOfWeek.None) continue;
+
             var result = AutomationFunctions.CalculateNextExecutionAt(
                 ScheduleType.FixedDate,
                 scheduledTime,
                 null,
-                day, null,
+                daysFlag, null,
                 UserTimeZone.UTC);
 
             Assert.NotNull(result);
@@ -361,9 +379,9 @@ public class AutomationFunctionsTests
     }
 
     [Fact]
-    public void ValidateSchedule_FixedDate_WithDayOfWeek_Valid()
+    public void ValidateSchedule_FixedDate_WithDaysOfWeek_Valid()
     {
-        AutomationFunctions.ValidateSchedule(ScheduleType.FixedDate, null, DayOfWeek.Monday, null);
+        AutomationFunctions.ValidateSchedule(ScheduleType.FixedDate, null, DaysOfWeek.Monday, null);
     }
 
     [Fact]
@@ -377,6 +395,20 @@ public class AutomationFunctionsTests
     {
         Assert.Throws<AutomationInvalidScheduleException>(() =>
             AutomationFunctions.ValidateSchedule(ScheduleType.FixedDate, null, null, null));
+    }
+
+    [Fact]
+    public void ValidateSchedule_FixedDate_DaysOfWeekNone_Throws()
+    {
+        Assert.Throws<AutomationInvalidScheduleException>(() =>
+            AutomationFunctions.ValidateSchedule(ScheduleType.FixedDate, null, DaysOfWeek.None, null));
+    }
+
+    [Fact]
+    public void ValidateSchedule_FixedDate_MultipleDays_Valid()
+    {
+        AutomationFunctions.ValidateSchedule(ScheduleType.FixedDate, null,
+            DaysOfWeek.Monday | DaysOfWeek.Wednesday | DaysOfWeek.Friday, null);
     }
 
     #endregion
@@ -546,7 +578,7 @@ public class AutomationFunctionsTests
             ScheduleType.FixedDate,
             new TimeOnly(23, 59),
             null,
-            DayOfWeek.Sunday, null,
+            DaysOfWeek.Sunday, null,
             UserTimeZone.UTC);
 
         Assert.NotNull(result);
@@ -572,6 +604,186 @@ public class AutomationFunctionsTests
         Assert.NotNull(result);
         Assert.Equal(14, result.Value.Hour);
         Assert.Equal(30, result.Value.Minute);
+    }
+
+    #endregion
+
+    #region Multi-Day Weekly Schedule Tests
+
+    [Fact]
+    public void CalculateNextExecutionAt_FixedDate_MultiDay_ReturnsNearestDay()
+    {
+        // Arrange - Mon, Wed, Fri at 23:59
+        var scheduledTime = new TimeOnly(23, 59);
+        var scheduledDays = DaysOfWeek.Monday | DaysOfWeek.Wednesday | DaysOfWeek.Friday;
+
+        // Act
+        var result = AutomationFunctions.CalculateNextExecutionAt(
+            ScheduleType.FixedDate,
+            scheduledTime,
+            null,
+            scheduledDays, null,
+            UserTimeZone.UTC);
+
+        // Assert
+        Assert.NotNull(result);
+        Assert.True(result.Value > DateTime.UtcNow);
+        var resultDay = result.Value.DayOfWeek;
+        Assert.True(resultDay == DayOfWeek.Monday || resultDay == DayOfWeek.Wednesday || resultDay == DayOfWeek.Friday,
+            $"Expected Mon/Wed/Fri, got {resultDay}");
+    }
+
+    [Fact]
+    public void CalculateNextExecutionAt_FixedDate_MultiDay_PicksClosestDay()
+    {
+        // The result should be within the next 7 days since at least one day is always within 7 days
+        var scheduledTime = new TimeOnly(23, 59);
+        var scheduledDays = DaysOfWeek.Monday | DaysOfWeek.Wednesday | DaysOfWeek.Friday;
+
+        var result = AutomationFunctions.CalculateNextExecutionAt(
+            ScheduleType.FixedDate,
+            scheduledTime,
+            null,
+            scheduledDays, null,
+            UserTimeZone.UTC);
+
+        Assert.NotNull(result);
+        Assert.True(result.Value <= DateTime.UtcNow.AddDays(7).AddHours(1),
+            "Multi-day schedule should return a date within the next 7 days");
+    }
+
+    [Fact]
+    public void CalculateNextExecutionAt_FixedDate_SingleFlagDay_BackwardCompatible()
+    {
+        // Single flag day should behave like old single DayOfWeek
+        var scheduledTime = new TimeOnly(23, 59);
+
+        var result = AutomationFunctions.CalculateNextExecutionAt(
+            ScheduleType.FixedDate,
+            scheduledTime,
+            null,
+            DaysOfWeek.Wednesday, null,
+            UserTimeZone.UTC);
+
+        Assert.NotNull(result);
+        Assert.Equal(DayOfWeek.Wednesday, result.Value.DayOfWeek);
+    }
+
+    [Fact]
+    public void CalculateNextExecutionAt_FixedDate_EveryDay_ReturnsToday()
+    {
+        // All days selected + late time = should return today or tomorrow
+        var scheduledTime = new TimeOnly(23, 59);
+        var allDays = DaysOfWeek.Monday | DaysOfWeek.Tuesday | DaysOfWeek.Wednesday
+                      | DaysOfWeek.Thursday | DaysOfWeek.Friday | DaysOfWeek.Saturday | DaysOfWeek.Sunday;
+
+        var result = AutomationFunctions.CalculateNextExecutionAt(
+            ScheduleType.FixedDate,
+            scheduledTime,
+            null,
+            allDays, null,
+            UserTimeZone.UTC);
+
+        Assert.NotNull(result);
+        Assert.True(result.Value > DateTime.UtcNow);
+        // Should be within the next 2 days max
+        Assert.True(result.Value < DateTime.UtcNow.AddDays(2));
+    }
+
+    [Fact]
+    public void CalculateNextExecutionAt_FixedDate_WeekendDays()
+    {
+        var scheduledTime = new TimeOnly(23, 59);
+        var weekendDays = DaysOfWeek.Saturday | DaysOfWeek.Sunday;
+
+        var result = AutomationFunctions.CalculateNextExecutionAt(
+            ScheduleType.FixedDate,
+            scheduledTime,
+            null,
+            weekendDays, null,
+            UserTimeZone.UTC);
+
+        Assert.NotNull(result);
+        Assert.True(result.Value > DateTime.UtcNow);
+        var dayOfWeek = result.Value.DayOfWeek;
+        Assert.True(dayOfWeek == DayOfWeek.Saturday || dayOfWeek == DayOfWeek.Sunday,
+            $"Expected Saturday or Sunday, got {dayOfWeek}");
+    }
+
+    [Fact]
+    public void CalculateNextExecutionAt_FixedDate_DaysOfWeekNone_ReturnsNull()
+    {
+        var result = AutomationFunctions.CalculateNextExecutionAt(
+            ScheduleType.FixedDate,
+            new TimeOnly(8, 0),
+            null,
+            DaysOfWeek.None, null,
+            UserTimeZone.UTC);
+
+        Assert.Null(result);
+    }
+
+    #endregion
+
+    #region ValidateActionType - AddToShoppingList Tests
+
+    [Fact]
+    public void ValidateActionType_AddToShoppingList_Valid()
+    {
+        AutomationFunctions.ValidateActionType(
+            AutomationActionType.AddToShoppingList,
+            null, null,
+            Guid.NewGuid(), Guid.NewGuid(), 1.0m, ApiUnit.Piece);
+    }
+
+    [Fact]
+    public void ValidateActionType_AddToShoppingList_NoShoppingListPublicId_Throws()
+    {
+        Assert.Throws<AutomationInvalidScheduleException>(() =>
+            AutomationFunctions.ValidateActionType(
+                AutomationActionType.AddToShoppingList,
+                null, null,
+                null, Guid.NewGuid(), 1.0m, ApiUnit.Piece));
+    }
+
+    [Fact]
+    public void ValidateActionType_AddToShoppingList_NoProductPublicId_Throws()
+    {
+        Assert.Throws<AutomationInvalidScheduleException>(() =>
+            AutomationFunctions.ValidateActionType(
+                AutomationActionType.AddToShoppingList,
+                null, null,
+                Guid.NewGuid(), null, 1.0m, ApiUnit.Piece));
+    }
+
+    [Fact]
+    public void ValidateActionType_AddToShoppingList_NoQuantity_Throws()
+    {
+        Assert.Throws<AutomationInvalidScheduleException>(() =>
+            AutomationFunctions.ValidateActionType(
+                AutomationActionType.AddToShoppingList,
+                null, null,
+                Guid.NewGuid(), Guid.NewGuid(), null, ApiUnit.Piece));
+    }
+
+    [Fact]
+    public void ValidateActionType_AddToShoppingList_ZeroQuantity_Throws()
+    {
+        Assert.Throws<AutomationInvalidScheduleException>(() =>
+            AutomationFunctions.ValidateActionType(
+                AutomationActionType.AddToShoppingList,
+                null, null,
+                Guid.NewGuid(), Guid.NewGuid(), 0m, ApiUnit.Piece));
+    }
+
+    [Fact]
+    public void ValidateActionType_AddToShoppingList_NoUnit_Throws()
+    {
+        Assert.Throws<AutomationInvalidScheduleException>(() =>
+            AutomationFunctions.ValidateActionType(
+                AutomationActionType.AddToShoppingList,
+                null, null,
+                Guid.NewGuid(), Guid.NewGuid(), 1.0m, null));
     }
 
     #endregion

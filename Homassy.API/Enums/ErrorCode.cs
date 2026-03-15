@@ -99,5 +99,7 @@ public static class ErrorCodes
     public const string AutomationItemFullyConsumed = "AUTOMATION-0003";
     public const string AutomationAccessDenied = "AUTOMATION-0004";
     public const string AutomationInsufficientQuantity = "AUTOMATION-0005";
+    public const string AutomationShoppingListNotFound = "AUTOMATION-0006";
+    public const string AutomationProductNotFound = "AUTOMATION-0007";
     #endregion
 }

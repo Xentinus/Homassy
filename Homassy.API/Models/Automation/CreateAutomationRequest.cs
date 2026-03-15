@@ -5,8 +5,11 @@ namespace Homassy.API.Models.Automation
 {
     public class CreateAutomationRequest
     {
-        [Required]
-        public required Guid InventoryItemPublicId { get; set; }
+        public Guid? InventoryItemPublicId { get; set; }
+
+        public Guid? ProductPublicId { get; set; }
+
+        public Guid? ShoppingListPublicId { get; set; }
 
         [Required]
         [EnumDataType(typeof(ScheduleType))]
@@ -15,7 +18,8 @@ namespace Homassy.API.Models.Automation
         [Range(1, 365, ErrorMessage = "Interval must be between 1 and 365 days")]
         public int? IntervalDays { get; set; }
 
-        public DayOfWeek? ScheduledDayOfWeek { get; set; }
+        [EnumDataType(typeof(DaysOfWeek))]
+        public DaysOfWeek? ScheduledDaysOfWeek { get; set; }
 
         [Range(1, 31, ErrorMessage = "Day of month must be between 1 and 31")]
         public int? ScheduledDayOfMonth { get; set; }
@@ -32,6 +36,12 @@ namespace Homassy.API.Models.Automation
 
         [EnumDataType(typeof(Unit))]
         public Unit? ConsumeUnit { get; set; }
+
+        [Range(0.001, double.MaxValue, ErrorMessage = "Add quantity must be greater than 0")]
+        public decimal? AddQuantity { get; set; }
+
+        [EnumDataType(typeof(Unit))]
+        public Unit? AddUnit { get; set; }
 
         public bool IsSharedWithFamily { get; set; } = false;
     }

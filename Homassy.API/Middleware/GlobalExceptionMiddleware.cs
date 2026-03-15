@@ -86,6 +86,8 @@ namespace Homassy.API.Middleware
                 AutomationInvalidScheduleException ex => (StatusCodes.Status400BadRequest, ex.ErrorCode),
                 AutomationItemFullyConsumedException ex => (StatusCodes.Status400BadRequest, ex.ErrorCode),
                 AutomationInsufficientQuantityException ex => (StatusCodes.Status400BadRequest, ex.ErrorCode),
+                AutomationShoppingListNotFoundException ex => (StatusCodes.Status404NotFound, ex.ErrorCode),
+                AutomationProductNotFoundException ex => (StatusCodes.Status404NotFound, ex.ErrorCode),
 
                 // Timeout exceptions
                 RequestTimeoutException ex => (StatusCodes.Status504GatewayTimeout, ex.ErrorCode),

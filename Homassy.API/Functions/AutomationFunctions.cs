@@ -21,7 +21,7 @@ namespace Homassy.API.Functions
             ScheduleType scheduleType,
             TimeOnly scheduledTime,
             int? intervalDays,
-            DayOfWeek? scheduledDayOfWeek,
+            DaysOfWeek? scheduledDaysOfWeek,
             int? scheduledDayOfMonth,
             UserTimeZone userTimeZone,
             DateTime? lastExecutedAtUtc = null)
@@ -62,17 +62,33 @@ namespace Homassy.API.Functions
             }
             else // FixedDate
             {
-                if (scheduledDayOfWeek.HasValue)
+                if (scheduledDaysOfWeek.HasValue && scheduledDaysOfWeek.Value != DaysOfWeek.None)
                 {
-                    // Weekly schedule: find next occurrence of the specified day
-                    var daysUntil = ((int)scheduledDayOfWeek.Value - (int)nowLocal.DayOfWeek + 7) % 7;
-                    nextLocal = nowLocal.Date.AddDays(daysUntil).Add(scheduledTime.ToTimeSpan());
+                    // Weekly schedule: find next occurrence among selected days
+                    var selectedDays = GetSelectedDays(scheduledDaysOfWeek.Value);
+                    if (selectedDays.Count == 0)
+                        return null;
 
-                    // If it's today but the time has passed, go to next week
-                    if (nextLocal <= nowLocal)
+                    // Find the nearest upcoming day from the set
+                    DateTime? earliest = null;
+                    foreach (var day in selectedDays)
                     {
-                        nextLocal = nextLocal.AddDays(7);
+                        var daysUntil = ((int)day - (int)nowLocal.DayOfWeek + 7) % 7;
+                        var candidate = nowLocal.Date.AddDays(daysUntil).Add(scheduledTime.ToTimeSpan());
+
+                        // If it's today but the time has passed, go to next week
+                        if (candidate <= nowLocal)
+                        {
+                            candidate = candidate.AddDays(7);
+                        }
+
+                        if (!earliest.HasValue || candidate < earliest.Value)
+                        {
+                            earliest = candidate;
+                        }
                     }
+
+                    nextLocal = earliest!.Value;
                 }
                 else if (scheduledDayOfMonth.HasValue)
                 {
@@ -97,6 +113,22 @@ namespace Homassy.API.Functions
             return TimeZoneInfo.ConvertTimeToUtc(DateTime.SpecifyKind(nextLocal, DateTimeKind.Unspecified), tz);
         }
 
+        /// <summary>
+        /// Converts DaysOfWeek flags to a list of DayOfWeek values.
+        /// </summary>
+        internal static List<DayOfWeek> GetSelectedDays(DaysOfWeek daysOfWeek)
+        {
+            var days = new List<DayOfWeek>();
+            if (daysOfWeek.HasFlag(DaysOfWeek.Monday)) days.Add(DayOfWeek.Monday);
+            if (daysOfWeek.HasFlag(DaysOfWeek.Tuesday)) days.Add(DayOfWeek.Tuesday);
+            if (daysOfWeek.HasFlag(DaysOfWeek.Wednesday)) days.Add(DayOfWeek.Wednesday);
+            if (daysOfWeek.HasFlag(DaysOfWeek.Thursday)) days.Add(DayOfWeek.Thursday);
+            if (daysOfWeek.HasFlag(DaysOfWeek.Friday)) days.Add(DayOfWeek.Friday);
+            if (daysOfWeek.HasFlag(DaysOfWeek.Saturday)) days.Add(DayOfWeek.Saturday);
+            if (daysOfWeek.HasFlag(DaysOfWeek.Sunday)) days.Add(DayOfWeek.Sunday);
+            return days;
+        }
+
         #endregion
 
         #region Schedule Validation
@@ -104,7 +136,7 @@ namespace Homassy.API.Functions
         /// <summary>
         /// Validates schedule configuration based on schedule type.
         /// </summary>
-        public static void ValidateSchedule(ScheduleType scheduleType, int? intervalDays, DayOfWeek? scheduledDayOfWeek, int? scheduledDayOfMonth)
+        public static void ValidateSchedule(ScheduleType scheduleType, int? intervalDays, DaysOfWeek? scheduledDaysOfWeek, int? scheduledDayOfMonth)
         {
             if (scheduleType == ScheduleType.Interval)
             {
@@ -113,15 +145,18 @@ namespace Homassy.API.Functions
             }
             else // FixedDate
             {
-                if (!scheduledDayOfWeek.HasValue && !scheduledDayOfMonth.HasValue)
-                    throw new AutomationInvalidScheduleException("Fixed date schedule requires either ScheduledDayOfWeek or ScheduledDayOfMonth");
+                var hasDays = scheduledDaysOfWeek.HasValue && scheduledDaysOfWeek.Value != DaysOfWeek.None;
+                if (!hasDays && !scheduledDayOfMonth.HasValue)
+                    throw new AutomationInvalidScheduleException("Fixed date schedule requires either ScheduledDaysOfWeek or ScheduledDayOfMonth");
             }
         }
 
         /// <summary>
-        /// Validates that auto-consume rules have quantity and unit set.
+        /// Validates that auto-consume rules have quantity and unit set,
+        /// and AddToShoppingList rules have the required fields.
         /// </summary>
-        public static void ValidateActionType(AutomationActionType actionType, decimal? consumeQuantity, Unit? consumeUnit)
+        public static void ValidateActionType(AutomationActionType actionType, decimal? consumeQuantity, Unit? consumeUnit,
+            Guid? shoppingListPublicId = null, Guid? productPublicId = null, decimal? addQuantity = null, Unit? addUnit = null)
         {
             if (actionType == AutomationActionType.AutoConsume)
             {
@@ -129,6 +164,17 @@ namespace Homassy.API.Functions
                     throw new AutomationInvalidScheduleException("AutoConsume action requires ConsumeQuantity > 0");
                 if (!consumeUnit.HasValue)
                     throw new AutomationInvalidScheduleException("AutoConsume action requires ConsumeUnit");
+            }
+            else if (actionType == AutomationActionType.AddToShoppingList)
+            {
+                if (!shoppingListPublicId.HasValue)
+                    throw new AutomationInvalidScheduleException("AddToShoppingList action requires ShoppingListPublicId");
+                if (!productPublicId.HasValue)
+                    throw new AutomationInvalidScheduleException("AddToShoppingList action requires ProductPublicId");
+                if (!addQuantity.HasValue || addQuantity.Value <= 0)
+                    throw new AutomationInvalidScheduleException("AddToShoppingList action requires AddQuantity > 0");
+                if (!addUnit.HasValue)
+                    throw new AutomationInvalidScheduleException("AddToShoppingList action requires AddUnit");
             }
         }
 
@@ -159,8 +205,14 @@ namespace Homassy.API.Functions
 
             foreach (var automation in automations)
             {
-                var inventoryItem = productFunctions.GetInventoryItemById(automation.ProductInventoryItemId);
+                var inventoryItem = automation.ProductInventoryItemId.HasValue
+                    ? productFunctions.GetInventoryItemById(automation.ProductInventoryItemId.Value)
+                    : null;
                 var product = inventoryItem != null ? productFunctions.GetProductById(inventoryItem.ProductId) : null;
+
+                // For AddToShoppingList, resolve product directly
+                if (product == null && automation.ProductId.HasValue)
+                    product = productFunctions.GetProductById(automation.ProductId.Value);
 
                 responses.Add(MapToResponse(automation, inventoryItem, product));
             }
@@ -191,8 +243,13 @@ namespace Homassy.API.Functions
                 throw new AutomationAccessDeniedException();
 
             var productFunctions = new ProductFunctions();
-            var inventoryItem = productFunctions.GetInventoryItemById(automation.ProductInventoryItemId);
+            var inventoryItem = automation.ProductInventoryItemId.HasValue
+                ? productFunctions.GetInventoryItemById(automation.ProductInventoryItemId.Value)
+                : null;
             var product = inventoryItem != null ? productFunctions.GetProductById(inventoryItem.ProductId) : null;
+
+            if (product == null && automation.ProductId.HasValue)
+                product = productFunctions.GetProductById(automation.ProductId.Value);
 
             return MapToResponse(automation, inventoryItem, product);
         }
@@ -209,19 +266,54 @@ namespace Homassy.API.Functions
             var familyId = SessionInfo.GetFamilyId();
 
             // Validate schedule
-            ValidateSchedule(request.ScheduleType, request.IntervalDays, request.ScheduledDayOfWeek, request.ScheduledDayOfMonth);
-            ValidateActionType(request.ActionType, request.ConsumeQuantity, request.ConsumeUnit);
+            ValidateSchedule(request.ScheduleType, request.IntervalDays, request.ScheduledDaysOfWeek, request.ScheduledDayOfMonth);
+            ValidateActionType(request.ActionType, request.ConsumeQuantity, request.ConsumeUnit,
+                request.ShoppingListPublicId, request.ProductPublicId, request.AddQuantity, request.AddUnit);
 
-            // Find inventory item
             var productFunctions = new ProductFunctions();
-            var inventoryItem = productFunctions.GetInventoryItemByPublicId(request.InventoryItemPublicId);
-            if (inventoryItem == null)
-                throw new ProductInventoryItemNotFoundException();
+            var context = new HomassyDbContext();
+            ProductInventoryItem? inventoryItem = null;
+            Entities.Product.Product? productEntity = null;
+            int? shoppingListId = null;
+            int? productId = null;
 
-            // Verify access
-            if (inventoryItem.UserId != userId.Value &&
-                (!familyId.HasValue || inventoryItem.FamilyId != familyId.Value))
-                throw new AutomationAccessDeniedException();
+            if (request.ActionType == AutomationActionType.AddToShoppingList)
+            {
+                // Resolve product
+                var product = productFunctions.GetProductByPublicId(request.ProductPublicId!.Value);
+                if (product == null)
+                    throw new AutomationProductNotFoundException();
+                productId = product.Id;
+                productEntity = product;
+
+                // Resolve shopping list
+                var shoppingList = await context.ShoppingLists
+                    .FirstOrDefaultAsync(sl => sl.PublicId == request.ShoppingListPublicId!.Value, cancellationToken);
+                if (shoppingList == null)
+                    throw new AutomationShoppingListNotFoundException();
+
+                // Verify access to shopping list
+                if (shoppingList.UserId != userId.Value &&
+                    (!familyId.HasValue || shoppingList.FamilyId != familyId.Value))
+                    throw new AutomationAccessDeniedException();
+
+                shoppingListId = shoppingList.Id;
+            }
+            else
+            {
+                // AutoConsume or NotifyOnly — requires inventory item
+                if (!request.InventoryItemPublicId.HasValue)
+                    throw new AutomationInvalidScheduleException("AutoConsume and NotifyOnly actions require InventoryItemPublicId");
+
+                inventoryItem = productFunctions.GetInventoryItemByPublicId(request.InventoryItemPublicId.Value);
+                if (inventoryItem == null)
+                    throw new ProductInventoryItemNotFoundException();
+
+                // Verify access
+                if (inventoryItem.UserId != userId.Value &&
+                    (!familyId.HasValue || inventoryItem.FamilyId != familyId.Value))
+                    throw new AutomationAccessDeniedException();
+            }
 
             // Get user timezone for scheduling
             var userProfile = new UserFunctions().GetUserProfileByUserId(userId.Value);
@@ -229,17 +321,21 @@ namespace Homassy.API.Functions
 
             var automation = new ItemAutomation
             {
-                ProductInventoryItemId = inventoryItem.Id,
+                ProductInventoryItemId = inventoryItem?.Id,
+                ProductId = productId,
+                ShoppingListId = shoppingListId,
                 UserId = request.IsSharedWithFamily && familyId.HasValue ? null : userId.Value,
                 FamilyId = request.IsSharedWithFamily && familyId.HasValue ? familyId.Value : null,
                 ScheduleType = request.ScheduleType,
                 IntervalDays = request.IntervalDays,
-                ScheduledDayOfWeek = request.ScheduledDayOfWeek,
+                ScheduledDaysOfWeek = request.ScheduledDaysOfWeek,
                 ScheduledDayOfMonth = request.ScheduledDayOfMonth,
                 ScheduledTime = request.ScheduledTime,
                 ActionType = request.ActionType,
                 ConsumeQuantity = request.ConsumeQuantity,
                 ConsumeUnit = request.ConsumeUnit,
+                AddQuantity = request.AddQuantity,
+                AddUnit = request.AddUnit,
                 IsEnabled = true
             };
 
@@ -248,20 +344,19 @@ namespace Homassy.API.Functions
                 automation.ScheduleType,
                 automation.ScheduledTime,
                 automation.IntervalDays,
-                automation.ScheduledDayOfWeek,
+                automation.ScheduledDaysOfWeek,
                 automation.ScheduledDayOfMonth,
                 userTimeZone);
 
-            var context = new HomassyDbContext();
             context.ItemAutomations.Add(automation);
             await context.SaveChangesAsync(cancellationToken);
 
-            Log.Information($"User {userId} created automation {automation.PublicId} for inventory item {inventoryItem.PublicId}");
+            Log.Information($"User {userId} created automation {automation.PublicId} for action type {automation.ActionType}");
 
             // Record activity
             try
             {
-                var product = productFunctions.GetProductById(inventoryItem.ProductId);
+                var product = productEntity ?? (inventoryItem != null ? productFunctions.GetProductById(inventoryItem.ProductId) : null);
                 await new ActivityFunctions().RecordActivityAsync(
                     userId.Value,
                     familyId,
@@ -277,8 +372,8 @@ namespace Homassy.API.Functions
                 Log.Error(ex, $"Failed to record AutomationCreate activity for automation {automation.PublicId}");
             }
 
-            var productEntity = productFunctions.GetProductById(inventoryItem.ProductId);
-            return MapToResponse(automation, inventoryItem, productEntity);
+            var finalProduct = productEntity ?? (inventoryItem != null ? productFunctions.GetProductById(inventoryItem.ProductId) : null);
+            return MapToResponse(automation, inventoryItem, finalProduct);
         }
 
         /// <summary>
@@ -306,23 +401,28 @@ namespace Homassy.API.Functions
             // Apply partial updates
             var scheduleType = request.ScheduleType ?? automation.ScheduleType;
             var intervalDays = request.IntervalDays ?? automation.IntervalDays;
-            var scheduledDayOfWeek = request.ScheduledDayOfWeek ?? automation.ScheduledDayOfWeek;
+            var scheduledDaysOfWeek = request.ScheduledDaysOfWeek ?? automation.ScheduledDaysOfWeek;
             var scheduledDayOfMonth = request.ScheduledDayOfMonth ?? automation.ScheduledDayOfMonth;
             var actionType = request.ActionType ?? automation.ActionType;
             var consumeQuantity = request.ConsumeQuantity ?? automation.ConsumeQuantity;
             var consumeUnit = request.ConsumeUnit ?? automation.ConsumeUnit;
+            var addQuantity = request.AddQuantity ?? automation.AddQuantity;
+            var addUnit = request.AddUnit ?? automation.AddUnit;
 
             // Validate after merge
-            ValidateSchedule(scheduleType, intervalDays, scheduledDayOfWeek, scheduledDayOfMonth);
-            ValidateActionType(actionType, consumeQuantity, consumeUnit);
+            ValidateSchedule(scheduleType, intervalDays, scheduledDaysOfWeek, scheduledDayOfMonth);
+            ValidateActionType(actionType, consumeQuantity, consumeUnit,
+                request.ShoppingListPublicId, request.ProductPublicId, addQuantity, addUnit);
 
             automation.ScheduleType = scheduleType;
             automation.IntervalDays = intervalDays;
-            automation.ScheduledDayOfWeek = scheduledDayOfWeek;
+            automation.ScheduledDaysOfWeek = scheduledDaysOfWeek;
             automation.ScheduledDayOfMonth = scheduledDayOfMonth;
             automation.ActionType = actionType;
             automation.ConsumeQuantity = consumeQuantity;
             automation.ConsumeUnit = consumeUnit;
+            automation.AddQuantity = addQuantity;
+            automation.AddUnit = addUnit;
 
             if (request.ScheduledTime.HasValue)
                 automation.ScheduledTime = request.ScheduledTime.Value;
@@ -332,7 +432,7 @@ namespace Homassy.API.Functions
 
             // Recalculate next execution if schedule changed
             bool scheduleChanged = request.ScheduleType.HasValue || request.IntervalDays.HasValue ||
-                                   request.ScheduledDayOfWeek.HasValue || request.ScheduledDayOfMonth.HasValue ||
+                                   request.ScheduledDaysOfWeek.HasValue || request.ScheduledDayOfMonth.HasValue ||
                                    request.ScheduledTime.HasValue || request.IsEnabled.HasValue;
 
             if (scheduleChanged && automation.IsEnabled)
@@ -344,7 +444,7 @@ namespace Homassy.API.Functions
                     automation.ScheduleType,
                     automation.ScheduledTime,
                     automation.IntervalDays,
-                    automation.ScheduledDayOfWeek,
+                    automation.ScheduledDaysOfWeek,
                     automation.ScheduledDayOfMonth,
                     userTimeZone,
                     automation.LastExecutedAt);
@@ -364,8 +464,12 @@ namespace Homassy.API.Functions
             try
             {
                 var productFunctions = new ProductFunctions();
-                var inventoryItem = productFunctions.GetInventoryItemById(automation.ProductInventoryItemId);
+                var inventoryItem = automation.ProductInventoryItemId.HasValue
+                    ? productFunctions.GetInventoryItemById(automation.ProductInventoryItemId.Value)
+                    : null;
                 var product = inventoryItem != null ? productFunctions.GetProductById(inventoryItem.ProductId) : null;
+                if (product == null && automation.ProductId.HasValue)
+                    product = productFunctions.GetProductById(automation.ProductId.Value);
                 await new ActivityFunctions().RecordActivityAsync(
                     userId.Value,
                     familyId,
@@ -382,8 +486,12 @@ namespace Homassy.API.Functions
             }
 
             var pf = new ProductFunctions();
-            var item = pf.GetInventoryItemById(automation.ProductInventoryItemId);
+            var item = automation.ProductInventoryItemId.HasValue
+                ? pf.GetInventoryItemById(automation.ProductInventoryItemId.Value)
+                : null;
             var prod = item != null ? pf.GetProductById(item.ProductId) : null;
+            if (prod == null && automation.ProductId.HasValue)
+                prod = pf.GetProductById(automation.ProductId.Value);
             return MapToResponse(automation, item, prod);
         }
 
@@ -419,8 +527,12 @@ namespace Homassy.API.Functions
             try
             {
                 var productFunctions = new ProductFunctions();
-                var inventoryItem = productFunctions.GetInventoryItemById(automation.ProductInventoryItemId);
+                var inventoryItem = automation.ProductInventoryItemId.HasValue
+                    ? productFunctions.GetInventoryItemById(automation.ProductInventoryItemId.Value)
+                    : null;
                 var product = inventoryItem != null ? productFunctions.GetProductById(inventoryItem.ProductId) : null;
+                if (product == null && automation.ProductId.HasValue)
+                    product = productFunctions.GetProductById(automation.ProductId.Value);
                 await new ActivityFunctions().RecordActivityAsync(
                     userId.Value,
                     familyId,
@@ -462,7 +574,10 @@ namespace Homassy.API.Functions
                 throw new AutomationAccessDeniedException();
 
             var productFunctions = new ProductFunctions();
-            var inventoryItem = productFunctions.GetInventoryItemById(automation.ProductInventoryItemId);
+            if (!automation.ProductInventoryItemId.HasValue)
+                throw new AutomationInvalidScheduleException("Manual execution requires an inventory item");
+
+            var inventoryItem = productFunctions.GetInventoryItemById(automation.ProductInventoryItemId.Value);
             if (inventoryItem == null)
                 throw new ProductInventoryItemNotFoundException();
 
@@ -482,7 +597,7 @@ namespace Homassy.API.Functions
                     automation.ScheduleType,
                     automation.ScheduledTime,
                     automation.IntervalDays,
-                    automation.ScheduledDayOfWeek,
+                    automation.ScheduledDaysOfWeek,
                     automation.ScheduledDayOfMonth,
                     userTimeZone,
                     automation.LastExecutedAt)
@@ -631,17 +746,22 @@ namespace Homassy.API.Functions
             return new AutomationResponse
             {
                 PublicId = automation.PublicId,
-                InventoryItemPublicId = inventoryItem?.PublicId ?? Guid.Empty,
+                InventoryItemPublicId = inventoryItem?.PublicId,
                 ProductName = product?.Name ?? string.Empty,
                 ProductBrand = product?.Brand ?? string.Empty,
+                ProductPublicId = product?.PublicId,
+                ShoppingListPublicId = automation.ShoppingList?.PublicId,
+                ShoppingListName = automation.ShoppingList?.Name,
                 ScheduleType = automation.ScheduleType,
                 IntervalDays = automation.IntervalDays,
-                ScheduledDayOfWeek = automation.ScheduledDayOfWeek,
+                ScheduledDaysOfWeek = automation.ScheduledDaysOfWeek,
                 ScheduledDayOfMonth = automation.ScheduledDayOfMonth,
                 ScheduledTime = automation.ScheduledTime,
                 ActionType = automation.ActionType,
                 ConsumeQuantity = automation.ConsumeQuantity,
                 ConsumeUnit = automation.ConsumeUnit,
+                AddQuantity = automation.AddQuantity,
+                AddUnit = automation.AddUnit,
                 IsEnabled = automation.IsEnabled,
                 NextExecutionAt = automation.NextExecutionAt,
                 LastExecutedAt = automation.LastExecutedAt

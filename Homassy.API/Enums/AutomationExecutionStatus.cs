@@ -6,6 +6,7 @@
         NotificationSent = 1,
         ManuallyConfirmed = 2,
         Skipped = 3,
-        Failed = 4
+        Failed = 4,
+        AddedToShoppingList = 5
     }
 }

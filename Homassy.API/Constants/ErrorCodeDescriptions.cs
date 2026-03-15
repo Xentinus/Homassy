@@ -89,7 +89,9 @@ public static class ErrorCodeDescriptions
         [ErrorCodes.AutomationInvalidSchedule] = "Invalid automation schedule configuration.",
         [ErrorCodes.AutomationItemFullyConsumed] = "Cannot execute automation: item is fully consumed.",
         [ErrorCodes.AutomationAccessDenied] = "Access denied to this automation rule.",
-        [ErrorCodes.AutomationInsufficientQuantity] = "Insufficient quantity to execute automation."
+        [ErrorCodes.AutomationInsufficientQuantity] = "Insufficient quantity to execute automation.",
+        [ErrorCodes.AutomationShoppingListNotFound] = "Shopping list not found for automation.",
+        [ErrorCodes.AutomationProductNotFound] = "Product not found for automation."
     }.ToFrozenDictionary();
 
     public static IReadOnlyList<ErrorCodeInfo> GetAllErrorCodes()
