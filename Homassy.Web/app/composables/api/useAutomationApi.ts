@@ -52,7 +52,7 @@ export const useAutomationApi = () => {
    * Manually execute an automation rule
    */
   const executeAutomation = async (publicId: string, request: ExecuteAutomationRequest) => {
-    return await client.post<AutomationExecutionResponse>(`/api/v1/Automation/${publicId}/execute`, request)
+    return await client.post<AutomationExecutionResponse>(`/api/v1/Automation/${publicId}/execute`, request, { showErrorToast: false })
   }
 
   /**

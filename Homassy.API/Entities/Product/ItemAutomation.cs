@@ -19,6 +19,11 @@ namespace Homassy.API.Entities.Product
         public int? FamilyId { get; set; }
         public int? UserId { get; set; }
 
+        /// <summary>
+        /// The user who created this automation. Always set, even for family-shared automations.
+        /// </summary>
+        public int CreatedByUserId { get; set; }
+
         [EnumDataType(typeof(ScheduleType))]
         public required ScheduleType ScheduleType { get; set; }
 

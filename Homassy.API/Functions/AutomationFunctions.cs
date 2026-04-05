@@ -326,6 +326,7 @@ namespace Homassy.API.Functions
                 ShoppingListId = shoppingListId,
                 UserId = request.IsSharedWithFamily && familyId.HasValue ? null : userId.Value,
                 FamilyId = request.IsSharedWithFamily && familyId.HasValue ? familyId.Value : null,
+                CreatedByUserId = userId.Value,
                 ScheduleType = request.ScheduleType,
                 IntervalDays = request.IntervalDays,
                 ScheduledDaysOfWeek = request.ScheduledDaysOfWeek,
@@ -411,8 +412,17 @@ namespace Homassy.API.Functions
 
             // Validate after merge
             ValidateSchedule(scheduleType, intervalDays, scheduledDaysOfWeek, scheduledDayOfMonth);
-            ValidateActionType(actionType, consumeQuantity, consumeUnit,
-                request.ShoppingListPublicId, request.ProductPublicId, addQuantity, addUnit);
+
+            // Only validate action type fields when action-type-related properties are being changed
+            if (request.ActionType.HasValue || request.ConsumeQuantity.HasValue || request.ConsumeUnit.HasValue ||
+                request.AddQuantity.HasValue || request.AddUnit.HasValue ||
+                request.ShoppingListPublicId.HasValue || request.ProductPublicId.HasValue)
+            {
+                // For update, use existing entity IDs if not provided in request
+                var shoppingListPublicId = request.ShoppingListPublicId ?? (automation.ShoppingListId.HasValue ? Guid.Empty : (Guid?)null);
+                var productPublicId = request.ProductPublicId ?? (automation.ProductId.HasValue ? Guid.Empty : (Guid?)null);
+                ValidateActionType(actionType, consumeQuantity, consumeUnit, shoppingListPublicId, productPublicId, addQuantity, addUnit);
+            }
 
             automation.ScheduleType = scheduleType;
             automation.IntervalDays = intervalDays;
@@ -573,19 +583,27 @@ namespace Homassy.API.Functions
                 (!familyId.HasValue || automation.FamilyId != familyId.Value))
                 throw new AutomationAccessDeniedException();
 
+            ItemAutomationExecution execution;
             var productFunctions = new ProductFunctions();
-            if (!automation.ProductInventoryItemId.HasValue)
-                throw new AutomationInvalidScheduleException("Manual execution requires an inventory item");
 
-            var inventoryItem = productFunctions.GetInventoryItemById(automation.ProductInventoryItemId.Value);
-            if (inventoryItem == null)
-                throw new ProductInventoryItemNotFoundException();
+            if (automation.ActionType == AutomationActionType.AddToShoppingList)
+            {
+                execution = await ExecuteAddToShoppingListManualAsync(context, automation, userId.Value, familyId, request.Notes, cancellationToken);
+            }
+            else
+            {
+                if (!automation.ProductInventoryItemId.HasValue)
+                    throw new AutomationInvalidScheduleException("Manual execution requires an inventory item");
 
-            if (inventoryItem.IsFullyConsumed)
-                throw new AutomationItemFullyConsumedException();
+                var inventoryItem = productFunctions.GetInventoryItemById(automation.ProductInventoryItemId.Value);
+                if (inventoryItem == null)
+                    throw new ProductInventoryItemNotFoundException();
 
-            // Execute consumption
-            var execution = await ExecuteConsumptionAsync(context, automation, inventoryItem, userId.Value, familyId, request.Notes, cancellationToken);
+                if (inventoryItem.IsFullyConsumed)
+                    throw new AutomationItemFullyConsumedException();
+
+                execution = await ExecuteConsumptionAsync(context, automation, inventoryItem, userId.Value, familyId, request.Notes, cancellationToken);
+            }
 
             // Recalculate next execution
             var userProfile = new UserFunctions().GetUserProfileByUserId(userId.Value);
@@ -611,15 +629,35 @@ namespace Homassy.API.Functions
             // Record activity
             try
             {
-                var product = productFunctions.GetProductById(inventoryItem.ProductId);
+                string productName;
+                Unit? unit;
+                decimal? quantity;
+
+                if (automation.ActionType == AutomationActionType.AddToShoppingList)
+                {
+                    var product = automation.ProductId.HasValue ? productFunctions.GetProductById(automation.ProductId.Value) : null;
+                    productName = product?.Name ?? "Unknown";
+                    unit = automation.AddUnit;
+                    quantity = automation.AddQuantity;
+                }
+                else
+                {
+                    var inventoryItem = automation.ProductInventoryItemId.HasValue
+                        ? productFunctions.GetInventoryItemById(automation.ProductInventoryItemId.Value) : null;
+                    var product = inventoryItem != null ? productFunctions.GetProductById(inventoryItem.ProductId) : null;
+                    productName = product?.Name ?? "Unknown";
+                    unit = automation.ConsumeUnit;
+                    quantity = execution.ConsumedQuantity;
+                }
+
                 await new ActivityFunctions().RecordActivityAsync(
                     userId.Value,
                     familyId,
                     ActivityType.AutomationExecute,
                     automation.Id,
-                    product?.Name ?? "Unknown",
-                    automation.ConsumeUnit,
-                    execution.ConsumedQuantity,
+                    productName,
+                    unit,
+                    quantity,
                     cancellationToken);
             }
             catch (Exception ex)
@@ -628,6 +666,66 @@ namespace Homassy.API.Functions
             }
 
             return MapToExecutionResponse(execution);
+        }
+
+        /// <summary>
+        /// Manually executes an AddToShoppingList automation (adds the product to the shopping list).
+        /// </summary>
+        internal async Task<ItemAutomationExecution> ExecuteAddToShoppingListManualAsync(
+            HomassyDbContext context,
+            ItemAutomation automation,
+            int userId,
+            int? familyId,
+            string? notes,
+            CancellationToken cancellationToken)
+        {
+            // Resolve shopping list
+            if (!automation.ShoppingListId.HasValue)
+                throw new AutomationInvalidScheduleException("AddToShoppingList automation has no shopping list configured");
+
+            var shoppingList = await context.ShoppingLists
+                .FirstOrDefaultAsync(sl => sl.Id == automation.ShoppingListId.Value, cancellationToken);
+            if (shoppingList == null)
+                throw new AutomationShoppingListNotFoundException();
+
+            // Resolve product
+            if (!automation.ProductId.HasValue)
+                throw new AutomationInvalidScheduleException("AddToShoppingList automation has no product configured");
+
+            var productFunctions = new ProductFunctions();
+            var product = productFunctions.GetProductById(automation.ProductId.Value);
+            if (product == null)
+                throw new AutomationProductNotFoundException();
+
+            var quantity = automation.AddQuantity ?? 1;
+            var unit = automation.AddUnit ?? Unit.Piece;
+
+            // Create shopping list item
+            var shoppingListItem = new Entities.ShoppingList.ShoppingListItem
+            {
+                ShoppingListId = shoppingList.Id,
+                ProductId = product.Id,
+                Quantity = quantity,
+                Unit = unit
+            };
+            context.ShoppingListItems.Add(shoppingListItem);
+
+            // Record execution
+            var execution = new ItemAutomationExecution
+            {
+                ItemAutomationId = automation.Id,
+                Status = AutomationExecutionStatus.AddedToShoppingList,
+                Notes = notes ?? $"Added {quantity} {unit} of \"{product.Name}\" to \"{shoppingList.Name}\"",
+                TriggeredByUserId = userId
+            };
+            context.ItemAutomationExecutions.Add(execution);
+
+            await context.SaveChangesAsync(cancellationToken);
+
+            Log.Information("User {UserId} manually executed AddToShoppingList automation {AutomationId}: added {Quantity} {Unit} of {Product} to {ShoppingList}",
+                userId, automation.PublicId, quantity, unit, product.Name, shoppingList.Name);
+
+            return execution;
         }
 
         /// <summary>

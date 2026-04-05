@@ -7,8 +7,8 @@
     <!-- Selection Indicator (Top Right) -->
     <div class="absolute top-2 right-2 z-10">
       <div 
-        class="w-5 h-5 rounded-full border-2 border-primary-500 flex items-center justify-center bg-white dark:bg-gray-800 transition-all duration-200"
-        :class="isSelected && 'bg-primary-500'"
+        class="w-5 h-5 rounded-full border-2 border-primary-500 flex items-center justify-center transition-all duration-200"
+        :class="isSelected ? 'bg-primary-500' : 'bg-white dark:bg-gray-800'"
       >
         <UIcon v-if="isSelected" name="i-lucide-check" class="w-3 h-3 text-white" />
       </div>

@@ -348,6 +348,12 @@ public sealed class EmailContentService : IEmailContentService
             Language.German => "Homassy - Unzureichender Bestand",
             _ => "Homassy - Insufficient Inventory"
         },
+        "add_to_shopping_list" => language switch
+        {
+            Language.Hungarian => "Homassy - Bevásárlólistához adva",
+            Language.German => "Homassy - Zur Einkaufsliste hinzugefügt",
+            _ => "Homassy - Added to Shopping List"
+        },
         _ => language switch // notify_only
         {
             Language.Hungarian => "Homassy - Felhasználási emlékeztető",
@@ -369,6 +375,12 @@ public sealed class EmailContentService : IEmailContentService
             Language.Hungarian => "Elégtelen készlet",
             Language.German => "Unzureichender Bestand",
             _ => "Insufficient Inventory"
+        },
+        "add_to_shopping_list" => language switch
+        {
+            Language.Hungarian => "Bevásárlólistához adva",
+            Language.German => "Zur Einkaufsliste hinzugefügt",
+            _ => "Added to Shopping List"
         },
         _ => language switch
         {
@@ -400,6 +412,12 @@ public sealed class EmailContentService : IEmailContentService
                 Language.Hungarian => $"A(z) \"{productName}\" termékből nem áll rendelkezésre elegendő mennyiség az automatikus felhasználáshoz.",
                 Language.German => $"Für \"{productName}\" steht nicht genügend Menge für den automatischen Verbrauch zur Verfügung.",
                 _ => $"There is not enough quantity of \"{productName}\" available for automatic consumption."
+            },
+            "add_to_shopping_list" => language switch
+            {
+                Language.Hungarian => $"{quantity} {unit} \"{productName}\" hozzáadva a bevásárlólistához.",
+                Language.German => $"{quantity} {unit} \"{productName}\" wurde zur Einkaufsliste hinzugefügt.",
+                _ => $"{quantity} {unit} of \"{productName}\" has been added to the shopping list."
             },
             _ => language switch
             {

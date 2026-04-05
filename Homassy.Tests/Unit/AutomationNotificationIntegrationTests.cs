@@ -249,6 +249,73 @@ public class AutomationNotificationIntegrationTests
     }
 
     // =========================================================================
+    // Push notification sent on AddToShoppingList execution
+    // =========================================================================
+
+    [Theory]
+    [InlineData(Language.Hungarian, "Bevásárlólistához adva")]
+    [InlineData(Language.German, "Zur Einkaufsliste hinzugefügt")]
+    [InlineData(Language.English, "Added to Shopping List")]
+    public void AddToShoppingList_PushNotification_HasCorrectTitle(Language language, string expectedTitle)
+    {
+        var (title, _) = PushNotificationContentService.GetShoppingListAutomationContent(
+            language, "Milk", 2.0m, "liter", "Weekly Groceries");
+
+        Assert.Equal(expectedTitle, title);
+    }
+
+    [Theory]
+    [InlineData(Language.Hungarian)]
+    [InlineData(Language.German)]
+    [InlineData(Language.English)]
+    public void AddToShoppingList_PushNotification_BodyContainsProductAndList(Language language)
+    {
+        var (_, body) = PushNotificationContentService.GetShoppingListAutomationContent(
+            language, "Bread", 1m, "Piece", "Weekly Shopping");
+
+        Assert.Contains("Bread", body);
+        Assert.Contains("Weekly Shopping", body);
+    }
+
+    [Fact]
+    public void AddToShoppingList_AllLanguages_ProduceNonEmptyContent()
+    {
+        foreach (var lang in Enum.GetValues<Language>())
+        {
+            var (title, body) = PushNotificationContentService.GetShoppingListAutomationContent(
+                lang, "Product", 1m, "unit", "My List");
+
+            Assert.False(string.IsNullOrWhiteSpace(title),
+                $"AddToShoppingList title should not be empty for language {lang}");
+            Assert.False(string.IsNullOrWhiteSpace(body),
+                $"AddToShoppingList body should not be empty for language {lang}");
+        }
+    }
+
+    [Fact]
+    public void AddToShoppingList_UnknownLanguage_FallsBackToEnglish()
+    {
+        const Language unknown = (Language)999;
+
+        var (title, body) = PushNotificationContentService.GetShoppingListAutomationContent(
+            unknown, "Product", 1m, "unit", "My List");
+
+        Assert.Equal("Added to Shopping List", title);
+        Assert.Contains("Product", body);
+        Assert.Contains("My List", body);
+    }
+
+    [Fact]
+    public void AddToShoppingList_SpecialCharsInNames_DoesNotThrow()
+    {
+        var exception = Record.Exception(() =>
+            PushNotificationContentService.GetShoppingListAutomationContent(
+                Language.Hungarian, "Termék \"speciális\"", 1m, "db", "Lista <teszt>"));
+
+        Assert.Null(exception);
+    }
+
+    // =========================================================================
     // Edge case: empty product name
     // =========================================================================
 

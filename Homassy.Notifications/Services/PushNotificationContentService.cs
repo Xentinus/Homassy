@@ -109,4 +109,24 @@ public static class PushNotificationContentService
             )
         };
     }
+
+    public static (string Title, string Body) GetShoppingListAutomationContent(
+        Language language, string productName, decimal quantity, string unit, string shoppingListName)
+    {
+        return language switch
+        {
+            Language.Hungarian => (
+                "Bevásárlólistához adva",
+                $"{quantity} {unit} \"{productName}\" hozzáadva a(z) \"{shoppingListName}\" bevásárlólistához."
+            ),
+            Language.German => (
+                "Zur Einkaufsliste hinzugefügt",
+                $"{quantity} {unit} \"{productName}\" wurde zur Einkaufsliste \"{shoppingListName}\" hinzugefügt."
+            ),
+            _ => (
+                "Added to Shopping List",
+                $"{quantity} {unit} of \"{productName}\" has been added to the \"{shoppingListName}\" shopping list."
+            )
+        };
+    }
 }

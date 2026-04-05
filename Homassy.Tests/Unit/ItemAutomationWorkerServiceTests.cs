@@ -88,6 +88,104 @@ public class ItemAutomationWorkerServiceTests
     }
 
     // -------------------------------------------------------------------------
+    // PushNotificationContentService.GetShoppingListAutomationContent
+    // -------------------------------------------------------------------------
+
+    [Theory]
+    [InlineData(Language.Hungarian, "Bevásárlólistához adva")]
+    [InlineData(Language.German, "Zur Einkaufsliste hinzugefügt")]
+    [InlineData(Language.English, "Added to Shopping List")]
+    public void GetShoppingListAutomationContent_ReturnsCorrectTitle(Language language, string expectedTitle)
+    {
+        var (title, _) = PushNotificationContentService.GetShoppingListAutomationContent(
+            language, "TestProduct", 2.0m, "Piece", "Weekly Groceries");
+
+        Assert.Equal(expectedTitle, title);
+    }
+
+    [Fact]
+    public void GetShoppingListAutomationContent_Hungarian_BodyContainsAllDetails()
+    {
+        var (_, body) = PushNotificationContentService.GetShoppingListAutomationContent(
+            Language.Hungarian, "Tej", 2m, "liter", "Heti lista");
+
+        Assert.Contains("Tej", body);
+        Assert.Contains("2", body);
+        Assert.Contains("liter", body);
+        Assert.Contains("Heti lista", body);
+    }
+
+    [Fact]
+    public void GetShoppingListAutomationContent_German_BodyContainsAllDetails()
+    {
+        var (_, body) = PushNotificationContentService.GetShoppingListAutomationContent(
+            Language.German, "Milch", 1.5m, "Liter", "Wochenliste");
+
+        Assert.Contains("Milch", body);
+        Assert.Contains("1.5", body);
+        Assert.Contains("Liter", body);
+        Assert.Contains("Wochenliste", body);
+    }
+
+    [Fact]
+    public void GetShoppingListAutomationContent_English_BodyContainsAllDetails()
+    {
+        var (_, body) = PushNotificationContentService.GetShoppingListAutomationContent(
+            Language.English, "Milk", 3m, "liter", "Weekly Shopping");
+
+        Assert.Contains("Milk", body);
+        Assert.Contains("3", body);
+        Assert.Contains("liter", body);
+        Assert.Contains("Weekly Shopping", body);
+    }
+
+    [Fact]
+    public void GetShoppingListAutomationContent_UnknownLanguage_FallsBackToEnglish()
+    {
+        const Language unknownLanguage = (Language)999;
+
+        var (title, body) = PushNotificationContentService.GetShoppingListAutomationContent(
+            unknownLanguage, "TestProduct", 1m, "unit", "My List");
+
+        Assert.Equal("Added to Shopping List", title);
+        Assert.Contains("TestProduct", body);
+        Assert.Contains("My List", body);
+    }
+
+    [Fact]
+    public void GetShoppingListAutomationContent_NeitherTitleNorBodyIsEmpty()
+    {
+        foreach (var language in Enum.GetValues<Language>())
+        {
+            var (title, body) = PushNotificationContentService.GetShoppingListAutomationContent(
+                language, "Product", 1m, "unit", "List");
+
+            Assert.False(string.IsNullOrWhiteSpace(title), $"Title should not be empty for language {language}");
+            Assert.False(string.IsNullOrWhiteSpace(body), $"Body should not be empty for language {language}");
+        }
+    }
+
+    [Fact]
+    public void GetShoppingListAutomationContent_SpecialCharsInProductName_DoesNotThrow()
+    {
+        var exception = Record.Exception(() =>
+            PushNotificationContentService.GetShoppingListAutomationContent(
+                Language.English, "Product \"special\" <100%>", 1m, "unit", "My List"));
+
+        Assert.Null(exception);
+    }
+
+    [Fact]
+    public void GetShoppingListAutomationContent_SpecialCharsInListName_DoesNotThrow()
+    {
+        var exception = Record.Exception(() =>
+            PushNotificationContentService.GetShoppingListAutomationContent(
+                Language.Hungarian, "Tej", 1m, "liter", "Lista 'speciális' & \"más\""));
+
+        Assert.Null(exception);
+    }
+
+    // -------------------------------------------------------------------------
     // PushNotificationContentService.GetAutomationReminderContent
     // -------------------------------------------------------------------------
 

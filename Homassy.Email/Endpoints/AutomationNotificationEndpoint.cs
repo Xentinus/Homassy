@@ -48,6 +48,29 @@ public static class AutomationNotificationEndpoint
 
     private static string BuildDetailSection(AutomationNotificationRequest request, Enums.Language language, IEmailContentService content)
     {
+        if (request.ActionType == "add_to_shopping_list" && request.ConsumedQuantity != null)
+        {
+            var addedLabel = language switch
+            {
+                Enums.Language.Hungarian => "Hozzáadott mennyiség",
+                Enums.Language.German => "Hinzugefügte Menge",
+                _ => "Added quantity"
+            };
+
+            var addedUnit = request.Unit ?? "";
+
+            return $"""
+            <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="margin-bottom: 20px;">
+                <tr>
+                    <td style="background-color: #f0fdf4; border-radius: 12px; border: 1px solid #bbf7d0; padding: 20px 24px; text-align: center;">
+                        <p style="margin: 0 0 8px 0; font-size: 13px; font-weight: 600; color: #15803d;">{addedLabel}</p>
+                        <p style="margin: 0; font-size: 24px; font-weight: 700; color: #14532d;">{request.ConsumedQuantity} {addedUnit}</p>
+                    </td>
+                </tr>
+            </table>
+            """;
+        }
+
         if (request.ActionType != "auto_consume" || request.ConsumedQuantity == null)
             return string.Empty;
 

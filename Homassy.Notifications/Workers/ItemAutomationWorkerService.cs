@@ -63,7 +63,9 @@ public sealed class ItemAutomationWorkerService : BackgroundService
 
         var dueAutomations = await context.ItemAutomations
             .Include(a => a.ProductInventoryItem)
-                .ThenInclude(i => i.Product)
+                .ThenInclude(i => i!.Product)
+            .Include(a => a.Product)
+            .Include(a => a.ShoppingList)
             .Where(a => a.IsEnabled && a.NextExecutionAt != null && a.NextExecutionAt <= utcNow)
             .ToListAsync(cancellationToken);
 
@@ -112,6 +114,20 @@ public sealed class ItemAutomationWorkerService : BackgroundService
         ItemAutomation automation,
         CancellationToken cancellationToken)
     {
+        // AddToShoppingList automations don't require an inventory item
+        if (automation.ActionType == AutomationActionType.AddToShoppingList)
+        {
+            await ExecuteAddToShoppingListAsync(context, emailClient, automation, cancellationToken);
+
+            automation.LastExecutedAt = DateTime.UtcNow;
+            RecalculateNextExecution(automation);
+            await context.SaveChangesAsync(cancellationToken);
+
+            Log.Information("Automation {AutomationId} (AddToShoppingList) executed successfully. Next execution at: {NextExecution}",
+                automation.Id, automation.NextExecutionAt);
+            return;
+        }
+
         var inventoryItem = automation.ProductInventoryItem;
 
         // Skip if inventory item was not loaded (e.g. soft-deleted by global query filter)
@@ -273,10 +289,10 @@ public sealed class ItemAutomationWorkerService : BackgroundService
         Log.Information("Automation {AutomationId}: consumed {Quantity} of {Product}, remaining: {Remaining}",
             automation.Id, consumeQuantity, productName, remainingQuantity);
 
-        // Record activity
+        // Record activity — use the automation creator for automatic execution
         try
         {
-            var userId = automation.UserId ?? 0;
+            var userId = automation.CreatedByUserId;
             var familyId = automation.FamilyId;
             await new ActivityFunctions().RecordActivityAsync(
                 userId, familyId,
@@ -295,6 +311,142 @@ public sealed class ItemAutomationWorkerService : BackgroundService
         // Send notification confirming the auto-consumption
         var unitStr = automation.ConsumeUnit?.ToString() ?? "";
         await SendAutoConsumeNotificationAsync(context, emailClient, automation, productName, consumeQuantity, unitStr, cancellationToken);
+    }
+
+    private async Task ExecuteAddToShoppingListAsync(
+        HomassyDbContext context,
+        EmailServiceClient emailClient,
+        ItemAutomation automation,
+        CancellationToken cancellationToken)
+    {
+        var shoppingList = automation.ShoppingList;
+        var product = automation.Product;
+
+        // Validate shopping list still exists
+        if (shoppingList == null || shoppingList.IsDeleted)
+        {
+            Log.Warning("Automation {AutomationId}: target shopping list not found or deleted", automation.Id);
+
+            var skipped = new ItemAutomationExecution
+            {
+                ItemAutomationId = automation.Id,
+                Status = AutomationExecutionStatus.Skipped,
+                Notes = "Target shopping list not found or deleted"
+            };
+            context.ItemAutomationExecutions.Add(skipped);
+
+            automation.IsEnabled = false;
+            await context.SaveChangesAsync(cancellationToken);
+            return;
+        }
+
+        // Validate product still exists
+        if (product == null || product.IsDeleted)
+        {
+            Log.Warning("Automation {AutomationId}: target product not found or deleted", automation.Id);
+
+            var skipped = new ItemAutomationExecution
+            {
+                ItemAutomationId = automation.Id,
+                Status = AutomationExecutionStatus.Skipped,
+                Notes = "Target product not found or deleted"
+            };
+            context.ItemAutomationExecutions.Add(skipped);
+
+            automation.IsEnabled = false;
+            await context.SaveChangesAsync(cancellationToken);
+            return;
+        }
+
+        var quantity = automation.AddQuantity ?? 1;
+        var unit = automation.AddUnit ?? API.Enums.Unit.Piece;
+
+        // Create shopping list item
+        var shoppingListItem = new API.Entities.ShoppingList.ShoppingListItem
+        {
+            ShoppingListId = shoppingList.Id,
+            ProductId = product.Id,
+            Quantity = quantity,
+            Unit = unit
+        };
+        context.ShoppingListItems.Add(shoppingListItem);
+
+        // Record execution
+        var execution = new ItemAutomationExecution
+        {
+            ItemAutomationId = automation.Id,
+            Status = AutomationExecutionStatus.AddedToShoppingList,
+            Notes = $"Added {quantity} {unit} of \"{product.Name}\" to \"{shoppingList.Name}\" shopping list"
+        };
+        context.ItemAutomationExecutions.Add(execution);
+
+        Log.Information("Automation {AutomationId}: added {Quantity} {Unit} of {Product} to shopping list {ShoppingList}",
+            automation.Id, quantity, unit, product.Name, shoppingList.Name);
+
+        // Record activity — use the automation creator for automatic execution
+        try
+        {
+            var userId = automation.CreatedByUserId;
+            var familyId = automation.FamilyId;
+            await new ActivityFunctions().RecordActivityAsync(
+                userId, familyId,
+                ActivityType.AutomationExecute,
+                automation.Id,
+                product.Name,
+                unit,
+                quantity,
+                cancellationToken);
+        }
+        catch (Exception ex)
+        {
+            Log.Error(ex, "Failed to record activity for automation {AutomationId}", automation.Id);
+        }
+
+        // Send push notification
+        await SendShoppingListNotificationAsync(context, emailClient, automation, product.Name, quantity, unit.ToString(), shoppingList.Name, cancellationToken);
+    }
+
+    private async Task SendShoppingListNotificationAsync(
+        HomassyDbContext context,
+        EmailServiceClient emailClient,
+        ItemAutomation automation,
+        string productName,
+        decimal quantity,
+        string unit,
+        string shoppingListName,
+        CancellationToken cancellationToken)
+    {
+        var ownerUserId = await GetOwnerUserIdAsync(context, automation, cancellationToken);
+        if (ownerUserId == null) return;
+
+        var language = await GetUserLanguageAsync(context, ownerUserId.Value, cancellationToken);
+        var subscriptions = await GetUserPushSubscriptionsAsync(context, ownerUserId.Value, cancellationToken);
+
+        if (subscriptions.Count > 0)
+        {
+            var (title, body) = PushNotificationContentService.GetShoppingListAutomationContent(
+                language, productName, quantity, unit, shoppingListName);
+            var actionTitle = GetActionTitle(language);
+
+            foreach (var subscription in subscriptions)
+            {
+                var success = await _webPushService.SendNotificationAsync(
+                    subscription, title, body, "/profile/automation", actionTitle, cancellationToken);
+
+                if (!success)
+                {
+                    subscription.DeleteRecord();
+                    Log.Information("Removed invalid push subscription {Endpoint} for user {UserId}",
+                        subscription.Endpoint, ownerUserId.Value);
+                }
+            }
+
+            await context.SaveChangesAsync(cancellationToken);
+        }
+
+        // Send email notification
+        await SendEmailNotificationAsync(context, emailClient, ownerUserId.Value, language, productName,
+            "add_to_shopping_list", quantity, unit, cancellationToken);
     }
 
     private async Task ExecuteNotifyOnlyAsync(

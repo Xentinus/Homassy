@@ -26,6 +26,9 @@ public class AutomationEmailContentTests
     [InlineData(EmailLanguage.Hungarian, "insufficient_quantity", "Elégtelen készlet")]
     [InlineData(EmailLanguage.German, "insufficient_quantity", "Unzureichender Bestand")]
     [InlineData(EmailLanguage.English, "insufficient_quantity", "Insufficient Inventory")]
+    [InlineData(EmailLanguage.Hungarian, "add_to_shopping_list", "Bevásárlólistához adva")]
+    [InlineData(EmailLanguage.German, "add_to_shopping_list", "Zur Einkaufsliste hinzugefügt")]
+    [InlineData(EmailLanguage.English, "add_to_shopping_list", "Added to Shopping List")]
     public void GetAutomationSubject_ReturnsCorrectSubject(EmailLanguage language, string actionType, string expectedSubstring)
     {
         var subject = _contentService.GetAutomationSubject(language, actionType);
@@ -36,7 +39,7 @@ public class AutomationEmailContentTests
     [Fact]
     public void GetAutomationSubject_AllCombinations_NonEmpty()
     {
-        var actionTypes = new[] { "auto_consume", "notify_only", "insufficient_quantity" };
+        var actionTypes = new[] { "auto_consume", "notify_only", "insufficient_quantity", "add_to_shopping_list" };
 
         foreach (var lang in Enum.GetValues<EmailLanguage>())
         foreach (var action in actionTypes)
@@ -58,6 +61,9 @@ public class AutomationEmailContentTests
     [InlineData(EmailLanguage.Hungarian, "notify_only", "Felhasználási emlékeztető")]
     [InlineData(EmailLanguage.German, "notify_only", "Verbrauchserinnerung")]
     [InlineData(EmailLanguage.English, "notify_only", "Usage Reminder")]
+    [InlineData(EmailLanguage.Hungarian, "add_to_shopping_list", "Bevásárlólistához adva")]
+    [InlineData(EmailLanguage.German, "add_to_shopping_list", "Zur Einkaufsliste hinzugefügt")]
+    [InlineData(EmailLanguage.English, "add_to_shopping_list", "Added to Shopping List")]
     public void GetAutomationGreeting_ReturnsCorrectGreeting(EmailLanguage language, string actionType, string expected)
     {
         var greeting = _contentService.GetAutomationGreeting(language, actionType);
@@ -153,6 +159,34 @@ public class AutomationEmailContentTests
     }
 
     // =========================================================================
+    // GetAutomationMessage - AddToShoppingList  
+    // =========================================================================
+
+    [Theory]
+    [InlineData(EmailLanguage.Hungarian)]
+    [InlineData(EmailLanguage.German)]
+    [InlineData(EmailLanguage.English)]
+    public void GetAutomationMessage_AddToShoppingList_ContainsProductAndQuantity(EmailLanguage language)
+    {
+        var message = _contentService.GetAutomationMessage(
+            language, "TestUser", "Milk", "add_to_shopping_list", 2m, "liter");
+
+        Assert.Contains("Milk", message);
+        Assert.Contains("2", message);
+        Assert.Contains("liter", message);
+    }
+
+    [Fact]
+    public void GetAutomationMessage_AddToShoppingList_WithName_IncludesGreeting()
+    {
+        var message = _contentService.GetAutomationMessage(
+            EmailLanguage.English, "Alice", "Bread", "add_to_shopping_list", 1m, "piece");
+
+        Assert.Contains("Hello, Alice!", message);
+        Assert.Contains("Bread", message);
+    }
+
+    // =========================================================================
     // GetAutomationPlainText
     // =========================================================================
 
@@ -181,7 +215,7 @@ public class AutomationEmailContentTests
     [Fact]
     public void GetAutomationPlainText_NonEmpty_ForAllCombinations()
     {
-        var actionTypes = new[] { "auto_consume", "notify_only", "insufficient_quantity" };
+        var actionTypes = new[] { "auto_consume", "notify_only", "insufficient_quantity", "add_to_shopping_list" };
 
         foreach (var lang in Enum.GetValues<EmailLanguage>())
         foreach (var action in actionTypes)
