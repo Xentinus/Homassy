@@ -7,7 +7,7 @@
 
 ## 📖 Overview
 
-Homassy is a modern full-stack system designed to simplify household inventory management, shopping lists, and product tracking for families. The system consists of a high-performance ASP.NET Core backend API, a dedicated email microservice, a dedicated push notifications microservice, and a modern Vue.js 3 (Nuxt 4) web application frontend.
+Homassy is a modern full-stack system designed to simplify household inventory management, shopping lists, product tracking, and automated inventory workflows for families. The system consists of a high-performance ASP.NET Core backend API, a dedicated email microservice, a dedicated push notifications microservice, and a modern Vue.js 3 (Nuxt 4) web application frontend.
 
 ## ✨ Key Features
 
@@ -66,6 +66,7 @@ Homassy is a modern full-stack system designed to simplify household inventory m
 - 🌍 **Internationalization** - Full i18n support with 3 languages (English, German, Hungarian)
 - 🔔 **Push Notifications** - Daily alerts at 7 AM for products expiring within 14 days, weekly summaries every Monday, and real-time notifications when a family member adds items to a shared shopping list
 - 📧 **Transactional Email** - Multilingual OTP emails (EN/HU/DE) for login, registration, verification, and recovery
+- ⚙️ **Item Automation** - Configurable automation rules for automatic inventory consumption, usage reminders, shopping list additions, and low-stock threshold alerts with multi-day scheduling support
 
 ### 📊 Data Quality
 - ✅ Advanced barcode validation with checksum verification (EAN-13, EAN-8, UPC-A, UPC-E, Code-128)
@@ -87,33 +88,33 @@ Homassy/
 │   ├── Middleware/       🔧 Exception handling, CORS, compression, logging, rate limiting
 │   └── CLAUDE.md         📚 Detailed architecture documentation
 ├── Homassy.Email/        📧 Transactional Email Microservice
-│   ├── Endpoints/        🌐 KratosWebhookEndpoint, SendEmailEndpoint, WeeklySummaryEndpoint
+│   ├── Endpoints/        🌐 KratosWebhookEndpoint, SendEmailEndpoint, WeeklySummaryEndpoint, AutomationNotificationEndpoint
 │   ├── Enums/            📋 EmailType (LoginCode, RegistrationCode, VerificationCode, RecoveryCode, WeeklySummary)
 │   ├── HealthChecks/     💓 SMTP connectivity health probe
 │   ├── Middleware/       🔑 API key authentication (constant-time)
-│   ├── Models/           📋 EmailMessage, KratosWebhookRequest, SendEmailRequest, WeeklySummaryRequest
+│   ├── Models/           📋 EmailMessage, KratosWebhookRequest, SendEmailRequest, WeeklySummaryRequest, AutomationNotificationRequest
 │   ├── Services/         ⚙️ EmailContentService, EmailQueueService, EmailSenderService, TemplateRendererService
-│   ├── Templates/        📄 Embedded HTML templates (CodeEmail.html, WeeklySummaryEmail.html)
+│   ├── Templates/        📄 Embedded HTML templates (CodeEmail.html, WeeklySummaryEmail.html, AutomationNotificationEmail.html)
 │   ├── Workers/          ⏳ EmailWorkerService (BackgroundService with retry)
 │   └── CLAUDE.md         📚 Architecture documentation
 ├── Homassy.Notifications/ 🔔 Push Notifications Microservice
-│   ├── Endpoints/        🌐 TestPushEndpoint (POST /push/test), TestEmailEndpoint (POST /email/test)
+│   ├── Endpoints/        🌐 TestPushEndpoint (POST /push/test), TestEmailEndpoint (POST /email/test), LowStockPushEndpoint (POST /push/low-stock)
 │   ├── HealthChecks/     💓 Database + WebPush connectivity probes
 │   ├── Middleware/       🔑 API key authentication (constant-time)
-│   ├── Models/           📋 ExpiringProductItem, TestPushRequest, WeeklySummaryEmailRequest
+│   ├── Models/           📋 ExpiringProductItem, TestPushRequest, WeeklySummaryEmailRequest, LowStockPushRequest
 │   ├── Services/         ⚙️ WebPushService, PushNotificationContentService, InventoryExpirationService, EmailServiceClient
-│   ├── Workers/          ⏳ PushNotificationSchedulerService, ShoppingListActivityMonitorService, EmailWeeklySummaryService
+│   ├── Workers/          ⏳ PushNotificationSchedulerService, ShoppingListActivityMonitorService, EmailWeeklySummaryService, ItemAutomationWorkerService
 │   └── CLAUDE.md         📚 Architecture documentation
 ├── Homassy.Web/          🎨 Vue.js 3 + Nuxt 4 Web App (Frontend)
 │   ├── app/
 │   │   ├── pages/        🔖 File-based routing (15+ pages)
 │   │   ├── components/   🧩 Reusable Vue components
 │   │   ├── composables/  🎣 Composition API helpers
-│   │   │   └── api/      📡 API client wrappers (11 services)
+│   │   │   └── api/      📡 API client wrappers (12 services)
 │   │   ├── stores/       🗃️ Pinia state management (auth)
 │   │   ├── layouts/      📐 Page layouts (auth, public)
 │   │   ├── middleware/   🛡️ Route guards (auth protection)
-│   │   ├── types/        📝 TypeScript definitions (14 type files)
+│   │   ├── types/        📝 TypeScript definitions (15 type files)
 │   │   └── utils/        🔧 Utility functions
 │   ├── i18n/             🌍 Translation files (en, de, hu)
 │   ├── public/           📂 Static assets and PWA icons
@@ -165,7 +166,7 @@ Homassy/
 |----------|------------|
 | **Framework** | ASP.NET Core 10.0 (Minimal API) |
 | **Push Notifications** | WebPush (VAPID protocol) |
-| **Background Workers** | .NET BackgroundService (3 workers) |
+| **Background Workers** | .NET BackgroundService (4 workers) |
 | **DB Access** | EF Core (shared via ProjectReference → Homassy.API) |
 | **Logging** | Serilog (structured) |
 
