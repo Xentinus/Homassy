@@ -735,6 +735,17 @@ namespace Homassy.API.Functions
             {
                 product.DeleteRecord(userId.Value);
 
+                // Disable any automations that reference this product
+                var affectedAutomations = await context.ItemAutomations
+                    .Where(a => a.ProductId == product.Id && !a.IsDeleted && a.IsEnabled)
+                    .ToListAsync(cancellationToken);
+
+                foreach (var automation in affectedAutomations)
+                {
+                    automation.IsEnabled = false;
+                    Log.Information("Disabled automation {AutomationId} because product {ProductId} was deleted", automation.Id, product.Id);
+                }
+
                 context.Products.Update(product);
                 await context.SaveChangesAsync(cancellationToken);
 
@@ -1166,6 +1177,9 @@ namespace Homassy.API.Functions
 
                 Log.Information($"User {userId} created inventory item {inventoryItem.Id} (PublicId: {inventoryItem.PublicId}) for product {product.Id}");
 
+                // Check low-stock automations
+                await AutomationFunctions.CheckLowStockForProductAsync(product.Id, cancellationToken);
+
                 // Record activity
                 try
                 {
@@ -1261,6 +1275,9 @@ namespace Homassy.API.Functions
                 context.ProductInventoryItems.Add(inventoryItem);
                 await context.SaveChangesAsync(cancellationToken);
                 await transaction.CommitAsync(cancellationToken);
+
+                // Check low-stock automations
+                await AutomationFunctions.CheckLowStockForProductAsync(product.Id, cancellationToken);
 
                 Log.Information($"User {userId} quick-added inventory item {inventoryItem.Id} (PublicId: {inventoryItem.PublicId}) for product {product.Id}");
 
@@ -1445,6 +1462,10 @@ namespace Homassy.API.Functions
 
                 await transaction.CommitAsync(cancellationToken);
 
+                // Check low-stock automations
+                if (hasChanges)
+                    await AutomationFunctions.CheckLowStockForProductAsync(trackedItem.ProductId, cancellationToken);
+
                 // Record activity only if changes were made
                 if (hasChanges)
                 {
@@ -1563,6 +1584,9 @@ namespace Homassy.API.Functions
                 await context.SaveChangesAsync(cancellationToken);
                 await transaction.CommitAsync(cancellationToken);
 
+                // Check low-stock automations
+                await AutomationFunctions.CheckLowStockForProductAsync(inventoryItem.ProductId, cancellationToken);
+
                 Log.Information($"User {userId} deleted inventory item {inventoryItem.Id} (PublicId: {inventoryItem.PublicId})");
 
                 // Record activity
@@ -1657,6 +1681,9 @@ namespace Homassy.API.Functions
 
                 await context.SaveChangesAsync(cancellationToken);
                 await transaction.CommitAsync(cancellationToken);
+
+                // Check low-stock automations
+                await AutomationFunctions.CheckLowStockForProductAsync(trackedItem.ProductId, cancellationToken);
 
                 Log.Information($"User {userId} consumed {request.Quantity} from inventory item {trackedItem.Id} (PublicId: {trackedItem.PublicId}), remaining: {remainingQuantity}");
 
@@ -1767,6 +1794,7 @@ namespace Homassy.API.Functions
             try
             {
                 var result = new List<InventoryItemInfo>();
+                var affectedProductIds = new HashSet<int>();
 
                 foreach (var item in request.Items)
                 {
@@ -1791,6 +1819,8 @@ namespace Homassy.API.Functions
                     context.ProductInventoryItems.Add(inventoryItem);
                     await context.SaveChangesAsync(cancellationToken);
 
+                    affectedProductIds.Add(product.Id);
+
                     result.Add(new InventoryItemInfo
                     {
                         PublicId = inventoryItem.PublicId,
@@ -1803,6 +1833,10 @@ namespace Homassy.API.Functions
                 }
 
                 await transaction.CommitAsync(cancellationToken);
+
+                // Check low-stock automations for all affected products
+                foreach (var pid in affectedProductIds)
+                    await AutomationFunctions.CheckLowStockForProductAsync(pid, cancellationToken);
 
                 Log.Information($"User {userId} quick-added {request.Items.Count} inventory items" +
                     (storageLocationId.HasValue ? $" to storage location {storageLocationId}" : ""));
@@ -1952,6 +1986,8 @@ namespace Homassy.API.Functions
 
             try
             {
+                var affectedProductIds = new HashSet<int>();
+
                 foreach (var itemPublicId in request.ItemPublicIds)
                 {
                     cancellationToken.ThrowIfCancellationRequested();
@@ -1977,6 +2013,8 @@ namespace Homassy.API.Functions
                     trackedItem.DeleteRecord(userId.Value);
                     context.ProductInventoryItems.Update(trackedItem);
 
+                    affectedProductIds.Add(inventoryItem.ProductId);
+
                     // Record activity for each deleted item
                     try
                     {
@@ -2000,6 +2038,10 @@ namespace Homassy.API.Functions
 
                 await context.SaveChangesAsync(cancellationToken);
                 await transaction.CommitAsync(cancellationToken);
+
+                // Check low-stock automations for all affected products
+                foreach (var pid in affectedProductIds)
+                    await AutomationFunctions.CheckLowStockForProductAsync(pid, cancellationToken);
 
                 Log.Information($"User {userId.Value} deleted {request.ItemPublicIds.Count} inventory items");
             }
@@ -2034,6 +2076,7 @@ namespace Homassy.API.Functions
             try
             {
                 var results = new List<InventoryItemInfo>();
+                var affectedProductIds = new HashSet<int>();
 
                 foreach (var itemRequest in request.Items)
                 {
@@ -2085,6 +2128,8 @@ namespace Homassy.API.Functions
                         trackedItem.IsFullyConsumed = true;
                         trackedItem.FullyConsumedAt = DateTime.UtcNow;
                     }
+
+                    affectedProductIds.Add(trackedItem.ProductId);
 
                     // Record activity for each consumed item
                     try
@@ -2146,6 +2191,10 @@ namespace Homassy.API.Functions
 
                 await context.SaveChangesAsync(cancellationToken);
                 await transaction.CommitAsync(cancellationToken);
+
+                // Check low-stock automations for all affected products
+                foreach (var pid in affectedProductIds)
+                    await AutomationFunctions.CheckLowStockForProductAsync(pid, cancellationToken);
 
                 Log.Information($"User {userId.Value} consumed {request.Items.Count} inventory items");
 
@@ -2270,6 +2319,9 @@ namespace Homassy.API.Functions
 
                 await context.SaveChangesAsync(cancellationToken);
                 await transaction.CommitAsync(cancellationToken);
+
+                // Check low-stock automations
+                await AutomationFunctions.CheckLowStockForProductAsync(trackedItem.ProductId, cancellationToken);
 
                 // Refresh cache for both items
                 await RefreshInventoryItemCacheAsync(trackedItem.Id, cancellationToken);

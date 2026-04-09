@@ -54,6 +54,7 @@ try
     app.UseMiddleware<ApiKeyMiddleware>();
 
     app.MapPost("/push/test", TestPushEndpoint.HandleAsync);
+    app.MapPost("/push/low-stock", LowStockPushEndpoint.HandleAsync);
     app.MapPost("/email/test", TestEmailEndpoint.HandleAsync);
     app.MapHealthChecks("/health/live", new HealthCheckOptions { Predicate = _ => false });
     app.MapHealthChecks("/health/ready", new HealthCheckOptions

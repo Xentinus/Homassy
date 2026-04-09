@@ -4,6 +4,7 @@
     {
         AutoConsume = 0,
         NotifyOnly = 1,
-        AddToShoppingList = 2
+        AddToShoppingList = 2,
+        LowStockAddToShoppingList = 3
     }
 }

@@ -229,6 +229,8 @@ try
 
     var app = builder.Build();
 
+    Homassy.API.Infrastructure.ServiceLocator.Provider = app.Services;
+
     using (var scope = app.Services.CreateScope())
     {
         var dbContext = scope.ServiceProvider.GetRequiredService<HomassyDbContext>();

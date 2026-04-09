@@ -21,6 +21,8 @@ namespace Homassy.API.Models.Automation
         public Unit? ConsumeUnit { get; set; }
         public decimal? AddQuantity { get; set; }
         public Unit? AddUnit { get; set; }
+        public decimal? ThresholdQuantity { get; set; }
+        public bool IsTriggered { get; set; }
         public bool IsEnabled { get; set; }
         public DateTime? NextExecutionAt { get; set; }
         public DateTime? LastExecutedAt { get; set; }

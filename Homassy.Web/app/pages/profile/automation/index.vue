@@ -92,8 +92,8 @@
           />
         </div>
 
-        <!-- Shopping List Selector (for AddToShoppingList) -->
-        <div v-if="form.actionType === AutomationActionType.AddToShoppingList">
+        <!-- Shopping List Selector (for AddToShoppingList and LowStock) -->
+        <div v-if="form.actionType === AutomationActionType.AddToShoppingList || form.actionType === AutomationActionType.LowStockAddToShoppingList">
           <label class="block text-sm font-medium mb-1">
             {{ $t('profile.automation.shoppingList') }} <span class="text-red-500">*</span>
           </label>
@@ -107,8 +107,8 @@
           />
         </div>
 
-        <!-- Product Selector (for AddToShoppingList) -->
-        <div v-if="form.actionType === AutomationActionType.AddToShoppingList">
+        <!-- Product Selector (for AddToShoppingList and LowStock) -->
+        <div v-if="form.actionType === AutomationActionType.AddToShoppingList || form.actionType === AutomationActionType.LowStockAddToShoppingList">
           <label class="block text-sm font-medium mb-1">
             {{ $t('profile.automation.product') }} <span class="text-red-500">*</span>
           </label>
@@ -122,8 +122,22 @@
           />
         </div>
 
-        <!-- Schedule Type -->
-        <div>
+        <!-- Threshold Quantity (for LowStock) -->
+        <div v-if="form.actionType === AutomationActionType.LowStockAddToShoppingList">
+          <label class="block text-sm font-medium mb-1">
+            {{ $t('profile.automation.thresholdQuantity') }} <span class="text-red-500">*</span>
+          </label>
+          <UInput
+            v-model.number="form.thresholdQuantity"
+            type="number"
+            :min="0.001"
+            step="0.1"
+            class="w-full"
+          />
+        </div>
+
+        <!-- Schedule Type (not for LowStock) -->
+        <div v-if="form.actionType !== AutomationActionType.LowStockAddToShoppingList">
           <label class="block text-sm font-medium mb-1">
             {{ $t('profile.automation.scheduleType') }} <span class="text-red-500">*</span>
           </label>
@@ -136,8 +150,8 @@
           />
         </div>
 
-        <!-- Interval Days (for Interval type) -->
-        <div v-if="form.scheduleType === ScheduleType.Interval">
+        <!-- Interval Days (for Interval type, not for LowStock) -->
+        <div v-if="form.scheduleType === ScheduleType.Interval && form.actionType !== AutomationActionType.LowStockAddToShoppingList">
           <label class="block text-sm font-medium mb-1">
             {{ $t('profile.automation.intervalDays') }} <span class="text-red-500">*</span>
           </label>
@@ -150,8 +164,8 @@
           />
         </div>
 
-        <!-- Days of Week multi-select (for FixedDate type) -->
-        <div v-if="form.scheduleType === ScheduleType.FixedDate">
+        <!-- Days of Week multi-select (for FixedDate type, not for LowStock) -->
+        <div v-if="form.scheduleType === ScheduleType.FixedDate && form.actionType !== AutomationActionType.LowStockAddToShoppingList">
           <label class="block text-sm font-medium mb-1">
             {{ $t('profile.automation.scheduledDaysOfWeek') }}
           </label>
@@ -169,8 +183,8 @@
           </div>
         </div>
 
-        <!-- Day of Month (for FixedDate type) -->
-        <div v-if="form.scheduleType === ScheduleType.FixedDate">
+        <!-- Day of Month (for FixedDate type, not for LowStock) -->
+        <div v-if="form.scheduleType === ScheduleType.FixedDate && form.actionType !== AutomationActionType.LowStockAddToShoppingList">
           <label class="block text-sm font-medium mb-1">
             {{ $t('profile.automation.scheduledDayOfMonth') }}
           </label>
@@ -184,8 +198,8 @@
           />
         </div>
 
-        <!-- Scheduled Time -->
-        <div>
+        <!-- Scheduled Time (not for LowStock) -->
+        <div v-if="form.actionType !== AutomationActionType.LowStockAddToShoppingList">
           <label class="block text-sm font-medium mb-1">
             {{ $t('profile.automation.scheduledTime') }} <span class="text-red-500">*</span>
           </label>
@@ -220,8 +234,8 @@
           </div>
         </div>
 
-        <!-- Add Quantity (for AddToShoppingList) -->
-        <div v-if="form.actionType === AutomationActionType.AddToShoppingList">
+        <!-- Add Quantity (for AddToShoppingList and LowStock) -->
+        <div v-if="form.actionType === AutomationActionType.AddToShoppingList || form.actionType === AutomationActionType.LowStockAddToShoppingList">
           <label class="block text-sm font-medium mb-1">
             {{ $t('profile.automation.addQuantity') }} <span class="text-red-500">*</span>
           </label>
@@ -408,7 +422,8 @@ const defaultForm = () => ({
   consumeQuantity: undefined as number | undefined,
   consumeUnit: undefined as number | undefined,
   addQuantity: undefined as number | undefined,
-  addUnit: undefined as number | undefined
+  addUnit: undefined as number | undefined,
+  thresholdQuantity: undefined as number | undefined
 })
 const form = ref(defaultForm())
 
@@ -421,7 +436,8 @@ const scheduleTypeOptions = computed(() => [
 const actionTypeOptions = computed(() => [
   { value: AutomationActionType.AutoConsume, label: t('profile.automation.autoConsume') },
   { value: AutomationActionType.NotifyOnly, label: t('profile.automation.notifyOnly') },
-  { value: AutomationActionType.AddToShoppingList, label: t('profile.automation.addToShoppingList') }
+  { value: AutomationActionType.AddToShoppingList, label: t('profile.automation.addToShoppingList') },
+  { value: AutomationActionType.LowStockAddToShoppingList, label: t('profile.automation.lowStockAddToShoppingList') }
 ])
 
 const daysOfWeekOptions = computed(() => [
@@ -652,10 +668,11 @@ async function openEditModal(automation: AutomationResponse) {
     consumeQuantity: automation.consumeQuantity,
     consumeUnit: automation.consumeUnit,
     addQuantity: automation.addQuantity,
-    addUnit: automation.addUnit
+    addUnit: automation.addUnit,
+    thresholdQuantity: automation.thresholdQuantity
   }
   isModalOpen.value = true
-  if (automation.actionType === AutomationActionType.AddToShoppingList) {
+  if (automation.actionType === AutomationActionType.AddToShoppingList || automation.actionType === AutomationActionType.LowStockAddToShoppingList) {
     await Promise.all([loadShoppingLists(), loadProducts()])
   }
 }
@@ -665,8 +682,11 @@ function closeModal() {
 }
 
 async function handleSave() {
-  // Validate for AddToShoppingList
-  if (form.value.actionType === AutomationActionType.AddToShoppingList) {
+  const isShoppingListAction = form.value.actionType === AutomationActionType.AddToShoppingList || form.value.actionType === AutomationActionType.LowStockAddToShoppingList
+  const isLowStock = form.value.actionType === AutomationActionType.LowStockAddToShoppingList
+
+  // Validate for AddToShoppingList / LowStock
+  if (isShoppingListAction) {
     if (!form.value.shoppingListPublicId) {
       toast.add({
         title: t('toast.error'),
@@ -693,7 +713,19 @@ async function handleSave() {
     }
   }
 
-  if (!form.value.scheduledTime) {
+  // Validate threshold for LowStock
+  if (isLowStock) {
+    if (!form.value.thresholdQuantity || form.value.thresholdQuantity <= 0) {
+      toast.add({
+        title: t('toast.error'),
+        description: t('profile.automation.thresholdRequired'),
+        color: 'error'
+      })
+      return
+    }
+  }
+
+  if (!isLowStock && !form.value.scheduledTime) {
     toast.add({
       title: t('toast.error'),
       description: t('profile.automation.timeRequired'),
@@ -711,18 +743,19 @@ async function handleSave() {
       : undefined
 
     const request: UpdateAutomationRequest = {
-      scheduleType: form.value.scheduleType,
-      intervalDays: form.value.scheduleType === ScheduleType.Interval ? form.value.intervalDays : undefined,
-      scheduledDaysOfWeek: daysOfWeek,
-      scheduledDayOfMonth: form.value.scheduleType === ScheduleType.FixedDate ? form.value.scheduledDayOfMonth : undefined,
-      scheduledTime: form.value.scheduledTime,
+      scheduleType: isLowStock ? ScheduleType.Interval : form.value.scheduleType,
+      intervalDays: isLowStock ? 1 : (form.value.scheduleType === ScheduleType.Interval ? form.value.intervalDays : undefined),
+      scheduledDaysOfWeek: isLowStock ? undefined : daysOfWeek,
+      scheduledDayOfMonth: isLowStock ? undefined : (form.value.scheduleType === ScheduleType.FixedDate ? form.value.scheduledDayOfMonth : undefined),
+      scheduledTime: isLowStock ? '00:00' : form.value.scheduledTime,
       actionType: form.value.actionType,
       consumeQuantity: form.value.actionType === AutomationActionType.AutoConsume ? form.value.consumeQuantity : undefined,
       consumeUnit: form.value.actionType === AutomationActionType.AutoConsume ? form.value.consumeUnit : undefined,
-      addQuantity: form.value.actionType === AutomationActionType.AddToShoppingList ? form.value.addQuantity : undefined,
-      addUnit: form.value.actionType === AutomationActionType.AddToShoppingList ? form.value.addUnit : undefined,
-      shoppingListPublicId: form.value.actionType === AutomationActionType.AddToShoppingList ? form.value.shoppingListPublicId : undefined,
-      productPublicId: form.value.actionType === AutomationActionType.AddToShoppingList ? form.value.productPublicId : undefined
+      addQuantity: isShoppingListAction ? form.value.addQuantity : undefined,
+      addUnit: isShoppingListAction ? form.value.addUnit : undefined,
+      shoppingListPublicId: isShoppingListAction ? form.value.shoppingListPublicId : undefined,
+      productPublicId: isShoppingListAction ? form.value.productPublicId : undefined,
+      thresholdQuantity: isLowStock ? form.value.thresholdQuantity : undefined
     }
     await updateAutomation(editingPublicId.value, request)
 

@@ -52,21 +52,48 @@
         {{ actionTypeText }}
       </span>
 
-      <!-- Schedule -->
-      <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400">
+      <!-- Schedule (not for LowStock) -->
+      <span
+        v-if="automation.actionType !== AutomationActionType.LowStockAddToShoppingList"
+        class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400"
+      >
         <UIcon name="i-lucide-calendar" class="h-3 w-3" />
         {{ scheduleText }}
       </span>
 
-      <!-- Time -->
-      <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400">
+      <!-- Time (not for LowStock) -->
+      <span
+        v-if="automation.actionType !== AutomationActionType.LowStockAddToShoppingList"
+        class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400"
+      >
         <UIcon name="i-lucide-clock" class="h-3 w-3" />
         {{ automation.scheduledTime }}
       </span>
 
-      <!-- Shopping List (for AddToShoppingList) -->
+      <!-- Threshold (for LowStock) -->
       <span
-        v-if="automation.actionType === AutomationActionType.AddToShoppingList && automation.shoppingListName"
+        v-if="automation.actionType === AutomationActionType.LowStockAddToShoppingList && automation.thresholdQuantity"
+        class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-300"
+      >
+        <UIcon name="i-lucide-arrow-down" class="h-3 w-3" />
+        {{ t('profile.automation.belowThreshold', { threshold: automation.thresholdQuantity }) }}
+      </span>
+
+      <!-- Triggered / Monitoring status (for LowStock) -->
+      <span
+        v-if="automation.actionType === AutomationActionType.LowStockAddToShoppingList"
+        class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs"
+        :class="automation.isTriggered
+          ? 'bg-orange-100 dark:bg-orange-900/30 text-orange-700 dark:text-orange-300'
+          : 'bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-300'"
+      >
+        <span class="w-1.5 h-1.5 rounded-full" :class="automation.isTriggered ? 'bg-orange-500' : 'bg-emerald-500'" />
+        {{ automation.isTriggered ? t('profile.automation.triggered') : t('profile.automation.monitoring') }}
+      </span>
+
+      <!-- Shopping List (for AddToShoppingList and LowStock) -->
+      <span
+        v-if="(automation.actionType === AutomationActionType.AddToShoppingList || automation.actionType === AutomationActionType.LowStockAddToShoppingList) && automation.shoppingListName"
         class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400"
       >
         <UIcon name="i-lucide-list" class="h-3 w-3" />
@@ -85,7 +112,11 @@
 
     <!-- Footer: Next execution + Quick actions -->
     <div class="flex items-center justify-between mt-3 pt-2 border-t border-gray-100 dark:border-gray-800">
-      <p v-if="automation.nextExecutionAt" class="text-xs text-gray-500 dark:text-gray-400">
+      <p v-if="automation.actionType === AutomationActionType.LowStockAddToShoppingList" class="text-xs text-gray-500 dark:text-gray-400">
+        <UIcon name="i-lucide-scan-eye" class="h-3 w-3 inline" />
+        {{ t('profile.automation.eventDriven') }}
+      </p>
+      <p v-else-if="automation.nextExecutionAt" class="text-xs text-gray-500 dark:text-gray-400">
         <UIcon name="i-lucide-timer" class="h-3 w-3 inline" />
         {{ $t('profile.automation.nextExecution') }}: {{ formatDateTime(automation.nextExecutionAt) }}
       </p>
@@ -93,6 +124,7 @@
 
       <div class="flex items-center gap-1">
         <UButton
+          v-if="automation.actionType !== AutomationActionType.LowStockAddToShoppingList"
           size="xs"
           variant="soft"
           icon="i-lucide-play"
@@ -143,31 +175,36 @@ const emit = defineEmits<{
 
 const { t } = useI18n()
 
+const isLowStock = computed(() => props.automation.actionType === AutomationActionType.LowStockAddToShoppingList)
+
 // Menu items
-const menuItems = computed(() => [[
-  {
-    label: t('common.edit'),
-    icon: 'i-lucide-pencil',
-    click: () => emit('edit')
-  },
-  {
-    label: t('profile.automation.executeNow'),
-    icon: 'i-lucide-play',
-    click: () => emit('execute')
-  },
-  {
-    label: t('profile.automation.history'),
-    icon: 'i-lucide-history',
-    click: () => emit('history')
-  }
-], [
-  {
-    label: t('common.delete'),
-    icon: 'i-lucide-trash-2',
-    color: 'error' as const,
-    click: () => emit('delete')
-  }
-]])
+const menuItems = computed(() => {
+  const editGroup = [
+    {
+      label: t('common.edit'),
+      icon: 'i-lucide-pencil',
+      click: () => emit('edit')
+    },
+    ...(!isLowStock.value ? [{
+      label: t('profile.automation.executeNow'),
+      icon: 'i-lucide-play',
+      click: () => emit('execute')
+    }] : []),
+    {
+      label: t('profile.automation.history'),
+      icon: 'i-lucide-history',
+      click: () => emit('history')
+    }
+  ]
+  return [editGroup, [
+    {
+      label: t('common.delete'),
+      icon: 'i-lucide-trash-2',
+      color: 'error' as const,
+      click: () => emit('delete')
+    }
+  ]]
+})
 
 // Action type display
 const actionTypeIconName = computed(() => {
@@ -175,6 +212,7 @@ const actionTypeIconName = computed(() => {
     case AutomationActionType.AutoConsume: return 'i-lucide-zap'
     case AutomationActionType.NotifyOnly: return 'i-lucide-bell'
     case AutomationActionType.AddToShoppingList: return 'i-lucide-shopping-cart'
+    case AutomationActionType.LowStockAddToShoppingList: return 'i-lucide-triangle-alert'
     default: return 'i-lucide-zap'
   }
 })
@@ -184,6 +222,7 @@ const actionTypeIconBg = computed(() => {
     case AutomationActionType.AutoConsume: return 'bg-blue-500'
     case AutomationActionType.NotifyOnly: return 'bg-amber-500'
     case AutomationActionType.AddToShoppingList: return 'bg-green-500'
+    case AutomationActionType.LowStockAddToShoppingList: return 'bg-red-500'
     default: return 'bg-gray-500'
   }
 })
@@ -196,6 +235,8 @@ const actionTypeBadgeClass = computed(() => {
       return 'bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-300'
     case AutomationActionType.AddToShoppingList:
       return 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300'
+    case AutomationActionType.LowStockAddToShoppingList:
+      return 'bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-300'
     default:
       return 'bg-gray-100 dark:bg-gray-800'
   }
@@ -206,6 +247,7 @@ const actionTypeText = computed(() => {
     case AutomationActionType.AutoConsume: return t('profile.automation.autoConsume')
     case AutomationActionType.NotifyOnly: return t('profile.automation.notifyOnly')
     case AutomationActionType.AddToShoppingList: return t('profile.automation.addToShoppingList')
+    case AutomationActionType.LowStockAddToShoppingList: return t('profile.automation.lowStockAddToShoppingList')
     default: return ''
   }
 })

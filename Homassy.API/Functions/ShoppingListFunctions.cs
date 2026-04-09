@@ -657,6 +657,17 @@ namespace Homassy.API.Functions
 
                 trackedList.DeleteRecord(userId.Value);
 
+                // Disable any automations that reference this shopping list
+                var affectedAutomations = await context.ItemAutomations
+                    .Where(a => a.ShoppingListId == trackedList.Id && !a.IsDeleted && a.IsEnabled)
+                    .ToListAsync(cancellationToken);
+
+                foreach (var automation in affectedAutomations)
+                {
+                    automation.IsEnabled = false;
+                    Log.Information("Disabled automation {AutomationId} because shopping list {ShoppingListId} was deleted", automation.Id, trackedList.Id);
+                }
+
                 context.ShoppingLists.Update(trackedList);
                 await context.SaveChangesAsync(cancellationToken);
 
@@ -1212,6 +1223,9 @@ namespace Homassy.API.Functions
 
                 await transaction.CommitAsync(cancellationToken);
 
+                // Check low-stock automations (stock increased via purchase)
+                await AutomationFunctions.CheckLowStockForProductAsync(product.Id, cancellationToken);
+
                 Log.Information($"User {userId} quick purchased shopping list item {shoppingListItem.Id} (PublicId: {shoppingListItem.PublicId}) and created inventory item {inventoryItem.Id} (PublicId: {inventoryItem.PublicId})");
 
                 // Record activity
@@ -1713,6 +1727,7 @@ namespace Homassy.API.Functions
             try
             {
                 var results = new List<ShoppingListItemInfo>();
+                var affectedProductIds = new HashSet<int>();
 
                 foreach (var itemRequest in request.Items)
                 {
@@ -1783,6 +1798,8 @@ namespace Homassy.API.Functions
                     context.ProductInventoryItems.Add(inventoryItem);
                     await context.SaveChangesAsync(cancellationToken);
 
+                    affectedProductIds.Add(product.Id);
+
                     if (itemRequest.Price.HasValue || shoppingLocationId.HasValue)
                     {
                         var purchaseInfo = new Entities.Product.ProductPurchaseInfo
@@ -1833,6 +1850,10 @@ namespace Homassy.API.Functions
 
                 await context.SaveChangesAsync(cancellationToken);
                 await transaction.CommitAsync(cancellationToken);
+
+                // Check low-stock automations for all affected products (stock increased)
+                foreach (var pid in affectedProductIds)
+                    await AutomationFunctions.CheckLowStockForProductAsync(pid, cancellationToken);
 
                 Log.Information($"User {userId.Value} quick purchased {results.Count} shopping list items");
 

@@ -51,6 +51,15 @@ namespace Homassy.API.Entities.Product
         [EnumDataType(typeof(Unit))]
         public Unit? AddUnit { get; set; }
 
+        [Range(0.001, double.MaxValue, ErrorMessage = "Threshold quantity must be greater than 0")]
+        public decimal? ThresholdQuantity { get; set; }
+
+        /// <summary>
+        /// Tracks whether a LowStockAddToShoppingList automation has already fired.
+        /// Resets to false when stock goes back above the threshold (re-arm).
+        /// </summary>
+        public bool IsTriggered { get; set; } = false;
+
         public bool IsEnabled { get; set; } = true;
 
         public DateTime? NextExecutionAt { get; set; }

@@ -11,7 +11,7 @@
       "name": "MIT License",
       "url": "https://github.com/Xentinus/Homassy/blob/master/LICENSE"
     },
-    "version": "26.0405.1852-dev"
+    "version": "26.0405.1948-dev"
   },
   "paths": {
     "/api/v1/Auth/me": {
@@ -7769,6 +7769,18 @@
               }
             ]
           },
+          "thresholdQuantity": {
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d+)?$",
+            "type": [
+              "null",
+              "number",
+              "string"
+            ],
+            "format": "double"
+          },
+          "isTriggered": {
+            "type": "boolean"
+          },
           "isEnabled": {
             "type": "boolean"
           },
@@ -7987,6 +7999,16 @@
                 "$ref": "#/components/schemas/Unit"
               }
             ]
+          },
+          "thresholdQuantity": {
+            "minimum": 0.001,
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d+)?$",
+            "type": [
+              "null",
+              "number",
+              "string"
+            ],
+            "format": "double"
           },
           "isSharedWithFamily": {
             "type": "boolean"
@@ -10450,6 +10472,16 @@
               "string"
             ],
             "format": "uuid"
+          },
+          "thresholdQuantity": {
+            "minimum": 0.001,
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d+)?$",
+            "type": [
+              "null",
+              "number",
+              "string"
+            ],
+            "format": "double"
           },
           "isEnabled": {
             "type": [

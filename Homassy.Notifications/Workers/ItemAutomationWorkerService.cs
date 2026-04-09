@@ -35,6 +35,8 @@ public sealed class ItemAutomationWorkerService : BackgroundService
             try
             {
                 await ProcessDueAutomationsAsync(stoppingToken);
+                await ProcessLowStockAutomationsAsync(stoppingToken);
+                await RearmLowStockAutomationsAsync(stoppingToken);
                 await Task.Delay(_interval, stoppingToken);
             }
             catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested)
@@ -663,4 +665,232 @@ public sealed class ItemAutomationWorkerService : BackgroundService
         Language.English => "Open Homassy",
         _ => "Homassy megnyitása"
     };
+
+    #region Low Stock Automation
+
+    /// <summary>
+    /// Checks all enabled LowStockAddToShoppingList automations that have not yet triggered.
+    /// If the total stock for the product drops below the threshold, adds the product to the shopping list.
+    /// </summary>
+    private async Task ProcessLowStockAutomationsAsync(CancellationToken cancellationToken)
+    {
+        using var scope = _scopeFactory.CreateScope();
+        var context = scope.ServiceProvider.GetRequiredService<HomassyDbContext>();
+        var emailClient = scope.ServiceProvider.GetRequiredService<EmailServiceClient>();
+
+        var automations = await context.ItemAutomations
+            .Include(a => a.Product)
+            .Include(a => a.ShoppingList)
+            .Where(a => a.IsEnabled
+                     && a.ActionType == AutomationActionType.LowStockAddToShoppingList
+                     && !a.IsTriggered)
+            .ToListAsync(cancellationToken);
+
+        if (automations.Count == 0) return;
+
+        Log.Information("Processing {Count} low-stock automations", automations.Count);
+
+        foreach (var automation in automations)
+        {
+            try
+            {
+                if (!automation.ProductId.HasValue || !automation.ThresholdQuantity.HasValue)
+                {
+                    Log.Warning("Low-stock automation {Id} missing ProductId or ThresholdQuantity", automation.Id);
+                    continue;
+                }
+
+                var product = automation.Product;
+                var shoppingList = automation.ShoppingList;
+
+                if (product == null || product.IsDeleted)
+                {
+                    Log.Warning("Low-stock automation {Id}: product not found or deleted — disabling", automation.Id);
+                    automation.IsEnabled = false;
+                    await context.SaveChangesAsync(cancellationToken);
+                    continue;
+                }
+
+                if (shoppingList == null || shoppingList.IsDeleted)
+                {
+                    Log.Warning("Low-stock automation {Id}: shopping list not found or deleted — disabling", automation.Id);
+                    automation.IsEnabled = false;
+                    await context.SaveChangesAsync(cancellationToken);
+                    continue;
+                }
+
+                // Sum all non-fully-consumed inventory for this product, scoped to user or family
+                var totalStock = await GetTotalStockForProductAsync(context, automation, cancellationToken);
+
+                if (totalStock >= automation.ThresholdQuantity.Value)
+                    continue;
+
+                // Stock is below threshold — trigger!
+                var quantity = automation.AddQuantity ?? 1;
+                var unit = automation.AddUnit ?? API.Enums.Unit.Piece;
+
+                // Create shopping list item
+                var shoppingListItem = new API.Entities.ShoppingList.ShoppingListItem
+                {
+                    ShoppingListId = shoppingList.Id,
+                    ProductId = product.Id,
+                    Quantity = quantity,
+                    Unit = unit
+                };
+                context.ShoppingListItems.Add(shoppingListItem);
+
+                // Record execution
+                var execution = new ItemAutomationExecution
+                {
+                    ItemAutomationId = automation.Id,
+                    Status = AutomationExecutionStatus.AddedToShoppingList,
+                    Notes = $"Low stock triggered: total stock {totalStock} below threshold {automation.ThresholdQuantity.Value}. " +
+                            $"Added {quantity} {unit} of \"{product.Name}\" to \"{shoppingList.Name}\""
+                };
+                context.ItemAutomationExecutions.Add(execution);
+
+                automation.IsTriggered = true;
+                automation.LastExecutedAt = DateTime.UtcNow;
+
+                await context.SaveChangesAsync(cancellationToken);
+
+                Log.Information("Low-stock automation {Id}: total stock {Stock} < threshold {Threshold} — added {Qty} {Unit} of {Product} to {List}",
+                    automation.Id, totalStock, automation.ThresholdQuantity.Value, quantity, unit, product.Name, shoppingList.Name);
+
+                // Record activity
+                try
+                {
+                    var userId = automation.CreatedByUserId;
+                    var familyId = automation.FamilyId;
+                    await new ActivityFunctions().RecordActivityAsync(
+                        userId, familyId,
+                        ActivityType.AutomationExecute,
+                        automation.Id,
+                        product.Name,
+                        unit,
+                        quantity,
+                        cancellationToken);
+                }
+                catch (Exception ex)
+                {
+                    Log.Error(ex, "Failed to record activity for low-stock automation {Id}", automation.Id);
+                }
+
+                // Send push notification
+                await SendLowStockNotificationAsync(context, emailClient, automation, product.Name, totalStock,
+                    automation.ThresholdQuantity.Value, quantity, unit.ToString(), shoppingList.Name, cancellationToken);
+            }
+            catch (Exception ex)
+            {
+                Log.Error(ex, "Error processing low-stock automation {Id} ({PublicId})", automation.Id, automation.PublicId);
+            }
+        }
+    }
+
+    /// <summary>
+    /// Re-arms triggered LowStockAddToShoppingList automations whose stock has been replenished above the threshold.
+    /// </summary>
+    private async Task RearmLowStockAutomationsAsync(CancellationToken cancellationToken)
+    {
+        using var scope = _scopeFactory.CreateScope();
+        var context = scope.ServiceProvider.GetRequiredService<HomassyDbContext>();
+
+        var triggeredAutomations = await context.ItemAutomations
+            .Where(a => a.IsEnabled
+                     && a.ActionType == AutomationActionType.LowStockAddToShoppingList
+                     && a.IsTriggered)
+            .ToListAsync(cancellationToken);
+
+        if (triggeredAutomations.Count == 0) return;
+
+        foreach (var automation in triggeredAutomations)
+        {
+            try
+            {
+                if (!automation.ProductId.HasValue || !automation.ThresholdQuantity.HasValue)
+                    continue;
+
+                var totalStock = await GetTotalStockForProductAsync(context, automation, cancellationToken);
+
+                if (totalStock >= automation.ThresholdQuantity.Value)
+                {
+                    automation.IsTriggered = false;
+                    Log.Information("Low-stock automation {Id} re-armed: stock {Stock} >= threshold {Threshold}",
+                        automation.Id, totalStock, automation.ThresholdQuantity.Value);
+                }
+            }
+            catch (Exception ex)
+            {
+                Log.Error(ex, "Error re-arming low-stock automation {Id}", automation.Id);
+            }
+        }
+
+        await context.SaveChangesAsync(cancellationToken);
+    }
+
+    /// <summary>
+    /// Sums CurrentQuantity of all non-fully-consumed inventory items for the automation's product,
+    /// scoped to the automation's user or family.
+    /// </summary>
+    private static async Task<decimal> GetTotalStockForProductAsync(
+        HomassyDbContext context, ItemAutomation automation, CancellationToken cancellationToken)
+    {
+        var query = context.ProductInventoryItems
+            .Where(i => i.Product.Id == automation.ProductId!.Value && !i.IsFullyConsumed);
+
+        // Scope to user or family
+        if (automation.FamilyId.HasValue)
+            query = query.Where(i => i.FamilyId == automation.FamilyId.Value);
+        else if (automation.UserId.HasValue)
+            query = query.Where(i => i.UserId == automation.UserId.Value);
+
+        return await query.SumAsync(i => i.CurrentQuantity, cancellationToken);
+    }
+
+    private async Task SendLowStockNotificationAsync(
+        HomassyDbContext context,
+        EmailServiceClient emailClient,
+        ItemAutomation automation,
+        string productName,
+        decimal totalStock,
+        decimal thresholdQuantity,
+        decimal addQuantity,
+        string unit,
+        string shoppingListName,
+        CancellationToken cancellationToken)
+    {
+        var ownerUserId = await GetOwnerUserIdAsync(context, automation, cancellationToken);
+        if (ownerUserId == null) return;
+
+        var language = await GetUserLanguageAsync(context, ownerUserId.Value, cancellationToken);
+        var subscriptions = await GetUserPushSubscriptionsAsync(context, ownerUserId.Value, cancellationToken);
+
+        if (subscriptions.Count > 0)
+        {
+            var (title, body) = PushNotificationContentService.GetLowStockNotificationContent(
+                language, productName, totalStock, thresholdQuantity, shoppingListName);
+            var actionTitle = GetActionTitle(language);
+
+            foreach (var subscription in subscriptions)
+            {
+                var success = await _webPushService.SendNotificationAsync(
+                    subscription, title, body, "/profile/automation", actionTitle, cancellationToken);
+
+                if (!success)
+                {
+                    subscription.DeleteRecord();
+                    Log.Information("Removed invalid push subscription {Endpoint} for user {UserId}",
+                        subscription.Endpoint, ownerUserId.Value);
+                }
+            }
+
+            await context.SaveChangesAsync(cancellationToken);
+        }
+
+        // Send email notification
+        await SendEmailNotificationAsync(context, emailClient, ownerUserId.Value, language, productName,
+            "low_stock_add_to_shopping_list", addQuantity, unit, cancellationToken);
+    }
+
+    #endregion
 }

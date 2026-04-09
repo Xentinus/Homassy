@@ -129,4 +129,24 @@ public static class PushNotificationContentService
             )
         };
     }
+
+    public static (string Title, string Body) GetLowStockNotificationContent(
+        Language language, string productName, decimal totalStock, decimal thresholdQuantity, string shoppingListName)
+    {
+        return language switch
+        {
+            Language.Hungarian => (
+                "Alacsony készletszint",
+                $"A(z) \"{productName}\" készlete ({totalStock}) a küszöbérték ({thresholdQuantity}) alá csökkent. Hozzáadva a(z) \"{shoppingListName}\" bevásárlólistához."
+            ),
+            Language.German => (
+                "Niedriger Lagerbestand",
+                $"Der Bestand von \"{productName}\" ({totalStock}) ist unter den Schwellenwert ({thresholdQuantity}) gefallen. Zur Einkaufsliste \"{shoppingListName}\" hinzugefügt."
+            ),
+            _ => (
+                "Low Stock Alert",
+                $"Stock of \"{productName}\" ({totalStock}) dropped below threshold ({thresholdQuantity}). Added to the \"{shoppingListName}\" shopping list."
+            )
+        };
+    }
 }

@@ -15,7 +15,8 @@ export enum ScheduleType {
 export enum AutomationActionType {
   AutoConsume = 0,
   NotifyOnly = 1,
-  AddToShoppingList = 2
+  AddToShoppingList = 2,
+  LowStockAddToShoppingList = 3
 }
 
 export enum AutomationExecutionStatus {
@@ -60,6 +61,8 @@ export interface AutomationResponse {
   consumeUnit?: Unit
   addQuantity?: number
   addUnit?: Unit
+  thresholdQuantity?: number
+  isTriggered: boolean
   isEnabled: boolean
   nextExecutionAt?: string
   lastExecutedAt?: string
@@ -92,6 +95,7 @@ export interface CreateAutomationRequest {
   consumeUnit?: Unit
   addQuantity?: number
   addUnit?: Unit
+  thresholdQuantity?: number
   isSharedWithFamily?: boolean
 }
 
@@ -106,6 +110,7 @@ export interface UpdateAutomationRequest {
   consumeUnit?: Unit
   addQuantity?: number
   addUnit?: Unit
+  thresholdQuantity?: number
   shoppingListPublicId?: string
   productPublicId?: string
   isEnabled?: boolean

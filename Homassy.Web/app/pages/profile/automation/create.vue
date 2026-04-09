@@ -30,7 +30,7 @@
       <div v-if="currentStep === 0" class="space-y-6">
         <p class="text-gray-600 dark:text-gray-400">{{ t('profile.automation.create.selectActionType') }}</p>
 
-        <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
           <button
             v-for="option in actionTypeCards"
             :key="option.value"
@@ -101,7 +101,7 @@
         </div>
 
         <!-- Inventory Item Sub-selection (for AutoConsume / NotifyOnly) -->
-        <template v-if="form.actionType !== AutomationActionType.AddToShoppingList && form.productPublicId">
+        <template v-if="form.actionType !== AutomationActionType.AddToShoppingList && form.actionType !== AutomationActionType.LowStockAddToShoppingList && form.productPublicId">
           <div class="border-t border-gray-200 dark:border-gray-700 pt-4 space-y-3">
             <p class="text-sm font-medium text-gray-700 dark:text-gray-300">
               {{ t('profile.automation.create.selectInventoryItem') }}
@@ -134,8 +134,8 @@
         </template>
       </div>
 
-      <!-- Step 3: Shopping List Selection (only for AddToShoppingList) -->
-      <div v-if="currentStep === 2" class="space-y-6">
+      <!-- Step 3: Shopping List Selection (for AddToShoppingList and LowStockAddToShoppingList) -->
+      <div v-if="currentStep === shoppingListStepIndex" class="space-y-6">
         <p class="text-gray-600 dark:text-gray-400">{{ t('profile.automation.create.selectShoppingList') }}</p>
 
         <!-- Loading State -->
@@ -193,8 +193,8 @@
         </div>
       </div>
 
-      <!-- Step 4: Schedule Configuration -->
-      <div v-if="currentStep === 3" class="space-y-6">
+      <!-- Step 4: Schedule Configuration (not for LowStock) -->
+      <div v-if="currentStep === scheduleOrThresholdStepIndex && !isLowStock" class="space-y-6">
         <p class="text-gray-600 dark:text-gray-400">{{ t('profile.automation.create.configureSchedule') }}</p>
 
         <div class="space-y-4 max-w-lg">
@@ -278,13 +278,73 @@
             :label="t('common.next')"
             trailing-icon="i-lucide-arrow-right"
             :disabled="!isScheduleValid"
-            @click="currentStep = 4"
+            @click="currentStep = confirmStepIndex"
+          />
+        </div>
+      </div>
+
+      <!-- Step 4b: Threshold Configuration (LowStock only) -->
+      <div v-if="currentStep === scheduleOrThresholdStepIndex && isLowStock" class="space-y-6">
+        <p class="text-gray-600 dark:text-gray-400">{{ t('profile.automation.create.configureThreshold') }}</p>
+
+        <div class="space-y-4 max-w-lg">
+          <!-- Threshold Quantity -->
+          <div>
+            <label class="block text-sm font-medium mb-1">
+              {{ t('profile.automation.thresholdQuantity') }} <span class="text-red-500">*</span>
+            </label>
+            <p class="text-xs text-gray-500 dark:text-gray-400 mb-2">
+              {{ t('profile.automation.create.thresholdDescription') }}
+            </p>
+            <UInput
+              v-model.number="form.thresholdQuantity"
+              type="number"
+              :min="0.001"
+              step="0.1"
+              class="w-full"
+            />
+          </div>
+
+          <!-- Add Quantity + Unit -->
+          <div>
+            <label class="block text-sm font-medium mb-1">
+              {{ t('profile.automation.addQuantity') }} <span class="text-red-500">*</span>
+            </label>
+            <p class="text-xs text-gray-500 dark:text-gray-400 mb-2">
+              {{ t('profile.automation.create.lowStockAddQuantityDescription') }}
+            </p>
+            <div class="flex gap-2">
+              <UInput
+                v-model.number="form.addQuantity"
+                type="number"
+                :min="0.001"
+                step="0.1"
+                class="flex-1"
+              />
+              <USelect
+                v-model="form.addUnit"
+                :items="unitOptions"
+                value-key="value"
+                label-key="label"
+                :placeholder="t('common.unit')"
+                class="w-32"
+              />
+            </div>
+          </div>
+        </div>
+
+        <div class="flex justify-end pt-4">
+          <UButton
+            :label="t('common.next')"
+            trailing-icon="i-lucide-arrow-right"
+            :disabled="!form.thresholdQuantity || form.thresholdQuantity <= 0 || !form.addQuantity || form.addQuantity <= 0"
+            @click="currentStep = confirmStepIndex"
           />
         </div>
       </div>
 
       <!-- Step 5: Details & Confirm -->
-      <div v-if="currentStep === 4" class="space-y-6">
+      <div v-if="currentStep === confirmStepIndex" class="space-y-6">
         <p class="text-gray-600 dark:text-gray-400">{{ t('profile.automation.create.reviewAndConfirm') }}</p>
 
         <div class="space-y-4 max-w-lg">
@@ -335,8 +395,6 @@
               />
             </div>
           </div>
-
-          <!-- Shared with Family -->
           <div class="flex items-center gap-2">
             <UCheckbox
               v-model="form.isSharedWithFamily"
@@ -358,24 +416,29 @@
               <span class="font-medium">{{ selectedProductLabel }}</span>
             </div>
 
-            <div v-if="form.actionType !== AutomationActionType.AddToShoppingList && selectedInventoryItemLabel" class="flex justify-between text-sm">
+            <div v-if="form.actionType !== AutomationActionType.AddToShoppingList && form.actionType !== AutomationActionType.LowStockAddToShoppingList && selectedInventoryItemLabel" class="flex justify-between text-sm">
               <span class="text-gray-500 dark:text-gray-400">{{ t('profile.automation.inventoryItem') }}</span>
               <span class="font-medium">{{ selectedInventoryItemLabel }}</span>
             </div>
 
-            <div v-if="form.actionType === AutomationActionType.AddToShoppingList" class="flex justify-between text-sm">
+            <div v-if="form.actionType === AutomationActionType.AddToShoppingList || form.actionType === AutomationActionType.LowStockAddToShoppingList" class="flex justify-between text-sm">
               <span class="text-gray-500 dark:text-gray-400">{{ t('profile.automation.shoppingList') }}</span>
               <span class="font-medium">{{ selectedShoppingListLabel }}</span>
             </div>
 
-            <div class="flex justify-between text-sm">
+            <div v-if="!isLowStock" class="flex justify-between text-sm">
               <span class="text-gray-500 dark:text-gray-400">{{ t('profile.automation.scheduleType') }}</span>
               <span class="font-medium">{{ scheduleSummary }}</span>
             </div>
 
-            <div class="flex justify-between text-sm">
+            <div v-if="!isLowStock" class="flex justify-between text-sm">
               <span class="text-gray-500 dark:text-gray-400">{{ t('profile.automation.scheduledTime') }}</span>
               <span class="font-medium">{{ form.scheduledTime }}</span>
+            </div>
+
+            <div v-if="isLowStock && form.thresholdQuantity" class="flex justify-between text-sm">
+              <span class="text-gray-500 dark:text-gray-400">{{ t('profile.automation.thresholdQuantity') }}</span>
+              <span class="font-medium">{{ form.thresholdQuantity }}</span>
             </div>
 
             <div v-if="form.actionType === AutomationActionType.AutoConsume && form.consumeQuantity" class="flex justify-between text-sm">
@@ -384,6 +447,11 @@
             </div>
 
             <div v-if="form.actionType === AutomationActionType.AddToShoppingList && form.addQuantity" class="flex justify-between text-sm">
+              <span class="text-gray-500 dark:text-gray-400">{{ t('profile.automation.addQuantity') }}</span>
+              <span class="font-medium">{{ form.addQuantity }} {{ form.addUnit !== undefined ? t(`enums.unit.${form.addUnit}`) : '' }}</span>
+            </div>
+
+            <div v-if="form.actionType === AutomationActionType.LowStockAddToShoppingList && form.addQuantity" class="flex justify-between text-sm">
               <span class="text-gray-500 dark:text-gray-400">{{ t('profile.automation.addQuantity') }}</span>
               <span class="font-medium">{{ form.addQuantity }} {{ form.addUnit !== undefined ? t(`enums.unit.${form.addUnit}`) : '' }}</span>
             </div>
@@ -435,11 +503,15 @@ const stepperItems = computed(() => {
     { label: t('profile.automation.create.step1') },
     { label: t('profile.automation.create.step2') }
   ]
-  if (form.value.actionType === AutomationActionType.AddToShoppingList) {
+  if (form.value.actionType === AutomationActionType.AddToShoppingList || form.value.actionType === AutomationActionType.LowStockAddToShoppingList) {
     steps.push({ label: t('profile.automation.create.step3') })
   }
+  if (form.value.actionType === AutomationActionType.LowStockAddToShoppingList) {
+    steps.push({ label: t('profile.automation.create.stepThreshold') })
+  } else {
+    steps.push({ label: t('profile.automation.create.stepSchedule') })
+  }
   steps.push(
-    { label: t('profile.automation.create.stepSchedule') },
     { label: t('profile.automation.create.stepConfirm') }
   )
   return steps
@@ -466,6 +538,7 @@ const form = ref({
   consumeUnit: undefined as number | undefined,
   addQuantity: undefined as number | undefined,
   addUnit: undefined as number | undefined,
+  thresholdQuantity: undefined as number | undefined,
   isSharedWithFamily: false
 })
 
@@ -507,6 +580,13 @@ const actionTypeCards = computed(() => [
     iconColor: 'text-green-500',
     label: t('profile.automation.addToShoppingList'),
     description: t('profile.automation.create.addToShoppingListDesc')
+  },
+  {
+    value: AutomationActionType.LowStockAddToShoppingList,
+    icon: 'i-lucide-triangle-alert',
+    iconColor: 'text-red-500',
+    label: t('profile.automation.lowStockAddToShoppingList'),
+    description: t('profile.automation.create.lowStockAddToShoppingListDesc')
   }
 ])
 
@@ -581,8 +661,22 @@ const isConfirmValid = computed(() => {
   if (form.value.actionType === AutomationActionType.AddToShoppingList) {
     return !!form.value.addQuantity && form.value.addQuantity > 0
   }
+  if (form.value.actionType === AutomationActionType.LowStockAddToShoppingList) {
+    return !!form.value.thresholdQuantity && form.value.thresholdQuantity > 0
+      && !!form.value.addQuantity && form.value.addQuantity > 0
+  }
   return true
 })
+
+// Dynamic step indices
+const hasShoppingListStep = computed(() =>
+  form.value.actionType === AutomationActionType.AddToShoppingList
+  || form.value.actionType === AutomationActionType.LowStockAddToShoppingList
+)
+const isLowStock = computed(() => form.value.actionType === AutomationActionType.LowStockAddToShoppingList)
+const shoppingListStepIndex = computed(() => hasShoppingListStep.value ? 2 : -1)
+const scheduleOrThresholdStepIndex = computed(() => hasShoppingListStep.value ? 3 : 2)
+const confirmStepIndex = computed(() => hasShoppingListStep.value ? 4 : 3)
 
 // Product search with debounce
 watchDebounced(
@@ -625,7 +719,7 @@ async function onProductSelected(product: ProductInfo) {
   form.value.productPublicId = product.publicId
   form.value.inventoryItemPublicId = ''
 
-  if (form.value.actionType === AutomationActionType.AddToShoppingList) {
+  if (form.value.actionType === AutomationActionType.AddToShoppingList || form.value.actionType === AutomationActionType.LowStockAddToShoppingList) {
     // Auto-advance to shopping list step
     loadShoppingLists()
     currentStep.value = 2
@@ -638,13 +732,13 @@ async function onProductSelected(product: ProductInfo) {
 // Inventory item click → auto-advance to schedule
 function selectInventoryItem(itemPublicId: string) {
   form.value.inventoryItemPublicId = itemPublicId
-  currentStep.value = 3
+  currentStep.value = scheduleOrThresholdStepIndex.value
 }
 
-// Shopping list click → auto-advance to schedule
+// Shopping list click → auto-advance to schedule/threshold
 function selectShoppingList(listPublicId: string) {
   form.value.shoppingListPublicId = listPublicId
-  currentStep.value = 3
+  currentStep.value = scheduleOrThresholdStepIndex.value
 }
 
 // Load inventory items for a specific product
@@ -661,7 +755,7 @@ async function loadInventoryItemsForProduct(productPublicId: string) {
       // Auto-select and advance if only one inventory item
       if (inventoryItemOptions.value.length === 1 && inventoryItemOptions.value[0]) {
         form.value.inventoryItemPublicId = inventoryItemOptions.value[0].value
-        currentStep.value = 3
+        currentStep.value = scheduleOrThresholdStepIndex.value
       }
     }
   } catch (error) {
@@ -726,6 +820,7 @@ function actionTypeLabel(actionType: AutomationActionType): string {
     case AutomationActionType.AutoConsume: return t('profile.automation.autoConsume')
     case AutomationActionType.NotifyOnly: return t('profile.automation.notifyOnly')
     case AutomationActionType.AddToShoppingList: return t('profile.automation.addToShoppingList')
+    case AutomationActionType.LowStockAddToShoppingList: return t('profile.automation.lowStockAddToShoppingList')
     default: return ''
   }
 }
@@ -737,6 +832,7 @@ function selectActionType(actionType: AutomationActionType) {
   form.value.productPublicId = ''
   form.value.inventoryItemPublicId = ''
   form.value.shoppingListPublicId = ''
+  form.value.thresholdQuantity = undefined
   inventoryItemOptions.value = []
   productSearchQuery.value = ''
   productSearchResults.value = []
@@ -757,26 +853,31 @@ async function handleCreate() {
     }
   }
 
+  const isLowStockType = form.value.actionType === AutomationActionType.LowStockAddToShoppingList
+  const needsProduct = form.value.actionType === AutomationActionType.AddToShoppingList || isLowStockType
+  const needsSchedule = !isLowStockType
+
   isCreating.value = true
   try {
-    const daysOfWeek = form.value.scheduleType === ScheduleType.FixedDate && form.value.scheduledDaysOfWeek
+    const daysOfWeek = needsSchedule && form.value.scheduleType === ScheduleType.FixedDate && form.value.scheduledDaysOfWeek
       ? form.value.scheduledDaysOfWeek
       : undefined
 
     const request: CreateAutomationRequest = {
-      inventoryItemPublicId: form.value.actionType !== AutomationActionType.AddToShoppingList ? form.value.inventoryItemPublicId : undefined,
-      productPublicId: form.value.actionType === AutomationActionType.AddToShoppingList ? form.value.productPublicId : undefined,
-      shoppingListPublicId: form.value.actionType === AutomationActionType.AddToShoppingList ? form.value.shoppingListPublicId : undefined,
-      scheduleType: form.value.scheduleType,
-      intervalDays: form.value.scheduleType === ScheduleType.Interval ? form.value.intervalDays : undefined,
+      inventoryItemPublicId: !needsProduct ? form.value.inventoryItemPublicId : undefined,
+      productPublicId: needsProduct ? form.value.productPublicId : undefined,
+      shoppingListPublicId: needsProduct ? form.value.shoppingListPublicId : undefined,
+      scheduleType: needsSchedule ? form.value.scheduleType : ScheduleType.Interval,
+      intervalDays: needsSchedule && form.value.scheduleType === ScheduleType.Interval ? form.value.intervalDays : (isLowStockType ? 1 : undefined),
       scheduledDaysOfWeek: daysOfWeek,
-      scheduledDayOfMonth: form.value.scheduleType === ScheduleType.FixedDate ? form.value.scheduledDayOfMonth : undefined,
-      scheduledTime: form.value.scheduledTime,
+      scheduledDayOfMonth: needsSchedule && form.value.scheduleType === ScheduleType.FixedDate ? form.value.scheduledDayOfMonth : undefined,
+      scheduledTime: needsSchedule ? form.value.scheduledTime : '00:00',
       actionType: form.value.actionType,
       consumeQuantity: form.value.actionType === AutomationActionType.AutoConsume ? form.value.consumeQuantity : undefined,
       consumeUnit: form.value.actionType === AutomationActionType.AutoConsume ? form.value.consumeUnit : undefined,
-      addQuantity: form.value.actionType === AutomationActionType.AddToShoppingList ? form.value.addQuantity : undefined,
-      addUnit: form.value.actionType === AutomationActionType.AddToShoppingList ? form.value.addUnit : undefined,
+      addQuantity: needsProduct ? form.value.addQuantity : undefined,
+      addUnit: needsProduct ? form.value.addUnit : undefined,
+      thresholdQuantity: isLowStockType ? form.value.thresholdQuantity : undefined,
       isSharedWithFamily: form.value.isSharedWithFamily
     }
 

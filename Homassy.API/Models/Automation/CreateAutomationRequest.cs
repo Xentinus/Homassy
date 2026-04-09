@@ -43,6 +43,9 @@ namespace Homassy.API.Models.Automation
         [EnumDataType(typeof(Unit))]
         public Unit? AddUnit { get; set; }
 
+        [Range(0.001, double.MaxValue, ErrorMessage = "Threshold quantity must be greater than 0")]
+        public decimal? ThresholdQuantity { get; set; }
+
         public bool IsSharedWithFamily { get; set; } = false;
     }
 }

@@ -38,6 +38,9 @@ namespace Homassy.API.Models.Automation
 
         public Guid? ProductPublicId { get; set; }
 
+        [Range(0.001, double.MaxValue, ErrorMessage = "Threshold quantity must be greater than 0")]
+        public decimal? ThresholdQuantity { get; set; }
+
         public bool? IsEnabled { get; set; }
     }
 }
