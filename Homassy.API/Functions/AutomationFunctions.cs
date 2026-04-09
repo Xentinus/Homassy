@@ -769,7 +769,7 @@ namespace Homassy.API.Functions
         /// <summary>
         /// Gets execution history for an automation rule.
         /// </summary>
-        public async Task<List<AutomationExecutionResponse>> GetExecutionHistoryAsync(Guid publicId, CancellationToken cancellationToken = default)
+        public async Task<List<AutomationExecutionResponse>> GetExecutionHistoryAsync(Guid publicId, int skip = 0, int take = 50, CancellationToken cancellationToken = default)
         {
             var userId = SessionInfo.GetUserId();
             if (!userId.HasValue)
@@ -791,7 +791,8 @@ namespace Homassy.API.Functions
             var executions = await context.ItemAutomationExecutions
                 .Where(e => e.ItemAutomationId == automation.Id)
                 .OrderByDescending(e => e.ExecutedAt)
-                .Take(50)
+                .Skip(skip)
+                .Take(take)
                 .ToListAsync(cancellationToken);
 
             return executions.Select(MapToExecutionResponse).ToList();

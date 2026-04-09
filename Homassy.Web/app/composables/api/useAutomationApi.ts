@@ -58,8 +58,8 @@ export const useAutomationApi = () => {
   /**
    * Get execution history for an automation rule
    */
-  const getExecutionHistory = async (publicId: string) => {
-    return await client.get<AutomationExecutionResponse[]>(`/api/v1/Automation/${publicId}/history`)
+  const getExecutionHistory = async (publicId: string, skip: number = 0, take: number = 5) => {
+    return await client.get<AutomationExecutionResponse[]>(`/api/v1/Automation/${publicId}/history?skip=${skip}&take=${take}`)
   }
 
   return {

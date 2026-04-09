@@ -121,9 +121,9 @@ namespace Homassy.API.Controllers
         [MapToApiVersion(1.0)]
         [ProducesResponseType(typeof(ApiResponse<List<AutomationExecutionResponse>>), StatusCodes.Status200OK)]
         [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status404NotFound)]
-        public async Task<IActionResult> GetExecutionHistory(Guid publicId, CancellationToken cancellationToken)
+        public async Task<IActionResult> GetExecutionHistory(Guid publicId, [FromQuery] int skip = 0, [FromQuery] int take = 5, CancellationToken cancellationToken = default)
         {
-            var history = await new AutomationFunctions().GetExecutionHistoryAsync(publicId, cancellationToken);
+            var history = await new AutomationFunctions().GetExecutionHistoryAsync(publicId, skip, take, cancellationToken);
             return Ok(ApiResponse<List<AutomationExecutionResponse>>.SuccessResponse(history));
         }
     }
