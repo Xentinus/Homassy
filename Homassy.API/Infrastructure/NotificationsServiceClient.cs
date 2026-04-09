@@ -66,4 +66,40 @@ public sealed class NotificationsServiceClient
             return false;
         }
     }
+
+    public async Task<bool> SendLowStockNotificationAsync(
+        int userId, string productName, decimal totalStock, decimal thresholdQuantity,
+        decimal addQuantity, string unit, string shoppingListName,
+        CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            var response = await _httpClient.PostAsJsonAsync("/push/low-stock", new
+            {
+                userId,
+                productName,
+                totalStock,
+                thresholdQuantity,
+                addQuantity,
+                unit,
+                shoppingListName
+            }, cancellationToken);
+
+            if (!response.IsSuccessStatusCode)
+            {
+                var body = await response.Content.ReadAsStringAsync(cancellationToken);
+                _logger.LogError(
+                    "Notifications service returned {StatusCode} for low-stock push to user {UserId}: {Body}",
+                    response.StatusCode, userId, body);
+                return false;
+            }
+
+            return true;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to send low-stock notification for user {UserId}, product {Product}", userId, productName);
+            return false;
+        }
+    }
 }

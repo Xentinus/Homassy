@@ -9,6 +9,7 @@
   <ItemGroup>
     <EmbeddedResource Include="Templates\CodeEmail.html" />
     <EmbeddedResource Include="Templates\WeeklySummaryEmail.html" />
+    <EmbeddedResource Include="Templates\AutomationNotificationEmail.html" />
   </ItemGroup>
 
   <ItemGroup>

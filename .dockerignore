@@ -18,6 +18,8 @@
 **/Dockerfile*
 **/node_modules
 **/npm-debug.log
+**/.output
+**/.nuxt
 **/obj
 **/secrets.dev.yaml
 **/values.dev.yaml

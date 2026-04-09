@@ -24,4 +24,10 @@ public interface IEmailContentService
     string GetExpiringSoonSectionHeader(Language language);
     string GetNoExpiringItemsMessage(Language language);
     string GetWeeklySummaryPlainText(Language language, string? name, ExpiringProductDto[] expiredItems, ExpiringProductDto[] expiringSoonItems);
+
+    // ─── Automation Notification ────────────────────────────────────────────────
+    string GetAutomationSubject(Language language, string actionType);
+    string GetAutomationGreeting(Language language, string actionType);
+    string GetAutomationMessage(Language language, string? name, string productName, string actionType, decimal? quantity, string? unit);
+    string GetAutomationPlainText(Language language, string? name, string productName, string actionType, decimal? quantity, string? unit);
 }

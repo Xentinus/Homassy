@@ -27,6 +27,9 @@
     <ProjectReference Include="..\Homassy.Notifications\Homassy.Notifications.csproj">
       <Aliases>NotificationsProject</Aliases>
     </ProjectReference>
+    <ProjectReference Include="..\Homassy.Email\Homassy.Email.csproj">
+      <Aliases>EmailProject</Aliases>
+    </ProjectReference>
   </ItemGroup>
 
   <ItemGroup>

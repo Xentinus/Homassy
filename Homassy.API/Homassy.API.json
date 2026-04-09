@@ -11,7 +11,7 @@
       "name": "MIT License",
       "url": "https://github.com/Xentinus/Homassy/blob/master/LICENSE"
     },
-    "version": "26.0304.1914-dev"
+    "version": "26.0409.1524-dev"
   },
   "paths": {
     "/api/v1/Auth/me": {
@@ -19,7 +19,7 @@
         "tags": [
           "Auth"
         ],
-        "summary": "Gets the current authenticated user's information.\nRequires a valid Kratos session.",
+        "summary": "Gets the current authenticated user's information.\r\nRequires a valid Kratos session.",
         "responses": {
           "200": {
             "description": "OK",
@@ -119,7 +119,7 @@
         "tags": [
           "Auth"
         ],
-        "summary": "Synchronizes the local user record with Kratos identity data.\nCall this after updating profile in Kratos.",
+        "summary": "Synchronizes the local user record with Kratos identity data.\r\nCall this after updating profile in Kratos.",
         "responses": {
           "200": {
             "description": "OK",
@@ -169,7 +169,7 @@
         "tags": [
           "Auth"
         ],
-        "summary": "Gets the Kratos configuration URLs for frontend use.\nIncludes RegistrationEnabled flag so the frontend can conditionally render registration UI.",
+        "summary": "Gets the Kratos configuration URLs for frontend use.\r\nIncludes RegistrationEnabled flag so the frontend can conditionally render registration UI.",
         "responses": {
           "200": {
             "description": "OK",
@@ -194,12 +194,517 @@
         }
       }
     },
+    "/api/v1/Automation": {
+      "get": {
+        "tags": [
+          "Automation"
+        ],
+        "summary": "Gets all automation rules for the current user and family.",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponseOfListOfAutomationResponse"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponseOfListOfAutomationResponse"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponseOfListOfAutomationResponse"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Automation"
+        ],
+        "summary": "Creates a new automation rule.",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateAutomationRequest"
+              }
+            },
+            "text/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateAutomationRequest"
+              }
+            },
+            "application/*+json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateAutomationRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponseOfAutomationResponse"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponseOfAutomationResponse"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponseOfAutomationResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponse"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponse"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/Automation/{publicId}": {
+      "get": {
+        "tags": [
+          "Automation"
+        ],
+        "summary": "Gets a single automation rule by PublicId.",
+        "parameters": [
+          {
+            "name": "publicId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponseOfAutomationResponse"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponseOfAutomationResponse"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponseOfAutomationResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponse"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponse"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponse"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "Automation"
+        ],
+        "summary": "Updates an existing automation rule.",
+        "parameters": [
+          {
+            "name": "publicId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateAutomationRequest"
+              }
+            },
+            "text/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateAutomationRequest"
+              }
+            },
+            "application/*+json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateAutomationRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponseOfAutomationResponse"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponseOfAutomationResponse"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponseOfAutomationResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponse"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponse"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponse"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponse"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponse"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "Automation"
+        ],
+        "summary": "Deletes an automation rule (soft delete).",
+        "parameters": [
+          {
+            "name": "publicId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponse"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponse"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponse"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponse"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/Automation/{publicId}/execute": {
+      "post": {
+        "tags": [
+          "Automation"
+        ],
+        "summary": "Manually executes an automation rule (triggers consumption or confirms notification).",
+        "parameters": [
+          {
+            "name": "publicId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ExecuteAutomationRequest"
+              }
+            },
+            "text/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ExecuteAutomationRequest"
+              }
+            },
+            "application/*+json": {
+              "schema": {
+                "$ref": "#/components/schemas/ExecuteAutomationRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponseOfAutomationExecutionResponse"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponseOfAutomationExecutionResponse"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponseOfAutomationExecutionResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponse"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponse"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponse"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponse"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/Automation/{publicId}/history": {
+      "get": {
+        "tags": [
+          "Automation"
+        ],
+        "summary": "Gets execution history for an automation rule.",
+        "parameters": [
+          {
+            "name": "publicId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "skip",
+            "in": "query",
+            "schema": {
+              "pattern": "^-?(?:0|[1-9]\\d*)$",
+              "type": [
+                "integer",
+                "string"
+              ],
+              "format": "int32",
+              "default": 0
+            }
+          },
+          {
+            "name": "take",
+            "in": "query",
+            "schema": {
+              "pattern": "^-?(?:0|[1-9]\\d*)$",
+              "type": [
+                "integer",
+                "string"
+              ],
+              "format": "int32",
+              "default": 5
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponseOfListOfAutomationExecutionResponse"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponseOfListOfAutomationExecutionResponse"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponseOfListOfAutomationExecutionResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponse"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponse"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/ErrorCodes": {
       "get": {
         "tags": [
           "ErrorCodes"
         ],
-        "summary": "Gets all available error codes with their descriptions.\nError codes are grouped by category (e.g., AUTH, USER, PRODUCT).",
+        "summary": "Gets all available error codes with their descriptions.\r\nError codes are grouped by category (e.g., AUTH, USER, PRODUCT).",
         "responses": {
           "200": {
             "description": "OK",
@@ -4667,7 +5172,7 @@
         "tags": [
           "Statistics"
         ],
-        "summary": "Returns the nightly-cached global statistics for the platform.\nThe cache is refreshed once per day by the background worker.",
+        "summary": "Returns the nightly-cached global statistics for the platform.\r\nThe cache is refreshed once per day by the background worker.",
         "responses": {
           "200": {
             "description": "OK",
@@ -5713,6 +6218,68 @@
           }
         }
       },
+      "ApiResponseOfAutomationExecutionResponse": {
+        "type": "object",
+        "properties": {
+          "success": {
+            "type": "boolean"
+          },
+          "data": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/AutomationExecutionResponse"
+              }
+            ]
+          },
+          "errorCodes": {
+            "type": [
+              "null",
+              "array"
+            ],
+            "items": {
+              "type": "string"
+            }
+          },
+          "timestamp": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "ApiResponseOfAutomationResponse": {
+        "type": "object",
+        "properties": {
+          "success": {
+            "type": "boolean"
+          },
+          "data": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/AutomationResponse"
+              }
+            ]
+          },
+          "errorCodes": {
+            "type": [
+              "null",
+              "array"
+            ],
+            "items": {
+              "type": "string"
+            }
+          },
+          "timestamp": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
       "ApiResponseOfDeadlineCountResponse": {
         "type": "object",
         "properties": {
@@ -6068,6 +6635,66 @@
                 "$ref": "#/components/schemas/KratosSessionInfo"
               }
             ]
+          },
+          "errorCodes": {
+            "type": [
+              "null",
+              "array"
+            ],
+            "items": {
+              "type": "string"
+            }
+          },
+          "timestamp": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "ApiResponseOfListOfAutomationExecutionResponse": {
+        "type": "object",
+        "properties": {
+          "success": {
+            "type": "boolean"
+          },
+          "data": {
+            "type": [
+              "null",
+              "array"
+            ],
+            "items": {
+              "$ref": "#/components/schemas/AutomationExecutionResponse"
+            }
+          },
+          "errorCodes": {
+            "type": [
+              "null",
+              "array"
+            ],
+            "items": {
+              "type": "string"
+            }
+          },
+          "timestamp": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "ApiResponseOfListOfAutomationResponse": {
+        "type": "object",
+        "properties": {
+          "success": {
+            "type": "boolean"
+          },
+          "data": {
+            "type": [
+              "null",
+              "array"
+            ],
+            "items": {
+              "$ref": "#/components/schemas/AutomationResponse"
+            }
           },
           "errorCodes": {
             "type": [
@@ -7006,6 +7633,199 @@
           }
         }
       },
+      "AutomationActionType": {
+        "type": "integer"
+      },
+      "AutomationExecutionResponse": {
+        "type": "object",
+        "properties": {
+          "publicId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "executedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "status": {
+            "$ref": "#/components/schemas/AutomationExecutionStatus"
+          },
+          "consumedQuantity": {
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d+)?$",
+            "type": [
+              "null",
+              "number",
+              "string"
+            ],
+            "format": "double"
+          },
+          "notes": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "triggeredByUserId": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          }
+        }
+      },
+      "AutomationExecutionStatus": {
+        "type": "integer"
+      },
+      "AutomationResponse": {
+        "type": "object",
+        "properties": {
+          "publicId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "inventoryItemPublicId": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "uuid"
+          },
+          "productName": {
+            "type": "string"
+          },
+          "productBrand": {
+            "type": "string"
+          },
+          "productPublicId": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "uuid"
+          },
+          "shoppingListPublicId": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "uuid"
+          },
+          "shoppingListName": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "scheduleType": {
+            "$ref": "#/components/schemas/ScheduleType"
+          },
+          "intervalDays": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "scheduledDaysOfWeek": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/DaysOfWeek"
+              }
+            ]
+          },
+          "scheduledDayOfMonth": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "scheduledTime": {
+            "type": "string",
+            "format": "time"
+          },
+          "actionType": {
+            "$ref": "#/components/schemas/AutomationActionType"
+          },
+          "consumeQuantity": {
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d+)?$",
+            "type": [
+              "null",
+              "number",
+              "string"
+            ],
+            "format": "double"
+          },
+          "consumeUnit": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/Unit"
+              }
+            ]
+          },
+          "addQuantity": {
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d+)?$",
+            "type": [
+              "null",
+              "number",
+              "string"
+            ],
+            "format": "double"
+          },
+          "addUnit": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/Unit"
+              }
+            ]
+          },
+          "thresholdQuantity": {
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d+)?$",
+            "type": [
+              "null",
+              "number",
+              "string"
+            ],
+            "format": "double"
+          },
+          "isTriggered": {
+            "type": "boolean"
+          },
+          "isEnabled": {
+            "type": "boolean"
+          },
+          "nextExecutionAt": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date-time"
+          },
+          "lastExecutedAt": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date-time"
+          }
+        }
+      },
       "ConsumeInventoryItemEntry": {
         "required": [
           "inventoryItemPublicId",
@@ -7092,6 +7912,132 @@
           "consumedAt": {
             "type": "string",
             "format": "date-time"
+          }
+        }
+      },
+      "CreateAutomationRequest": {
+        "required": [
+          "scheduleType",
+          "scheduledTime",
+          "actionType"
+        ],
+        "type": "object",
+        "properties": {
+          "inventoryItemPublicId": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "uuid"
+          },
+          "productPublicId": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "uuid"
+          },
+          "shoppingListPublicId": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "uuid"
+          },
+          "scheduleType": {
+            "$ref": "#/components/schemas/ScheduleType"
+          },
+          "intervalDays": {
+            "maximum": 365,
+            "minimum": 1,
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "scheduledDaysOfWeek": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/DaysOfWeek"
+              }
+            ]
+          },
+          "scheduledDayOfMonth": {
+            "maximum": 31,
+            "minimum": 1,
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "scheduledTime": {
+            "type": "string",
+            "format": "time"
+          },
+          "actionType": {
+            "$ref": "#/components/schemas/AutomationActionType"
+          },
+          "consumeQuantity": {
+            "minimum": 0.001,
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d+)?$",
+            "type": [
+              "null",
+              "number",
+              "string"
+            ],
+            "format": "double"
+          },
+          "consumeUnit": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/Unit"
+              }
+            ]
+          },
+          "addQuantity": {
+            "minimum": 0.001,
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d+)?$",
+            "type": [
+              "null",
+              "number",
+              "string"
+            ],
+            "format": "double"
+          },
+          "addUnit": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/Unit"
+              }
+            ]
+          },
+          "thresholdQuantity": {
+            "minimum": 0.001,
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d+)?$",
+            "type": [
+              "null",
+              "number",
+              "string"
+            ],
+            "format": "double"
+          },
+          "isSharedWithFamily": {
+            "type": "boolean"
           }
         }
       },
@@ -7522,6 +8468,9 @@
       "Currency": {
         "type": "integer"
       },
+      "DaysOfWeek": {
+        "type": "integer"
+      },
       "DeadlineCountResponse": {
         "type": "object",
         "properties": {
@@ -7720,6 +8669,19 @@
           },
           "description": {
             "type": "string"
+          }
+        }
+      },
+      "ExecuteAutomationRequest": {
+        "type": "object",
+        "properties": {
+          "notes": {
+            "maxLength": 512,
+            "minLength": 0,
+            "type": [
+              "null",
+              "string"
+            ]
           }
         }
       },
@@ -9011,6 +9973,9 @@
           }
         }
       },
+      "ScheduleType": {
+        "type": "integer"
+      },
       "SelectValue": {
         "required": [
           "publicId",
@@ -9415,6 +10380,140 @@
             "maxLength": 2048,
             "minLength": 0,
             "type": "string"
+          }
+        }
+      },
+      "UpdateAutomationRequest": {
+        "type": "object",
+        "properties": {
+          "scheduleType": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/ScheduleType"
+              }
+            ]
+          },
+          "intervalDays": {
+            "maximum": 365,
+            "minimum": 1,
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "scheduledDaysOfWeek": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/DaysOfWeek"
+              }
+            ]
+          },
+          "scheduledDayOfMonth": {
+            "maximum": 31,
+            "minimum": 1,
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "scheduledTime": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "time"
+          },
+          "actionType": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/AutomationActionType"
+              }
+            ]
+          },
+          "consumeQuantity": {
+            "minimum": 0.001,
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d+)?$",
+            "type": [
+              "null",
+              "number",
+              "string"
+            ],
+            "format": "double"
+          },
+          "consumeUnit": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/Unit"
+              }
+            ]
+          },
+          "addQuantity": {
+            "minimum": 0.001,
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d+)?$",
+            "type": [
+              "null",
+              "number",
+              "string"
+            ],
+            "format": "double"
+          },
+          "addUnit": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/Unit"
+              }
+            ]
+          },
+          "shoppingListPublicId": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "uuid"
+          },
+          "productPublicId": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "uuid"
+          },
+          "thresholdQuantity": {
+            "minimum": 0.001,
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d+)?$",
+            "type": [
+              "null",
+              "number",
+              "string"
+            ],
+            "format": "double"
+          },
+          "isEnabled": {
+            "type": [
+              "null",
+              "boolean"
+            ]
           }
         }
       },
@@ -9966,6 +11065,9 @@
   "tags": [
     {
       "name": "Auth"
+    },
+    {
+      "name": "Automation"
     },
     {
       "name": "ErrorCodes"

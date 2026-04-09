@@ -69,4 +69,84 @@ public static class PushNotificationContentService
             _ => ("Homassy teszt értesítés", "Ez egy teszt push értesítés a Homassytól.", "Homassy megnyitása")
         };
     }
+
+    public static (string Title, string Body) GetAutomationNotificationContent(
+        Language language, string productName, decimal quantity, string unit)
+    {
+        return language switch
+        {
+            Language.Hungarian => (
+                "Automatikus felhasználás",
+                $"{quantity} {unit} felhasználva a(z) \"{productName}\" termékből."
+            ),
+            Language.German => (
+                "Automatischer Verbrauch",
+                $"{quantity} {unit} von \"{productName}\" wurde verbraucht."
+            ),
+            _ => (
+                "Automatic Consumption",
+                $"{quantity} {unit} of \"{productName}\" has been consumed."
+            )
+        };
+    }
+
+    public static (string Title, string Body) GetAutomationReminderContent(
+        Language language, string productName)
+    {
+        return language switch
+        {
+            Language.Hungarian => (
+                "Felhasználási emlékeztető",
+                $"Ideje felhasználni a(z) \"{productName}\" terméket."
+            ),
+            Language.German => (
+                "Verbrauchserinnerung",
+                $"Es ist Zeit, \"{productName}\" zu verwenden."
+            ),
+            _ => (
+                "Usage Reminder",
+                $"It's time to use \"{productName}\"."
+            )
+        };
+    }
+
+    public static (string Title, string Body) GetShoppingListAutomationContent(
+        Language language, string productName, decimal quantity, string unit, string shoppingListName)
+    {
+        return language switch
+        {
+            Language.Hungarian => (
+                "Bevásárlólistához adva",
+                $"{quantity} {unit} \"{productName}\" hozzáadva a(z) \"{shoppingListName}\" bevásárlólistához."
+            ),
+            Language.German => (
+                "Zur Einkaufsliste hinzugefügt",
+                $"{quantity} {unit} \"{productName}\" wurde zur Einkaufsliste \"{shoppingListName}\" hinzugefügt."
+            ),
+            _ => (
+                "Added to Shopping List",
+                $"{quantity} {unit} of \"{productName}\" has been added to the \"{shoppingListName}\" shopping list."
+            )
+        };
+    }
+
+    public static (string Title, string Body) GetLowStockNotificationContent(
+        Language language, string productName, decimal totalStock, decimal thresholdQuantity, string shoppingListName)
+    {
+        return language switch
+        {
+            Language.Hungarian => (
+                "Alacsony készletszint",
+                $"A(z) \"{productName}\" készlete ({totalStock}) a küszöbérték ({thresholdQuantity}) alá csökkent. Hozzáadva a(z) \"{shoppingListName}\" bevásárlólistához."
+            ),
+            Language.German => (
+                "Niedriger Lagerbestand",
+                $"Der Bestand von \"{productName}\" ({totalStock}) ist unter den Schwellenwert ({thresholdQuantity}) gefallen. Zur Einkaufsliste \"{shoppingListName}\" hinzugefügt."
+            ),
+            _ => (
+                "Low Stock Alert",
+                $"Stock of \"{productName}\" ({totalStock}) dropped below threshold ({thresholdQuantity}). Added to the \"{shoppingListName}\" shopping list."
+            )
+        };
+    }
 }

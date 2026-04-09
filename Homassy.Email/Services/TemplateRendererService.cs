@@ -6,12 +6,14 @@ public sealed class TemplateRendererService : ITemplateRendererService
 {
     private readonly string _codeTemplate;
     private readonly string _weeklySummaryTemplate;
+    private readonly string _automationNotificationTemplate;
 
     public TemplateRendererService()
     {
         var assembly = Assembly.GetExecutingAssembly();
         _codeTemplate = LoadResource(assembly, "Homassy.Email.Templates.CodeEmail.html");
         _weeklySummaryTemplate = LoadResource(assembly, "Homassy.Email.Templates.WeeklySummaryEmail.html");
+        _automationNotificationTemplate = LoadResource(assembly, "Homassy.Email.Templates.AutomationNotificationEmail.html");
     }
 
     private static string LoadResource(Assembly assembly, string resourceName)
@@ -27,6 +29,9 @@ public sealed class TemplateRendererService : ITemplateRendererService
 
     public string RenderWeeklySummary(Dictionary<string, string> tokens)
         => ApplyTokens(_weeklySummaryTemplate, tokens);
+
+    public string RenderAutomationNotification(Dictionary<string, string> tokens)
+        => ApplyTokens(_automationNotificationTemplate, tokens);
 
     private static string ApplyTokens(string template, Dictionary<string, string> tokens)
     {

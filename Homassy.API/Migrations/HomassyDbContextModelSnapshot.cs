@@ -272,6 +272,150 @@ namespace Homassy.API.Migrations
                     b.ToTable("StorageLocations");
                 });
 
+            modelBuilder.Entity("Homassy.API.Entities.Product.ItemAutomation", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<int>("ActionType")
+                        .HasColumnType("integer");
+
+                    b.Property<decimal?>("AddQuantity")
+                        .HasColumnType("numeric");
+
+                    b.Property<int?>("AddUnit")
+                        .HasColumnType("integer");
+
+                    b.Property<decimal?>("ConsumeQuantity")
+                        .HasColumnType("numeric");
+
+                    b.Property<int?>("ConsumeUnit")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("CreatedByUserId")
+                        .HasColumnType("integer");
+
+                    b.Property<int?>("FamilyId")
+                        .HasColumnType("integer");
+
+                    b.Property<int?>("IntervalDays")
+                        .HasColumnType("integer");
+
+                    b.Property<bool>("IsDeleted")
+                        .HasColumnType("boolean");
+
+                    b.Property<bool>("IsEnabled")
+                        .HasColumnType("boolean");
+
+                    b.Property<bool>("IsTriggered")
+                        .HasColumnType("boolean");
+
+                    b.Property<DateTime?>("LastExecutedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTime?>("NextExecutionAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<int?>("ProductId")
+                        .HasColumnType("integer");
+
+                    b.Property<int?>("ProductInventoryItemId")
+                        .HasColumnType("integer");
+
+                    b.Property<Guid>("PublicId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasDefaultValueSql("gen_random_uuid()");
+
+                    b.Property<string>("RecordChange")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<int>("ScheduleType")
+                        .HasColumnType("integer");
+
+                    b.Property<int?>("ScheduledDayOfMonth")
+                        .HasColumnType("integer");
+
+                    b.Property<int?>("ScheduledDaysOfWeek")
+                        .HasColumnType("integer");
+
+                    b.Property<TimeOnly>("ScheduledTime")
+                        .HasColumnType("time without time zone");
+
+                    b.Property<int?>("ShoppingListId")
+                        .HasColumnType("integer");
+
+                    b.Property<decimal?>("ThresholdQuantity")
+                        .HasColumnType("numeric");
+
+                    b.Property<int?>("UserId")
+                        .HasColumnType("integer");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ProductId");
+
+                    b.HasIndex("ProductInventoryItemId");
+
+                    b.HasIndex("ShoppingListId");
+
+                    b.HasIndex("IsEnabled", "NextExecutionAt");
+
+                    b.ToTable("ItemAutomations");
+                });
+
+            modelBuilder.Entity("Homassy.API.Entities.Product.ItemAutomationExecution", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<decimal?>("ConsumedQuantity")
+                        .HasColumnType("numeric");
+
+                    b.Property<DateTime>("ExecutedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<bool>("IsDeleted")
+                        .HasColumnType("boolean");
+
+                    b.Property<int>("ItemAutomationId")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("Notes")
+                        .HasMaxLength(512)
+                        .HasColumnType("character varying(512)");
+
+                    b.Property<Guid>("PublicId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasDefaultValueSql("gen_random_uuid()");
+
+                    b.Property<string>("RecordChange")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<int>("Status")
+                        .HasColumnType("integer");
+
+                    b.Property<int?>("TriggeredByUserId")
+                        .HasColumnType("integer");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ExecutedAt");
+
+                    b.HasIndex("ItemAutomationId");
+
+                    b.ToTable("ItemAutomationExecutions");
+                });
+
             modelBuilder.Entity("Homassy.API.Entities.Product.Product", b =>
                 {
                     b.Property<int>("Id")
@@ -826,6 +970,41 @@ namespace Homassy.API.Migrations
                     b.ToTable("UserPushSubscriptions");
                 });
 
+            modelBuilder.Entity("Homassy.API.Entities.Product.ItemAutomation", b =>
+                {
+                    b.HasOne("Homassy.API.Entities.Product.Product", "Product")
+                        .WithMany()
+                        .HasForeignKey("ProductId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.HasOne("Homassy.API.Entities.Product.ProductInventoryItem", "ProductInventoryItem")
+                        .WithMany("Automations")
+                        .HasForeignKey("ProductInventoryItemId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.HasOne("Homassy.API.Entities.ShoppingList.ShoppingList", "ShoppingList")
+                        .WithMany()
+                        .HasForeignKey("ShoppingListId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.Navigation("Product");
+
+                    b.Navigation("ProductInventoryItem");
+
+                    b.Navigation("ShoppingList");
+                });
+
+            modelBuilder.Entity("Homassy.API.Entities.Product.ItemAutomationExecution", b =>
+                {
+                    b.HasOne("Homassy.API.Entities.Product.ItemAutomation", "ItemAutomation")
+                        .WithMany("Executions")
+                        .HasForeignKey("ItemAutomationId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("ItemAutomation");
+                });
+
             modelBuilder.Entity("Homassy.API.Entities.Product.ProductConsumptionLog", b =>
                 {
                     b.HasOne("Homassy.API.Entities.Product.ProductInventoryItem", "ProductInventoryItem")
@@ -938,6 +1117,11 @@ namespace Homassy.API.Migrations
                     b.Navigation("InventoryItems");
                 });
 
+            modelBuilder.Entity("Homassy.API.Entities.Product.ItemAutomation", b =>
+                {
+                    b.Navigation("Executions");
+                });
+
             modelBuilder.Entity("Homassy.API.Entities.Product.Product", b =>
                 {
                     b.Navigation("Customizations");
@@ -947,6 +1131,8 @@ namespace Homassy.API.Migrations
 
             modelBuilder.Entity("Homassy.API.Entities.Product.ProductInventoryItem", b =>
                 {
+                    b.Navigation("Automations");
+
                     b.Navigation("ConsumptionLogs");
 
                     b.Navigation("PurchaseInfo");

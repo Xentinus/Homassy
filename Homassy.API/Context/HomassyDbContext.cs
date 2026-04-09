@@ -141,6 +141,44 @@ namespace Homassy.API.Context
                 .WithMany(s => s.Purchases)
                 .HasForeignKey(p => p.ShoppingLocationId)
                 .OnDelete(DeleteBehavior.SetNull);
+
+            modelBuilder.Entity<ProductInventoryItem>()
+                .HasMany(i => i.Automations)
+                .WithOne(a => a.ProductInventoryItem)
+                .HasForeignKey(a => a.ProductInventoryItemId)
+                .OnDelete(DeleteBehavior.SetNull);
+
+            modelBuilder.Entity<ItemAutomation>()
+                .HasOne(a => a.Product)
+                .WithMany()
+                .HasForeignKey(a => a.ProductId)
+                .OnDelete(DeleteBehavior.SetNull);
+
+            modelBuilder.Entity<ItemAutomation>()
+                .HasOne(a => a.ShoppingList)
+                .WithMany()
+                .HasForeignKey(a => a.ShoppingListId)
+                .OnDelete(DeleteBehavior.SetNull);
+
+            modelBuilder.Entity<ItemAutomation>()
+                .HasMany(a => a.Executions)
+                .WithOne(e => e.ItemAutomation)
+                .HasForeignKey(e => e.ItemAutomationId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            modelBuilder.Entity<ItemAutomation>(entity =>
+            {
+                entity.HasIndex(e => e.ProductInventoryItemId);
+                entity.HasIndex(e => e.ProductId);
+                entity.HasIndex(e => e.ShoppingListId);
+                entity.HasIndex(e => new { e.IsEnabled, e.NextExecutionAt });
+            });
+
+            modelBuilder.Entity<ItemAutomationExecution>(entity =>
+            {
+                entity.HasIndex(e => e.ItemAutomationId);
+                entity.HasIndex(e => e.ExecutedAt);
+            });
             #endregion
 
             #region ShoppingList Relationships
@@ -211,6 +249,8 @@ namespace Homassy.API.Context
         public DbSet<ProductPurchaseInfo> ProductPurchaseInfos { get; set; }
         public DbSet<ProductConsumptionLog> ProductConsumptionLogs { get; set; }
         public DbSet<ProductCustomization> ProductCustomizations { get; set; }
+        public DbSet<ItemAutomation> ItemAutomations { get; set; }
+        public DbSet<ItemAutomationExecution> ItemAutomationExecutions { get; set; }
         #endregion
 
         #region Location Related DbSets

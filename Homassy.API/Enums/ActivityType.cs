@@ -34,6 +34,12 @@ namespace Homassy.API.Enums
 
         // ShoppingListItem Activities (continued)
         ShoppingListItemQuickPurchase = 21,
-        ShoppingListItemRestorePurchase = 22
+        ShoppingListItemRestorePurchase = 22,
+
+        // Automation Activities (23-26)
+        AutomationCreate = 23,
+        AutomationUpdate = 24,
+        AutomationDelete = 25,
+        AutomationExecute = 26
     }
 }

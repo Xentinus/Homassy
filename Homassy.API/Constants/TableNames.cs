@@ -21,5 +21,8 @@
         public const string ShoppingListItems = "ShoppingListItems";
 
         public const string Activities = "Activities";
+
+        public const string ItemAutomations = "ItemAutomations";
+        public const string ItemAutomationExecutions = "ItemAutomationExecutions";
     }
 }

@@ -41,6 +41,7 @@ try
     app.MapPost("/kratos/webhook", KratosWebhookEndpoint.HandleAsync);
     app.MapPost("/email/send", SendEmailEndpoint.HandleAsync);
     app.MapPost("/email/weekly-summary", WeeklySummaryEndpoint.HandleAsync);
+    app.MapPost("/email/automation-notification", AutomationNotificationEndpoint.HandleAsync);
     app.MapHealthChecks("/health/live", new HealthCheckOptions { Predicate = _ => false });
     app.MapHealthChecks("/health/ready", new HealthCheckOptions
     {

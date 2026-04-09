@@ -331,4 +331,114 @@ public sealed class EmailContentService : IEmailContentService
 
         return sb.ToString();
     }
+
+    // ─── Automation Notification ─────────────────────────────────────────────────
+
+    public string GetAutomationSubject(Language language, string actionType) => actionType switch
+    {
+        "auto_consume" => language switch
+        {
+            Language.Hungarian => "Homassy - Automatikus felhasználás",
+            Language.German => "Homassy - Automatischer Verbrauch",
+            _ => "Homassy - Automatic Consumption"
+        },
+        "insufficient_quantity" => language switch
+        {
+            Language.Hungarian => "Homassy - Elégtelen készlet",
+            Language.German => "Homassy - Unzureichender Bestand",
+            _ => "Homassy - Insufficient Inventory"
+        },
+        "add_to_shopping_list" => language switch
+        {
+            Language.Hungarian => "Homassy - Bevásárlólistához adva",
+            Language.German => "Homassy - Zur Einkaufsliste hinzugefügt",
+            _ => "Homassy - Added to Shopping List"
+        },
+        _ => language switch // notify_only
+        {
+            Language.Hungarian => "Homassy - Felhasználási emlékeztető",
+            Language.German => "Homassy - Verbrauchserinnerung",
+            _ => "Homassy - Usage Reminder"
+        }
+    };
+
+    public string GetAutomationGreeting(Language language, string actionType) => actionType switch
+    {
+        "auto_consume" => language switch
+        {
+            Language.Hungarian => "Automatikus felhasználás",
+            Language.German => "Automatischer Verbrauch",
+            _ => "Automatic Consumption"
+        },
+        "insufficient_quantity" => language switch
+        {
+            Language.Hungarian => "Elégtelen készlet",
+            Language.German => "Unzureichender Bestand",
+            _ => "Insufficient Inventory"
+        },
+        "add_to_shopping_list" => language switch
+        {
+            Language.Hungarian => "Bevásárlólistához adva",
+            Language.German => "Zur Einkaufsliste hinzugefügt",
+            _ => "Added to Shopping List"
+        },
+        _ => language switch
+        {
+            Language.Hungarian => "Felhasználási emlékeztető",
+            Language.German => "Verbrauchserinnerung",
+            _ => "Usage Reminder"
+        }
+    };
+
+    public string GetAutomationMessage(Language language, string? name, string productName, string actionType, decimal? quantity, string? unit)
+    {
+        var greeting = string.IsNullOrWhiteSpace(name) ? string.Empty : language switch
+        {
+            Language.Hungarian => $"Szia, {name}! ",
+            Language.German => $"Hallo, {name}! ",
+            _ => $"Hello, {name}! "
+        };
+
+        return greeting + actionType switch
+        {
+            "auto_consume" => language switch
+            {
+                Language.Hungarian => $"{quantity} {unit} felhasználva a(z) \"{productName}\" termékből.",
+                Language.German => $"{quantity} {unit} von \"{productName}\" wurde automatisch verbraucht.",
+                _ => $"{quantity} {unit} of \"{productName}\" has been automatically consumed."
+            },
+            "insufficient_quantity" => language switch
+            {
+                Language.Hungarian => $"A(z) \"{productName}\" termékből nem áll rendelkezésre elegendő mennyiség az automatikus felhasználáshoz.",
+                Language.German => $"Für \"{productName}\" steht nicht genügend Menge für den automatischen Verbrauch zur Verfügung.",
+                _ => $"There is not enough quantity of \"{productName}\" available for automatic consumption."
+            },
+            "add_to_shopping_list" => language switch
+            {
+                Language.Hungarian => $"{quantity} {unit} \"{productName}\" hozzáadva a bevásárlólistához.",
+                Language.German => $"{quantity} {unit} \"{productName}\" wurde zur Einkaufsliste hinzugefügt.",
+                _ => $"{quantity} {unit} of \"{productName}\" has been added to the shopping list."
+            },
+            _ => language switch
+            {
+                Language.Hungarian => $"Ideje felhasználni a(z) \"{productName}\" terméket.",
+                Language.German => $"Es ist Zeit, \"{productName}\" zu verwenden.",
+                _ => $"It's time to use \"{productName}\"."
+            }
+        };
+    }
+
+    public string GetAutomationPlainText(Language language, string? name, string productName, string actionType, decimal? quantity, string? unit)
+    {
+        var sb = new System.Text.StringBuilder();
+
+        sb.AppendLine(GetAutomationGreeting(language, actionType));
+        sb.AppendLine();
+        sb.AppendLine(GetAutomationMessage(language, name, productName, actionType, quantity, unit));
+        sb.AppendLine();
+        sb.AppendLine(GetFooterCopyright(language));
+        sb.AppendLine(GetFooterAutoMessage(language));
+
+        return sb.ToString();
+    }
 }
