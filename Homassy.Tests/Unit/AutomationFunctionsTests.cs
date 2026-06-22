@@ -1,7 +1,6 @@
 ﻿using Homassy.API.Enums;
 using Homassy.API.Exceptions;
 using Homassy.API.Functions;
-using ApiUnit = Homassy.API.Enums.Unit;
 
 namespace Homassy.Tests.Unit;
 
@@ -418,49 +417,42 @@ public class AutomationFunctionsTests
     [Fact]
     public void ValidateActionType_AutoConsume_Valid()
     {
-        AutomationFunctions.ValidateActionType(AutomationActionType.AutoConsume, 1.5m, ApiUnit.Piece);
+        AutomationFunctions.ValidateActionType(AutomationActionType.AutoConsume, 1.5m);
     }
 
     [Fact]
     public void ValidateActionType_AutoConsume_NoQuantity_Throws()
     {
         Assert.Throws<AutomationInvalidScheduleException>(() =>
-            AutomationFunctions.ValidateActionType(AutomationActionType.AutoConsume, null, ApiUnit.Piece));
+            AutomationFunctions.ValidateActionType(AutomationActionType.AutoConsume, null));
     }
 
     [Fact]
     public void ValidateActionType_AutoConsume_ZeroQuantity_Throws()
     {
         Assert.Throws<AutomationInvalidScheduleException>(() =>
-            AutomationFunctions.ValidateActionType(AutomationActionType.AutoConsume, 0, ApiUnit.Piece));
+            AutomationFunctions.ValidateActionType(AutomationActionType.AutoConsume, 0));
     }
 
     [Fact]
     public void ValidateActionType_AutoConsume_NegativeQuantity_Throws()
     {
         Assert.Throws<AutomationInvalidScheduleException>(() =>
-            AutomationFunctions.ValidateActionType(AutomationActionType.AutoConsume, -1m, ApiUnit.Piece));
-    }
-
-    [Fact]
-    public void ValidateActionType_AutoConsume_NoUnit_Throws()
-    {
-        Assert.Throws<AutomationInvalidScheduleException>(() =>
-            AutomationFunctions.ValidateActionType(AutomationActionType.AutoConsume, 1.5m, null));
+            AutomationFunctions.ValidateActionType(AutomationActionType.AutoConsume, -1m));
     }
 
     [Fact]
     public void ValidateActionType_NotifyOnly_NoQuantity_DoesNotThrow()
     {
         // NotifyOnly does not require quantity or unit
-        AutomationFunctions.ValidateActionType(AutomationActionType.NotifyOnly, null, null);
+        AutomationFunctions.ValidateActionType(AutomationActionType.NotifyOnly, null);
     }
 
     [Fact]
     public void ValidateActionType_NotifyOnly_WithQuantity_DoesNotThrow()
     {
         // NotifyOnly can optionally have quantity (ignored)
-        AutomationFunctions.ValidateActionType(AutomationActionType.NotifyOnly, 1.0m, ApiUnit.Piece);
+        AutomationFunctions.ValidateActionType(AutomationActionType.NotifyOnly, 1.0m);
     }
 
     #endregion
@@ -732,8 +724,8 @@ public class AutomationFunctionsTests
     {
         AutomationFunctions.ValidateActionType(
             AutomationActionType.AddToShoppingList,
-            null, null,
-            Guid.NewGuid(), Guid.NewGuid(), 1.0m, ApiUnit.Piece);
+            null,
+            Guid.NewGuid(), Guid.NewGuid(), 1.0m);
     }
 
     [Fact]
@@ -742,8 +734,8 @@ public class AutomationFunctionsTests
         Assert.Throws<AutomationInvalidScheduleException>(() =>
             AutomationFunctions.ValidateActionType(
                 AutomationActionType.AddToShoppingList,
-                null, null,
-                null, Guid.NewGuid(), 1.0m, ApiUnit.Piece));
+                null,
+                null, Guid.NewGuid(), 1.0m));
     }
 
     [Fact]
@@ -752,8 +744,8 @@ public class AutomationFunctionsTests
         Assert.Throws<AutomationInvalidScheduleException>(() =>
             AutomationFunctions.ValidateActionType(
                 AutomationActionType.AddToShoppingList,
-                null, null,
-                Guid.NewGuid(), null, 1.0m, ApiUnit.Piece));
+                null,
+                Guid.NewGuid(), null, 1.0m));
     }
 
     [Fact]
@@ -762,8 +754,8 @@ public class AutomationFunctionsTests
         Assert.Throws<AutomationInvalidScheduleException>(() =>
             AutomationFunctions.ValidateActionType(
                 AutomationActionType.AddToShoppingList,
-                null, null,
-                Guid.NewGuid(), Guid.NewGuid(), null, ApiUnit.Piece));
+                null,
+                Guid.NewGuid(), Guid.NewGuid(), null));
     }
 
     [Fact]
@@ -772,18 +764,8 @@ public class AutomationFunctionsTests
         Assert.Throws<AutomationInvalidScheduleException>(() =>
             AutomationFunctions.ValidateActionType(
                 AutomationActionType.AddToShoppingList,
-                null, null,
-                Guid.NewGuid(), Guid.NewGuid(), 0m, ApiUnit.Piece));
-    }
-
-    [Fact]
-    public void ValidateActionType_AddToShoppingList_NoUnit_Throws()
-    {
-        Assert.Throws<AutomationInvalidScheduleException>(() =>
-            AutomationFunctions.ValidateActionType(
-                AutomationActionType.AddToShoppingList,
-                null, null,
-                Guid.NewGuid(), Guid.NewGuid(), 1.0m, null));
+                null,
+                Guid.NewGuid(), Guid.NewGuid(), 0m));
     }
 
     #endregion

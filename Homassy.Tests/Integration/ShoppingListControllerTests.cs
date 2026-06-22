@@ -667,7 +667,7 @@ public class ShoppingListControllerTests : IClassFixture<HomassyWebApplicationFa
             testEmail = email;
             _authHelper.SetAuthToken(auth.AccessToken);
 
-            var productRequest = new CreateProductRequest { Name = "Test Product", Brand = "Test Brand" };
+            var productRequest = new CreateProductRequest { Unit = ProductUnit.Piece, Name = "Test Product", Brand = "Test Brand" };
             var productResponse = await _client.PostAsJsonAsync("/api/v1.0/product", productRequest);
             var productContent = await productResponse.Content.ReadFromJsonAsync<ApiResponse<ProductInfo>>();
             productId = productContent?.Data?.PublicId;
@@ -735,6 +735,7 @@ public class ShoppingListControllerTests : IClassFixture<HomassyWebApplicationFa
             _output.WriteLine("=== Step 1: Create Product ===");
             var productRequest = new CreateProductRequest
             {
+                Unit = ProductUnit.Piece,
                 Name = "Organic Milk",
                 Brand = "Test Dairy",
                 IsEatable = true
@@ -819,7 +820,7 @@ public class ShoppingListControllerTests : IClassFixture<HomassyWebApplicationFa
             testEmail = email;
             _authHelper.SetAuthToken(auth.AccessToken);
 
-            var productRequest = new CreateProductRequest { Name = "Test Product", Brand = "Test Brand" };
+            var productRequest = new CreateProductRequest { Unit = ProductUnit.Piece, Name = "Test Product", Brand = "Test Brand" };
             var productResponse = await _client.PostAsJsonAsync("/api/v1.0/product", productRequest);
             var productContent = await productResponse.Content.ReadFromJsonAsync<ApiResponse<ProductInfo>>();
             productId = productContent?.Data?.PublicId;
@@ -1147,12 +1148,12 @@ public class ShoppingListControllerTests : IClassFixture<HomassyWebApplicationFa
             testEmail = email;
             _authHelper.SetAuthToken(auth.AccessToken);
 
-            var product1Request = new CreateProductRequest { Name = "Product 1", Brand = "Brand" };
+            var product1Request = new CreateProductRequest { Unit = ProductUnit.Piece, Name = "Product 1", Brand = "Brand" };
             var product1Response = await _client.PostAsJsonAsync("/api/v1.0/product", product1Request);
             var product1Content = await product1Response.Content.ReadFromJsonAsync<ApiResponse<ProductInfo>>();
             productId1 = product1Content?.Data?.PublicId;
 
-            var product2Request = new CreateProductRequest { Name = "Product 2", Brand = "Brand" };
+            var product2Request = new CreateProductRequest { Unit = ProductUnit.Piece, Name = "Product 2", Brand = "Brand" };
             var product2Response = await _client.PostAsJsonAsync("/api/v1.0/product", product2Request);
             var product2Content = await product2Response.Content.ReadFromJsonAsync<ApiResponse<ProductInfo>>();
             productId2 = product2Content?.Data?.PublicId;

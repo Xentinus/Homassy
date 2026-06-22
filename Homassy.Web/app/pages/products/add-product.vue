@@ -123,6 +123,16 @@
                   />
                 </UFormField>
 
+                <UFormField :label="t('pages.addProduct.form.unit')" name="unit" required>
+                  <USelect
+                    v-model="formData.unit"
+                    :items="unitOptions"
+                    :placeholder="t('pages.addProduct.form.unitPlaceholder')"
+                    :disabled="isCreating"
+                    class="w-full"
+                  />
+                </UFormField>
+
                 <UFormField :label="t('pages.addProduct.form.barcode')" name="barcode">
                   <UFieldGroup size="md" orientation="horizontal" class="w-full">
                     <UInput
@@ -687,7 +697,7 @@
             :state="inventoryFormData"
             class="space-y-4"
           >
-            <!-- Quantity (Required) -->
+            <!-- Quantity (Required) — unit is inherited from the product -->
             <UFormField :label="t('pages.addProduct.inventory.form.quantity')" name="quantity" required>
             <UInput
               v-model.number="inventoryFormData.quantity"
@@ -697,18 +707,11 @@
               :placeholder="t('pages.addProduct.inventory.form.quantityPlaceholder')"
               :disabled="isCreatingInventory"
               class="w-full"
-            />
-          </UFormField>
-
-          <!-- Unit (Required) -->
-          <UFormField :label="t('pages.addProduct.inventory.form.unit')" name="unit" required>
-            <USelect
-              v-model="inventoryFormData.unit"
-              :items="unitOptions"
-              :placeholder="t('pages.addProduct.inventory.form.unitPlaceholder')"
-              :disabled="isCreatingInventory"
-              class="w-full"
-            />
+            >
+              <template v-if="productUnitLabel" #trailing>
+                <span class="text-sm text-gray-500 dark:text-gray-400">{{ productUnitLabel }}</span>
+              </template>
+            </UInput>
           </UFormField>
 
           <!-- Expiration Date (Optional) -->
@@ -898,28 +901,21 @@
             class="space-y-4"
             @submit="onAddIndividualItem"
           >
-            <!-- Quantity + Unit (side by side) -->
-            <div class="grid grid-cols-2 gap-4">
-              <UFormField :label="t('pages.addProduct.inventory.form.quantity')" name="quantity" required>
-                <UInput
-                  v-model.number="inventoryFormData.quantity"
-                  type="number"
-                  step="0.01"
-                  min="0.01"
-                  :placeholder="t('pages.addProduct.inventory.form.quantityPlaceholder')"
-                  class="w-full"
-                />
-              </UFormField>
-
-              <UFormField :label="t('pages.addProduct.inventory.form.unit')" name="unit" required>
-                <USelect
-                  v-model="inventoryFormData.unit"
-                  :items="unitOptions"
-                  :placeholder="t('pages.addProduct.inventory.form.unitPlaceholder')"
-                  class="w-full"
-                />
-              </UFormField>
-            </div>
+            <!-- Quantity (unit is inherited from the product) -->
+            <UFormField :label="t('pages.addProduct.inventory.form.quantity')" name="quantity" required>
+              <UInput
+                v-model.number="inventoryFormData.quantity"
+                type="number"
+                step="0.01"
+                min="0.01"
+                :placeholder="t('pages.addProduct.inventory.form.quantityPlaceholder')"
+                class="w-full"
+              >
+                <template v-if="productUnitLabel" #trailing>
+                  <span class="text-sm text-gray-500 dark:text-gray-400">{{ productUnitLabel }}</span>
+                </template>
+              </UInput>
+            </UFormField>
 
             <!-- Expiration Date -->
             <UFormField :label="t('pages.addProduct.inventory.form.expirationAt')" name="expirationAt">
@@ -1206,6 +1202,7 @@ const formData = ref<CreateProductRequest>({
   name: '',
   brand: '',
   category: undefined,
+  unit: Unit.Piece,
   barcode: '',
   isEatable: false,
   notes: '',
@@ -1300,6 +1297,16 @@ const unitOptions = computed(() => {
     }))
 })
 
+// The inventory created in this flow always inherits the product's unit.
+const productUnitLabel = computed(() =>
+  formData.value.unit !== undefined ? t(`enums.unit.${formData.value.unit}`) : ''
+)
+
+// Keep the inventory form/items in sync with the chosen product unit.
+watch(() => formData.value.unit, (unit) => {
+  inventoryFormData.value.unit = unit
+}, { immediate: true })
+
 // Currency options for dropdown
 const currencyOptions = computed(() => {
   return [
@@ -1316,6 +1323,7 @@ const createProductSchema = z.object({
   brand: z.string({ required_error: 'A márka kötelező' })
     .min(1, 'A márka kötelező'),
   category: z.nativeEnum(ProductCategory).optional(),
+  unit: z.nativeEnum(Unit, { required_error: 'Unit is required' }),
   barcode: z.string().optional(),
   isEatable: z.boolean().optional().default(false),
   notes: z.string().optional(),
@@ -1767,6 +1775,7 @@ const onCreateProduct = async (event: FormSubmitEvent<CreateProductSchema>) => {
       name: event.data.name,
       brand: event.data.brand,
       category: event.data.category || null,
+      unit: event.data.unit,
       barcode: event.data.barcode?.trim() || null,
       notes: event.data.notes?.trim() || null,
       isEatable: event.data.isEatable,
@@ -1885,7 +1894,7 @@ const resetInventoryForm = () => {
   inventoryFormData.value = {
     productPublicId: '',
     quantity: 1,
-    unit: undefined,
+    unit: formData.value.unit,
     expirationAt: null,
     price: undefined,
     currency: undefined,
@@ -1943,7 +1952,6 @@ const buildInventoryRequest = (itemData: IndividualInventoryItem | InventoryForm
     storageLocationPublicId: selectedStorageLocationId.value || undefined,
     shoppingLocationPublicId: selectedShoppingLocationId.value || undefined,
     quantity: itemData.quantity,
-    unit: itemData.unit!,
     expirationAt: convertCalendarDateToISO(itemData.expirationAt || null),
     price: itemData.price && itemData.price > 0 ? itemData.price : undefined,
     currency: itemData.price && itemData.price > 0 ? itemData.currency : undefined,
@@ -2139,7 +2147,6 @@ const onCreateInventory = async (event: FormSubmitEvent<CreateInventorySchema>) 
       storageLocationPublicId: selectedStorageLocationId.value || undefined,
       shoppingLocationPublicId: selectedShoppingLocationId.value || undefined,
       quantity: event.data.quantity,
-      unit: event.data.unit,
       expirationAt: expirationAtString,
       price: event.data.price,
       currency: event.data.currency,

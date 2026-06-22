@@ -427,6 +427,8 @@
         "brandPlaceholder": "e.g. Mizo",
         "category": "Category",
         "categoryPlaceholder": "e.g. Dairy",
+        "unit": "Unit of measure",
+        "unitPlaceholder": "Select unit",
         "barcode": "Barcode",
         "barcodePlaceholder": "e.g. 5998200119874",
         "barcodeQuery": "Query",

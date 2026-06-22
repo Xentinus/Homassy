@@ -313,23 +313,17 @@
             <p class="text-xs text-gray-500 dark:text-gray-400 mb-2">
               {{ t('profile.automation.create.lowStockAddQuantityDescription') }}
             </p>
-            <div class="flex gap-2">
-              <UInput
-                v-model.number="form.addQuantity"
-                type="number"
-                :min="0.001"
-                step="0.1"
-                class="flex-1"
-              />
-              <USelect
-                v-model="form.addUnit"
-                :items="unitOptions"
-                value-key="value"
-                label-key="label"
-                :placeholder="t('common.unit')"
-                class="w-32"
-              />
-            </div>
+            <UInput
+              v-model.number="form.addQuantity"
+              type="number"
+              :min="0.001"
+              step="0.1"
+              class="w-full"
+            >
+              <template v-if="selectedUnitLabel" #trailing>
+                <span class="text-sm text-gray-500 dark:text-gray-400">{{ selectedUnitLabel }}</span>
+              </template>
+            </UInput>
           </div>
         </div>
 
@@ -353,23 +347,17 @@
             <label class="block text-sm font-medium mb-1">
               {{ t('common.quantity') }}
             </label>
-            <div class="flex gap-2">
-              <UInput
-                v-model.number="form.consumeQuantity"
-                type="number"
-                :min="0.001"
-                step="0.1"
-                class="flex-1"
-              />
-              <USelect
-                v-model="form.consumeUnit"
-                :items="unitOptions"
-                value-key="value"
-                label-key="label"
-                :placeholder="t('common.unit')"
-                class="w-32"
-              />
-            </div>
+            <UInput
+              v-model.number="form.consumeQuantity"
+              type="number"
+              :min="0.001"
+              step="0.1"
+              class="w-full"
+            >
+              <template v-if="selectedUnitLabel" #trailing>
+                <span class="text-sm text-gray-500 dark:text-gray-400">{{ selectedUnitLabel }}</span>
+              </template>
+            </UInput>
           </div>
 
           <!-- Add Quantity (for AddToShoppingList) -->
@@ -377,23 +365,17 @@
             <label class="block text-sm font-medium mb-1">
               {{ t('profile.automation.addQuantity') }} <span class="text-red-500">*</span>
             </label>
-            <div class="flex gap-2">
-              <UInput
-                v-model.number="form.addQuantity"
-                type="number"
-                :min="0.001"
-                step="0.1"
-                class="flex-1"
-              />
-              <USelect
-                v-model="form.addUnit"
-                :items="unitOptions"
-                value-key="value"
-                label-key="label"
-                :placeholder="t('common.unit')"
-                class="w-32"
-              />
-            </div>
+            <UInput
+              v-model.number="form.addQuantity"
+              type="number"
+              :min="0.001"
+              step="0.1"
+              class="w-full"
+            >
+              <template v-if="selectedUnitLabel" #trailing>
+                <span class="text-sm text-gray-500 dark:text-gray-400">{{ selectedUnitLabel }}</span>
+              </template>
+            </UInput>
           </div>
           <div class="flex items-center gap-2">
             <UCheckbox
@@ -443,17 +425,17 @@
 
             <div v-if="form.actionType === AutomationActionType.AutoConsume && form.consumeQuantity" class="flex justify-between text-sm">
               <span class="text-gray-500 dark:text-gray-400">{{ t('common.quantity') }}</span>
-              <span class="font-medium">{{ form.consumeQuantity }} {{ form.consumeUnit !== undefined ? t(`enums.unit.${form.consumeUnit}`) : '' }}</span>
+              <span class="font-medium">{{ form.consumeQuantity }} {{ selectedUnitLabel }}</span>
             </div>
 
             <div v-if="form.actionType === AutomationActionType.AddToShoppingList && form.addQuantity" class="flex justify-between text-sm">
               <span class="text-gray-500 dark:text-gray-400">{{ t('profile.automation.addQuantity') }}</span>
-              <span class="font-medium">{{ form.addQuantity }} {{ form.addUnit !== undefined ? t(`enums.unit.${form.addUnit}`) : '' }}</span>
+              <span class="font-medium">{{ form.addQuantity }} {{ selectedUnitLabel }}</span>
             </div>
 
             <div v-if="form.actionType === AutomationActionType.LowStockAddToShoppingList && form.addQuantity" class="flex justify-between text-sm">
               <span class="text-gray-500 dark:text-gray-400">{{ t('profile.automation.addQuantity') }}</span>
-              <span class="font-medium">{{ form.addQuantity }} {{ form.addUnit !== undefined ? t(`enums.unit.${form.addUnit}`) : '' }}</span>
+              <span class="font-medium">{{ form.addQuantity }} {{ selectedUnitLabel }}</span>
             </div>
           </div>
         </div>
@@ -485,7 +467,6 @@ import {
 import type { CreateAutomationRequest } from '~/types/automation'
 import type { ProductInfo, DetailedProductInfo } from '~/types/product'
 import type { ShoppingListInfo } from '~/types/shoppingList'
-import { Unit } from '~/types/enums'
 
 definePageMeta({ layout: 'auth', middleware: 'auth' })
 
@@ -535,9 +516,7 @@ const form = ref({
   scheduledDayOfMonth: undefined as number | undefined,
   scheduledTime: '07:00',
   consumeQuantity: undefined as number | undefined,
-  consumeUnit: undefined as number | undefined,
   addQuantity: undefined as number | undefined,
-  addUnit: undefined as number | undefined,
   thresholdQuantity: undefined as number | undefined,
   isSharedWithFamily: false
 })
@@ -606,13 +585,13 @@ const daysOfWeekOptions = computed(() => [
   { value: DaysOfWeek.Sunday, label: t('profile.automation.days.sunday') }
 ])
 
-const unitOptions = computed(() =>
-  Object.entries(Unit)
-    .filter(([key]) => isNaN(Number(key)))
-    .map(([_key, value]) => ({
-      value: value as number,
-      label: t(`enums.unit.${value}`)
-    }))
+// The automation's unit is always inherited from the selected product.
+const selectedProductUnit = computed(() => {
+  const product = productSearchResults.value.find((p: ProductInfo) => p.publicId === form.value.productPublicId)
+  return product?.unit
+})
+const selectedUnitLabel = computed(() =>
+  selectedProductUnit.value !== undefined ? t(`enums.unit.${selectedProductUnit.value}`) : ''
 )
 
 // Computed labels for summary
@@ -874,9 +853,7 @@ async function handleCreate() {
       scheduledTime: needsSchedule ? form.value.scheduledTime : '00:00',
       actionType: form.value.actionType,
       consumeQuantity: form.value.actionType === AutomationActionType.AutoConsume ? form.value.consumeQuantity : undefined,
-      consumeUnit: form.value.actionType === AutomationActionType.AutoConsume ? form.value.consumeUnit : undefined,
       addQuantity: needsProduct ? form.value.addQuantity : undefined,
-      addUnit: needsProduct ? form.value.addUnit : undefined,
       thresholdQuantity: isLowStockType ? form.value.thresholdQuantity : undefined,
       isSharedWithFamily: form.value.isSharedWithFamily
     }

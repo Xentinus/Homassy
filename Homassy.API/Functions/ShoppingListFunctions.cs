@@ -735,6 +735,10 @@ namespace Homassy.API.Functions
             int? productId = null;
             int? shoppingLocationId = null;
 
+            // For product-linked items the unit is inherited from the product; for standalone
+            // (custom) items it comes from the request (defaulting to Piece).
+            var itemUnit = request.Unit ?? Homassy.API.Enums.Unit.Piece;
+
             if (request.ProductPublicId.HasValue)
             {
                 var product = productFunctions.GetProductByPublicId(request.ProductPublicId.Value);
@@ -743,6 +747,7 @@ namespace Homassy.API.Functions
                     throw new ProductNotFoundException("Product not found");
                 }
                 productId = product.Id;
+                itemUnit = product.Unit;
             }
 
             if (request.ShoppingLocationPublicId.HasValue)
@@ -767,7 +772,7 @@ namespace Homassy.API.Functions
                     ShoppingLocationId = shoppingLocationId,
                     CustomName = request.CustomName?.Trim(),
                     Quantity = request.Quantity,
-                    Unit = request.Unit,
+                    Unit = itemUnit,
                     Note = request.Note?.Trim(),
                     DeadlineAt = request.DeadlineAt,
                     DueAt = request.DueAt
@@ -876,6 +881,8 @@ namespace Homassy.API.Functions
                         throw new ProductNotFoundException("Product not found");
                     }
                     trackedItem.ProductId = product.Id;
+                    // Product-linked items inherit the unit from the product.
+                    trackedItem.Unit = product.Unit;
                     hasChanges = true;
                 }
 
@@ -904,7 +911,8 @@ namespace Homassy.API.Functions
                     hasChanges = true;
                 }
 
-                if (request.Unit.HasValue)
+                // Unit is only editable for standalone/custom items (no linked product).
+                if (request.Unit.HasValue && !trackedItem.ProductId.HasValue)
                 {
                     trackedItem.Unit = request.Unit.Value;
                     hasChanges = true;
@@ -1524,6 +1532,10 @@ namespace Homassy.API.Functions
                     int? productId = null;
                     int? shoppingLocationId = null;
 
+                    // Product-linked items inherit the unit from the product; standalone
+                    // (custom) items use the unit from the request (defaulting to Piece).
+                    var itemUnit = item.Unit ?? Homassy.API.Enums.Unit.Piece;
+
                     if (item.ProductPublicId.HasValue)
                     {
                         var product = productFunctions.GetProductByPublicId(item.ProductPublicId.Value);
@@ -1532,6 +1544,7 @@ namespace Homassy.API.Functions
                             throw new ProductNotFoundException($"Product not found: {item.ProductPublicId}");
                         }
                         productId = product.Id;
+                        itemUnit = product.Unit;
                     }
 
                     if (item.ShoppingLocationPublicId.HasValue)
@@ -1551,7 +1564,7 @@ namespace Homassy.API.Functions
                         ShoppingLocationId = shoppingLocationId,
                         CustomName = item.CustomName?.Trim(),
                         Quantity = item.Quantity,
-                        Unit = item.Unit,
+                        Unit = itemUnit,
                         Note = item.Note?.Trim(),
                         DeadlineAt = item.DeadlineAt,
                         DueAt = item.DueAt

@@ -12,6 +12,7 @@ export interface ProductInfo {
   name: string
   brand: string
   category?: string
+  unit: Unit
   barcode?: string
   productPictureBase64?: string
   isEatable: boolean
@@ -26,6 +27,7 @@ export interface CreateProductRequest {
   name: string
   brand: string
   category?: string | null
+  unit: Unit
   barcode?: string | null
   isEatable?: boolean
   notes?: string | null
@@ -36,6 +38,7 @@ export interface UpdateProductRequest {
   name?: string
   brand?: string
   category?: string
+  unit?: Unit
   barcode?: string
   isEatable?: boolean
   notes?: string
@@ -100,7 +103,6 @@ export interface CreateInventoryItemRequest {
   isSharedWithFamily?: boolean
   storageLocationPublicId?: string
   quantity: number
-  unit?: Unit
   expirationAt?: string
   price?: number
   currency?: Currency
@@ -112,7 +114,6 @@ export interface UpdateInventoryItemRequest {
   isSharedWithFamily?: boolean
   storageLocationPublicId?: string
   quantity?: number
-  unit?: Unit
   expirationAt?: string
   price?: number
   currency?: Currency
@@ -123,14 +124,12 @@ export interface UpdateInventoryItemRequest {
 export interface QuickAddInventoryItemRequest {
   productPublicId: string
   quantity: number
-  unit?: Unit
   isSharedWithFamily?: boolean
 }
 
 export interface QuickAddMultipleInventoryItemEntry {
   productPublicId: string
   quantity: number
-  unit?: Unit
 }
 
 export interface QuickAddMultipleInventoryItemsRequest {

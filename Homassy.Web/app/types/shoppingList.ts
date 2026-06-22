@@ -53,7 +53,8 @@ export interface CreateShoppingListItemRequest {
   shoppingLocationPublicId?: string
   customName?: string
   quantity: number
-  unit: Unit
+  // Only used for standalone/custom items; product-linked items inherit the product's unit.
+  unit?: Unit
   note?: string
   deadlineAt?: string
   dueAt?: string
@@ -76,7 +77,8 @@ export interface CreateShoppingListItemEntry {
   shoppingLocationPublicId?: string
   customName?: string
   quantity: number
-  unit: Unit
+  // Only used for standalone/custom items; product-linked items inherit the product's unit.
+  unit?: Unit
   note?: string
   deadlineAt?: string
   dueAt?: string

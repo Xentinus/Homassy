@@ -362,23 +362,17 @@
           <label class="block text-sm font-medium mb-1">
             {{ $t('common.quantity') }}
           </label>
-          <div class="flex gap-2">
-            <UInput
-              v-model.number="form.consumeQuantity"
-              type="number"
-              :min="0.001"
-              step="0.1"
-              class="flex-1"
-            />
-            <USelect
-              v-model="form.consumeUnit"
-              :items="unitOptions"
-              value-key="value"
-              label-key="label"
-              :placeholder="$t('common.unit')"
-              class="w-32"
-            />
-          </div>
+          <UInput
+            v-model.number="form.consumeQuantity"
+            type="number"
+            :min="0.001"
+            step="0.1"
+            class="w-full"
+          >
+            <template v-if="unitLabel" #trailing>
+              <span class="text-sm text-gray-500 dark:text-gray-400">{{ unitLabel }}</span>
+            </template>
+          </UInput>
         </div>
 
         <!-- Add Quantity -->
@@ -386,23 +380,17 @@
           <label class="block text-sm font-medium mb-1">
             {{ $t('profile.automation.addQuantity') }} <span class="text-red-500">*</span>
           </label>
-          <div class="flex gap-2">
-            <UInput
-              v-model.number="form.addQuantity"
-              type="number"
-              :min="0.001"
-              step="0.1"
-              class="flex-1"
-            />
-            <USelect
-              v-model="form.addUnit"
-              :items="unitOptions"
-              value-key="value"
-              label-key="label"
-              :placeholder="$t('common.unit')"
-              class="w-32"
-            />
-          </div>
+          <UInput
+            v-model.number="form.addQuantity"
+            type="number"
+            :min="0.001"
+            step="0.1"
+            class="w-full"
+          >
+            <template v-if="unitLabel" #trailing>
+              <span class="text-sm text-gray-500 dark:text-gray-400">{{ unitLabel }}</span>
+            </template>
+          </UInput>
         </div>
       </div>
     </template>
@@ -468,7 +456,6 @@ import type {
   AutomationExecutionResponse,
   UpdateAutomationRequest
 } from '~/types/automation'
-import { Unit } from '~/types/enums'
 
 definePageMeta({ layout: 'auth', middleware: 'auth' })
 
@@ -528,9 +515,7 @@ const defaultForm = () => ({
   scheduledTime: '07:00',
   actionType: AutomationActionType.AutoConsume as AutomationActionType,
   consumeQuantity: undefined as number | undefined,
-  consumeUnit: undefined as number | undefined,
   addQuantity: undefined as number | undefined,
-  addUnit: undefined as number | undefined,
   thresholdQuantity: undefined as number | undefined
 })
 const form = ref(defaultForm())
@@ -638,14 +623,11 @@ const daysOfWeekOptions = computed(() => [
   { value: DaysOfWeek.Sunday, label: t('profile.automation.days.sunday') }
 ])
 
-const unitOptions = computed(() =>
-  Object.entries(Unit)
-    .filter(([_key]) => isNaN(Number(_key)))
-    .map(([_key, value]) => ({
-      value: value as number,
-      label: t(`enums.unit.${value}`)
-    }))
-)
+// The automation's unit is inherited from the product; shown read-only as a suffix.
+const unitLabel = computed(() => {
+  const unit = automation.value?.consumeUnit ?? automation.value?.addUnit
+  return unit !== undefined ? t(`enums.unit.${unit}`) : ''
+})
 
 // Helpers
 function getSelectedDayNames(flags: number): string {
@@ -887,9 +869,7 @@ async function openEditModal() {
     scheduledTime: automation.value.scheduledTime,
     actionType: automation.value.actionType,
     consumeQuantity: automation.value.consumeQuantity,
-    consumeUnit: automation.value.consumeUnit,
     addQuantity: automation.value.addQuantity,
-    addUnit: automation.value.addUnit,
     thresholdQuantity: automation.value.thresholdQuantity
   }
   isEditModalOpen.value = true
@@ -971,9 +951,7 @@ async function handleSave() {
       scheduledTime: isLowStockAction ? '00:00' : form.value.scheduledTime,
       actionType: form.value.actionType,
       consumeQuantity: form.value.actionType === AutomationActionType.AutoConsume ? form.value.consumeQuantity : undefined,
-      consumeUnit: form.value.actionType === AutomationActionType.AutoConsume ? form.value.consumeUnit : undefined,
       addQuantity: isShoppingListAction ? form.value.addQuantity : undefined,
-      addUnit: isShoppingListAction ? form.value.addUnit : undefined,
       shoppingListPublicId: isShoppingListAction ? form.value.shoppingListPublicId : undefined,
       productPublicId: isShoppingListAction ? form.value.productPublicId : undefined,
       thresholdQuantity: isLowStockAction ? form.value.thresholdQuantity : undefined

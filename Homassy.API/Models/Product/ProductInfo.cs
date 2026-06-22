@@ -8,6 +8,7 @@ namespace Homassy.API.Models.Product
         public string Name { get; set; } = string.Empty;
         public string Brand { get; set; } = string.Empty;
         public ProductCategory? Category { get; set; }
+        public Unit Unit { get; set; }
         public string? Barcode { get; set; }
         public string? ProductPictureBase64 { get; set; }
         public bool IsEatable { get; set; }

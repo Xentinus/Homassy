@@ -92,9 +92,7 @@ export interface CreateAutomationRequest {
   scheduledTime: string
   actionType: AutomationActionType
   consumeQuantity?: number
-  consumeUnit?: Unit
   addQuantity?: number
-  addUnit?: Unit
   thresholdQuantity?: number
   isSharedWithFamily?: boolean
 }
@@ -107,9 +105,7 @@ export interface UpdateAutomationRequest {
   scheduledTime?: string
   actionType?: AutomationActionType
   consumeQuantity?: number
-  consumeUnit?: Unit
   addQuantity?: number
-  addUnit?: Unit
   thresholdQuantity?: number
   shoppingListPublicId?: string
   productPublicId?: string
