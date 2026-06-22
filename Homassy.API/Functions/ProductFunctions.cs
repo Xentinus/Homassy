@@ -756,6 +756,20 @@ namespace Homassy.API.Functions
                     Log.Information("Disabled automation {AutomationId} because product {ProductId} was deleted", automation.Id, product.Id);
                 }
 
+                // Clear ProductId on shopping list items referencing this product
+                var affectedShoppingListItems = await context.ShoppingListItems
+                    .Where(sli => sli.ProductId == product.Id && !sli.IsDeleted)
+                    .ToListAsync(cancellationToken);
+
+                foreach (var item in affectedShoppingListItems)
+                {
+                    if (string.IsNullOrWhiteSpace(item.CustomName))
+                        item.CustomName = product.Name;
+                    item.ProductId = null;
+                    item.UpdateRecordChange(userId.Value);
+                    Log.Information("Cleared ProductId on ShoppingListItem {ItemId} because product {ProductId} was deleted", item.Id, product.Id);
+                }
+
                 context.Products.Update(product);
                 await context.SaveChangesAsync(cancellationToken);
 
