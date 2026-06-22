@@ -425,6 +425,8 @@
         "brandPlaceholder": "z.B. Mizo",
         "category": "Kategorie",
         "categoryPlaceholder": "z.B. Milchprodukte",
+        "unit": "Maßeinheit",
+        "unitPlaceholder": "Einheit wählen",
         "barcode": "Barcode",
         "barcodePlaceholder": "z.B. 5998200119874",
         "barcodeQuery": "Abfragen",

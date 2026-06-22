@@ -11,7 +11,7 @@
       "name": "MIT License",
       "url": "https://github.com/Xentinus/Homassy/blob/master/LICENSE"
     },
-    "version": "26.0409.1524-dev"
+    "version": "26.0621.1708-dev"
   },
   "paths": {
     "/api/v1/Auth/me": {
@@ -7996,16 +7996,6 @@
             ],
             "format": "double"
           },
-          "consumeUnit": {
-            "oneOf": [
-              {
-                "type": "null"
-              },
-              {
-                "$ref": "#/components/schemas/Unit"
-              }
-            ]
-          },
           "addQuantity": {
             "minimum": 0.001,
             "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d+)?$",
@@ -8015,16 +8005,6 @@
               "string"
             ],
             "format": "double"
-          },
-          "addUnit": {
-            "oneOf": [
-              {
-                "type": "null"
-              },
-              {
-                "$ref": "#/components/schemas/Unit"
-              }
-            ]
           },
           "thresholdQuantity": {
             "minimum": 0.001,
@@ -8098,9 +8078,6 @@
               "string"
             ],
             "format": "double"
-          },
-          "unit": {
-            "$ref": "#/components/schemas/Unit"
           },
           "expirationAt": {
             "type": [
@@ -8213,7 +8190,8 @@
       "CreateProductRequest": {
         "required": [
           "name",
-          "brand"
+          "brand",
+          "unit"
         ],
         "type": "object",
         "properties": {
@@ -8236,6 +8214,9 @@
                 "$ref": "#/components/schemas/ProductCategory"
               }
             ]
+          },
+          "unit": {
+            "$ref": "#/components/schemas/Unit"
           },
           "barcode": {
             "maxLength": 14,
@@ -8296,8 +8277,7 @@
       },
       "CreateShoppingListItemEntry": {
         "required": [
-          "quantity",
-          "unit"
+          "quantity"
         ],
         "type": "object",
         "properties": {
@@ -8333,7 +8313,14 @@
             "format": "double"
           },
           "unit": {
-            "$ref": "#/components/schemas/Unit"
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/Unit"
+              }
+            ]
           },
           "note": {
             "maxLength": 255,
@@ -8362,8 +8349,7 @@
       "CreateShoppingListItemRequest": {
         "required": [
           "shoppingListPublicId",
-          "quantity",
-          "unit"
+          "quantity"
         ],
         "type": "object",
         "properties": {
@@ -8403,7 +8389,14 @@
             "format": "double"
           },
           "unit": {
-            "$ref": "#/components/schemas/Unit"
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/Unit"
+              }
+            ]
           },
           "note": {
             "maxLength": 255,
@@ -8603,6 +8596,9 @@
                 "$ref": "#/components/schemas/ProductCategory"
               }
             ]
+          },
+          "unit": {
+            "$ref": "#/components/schemas/Unit"
           },
           "barcode": {
             "type": [
@@ -9718,6 +9714,9 @@
               }
             ]
           },
+          "unit": {
+            "$ref": "#/components/schemas/Unit"
+          },
           "barcode": {
             "type": [
               "null",
@@ -9837,9 +9836,6 @@
             ],
             "format": "double"
           },
-          "unit": {
-            "$ref": "#/components/schemas/Unit"
-          },
           "isSharedWithFamily": {
             "type": "boolean"
           }
@@ -9864,9 +9860,6 @@
               "string"
             ],
             "format": "double"
-          },
-          "unit": {
-            "$ref": "#/components/schemas/Unit"
           }
         }
       },
@@ -10455,16 +10448,6 @@
             ],
             "format": "double"
           },
-          "consumeUnit": {
-            "oneOf": [
-              {
-                "type": "null"
-              },
-              {
-                "$ref": "#/components/schemas/Unit"
-              }
-            ]
-          },
           "addQuantity": {
             "minimum": 0.001,
             "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d+)?$",
@@ -10474,16 +10457,6 @@
               "string"
             ],
             "format": "double"
-          },
-          "addUnit": {
-            "oneOf": [
-              {
-                "type": "null"
-              },
-              {
-                "$ref": "#/components/schemas/Unit"
-              }
-            ]
           },
           "shoppingListPublicId": {
             "type": [
@@ -10557,16 +10530,6 @@
               "string"
             ],
             "format": "double"
-          },
-          "unit": {
-            "oneOf": [
-              {
-                "type": "null"
-              },
-              {
-                "$ref": "#/components/schemas/Unit"
-              }
-            ]
           },
           "expirationAt": {
             "type": [
@@ -10678,6 +10641,16 @@
               },
               {
                 "$ref": "#/components/schemas/ProductCategory"
+              }
+            ]
+          },
+          "unit": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/Unit"
               }
             ]
           },

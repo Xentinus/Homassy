@@ -193,7 +193,7 @@
             />
           </div>
 
-          <!-- Quantity -->
+          <!-- Quantity (product-linked items show the product's unit as a suffix) -->
           <div>
             <label class="block text-sm font-medium mb-1">
               {{ $t('common.quantity') }}
@@ -204,11 +204,15 @@
               :min="0.001"
               step="0.1"
               class="w-full"
-            />
+            >
+              <template v-if="item.productPublicId && unitLabel" #trailing>
+                <span class="text-sm text-gray-500 dark:text-gray-400">{{ unitLabel }}</span>
+              </template>
+            </UInput>
           </div>
 
-          <!-- Unit -->
-          <div>
+          <!-- Unit (only editable for standalone/custom items) -->
+          <div v-if="!item.productPublicId">
             <label class="block text-sm font-medium mb-1">
               {{ $t('common.unit') }}
             </label>

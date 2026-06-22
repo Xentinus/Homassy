@@ -123,6 +123,16 @@
                   />
                 </UFormField>
 
+                <UFormField :label="t('pages.addProduct.form.unit')" name="unit" required>
+                  <USelect
+                    v-model="productFormData.unit"
+                    :items="unitOptions"
+                    :placeholder="t('pages.addProduct.form.unitPlaceholder')"
+                    :disabled="isCreating"
+                    class="w-full"
+                  />
+                </UFormField>
+
                 <UFormField :label="t('pages.addProduct.form.barcode')" name="barcode">
                   <UFieldGroup size="md" orientation="horizontal" class="w-full">
                     <UInput
@@ -439,10 +449,20 @@
               :placeholder="t('pages.shoppingLists.addProduct.item.quantityPlaceholder')"
               :disabled="isCreatingItem"
               class="w-full"
-            />
+            >
+              <template v-if="productSelectionMode === 'product' && selectedProductUnit !== undefined" #trailing>
+                <span class="text-sm text-gray-500 dark:text-gray-400">{{ t(`enums.unit.${selectedProductUnit}`) }}</span>
+              </template>
+            </UInput>
           </UFormField>
 
-          <UFormField :label="t('pages.shoppingLists.addProduct.item.unitLabel')" name="unit" required>
+          <!-- Unit is only chosen for standalone/custom items; product items inherit it -->
+          <UFormField
+            v-if="productSelectionMode === 'custom'"
+            :label="t('pages.shoppingLists.addProduct.item.unitLabel')"
+            name="unit"
+            required
+          >
             <USelect
               v-model="itemFormData.unit"
               :items="unitOptions"
@@ -677,6 +697,8 @@ const tabItems = computed(() => [
 // Product Selection Mode
 const productSelectionMode = ref<'product' | 'custom' | null>(null)
 const selectedProductId = ref<string | null>(null)
+// Unit of the selected/created product — used to show a read-only suffix in product mode.
+const selectedProductUnit = ref<Unit | undefined>(undefined)
 const customProductName = ref<string>('')
 const selectedCardId = ref<string | null>(null)
 
@@ -690,6 +712,7 @@ const productFormData = ref<CreateProductRequest>({
   name: '',
   brand: '',
   category: undefined,
+  unit: Unit.Piece,
   barcode: '',
   isEatable: false,
   notes: '',
@@ -765,6 +788,7 @@ const createProductSchema = z.object({
   name: z.string().min(2, 'Name must be at least 2 characters').max(128, 'Name must not exceed 128 characters'),
   brand: z.string().min(2, 'Brand must be at least 2 characters').max(128, 'Brand must not exceed 128 characters'),
   category: z.nativeEnum(ProductCategory).optional(),
+  unit: z.nativeEnum(Unit, { required_error: 'Unit is required' }),
   barcode: z.string().max(50, 'Barcode must not exceed 50 characters').optional().or(z.literal('')),
   isEatable: z.boolean().optional().default(false),
   notes: z.string().max(500, 'Notes must not exceed 500 characters').optional().or(z.literal('')),
@@ -790,7 +814,8 @@ const createShoppingLocationSchema = z.object({
 
 const createShoppingListItemSchema = z.object({
   quantity: z.number({ required_error: 'Quantity is required' }).min(0.001, 'Quantity must be greater than 0'),
-  unit: z.nativeEnum(Unit, { required_error: 'Unit is required' }),
+  // Unit is only required for standalone/custom items; product items inherit the product's unit.
+  unit: z.nativeEnum(Unit).optional(),
   note: z.string().max(500, 'Note must not exceed 500 characters').optional(),
   deadlineAt: z.any().nullable().optional(),
   dueAt: z.any().nullable().optional()
@@ -945,6 +970,7 @@ onMounted(() => {
 const onProductCardClick = (product: ProductInfo) => {
   selectedCardId.value = product.publicId
   selectedProductId.value = product.publicId
+  selectedProductUnit.value = product.unit
   customProductName.value = ''
   productSelectionMode.value = 'product'
   currentStep.value = 1
@@ -958,6 +984,7 @@ const onCreateProduct = async (event: FormSubmitEvent<typeof createProductSchema
       name: event.data.name,
       brand: event.data.brand,
       category: event.data.category || undefined,
+      unit: event.data.unit,
       barcode: event.data.barcode || undefined,
       isEatable: event.data.isEatable || false,
       notes: event.data.notes || undefined,
@@ -967,6 +994,7 @@ const onCreateProduct = async (event: FormSubmitEvent<typeof createProductSchema
     const response = await createProduct(productData)
     if (response.success && response.data) {
       selectedProductId.value = response.data.publicId
+      selectedProductUnit.value = response.data.unit
       customProductName.value = ''
       productSelectionMode.value = 'product'
       currentStep.value = 1
@@ -1048,6 +1076,7 @@ const activeBarcodeHandler = computed(() => {
 const onCustomNameSubmit = (event: FormSubmitEvent<typeof customNameSchema>) => {
   customProductName.value = event.data.customName
   selectedProductId.value = null
+  selectedProductUnit.value = undefined
   productSelectionMode.value = 'custom'
   currentStep.value = 1
 }
@@ -1133,7 +1162,8 @@ const onCreateShoppingListItem = async (event: FormSubmitEvent<typeof createShop
       customName: productSelectionMode.value === 'custom' ? customProductName.value : undefined,
       shoppingLocationPublicId: selectedShoppingLocationId.value || undefined,
       quantity: event.data.quantity,
-      unit: event.data.unit,
+      // Product items inherit the product's unit server-side; only send it for custom items.
+      unit: productSelectionMode.value === 'custom' ? event.data.unit : undefined,
       note: event.data.note?.trim() || undefined,
       deadlineAt: deadlineAtString,
       dueAt: dueAtString

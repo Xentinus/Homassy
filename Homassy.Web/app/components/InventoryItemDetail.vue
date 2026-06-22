@@ -251,7 +251,7 @@
 
       <template #body>
         <div class="space-y-4">
-          <!-- Quantity -->
+          <!-- Quantity (unit is inherited from the product and not editable here) -->
           <div>
             <label class="block text-sm font-medium mb-1">
               {{ $t('pages.products.details.editModal.quantityLabel') }}
@@ -260,20 +260,12 @@
               v-model="editForm.quantity"
               type="number"
               :min="0"
-            />
-          </div>
-
-          <!-- Unit -->
-          <div>
-            <label class="block text-sm font-medium mb-1">
-              {{ $t('pages.products.details.editModal.unitLabel') }}
-            </label>
-            <USelect
-              :model-value="editForm.unit ?? undefined"
-              :items="unitOptions"
               class="w-full"
-              @update:model-value="(val) => editForm.unit = val ?? null"
-            />
+            >
+              <template #trailing>
+                <span class="text-sm text-gray-500 dark:text-gray-400">{{ $t(`enums.unit.${item.unit}`) }}</span>
+              </template>
+            </UInput>
           </div>
 
           <!-- Expiration Date -->
@@ -584,7 +576,7 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue'
 import type { InventoryItemInfo, ConsumeInventoryItemRequest, SplitInventoryItemRequest, UpdateInventoryItemRequest, MoveInventoryItemsRequest } from '../types/product'
-import { Unit, Currency, SelectValueType } from '../types/enums'
+import { Currency, SelectValueType } from '../types/enums'
 import type { SelectValue } from '../types/selectValue'
 import type { CalendarDate } from '@internationalized/date'
 import { CalendarDate as CalendarDateClass } from '@internationalized/date'
@@ -633,13 +625,11 @@ const isEditModalOpen = ref(false)
 const expirationDateInput = ref()
 const editForm = ref<{
   quantity: number | null
-  unit: Unit | null
   expirationAt: CalendarDate | null
   price: number | null
   currency: Currency | null
 }>({
   quantity: null,
-  unit: null,
   expirationAt: null,
   price: null,
   currency: null
@@ -685,15 +675,6 @@ const dropdownItems = computed(() => [
 ])
 
 // Select options
-const unitOptions = computed(() => {
-  return Object.entries(Unit)
-    .filter(([key]) => isNaN(Number(key))) // Filter out numeric keys
-    .map(([_key, value]) => ({
-      label: $t(`enums.unit.${value}`),
-      value: value as Unit
-    }))
-})
-
 const currencyOptions = computed(() => [
   { label: $t('enums.currency.135'), value: Currency.Huf },
   { label: $t('enums.currency.105'), value: Currency.Eur },
@@ -852,7 +833,6 @@ const openEditModal = () => {
 
   editForm.value = {
     quantity: props.item.currentQuantity,
-    unit: props.item.unit,
     expirationAt: expirationDate,
     price: props.item.purchaseInfo?.price || null,
     currency: props.item.purchaseInfo?.currency || null
@@ -864,7 +844,6 @@ const closeEditModal = () => {
   isEditModalOpen.value = false
   editForm.value = {
     quantity: null,
-    unit: null,
     expirationAt: null,
     price: null,
     currency: null
@@ -885,7 +864,6 @@ const handleUpdate = async () => {
 
     const request: UpdateInventoryItemRequest = {
       quantity: editForm.value.quantity || undefined,
-      unit: editForm.value.unit || undefined,
       expirationAt: expirationAtString,
       price: editForm.value.price || undefined,
       currency: editForm.value.currency || undefined

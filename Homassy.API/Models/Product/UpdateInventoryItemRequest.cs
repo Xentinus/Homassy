@@ -10,9 +10,6 @@ namespace Homassy.API.Models.Product
         [Range(0, double.MaxValue, ErrorMessage = "Quantity cannot be negative")]
         public decimal? Quantity { get; set; }
 
-        [EnumDataType(typeof(Unit))]
-        public Unit? Unit { get; set; }
-
         public DateTime? ExpirationAt { get; set; }
 
         public bool? IsSharedWithFamily { get; set; }

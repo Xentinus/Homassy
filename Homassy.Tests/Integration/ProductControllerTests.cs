@@ -36,7 +36,7 @@ public class ProductControllerTests : IClassFixture<HomassyWebApplicationFactory
     [Fact]
     public async Task CreateProduct_WithoutToken_ReturnsUnauthorized()
     {
-        var request = new CreateProductRequest { Name = "Test Product", Brand = "Test Brand" };
+        var request = new CreateProductRequest { Unit = ProductUnit.Piece, Name = "Test Product", Brand = "Test Brand" };
         var response = await _client.PostAsJsonAsync("/api/v1.0/product", request);
         _output.WriteLine($"Status: {response.StatusCode}");
         Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
@@ -145,6 +145,7 @@ public class ProductControllerTests : IClassFixture<HomassyWebApplicationFactory
 
             var request = new CreateProductRequest
             {
+                Unit = ProductUnit.Piece,
                 Name = "A", // Too short, minimum is 2
                 Brand = "Test Brand"
             };
@@ -177,6 +178,7 @@ public class ProductControllerTests : IClassFixture<HomassyWebApplicationFactory
 
             var request = new CreateProductRequest
             {
+                Unit = ProductUnit.Piece,
                 Name = "Test Product",
                 Brand = "Test Brand",
                 Barcode = "ABC123" // Invalid, must be digits only
@@ -308,6 +310,7 @@ public class ProductControllerTests : IClassFixture<HomassyWebApplicationFactory
             _output.WriteLine("\n=== Step 2: Create Product ===");
             var createRequest = new CreateProductRequest
             {
+                Unit = ProductUnit.Piece,
                 Name = "Test Milk",
                 Brand = "Test Dairy",
                 Category = ProductCategory.Milk,
@@ -481,7 +484,6 @@ public class ProductControllerTests : IClassFixture<HomassyWebApplicationFactory
                 {
                     ProductPublicId = Guid.NewGuid(),
                     Quantity = 1,
-                    Unit = ProductUnit.Piece
                 }
             ]
         };
@@ -539,7 +541,6 @@ public class ProductControllerTests : IClassFixture<HomassyWebApplicationFactory
                     {
                         ProductPublicId = Guid.NewGuid(), // Non-existent product
                         Quantity = 1,
-                        Unit = ProductUnit.Piece
                     }
                 ]
             };
@@ -572,7 +573,7 @@ public class ProductControllerTests : IClassFixture<HomassyWebApplicationFactory
             _authHelper.SetAuthToken(auth.AccessToken);
 
             // Create a product first
-            var productRequest = new CreateProductRequest { Name = "Test Product", Brand = "Test Brand" };
+            var productRequest = new CreateProductRequest { Unit = ProductUnit.Piece, Name = "Test Product", Brand = "Test Brand" };
             var productResponse = await _client.PostAsJsonAsync("/api/v1.0/product", productRequest);
             var productContent = await productResponse.Content.ReadFromJsonAsync<ApiResponse<ProductInfo>>();
             productId = productContent?.Data?.PublicId;
@@ -585,7 +586,6 @@ public class ProductControllerTests : IClassFixture<HomassyWebApplicationFactory
                     {
                         ProductPublicId = productId!.Value,
                         Quantity = 1,
-                        Unit = ProductUnit.Piece
                     }
                 ],
                 StorageLocationPublicId = Guid.NewGuid() // Non-existent storage location
@@ -628,7 +628,6 @@ public class ProductControllerTests : IClassFixture<HomassyWebApplicationFactory
                     {
                         ProductPublicId = Guid.NewGuid(),
                         Quantity = 0, // Invalid - must be > 0
-                        Unit = ProductUnit.Piece
                     }
                 ]
             };
@@ -662,12 +661,12 @@ public class ProductControllerTests : IClassFixture<HomassyWebApplicationFactory
             _authHelper.SetAuthToken(auth.AccessToken);
 
             // Create products first
-            var product1Request = new CreateProductRequest { Name = "Test Product 1", Brand = "Test Brand" };
+            var product1Request = new CreateProductRequest { Unit = ProductUnit.Piece, Name = "Test Product 1", Brand = "Test Brand" };
             var product1Response = await _client.PostAsJsonAsync("/api/v1.0/product", product1Request);
             var product1Content = await product1Response.Content.ReadFromJsonAsync<ApiResponse<ProductInfo>>();
             productId1 = product1Content?.Data?.PublicId;
 
-            var product2Request = new CreateProductRequest { Name = "Test Product 2", Brand = "Test Brand" };
+            var product2Request = new CreateProductRequest { Unit = ProductUnit.Piece, Name = "Test Product 2", Brand = "Test Brand" };
             var product2Response = await _client.PostAsJsonAsync("/api/v1.0/product", product2Request);
             var product2Content = await product2Response.Content.ReadFromJsonAsync<ApiResponse<ProductInfo>>();
             productId2 = product2Content?.Data?.PublicId;
@@ -682,13 +681,11 @@ public class ProductControllerTests : IClassFixture<HomassyWebApplicationFactory
                     {
                         ProductPublicId = productId1!.Value,
                         Quantity = 5,
-                        Unit = ProductUnit.Piece
                     },
                     new QuickAddMultipleInventoryItemEntry
                     {
                         ProductPublicId = productId2!.Value,
                         Quantity = 2.5m,
-                        Unit = ProductUnit.Kilogram
                     }
                 ],
                 IsSharedWithFamily = false
@@ -861,7 +858,7 @@ public class ProductControllerTests : IClassFixture<HomassyWebApplicationFactory
 
             // Step 1: Create a product
             _output.WriteLine("=== Step 1: Create Product ===");
-            var productRequest = new CreateProductRequest { Name = "Test Product", Brand = "Test Brand" };
+            var productRequest = new CreateProductRequest { Unit = ProductUnit.Piece, Name = "Test Product", Brand = "Test Brand" };
             var productResponse = await _client.PostAsJsonAsync("/api/v1.0/product", productRequest);
             var productContent = await productResponse.Content.ReadFromJsonAsync<ApiResponse<ProductInfo>>();
             productId = productContent?.Data?.PublicId;
@@ -873,7 +870,6 @@ public class ProductControllerTests : IClassFixture<HomassyWebApplicationFactory
             {
                 ProductPublicId = productId!.Value,
                 Quantity = 5,
-                Unit = ProductUnit.Piece
             };
             var inventoryResponse = await _client.PostAsJsonAsync("/api/v1.0/product/inventory/quick", inventoryRequest);
             var inventoryContent = await inventoryResponse.Content.ReadFromJsonAsync<ApiResponse<InventoryItemInfo>>();
@@ -1023,7 +1019,7 @@ public class ProductControllerTests : IClassFixture<HomassyWebApplicationFactory
             testEmail = email;
             _authHelper.SetAuthToken(auth.AccessToken);
 
-            var productRequest = new CreateProductRequest { Name = "Test Product", Brand = "Brand" };
+            var productRequest = new CreateProductRequest { Unit = ProductUnit.Piece, Name = "Test Product", Brand = "Brand" };
             var productResponse = await _client.PostAsJsonAsync("/api/v1.0/product", productRequest);
             var productContent = await productResponse.Content.ReadFromJsonAsync<ApiResponse<ProductInfo>>();
             productId = productContent?.Data?.PublicId;
@@ -1032,8 +1028,8 @@ public class ProductControllerTests : IClassFixture<HomassyWebApplicationFactory
             {
                 Items =
                 [
-                    new QuickAddMultipleInventoryItemEntry { ProductPublicId = productId!.Value, Quantity = 1, Unit = ProductUnit.Piece },
-                    new QuickAddMultipleInventoryItemEntry { ProductPublicId = productId!.Value, Quantity = 2, Unit = ProductUnit.Piece }
+                    new QuickAddMultipleInventoryItemEntry { ProductPublicId = productId!.Value, Quantity = 1 },
+                    new QuickAddMultipleInventoryItemEntry { ProductPublicId = productId!.Value, Quantity = 2 }
                 ]
             };
             var addResponse = await _client.PostAsJsonAsync("/api/v1.0/product/inventory/quick/multiple", addRequest);
@@ -1112,7 +1108,7 @@ public class ProductControllerTests : IClassFixture<HomassyWebApplicationFactory
             testEmail = email;
             _authHelper.SetAuthToken(auth.AccessToken);
 
-            var productRequest = new CreateProductRequest { Name = "Test Product", Brand = "Brand" };
+            var productRequest = new CreateProductRequest { Unit = ProductUnit.Piece, Name = "Test Product", Brand = "Brand" };
             var productResponse = await _client.PostAsJsonAsync("/api/v1.0/product", productRequest);
             var productContent = await productResponse.Content.ReadFromJsonAsync<ApiResponse<ProductInfo>>();
             productId = productContent?.Data?.PublicId;
@@ -1121,8 +1117,8 @@ public class ProductControllerTests : IClassFixture<HomassyWebApplicationFactory
             {
                 Items =
                 [
-                    new QuickAddMultipleInventoryItemEntry { ProductPublicId = productId!.Value, Quantity = 10, Unit = ProductUnit.Piece },
-                    new QuickAddMultipleInventoryItemEntry { ProductPublicId = productId!.Value, Quantity = 5, Unit = ProductUnit.Piece }
+                    new QuickAddMultipleInventoryItemEntry { ProductPublicId = productId!.Value, Quantity = 10 },
+                    new QuickAddMultipleInventoryItemEntry { ProductPublicId = productId!.Value, Quantity = 5 }
                 ]
             };
             var addResponse = await _client.PostAsJsonAsync("/api/v1.0/product/inventory/quick/multiple", addRequest);
@@ -1169,7 +1165,7 @@ public class ProductControllerTests : IClassFixture<HomassyWebApplicationFactory
     {
         var request = new CreateMultipleProductsRequest
         {
-            Products = [new CreateProductRequest { Name = "Test", Brand = "Brand" }]
+            Products = [new CreateProductRequest { Unit = ProductUnit.Piece, Name = "Test", Brand = "Brand" }]
         };
         var response = await _client.PostAsJsonAsync("/api/v1.0/product/multiple", request);
         Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
@@ -1214,9 +1210,9 @@ public class ProductControllerTests : IClassFixture<HomassyWebApplicationFactory
             {
                 Products =
                 [
-                    new CreateProductRequest { Name = "Product 1", Brand = "Brand A", Category = ProductCategory.Grain },
-                    new CreateProductRequest { Name = "Product 2", Brand = "Brand B", IsEatable = false },
-                    new CreateProductRequest { Name = "Product 3", Brand = "Brand C", IsFavorite = true }
+                    new CreateProductRequest { Unit = ProductUnit.Piece, Name = "Product 1", Brand = "Brand A", Category = ProductCategory.Grain },
+                    new CreateProductRequest { Unit = ProductUnit.Piece, Name = "Product 2", Brand = "Brand B", IsEatable = false },
+                    new CreateProductRequest { Unit = ProductUnit.Piece, Name = "Product 3", Brand = "Brand C", IsFavorite = true }
                 ]
             };
 
@@ -1269,6 +1265,7 @@ public class ProductControllerTests : IClassFixture<HomassyWebApplicationFactory
 
             var request = new CreateProductRequest
             {
+                Unit = ProductUnit.Piece,
                 Name = "Test Product",
                 Brand = "Test Brand",
                 Barcode = barcode
@@ -1313,6 +1310,7 @@ public class ProductControllerTests : IClassFixture<HomassyWebApplicationFactory
 
             var request = new CreateProductRequest
             {
+                Unit = ProductUnit.Piece,
                 Name = "Test Product",
                 Brand = "Test Brand",
                 Barcode = barcode
@@ -1357,6 +1355,7 @@ public class ProductControllerTests : IClassFixture<HomassyWebApplicationFactory
 
             var request = new CreateProductRequest
             {
+                Unit = ProductUnit.Piece,
                 Name = "Test Product",
                 Brand = "Test Brand",
                 Barcode = barcode
@@ -1400,6 +1399,7 @@ public class ProductControllerTests : IClassFixture<HomassyWebApplicationFactory
 
             var request = new CreateProductRequest
             {
+                Unit = ProductUnit.Piece,
                 Name = "Test Product",
                 Brand = "Test Brand",
                 Barcode = barcode
@@ -1437,6 +1437,7 @@ public class ProductControllerTests : IClassFixture<HomassyWebApplicationFactory
 
             var request = new CreateProductRequest
             {
+                Unit = ProductUnit.Piece,
                 Name = "Test Product",
                 Brand = "Test Brand",
                 Barcode = barcode
@@ -1473,6 +1474,7 @@ public class ProductControllerTests : IClassFixture<HomassyWebApplicationFactory
 
             var request = new CreateProductRequest
             {
+                Unit = ProductUnit.Piece,
                 Name = "Test Product",
                 Brand = "Test Brand",
                 Barcode = barcode
@@ -1507,6 +1509,7 @@ public class ProductControllerTests : IClassFixture<HomassyWebApplicationFactory
 
             var createRequest = new CreateProductRequest
             {
+                Unit = ProductUnit.Piece,
                 Name = "Test Product",
                 Brand = "Test Brand"
             };
@@ -1551,6 +1554,7 @@ public class ProductControllerTests : IClassFixture<HomassyWebApplicationFactory
 
             var createRequest = new CreateProductRequest
             {
+                Unit = ProductUnit.Piece,
                 Name = "Test Product",
                 Brand = "Test Brand"
             };
@@ -1596,6 +1600,7 @@ public class ProductControllerTests : IClassFixture<HomassyWebApplicationFactory
 
             var request = new CreateProductRequest
             {
+                Unit = ProductUnit.Piece,
                 Name = "Coca-Cola",
                 Brand = "Coca-Cola",
                 Barcode = "5449000000996"

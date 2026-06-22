@@ -21,9 +21,10 @@ namespace Homassy.API.Models.ShoppingList
         [Range(0.001, double.MaxValue, ErrorMessage = "Quantity must be greater than 0")]
         public required decimal Quantity { get; set; } = 1.0m;
 
-        [Required]
+        // Only used for standalone/custom items (no ProductPublicId). For product-linked
+        // items the unit is inherited from the product and this value is ignored.
         [EnumDataType(typeof(Unit))]
-        public required Unit Unit { get; set; } = Unit.Piece;
+        public Unit? Unit { get; set; }
 
         [StringLength(255)]
         [SanitizedString]

@@ -15,6 +15,10 @@ namespace Homassy.API.Entities.Product
 
 
         public ProductCategory? Category { get; set; }
+
+        [EnumDataType(typeof(Unit))]
+        public Unit Unit { get; set; } = Unit.Piece;
+
         [ValidBarcode]
         [StringLength(14, MinimumLength = 6)]
         public string? Barcode { get; set; }

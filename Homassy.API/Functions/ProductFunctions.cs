@@ -498,6 +498,7 @@ namespace Homassy.API.Functions
                     Name = p.Name,
                     Brand = p.Brand,
                     Category = p.Category,
+                    Unit = p.Unit,
                     Barcode = p.Barcode,
                     ProductPictureBase64 = p.ProductPictureBase64,
                     IsEatable = p.IsEatable,
@@ -527,6 +528,7 @@ namespace Homassy.API.Functions
                     Name = request.Name.Trim(),
                     Brand = request.Brand.Trim(),
                     Category = request.Category,
+                    Unit = request.Unit,
                     Barcode = request.Barcode?.Trim(),
                     IsEatable = request.IsEatable
                 };
@@ -587,6 +589,7 @@ namespace Homassy.API.Functions
                     Name = product.Name,
                     Brand = product.Brand,
                     Category = product.Category,
+                    Unit = product.Unit,
                     Barcode = product.Barcode,
                     ProductPictureBase64 = product.ProductPictureBase64,
                     IsEatable = product.IsEatable,
@@ -638,6 +641,12 @@ namespace Homassy.API.Functions
                 if (request.Category != null)
                 {
                     product.Category = request.Category;
+                    hasChanges = true;
+                }
+
+                if (request.Unit.HasValue)
+                {
+                    product.Unit = request.Unit.Value;
                     hasChanges = true;
                 }
 
@@ -699,6 +708,7 @@ namespace Homassy.API.Functions
                     Name = product.Name,
                     Brand = product.Brand,
                     Category = product.Category,
+                    Unit = product.Unit,
                     Barcode = product.Barcode,
                     ProductPictureBase64 = product.ProductPictureBase64,
                     IsEatable = product.IsEatable,
@@ -836,6 +846,7 @@ namespace Homassy.API.Functions
                     Name = product.Name,
                     Brand = product.Brand,
                     Category = product.Category,
+                    Unit = product.Unit,
                     Barcode = product.Barcode,
                     ProductPictureBase64 = product.ProductPictureBase64,
                     IsEatable = product.IsEatable,
@@ -928,6 +939,7 @@ namespace Homassy.API.Functions
                 Name = product.Name,
                 Brand = product.Brand,
                 Category = product.Category,
+                Unit = product.Unit,
                 Barcode = product.Barcode,
                 ProductPictureBase64 = product.ProductPictureBase64,
                 IsEatable = product.IsEatable,
@@ -1031,6 +1043,7 @@ namespace Homassy.API.Functions
                     Name = product.Name,
                     Brand = product.Brand,
                     Category = product.Category,
+                    Unit = product.Unit,
                     Barcode = product.Barcode,
                     ProductPictureBase64 = product.ProductPictureBase64,
                     IsEatable = product.IsEatable,
@@ -1149,7 +1162,7 @@ namespace Homassy.API.Functions
                     FamilyId = request.IsSharedWithFamily && familyId.HasValue ? familyId : null,
                     StorageLocationId = storageLocationId,
                     CurrentQuantity = request.Quantity,
-                    Unit = request.Unit,
+                    Unit = product.Unit,
                     ExpirationAt = request.ExpirationAt
                 };
 
@@ -1269,7 +1282,7 @@ namespace Homassy.API.Functions
                     UserId = request.IsSharedWithFamily && familyId.HasValue ? null : userId.Value,
                     FamilyId = request.IsSharedWithFamily && familyId.HasValue ? familyId : null,
                     CurrentQuantity = request.Quantity,
-                    Unit = request.Unit
+                    Unit = product.Unit
                 };
 
                 context.ProductInventoryItems.Add(inventoryItem);
@@ -1368,12 +1381,6 @@ namespace Homassy.API.Functions
                 if (request.Quantity.HasValue)
                 {
                     trackedItem.CurrentQuantity = request.Quantity.Value;
-                    hasChanges = true;
-                }
-
-                if (request.Unit.HasValue)
-                {
-                    trackedItem.Unit = request.Unit.Value;
                     hasChanges = true;
                 }
 
@@ -1813,7 +1820,7 @@ namespace Homassy.API.Functions
                         FamilyId = request.IsSharedWithFamily && familyId.HasValue ? familyId : null,
                         StorageLocationId = storageLocationId,
                         CurrentQuantity = item.Quantity,
-                        Unit = item.Unit
+                        Unit = product.Unit
                     };
 
                     context.ProductInventoryItems.Add(inventoryItem);
@@ -2483,6 +2490,7 @@ namespace Homassy.API.Functions
                         Name = productRequest.Name.Trim(),
                         Brand = productRequest.Brand.Trim(),
                         Category = productRequest.Category,
+                        Unit = productRequest.Unit,
                         Barcode = productRequest.Barcode?.Trim(),
                         IsEatable = productRequest.IsEatable
                     };
@@ -2512,6 +2520,7 @@ namespace Homassy.API.Functions
                         Name = product.Name,
                         Brand = product.Brand,
                         Category = product.Category,
+                    Unit = product.Unit,
                         Barcode = product.Barcode,
                         ProductPictureBase64 = product.ProductPictureBase64,
                         IsEatable = product.IsEatable,
@@ -2551,6 +2560,7 @@ namespace Homassy.API.Functions
                 Name = product.Name,
                 Brand = product.Brand,
                 Category = product.Category,
+                Unit = product.Unit,
                 Barcode = product.Barcode,
                 ProductPictureBase64 = product.ProductPictureBase64,
                 IsEatable = product.IsEatable,

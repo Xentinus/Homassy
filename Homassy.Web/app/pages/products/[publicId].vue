@@ -109,6 +109,19 @@
             />
           </div>
 
+          <!-- Unit -->
+          <div>
+            <label class="block text-sm font-medium mb-1">
+              {{ $t('pages.addProduct.form.unit') }} <span class="text-red-500">*</span>
+            </label>
+            <USelect
+              v-model="editProductForm.unit"
+              :items="unitOptions"
+              :placeholder="$t('pages.addProduct.form.unitPlaceholder')"
+              class="w-full"
+            />
+          </div>
+
           <!-- Barcode -->
           <div>
             <label class="block text-sm font-medium mb-1">
@@ -358,6 +371,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
 import type { DetailedProductInfo, UpdateProductRequest } from '../../types/product'
+import { Unit } from '../../types/enums'
 import type { OpenFoodFactsProduct } from '../../types/openFoodFacts'
 import { useProductsApi } from '../../composables/api/useProductsApi'
 import { useOpenFoodFactsApi } from '../../composables/api/useOpenFoodFactsApi'
@@ -393,11 +407,22 @@ const editProductForm = ref<UpdateProductRequest>({
   name: undefined,
   brand: undefined,
   category: undefined,
+  unit: undefined,
   barcode: undefined,
   isEatable: undefined,
   notes: undefined
 })
 const isUpdatingProduct = ref(false)
+
+// Unit options for the product edit form
+const unitOptions = computed(() => {
+  return Object.entries(Unit)
+    .filter(([key]) => isNaN(Number(key)))
+    .map(([_key, value]) => ({
+      label: $t(`enums.unit.${value}`),
+      value: value as Unit
+    }))
+})
 
 // OpenFoodFacts state for edit modal
 const isOpenFoodFactsModalOpen = ref(false)
@@ -662,6 +687,7 @@ const openEditProductModal = () => {
     name: product.value.name,
     brand: product.value.brand,
     category: product.value.category || undefined,
+    unit: product.value.unit,
     barcode: product.value.barcode || undefined,
     isEatable: product.value.isEatable,
     notes: undefined // Notes not available in DetailedProductInfo
@@ -675,6 +701,7 @@ const closeEditProductModal = () => {
     name: undefined,
     brand: undefined,
     category: undefined,
+    unit: undefined,
     barcode: undefined,
     isEatable: undefined,
     notes: undefined

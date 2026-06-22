@@ -153,19 +153,18 @@ namespace Homassy.API.Functions
         }
 
         /// <summary>
-        /// Validates that auto-consume rules have quantity and unit set,
-        /// and AddToShoppingList / LowStockAddToShoppingList rules have the required fields.
+        /// Validates that auto-consume rules have a quantity set, and
+        /// AddToShoppingList / LowStockAddToShoppingList rules have the required fields.
+        /// The unit is always inherited from the related product, so it is not validated here.
         /// </summary>
-        public static void ValidateActionType(AutomationActionType actionType, decimal? consumeQuantity, Unit? consumeUnit,
-            Guid? shoppingListPublicId = null, Guid? productPublicId = null, decimal? addQuantity = null, Unit? addUnit = null,
+        public static void ValidateActionType(AutomationActionType actionType, decimal? consumeQuantity,
+            Guid? shoppingListPublicId = null, Guid? productPublicId = null, decimal? addQuantity = null,
             decimal? thresholdQuantity = null)
         {
             if (actionType == AutomationActionType.AutoConsume)
             {
                 if (!consumeQuantity.HasValue || consumeQuantity.Value <= 0)
                     throw new AutomationInvalidScheduleException("AutoConsume action requires ConsumeQuantity > 0");
-                if (!consumeUnit.HasValue)
-                    throw new AutomationInvalidScheduleException("AutoConsume action requires ConsumeUnit");
             }
             else if (actionType == AutomationActionType.AddToShoppingList)
             {
@@ -175,8 +174,6 @@ namespace Homassy.API.Functions
                     throw new AutomationInvalidScheduleException("AddToShoppingList action requires ProductPublicId");
                 if (!addQuantity.HasValue || addQuantity.Value <= 0)
                     throw new AutomationInvalidScheduleException("AddToShoppingList action requires AddQuantity > 0");
-                if (!addUnit.HasValue)
-                    throw new AutomationInvalidScheduleException("AddToShoppingList action requires AddUnit");
             }
             else if (actionType == AutomationActionType.LowStockAddToShoppingList)
             {
@@ -188,8 +185,6 @@ namespace Homassy.API.Functions
                     throw new AutomationInvalidScheduleException("LowStockAddToShoppingList action requires ProductPublicId");
                 if (!addQuantity.HasValue || addQuantity.Value <= 0)
                     throw new AutomationInvalidScheduleException("LowStockAddToShoppingList action requires AddQuantity > 0");
-                if (!addUnit.HasValue)
-                    throw new AutomationInvalidScheduleException("LowStockAddToShoppingList action requires AddUnit");
             }
         }
 
@@ -283,8 +278,8 @@ namespace Homassy.API.Functions
             // Validate schedule (skip for low-stock — event-driven, not schedule-driven)
             if (request.ActionType != AutomationActionType.LowStockAddToShoppingList)
                 ValidateSchedule(request.ScheduleType, request.IntervalDays, request.ScheduledDaysOfWeek, request.ScheduledDayOfMonth);
-            ValidateActionType(request.ActionType, request.ConsumeQuantity, request.ConsumeUnit,
-                request.ShoppingListPublicId, request.ProductPublicId, request.AddQuantity, request.AddUnit,
+            ValidateActionType(request.ActionType, request.ConsumeQuantity,
+                request.ShoppingListPublicId, request.ProductPublicId, request.AddQuantity,
                 request.ThresholdQuantity);
 
             var productFunctions = new ProductFunctions();
@@ -336,6 +331,12 @@ namespace Homassy.API.Functions
             var userProfile = new UserFunctions().GetUserProfileByUserId(userId.Value);
             var userTimeZone = userProfile?.DefaultTimeZone ?? UserTimeZone.CentralEuropeStandardTime;
 
+            // The unit is always inherited from the related product (no longer supplied by the client).
+            var derivedUnit = productEntity?.Unit
+                ?? (inventoryItem != null ? productFunctions.GetProductById(inventoryItem.ProductId)?.Unit : null);
+            var isAddAction = request.ActionType == AutomationActionType.AddToShoppingList
+                || request.ActionType == AutomationActionType.LowStockAddToShoppingList;
+
             var automation = new ItemAutomation
             {
                 ProductInventoryItemId = inventoryItem?.Id,
@@ -351,9 +352,9 @@ namespace Homassy.API.Functions
                 ScheduledTime = request.ScheduledTime,
                 ActionType = request.ActionType,
                 ConsumeQuantity = request.ConsumeQuantity,
-                ConsumeUnit = request.ConsumeUnit,
+                ConsumeUnit = isAddAction ? null : derivedUnit,
                 AddQuantity = request.AddQuantity,
-                AddUnit = request.AddUnit,
+                AddUnit = isAddAction ? derivedUnit : null,
                 ThresholdQuantity = request.ThresholdQuantity,
                 IsEnabled = true
             };
@@ -427,9 +428,10 @@ namespace Homassy.API.Functions
             var scheduledDayOfMonth = request.ScheduledDayOfMonth ?? automation.ScheduledDayOfMonth;
             var actionType = request.ActionType ?? automation.ActionType;
             var consumeQuantity = request.ConsumeQuantity ?? automation.ConsumeQuantity;
-            var consumeUnit = request.ConsumeUnit ?? automation.ConsumeUnit;
+            // Units are inherited from the product and not editable via the request.
+            var consumeUnit = automation.ConsumeUnit;
             var addQuantity = request.AddQuantity ?? automation.AddQuantity;
-            var addUnit = request.AddUnit ?? automation.AddUnit;
+            var addUnit = automation.AddUnit;
             var thresholdQuantity = request.ThresholdQuantity ?? automation.ThresholdQuantity;
 
             // Validate after merge (skip schedule validation for low-stock — event-driven)
@@ -437,15 +439,15 @@ namespace Homassy.API.Functions
                 ValidateSchedule(scheduleType, intervalDays, scheduledDaysOfWeek, scheduledDayOfMonth);
 
             // Only validate action type fields when action-type-related properties are being changed
-            if (request.ActionType.HasValue || request.ConsumeQuantity.HasValue || request.ConsumeUnit.HasValue ||
-                request.AddQuantity.HasValue || request.AddUnit.HasValue ||
+            if (request.ActionType.HasValue || request.ConsumeQuantity.HasValue ||
+                request.AddQuantity.HasValue ||
                 request.ShoppingListPublicId.HasValue || request.ProductPublicId.HasValue ||
                 request.ThresholdQuantity.HasValue)
             {
                 // For update, use existing entity IDs if not provided in request
                 var shoppingListPublicId = request.ShoppingListPublicId ?? (automation.ShoppingListId.HasValue ? Guid.Empty : (Guid?)null);
                 var productPublicId = request.ProductPublicId ?? (automation.ProductId.HasValue ? Guid.Empty : (Guid?)null);
-                ValidateActionType(actionType, consumeQuantity, consumeUnit, shoppingListPublicId, productPublicId, addQuantity, addUnit, thresholdQuantity);
+                ValidateActionType(actionType, consumeQuantity, shoppingListPublicId, productPublicId, addQuantity, thresholdQuantity);
             }
 
             automation.ScheduleType = scheduleType;

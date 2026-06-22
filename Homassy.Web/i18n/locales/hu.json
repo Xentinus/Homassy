@@ -428,6 +428,8 @@
         "brandPlaceholder": "pl. Mizo",
         "category": "Kategória",
         "categoryPlaceholder": "pl. Tejtermék",
+        "unit": "Mértékegység",
+        "unitPlaceholder": "Válassz mértékegységet",
         "barcode": "Vonalkód",
         "barcodePlaceholder": "pl. 5998200119874",
         "barcodeQuery": "Lekérdezés",

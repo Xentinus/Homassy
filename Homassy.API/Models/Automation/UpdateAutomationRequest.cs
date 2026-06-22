@@ -25,14 +25,8 @@ namespace Homassy.API.Models.Automation
         [Range(0.001, double.MaxValue, ErrorMessage = "Consume quantity must be greater than 0")]
         public decimal? ConsumeQuantity { get; set; }
 
-        [EnumDataType(typeof(Unit))]
-        public Unit? ConsumeUnit { get; set; }
-
         [Range(0.001, double.MaxValue, ErrorMessage = "Add quantity must be greater than 0")]
         public decimal? AddQuantity { get; set; }
-
-        [EnumDataType(typeof(Unit))]
-        public Unit? AddUnit { get; set; }
 
         public Guid? ShoppingListPublicId { get; set; }
 

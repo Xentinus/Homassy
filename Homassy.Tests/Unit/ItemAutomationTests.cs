@@ -389,8 +389,7 @@ public class ItemAutomationTests
             IntervalDays = 7,
             ScheduledTime = new TimeOnly(8, 0),
             ActionType = AutomationActionType.AutoConsume,
-            ConsumeQuantity = 1.0m,
-            ConsumeUnit = ApiUnit.Piece
+            ConsumeQuantity = 1.0m
         };
 
         // Assert
@@ -399,7 +398,6 @@ public class ItemAutomationTests
         Assert.Equal(7, request.IntervalDays);
         Assert.Equal(AutomationActionType.AutoConsume, request.ActionType);
         Assert.Equal(1.0m, request.ConsumeQuantity);
-        Assert.Equal(ApiUnit.Piece, request.ConsumeUnit);
         Assert.False(request.IsSharedWithFamily);
     }
 
@@ -421,11 +419,9 @@ public class ItemAutomationTests
         Assert.Null(request.ScheduledDaysOfWeek);
         Assert.Null(request.ScheduledDayOfMonth);
         Assert.Null(request.ConsumeQuantity);
-        Assert.Null(request.ConsumeUnit);
         Assert.Null(request.ProductPublicId);
         Assert.Null(request.ShoppingListPublicId);
         Assert.Null(request.AddQuantity);
-        Assert.Null(request.AddUnit);
     }
 
     [Fact]
@@ -442,12 +438,10 @@ public class ItemAutomationTests
         Assert.Null(request.ScheduledTime);
         Assert.Null(request.ActionType);
         Assert.Null(request.ConsumeQuantity);
-        Assert.Null(request.ConsumeUnit);
         Assert.Null(request.IsEnabled);
         Assert.Null(request.ProductPublicId);
         Assert.Null(request.ShoppingListPublicId);
         Assert.Null(request.AddQuantity);
-        Assert.Null(request.AddUnit);
     }
 
     [Fact]
@@ -797,8 +791,7 @@ public class ItemAutomationTests
             ScheduledDaysOfWeek = DaysOfWeek.Monday | DaysOfWeek.Thursday,
             ScheduledTime = new TimeOnly(7, 0),
             ActionType = AutomationActionType.AddToShoppingList,
-            AddQuantity = 3m,
-            AddUnit = ApiUnit.Liter
+            AddQuantity = 3m
         };
 
         Assert.Null(request.InventoryItemPublicId);
@@ -807,7 +800,6 @@ public class ItemAutomationTests
         Assert.Equal(DaysOfWeek.Monday | DaysOfWeek.Thursday, request.ScheduledDaysOfWeek);
         Assert.Equal(AutomationActionType.AddToShoppingList, request.ActionType);
         Assert.Equal(3m, request.AddQuantity);
-        Assert.Equal(ApiUnit.Liter, request.AddUnit);
     }
 
     [Fact]
@@ -818,13 +810,11 @@ public class ItemAutomationTests
         var request = new UpdateAutomationRequest
         {
             ShoppingListPublicId = shoppingListPublicId,
-            AddQuantity = 5m,
-            AddUnit = ApiUnit.Kilogram
+            AddQuantity = 5m
         };
 
         Assert.Equal(shoppingListPublicId, request.ShoppingListPublicId);
         Assert.Equal(5m, request.AddQuantity);
-        Assert.Equal(ApiUnit.Kilogram, request.AddUnit);
         Assert.Null(request.ScheduleType);
         Assert.Null(request.ActionType);
     }
