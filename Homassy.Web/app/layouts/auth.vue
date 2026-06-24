@@ -140,10 +140,10 @@ const navItems = computed(() => [
     badge: deadlineCount.value > 0 ? deadlineCount.value : undefined
   },
   {
-    label: t('nav.activity'),
-    to: '/activity',
-    icon: 'i-lucide-activity',
-    active: route.path.startsWith('/activity')
+    label: t('nav.calendar'),
+    to: '/calendar',
+    icon: 'i-lucide-calendar',
+    active: route.path.startsWith('/calendar')
   },
   {
     label: t('nav.profile'),

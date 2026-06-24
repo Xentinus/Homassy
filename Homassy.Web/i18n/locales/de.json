@@ -172,7 +172,7 @@
     "home": "Startseite",
     "products": "Lagerbestand",
     "shoppingLists": "Einkaufslisten",
-    "activity": "Aktivitäten",
+    "calendar": "Kalender",
     "profile": "Profil"
   },
   "footer": {
@@ -688,6 +688,27 @@
       "endOfActivities": "Keine weiteren Aktivitäten",
       "noActivities": "Noch keine Aktivitäten",
       "noActivitiesDescription": "Ihre Aktivitäten werden hier angezeigt, sobald Sie mit Produkten, Einkaufslisten oder Familieneinstellungen arbeiten."
+    },
+    "calendar": {
+      "title": "Kalender",
+      "greeting": "Willkommen, {name}!",
+      "greetingSubtitle": "Hier sind die heutigen Ereignisse.",
+      "date": "Datum",
+      "detail": "Details",
+      "noEvents": "Keine Ereignisse in diesem Zeitraum",
+      "noEventsOnDay": "Keine Ereignisse an diesem Tag",
+      "selectDayPrompt": "Wähle einen Tag, um Ereignisse anzuzeigen",
+      "eventTypes": {
+        "inventoryExpiration": "Ablaufendes Produkt",
+        "automationExecution": "Automatisierung",
+        "shoppingListDeadline": "Einkaufsfrist",
+        "activity": "Aktivität"
+      },
+      "views": {
+        "month": "Monat",
+        "week": "Woche"
+      },
+      "today": "Heute"
     }
   },
   "time": {

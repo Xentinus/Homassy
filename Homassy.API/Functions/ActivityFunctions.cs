@@ -141,10 +141,10 @@ namespace Homassy.API.Functions
                 query = query.Where(a => a.ActivityType == request.ActivityType.Value);
 
             if (request.StartDate.HasValue)
-                query = query.Where(a => a.Timestamp >= request.StartDate.Value);
+                query = query.Where(a => a.Timestamp >= DateTime.SpecifyKind(request.StartDate.Value, DateTimeKind.Utc));
 
             if (request.EndDate.HasValue)
-                query = query.Where(a => a.Timestamp <= request.EndDate.Value);
+                query = query.Where(a => a.Timestamp <= DateTime.SpecifyKind(request.EndDate.Value, DateTimeKind.Utc));
 
             if (request.UserPublicId.HasValue)
             {

@@ -315,7 +315,7 @@ async function handleLoginSuccess() {
   if (returnTo) {
     await router.push(returnTo)
   } else {
-    await router.push('/activity')
+    await router.push('/calendar')
   }
 }
 
@@ -433,7 +433,7 @@ async function handleContinue() {
   if (returnTo) {
     await router.push(returnTo)
   } else {
-    await router.push('/activity')
+    await router.push('/calendar')
   }
 }
 

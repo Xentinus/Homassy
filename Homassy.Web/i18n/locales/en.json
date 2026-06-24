@@ -174,7 +174,7 @@
     "home": "Home",
     "products": "Inventory",
     "shoppingLists": "Shopping Lists",
-    "activity": "Activities",
+    "calendar": "Calendar",
     "profile": "Profile"
   },
   "footer": {
@@ -690,6 +690,27 @@
       "endOfActivities": "No more activities",
       "noActivities": "No activities yet",
       "noActivitiesDescription": "Your activities will appear here once you start working with products, shopping lists, or family settings."
+    },
+    "calendar": {
+      "title": "Calendar",
+      "greeting": "Welcome, {name}!",
+      "greetingSubtitle": "Here are today's events.",
+      "date": "Date",
+      "detail": "Details",
+      "noEvents": "No events in this period",
+      "noEventsOnDay": "No events on this day",
+      "selectDayPrompt": "Select a day to view events",
+      "eventTypes": {
+        "inventoryExpiration": "Expiring product",
+        "automationExecution": "Automation",
+        "shoppingListDeadline": "Shopping deadline",
+        "activity": "Activity"
+      },
+      "views": {
+        "month": "Month",
+        "week": "Week"
+      },
+      "today": "Today"
     }
   },
   "time": {

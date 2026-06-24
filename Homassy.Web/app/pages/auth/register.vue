@@ -311,8 +311,7 @@ async function verifyCode(event: FormSubmitEvent<CodeSchema>) {
       icon: 'i-heroicons-check-circle'
     })
 
-    // Redirect to activity
-    await router.push('/activity')
+    await router.push('/calendar')
   } catch (e: any) {
     console.error('[Register] Code verification failed:', e)
     

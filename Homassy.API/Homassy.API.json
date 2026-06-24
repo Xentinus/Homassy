@@ -11,7 +11,7 @@
       "name": "MIT License",
       "url": "https://github.com/Xentinus/Homassy/blob/master/LICENSE"
     },
-    "version": "26.0622.2047-dev"
+    "version": "26.0622.2127-dev"
   },
   "paths": {
     "/api/v1/Auth/me": {
@@ -678,6 +678,74 @@
           },
           "404": {
             "description": "Not Found",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponse"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponse"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/Calendar": {
+      "get": {
+        "tags": [
+          "Calendar"
+        ],
+        "summary": "Gets all calendar events (inventory expirations, automation executions, shopping list deadlines)\r\nwithin the specified date range.",
+        "parameters": [
+          {
+            "name": "startDate",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "format": "date-time"
+            }
+          },
+          {
+            "name": "endDate",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "format": "date-time"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponseOfListOfCalendarEventInfo"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponseOfListOfCalendarEventInfo"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponseOfListOfCalendarEventInfo"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
             "content": {
               "text/plain": {
                 "schema": {
@@ -6711,6 +6779,36 @@
           }
         }
       },
+      "ApiResponseOfListOfCalendarEventInfo": {
+        "type": "object",
+        "properties": {
+          "success": {
+            "type": "boolean"
+          },
+          "data": {
+            "type": [
+              "null",
+              "array"
+            ],
+            "items": {
+              "$ref": "#/components/schemas/CalendarEventInfo"
+            }
+          },
+          "errorCodes": {
+            "type": [
+              "null",
+              "array"
+            ],
+            "items": {
+              "type": "string"
+            }
+          },
+          "timestamp": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
       "ApiResponseOfListOfFamilyMemberResponse": {
         "type": "object",
         "properties": {
@@ -7825,6 +7923,41 @@
             "format": "date-time"
           }
         }
+      },
+      "CalendarEventInfo": {
+        "type": "object",
+        "properties": {
+          "publicId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "title": {
+            "type": "string"
+          },
+          "eventType": {
+            "$ref": "#/components/schemas/CalendarEventType"
+          },
+          "start": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "detail": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "relatedEntityPublicId": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "uuid"
+          }
+        }
+      },
+      "CalendarEventType": {
+        "type": "integer"
       },
       "ConsumeInventoryItemEntry": {
         "required": [
@@ -11041,6 +11174,9 @@
     },
     {
       "name": "Automation"
+    },
+    {
+      "name": "Calendar"
     },
     {
       "name": "ErrorCodes"

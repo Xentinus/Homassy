@@ -174,7 +174,7 @@
     "home": "Kezdőlap",
     "products": "Készletek",
     "shoppingLists": "Bevásárlólisták",
-    "activity": "Tevékenységek",
+    "calendar": "Naptár",
     "profile": "Profil"
   },
   "footer": {
@@ -689,6 +689,27 @@
       "endOfActivities": "Nincs több tevékenység",
       "noActivities": "Még nincsenek tevékenységek",
       "noActivitiesDescription": "A tevékenységeid itt fognak megjelenni, amint elkezdesz dolgozni a termékekkel, bevásárlólistákkal vagy családi beállításokkal."
+    },
+    "calendar": {
+      "title": "Naptár",
+      "greeting": "Üdvözöllek, {name}!",
+      "greetingSubtitle": "A mai napon a következő események láthatóak.",
+      "date": "Dátum",
+      "detail": "Részletek",
+      "noEvents": "Nincs esemény ebben az időszakban",
+      "noEventsOnDay": "Ezen a napon nincs esemény",
+      "selectDayPrompt": "Válassz egy napot az események megtekintéséhez",
+      "eventTypes": {
+        "inventoryExpiration": "Lejáró termék",
+        "automationExecution": "Automatizálás",
+        "shoppingListDeadline": "Bevásárlás határidő",
+        "activity": "Tevékenység"
+      },
+      "views": {
+        "month": "Hónap",
+        "week": "Hét"
+      },
+      "today": "Ma"
     }
   },
   "time": {
