@@ -25,10 +25,6 @@ const flow = ref<LoginFlow | null>(null)
 const error = ref<string | null>(null)
 const registrationEnabled = ref(true)
 
-// Already logged in state
-const showAlreadyLoggedIn = ref(false)
-const sessionEmail = ref('')
-
 // Login flow state
 const email = ref('')
 const step = ref<'email' | 'code'>('email')
@@ -79,13 +75,11 @@ onMounted(async () => {
   // Check for refresh query parameter (re-authentication required)
   const refreshRequired = route.query.refresh === 'true'
 
-  // If already authenticated and NOT a refresh request, show "already logged in" banner
+  // If already authenticated and NOT a refresh request, skip the login form and
+  // redirect straight to the calendar (or the return_to target).
   if (authStore.isAuthenticated && !refreshRequired) {
-    console.debug('[Login] User is already authenticated')
-    const traits = authStore.session?.identity?.traits as any
-    sessionEmail.value = traits?.email || ''
-    showAlreadyLoggedIn.value = true
-    loading.value = false
+    console.debug('[Login] User is already authenticated, redirecting')
+    await handleContinue()
     return
   }
 
@@ -119,10 +113,7 @@ onMounted(async () => {
       // Session might have been created after initialize()
       await authStore.refreshSession()
       if (authStore.isAuthenticated) {
-        const traits = authStore.session?.identity?.traits as any
-        sessionEmail.value = traits?.email || ''
-        showAlreadyLoggedIn.value = true
-        loading.value = false
+        await handleContinue()
         return
       }
     }
@@ -425,8 +416,8 @@ function goBackToEmail() {
 }
 
 /**
- * Handle "Continue" button click when already logged in
- * Redirects to activity page or return_to URL
+ * Redirect an already-authenticated user to their destination
+ * (return_to URL when present, otherwise the calendar)
  */
 async function handleContinue() {
   const returnTo = route.query.return_to as string
@@ -434,30 +425,6 @@ async function handleContinue() {
     await router.push(returnTo)
   } else {
     await router.push('/calendar')
-  }
-}
-
-/**
- * Handle "Switch Account" button click when already logged in
- * Logs out and creates a fresh login flow
- */
-async function handleSwitchAccount() {
-  loading.value = true
-  error.value = null
-  
-  try {
-    flow.value = await kratos.logoutAndCreateFlow('login')
-    showAlreadyLoggedIn.value = false
-    
-    // Check if passkey/WebAuthn is supported in this browser
-    if (flow.value && webauthn.isSupported()) {
-      passkeyAvailable.value = true
-    }
-  } catch (e: any) {
-    console.error('[Login] Failed to switch account:', e)
-    error.value = e.message || t('auth.switchAccountError')
-  } finally {
-    loading.value = false
   }
 }
 
@@ -516,39 +483,9 @@ const requestButtonText = computed(() => {
           <UIcon name="i-heroicons-arrow-path" class="size-8 animate-spin text-muted" />
         </div>
 
-        <!-- Already Logged In Banner -->
-        <div v-if="showAlreadyLoggedIn && !loading" class="space-y-4">
-          <UAlert
-            color="primary"
-            variant="soft"
-            :title="$t('auth.alreadyLoggedIn.title')"
-            :description="$t('auth.alreadyLoggedIn.description', { email: sessionEmail })"
-            icon="i-heroicons-information-circle"
-          />
-          
-          <div class="flex flex-col gap-3 sm:flex-row">
-            <UButton
-              color="primary"
-              variant="solid"
-              size="lg"
-              block
-              :label="$t('auth.alreadyLoggedIn.continueButton')"
-              @click="handleContinue"
-            />
-            <UButton
-              color="gray"
-              variant="outline"
-              size="lg"
-              block
-              :label="$t('auth.alreadyLoggedIn.switchAccountButton')"
-              @click="handleSwitchAccount"
-            />
-          </div>
-        </div>
-
         <!-- Error Alert -->
         <UAlert
-          v-if="error && !loading && !showAlreadyLoggedIn"
+          v-if="error && !loading"
           color="error"
           variant="soft"
           :title="$t('auth.error')"
@@ -558,7 +495,7 @@ const requestButtonText = computed(() => {
         />
 
         <!-- Login Form -->
-        <div v-if="flow && !loading && !showAlreadyLoggedIn" class="space-y-6">
+        <div v-if="flow && !loading" class="space-y-6">
           
           <!-- Email Step -->
           <div v-if="step === 'email'" class="space-y-4">

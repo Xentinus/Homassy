@@ -1,5 +1,5 @@
 ﻿<template>
-  <div>
+  <div v-if="!redirecting">
     <UPageHero
       :title="$t('pages.home.title')"
       :description="$t('pages.home.description')"
@@ -39,6 +39,10 @@ const route = useRoute()
 const authStore = useAuthStore()
 const { t } = useI18n()
 const toast = useToast()
+
+// While we verify the existing Kratos session we hide the landing page to
+// avoid a flash before redirecting an already-authenticated user.
+const redirecting = ref(true)
 
 const features = computed(() => [
   {
@@ -140,14 +144,23 @@ function handleLogoutSuccess() {
 // Check if user is already authenticated on mount
 onMounted(async () => {
   console.debug('[Index] Checking existing authentication...')
-  
+
   // Handle logout success toast first
   handleLogoutSuccess()
 
   // Initialize auth state
   await authStore.initialize()
 
+  // If a valid session is restored, skip the landing page and go straight to
+  // the calendar (same destination as a successful login).
+  if (authStore.isAuthenticated) {
+    console.debug('[Index] Existing session found, redirecting to /calendar')
+    await navigateTo('/calendar')
+    return
+  }
+
   console.debug('[Index] Ready to show landing page')
+  redirecting.value = false
 })
 
 definePageMeta({
