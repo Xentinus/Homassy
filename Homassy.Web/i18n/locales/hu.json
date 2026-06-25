@@ -17,6 +17,7 @@
     "edit": "Szerkesztés",
     "viewInventory": "Készlet megtekintése",
     "search": "Keresés",
+    "clear": "Törlés",
     "loading": "Betöltés...",
     "searchPlaceholder": "Keresés név, márka vagy vonalkód alapján...",
     "filter": "Szűrés",
@@ -282,7 +283,28 @@
         "expiringSoon": "Hamarosan lejáró termékek",
         "favorites": "Kedvencek",
         "eatable": "Ehető termékek",
-        "withBarcode": "Vonalkóddal rendelkező termékek"
+        "notEatable": "Nem ehető termékek",
+        "withBarcode": "Vonalkóddal rendelkező termékek",
+        "toggle": "Szűrők",
+        "minQuantity": "Min.",
+        "maxQuantity": "Max.",
+        "clearAll": "Összes törlése",
+        "removeFilter": "Szűrő eltávolítása",
+        "showResults": "{count} termék megjelenítése"
+      },
+      "filterLabels": {
+        "expiration": "Lejárat",
+        "eatable": "Ehető",
+        "favorites": "Kedvencek",
+        "barcode": "Vonalkód",
+        "scope": "Hatókör",
+        "quantity": "Készlet mennyiség",
+        "properties": "Tulajdonságok"
+      },
+      "scopeFilters": {
+        "all": "Minden tétel",
+        "family": "Családdal megosztott",
+        "personal": "Saját tételeim"
       },
       "details": {
         "overview": "Készlet áttekintés",

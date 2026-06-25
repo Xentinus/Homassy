@@ -1,7 +1,7 @@
 ﻿<template>
   <div>
-    <!-- Fixed Header with Search -->
-    <div class="fixed top-0 left-0 right-0 z-10 bg-white dark:bg-gray-900 px-6 sm:px-10 lg:px-16 py-6 space-y-3">
+    <!-- Sticky Header with Search -->
+    <div class="sticky top-0 z-10 bg-white dark:bg-gray-900 px-6 sm:px-10 lg:px-16 py-4 space-y-3">
       <div class="flex items-center justify-between gap-3">
         <div class="flex items-center gap-3">
           <UIcon name="i-lucide-package" class="h-7 w-7 text-primary-500" />
@@ -14,11 +14,11 @@
         </NuxtLink>
       </div>
       <p class="text-gray-600 dark:text-gray-400">{{ $t('pages.products.description') }}</p>
-      
-      <!-- Search and Filter Section -->
-      <div class="flex flex-col sm:flex-row gap-2">
-        <div class="flex-1">
-          <UFieldGroup size="md" orientation="horizontal" class="w-full">
+
+      <!-- Search row (always visible) + filters trigger -->
+      <div class="space-y-2">
+        <div class="flex gap-2">
+          <UFieldGroup size="md" orientation="horizontal" class="flex-1">
             <UInput
               v-model="searchQuery"
               class="flex-1"
@@ -32,25 +32,148 @@
                   size="xs"
                   color="neutral"
                   variant="ghost"
+                  :aria-label="$t('common.clear')"
                   @click="searchQuery = ''"
                 />
               </template>
             </UInput>
             <BarcodeScannerButton v-if="showCameraButton" @scanned="handleBarcodeScanned" />
           </UFieldGroup>
+          <UChip :show="activeFilterCount > 0" :text="activeFilterCount" color="primary" size="2xl">
+            <UButton
+              icon="i-lucide-sliders-horizontal"
+              color="primary"
+              size="md"
+              :aria-label="$t('pages.products.filters.toggle')"
+              :aria-expanded="filtersOpen"
+              @click="filtersOpen = true"
+            >
+              <span class="hidden sm:inline">{{ $t('pages.products.filters.toggle') }}</span>
+            </UButton>
+          </UChip>
         </div>
-        <div class="flex-1">
-          <USelect
-            v-model="filterMode"
-            :items="filterOptions"
-            class="w-full"
+
+        <!-- Active filter chips (dismissible) -->
+        <div
+          v-if="activeFilters.length"
+          class="flex items-center gap-2 overflow-x-auto pb-1 -mx-1 px-1"
+        >
+          <UButton
+            v-for="f in activeFilters"
+            :key="f.key"
+            :label="f.label"
+            size="xs"
+            color="primary"
+            variant="soft"
+            trailing-icon="i-lucide-x"
+            class="rounded-full shrink-0"
+            :aria-label="`${$t('pages.products.filters.removeFilter')}: ${f.label}`"
+            @click="f.clear()"
+          />
+          <UButton
+            :label="$t('pages.products.filters.clearAll')"
+            size="xs"
+            color="neutral"
+            variant="ghost"
+            class="shrink-0"
+            @click="clearAllFilters"
           />
         </div>
       </div>
     </div>
 
-    <!-- Content Section with padding to account for fixed header -->
-    <div class="pt-56 px-4 sm:px-8 lg:px-14 pb-6">
+    <!-- Filter drawer (bottom sheet) -->
+    <UDrawer v-model:open="filtersOpen" :title="$t('pages.products.filters.toggle')">
+      <template #body>
+        <div class="space-y-5 pb-2">
+          <FilterChipGroup
+            v-model="expirationFilter"
+            :label="$t('pages.products.filterLabels.expiration')"
+            :options="expirationOptions"
+          />
+          <FilterChipGroup
+            v-model="scopeFilter"
+            :label="$t('pages.products.filterLabels.scope')"
+            :options="scopeOptions"
+          />
+          <FilterChipGroup
+            v-model="eatableFilter"
+            :label="$t('pages.products.filterLabels.eatable')"
+            :options="eatableOptions"
+          />
+
+          <!-- Boolean property toggles -->
+          <div role="group" :aria-label="$t('pages.products.filterLabels.properties')">
+            <p class="text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">
+              {{ $t('pages.products.filterLabels.properties') }}
+            </p>
+            <div class="flex flex-wrap gap-2">
+              <UButton
+                :label="$t('pages.products.filters.favorites')"
+                icon="i-lucide-star"
+                size="sm"
+                class="rounded-full"
+                :color="favoritesFilter === 'favorites' ? 'primary' : 'neutral'"
+                :variant="favoritesFilter === 'favorites' ? 'solid' : 'outline'"
+                :aria-pressed="favoritesFilter === 'favorites'"
+                @click="favoritesFilter = favoritesFilter === 'favorites' ? 'all' : 'favorites'"
+              />
+              <UButton
+                :label="$t('pages.products.filterLabels.barcode')"
+                icon="i-lucide-barcode"
+                size="sm"
+                class="rounded-full"
+                :color="barcodeFilter === 'withBarcode' ? 'primary' : 'neutral'"
+                :variant="barcodeFilter === 'withBarcode' ? 'solid' : 'outline'"
+                :aria-pressed="barcodeFilter === 'withBarcode'"
+                @click="barcodeFilter = barcodeFilter === 'withBarcode' ? 'all' : 'withBarcode'"
+              />
+            </div>
+          </div>
+
+          <!-- Stock quantity range -->
+          <div>
+            <div class="flex items-center justify-between mb-2">
+              <p class="text-sm font-medium text-gray-700 dark:text-gray-300">
+                {{ $t('pages.products.filterLabels.quantity') }}
+              </p>
+              <span class="text-sm text-gray-500 dark:text-gray-400 tabular-nums">
+                {{ quantityRange[0] }} – {{ quantityRange[1] }}
+              </span>
+            </div>
+            <USlider
+              v-model="quantityRange"
+              :min="0"
+              :max="maxStockQuantity"
+              :step="1"
+              color="primary"
+            />
+          </div>
+        </div>
+      </template>
+      <template #footer>
+        <div class="flex items-center gap-2 w-full">
+          <UButton
+            :label="$t('pages.products.filters.clearAll')"
+            color="neutral"
+            variant="ghost"
+            size="lg"
+            :disabled="activeFilterCount === 0"
+            @click="clearAllFilters"
+          />
+          <UButton
+            class="flex-1"
+            size="lg"
+            color="primary"
+            :label="$t('pages.products.filters.showResults', { count: filteredProducts.length })"
+            @click="filtersOpen = false"
+          />
+        </div>
+      </template>
+    </UDrawer>
+
+    <!-- Content Section -->
+    <div class="pt-4 px-4 sm:px-8 lg:px-14 pb-6">
 
     <PullToRefreshIndicator
       :pull-distance="pullDistance"
@@ -113,14 +236,23 @@ const { showCameraButton } = useCameraAvailability()
 
 const { pullDistance, isPulling, isRefreshing, isReady } = usePullToRefresh(() => loadProducts())
 
-// LocalStorage key for filter settings
-const LAST_FILTER_MODE_KEY = 'productsLastFilterMode'
+// LocalStorage key for filter settings (single consolidated object)
+const FILTERS_KEY = 'productsFilters'
 
 // State
 const allProducts = ref<DetailedProductInfo[]>([])
 const isLoading = ref(false)
 const searchQuery = ref('')
-const filterMode = ref('all')
+const filtersOpen = ref(false)
+
+// Independent, individually-combinable filters (values validated on load/use)
+const expirationFilter = ref('all')
+const eatableFilter = ref('all')
+const favoritesFilter = ref('all')
+const barcodeFilter = ref('all')
+const scopeFilter = ref('all')
+const minQuantity = ref<number | null>(null)
+const maxQuantity = ref<number | null>(null)
 
 // Pagination state
 const currentPage = ref(1)
@@ -129,15 +261,110 @@ const loadingMore = ref(false)
 const sentinelRef = ref<HTMLElement | null>(null)
 const observer = ref<IntersectionObserver | null>(null)
 
-// Filter options for select dropdown
-const filterOptions = computed(() => [
+// Filter dropdown options
+const expirationOptions = computed(() => [
   { label: $t('pages.products.filters.all'), value: 'all' },
   { label: $t('pages.products.filters.expired'), value: 'expired' },
-  { label: $t('pages.products.filters.expiringSoon'), value: 'expiringSoon' },
-  { label: $t('pages.products.filters.favorites'), value: 'favorites' },
-  { label: $t('pages.products.filters.eatable'), value: 'eatable' },
-  { label: $t('pages.products.filters.withBarcode'), value: 'withBarcode' }
+  { label: $t('pages.products.filters.expiringSoon'), value: 'expiringSoon' }
 ])
+
+const eatableOptions = computed(() => [
+  { label: $t('pages.products.filters.all'), value: 'all' },
+  { label: $t('pages.products.filters.eatable'), value: 'eatable' },
+  { label: $t('pages.products.filters.notEatable'), value: 'notEatable' }
+])
+
+// Scope filter options (family vs personal)
+const scopeOptions = computed(() => [
+  { label: $t('pages.products.scopeFilters.all'), value: 'all' },
+  { label: $t('pages.products.scopeFilters.family'), value: 'family' },
+  { label: $t('pages.products.scopeFilters.personal'), value: 'personal' }
+])
+
+// Coerce a value to a non-negative number, or null when empty/invalid
+const normalizeQty = (v: unknown): number | null => {
+  if (v === '' || v === null || v === undefined) return null
+  const n = Number(v)
+  return Number.isFinite(n) && n >= 0 ? n : null
+}
+
+// Largest single-product total stock — upper bound for the quantity slider
+const maxStockQuantity = computed(() => {
+  const max = allProducts.value.reduce((m, p) => Math.max(m, totalQuantity(p)), 0)
+  return Math.max(1, Math.ceil(max))
+})
+
+// Slider range proxy: full range [0, max] means "no quantity filter"
+const quantityRange = computed<number[]>({
+  get: () => [minQuantity.value ?? 0, maxQuantity.value ?? maxStockQuantity.value],
+  set: (range: number[]) => {
+    const [lo, hi] = range
+    minQuantity.value = lo == null || lo <= 0 ? null : lo
+    maxQuantity.value = hi == null || hi >= maxStockQuantity.value ? null : hi
+  }
+})
+
+// Number of active (non-default) filters, shown as a badge on the filter toggle
+const activeFilterCount = computed(() =>
+  (expirationFilter.value !== 'all' ? 1 : 0) +
+  (eatableFilter.value !== 'all' ? 1 : 0) +
+  (favoritesFilter.value !== 'all' ? 1 : 0) +
+  (barcodeFilter.value !== 'all' ? 1 : 0) +
+  (scopeFilter.value !== 'all' ? 1 : 0) +
+  (minQuantity.value != null || maxQuantity.value != null ? 1 : 0)
+)
+
+const optLabel = (options: { label: string, value: string }[], value: string) =>
+  options.find(o => o.value === value)?.label ?? value
+
+// Active filters as dismissible chips shown under the search box
+const activeFilters = computed(() => {
+  const chips: { key: string, label: string, clear: () => void }[] = []
+  if (expirationFilter.value !== 'all') {
+    chips.push({ key: 'expiration', label: optLabel(expirationOptions.value, expirationFilter.value), clear: () => { expirationFilter.value = 'all' } })
+  }
+  if (scopeFilter.value !== 'all') {
+    chips.push({ key: 'scope', label: optLabel(scopeOptions.value, scopeFilter.value), clear: () => { scopeFilter.value = 'all' } })
+  }
+  if (eatableFilter.value !== 'all') {
+    chips.push({ key: 'eatable', label: optLabel(eatableOptions.value, eatableFilter.value), clear: () => { eatableFilter.value = 'all' } })
+  }
+  if (favoritesFilter.value === 'favorites') {
+    chips.push({ key: 'favorites', label: $t('pages.products.filters.favorites'), clear: () => { favoritesFilter.value = 'all' } })
+  }
+  if (barcodeFilter.value === 'withBarcode') {
+    chips.push({ key: 'barcode', label: $t('pages.products.filterLabels.barcode'), clear: () => { barcodeFilter.value = 'all' } })
+  }
+  if (minQuantity.value != null || maxQuantity.value != null) {
+    chips.push({
+      key: 'quantity',
+      label: `${$t('pages.products.filterLabels.quantity')}: ${minQuantity.value ?? 0}–${maxQuantity.value ?? maxStockQuantity.value}`,
+      clear: () => { minQuantity.value = null; maxQuantity.value = null }
+    })
+  }
+  return chips
+})
+
+const clearAllFilters = () => {
+  expirationFilter.value = 'all'
+  eatableFilter.value = 'all'
+  favoritesFilter.value = 'all'
+  barcodeFilter.value = 'all'
+  scopeFilter.value = 'all'
+  minQuantity.value = null
+  maxQuantity.value = null
+}
+
+// All filter values as one object — drives persistence and pagination reset
+const filterState = computed(() => ({
+  expiration: expirationFilter.value,
+  eatable: eatableFilter.value,
+  favorites: favoritesFilter.value,
+  barcode: barcodeFilter.value,
+  scope: scopeFilter.value,
+  minQuantity: minQuantity.value,
+  maxQuantity: maxQuantity.value
+}))
 
 // Computed - client-side filtering
 const filteredProducts = computed(() => {
@@ -153,27 +380,47 @@ const filteredProducts = computed(() => {
     )
   }
 
-  // Apply select filter (mutually exclusive)
-  switch (filterMode.value) {
-    case 'expired':
-      result = result.filter(product => hasExpiredItems(product))
-      break
-    case 'expiringSoon':
-      result = result.filter(product => hasExpiringSoonItems(product))
-      break
-    case 'favorites':
-      result = result.filter(product => product.isFavorite)
-      break
-    case 'eatable':
-      result = result.filter(product => product.isEatable)
-      break
-    case 'withBarcode':
-      result = result.filter(product => product.barcode && product.barcode.trim() !== '')
-      break
-    case 'all':
-    default:
-      // No additional filtering
-      break
+  // Independent filters — all AND-combined
+
+  // Expiration status
+  if (expirationFilter.value === 'expired') {
+    result = result.filter(product => hasExpiredItems(product))
+  } else if (expirationFilter.value === 'expiringSoon') {
+    result = result.filter(product => hasExpiringSoonItems(product))
+  }
+
+  // Eatable
+  if (eatableFilter.value === 'eatable') {
+    result = result.filter(product => product.isEatable)
+  } else if (eatableFilter.value === 'notEatable') {
+    result = result.filter(product => !product.isEatable)
+  }
+
+  // Favorites
+  if (favoritesFilter.value === 'favorites') {
+    result = result.filter(product => product.isFavorite)
+  }
+
+  // Barcode
+  if (barcodeFilter.value === 'withBarcode') {
+    result = result.filter(product => !!product.barcode && product.barcode.trim() !== '')
+  }
+
+  // Scope (family vs personal)
+  if (scopeFilter.value === 'family') {
+    result = result.filter(product => hasFamilyItems(product))
+  } else if (scopeFilter.value === 'personal') {
+    result = result.filter(product => hasPersonalItems(product))
+  }
+
+  // Stock-quantity range (unit-agnostic total; see totalQuantity)
+  if (minQuantity.value != null || maxQuantity.value != null) {
+    result = result.filter(product => {
+      const total = totalQuantity(product)
+      if (minQuantity.value != null && total < minQuantity.value) return false
+      if (maxQuantity.value != null && total > maxQuantity.value) return false
+      return true
+    })
   }
 
   // Sort products by urgency and then alphabetically
@@ -241,6 +488,22 @@ const hasExpiringSoonItems = (product: DetailedProductInfo): boolean => {
   })
 }
 
+// Scope helpers: a product matches "family" if it has any shared item, "personal"
+// if it has any personal item. A product with both kinds matches both scopes.
+const hasFamilyItems = (product: DetailedProductInfo): boolean => {
+  return product.inventoryItems.some(item => item.isSharedWithFamily === true)
+}
+
+const hasPersonalItems = (product: DetailedProductInfo): boolean => {
+  return product.inventoryItems.some(item => item.isSharedWithFamily === false)
+}
+
+// Total stock across all items. Items may use different units (pcs, g, l), so this
+// sum is unit-agnostic and only approximate when a product mixes units.
+const totalQuantity = (product: DetailedProductInfo): number => {
+  return product.inventoryItems.reduce((sum, item) => sum + item.currentQuantity, 0)
+}
+
 // Methods
 const loadProducts = async () => {
   isLoading.value = true
@@ -277,8 +540,10 @@ watch(searchQuery, () => {
   currentPage.value = 1
 })
 
-watch(filterMode, () => {
+// Reset pagination and persist whenever any filter changes
+watch(filterState, (state) => {
   currentPage.value = 1
+  localStorage.setItem(FILTERS_KEY, JSON.stringify(state))
 })
 
 // Watch for sentinel availability and setup observer
@@ -310,13 +575,35 @@ watch(sentinelRef, (newSentinel) => {
 
 // Lifecycle
 onMounted(() => {
-  // Restore filter settings from localStorage
-  const savedFilterMode = localStorage.getItem(LAST_FILTER_MODE_KEY)
-  
-  if (savedFilterMode) {
-    filterMode.value = savedFilterMode
+  // Restore filter settings from localStorage, validating each field
+  const saved = localStorage.getItem(FILTERS_KEY)
+
+  if (saved) {
+    try {
+      const parsed = JSON.parse(saved)
+
+      if (['all', 'expired', 'expiringSoon'].includes(parsed.expiration)) {
+        expirationFilter.value = parsed.expiration
+      }
+      if (['all', 'eatable', 'notEatable'].includes(parsed.eatable)) {
+        eatableFilter.value = parsed.eatable
+      }
+      if (['all', 'favorites'].includes(parsed.favorites)) {
+        favoritesFilter.value = parsed.favorites
+      }
+      if (['all', 'withBarcode'].includes(parsed.barcode)) {
+        barcodeFilter.value = parsed.barcode
+      }
+      if (['all', 'family', 'personal'].includes(parsed.scope)) {
+        scopeFilter.value = parsed.scope
+      }
+      minQuantity.value = normalizeQty(parsed.minQuantity)
+      maxQuantity.value = normalizeQty(parsed.maxQuantity)
+    } catch {
+      // Ignore malformed stored filters
+    }
   }
-  
+
   loadProducts()
 })
 
@@ -325,10 +612,5 @@ onBeforeUnmount(() => {
   if (observer.value) {
     observer.value.disconnect()
   }
-})
-
-// Watch for filter changes and save to localStorage
-watch(filterMode, (newValue) => {
-  localStorage.setItem(LAST_FILTER_MODE_KEY, newValue)
 })
 </script>

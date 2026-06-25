@@ -16,6 +16,7 @@
     "edit": "Bearbeiten",
     "viewInventory": "Lagerbestand anzeigen",
     "search": "Suchen",
+    "clear": "Leeren",
     "loading": "Laden...",
     "searchPlaceholder": "Nach Name, Marke oder Barcode suchen...",
     "filter": "Filtern",
@@ -280,7 +281,28 @@
         "expiringSoon": "Bald ablaufend",
         "favorites": "Favoriten",
         "eatable": "Essbare Produkte",
-        "withBarcode": "Produkte mit Barcode"
+        "notEatable": "Nicht essbare Produkte",
+        "withBarcode": "Produkte mit Barcode",
+        "toggle": "Filter",
+        "minQuantity": "Min.",
+        "maxQuantity": "Max.",
+        "clearAll": "Alle löschen",
+        "removeFilter": "Filter entfernen",
+        "showResults": "{count} Produkte anzeigen"
+      },
+      "filterLabels": {
+        "expiration": "Ablauf",
+        "eatable": "Essbar",
+        "favorites": "Favoriten",
+        "barcode": "Barcode",
+        "scope": "Bereich",
+        "quantity": "Bestandsmenge",
+        "properties": "Eigenschaften"
+      },
+      "scopeFilters": {
+        "all": "Alle Artikel",
+        "family": "Mit Familie geteilt",
+        "personal": "Meine Artikel"
       },
       "details": {
         "overview": "Bestandsübersicht",
