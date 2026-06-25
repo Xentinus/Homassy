@@ -15,14 +15,41 @@ export interface FabAction {
 
 // Shared, module-scoped state — the layout's FAB reads it, pages write it.
 const actions = ref<FabAction[]>([])
+// Visibility is debounced separately from `actions`: showing is instant, but hiding
+// is deferred so navigating between two FAB pages (the old page clears `actions`
+// before the new one re-registers, especially under an `out-in` page transition)
+// doesn't make the "+" flicker out and back in.
+const fabVisible = ref(false)
 const ownerId = ref(0)
 let counter = 0
+let hideTimer: ReturnType<typeof setTimeout> | null = null
+
+// Long enough to bridge a page transition / a page whose FAB populates just after
+// mount, short enough that genuinely FAB-less pages drop the "+" promptly.
+const FAB_HIDE_DELAY = 300
+
+const syncVisibility = () => {
+  if (actions.value.length > 0) {
+    if (hideTimer) {
+      clearTimeout(hideTimer)
+      hideTimer = null
+    }
+    fabVisible.value = true
+  } else if (fabVisible.value && !hideTimer) {
+    hideTimer = setTimeout(() => {
+      fabVisible.value = false
+      hideTimer = null
+    }, FAB_HIDE_DELAY)
+  }
+}
 
 /**
- * Read the currently registered FAB actions. Used by the layout's NavFab.
+ * Read the currently registered FAB actions (chooser content) and the debounced
+ * visibility flag (the "+" button and the navbar centre gap). Used by NavFab and
+ * the auth layout.
  */
 export const useFab = () => {
-  return { actions }
+  return { actions, fabVisible }
 }
 
 /**
@@ -41,6 +68,7 @@ export const useFabActions = (provider: () => FabAction[]) => {
   watchEffect(() => {
     actions.value = provider()
     ownerId.value = id
+    syncVisibility()
   })
 
   onScopeDispose(() => {
@@ -48,6 +76,7 @@ export const useFabActions = (provider: () => FabAction[]) => {
     // actions when navigation mounts it before this page is disposed.
     if (ownerId.value === id) {
       actions.value = []
+      syncVisibility()
     }
   })
 }

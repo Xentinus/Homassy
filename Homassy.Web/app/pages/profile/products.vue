@@ -1,46 +1,74 @@
 ﻿<template>
   <div>
-    <!-- Fixed Header -->
-    <div class="fixed top-0 left-0 right-0 z-10 bg-white dark:bg-gray-900 px-6 sm:px-10 lg:px-16 py-6 space-y-3">
-      <div class="flex items-center justify-between gap-3">
-        <div class="flex items-center gap-3">
-          <NuxtLink to="/profile">
-            <UButton
-              icon="i-lucide-arrow-left"
-              color="neutral"
-              variant="ghost"
-            />
-          </NuxtLink>
-          <UIcon name="i-lucide-package" class="h-7 w-7 text-primary-500" />
-          <h1 class="text-2xl font-semibold">{{ $t('profile.allProducts.title') }}</h1>
-        </div>
-        <UButton 
-          color="primary" 
-          size="sm" 
-          trailing-icon="i-lucide-plus"
-          @click="openCreateModal"
-        >
-          {{ $t('common.add') }}
-        </UButton>
-      </div>
-      
-      <!-- Search Input -->
-      <div class="w-full">
-        <UFieldGroup size="md" orientation="horizontal" class="w-full">
-          <UInput
-            v-model="searchQuery"
-            trailing-icon="i-lucide-search"
-            :placeholder="$t('common.searchPlaceholder')"
-            class="flex-1"
-            @update:model-value="handleSearch"
-          />
-          <BarcodeScannerButton v-if="showCameraButton" @scanned="handleSearchBarcodeScanned" />
-        </UFieldGroup>
-      </div>
-    </div>
+    <!-- Fixed Header with search + filters -->
+    <ListFilterBar
+      v-model:search="searchQuery"
+      :title="$t('profile.allProducts.title')"
+      icon="i-lucide-package"
+      :search-placeholder="$t('common.searchPlaceholder')"
+      :active-filters="activeFilters"
+      :filter-count="activeFilterCount"
+      :result-count="filteredProducts.length"
+      @clear-all="clearAllFilters"
+    >
+      <template #search-trailing>
+        <BarcodeScannerButton v-if="showCameraButton" @scanned="handleSearchBarcodeScanned" />
+      </template>
 
-    <!-- Content Section with padding to account for fixed header -->
-    <div class="pt-40 px-4 sm:px-8 lg:px-14 pb-6">
+      <template #filters>
+        <!-- Category -->
+        <div v-if="categoryFilterOptions.length > 1">
+          <p class="text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">
+            {{ $t('profile.allProducts.filterLabels.category') }}
+          </p>
+          <USelectMenu
+            v-model="categoryFilter"
+            :items="categoryFilterOptions"
+            value-key="value"
+            class="w-full"
+          />
+        </div>
+
+        <!-- Eatable -->
+        <FilterChipGroup
+          v-model="eatableFilter"
+          :label="$t('profile.allProducts.filterLabels.eatable')"
+          :options="eatableOptions"
+        />
+
+        <!-- Boolean property toggles -->
+        <div role="group" :aria-label="$t('profile.allProducts.filterLabels.properties')">
+          <p class="text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">
+            {{ $t('profile.allProducts.filterLabels.properties') }}
+          </p>
+          <div class="flex flex-wrap gap-2">
+            <UButton
+              :label="$t('profile.allProducts.filters.favorites')"
+              icon="i-lucide-star"
+              size="sm"
+              class="rounded-full"
+              :color="favoritesFilter ? 'primary' : 'neutral'"
+              :variant="favoritesFilter ? 'solid' : 'outline'"
+              :aria-pressed="favoritesFilter"
+              @click="favoritesFilter = !favoritesFilter"
+            />
+            <UButton
+              :label="$t('profile.allProducts.filters.withBarcode')"
+              icon="i-lucide-barcode"
+              size="sm"
+              class="rounded-full"
+              :color="barcodeFilter ? 'primary' : 'neutral'"
+              :variant="barcodeFilter ? 'solid' : 'outline'"
+              :aria-pressed="barcodeFilter"
+              @click="barcodeFilter = !barcodeFilter"
+            />
+          </div>
+        </div>
+      </template>
+    </ListFilterBar>
+
+    <!-- Content Section -->
+    <div class="px-4 sm:px-8 lg:px-14 pb-6">
 
     <PullToRefreshIndicator
       :pull-distance="pullDistance"
@@ -57,35 +85,27 @@
     </template>
 
     <!-- Empty State -->
-    <div v-else-if="products.length === 0" class="rounded-lg p-12 text-center">
+    <div v-else-if="filteredProducts.length === 0" class="rounded-lg p-12 text-center">
       <UIcon name="i-lucide-package" class="h-16 w-16 text-gray-400 mx-auto mb-4" />
       <p class="text-lg font-semibold text-gray-700 dark:text-gray-300 mb-2">
-        {{ searchQuery ? $t('pages.products.noResults') : 'Nincsenek termékek' }}
+        {{ hasActiveQuery ? $t('pages.products.noResults') : 'Nincsenek termékek' }}
       </p>
       <p class="text-gray-600 dark:text-gray-400">
-        {{ searchQuery ? 'Próbálj meg más keresési feltételt' : 'Adj hozzá termékeket a kezdéshez' }}
+        {{ hasActiveQuery ? 'Próbálj meg más keresési feltételt' : 'Adj hozzá termékeket a kezdéshez' }}
       </p>
     </div>
 
     <!-- Products Grid -->
     <div v-else class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
       <ProductCard
-        v-for="product in products"
+        v-for="product in filteredProducts"
         :key="product.publicId"
         :product="product"
         :search-query="searchQuery"
         :editable="true"
-        @updated="reloadCurrentPages"
-        @deleted="reloadCurrentPages"
+        @updated="loadProducts"
+        @deleted="loadProducts"
       />
-    </div>
-
-    <!-- Sentinel for intersection observer -->
-    <div v-if="hasMoreProducts" ref="sentinelRef" class="w-full py-8">
-      <!-- Loading skeletons while loading more -->
-      <div v-if="loadingMore" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
-        <USkeleton v-for="i in 6" :key="i" class="h-48 w-full rounded-lg" />
-      </div>
     </div>
     </div>
 
@@ -302,7 +322,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, onBeforeUnmount, nextTick } from 'vue'
+import { ref, computed, onMounted, nextTick } from 'vue'
 import { useProductsApi } from '~/composables/api/useProductsApi'
 import { useOpenFoodFactsApi } from '~/composables/api/useOpenFoodFactsApi'
 import { useSelectValueApi } from '~/composables/api/useSelectValueApi'
@@ -310,7 +330,8 @@ import { useCameraAvailability } from '~/composables/useCameraAvailability'
 import type { ProductInfo } from '~/types/product'
 import type { OpenFoodFactsProduct } from '~/types/openFoodFacts'
 import type { SelectValue } from '~/types/selectValue'
-import { ProductCategory, SelectValueType } from '~/types/enums'
+import { SelectValueType } from '~/types/enums'
+import type { ProductCategory } from '~/types/enums'
 
 definePageMeta({ layout: 'auth', middleware: 'auth' })
 
@@ -321,15 +342,28 @@ const { t } = useI18n()
 const toast = useToast()
 const { showCameraButton } = useCameraAvailability()
 
-const { pullDistance, isPulling, isRefreshing, isReady } = usePullToRefresh(() => loadProducts(true))
+// Add-action lives on the dynamic nav FAB instead of an inline header button.
+useFabActions(() => [
+  {
+    label: t('common.add'),
+    icon: 'i-lucide-plus',
+    handler: () => openCreateModal()
+  }
+])
+
+const { formatProductCategory } = useEnumLabel()
+
+const { pullDistance, isPulling, isRefreshing, isReady } = usePullToRefresh(() => loadProducts())
 
 const loading = ref(true)
-const loadingMore = ref(false)
 const products = ref<ProductInfo[]>([])
 const searchQuery = ref('')
-const currentPage = ref(1)
-const pageSize = 24
-const hasMoreProducts = ref(true)
+
+// Filter state
+const categoryFilter = ref('all')
+const eatableFilter = ref('all')
+const favoritesFilter = ref(false)
+const barcodeFilter = ref(false)
 
 // Create modal state
 const isCreateModalOpen = ref(false)
@@ -369,98 +403,108 @@ const categoryOptions = computed(() => {
   }))
 })
 
-// Intersection observer
-const sentinelRef = ref<HTMLElement | null>(null)
-let observer: IntersectionObserver | null = null
-
-// Search debounce
-let searchTimeout: NodeJS.Timeout | null = null
-
-// Load products
-async function loadProducts(reset = false) {
-  if (reset) {
-    loading.value = true
-    currentPage.value = 1
-    products.value = []
-    hasMoreProducts.value = true
-  } else {
-    loadingMore.value = true
-  }
-
+// Load all products (client-side search + filtering)
+async function loadProducts() {
+  loading.value = true
   try {
-    const response = await getProducts({
-      pageNumber: currentPage.value,
-      pageSize,
-      searchText: searchQuery.value.trim() || undefined
-    })
-    
-    const newProducts = response.data?.items || []
-    
-    if (reset) {
-      products.value = newProducts
-    } else {
-      products.value.push(...newProducts)
-    }
-
-    // Check if there are more products
-    const totalItems = response.data?.totalCount || 0
-    hasMoreProducts.value = products.value.length < totalItems
+    const response = await getProducts({ returnAll: true })
+    products.value = response.data?.items || []
   } catch (error) {
     console.error('Failed to load products:', error)
   } finally {
     loading.value = false
-    loadingMore.value = false
   }
 }
 
-// Reload all pages up to current page
-async function reloadCurrentPages() {
-  const pagesToLoad = currentPage.value
-  loading.value = true
-  products.value = []
-  
-  try {
-    // Load all pages from 1 to current
-    for (let page = 1; page <= pagesToLoad; page++) {
-      const response = await getProducts({
-        pageNumber: page,
-        pageSize,
-        searchText: searchQuery.value.trim() || undefined
-      })
-      
-      const newProducts = response.data?.items || []
-      products.value.push(...newProducts)
-      
-      // Update hasMoreProducts on last page
-      if (page === pagesToLoad) {
-        const totalItems = response.data?.totalCount || 0
-        hasMoreProducts.value = products.value.length < totalItems
-      }
-    }
-  } catch (error) {
-    console.error('Failed to reload products:', error)
-  } finally {
-    loading.value = false
-  }
-}
+// Filter options
+const eatableOptions = computed(() => [
+  { label: t('common.filters.all'), value: 'all' },
+  { label: t('profile.allProducts.filters.eatable'), value: 'eatable' },
+  { label: t('profile.allProducts.filters.notEatable'), value: 'notEatable' }
+])
 
-// Load more products (pagination)
-async function loadMoreProducts() {
-  if (loadingMore.value || !hasMoreProducts.value) return
-  
-  currentPage.value++
-  await loadProducts(false)
-}
-
-// Handle search with debounce
-function handleSearch() {
-  if (searchTimeout) {
-    clearTimeout(searchTimeout)
+// Category options built from the categories actually present on the products
+const categoryFilterOptions = computed(() => {
+  const seen = new Set<string>()
+  for (const product of products.value) {
+    if (product.category) seen.add(product.category)
   }
-  
-  searchTimeout = setTimeout(() => {
-    loadProducts(true)
-  }, 300)
+  const options = [...seen]
+    .map(value => ({ label: formatProductCategory(value), value }))
+    .sort((a, b) => a.label.localeCompare(b.label))
+  return [{ label: t('common.filters.all'), value: 'all' }, ...options]
+})
+
+// Client-side filtered products
+const filteredProducts = computed(() => {
+  let result = products.value
+
+  // Text search (name / brand / barcode, accent-insensitive)
+  if (searchQuery.value.trim()) {
+    const normalized = normalizeForSearch(searchQuery.value)
+    result = result.filter(product =>
+      normalizeForSearch(product.name).includes(normalized)
+      || normalizeForSearch(product.brand).includes(normalized)
+      || normalizeForSearch(product.barcode).includes(normalized)
+    )
+  }
+
+  // Category
+  if (categoryFilter.value !== 'all') {
+    result = result.filter(product => product.category === categoryFilter.value)
+  }
+
+  // Eatable
+  if (eatableFilter.value === 'eatable') {
+    result = result.filter(product => product.isEatable)
+  } else if (eatableFilter.value === 'notEatable') {
+    result = result.filter(product => !product.isEatable)
+  }
+
+  // Favorites
+  if (favoritesFilter.value) {
+    result = result.filter(product => product.isFavorite)
+  }
+
+  // Has barcode
+  if (barcodeFilter.value) {
+    result = result.filter(product => !!product.barcode && product.barcode.trim() !== '')
+  }
+
+  return result
+})
+
+// Active filter chips
+const activeFilters = computed(() => {
+  const chips: { key: string, label: string, clear: () => void }[] = []
+  if (categoryFilter.value !== 'all') {
+    chips.push({
+      key: 'category',
+      label: formatProductCategory(categoryFilter.value),
+      clear: () => { categoryFilter.value = 'all' }
+    })
+  }
+  if (eatableFilter.value !== 'all') {
+    const opt = eatableOptions.value.find(o => o.value === eatableFilter.value)
+    chips.push({ key: 'eatable', label: opt?.label ?? '', clear: () => { eatableFilter.value = 'all' } })
+  }
+  if (favoritesFilter.value) {
+    chips.push({ key: 'favorites', label: t('profile.allProducts.filters.favorites'), clear: () => { favoritesFilter.value = false } })
+  }
+  if (barcodeFilter.value) {
+    chips.push({ key: 'barcode', label: t('profile.allProducts.filters.withBarcode'), clear: () => { barcodeFilter.value = false } })
+  }
+  return chips
+})
+
+const activeFilterCount = computed(() => activeFilters.value.length)
+const hasActiveQuery = computed(() => !!searchQuery.value.trim() || activeFilterCount.value > 0)
+
+function clearAllFilters() {
+  categoryFilter.value = 'all'
+  eatableFilter.value = 'all'
+  favoritesFilter.value = false
+  barcodeFilter.value = false
 }
 
 // OpenFoodFacts handlers
@@ -531,7 +575,6 @@ const handleBarcodeScanned = (barcode: string) => {
 // Search barcode scanner handler
 const handleSearchBarcodeScanned = (barcode: string) => {
   searchQuery.value = barcode
-  handleSearch()
 }
 
 // Dynamic barcode handler - routes to correct handler based on context
@@ -598,51 +641,19 @@ const handleCreate = async () => {
   } catch (error) {
     console.error('Failed to create product:', error)
   } finally {
-    await reloadCurrentPages()
+    await loadProducts()
     isCreating.value = false
   }
 }
 
-// Setup intersection observer for infinite scroll
-function setupIntersectionObserver() {
-  observer = new IntersectionObserver(
-    (entries) => {
-      const [entry] = entries
-      if (entry.isIntersecting && hasMoreProducts.value && !loadingMore.value) {
-        loadMoreProducts()
-      }
-    },
-    {
-      root: null,
-      rootMargin: '200px',
-      threshold: 0.1
-    }
-  )
-
-  if (sentinelRef.value) {
-    observer.observe(sentinelRef.value)
-  }
-}
-
 onMounted(async () => {
-  await loadProducts(true)
-  await nextTick()
-  setupIntersectionObserver()
+  await loadProducts()
 })
 
 onMounted(async () => {
   const response = await getSelectValues(SelectValueType.ProductCategory)
   if (response.success && response.data) {
     categoryOptionsRaw.value = response.data
-  }
-})
-
-onBeforeUnmount(() => {
-  if (observer) {
-    observer.disconnect()
-  }
-  if (searchTimeout) {
-    clearTimeout(searchTimeout)
   }
 })
 </script>

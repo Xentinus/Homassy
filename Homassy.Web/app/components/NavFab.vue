@@ -1,8 +1,9 @@
 <template>
-  <div
-    v-if="actions.length"
-    class="absolute left-1/2 top-0 z-30 -translate-x-1/2 -translate-y-1/2"
-  >
+  <Transition name="fab-pop">
+    <div
+      v-if="fabVisible"
+      class="absolute left-1/2 top-0 z-30 -translate-x-1/2 -translate-y-1/2"
+    >
     <!-- Dimmed backdrop while the chooser is open (teleported so it sits below the nav) -->
     <Teleport to="body">
       <Transition name="fab-fade">
@@ -53,16 +54,17 @@
       type="button"
       :aria-label="open ? $t('fab.close') : $t('fab.open')"
       :aria-expanded="open"
-      class="flex h-14 w-14 items-center justify-center rounded-full bg-primary-500 text-white shadow-lg ring-4 ring-background transition duration-200 hover:scale-105 hover:bg-primary-600 active:scale-95"
+      class="flex h-14 w-14 items-center justify-center rounded-full bg-primary-500 text-white shadow-lg ring-4 ring-[var(--ui-bg)] transition duration-200 hover:scale-105 hover:bg-primary-600 active:scale-95"
       @click="onClick"
     >
-      <UIcon
-        name="i-lucide-plus"
-        class="h-7 w-7 transition-transform duration-300"
-        :class="open ? 'rotate-[135deg]' : ''"
-      />
-    </button>
-  </div>
+        <UIcon
+          name="i-lucide-plus"
+          class="h-7 w-7 transition-transform duration-300"
+          :class="open ? 'rotate-[135deg]' : ''"
+        />
+      </button>
+    </div>
+  </Transition>
 </template>
 
 <script setup lang="ts">
@@ -70,7 +72,7 @@ import { ref, computed, watch, onMounted, onUnmounted } from 'vue'
 import { useRoute } from 'vue-router'
 import type { FabAction } from '~/composables/useFabActions'
 
-const { actions } = useFab()
+const { actions, fabVisible } = useFab()
 const route = useRoute()
 
 const open = ref(false)
@@ -131,5 +133,19 @@ watch(() => actions.value.length, (len) => {
 .fab-option-leave-to {
   opacity: 0;
   transform: translateY(12px) scale(0.85);
+}
+
+/* Plus button pops in (with a gentle overshoot) as the nav items slide apart,
+   and shrinks back out as they close the gap. */
+.fab-pop-enter-active {
+  transition: transform 0.38s cubic-bezier(0.34, 1.56, 0.64, 1), opacity 0.25s ease;
+}
+.fab-pop-leave-active {
+  transition: transform 0.28s cubic-bezier(0.4, 0, 1, 1), opacity 0.2s ease;
+}
+.fab-pop-enter-from,
+.fab-pop-leave-to {
+  opacity: 0;
+  transform: translate(-50%, -50%) scale(0);
 }
 </style>

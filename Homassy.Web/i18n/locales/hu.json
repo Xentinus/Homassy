@@ -54,7 +54,14 @@
     "apply": "Alkalmaz",
     "back": "Vissza",
     "family": "Család",
-    "personal": "Személyes"
+    "personal": "Személyes",
+    "filters": {
+      "toggle": "Szűrők",
+      "clearAll": "Összes törlése",
+      "removeFilter": "Szűrő eltávolítása",
+      "showResults": "{count} megjelenítése",
+      "all": "Összes"
+    }
   },
   "imageCropper": {
     "title": "Kép vágása",
@@ -854,12 +861,26 @@
     },
     "allProducts": {
       "title": "Összes termék",
-      "cardDescription": "Termék adatbázis kezelése"
+      "cardDescription": "Termék adatbázis kezelése",
+      "filterLabels": {
+        "category": "Kategória",
+        "eatable": "Ehető",
+        "properties": "Tulajdonságok"
+      },
+      "filters": {
+        "eatable": "Ehető",
+        "notEatable": "Nem ehető",
+        "favorites": "Kedvencek",
+        "withBarcode": "Vonalkóddal"
+      }
     },
     "shoppingLocations": {
       "title": "Bevásárlási helyek",
       "cardDescription": "Boltok és bevásárlási helyszínek kezelése.",
       "searchPlaceholder": "Keresés név vagy leírás alapján...",
+      "filterLabels": {
+        "shared": "Megosztás"
+      },
       "noLocations": "Még nincsenek bevásárlási helyek",
       "addFirstLocation": "Hozd létre az első bevásárlási helyed",
       "noResults": "Nincs találat",
@@ -882,6 +903,13 @@
       "title": "Tárolók",
       "cardDescription": "Otthoni tárolóhelyek kezelése.",
       "searchPlaceholder": "Keresés név vagy leírás alapján...",
+      "filterLabels": {
+        "type": "Típus",
+        "shared": "Megosztás"
+      },
+      "filters": {
+        "notFreezer": "Nem fagyasztó"
+      },
       "noLocations": "Még nincsenek tárolóhelyek",
       "addFirstLocation": "Hozd létre az első tárolóhelyed",
       "noResults": "Nincs találat",
@@ -911,6 +939,10 @@
       "noAutomations": "Még nincsenek automatizálási szabályok",
       "addFirstAutomation": "Hozd létre az első automatizálási szabályt a termékhasználat ütemezéséhez.",
       "searchPlaceholder": "Keresés név vagy márka alapján...",
+      "filterLabels": {
+        "status": "Állapot",
+        "properties": "Tulajdonságok"
+      },
       "allTypes": "Összes típus",
       "allStatuses": "Összes állapot",
       "enabled": "Bekapcsolva",

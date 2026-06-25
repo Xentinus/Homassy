@@ -1,9 +1,14 @@
 <template>
   <div class="flex flex-col h-[calc(100dvh-8rem)] overflow-hidden lg:block lg:h-auto lg:overflow-visible lg:pb-4">
-    <!-- Page header -->
-    <div class="mb-4 pt-4 shrink-0">
-      <h1 class="text-xl font-semibold">{{ t('pages.calendar.greeting', { name: greetingName }) }}</h1>
-      <p class="text-sm text-gray-500 dark:text-gray-400 mt-0.5">{{ t('pages.calendar.greetingSubtitle') }}</p>
+    <!-- Page header (capped with a divider; pinned on desktop, always visible on mobile) -->
+    <div class="mb-4 pt-4 pb-3 shrink-0 border-b border-gray-200 dark:border-gray-800 lg:sticky lg:top-0 lg:z-20 lg:bg-white lg:dark:bg-gray-900">
+      <div class="flex items-center gap-3">
+        <UIcon name="i-lucide-calendar" class="h-7 w-7 text-primary-500 shrink-0" />
+        <div>
+          <h1 class="text-xl font-semibold">{{ t('pages.calendar.greeting', { name: greetingName }) }}</h1>
+          <p class="text-sm text-gray-500 dark:text-gray-400 mt-0.5">{{ t('pages.calendar.greetingSubtitle') }}</p>
+        </div>
+      </div>
     </div>
 
     <!-- Desktop: 2-column (calendar left, events right); Mobile: stacked -->
@@ -131,8 +136,8 @@
       <div class="mt-3 flex flex-col flex-1 min-h-0 lg:mt-0 lg:block lg:flex-none lg:sticky lg:top-4">
         <!-- Day panel -->
         <div v-if="selectedDay" class="flex flex-col flex-1 min-h-0 lg:block">
-          <!-- Panel header -->
-          <div class="mb-2 px-1">
+          <!-- Panel header — divider line sits directly above the scrolling cards -->
+          <div class="mb-2 px-1 pb-2 border-b border-gray-200 dark:border-gray-800 shrink-0">
             <span class="text-sm font-semibold text-gray-800 dark:text-gray-100">
               {{ formatDate(selectedDay) }}
             </span>
@@ -214,8 +219,7 @@
 <script setup lang="ts">
 import { CalendarEventType } from '~/types/calendar'
 import type { CalendarEventInfo } from '~/types/calendar'
-import { ActivityType } from '~/types/activity'
-import type { ActivityInfo } from '~/types/activity'
+import type { ActivityType, ActivityInfo } from '~/types/activity'
 import { useAuthStore } from '~/stores/auth'
 
 definePageMeta({ layout: 'auth' })

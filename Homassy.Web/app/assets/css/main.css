@@ -16,3 +16,24 @@
   --color-mocha-900: #5A4536;
   --color-mocha-950: #3F3027;
 }
+
+/* Page content cross-fade on navigation (the bottom nav stays fixed in the layout). */
+.page-enter-active,
+.page-leave-active {
+  transition: opacity 0.18s ease, transform 0.18s ease;
+}
+.page-enter-from {
+  opacity: 0;
+  transform: translateY(6px);
+}
+.page-leave-to {
+  opacity: 0;
+  transform: translateY(-6px);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .page-enter-active,
+  .page-leave-active {
+    transition: none;
+  }
+}

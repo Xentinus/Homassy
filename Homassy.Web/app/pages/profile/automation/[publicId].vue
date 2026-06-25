@@ -211,7 +211,6 @@
         </div>
       </div>
     </div>
-  </div>
 
   <!-- Edit Modal -->
   <UModal :open="isEditModalOpen" @update:open="(val: boolean) => isEditModalOpen = val" :dismissible="false">
@@ -439,6 +438,7 @@
       </div>
     </template>
   </UModal>
+  </div>
 </template>
 
 <script setup lang="ts">

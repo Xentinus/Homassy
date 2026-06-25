@@ -1,60 +1,56 @@
 ﻿<template>
   <div>
-    <!-- Fixed Header -->
-    <div class="fixed top-0 left-0 right-0 z-10 bg-white dark:bg-gray-900 px-6 sm:px-10 lg:px-16 py-6 space-y-3">
-      <div class="flex items-center justify-between gap-3">
-        <div class="flex items-center gap-3">
-          <NuxtLink to="/profile">
-            <UButton
-              icon="i-lucide-arrow-left"
-              color="neutral"
-              variant="ghost"
-            />
-          </NuxtLink>
-          <UIcon name="i-lucide-timer" class="h-7 w-7 text-primary-500" />
-          <h1 class="text-2xl font-semibold">{{ $t('profile.automation.title') }}</h1>
-        </div>
-        <NuxtLink to="/profile/automation/create">
-          <UButton
-            color="primary"
-            size="sm"
-            trailing-icon="i-lucide-plus"
-          >
-            {{ $t('common.add') }}
-          </UButton>
-        </NuxtLink>
-      </div>
-
-      <!-- Search & Filter Bar -->
-      <div v-if="!loading && automations.length > 0" class="flex flex-wrap items-center gap-2">
-        <UInput
-          v-model="searchQuery"
-          :placeholder="$t('profile.automation.searchPlaceholder')"
-          icon="i-lucide-search"
-          size="sm"
-          class="flex-1 min-w-48"
-        />
-        <USelect
+    <!-- Fixed Header with search + filters -->
+    <ListFilterBar
+      v-model:search="searchQuery"
+      :title="$t('profile.automation.title')"
+      icon="i-lucide-timer"
+      :search-placeholder="$t('profile.automation.searchPlaceholder')"
+      :active-filters="activeFilters"
+      :filter-count="activeFilterCount"
+      :result-count="filteredAutomations.length"
+      @clear-all="clearAllFilters"
+    >
+      <template #filters>
+        <FilterChipGroup
           v-model="filterType"
-          :items="typeFilterOptions"
-          value-key="value"
-          label-key="label"
-          size="sm"
-          class="w-44"
+          :label="$t('profile.automation.actionType')"
+          :options="typeFilterOptions"
         />
-        <USelect
+        <FilterChipGroup
           v-model="filterStatus"
-          :items="statusFilterOptions"
-          value-key="value"
-          label-key="label"
-          size="sm"
-          class="w-36"
+          :label="$t('profile.automation.filterLabels.status')"
+          :options="statusFilterOptions"
         />
-      </div>
-    </div>
+        <FilterChipGroup
+          v-model="filterScheduleType"
+          :label="$t('profile.automation.scheduleType')"
+          :options="scheduleTypeFilterOptions"
+        />
 
-    <!-- Content Section with padding to account for fixed header -->
-    <div :class="['pt-28 px-4 sm:px-8 lg:px-14 pb-6', { 'pt-40': !loading && automations.length > 0 }]">
+        <!-- Boolean property toggles -->
+        <div role="group" :aria-label="$t('profile.automation.filterLabels.properties')">
+          <p class="text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">
+            {{ $t('profile.automation.filterLabels.properties') }}
+          </p>
+          <div class="flex flex-wrap gap-2">
+            <UButton
+              :label="$t('profile.automation.triggered')"
+              icon="i-lucide-bell-ring"
+              size="sm"
+              class="rounded-full"
+              :color="triggeredFilter ? 'primary' : 'neutral'"
+              :variant="triggeredFilter ? 'solid' : 'outline'"
+              :aria-pressed="triggeredFilter"
+              @click="triggeredFilter = !triggeredFilter"
+            />
+          </div>
+        </div>
+      </template>
+    </ListFilterBar>
+
+    <!-- Content Section -->
+    <div class="px-4 sm:px-8 lg:px-14 pb-6">
 
       <!-- Loading State -->
       <template v-if="loading">
@@ -96,13 +92,22 @@
 
 <script setup lang="ts">
 import { useAutomationApi } from '~/composables/api/useAutomationApi'
-import { AutomationActionType } from '~/types/automation'
+import { AutomationActionType, ScheduleType } from '~/types/automation'
 import type { AutomationResponse } from '~/types/automation'
 
 definePageMeta({ layout: 'auth', middleware: 'auth' })
 
 const { getAutomations } = useAutomationApi()
 const { t } = useI18n()
+
+// Add-action lives on the dynamic nav FAB instead of an inline header button.
+useFabActions(() => [
+  {
+    label: t('common.add'),
+    icon: 'i-lucide-plus',
+    handler: () => navigateTo('/profile/automation/create')
+  }
+])
 
 // State
 const loading = ref(true)
@@ -112,6 +117,8 @@ const automations = ref<AutomationResponse[]>([])
 const searchQuery = ref('')
 const filterType = ref<string>('all')
 const filterStatus = ref<string>('all')
+const filterScheduleType = ref<string>('all')
+const triggeredFilter = ref(false)
 
 // Filter options
 const typeFilterOptions = computed(() => [
@@ -126,6 +133,12 @@ const statusFilterOptions = computed(() => [
   { value: 'all', label: t('profile.automation.allStatuses') },
   { value: 'enabled', label: t('profile.automation.enabled') },
   { value: 'disabled', label: t('profile.automation.disabled') }
+])
+
+const scheduleTypeFilterOptions = computed(() => [
+  { value: 'all', label: t('common.filters.all') },
+  { value: String(ScheduleType.Interval), label: t('profile.automation.interval') },
+  { value: String(ScheduleType.FixedDate), label: t('profile.automation.fixedDate') }
 ])
 
 // Filtered automations
@@ -154,8 +167,49 @@ const filteredAutomations = computed(() => {
     result = result.filter(a => !a.isEnabled)
   }
 
+  // Schedule type filter
+  if (filterScheduleType.value !== 'all') {
+    const scheduleNum = Number(filterScheduleType.value)
+    result = result.filter(a => a.scheduleType === scheduleNum)
+  }
+
+  // Triggered toggle
+  if (triggeredFilter.value) {
+    result = result.filter(a => a.isTriggered)
+  }
+
   return result
 })
+
+// Active filter chips
+const activeFilters = computed(() => {
+  const chips: { key: string, label: string, clear: () => void }[] = []
+  if (filterType.value !== 'all') {
+    const opt = typeFilterOptions.value.find(o => o.value === filterType.value)
+    chips.push({ key: 'type', label: opt?.label ?? '', clear: () => { filterType.value = 'all' } })
+  }
+  if (filterStatus.value !== 'all') {
+    const opt = statusFilterOptions.value.find(o => o.value === filterStatus.value)
+    chips.push({ key: 'status', label: opt?.label ?? '', clear: () => { filterStatus.value = 'all' } })
+  }
+  if (filterScheduleType.value !== 'all') {
+    const opt = scheduleTypeFilterOptions.value.find(o => o.value === filterScheduleType.value)
+    chips.push({ key: 'scheduleType', label: opt?.label ?? '', clear: () => { filterScheduleType.value = 'all' } })
+  }
+  if (triggeredFilter.value) {
+    chips.push({ key: 'triggered', label: t('profile.automation.triggered'), clear: () => { triggeredFilter.value = false } })
+  }
+  return chips
+})
+
+const activeFilterCount = computed(() => activeFilters.value.length)
+
+function clearAllFilters() {
+  filterType.value = 'all'
+  filterStatus.value = 'all'
+  filterScheduleType.value = 'all'
+  triggeredFilter.value = false
+}
 
 // Load automations
 async function loadAutomations() {

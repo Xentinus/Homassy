@@ -54,7 +54,14 @@
     "apply": "Apply",
     "back": "Back",
     "family": "Family",
-    "personal": "Personal"
+    "personal": "Personal",
+    "filters": {
+      "toggle": "Filters",
+      "clearAll": "Clear all",
+      "removeFilter": "Remove filter",
+      "showResults": "Show {count}",
+      "all": "All"
+    }
   },
   "imageCropper": {
     "title": "Crop Image",
@@ -853,12 +860,26 @@
     },
     "allProducts": {
       "title": "All Products",
-      "cardDescription": "Product database management"
+      "cardDescription": "Product database management",
+      "filterLabels": {
+        "category": "Category",
+        "eatable": "Eatable",
+        "properties": "Properties"
+      },
+      "filters": {
+        "eatable": "Eatable",
+        "notEatable": "Non-eatable",
+        "favorites": "Favorites",
+        "withBarcode": "With barcode"
+      }
     },
     "shoppingLocations": {
       "title": "Shopping Locations",
       "cardDescription": "Manage stores and shopping locations.",
       "searchPlaceholder": "Search by name or description...",
+      "filterLabels": {
+        "shared": "Sharing"
+      },
       "noLocations": "No shopping locations yet",
       "addFirstLocation": "Create your first shopping location",
       "noResults": "No results found",
@@ -881,6 +902,13 @@
       "title": "Storage Locations",
       "cardDescription": "Manage home storage locations.",
       "searchPlaceholder": "Search by name or description...",
+      "filterLabels": {
+        "type": "Type",
+        "shared": "Sharing"
+      },
+      "filters": {
+        "notFreezer": "Not freezer"
+      },
       "noLocations": "No storage locations yet",
       "addFirstLocation": "Create your first storage location",
       "noResults": "No results found",
@@ -910,6 +938,10 @@
       "noAutomations": "No automation rules yet",
       "addFirstAutomation": "Create your first automation rule to schedule item usage.",
       "searchPlaceholder": "Search by name or brand...",
+      "filterLabels": {
+        "status": "Status",
+        "properties": "Properties"
+      },
       "allTypes": "All types",
       "allStatuses": "All statuses",
       "enabled": "Enabled",

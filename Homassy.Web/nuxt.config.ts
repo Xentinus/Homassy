@@ -5,6 +5,9 @@ export default defineNuxtConfig({
   devtools: { enabled: true },
 
   app: {
+    // Cross-fade page content on route change. The bottom nav lives in the layout
+    // (outside <NuxtPage/>), so it stays visible and uninterrupted during navigation.
+    pageTransition: { name: 'page', mode: 'out-in' },
     head: {
       meta: [
         { name: 'theme-color', content: '#c9b8a0' },

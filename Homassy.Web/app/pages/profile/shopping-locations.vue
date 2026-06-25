@@ -1,42 +1,39 @@
 ﻿<template>
   <div>
-    <!-- Fixed Header -->
-    <div class="fixed top-0 left-0 right-0 z-10 bg-white dark:bg-gray-900 px-6 sm:px-10 lg:px-16 py-6 space-y-3">
-      <div class="flex items-center justify-between gap-3">
-        <div class="flex items-center gap-3">
-          <NuxtLink to="/profile">
-            <UButton
-              icon="i-lucide-arrow-left"
-              color="neutral"
-              variant="ghost"
-            />
-          </NuxtLink>
-          <UIcon name="i-lucide-shopping-cart" class="h-7 w-7 text-primary-500" />
-          <h1 class="text-2xl font-semibold">{{ $t('profile.shoppingLocations.title') }}</h1>
-        </div>
-        <UButton 
-          color="primary" 
-          size="sm" 
-          trailing-icon="i-lucide-plus"
-          @click="handleAddLocation"
-        >
-          {{ $t('common.add') }}
-        </UButton>
-      </div>
-      
-      <!-- Search Input -->
-      <div class="w-full">
-        <UInput
-          v-model="searchQuery"
-          trailing-icon="i-lucide-search"
-          :placeholder="$t('profile.shoppingLocations.searchPlaceholder')"
-          class="w-full"
+    <!-- Fixed Header with search + filters -->
+    <ListFilterBar
+      v-model:search="searchQuery"
+      :title="$t('profile.shoppingLocations.title')"
+      icon="i-lucide-shopping-cart"
+      :search-placeholder="$t('profile.shoppingLocations.searchPlaceholder')"
+      :active-filters="activeFilters"
+      :filter-count="activeFilterCount"
+      :result-count="filteredLocations.length"
+      @clear-all="clearAllFilters"
+    >
+      <template #filters>
+        <FilterChipGroup
+          v-model="sharedFilter"
+          :label="$t('profile.shoppingLocations.filterLabels.shared')"
+          :options="sharedOptions"
         />
-      </div>
-    </div>
+        <FilterChipGroup
+          v-if="cityOptions.length > 1"
+          v-model="cityFilter"
+          :label="$t('common.city')"
+          :options="cityOptions"
+        />
+        <FilterChipGroup
+          v-if="countryOptions.length > 1"
+          v-model="countryFilter"
+          :label="$t('common.country')"
+          :options="countryOptions"
+        />
+      </template>
+    </ListFilterBar>
 
-    <!-- Content Section with padding to account for fixed header -->
-    <div class="pt-40 px-4 sm:px-8 lg:px-14 pb-6">
+    <!-- Content Section -->
+    <div class="px-4 sm:px-8 lg:px-14 pb-6">
 
     <PullToRefreshIndicator
       :pull-distance="pullDistance"
@@ -56,10 +53,10 @@
     <div v-else-if="filteredLocations.length === 0" class="rounded-lg p-12 text-center">
       <UIcon name="i-lucide-shopping-cart" class="h-16 w-16 text-gray-400 mx-auto mb-4" />
       <p class="text-lg font-semibold text-gray-700 dark:text-gray-300 mb-2">
-        {{ searchQuery ? $t('profile.shoppingLocations.noResults') : $t('profile.shoppingLocations.noLocations') }}
+        {{ hasActiveQuery ? $t('profile.shoppingLocations.noResults') : $t('profile.shoppingLocations.noLocations') }}
       </p>
       <p class="text-gray-600 dark:text-gray-400">
-        {{ searchQuery ? $t('profile.shoppingLocations.tryDifferentSearch') : $t('profile.shoppingLocations.addFirstLocation') }}
+        {{ hasActiveQuery ? $t('profile.shoppingLocations.tryDifferentSearch') : $t('profile.shoppingLocations.addFirstLocation') }}
       </p>
     </div>
 
@@ -263,11 +260,25 @@ const { getShoppingLocations, createShoppingLocation } = useLocationsApi()
 const { t } = useI18n()
 const toast = useToast()
 
+// Add-action lives on the dynamic nav FAB instead of an inline header button.
+useFabActions(() => [
+  {
+    label: t('common.add'),
+    icon: 'i-lucide-plus',
+    handler: () => handleAddLocation()
+  }
+])
+
 const { pullDistance, isPulling, isRefreshing, isReady } = usePullToRefresh(loadLocations)
 
 const loading = ref(true)
 const locations = ref<ShoppingLocationInfo[]>([])
 const searchQuery = ref('')
+
+// Filter state
+const sharedFilter = ref('all')
+const cityFilter = ref('all')
+const countryFilter = ref('all')
 
 // Create modal state
 const isCreateModalOpen = ref(false)
@@ -298,22 +309,93 @@ const createForm = ref<{
   isSharedWithFamily: false
 })
 
-// Filtered locations based on search
-const filteredLocations = computed(() => {
-  if (!searchQuery.value.trim()) {
-    return locations.value
+// Filter options
+const sharedOptions = computed(() => [
+  { label: t('common.filters.all'), value: 'all' },
+  { label: t('common.family'), value: 'shared' },
+  { label: t('common.personal'), value: 'personal' }
+])
+
+// City / country options built from values actually present on the locations
+const cityOptions = computed(() => {
+  const seen = new Set<string>()
+  for (const loc of locations.value) {
+    if (loc.city?.trim()) seen.add(loc.city.trim())
   }
-  
-  const query = searchQuery.value.toLowerCase()
-  return locations.value.filter(loc => 
-    loc.name.toLowerCase().includes(query) ||
-    loc.description?.toLowerCase().includes(query) ||
-    loc.address?.toLowerCase().includes(query) ||
-    loc.city?.toLowerCase().includes(query) ||
-    loc.postalCode?.toLowerCase().includes(query) ||
-    loc.country?.toLowerCase().includes(query)
-  )
+  const options = [...seen]
+    .map(value => ({ label: value, value }))
+    .sort((a, b) => a.label.localeCompare(b.label))
+  return [{ label: t('common.filters.all'), value: 'all' }, ...options]
 })
+
+const countryOptions = computed(() => {
+  const seen = new Set<string>()
+  for (const loc of locations.value) {
+    if (loc.country?.trim()) seen.add(loc.country.trim())
+  }
+  const options = [...seen]
+    .map(value => ({ label: value, value }))
+    .sort((a, b) => a.label.localeCompare(b.label))
+  return [{ label: t('common.filters.all'), value: 'all' }, ...options]
+})
+
+// Filtered locations based on search + filters
+const filteredLocations = computed(() => {
+  let result = locations.value
+
+  if (searchQuery.value.trim()) {
+    const query = searchQuery.value.toLowerCase()
+    result = result.filter(loc =>
+      loc.name.toLowerCase().includes(query)
+      || loc.description?.toLowerCase().includes(query)
+      || loc.address?.toLowerCase().includes(query)
+      || loc.city?.toLowerCase().includes(query)
+      || loc.postalCode?.toLowerCase().includes(query)
+      || loc.country?.toLowerCase().includes(query)
+    )
+  }
+
+  if (sharedFilter.value === 'shared') {
+    result = result.filter(loc => loc.isSharedWithFamily)
+  } else if (sharedFilter.value === 'personal') {
+    result = result.filter(loc => !loc.isSharedWithFamily)
+  }
+
+  if (cityFilter.value !== 'all') {
+    result = result.filter(loc => loc.city?.trim() === cityFilter.value)
+  }
+
+  if (countryFilter.value !== 'all') {
+    result = result.filter(loc => loc.country?.trim() === countryFilter.value)
+  }
+
+  return result
+})
+
+// Active filter chips
+const activeFilters = computed(() => {
+  const chips: { key: string, label: string, clear: () => void }[] = []
+  if (sharedFilter.value !== 'all') {
+    const opt = sharedOptions.value.find(o => o.value === sharedFilter.value)
+    chips.push({ key: 'shared', label: opt?.label ?? '', clear: () => { sharedFilter.value = 'all' } })
+  }
+  if (cityFilter.value !== 'all') {
+    chips.push({ key: 'city', label: cityFilter.value, clear: () => { cityFilter.value = 'all' } })
+  }
+  if (countryFilter.value !== 'all') {
+    chips.push({ key: 'country', label: countryFilter.value, clear: () => { countryFilter.value = 'all' } })
+  }
+  return chips
+})
+
+const activeFilterCount = computed(() => activeFilters.value.length)
+const hasActiveQuery = computed(() => !!searchQuery.value.trim() || activeFilterCount.value > 0)
+
+function clearAllFilters() {
+  sharedFilter.value = 'all'
+  cityFilter.value = 'all'
+  countryFilter.value = 'all'
+}
 
 // Load locations
 async function loadLocations() {

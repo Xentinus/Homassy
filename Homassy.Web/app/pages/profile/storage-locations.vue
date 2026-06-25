@@ -1,42 +1,32 @@
 ﻿<template>
   <div>
-    <!-- Fixed Header -->
-    <div class="fixed top-0 left-0 right-0 z-10 bg-white dark:bg-gray-900 px-6 sm:px-10 lg:px-16 py-6 space-y-3">
-      <div class="flex items-center justify-between gap-3">
-        <div class="flex items-center gap-3">
-          <NuxtLink to="/profile">
-            <UButton
-              icon="i-lucide-arrow-left"
-              color="neutral"
-              variant="ghost"
-            />
-          </NuxtLink>
-          <UIcon name="i-lucide-warehouse" class="h-7 w-7 text-primary-500" />
-          <h1 class="text-2xl font-semibold">{{ $t('profile.storageLocations.title') }}</h1>
-        </div>
-        <UButton 
-          color="primary" 
-          size="sm" 
-          trailing-icon="i-lucide-plus"
-          @click="openCreateModal"
-        >
-          {{ $t('common.add') }}
-        </UButton>
-      </div>
-      
-      <!-- Search Input -->
-      <div>
-        <UInput
-          v-model="searchQuery"
-          trailing-icon="i-lucide-search"
-          :placeholder="$t('profile.storageLocations.searchPlaceholder')"
-          class="w-full"
+    <!-- Fixed Header with search + filters -->
+    <ListFilterBar
+      v-model:search="searchQuery"
+      :title="$t('profile.storageLocations.title')"
+      icon="i-lucide-warehouse"
+      :search-placeholder="$t('profile.storageLocations.searchPlaceholder')"
+      :active-filters="activeFilters"
+      :filter-count="activeFilterCount"
+      :result-count="filteredLocations.length"
+      @clear-all="clearAllFilters"
+    >
+      <template #filters>
+        <FilterChipGroup
+          v-model="freezerFilter"
+          :label="$t('profile.storageLocations.filterLabels.type')"
+          :options="freezerOptions"
         />
-      </div>
-    </div>
+        <FilterChipGroup
+          v-model="sharedFilter"
+          :label="$t('profile.storageLocations.filterLabels.shared')"
+          :options="sharedOptions"
+        />
+      </template>
+    </ListFilterBar>
 
-    <!-- Content Section with padding to account for fixed header -->
-    <div class="pt-40 px-4 sm:px-8 lg:px-14 pb-6">
+    <!-- Content Section -->
+    <div class="px-4 sm:px-8 lg:px-14 pb-6">
 
     <PullToRefreshIndicator
       :pull-distance="pullDistance"
@@ -56,10 +46,10 @@
     <div v-else-if="filteredLocations.length === 0" class="rounded-lg p-12 text-center">
       <UIcon name="i-lucide-warehouse" class="h-16 w-16 text-gray-400 mx-auto mb-4" />
       <p class="text-lg font-semibold text-gray-700 dark:text-gray-300 mb-2">
-        {{ searchQuery ? $t('profile.storageLocations.noResults') : $t('profile.storageLocations.noLocations') }}
+        {{ hasActiveQuery ? $t('profile.storageLocations.noResults') : $t('profile.storageLocations.noLocations') }}
       </p>
       <p class="text-gray-600 dark:text-gray-400">
-        {{ searchQuery ? $t('profile.storageLocations.tryDifferentSearch') : $t('profile.storageLocations.addFirstLocation') }}
+        {{ hasActiveQuery ? $t('profile.storageLocations.tryDifferentSearch') : $t('profile.storageLocations.addFirstLocation') }}
       </p>
     </div>
 
@@ -76,7 +66,6 @@
       />
     </div>
     </div>
-  </div>
 
   <!-- Create Modal -->
   <UModal :open="isCreateModalOpen" @update:open="(val) => isCreateModalOpen = val" :dismissible="false">
@@ -180,6 +169,7 @@
       </div>
     </template>
   </UModal>
+  </div>
 </template>
 
 <script setup lang="ts">
@@ -193,11 +183,24 @@ const { getStorageLocations, createStorageLocation } = useLocationsApi()
 const { t } = useI18n()
 const toast = useToast()
 
+// Add-action lives on the dynamic nav FAB instead of an inline header button.
+useFabActions(() => [
+  {
+    label: t('common.add'),
+    icon: 'i-lucide-plus',
+    handler: () => openCreateModal()
+  }
+])
+
 const { pullDistance, isPulling, isRefreshing, isReady } = usePullToRefresh(loadStorageLocations)
 
 const loading = ref(true)
 const locations = ref<StorageLocationInfo[]>([])
 const searchQuery = ref('')
+
+// Filter state
+const freezerFilter = ref('all')
+const sharedFilter = ref('all')
 
 // Create modal state
 const isCreateModalOpen = ref(false)
@@ -218,18 +221,67 @@ const createForm = ref<{
   isSharedWithFamily: false
 })
 
-// Filtered locations based on search
+// Filter options
+const freezerOptions = computed(() => [
+  { label: t('common.filters.all'), value: 'all' },
+  { label: t('profile.storageLocations.freezer'), value: 'freezer' },
+  { label: t('profile.storageLocations.filters.notFreezer'), value: 'notFreezer' }
+])
+
+const sharedOptions = computed(() => [
+  { label: t('common.filters.all'), value: 'all' },
+  { label: t('common.family'), value: 'shared' },
+  { label: t('common.personal'), value: 'personal' }
+])
+
+// Filtered locations based on search + filters
 const filteredLocations = computed(() => {
-  if (!searchQuery.value.trim()) {
-    return locations.value
+  let result = locations.value
+
+  if (searchQuery.value.trim()) {
+    const query = searchQuery.value.toLowerCase()
+    result = result.filter(loc =>
+      loc.name.toLowerCase().includes(query)
+      || loc.description?.toLowerCase().includes(query)
+    )
   }
-  
-  const query = searchQuery.value.toLowerCase()
-  return locations.value.filter(loc => 
-    loc.name.toLowerCase().includes(query) ||
-    loc.description?.toLowerCase().includes(query)
-  )
+
+  if (freezerFilter.value === 'freezer') {
+    result = result.filter(loc => loc.isFreezer)
+  } else if (freezerFilter.value === 'notFreezer') {
+    result = result.filter(loc => !loc.isFreezer)
+  }
+
+  if (sharedFilter.value === 'shared') {
+    result = result.filter(loc => loc.isSharedWithFamily)
+  } else if (sharedFilter.value === 'personal') {
+    result = result.filter(loc => !loc.isSharedWithFamily)
+  }
+
+  return result
 })
+
+// Active filter chips
+const activeFilters = computed(() => {
+  const chips: { key: string, label: string, clear: () => void }[] = []
+  if (freezerFilter.value !== 'all') {
+    const opt = freezerOptions.value.find(o => o.value === freezerFilter.value)
+    chips.push({ key: 'freezer', label: opt?.label ?? '', clear: () => { freezerFilter.value = 'all' } })
+  }
+  if (sharedFilter.value !== 'all') {
+    const opt = sharedOptions.value.find(o => o.value === sharedFilter.value)
+    chips.push({ key: 'shared', label: opt?.label ?? '', clear: () => { sharedFilter.value = 'all' } })
+  }
+  return chips
+})
+
+const activeFilterCount = computed(() => activeFilters.value.length)
+const hasActiveQuery = computed(() => !!searchQuery.value.trim() || activeFilterCount.value > 0)
+
+function clearAllFilters() {
+  freezerFilter.value = 'all'
+  sharedFilter.value = 'all'
+}
 
 // Load locations
 async function loadStorageLocations() {

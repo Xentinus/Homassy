@@ -54,7 +54,14 @@
     "apply": "Anwenden",
     "back": "Zurück",
     "family": "Familie",
-    "personal": "Persönlich"
+    "personal": "Persönlich",
+    "filters": {
+      "toggle": "Filter",
+      "clearAll": "Alle löschen",
+      "removeFilter": "Filter entfernen",
+      "showResults": "{count} anzeigen",
+      "all": "Alle"
+    }
   },
   "imageCropper": {
     "title": "Bild zuschneiden",
@@ -853,12 +860,26 @@
     },
     "allProducts": {
       "title": "Alle Produkte",
-      "cardDescription": "Produktdatenbank-Verwaltung"
+      "cardDescription": "Produktdatenbank-Verwaltung",
+      "filterLabels": {
+        "category": "Kategorie",
+        "eatable": "Essbar",
+        "properties": "Eigenschaften"
+      },
+      "filters": {
+        "eatable": "Essbar",
+        "notEatable": "Nicht essbar",
+        "favorites": "Favoriten",
+        "withBarcode": "Mit Barcode"
+      }
     },
     "shoppingLocations": {
       "title": "Einkaufsorte",
       "cardDescription": "Geschäfte und Einkaufsorte verwalten.",
       "searchPlaceholder": "Nach Name oder Beschreibung suchen...",
+      "filterLabels": {
+        "shared": "Freigabe"
+      },
       "noLocations": "Noch keine Einkaufsorte",
       "addFirstLocation": "Erstellen Sie Ihren ersten Einkaufsort",
       "noResults": "Keine Ergebnisse gefunden",
@@ -881,6 +902,13 @@
       "title": "Lagerorte",
       "cardDescription": "Lagerorte zu Hause verwalten.",
       "searchPlaceholder": "Nach Name oder Beschreibung suchen...",
+      "filterLabels": {
+        "type": "Typ",
+        "shared": "Freigabe"
+      },
+      "filters": {
+        "notFreezer": "Kein Gefrierschrank"
+      },
       "noLocations": "Noch keine Lagerorte",
       "addFirstLocation": "Erstellen Sie Ihren ersten Lagerort",
       "noResults": "Keine Ergebnisse gefunden",
@@ -910,6 +938,10 @@
       "noAutomations": "Noch keine Automatisierungsregeln",
       "addFirstAutomation": "Erstellen Sie Ihre erste Automatisierungsregel zur Planung des Artikelverbrauchs.",
       "searchPlaceholder": "Nach Name oder Marke suchen...",
+      "filterLabels": {
+        "status": "Status",
+        "properties": "Eigenschaften"
+      },
       "allTypes": "Alle Typen",
       "allStatuses": "Alle Status",
       "enabled": "Aktiviert",
