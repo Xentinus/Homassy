@@ -1,16 +1,16 @@
 <template>
-  <div class="pb-4">
+  <div class="flex flex-col h-[calc(100dvh-8rem)] overflow-hidden lg:block lg:h-auto lg:overflow-visible lg:pb-4">
     <!-- Page header -->
-    <div class="mb-4 pt-4">
-      <h1 class="text-xl font-semibold">{{ t('pages.calendar.greeting', { name: firstName }) }}</h1>
+    <div class="mb-4 pt-4 shrink-0">
+      <h1 class="text-xl font-semibold">{{ t('pages.calendar.greeting', { name: greetingName }) }}</h1>
       <p class="text-sm text-gray-500 dark:text-gray-400 mt-0.5">{{ t('pages.calendar.greetingSubtitle') }}</p>
     </div>
 
     <!-- Desktop: 2-column (calendar left, events right); Mobile: stacked -->
-    <div class="lg:grid lg:grid-cols-2 lg:gap-4 lg:items-start">
+    <div class="flex flex-1 flex-col min-h-0 lg:flex-none lg:grid lg:grid-cols-2 lg:gap-4 lg:items-start">
 
       <!-- LEFT: Calendar + Legend (sticky on desktop) -->
-      <div class="lg:sticky lg:top-4">
+      <div class="shrink-0 lg:sticky lg:top-4">
         <!-- Calendar card -->
         <div class="rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 overflow-hidden">
           <!-- Toolbar -->
@@ -128,9 +128,9 @@
       </div>
 
       <!-- RIGHT: Day events panel -->
-      <div class="mt-3 lg:mt-0 lg:sticky lg:top-4">
+      <div class="mt-3 flex flex-col flex-1 min-h-0 lg:mt-0 lg:block lg:flex-none lg:sticky lg:top-4">
         <!-- Day panel -->
-        <div v-if="selectedDay">
+        <div v-if="selectedDay" class="flex flex-col flex-1 min-h-0 lg:block">
           <!-- Panel header -->
           <div class="mb-2 px-1">
             <span class="text-sm font-semibold text-gray-800 dark:text-gray-100">
@@ -150,7 +150,7 @@
             <div
               v-else
               ref="scrollContainer"
-              class="space-y-2 overflow-y-auto max-h-[55vh] lg:max-h-[calc(100vh-8rem)]"
+              class="space-y-2 overflow-y-auto flex-1 min-h-0 lg:flex-none lg:max-h-[calc(100vh-8rem)]"
             >
               <template v-for="item in visibleItems" :key="item.kind + '-' + item.data.publicId">
                 <CalendarEventCard
@@ -225,7 +225,7 @@ const { getCalendarEvents } = useCalendarApi()
 const { getActivities } = useUserApi()
 const authStore = useAuthStore()
 
-const firstName = computed(() => authStore.user?.name?.split(' ')[0] ?? '')
+const greetingName = computed(() => authStore.user?.displayName || authStore.user?.name || '')
 
 interface CalEvent {
   publicId: string
