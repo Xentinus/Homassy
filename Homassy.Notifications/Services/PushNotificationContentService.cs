@@ -35,27 +35,244 @@ public static class PushNotificationContentService
         };
     }
 
-    public static (string Title, string Body) GetShoppingListActivityContent(Language language, string listName, int itemCount)
+    public static (string Title, string Body) GetShoppingListItemsAddedContent(
+        Language language, string listName, int count)
     {
         return language switch
         {
             Language.Hungarian => (
                 "Bevásárlólista frissítve",
-                itemCount == 1
-                    ? $"1 új elem került a(z) \"{listName}\" bevásárlólistához."
-                    : $"{itemCount} új elem került a(z) \"{listName}\" bevásárlólistához."
+                count == 1
+                    ? $"1 új elem került a(z) \"{listName}\" listához."
+                    : $"{count} új elem került a(z) \"{listName}\" listához."
             ),
             Language.German => (
                 "Einkaufsliste aktualisiert",
-                itemCount == 1
-                    ? $"1 neues Element wurde zur Einkaufsliste \"{listName}\" hinzugefügt."
-                    : $"{itemCount} neue Elemente wurden zur Einkaufsliste \"{listName}\" hinzugefügt."
+                count == 1
+                    ? $"1 neues Element wurde zur Liste \"{listName}\" hinzugefügt."
+                    : $"{count} neue Elemente wurden zur Liste \"{listName}\" hinzugefügt."
             ),
             _ => (
                 "Shopping List Updated",
-                itemCount == 1
-                    ? $"1 new item was added to the \"{listName}\" shopping list."
-                    : $"{itemCount} new items were added to the \"{listName}\" shopping list."
+                count == 1
+                    ? $"1 new item was added to the \"{listName}\" list."
+                    : $"{count} new items were added to the \"{listName}\" list."
+            )
+        };
+    }
+
+    public static (string Title, string Body) GetShoppingListItemsEditedContent(
+        Language language, string listName, int count)
+    {
+        return language switch
+        {
+            Language.Hungarian => (
+                "Bevásárlólista frissítve",
+                count == 1
+                    ? $"1 elem módosult a(z) \"{listName}\" listában."
+                    : $"{count} elem módosult a(z) \"{listName}\" listában."
+            ),
+            Language.German => (
+                "Einkaufsliste aktualisiert",
+                count == 1
+                    ? $"1 Element in der Liste \"{listName}\" wurde geändert."
+                    : $"{count} Elemente in der Liste \"{listName}\" wurden geändert."
+            ),
+            _ => (
+                "Shopping List Updated",
+                count == 1
+                    ? $"1 item was edited in the \"{listName}\" list."
+                    : $"{count} items were edited in the \"{listName}\" list."
+            )
+        };
+    }
+
+    public static (string Title, string Body) GetShoppingListItemsDeletedContent(
+        Language language, string listName, int count)
+    {
+        return language switch
+        {
+            Language.Hungarian => (
+                "Bevásárlólista frissítve",
+                count == 1
+                    ? $"1 elem törlődött a(z) \"{listName}\" listából."
+                    : $"{count} elem törlődött a(z) \"{listName}\" listából."
+            ),
+            Language.German => (
+                "Einkaufsliste aktualisiert",
+                count == 1
+                    ? $"1 Element wurde aus der Liste \"{listName}\" entfernt."
+                    : $"{count} Elemente wurden aus der Liste \"{listName}\" entfernt."
+            ),
+            _ => (
+                "Shopping List Updated",
+                count == 1
+                    ? $"1 item was removed from the \"{listName}\" list."
+                    : $"{count} items were removed from the \"{listName}\" list."
+            )
+        };
+    }
+
+    public static (string Title, string Body) GetShoppingListItemsPurchasedContent(
+        Language language, string listName, int count)
+    {
+        return language switch
+        {
+            Language.Hungarian => (
+                "Bevásárlólista frissítve",
+                count == 1
+                    ? $"1 elem megvásárolva a(z) \"{listName}\" listáról."
+                    : $"{count} elem megvásárolva a(z) \"{listName}\" listáról."
+            ),
+            Language.German => (
+                "Einkaufsliste aktualisiert",
+                count == 1
+                    ? $"1 Element aus der Liste \"{listName}\" wurde gekauft."
+                    : $"{count} Elemente aus der Liste \"{listName}\" wurden gekauft."
+            ),
+            _ => (
+                "Shopping List Updated",
+                count == 1
+                    ? $"1 item from the \"{listName}\" list was marked as purchased."
+                    : $"{count} items from the \"{listName}\" list were marked as purchased."
+            )
+        };
+    }
+
+    public static (string Title, string Body) GetShoppingListCreatedContent(Language language, string listName)
+    {
+        return language switch
+        {
+            Language.Hungarian => (
+                "Új bevásárlólista",
+                $"Új \"{listName}\" bevásárlólista jött létre a családodban."
+            ),
+            Language.German => (
+                "Neue Einkaufsliste",
+                $"Eine neue Einkaufsliste \"{listName}\" wurde in deiner Familie erstellt."
+            ),
+            _ => (
+                "New Shopping List",
+                $"A new \"{listName}\" shopping list was created in your family."
+            )
+        };
+    }
+
+    public static (string Title, string Body) GetShoppingListDeletedContent(Language language, string listName)
+    {
+        return language switch
+        {
+            Language.Hungarian => (
+                "Bevásárlólista törölve",
+                $"A(z) \"{listName}\" bevásárlólista törlődött a családodban."
+            ),
+            Language.German => (
+                "Einkaufsliste gelöscht",
+                $"Die Einkaufsliste \"{listName}\" wurde in deiner Familie gelöscht."
+            ),
+            _ => (
+                "Shopping List Deleted",
+                $"The \"{listName}\" shopping list was deleted in your family."
+            )
+        };
+    }
+
+    public static (string Title, string Body) GetInventoryItemsCreatedContent(Language language, int count)
+    {
+        return language switch
+        {
+            Language.Hungarian => (
+                "Készlet frissítve",
+                count == 1
+                    ? "1 új tétel került a készletbe."
+                    : $"{count} új tétel került a készletbe."
+            ),
+            Language.German => (
+                "Bestand aktualisiert",
+                count == 1
+                    ? "1 neuer Eintrag wurde zum Bestand hinzugefügt."
+                    : $"{count} neue Einträge wurden zum Bestand hinzugefügt."
+            ),
+            _ => (
+                "Inventory Updated",
+                count == 1
+                    ? "1 new item was added to the inventory."
+                    : $"{count} new items were added to the inventory."
+            )
+        };
+    }
+
+    public static (string Title, string Body) GetInventoryItemsUpdatedContent(Language language, int count)
+    {
+        return language switch
+        {
+            Language.Hungarian => (
+                "Készlet frissítve",
+                count == 1
+                    ? "1 készlettétel módosult."
+                    : $"{count} készlettétel módosult."
+            ),
+            Language.German => (
+                "Bestand aktualisiert",
+                count == 1
+                    ? "1 Bestandseintrag wurde geändert."
+                    : $"{count} Bestandseinträge wurden geändert."
+            ),
+            _ => (
+                "Inventory Updated",
+                count == 1
+                    ? "1 inventory item was updated."
+                    : $"{count} inventory items were updated."
+            )
+        };
+    }
+
+    public static (string Title, string Body) GetInventoryItemsDeletedContent(Language language, int count)
+    {
+        return language switch
+        {
+            Language.Hungarian => (
+                "Készlet frissítve",
+                count == 1
+                    ? "1 tétel törlődött a készletből."
+                    : $"{count} tétel törlődött a készletből."
+            ),
+            Language.German => (
+                "Bestand aktualisiert",
+                count == 1
+                    ? "1 Eintrag wurde aus dem Bestand entfernt."
+                    : $"{count} Einträge wurden aus dem Bestand entfernt."
+            ),
+            _ => (
+                "Inventory Updated",
+                count == 1
+                    ? "1 item was removed from the inventory."
+                    : $"{count} items were removed from the inventory."
+            )
+        };
+    }
+
+    public static (string Title, string Body) GetInventoryItemsConsumedContent(Language language, int count)
+    {
+        return language switch
+        {
+            Language.Hungarian => (
+                "Készlet frissítve",
+                count == 1
+                    ? "1 tétel felhasználva a készletből."
+                    : $"{count} tétel felhasználva a készletből."
+            ),
+            Language.German => (
+                "Bestand aktualisiert",
+                count == 1
+                    ? "1 Eintrag wurde aus dem Bestand verbraucht."
+                    : $"{count} Einträge wurden aus dem Bestand verbraucht."
+            ),
+            _ => (
+                "Inventory Updated",
+                count == 1
+                    ? "1 item was consumed from the inventory."
+                    : $"{count} items were consumed from the inventory."
             )
         };
     }

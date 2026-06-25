@@ -34,12 +34,14 @@ try
 
     // Services
     builder.Services.AddSingleton<IWebPushService, WebPushService>();
+    builder.Services.AddSingleton<FamilyPushNotifier>();
     builder.Services.AddScoped<InventoryExpirationService>();
     builder.Services.AddHttpClient<EmailServiceClient>();
 
     // Background workers
     builder.Services.AddHostedService<PushNotificationSchedulerService>();
     builder.Services.AddHostedService<ShoppingListActivityMonitorService>();
+    builder.Services.AddHostedService<InventoryActivityMonitorService>();
     builder.Services.AddHostedService<EmailWeeklySummaryService>();
     builder.Services.AddHostedService<ItemAutomationWorkerService>();
 
