@@ -1,26 +1,29 @@
 <template>
   <div>
     <!-- Fixed Header -->
-    <div class="fixed top-0 left-0 right-0 z-10 bg-white dark:bg-gray-900 px-6 sm:px-10 lg:px-16 py-6 border-b border-gray-200 dark:border-gray-800 space-y-3">
-      <!-- Title Row -->
-      <div class="flex items-center justify-between gap-3">
-        <div class="flex items-center gap-3">
-          <UIcon name="i-lucide-shopping-cart" class="h-7 w-7 text-primary-500" />
-          <h1 class="text-2xl font-semibold">{{ $t('pages.shoppingLists.title') }}</h1>
-        </div>
-        <NuxtLink
-          :to="{ path: '/shopping-lists/add-product', query: { listId: selectedListId } }"
-          :class="{ 'pointer-events-none': !selectedListId }"
-        >
-          <UButton
-            color="primary"
-            size="sm"
-            trailing-icon="i-lucide-plus"
-            :disabled="!selectedListId"
+    <div ref="headerRef" class="fixed top-0 left-0 right-0 z-10 bg-white dark:bg-gray-900 px-6 sm:px-10 lg:px-16 py-6 border-b border-gray-200 dark:border-gray-800 space-y-3">
+      <!-- Title Row + active list subtitle -->
+      <div class="flex items-center gap-3">
+        <UIcon name="i-lucide-shopping-cart" class="h-7 w-7 text-primary-500 shrink-0" />
+        <div class="min-w-0">
+          <h1 class="text-2xl font-semibold leading-tight">{{ $t('pages.shoppingLists.title') }}</h1>
+          <div
+            v-if="currentListDetails"
+            class="flex items-center gap-1.5 text-sm text-gray-600 dark:text-gray-400"
           >
-            {{ $t('common.add') }}
-          </UButton>
-        </NuxtLink>
+            <span
+              v-if="currentListDetails.color"
+              class="w-2.5 h-2.5 rounded-full shrink-0"
+              :style="{ backgroundColor: currentListDetails.color }"
+            />
+            <span class="truncate">{{ currentListDetails.name }}</span>
+            <UIcon
+              v-if="currentListDetails.isSharedWithFamily"
+              name="i-lucide-users"
+              class="h-3.5 w-3.5 text-primary-500 shrink-0"
+            />
+          </div>
+        </div>
       </div>
 
       <!-- Description -->
@@ -28,94 +31,77 @@
         {{ $t('pages.shoppingLists.description') }}
       </p>
 
-      <!-- SELECT and SEARCH Row (reversed from products) -->
-      <div class="flex flex-col sm:flex-row gap-2">
-        <!-- LEFT: Shopping List Select with Menu Button -->
+      <!-- Search row + filters trigger -->
+      <div class="flex gap-2">
         <UFieldGroup size="md" orientation="horizontal" class="flex-1">
-          <USelect
-            v-model="selectedListId"
-            :items="shoppingListOptions"
-            :placeholder="$t('pages.shoppingLists.selectPlaceholder')"
-            :disabled="isLoadingLists || allShoppingLists.length === 0"
+          <UInput
+            v-model="searchQuery"
+            :disabled="!isSearchEnabled"
+            :placeholder="$t('pages.shoppingLists.searchPlaceholder')"
             class="flex-1"
           >
             <template #trailing>
-              <div class="flex items-center gap-2">
-                <!-- Family Icon -->
-                <UIcon
-                  v-if="currentListDetails?.isSharedWithFamily"
-                  name="i-lucide-users"
-                  class="h-4 w-4 text-primary-500"
-                />
-                <!-- Color Dot -->
-                <div
-                  v-if="currentListDetails?.color"
-                  class="w-3 h-3 rounded-full"
-                  :style="{ backgroundColor: currentListDetails.color }"
-                />
-              </div>
+              <UButton
+                v-if="searchQuery"
+                icon="i-lucide-x"
+                size="xs"
+                color="neutral"
+                variant="ghost"
+                :disabled="!isSearchEnabled"
+                @click="searchQuery = ''"
+              />
             </template>
-          </USelect>
-          <!-- Show + button when no list selected -->
-          <UButton
-            v-if="!selectedListId"
-            icon="i-lucide-plus"
-            color="primary"
-            size="sm"
-            @click="openCreateModal"
+          </UInput>
+          <BarcodeScannerButton
+            v-if="showCameraButton"
+            :disabled="!isSearchEnabled"
+            @scanned="handleBarcodeScanned"
           />
-          <!-- Show menu dropdown when list is selected -->
-          <UDropdownMenu v-else :items="listMenuItems" size="md">
-            <UButton
-              icon="i-lucide-ellipsis-vertical"
-              size="sm"
-              variant="subtle"
-            />
-          </UDropdownMenu>
         </UFieldGroup>
-
-        <!-- RIGHT: Search Input with Toggle -->
-        <div class="flex-1 flex gap-2">
-          <UFieldGroup size="md" orientation="horizontal" class="flex-1">
-            <UInput
-              v-model="searchQuery"
-              :disabled="!isSearchEnabled"
-              :placeholder="$t('pages.shoppingLists.searchPlaceholder')"
-              class="flex-1"
-            >
-              <template #trailing>
-                <UButton
-                  v-if="searchQuery"
-                  icon="i-lucide-x"
-                  size="xs"
-                  color="neutral"
-                  variant="ghost"
-                  :disabled="!isSearchEnabled"
-                  @click="searchQuery = ''"
-                />
-              </template>
-            </UInput>
-            <BarcodeScannerButton
-              v-if="showCameraButton"
-              :disabled="!isSearchEnabled"
-              @scanned="handleBarcodeScanned"
-            />
-          </UFieldGroup>
+        <UChip :show="activeFilterCount > 0" :text="activeFilterCount" color="primary" size="2xl">
           <UButton
-            :icon="showPurchased ? 'i-lucide-eye' : 'i-lucide-eye-off'"
+            icon="i-lucide-sliders-horizontal"
+            color="primary"
             size="md"
-            color="neutral"
-            variant="outline"
-            :disabled="!selectedListId"
-            :aria-label="$t('pages.shoppingLists.showPurchasedToggle')"
-            @click="showPurchased = !showPurchased"
-          />
-        </div>
+            :aria-label="$t('pages.shoppingLists.filters.toggle')"
+            :aria-expanded="filtersOpen"
+            @click="filtersOpen = true"
+          >
+            <span class="hidden sm:inline">{{ $t('pages.shoppingLists.filters.toggle') }}</span>
+          </UButton>
+        </UChip>
+      </div>
+
+      <!-- Active filter chips (dismissible) -->
+      <div
+        v-if="activeFilters.length"
+        class="flex items-center gap-2 overflow-x-auto pb-1 -mx-1 px-1"
+      >
+        <UButton
+          v-for="f in activeFilters"
+          :key="f.key"
+          :label="f.label"
+          size="xs"
+          color="primary"
+          variant="soft"
+          trailing-icon="i-lucide-x"
+          class="rounded-full shrink-0"
+          :aria-label="`${$t('pages.shoppingLists.filters.removeFilter')}: ${f.label}`"
+          @click="f.clear()"
+        />
+        <UButton
+          :label="$t('pages.shoppingLists.filters.clearAll')"
+          size="xs"
+          color="neutral"
+          variant="ghost"
+          class="shrink-0"
+          @click="clearAllFilters"
+        />
       </div>
     </div>
 
-    <!-- Content Section (with padding for fixed header) -->
-    <div class="pt-64 px-2 sm:px-4 md:px-6 lg:px-8 pb-6">
+    <!-- Content Section (offset by the fixed header's measured height) -->
+    <div class="px-2 sm:px-4 md:px-6 lg:px-8 pb-6" :style="{ paddingTop: headerHeight ? `calc(${headerHeight}px + 0.5rem)` : '15rem' }">
       <PullToRefreshIndicator
         :pull-distance="pullDistance"
         :is-pulling="isPulling"
@@ -136,6 +122,20 @@
         <p class="text-gray-500 dark:text-gray-400">
           {{ $t('pages.shoppingLists.noListsFound') }}
         </p>
+      </div>
+
+      <!-- Empty: Lists exist but none selected -->
+      <div v-else-if="!isLoadingLists && !selectedListId" class="text-center py-12">
+        <UIcon name="i-lucide-list-checks" class="h-16 w-16 mx-auto text-gray-400 mb-4" />
+        <p class="text-gray-500 dark:text-gray-400 mb-4">
+          {{ $t('pages.shoppingLists.filters.selectListPrompt') }}
+        </p>
+        <UButton
+          icon="i-lucide-sliders-horizontal"
+          color="primary"
+          :label="$t('pages.shoppingLists.filters.toggle')"
+          @click="filtersOpen = true"
+        />
       </div>
 
       <!-- Empty: No Items in List -->
@@ -165,6 +165,117 @@
         />
       </div>
     </div>
+
+    <!-- Filter drawer (bottom sheet) -->
+    <UDrawer v-model:open="filtersOpen" :title="$t('pages.shoppingLists.filters.toggle')">
+      <template #body>
+        <div class="space-y-5 pb-2">
+          <!-- Shopping list selection + management -->
+          <div role="group" :aria-label="$t('pages.shoppingLists.filterLabels.list')">
+            <div class="flex items-center gap-2 mb-1.5">
+              <p class="text-sm font-medium text-gray-700 dark:text-gray-300">
+                {{ $t('pages.shoppingLists.filterLabels.list') }}
+              </p>
+              <UDropdownMenu :items="listMenuItems" size="md">
+                <UButton
+                  icon="i-lucide-ellipsis"
+                  size="sm"
+                  color="primary"
+                  :aria-label="$t('pages.shoppingLists.menu.edit')"
+                />
+              </UDropdownMenu>
+            </div>
+            <div v-if="allShoppingLists.length" class="flex gap-2 overflow-x-auto pb-1 -mx-1 px-1">
+              <UButton
+                v-for="list in allShoppingLists"
+                :key="list.publicId"
+                :label="list.text"
+                size="sm"
+                class="rounded-full shrink-0"
+                :color="selectedListId === list.publicId ? 'primary' : 'neutral'"
+                :variant="selectedListId === list.publicId ? 'solid' : 'outline'"
+                :aria-pressed="selectedListId === list.publicId"
+                @click="selectedListId = list.publicId"
+              />
+            </div>
+            <p v-else class="text-sm text-gray-500 dark:text-gray-400">
+              {{ $t('pages.shoppingLists.noListsFound') }}
+            </p>
+          </div>
+
+          <!-- Deadline status -->
+          <FilterChipGroup
+            v-model="deadlineFilter"
+            :label="$t('pages.shoppingLists.filterLabels.deadline')"
+            :options="deadlineOptions"
+          />
+
+          <!-- Boolean property toggles -->
+          <div role="group" :aria-label="$t('pages.shoppingLists.filterLabels.properties')">
+            <p class="text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">
+              {{ $t('pages.shoppingLists.filterLabels.properties') }}
+            </p>
+            <UButton
+              :label="$t('pages.shoppingLists.filters.showPurchased')"
+              icon="i-lucide-check-check"
+              size="sm"
+              class="rounded-full"
+              :color="showPurchased ? 'primary' : 'neutral'"
+              :variant="showPurchased ? 'solid' : 'outline'"
+              :aria-pressed="showPurchased"
+              @click="showPurchased = !showPurchased"
+            />
+          </div>
+
+          <!-- Quantity range -->
+          <div>
+            <div class="flex items-center justify-between mb-2">
+              <p class="text-sm font-medium text-gray-700 dark:text-gray-300">
+                {{ $t('pages.shoppingLists.filterLabels.quantity') }}
+              </p>
+              <span class="text-sm text-gray-500 dark:text-gray-400 tabular-nums">
+                {{ quantityRange[0] }} – {{ quantityRange[1] }}
+              </span>
+            </div>
+            <USlider
+              v-model="quantityRange"
+              :min="0"
+              :max="maxItemQuantity"
+              :step="1"
+              color="primary"
+              :disabled="!currentListDetails"
+            />
+          </div>
+
+          <!-- Shopping location -->
+          <FilterChipGroup
+            v-if="locationOptions.length > 1"
+            v-model="locationFilter"
+            :label="$t('pages.shoppingLists.filterLabels.location')"
+            :options="locationOptions"
+          />
+        </div>
+      </template>
+      <template #footer>
+        <div class="flex items-center gap-2 w-full">
+          <UButton
+            :label="$t('pages.shoppingLists.filters.clearAll')"
+            color="neutral"
+            variant="ghost"
+            size="lg"
+            :disabled="activeFilterCount === 0"
+            @click="clearAllFilters"
+          />
+          <UButton
+            class="flex-1"
+            size="lg"
+            color="primary"
+            :label="$t('pages.shoppingLists.filters.showResults', { count: filteredItems.length })"
+            @click="filtersOpen = false"
+          />
+        </div>
+      </template>
+    </UDrawer>
 
     <!-- Create Shopping List Modal -->
     <UModal :open="isCreateModalOpen" @update:open="(val) => isCreateModalOpen = val" :dismissible="false">
@@ -394,7 +505,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watch, onMounted } from 'vue'
+import { ref, computed, watch, onMounted, onBeforeUnmount } from 'vue'
 import type { SelectValue } from '../../types/selectValue'
 import type { DetailedShoppingListInfo, CreateShoppingListRequest, UpdateShoppingListRequest, ShoppingListItemInfo } from '../../types/shoppingList'
 import { SelectValueType } from '../../types/enums'
@@ -422,6 +533,7 @@ const { pullDistance, isPulling, isRefreshing, isReady } = usePullToRefresh(asyn
 // LocalStorage key for last selected shopping list
 const LAST_SELECTED_LIST_KEY = 'lastSelectedShoppingListId'
 const SHOW_PURCHASED_KEY = 'shoppingListsShowPurchased'
+const FILTERS_KEY = 'shoppingListsFilters'
 
 // State
 const allShoppingLists = ref<SelectValue[]>([])
@@ -431,6 +543,34 @@ const searchQuery = ref('')
 const showPurchased = ref(false)
 const isLoadingLists = ref(false)
 const isLoadingDetails = ref(false)
+
+// Dynamic add-action on the nav FAB: only when a list is selected.
+useFabActions(() => selectedListId.value
+  ? [{
+      label: $t('pages.shoppingLists.addProductButton'),
+      icon: 'i-lucide-plus',
+      handler: () => navigateTo({
+        path: '/shopping-lists/add-product',
+        query: { listId: selectedListId.value }
+      })
+    }]
+  : [])
+
+// Filter state
+const filtersOpen = ref(false)
+const deadlineFilter = ref('all') // all | overdue | dueSoon
+const locationFilter = ref('all') // all | none | <shoppingLocationPublicId>
+const minQuantity = ref<number | null>(null)
+const maxQuantity = ref<number | null>(null)
+
+// Fixed-header height measurement (offsets the scrollable content)
+const headerRef = ref<HTMLElement | null>(null)
+const headerHeight = ref(0)
+let headerObserver: ResizeObserver | null = null
+
+const updateHeaderHeight = () => {
+  if (headerRef.value) headerHeight.value = headerRef.value.offsetHeight
+}
 
 // Create modal state
 const isCreateModalOpen = ref(false)
@@ -473,38 +613,129 @@ const getDisplayName = (item: ShoppingListItemInfo): string => {
 }
 
 // Computed
-const shoppingListOptions = computed(() => {
-  return allShoppingLists.value.map(list => ({
-    label: list.text,
-    value: list.publicId
-  }))
-})
-
-const listMenuItems = computed(() => [
-  [
-    {
-      label: $t('pages.shoppingLists.menu.add'),
-      icon: 'i-lucide-plus',
-      onSelect: openCreateModal
-    }
-  ],
-  [
-    {
-      label: $t('pages.shoppingLists.menu.edit'),
-      icon: 'i-lucide-pencil',
-      onSelect: openEditModal
-    },
-    {
-      label: $t('pages.shoppingLists.menu.delete'),
-      icon: 'i-lucide-trash-2',
-      onSelect: openDeleteModal
-    }
+const listMenuItems = computed(() => {
+  const groups: Record<string, unknown>[][] = [
+    [
+      {
+        label: $t('pages.shoppingLists.menu.add'),
+        icon: 'i-lucide-plus',
+        onSelect: openCreateModal
+      }
+    ]
   ]
-])
+  // Edit/delete only make sense for the currently selected list.
+  if (selectedListId.value) {
+    groups.push([
+      {
+        label: $t('pages.shoppingLists.menu.edit'),
+        icon: 'i-lucide-pencil',
+        onSelect: openEditModal
+      },
+      {
+        label: $t('pages.shoppingLists.menu.delete'),
+        icon: 'i-lucide-trash-2',
+        onSelect: openDeleteModal
+      }
+    ])
+  }
+  return groups
+})
 
 const isSearchEnabled = computed(() => {
   return currentListDetails.value && currentListDetails.value.items.length > 0
 })
+
+// --- Filters ---------------------------------------------------------------
+
+const deadlineOptions = computed(() => [
+  { label: $t('pages.shoppingLists.filters.all'), value: 'all' },
+  { label: $t('pages.shoppingLists.filters.overdue'), value: 'overdue' },
+  { label: $t('pages.shoppingLists.filters.dueSoon'), value: 'dueSoon' }
+])
+
+// Built from the locations present in the active list's items (+ "no location").
+const locationOptions = computed(() => {
+  const opts: { label: string, value: string }[] = [
+    { label: $t('pages.shoppingLists.filters.all'), value: 'all' }
+  ]
+  const seen = new Map<string, string>()
+  let hasNone = false
+  for (const item of currentListDetails.value?.items ?? []) {
+    if (item.shoppingLocation) {
+      seen.set(item.shoppingLocation.publicId, item.shoppingLocation.name)
+    } else {
+      hasNone = true
+    }
+  }
+  for (const [value, label] of seen) opts.push({ label, value })
+  if (hasNone) opts.push({ label: $t('pages.shoppingLists.filters.noLocation'), value: 'none' })
+  return opts
+})
+
+const maxItemQuantity = computed(() => {
+  const max = (currentListDetails.value?.items ?? []).reduce((m, i) => Math.max(m, i.quantity || 0), 0)
+  return Math.max(1, Math.ceil(max))
+})
+
+const quantityRange = computed<number[]>({
+  get: () => [minQuantity.value ?? 0, maxQuantity.value ?? maxItemQuantity.value],
+  set: (range: number[]) => {
+    const [lo, hi] = range
+    minQuantity.value = lo == null || lo <= 0 ? null : lo
+    maxQuantity.value = hi == null || hi >= maxItemQuantity.value ? null : hi
+  }
+})
+
+const optLabel = (options: { label: string, value: string }[], value: string) =>
+  options.find(o => o.value === value)?.label ?? value
+
+const activeFilterCount = computed(() =>
+  (deadlineFilter.value !== 'all' ? 1 : 0) +
+  (locationFilter.value !== 'all' ? 1 : 0) +
+  (minQuantity.value != null || maxQuantity.value != null ? 1 : 0) +
+  (showPurchased.value ? 1 : 0)
+)
+
+const activeFilters = computed(() => {
+  const chips: { key: string, label: string, clear: () => void }[] = []
+  if (deadlineFilter.value !== 'all') {
+    chips.push({
+      key: 'deadline',
+      label: optLabel(deadlineOptions.value, deadlineFilter.value),
+      clear: () => { deadlineFilter.value = 'all' }
+    })
+  }
+  if (locationFilter.value !== 'all') {
+    chips.push({
+      key: 'location',
+      label: optLabel(locationOptions.value, locationFilter.value),
+      clear: () => { locationFilter.value = 'all' }
+    })
+  }
+  if (minQuantity.value != null || maxQuantity.value != null) {
+    chips.push({
+      key: 'quantity',
+      label: `${$t('pages.shoppingLists.filterLabels.quantity')}: ${minQuantity.value ?? 0}–${maxQuantity.value ?? maxItemQuantity.value}`,
+      clear: () => { minQuantity.value = null; maxQuantity.value = null }
+    })
+  }
+  if (showPurchased.value) {
+    chips.push({
+      key: 'purchased',
+      label: $t('pages.shoppingLists.filters.showPurchased'),
+      clear: () => { showPurchased.value = false }
+    })
+  }
+  return chips
+})
+
+const clearAllFilters = () => {
+  deadlineFilter.value = 'all'
+  locationFilter.value = 'all'
+  minQuantity.value = null
+  maxQuantity.value = null
+  showPurchased.value = false
+}
 
 const filteredItems = computed(() => {
   if (!currentListDetails.value) return []
@@ -529,6 +760,36 @@ const filteredItems = computed(() => {
              normalizeForSearch(productBrand).includes(normalized) ||
              normalizeForSearch(customName).includes(normalized) ||
              normalizeForSearch(note).includes(normalized)
+    })
+  }
+
+  // Deadline status
+  if (deadlineFilter.value === 'overdue') {
+    items = items.filter(item => {
+      const d = getTargetDate(item)
+      return d ? checkIsExpired(d) : false
+    })
+  } else if (deadlineFilter.value === 'dueSoon') {
+    items = items.filter(item => {
+      const d = getTargetDate(item)
+      return d ? (!checkIsExpired(d) && checkIsExpiringWithinTwoWeeks(d)) : false
+    })
+  }
+
+  // Shopping location
+  if (locationFilter.value === 'none') {
+    items = items.filter(item => !item.shoppingLocation)
+  } else if (locationFilter.value !== 'all') {
+    items = items.filter(item => item.shoppingLocation?.publicId === locationFilter.value)
+  }
+
+  // Quantity range
+  if (minQuantity.value != null || maxQuantity.value != null) {
+    items = items.filter(item => {
+      const q = item.quantity ?? 0
+      if (minQuantity.value != null && q < minQuantity.value) return false
+      if (maxQuantity.value != null && q > maxQuantity.value) return false
+      return true
     })
   }
 
@@ -615,6 +876,7 @@ const loadListDetails = async (publicId: string) => {
 
 // Create modal methods
 const openCreateModal = () => {
+  filtersOpen.value = false
   createForm.value = {
     name: '',
     description: undefined,
@@ -661,6 +923,7 @@ const handleCreateList = async () => {
 const openEditModal = () => {
   if (!currentListDetails.value) return
 
+  filtersOpen.value = false
   editForm.value = {
     name: currentListDetails.value.name,
     description: currentListDetails.value.description || undefined,
@@ -703,6 +966,7 @@ const handleUpdateList = async () => {
 
 // Delete modal methods
 const openDeleteModal = () => {
+  filtersOpen.value = false
   isDeleteModalOpen.value = true
 }
 
@@ -746,6 +1010,11 @@ const handleBarcodeScanned = (barcode: string) => {
 
 // Watchers
 watch(selectedListId, (newId) => {
+  // Reset list-dependent filters when switching lists (options differ per list).
+  locationFilter.value = 'all'
+  minQuantity.value = null
+  maxQuantity.value = null
+
   if (newId) {
     loadListDetails(newId)
     // Save to localStorage
@@ -755,6 +1024,11 @@ watch(selectedListId, (newId) => {
     // Clear from localStorage if no list is selected
     localStorage.removeItem(LAST_SELECTED_LIST_KEY)
   }
+})
+
+// Persist the (list-independent) deadline filter.
+watch(deadlineFilter, (value) => {
+  localStorage.setItem(FILTERS_KEY, JSON.stringify({ deadline: value }))
 })
 
 watch(showPurchased, (newValue) => {
@@ -774,7 +1048,34 @@ onMounted(() => {
   if (savedShowPurchased !== null) {
     showPurchased.value = savedShowPurchased === 'true'
   }
-  
+
+  // Restore the persisted deadline filter (whitelist-validated)
+  const savedFilters = localStorage.getItem(FILTERS_KEY)
+  if (savedFilters) {
+    try {
+      const parsed = JSON.parse(savedFilters)
+      if (['all', 'overdue', 'dueSoon'].includes(parsed.deadline)) {
+        deadlineFilter.value = parsed.deadline
+      }
+    } catch {
+      // Ignore malformed stored filters
+    }
+  }
+
   loadShoppingLists()
+
+  // Track the fixed header's height (changes when subtitle/filter chips appear)
+  updateHeaderHeight()
+  if (headerRef.value && typeof ResizeObserver !== 'undefined') {
+    headerObserver = new ResizeObserver(() => updateHeaderHeight())
+    headerObserver.observe(headerRef.value)
+  }
+})
+
+onBeforeUnmount(() => {
+  if (headerObserver) {
+    headerObserver.disconnect()
+    headerObserver = null
+  }
 })
 </script>

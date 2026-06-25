@@ -178,6 +178,11 @@
     "calendar": "Naptár",
     "profile": "Profil"
   },
+  "fab": {
+    "open": "Hozzáadás megnyitása",
+    "close": "Bezárás",
+    "chooseAction": "Mit szeretnél hozzáadni?"
+  },
   "footer": {
     "madeWith": "Készítette",
     "by": "-ből"
@@ -621,6 +626,25 @@
       "noListsFound": "Nem található bevásárlólista.",
       "noItemsInList": "Ez a lista üres.",
       "noSearchResults": "Nem található tétel.",
+      "filters": {
+        "toggle": "Szűrők",
+        "all": "Mind",
+        "overdue": "Lejárt",
+        "dueSoon": "Hamarosan esedékes",
+        "showPurchased": "Megvásároltak mutatása",
+        "noLocation": "Nincs hely",
+        "clearAll": "Összes törlése",
+        "removeFilter": "Szűrő eltávolítása",
+        "showResults": "{count} tétel megjelenítése",
+        "selectListPrompt": "Válassz egy listát a szűrőből."
+      },
+      "filterLabels": {
+        "list": "Bevásárlólista",
+        "deadline": "Lejárat",
+        "quantity": "Mennyiség",
+        "location": "Bevásárlási hely",
+        "properties": "Tulajdonságok"
+      },
       "menu": {
         "add": "Lista hozzáadása",
         "edit": "Lista szerkesztése",

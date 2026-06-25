@@ -1,17 +1,12 @@
 ﻿<template>
   <div>
     <!-- Sticky Header with Search -->
-    <div class="sticky top-0 z-10 bg-white dark:bg-gray-900 px-6 sm:px-10 lg:px-16 py-4 space-y-3">
+    <div ref="headerRef" class="fixed top-0 left-0 right-0 z-10 bg-white dark:bg-gray-900 px-6 sm:px-10 lg:px-16 py-4 border-b border-gray-200 dark:border-gray-800 space-y-3">
       <div class="flex items-center justify-between gap-3">
         <div class="flex items-center gap-3">
           <UIcon name="i-lucide-package" class="h-7 w-7 text-primary-500" />
           <h1 class="text-2xl font-semibold">{{ $t('pages.products.title') }}</h1>
         </div>
-        <NuxtLink to="/products/add-product">
-          <UButton color="primary" size="sm" trailing-icon="i-lucide-plus">
-            {{ $t('common.add') }}
-          </UButton>
-        </NuxtLink>
       </div>
       <p class="text-gray-600 dark:text-gray-400">{{ $t('pages.products.description') }}</p>
 
@@ -172,8 +167,8 @@
       </template>
     </UDrawer>
 
-    <!-- Content Section -->
-    <div class="pt-4 px-4 sm:px-8 lg:px-14 pb-6">
+    <!-- Content Section (offset by the fixed header's measured height) -->
+    <div class="px-4 sm:px-8 lg:px-14 pb-6" :style="{ paddingTop: headerHeight ? `calc(${headerHeight}px + 0.5rem)` : '13rem' }">
 
     <PullToRefreshIndicator
       :pull-distance="pullDistance"
@@ -234,6 +229,15 @@ const { isExpired: checkIsExpired, isExpiringSoon: checkIsExpiringSoon } = useEx
 const { t: $t } = useI18n()
 const { showCameraButton } = useCameraAvailability()
 
+// Register the page's add-action(s) on the dynamic nav FAB.
+useFabActions(() => [
+  {
+    label: $t('pages.products.addProductButton'),
+    icon: 'i-lucide-plus',
+    handler: () => navigateTo('/products/add-product')
+  }
+])
+
 const { pullDistance, isPulling, isRefreshing, isReady } = usePullToRefresh(() => loadProducts())
 
 // LocalStorage key for filter settings (single consolidated object)
@@ -260,6 +264,15 @@ const pageSize = 20
 const loadingMore = ref(false)
 const sentinelRef = ref<HTMLElement | null>(null)
 const observer = ref<IntersectionObserver | null>(null)
+
+// Fixed header: measure its (variable) height so the scrollable content can be offset by it.
+const headerRef = ref<HTMLElement | null>(null)
+const headerHeight = ref(0)
+let headerObserver: ResizeObserver | null = null
+
+const updateHeaderHeight = () => {
+  if (headerRef.value) headerHeight.value = headerRef.value.offsetHeight
+}
 
 // Filter dropdown options
 const expirationOptions = computed(() => [
@@ -605,12 +618,23 @@ onMounted(() => {
   }
 
   loadProducts()
+
+  // Track the fixed header's height (changes when the filter chips row appears/disappears).
+  updateHeaderHeight()
+  if (headerRef.value && typeof ResizeObserver !== 'undefined') {
+    headerObserver = new ResizeObserver(() => updateHeaderHeight())
+    headerObserver.observe(headerRef.value)
+  }
 })
 
 // Cleanup on unmount
 onBeforeUnmount(() => {
   if (observer.value) {
     observer.value.disconnect()
+  }
+  if (headerObserver) {
+    headerObserver.disconnect()
+    headerObserver = null
   }
 })
 </script>

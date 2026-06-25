@@ -5,30 +5,35 @@
     </UMain>
 
     <nav class="fixed inset-x-4 bottom-4 z-50">
-        <div class="flex items-center gap-2 rounded-2xl border border-primary-200 dark:border-primary-800 bg-background/95 backdrop-blur shadow-lg px-3 pt-2 pb-[calc(0.5rem+env(safe-area-inset-bottom))]">
-        <NuxtLink
-          v-for="item in navItems"
-          :key="item.to"
-          :to="item.to"
-          :aria-label="item.label"
-          class="flex-1 flex flex-col items-center justify-center h-16 md:h-12 rounded-xl transition duration-150 hover:scale-[1.02] active:scale-95"
-          :class="item.active ? 'text-primary-500 font-bold' : 'text-gray-500 dark:text-gray-400 hover:text-primary-500'"
-        >
-          <div class="relative">
-            <!-- Badge for expiration count -->
-            <div
-              v-if="item.badge"
-              class="absolute -top-1.5 -right-1.5 z-10 flex items-center justify-center min-w-[18px] h-[18px] px-1 rounded-full bg-red-500 dark:bg-red-600 shadow-md"
-            >
-              <span class="text-[10px] font-bold text-white leading-none">
-                {{ item.badge }}
-              </span>
-            </div>
+      <!-- Dynamic add button, centred on the nav's top border -->
+      <NavFab />
 
-            <UIcon :name="item.icon" :class="item.active ? 'h-6 w-6 font-bold' : 'h-6 w-6'" />
-          </div>
-          <span class="mt-1 text-xs hidden md:block">{{ item.label }}</span>
-        </NuxtLink>
+        <div class="flex items-center gap-2 rounded-2xl border border-primary-200 dark:border-primary-800 bg-background/95 backdrop-blur shadow-lg px-3 pt-2 pb-[calc(0.5rem+env(safe-area-inset-bottom))]">
+        <template v-for="(item, index) in navItems" :key="item.to">
+          <!-- Reserved centre slot for the '+' FAB (always present, even when the FAB is hidden) -->
+          <div v-if="index === Math.floor(navItems.length / 2)" class="flex-1" aria-hidden="true" />
+          <NuxtLink
+            :to="item.to"
+            :aria-label="item.label"
+            class="flex-1 flex flex-col items-center justify-center h-16 md:h-12 rounded-xl transition duration-150 hover:scale-[1.02] active:scale-95"
+            :class="item.active ? 'text-primary-500 font-bold' : 'text-gray-500 dark:text-gray-400 hover:text-primary-500'"
+          >
+            <div class="relative">
+              <!-- Badge for expiration count -->
+              <div
+                v-if="item.badge"
+                class="absolute -top-1.5 -right-1.5 z-10 flex items-center justify-center min-w-[18px] h-[18px] px-1 rounded-full bg-red-500 dark:bg-red-600 shadow-md"
+              >
+                <span class="text-[10px] font-bold text-white leading-none">
+                  {{ item.badge }}
+                </span>
+              </div>
+
+              <UIcon :name="item.icon" :class="item.active ? 'h-6 w-6 font-bold' : 'h-6 w-6'" />
+            </div>
+            <span class="mt-1 text-xs hidden md:block">{{ item.label }}</span>
+          </NuxtLink>
+        </template>
       </div>
     </nav>
   </UApp>

@@ -176,6 +176,11 @@
     "calendar": "Kalender",
     "profile": "Profil"
   },
+  "fab": {
+    "open": "Hinzufügen-Menü öffnen",
+    "close": "Schließen",
+    "chooseAction": "Was möchtest du hinzufügen?"
+  },
   "footer": {
     "madeWith": "Hergestellt mit",
     "by": "von"
@@ -620,6 +625,25 @@
       "noListsFound": "Keine Einkaufslisten gefunden.",
       "noItemsInList": "Diese Liste ist leer.",
       "noSearchResults": "Keine Artikel gefunden.",
+      "filters": {
+        "toggle": "Filter",
+        "all": "Alle",
+        "overdue": "Überfällig",
+        "dueSoon": "Bald fällig",
+        "showPurchased": "Gekaufte anzeigen",
+        "noLocation": "Kein Ort",
+        "clearAll": "Alle löschen",
+        "removeFilter": "Filter entfernen",
+        "showResults": "{count} Artikel anzeigen",
+        "selectListPrompt": "Wähle eine Liste im Filter."
+      },
+      "filterLabels": {
+        "list": "Einkaufsliste",
+        "deadline": "Frist",
+        "quantity": "Menge",
+        "location": "Einkaufsort",
+        "properties": "Eigenschaften"
+      },
       "menu": {
         "add": "Liste hinzufügen",
         "edit": "Liste bearbeiten",

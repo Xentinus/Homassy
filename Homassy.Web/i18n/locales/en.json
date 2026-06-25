@@ -178,6 +178,11 @@
     "calendar": "Calendar",
     "profile": "Profile"
   },
+  "fab": {
+    "open": "Open add menu",
+    "close": "Close",
+    "chooseAction": "What would you like to add?"
+  },
   "footer": {
     "madeWith": "Made with",
     "by": "by"
@@ -622,6 +627,25 @@
       "noListsFound": "No shopping lists found.",
       "noItemsInList": "This list is empty.",
       "noSearchResults": "No items found.",
+      "filters": {
+        "toggle": "Filters",
+        "all": "All",
+        "overdue": "Overdue",
+        "dueSoon": "Due soon",
+        "showPurchased": "Show purchased",
+        "noLocation": "No location",
+        "clearAll": "Clear all",
+        "removeFilter": "Remove filter",
+        "showResults": "Show {count} items",
+        "selectListPrompt": "Pick a list from the filters."
+      },
+      "filterLabels": {
+        "list": "Shopping list",
+        "deadline": "Deadline",
+        "quantity": "Quantity",
+        "location": "Shopping location",
+        "properties": "Properties"
+      },
       "menu": {
         "add": "Add List",
         "edit": "Edit List",
