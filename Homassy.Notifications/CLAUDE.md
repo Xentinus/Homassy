@@ -67,11 +67,13 @@ Homassy.Notifications/
 │   ├── IWebPushService.cs              # Push notification interface
 │   ├── WebPushService.cs               # VAPID push implementation
 │   ├── PushNotificationContentService.cs  # Localised notification text
+│   ├── FamilyPushNotifier.cs           # Shared recipient resolution + push dispatch
 │   ├── InventoryExpirationService.cs   # Expiring/expired item queries
 │   └── EmailServiceClient.cs           # HTTP client → Homassy.Email
 └── Workers/
     ├── PushNotificationSchedulerService.cs   # Hourly, Mon 07:00 → weekly push
     ├── ShoppingListActivityMonitorService.cs  # 5 min → shopping list push
+    ├── InventoryActivityMonitorService.cs     # 5 min → inventory (készlet) push
     └── EmailWeeklySummaryService.cs           # Hourly, Mon 07:00 → weekly email
 ```
 
@@ -120,8 +122,18 @@ builder.Services.AddDbContext<HomassyDbContext>(options =>
 
 ### ShoppingListActivityMonitorService
 - Runs every 5 minutes
-- Tracks in-memory shopping list sessions
-- Sends push notification when a new item is added while another device is active
+- Sends immediate notifications when a family shopping list is created or deleted
+- Tracks in-memory shopping list sessions (keyed by ShoppingListId); when item activity
+  (add/edit/delete/purchase) goes idle for 5 minutes, sends one notification per non-zero action
+  type to family members who did not contribute
+- Uses the shared `FamilyPushNotifier` for recipient resolution and dispatch
+
+### InventoryActivityMonitorService
+- Runs every 5 minutes
+- Tracks in-memory inventory sessions keyed by FamilyId; when inventory activity
+  (create/update/delete/consume) goes idle for 5 minutes, sends one notification per non-zero action
+  type (count-only, no product names) to family members who did not contribute
+- Uses the shared `FamilyPushNotifier`
 
 ### EmailWeeklySummaryService
 - Runs every hour
