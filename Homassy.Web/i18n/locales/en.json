@@ -16,6 +16,7 @@
     "edit": "Edit",
     "viewInventory": "View Inventory",
     "search": "Search",
+    "clear": "Clear",
     "loading": "Loading...",
     "searchPlaceholder": "Search by name, brand, or barcode...",
     "filter": "Filter",
@@ -282,7 +283,28 @@
         "expiringSoon": "Expiring soon",
         "favorites": "Favorites",
         "eatable": "Eatable products",
-        "withBarcode": "Products with barcode"
+        "notEatable": "Non-eatable products",
+        "withBarcode": "Products with barcode",
+        "toggle": "Filters",
+        "minQuantity": "Min",
+        "maxQuantity": "Max",
+        "clearAll": "Clear all",
+        "removeFilter": "Remove filter",
+        "showResults": "Show {count} products"
+      },
+      "filterLabels": {
+        "expiration": "Expiration",
+        "eatable": "Eatable",
+        "favorites": "Favorites",
+        "barcode": "Barcode",
+        "scope": "Scope",
+        "quantity": "Stock quantity",
+        "properties": "Properties"
+      },
+      "scopeFilters": {
+        "all": "All items",
+        "family": "Shared with family",
+        "personal": "My personal items"
       },
       "details": {
         "overview": "Inventory Overview",

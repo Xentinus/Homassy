@@ -7,6 +7,7 @@ namespace Homassy.API.Models.Product
         public Guid PublicId { get; set; }
         public decimal CurrentQuantity { get; set; }
         public Unit Unit { get; set; }
+        public bool IsSharedWithFamily { get; set; }
         public DateTime? ExpirationAt { get; set; }
         public LocationInfo? StorageLocation { get; set; }
         public PurchaseInfo? PurchaseInfo { get; set; }

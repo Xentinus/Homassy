@@ -75,6 +75,7 @@ export interface InventoryItemInfo {
   publicId: string
   currentQuantity: number
   unit: Unit
+  isSharedWithFamily: boolean
   expirationAt?: string
   storageLocation?: LocationInfo
   purchaseInfo?: PurchaseInfo

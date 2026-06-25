@@ -904,6 +904,7 @@ namespace Homassy.API.Functions
                     PublicId = item.PublicId,
                     CurrentQuantity = item.CurrentQuantity,
                     Unit = item.Unit,
+                    IsSharedWithFamily = item.FamilyId.HasValue,
                     ExpirationAt = item.ExpirationAt,
                     StorageLocation = item.StorageLocationId.HasValue
                         ? (locationFunctions.GetStorageLocationById(item.StorageLocationId.Value) is var storageLocation && storageLocation != null
@@ -1008,6 +1009,7 @@ namespace Homassy.API.Functions
                         PublicId = item.PublicId,
                         CurrentQuantity = item.CurrentQuantity,
                         Unit = item.Unit,
+                        IsSharedWithFamily = item.FamilyId.HasValue,
                         ExpirationAt = item.ExpirationAt,
                         StorageLocation = item.StorageLocationId.HasValue
                             ? (locationFunctions.GetStorageLocationById(item.StorageLocationId.Value) is var storageLocation && storageLocation != null
