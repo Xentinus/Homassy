@@ -30,9 +30,9 @@ Homassy.Email is a lightweight, standalone microservice responsible for sending 
 - **In-process Channel Queue** – Emails are enqueued into a bounded `System.Threading.Channels` queue before sending
 - **Background Worker** – `EmailWorkerService` drains the queue asynchronously with retry logic
 - **API Key Authentication** – All endpoints (except `/health/*`) require `X-Api-Key` header validated with constant-time comparison
-- **Single HTML Template** – One embedded `CodeEmail.html` template rendered with simple `{{TOKEN}}` substitution
+- **Embedded HTML Templates** – `CodeEmail.html`, `WeeklySummaryEmail.html`, and `AutomationNotificationEmail.html`, all rendered with simple `{{TOKEN}}` substitution
 - **Multilingual** – Supports English, Hungarian (`hu`), and German (`de`) for all email content
-- **Two entry points** – Kratos webhook (`/kratos/webhook`) and a generic send endpoint (`/email/send`)
+- **Entry points** – Kratos webhook (`/kratos/webhook`), a generic send endpoint (`/email/send`), a weekly summary endpoint (`/email/weekly-summary`), and an automation notification endpoint (`/email/automation-notification`)
 - **SMTP via MailKit** – Connects per-email with STARTTLS, no persistent connection pool
 
 ---
@@ -52,8 +52,10 @@ Homassy.Email is a lightweight, standalone microservice responsible for sending 
 ```
 Homassy.Email/
 ├── Endpoints/             Minimal API endpoint handlers
-│   ├── KratosWebhookEndpoint.cs   Receives Kratos courier webhook
-│   └── SendEmailEndpoint.cs       Generic email send endpoint
+│   ├── KratosWebhookEndpoint.cs           Receives Kratos courier webhook
+│   ├── SendEmailEndpoint.cs               Generic email send endpoint
+│   ├── WeeklySummaryEndpoint.cs           Weekly inventory expiration summary email
+│   └── AutomationNotificationEndpoint.cs  Item automation notification email
 ├── Enums/
 │   ├── EmailType.cs        LoginCode | RegistrationCode | VerificationCode | RecoveryCode
 │   └── Language.cs         English | Hungarian | German
@@ -65,7 +67,9 @@ Homassy.Email/
 │   ├── EmailMessage.cs         Internal queue record (To, Subject, HtmlBody, PlainTextBody, AttemptCount)
 │   ├── KratosTemplateData.cs   Deserialized Kratos webhook payload
 │   ├── KratosWebhookRequest.cs Top-level Kratos webhook request model
-│   └── SendEmailRequest.cs     Generic send endpoint request model
+│   ├── SendEmailRequest.cs     Generic send endpoint request model
+│   ├── WeeklySummaryRequest.cs Weekly summary endpoint request model
+│   └── AutomationNotificationRequest.cs  Automation notification endpoint request model
 ├── Services/
 │   ├── IEmailContentService.cs      Interface
 │   ├── EmailContentService.cs       Builds subjects, greetings, messages (multilingual)
@@ -76,7 +80,9 @@ Homassy.Email/
 │   ├── ITemplateRendererService.cs  Interface
 │   └── TemplateRendererService.cs   Loads embedded HTML template, replaces {{TOKEN}} placeholders
 ├── Templates/
-│   └── CodeEmail.html   Single embedded HTML template for all code emails
+│   ├── CodeEmail.html                  Embedded template for all code emails
+│   ├── WeeklySummaryEmail.html         Embedded template for weekly summary emails
+│   └── AutomationNotificationEmail.html  Embedded template for automation notification emails
 ├── Workers/
 │   └── EmailWorkerService.cs   BackgroundService – drains queue, retries failed sends
 ├── Program.cs
@@ -91,11 +97,15 @@ Homassy.Email/
 ### Request Flow
 
 ```
-Kratos Courier ──POST /kratos/webhook──▶ KratosWebhookEndpoint
-                                               │
-Homassy.API ────POST /email/send──────▶ SendEmailEndpoint
-                                               │
-                                               ▼
+Kratos Courier ──────POST /kratos/webhook──────────────▶ KratosWebhookEndpoint
+                                                               │
+Homassy.API ─────────POST /email/send──────────────────▶ SendEmailEndpoint
+                                                               │
+Homassy.Notifications POST /email/weekly-summary────────▶ WeeklySummaryEndpoint
+                                                               │
+Homassy.Notifications POST /email/automation-notification▶ AutomationNotificationEndpoint
+                                                               │
+                                                               ▼
                                       IEmailContentService
                                       ITemplateRendererService
                                                │
@@ -203,6 +213,52 @@ Generic email send endpoint for direct use by Homassy.API or other internal serv
 
 ---
 
+### `POST /email/weekly-summary`
+
+Sends a weekly inventory expiration summary email. Called by Homassy.Notifications. Renders the `WeeklySummaryEmail.html` template with expired and expiring-soon product sections.
+
+**Authentication:** `X-Api-Key` header required.
+
+**Request body:**
+```json
+{
+  "to": "user@example.com",
+  "language": "hu",
+  "name": "John",
+  "expiredItems": [{ "name": "Milk", "brand": "Acme", "expirationDate": "2026-06-20T00:00:00Z" }],
+  "expiringSoonItems": [{ "name": "Eggs", "brand": null, "expirationDate": "2026-06-30T00:00:00Z" }]
+}
+```
+
+**Response:** `200 OK` – email enqueued (or dropped if queue full, logged as warning)
+
+---
+
+### `POST /email/automation-notification`
+
+Sends an item automation notification email (auto-consume, notify-only, add-to-shopping-list, etc.). Called by Homassy.Notifications. Renders the `AutomationNotificationEmail.html` template.
+
+**Authentication:** `X-Api-Key` header required.
+
+**Request body:**
+```json
+{
+  "to": "user@example.com",
+  "language": "hu",
+  "name": "John",
+  "productName": "Milk",
+  "actionType": "auto_consume",
+  "consumedQuantity": 1,
+  "unit": "Piece"
+}
+```
+
+`actionType` values include `auto_consume`, `notify_only`, `add_to_shopping_list`, `low_stock_add_to_shopping_list`, and `insufficient_quantity`.
+
+**Response:** `200 OK` – email enqueued (or dropped if queue full, logged as warning)
+
+---
+
 ### `GET /health/live`
 
 Liveness probe. Always returns `200 OK` with no checks. Confirms the process is running.
@@ -250,9 +306,11 @@ Four email types are supported, each fully translated into three languages:
 
 ## Template System
 
-### HTML Template (`Templates/CodeEmail.html`)
+### HTML Templates
 
-A single HTML template is used for all email types. It is embedded as an assembly resource at build time (`EmbeddedResource` in `.csproj`) and loaded once by `TemplateRendererService` on startup.
+Three HTML templates are used: `CodeEmail.html` (auth code emails), `WeeklySummaryEmail.html` (weekly summaries), and `AutomationNotificationEmail.html` (automation notifications). Each is embedded as an assembly resource at build time (`EmbeddedResource` in `.csproj`) and loaded once by `TemplateRendererService` on startup.
+
+The token table below describes the `CodeEmail.html` tokens. The weekly summary and automation templates use their own token sets (e.g. `{{EXPIRED_SECTION}}`, `{{EXPIRING_SECTION}}`, `{{DETAIL_SECTION}}`), rendered via `RenderWeeklySummary()` and `RenderAutomationNotification()` respectively.
 
 **Token substitution** uses `{{TOKEN_NAME}}` syntax:
 
@@ -475,10 +533,12 @@ ApiKeyMiddleware  (validates X-Api-Key, skips /health/*)
     ↓
 Endpoint routing
     ↓
-KratosWebhookEndpoint  (POST /kratos/webhook)
-SendEmailEndpoint      (POST /email/send)
-SmtpHealthCheck        (GET /health/ready)
-Liveness               (GET /health/live)
+KratosWebhookEndpoint          (POST /kratos/webhook)
+SendEmailEndpoint              (POST /email/send)
+WeeklySummaryEndpoint          (POST /email/weekly-summary)
+AutomationNotificationEndpoint (POST /email/automation-notification)
+SmtpHealthCheck                (GET /health/ready)
+Liveness                       (GET /health/live)
 ```
 
 ### Important Notes

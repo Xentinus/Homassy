@@ -32,6 +32,7 @@ Homassy.Web is the **frontend application** of the Homassy platform. It is a **N
 | Icons | @iconify-json/heroicons, @iconify-json/lucide |
 | Barcode | vue-qrcode-reader 5.7.3 |
 | Cropper | vue-advanced-cropper 2.8.9 |
+| Calendar | vue-cal 4.10.2 |
 | WebAuthn | @simplewebauthn/browser 13.2.2 |
 | Date | @internationalized/date 3.10.1 |
 | Linting | @nuxt/eslint 1.12.1, eslint 9.39.2 |
@@ -64,6 +65,9 @@ Homassy.Web/
 │   │   │   ├── useSelectValueApi.ts
 │   │   │   ├── useOpenFoodFactsApi.ts
 │   │   │   ├── useProgressApi.ts
+│   │   │   ├── useAutomationApi.ts
+│   │   │   ├── useCalendarApi.ts
+│   │   │   ├── useStatisticsApi.ts
 │   │   │   ├── useHealthApi.ts
 │   │   │   ├── useErrorCodesApi.ts
 │   │   │   └── useVersionApi.ts
@@ -77,8 +81,10 @@ Homassy.Web/
 │   │   ├── useEnumLabel.ts
 │   │   ├── useEventBus.ts
 │   │   ├── useExpirationCheck.ts
+│   │   ├── useFabActions.ts    Shared state for the layout floating action button
 │   │   ├── useImageCrop.ts
 │   │   ├── useInputDateLocale.ts
+│   │   ├── usePullToRefresh.ts
 │   │   ├── usePushNotifications.ts
 │   │   └── useWebAuthn.ts
 │   ├── layouts/
@@ -89,6 +95,7 @@ Homassy.Web/
 │   ├── pages/
 │   │   ├── index.vue           Root redirect
 │   │   ├── activity.vue        Activity feed
+│   │   ├── calendar.vue        Monthly calendar of expirations & shopping deadlines
 │   │   ├── auth/
 │   │   │   ├── login.vue
 │   │   │   ├── register.vue
@@ -108,7 +115,11 @@ Homassy.Web/
 │   │   │   ├── security.vue
 │   │   │   ├── settings.vue
 │   │   │   ├── shopping-locations.vue
-│   │   │   └── storage-locations.vue
+│   │   │   ├── storage-locations.vue
+│   │   │   └── automation/
+│   │   │       ├── index.vue          Automation rules list (filterable)
+│   │   │       ├── create.vue         Create automation rule (stepper wizard)
+│   │   │       └── [publicId].vue     Automation rule detail / edit / delete
 │   │   └── shopping-lists/
 │   │       ├── index.vue
 │   │       └── add-product.vue
@@ -255,6 +266,9 @@ One composable per API controller. All use `useApiClient` internally:
 | `useSelectValueApi` | Select value lists |
 | `useOpenFoodFactsApi` | Barcode product lookup |
 | `useProgressApi` | Inventory progress |
+| `useAutomationApi` | Automation rules CRUD, enable/disable, manual execution |
+| `useCalendarApi` | Calendar events (expirations & deadlines) for a date range |
+| `useStatisticsApi` | Global platform statistics |
 | `useHealthApi` | API health check |
 | `useErrorCodesApi` | Error code descriptions |
 | `useVersionApi` | API version info |

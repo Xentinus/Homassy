@@ -16,7 +16,7 @@
 9. [Cross-Cutting Concerns](#cross-cutting-concerns)
 10. [Development Guidelines](#development-guidelines)
 
-> **Controllers:** AuthController · UserController · FamilyController · ProductController · LocationController · ShoppingListController · SelectValueController · OpenFoodFactsController · VersionController · HealthController · ErrorCodesController · ProgressController
+> **Controllers:** AuthController · UserController · FamilyController · ProductController · LocationController · ShoppingListController · SelectValueController · OpenFoodFactsController · VersionController · HealthController · ErrorCodesController · ProgressController · AutomationController · CalendarController · StatisticsController
 
 ---
 
@@ -109,6 +109,8 @@ Homassy.API/
 │   └── SessionInfo.cs
 ├── Controllers/           HTTP endpoint handlers (thin layer)
 │   ├── AuthController.cs
+│   ├── AutomationController.cs    Item-automation rule management
+│   ├── CalendarController.cs      Calendar event aggregation
 │   ├── ErrorCodesController.cs    Error code reference (public)
 │   ├── FamilyController.cs
 │   ├── HealthController.cs
@@ -118,6 +120,7 @@ Homassy.API/
 │   ├── ProgressController.cs      Job progress tracking
 │   ├── SelectValueController.cs
 │   ├── ShoppingListController.cs
+│   ├── StatisticsController.cs    Public global platform statistics
 │   ├── UserController.cs
 │   └── VersionController.cs
 ├── Entities/              Database entity models
@@ -129,7 +132,8 @@ Homassy.API/
 │   │   ├── RecordChangeEntity.cs
 │   │   └── TableRecordChange.cs
 │   ├── Family/
-│   │   └── Family.cs
+│   │   ├── Family.cs
+│   │   └── FamilyJoinRequest.cs    Approval-gated join request
 │   ├── Location/
 │   │   ├── LocationBase.cs
 │   │   ├── ShoppingLocation.cs
@@ -139,7 +143,9 @@ Homassy.API/
 │   │   ├── ProductConsumptionLog.cs
 │   │   ├── ProductCustomization.cs
 │   │   ├── ProductInventoryItem.cs
-│   │   └── ProductPurchaseInfo.cs
+│   │   ├── ProductPurchaseInfo.cs
+│   │   ├── ItemAutomation.cs            Automation rule (schedule/threshold)
+│   │   └── ItemAutomationExecution.cs   Automation execution log entry
 │   ├── ShoppingList/
 │   │   ├── ShoppingList.cs
 │   │   └── ShoppingListItem.cs
@@ -179,7 +185,10 @@ Homassy.API/
 │   └── UserTimeZoneExtensions.cs
 ├── Functions/            Business logic layer (replaces traditional services)
 │   ├── ActivityFunctions.cs       Activity feed queries
+│   ├── AutomationFunctions.cs     Item-automation CRUD, scheduling, execution, low-stock check
+│   ├── CalendarFunctions.cs       Calendar event aggregation
 │   ├── FamilyFunctions.cs
+│   ├── FamilyJoinRequestFunctions.cs  Approval-gated family join requests
 │   ├── ImageFunctions.cs          Image upload/delete for products & profiles
 │   ├── LocationFunctions.cs
 │   ├── ProductFunctions.cs
@@ -224,8 +233,7 @@ Homassy.API/
 │   └── SecureCompare.cs
 └── Services/            Application services
     ├── Background/      Background hosted services
-    │   ├── PushNotificationSchedulerService.cs
-    │   ├── ShoppingListActivityMonitorService.cs
+    │   ├── StatisticsRefreshWorker.cs   Nightly global-statistics cache refresh
     │   └── TokenCleanupService.cs
     ├── Sanitization/
     │   ├── IInputSanitizationService.cs
@@ -237,15 +245,13 @@ Homassy.API/
     ├── GracefulShutdownService.cs (IHostedService – drain on shutdown)
     ├── IBarcodeValidationService.cs
     ├── IImageProcessingService.cs
-    ├── IWebPushService.cs
     ├── ImageProcessingService.cs
     ├── KratosService.cs
     ├── OpenFoodFactsService.cs
     ├── ProgressTrackerService.cs
-    ├── PushNotificationContentService.cs
     ├── RateLimitCleanupService.cs (IHostedService)
     ├── RateLimitService.cs
-    └── WebPushService.cs
+    └── StatisticsService.cs       Singleton in-memory global-statistics cache
 ```
 
 ---
@@ -350,7 +356,9 @@ BaseEntity (abstract)
               └── RecordChangeEntity
                   └── RecordChange: JSON string (LastModifiedDate, LastModifiedBy)
                       │
-                      └── User, Family, Product, ShoppingList, Location, etc.
+                      └── User, Family, Product, ShoppingList, Location,
+                          ItemAutomation, ItemAutomationExecution,
+                          FamilyJoinRequest, etc.
 ```
 
 #### BaseEntity
@@ -829,10 +837,16 @@ Manages family operations (all endpoints require `[Authorize]`).
 
 | Method | Endpoint | Description |
 |--------|----------|-------------|
-| GET | `/` | Get family details |
+| GET | `/` | Get family details (including members) |
+| GET | `/members` | Get all members of the current user's family |
 | PUT | `/` | Update family |
 | POST | `/create` | Create new family |
-| POST | `/join` | Join existing family |
+| POST | `/join-requests` | Request to join a family by share code (requires approval) |
+| GET | `/join-requests/mine` | Get the current user's pending join request, if any |
+| DELETE | `/join-requests/mine` | Withdraw the current user's pending join request |
+| GET | `/join-requests` | List pending join requests for the current user's family |
+| POST | `/join-requests/{publicId}/approve` | Approve a pending join request (adds requester to family) |
+| POST | `/join-requests/{publicId}/reject` | Decline a pending join request |
 | POST | `/leave` | Leave family |
 | POST | `/picture` | Upload family picture (Base64) |
 | DELETE | `/picture` | Delete family picture |
@@ -840,7 +854,8 @@ Manages family operations (all endpoints require `[Authorize]`).
 **Key Patterns:**
 - Family context from `SessionInfo.GetFamilyId()`
 - Validation that user belongs to a family
-- Family invite code system for joining
+- Family share-code system for joining
+- **Approval-gated join requests**: joining is not immediate — a request stays `Pending` until an existing member approves or rejects it (a user may hold only one pending request at a time). Backed by `FamilyJoinRequestFunctions` and the `FamilyJoinRequest` entity.
 - Base64 image upload for family pictures
 
 ### ProductController
@@ -972,17 +987,17 @@ Returns application version information (no authentication required).
 {
   "Success": true,
   "Data": {
-    "Version": "1.1.1225183000-beta",
-    "ShortVersion": "1.1",
-    "BuildType": "beta",
-    "BuildDate": "2025-12-12T18:30:00Z"
+    "Version": "25.1214.2132-prod",
+    "ShortVersion": "25.1214",
+    "BuildType": "prod",
+    "BuildDate": "2025-12-14T21:32:00"
   }
 }
 ```
 
 **Key Patterns:**
-- Semantic versioning support
-- Build date extraction from version string
+- Date-based versioning `YY.MMDD.HHmm` (defined in `Directory.Build.props`); `BuildType` is `prod` (Release) or `dev` (other configs)
+- Build date is reconstructed from the version string
 - Public endpoint (no auth required)
 - Useful for deployment tracking
 
@@ -1099,6 +1114,60 @@ Tracks progress of long-running background jobs (e.g., async image uploads). All
 - Polling-based progress tracking via `IProgressTrackerService`
 - Returns 404 if job ID unknown
 - DELETE cancels the job via `CancellationTokenSource`
+
+### AutomationController
+
+Manages item-automation rules — scheduled or threshold-driven actions on inventory items, products, and shopping lists (all endpoints require `[Authorize]`).
+
+**Endpoints:**
+
+| Method | Endpoint | Query Params | Description |
+|--------|----------|--------------|-------------|
+| GET | `/` | - | Get all automation rules for the current user and family |
+| GET | `/{publicId}` | - | Get a single automation rule |
+| POST | `/` | - | Create an automation rule |
+| PUT | `/{publicId}` | - | Update an automation rule (partial) |
+| DELETE | `/{publicId}` | - | Delete an automation rule (soft delete) |
+| POST | `/{publicId}/execute` | - | Manually execute the rule (auto-consume or confirm a notify-only rule) |
+| GET | `/{publicId}/history` | `skip`, `take` (default 0/5) | Get execution history for the rule |
+
+**Key Patterns:**
+- Backed by `AutomationFunctions`; rules persisted as `ItemAutomation`, runs logged as `ItemAutomationExecution`
+- Family-shared or user-scoped via `IsSharedWithFamily` (sets `FamilyId` vs `UserId`); ownership/family access validated on every operation
+- Action types: `AutoConsume`, `AddToShoppingList`, `LowStockAddToShoppingList`, `NotifyOnly`
+- Schedule types: `Interval` (every N days) and `FixedDate` (days-of-week or day-of-month); `NextExecutionAt` computed in the user's timezone
+- Low-stock rules are event-driven (no schedule) and cannot be manually executed
+- Units are always inherited from the related product, never supplied by the client
+
+### CalendarController
+
+Aggregates calendar events (inventory expirations, automation executions, shopping-list deadlines) within a date range (requires `[Authorize]`).
+
+**Endpoints:**
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| POST | `/` | Get calendar events for the date range in the request body |
+
+**Key Patterns:**
+- Request body carries `StartDate` / `EndDate` (`DateOnly`); the range may not exceed 93 days (validated, else 400)
+- Dates are converted to UTC day boundaries before querying
+- Backed by `CalendarFunctions`; returns `List<CalendarEventInfo>`
+
+### StatisticsController
+
+Exposes nightly-cached, global (platform-wide) counts (no authentication — `[AllowAnonymous]`).
+
+**Endpoints:**
+
+| Method | Endpoint | Auth | Description |
+|--------|----------|------|-------------|
+| GET | `/` | No | Get the cached global platform statistics |
+
+**Key Patterns:**
+- Served from the in-memory `StatisticsService` singleton (no per-request DB query)
+- Cache refreshed once on startup and nightly at 02:00 UTC by `StatisticsRefreshWorker`
+- Returns totals for products, inventory items, shopping lists, purchased items, shopping locations, and storage locations plus `LastUpdatedUtc`
 
 ---
 
@@ -1375,10 +1444,8 @@ GET /api/v1.0/errorcodes/PRODUCT   → only PRODUCT_* codes
 The application supports browser push notifications via the Web Push API.
 
 **Components:**
-- `IWebPushService` / `WebPushService` – sends push messages using VAPID keys configured in `appsettings.json`
-- `PushNotificationContentService` – builds notification content/payload
-- `PushNotificationFunctions` – subscription lifecycle (subscribe, unsubscribe, test)
-- `PushNotificationSchedulerService` – background service that schedules/sends notifications
+- `PushNotificationFunctions` – subscription lifecycle (subscribe/upsert, unsubscribe)
+- `NotificationsServiceClient` – typed `HttpClient` that delegates actual message delivery (test pushes, low-stock alerts, etc.) to an external notifications service; VAPID keys are read from `WebPush:*` config
 - `UserPushSubscription` entity – stores each device's endpoint, p256dh, auth keys
 - `UserNotificationPreferences` entity – per-user opt-in/out controls
 
@@ -1409,8 +1476,8 @@ A per-family audit log of create/update/delete operations across entities.
 **Components:**
 - `Activity` entity (`Entities/Activity/Activity.cs`) – stores actor, entity type, action, and timestamp
 - `ActivityFunctions` – queries the activity feed with pagination and filtering
-- `ActivityType` enum – categorises activities (product added, shopping list updated, etc.)
-- `ShoppingListActivityMonitorService` – background service that monitors changes and creates activity entries
+- `ActivityType` enum – categorises activities (product added, shopping list updated, automation created/executed, etc.)
+- Activity entries are recorded inline by the Functions layer via `ActivityFunctions.RecordActivityAsync` as operations occur
 
 **Querying via UserController:**
 ```
@@ -1425,6 +1492,62 @@ GET /api/v1.0/user/activities
 ```
 
 Returns `PagedResult<ActivityInfo>` with total count for cursor-style pagination.
+
+### Item Automation Engine
+
+Automation rules let users automate actions on inventory items, products, and shopping lists. Rules are managed via the `AutomationController` and implemented in `AutomationFunctions`.
+
+**Components:**
+- `ItemAutomation` entity – the rule definition (target, schedule, action, thresholds, enabled flag, `NextExecutionAt`/`LastExecutedAt`)
+- `ItemAutomationExecution` entity – an append-only log of each time a rule ran (status, consumed quantity, notes, triggering user)
+- `AutomationFunctions` – CRUD, schedule/action validation, `NextExecutionAt` calculation, manual execution, and the low-stock check
+
+**Action Types** (`AutomationActionType`):
+- **AutoConsume** – periodically consumes a fixed `ConsumeQuantity` from an inventory item, writing a `ProductConsumptionLog` and marking the item fully consumed when it reaches zero
+- **AddToShoppingList** – periodically adds a product (with `AddQuantity`/`AddUnit`) to a shopping list
+- **LowStockAddToShoppingList** – event-driven: when a product's total stock drops below `ThresholdQuantity`, adds it to a shopping list
+- **NotifyOnly** – records a manually-confirmed execution without changing stock
+
+**Scheduling:**
+- `ScheduleType.Interval` – fires every `IntervalDays` days
+- `ScheduleType.FixedDate` – fires on selected `ScheduledDaysOfWeek` (weekly) or a `ScheduledDayOfMonth` (monthly)
+- `ScheduledTime` is interpreted in the owner's timezone; `CalculateNextExecutionAt` converts the next occurrence back to UTC for storage
+- Low-stock rules carry no schedule (`NextExecutionAt` stays null)
+
+**Low-stock check (`CheckLowStockForProductAsync`):**
+- Static, exception-safe method invoked after inventory changes for the affected product
+- Sums current stock (scoped by family or user) and, if below threshold and not already triggered, adds the product to the shopping list, logs an execution + activity, and fires a low-stock notification (via the external `NotificationsServiceClient`)
+- Re-arms (`IsTriggered = false`) once stock returns above the threshold, so it can fire again
+
+**Ownership & sharing:**
+- A rule is either user-scoped (`UserId`) or family-shared (`FamilyId`), chosen via `IsSharedWithFamily`; `CreatedByUserId` always records the author
+- Every operation validates that the caller owns the rule or belongs to its family
+- The action's unit is always inherited from the related product, never supplied by the client
+
+> Note: scheduled (time-based) execution of due rules is driven outside this API; only the event-driven low-stock path runs in-process. The API owns rule definition, validation, `NextExecutionAt` bookkeeping, and manual execution.
+
+### Family Join Requests (Approval-Gated)
+
+Joining a family is a two-step, approval-gated flow rather than an immediate join.
+
+**Components:**
+- `FamilyJoinRequest` entity – links a requesting `UserId` to a target `FamilyId` with a `Status` (`Pending`/approved/rejected/cancelled), request/response timestamps, and the responding member
+- `FamilyJoinRequestFunctions` – create, view-mine, cancel, list-for-family, approve, and reject logic
+- Exposed through the `FamilyController` `join-requests/*` endpoints
+
+**Flow:**
+```
+1. POST /family/join-requests  (share code)  → creates a Pending request
+2. An existing family member lists pending requests via GET /family/join-requests
+3. Member approves (POST .../approve) → requester is added to the family
+   or rejects (POST .../reject)
+4. The requester may withdraw a still-pending request via DELETE /family/join-requests/mine
+```
+
+**Rules enforced:**
+- A user already in a family cannot request to join another (`FAMILY_ALREADY_MEMBER`)
+- A valid share code is required; an unknown code returns `FAMILY_INVALID_SHARE_CODE`
+- Only one `Pending` request per user at a time (enforced in code and by a filtered unique index)
 
 ### Account Lockout
 
@@ -2303,7 +2426,7 @@ Log.Error($"Unexpected error: {ex.Message}");
 
 ### Background Services
 
-Six hosted services run as `IHostedService`:
+Several hosted services run as `IHostedService` / `BackgroundService`:
 
 **1. CacheManagementService**
 - Monitors `TableRecordChanges` for database changes
@@ -2322,15 +2445,11 @@ Six hosted services run as `IHostedService`:
 - Allows in-flight requests to complete during rolling restarts
 - Configured via `appsettings.json`: `"GracefulShutdown": { "Enabled": true, "TimeoutSeconds": 10 }`
 
-**4. PushNotificationSchedulerService** _(in `Services/Background/`)_
-- Scheduled background service for sending batched push notifications
-- Works with `IWebPushService` (VAPID Web Push)
+**4. StatisticsRefreshWorker** _(in `Services/Background/`)_
+- Refreshes the global-statistics cache (`StatisticsService`) once on startup, then nightly at 02:00 UTC
+- Computes platform-wide totals via a scoped `HomassyDbContext`
 
-**5. ShoppingListActivityMonitorService** _(in `Services/Background/`)_
-- Monitors shopping list changes and logs activity feed entries
-- Detects item additions, removals, and status changes
-
-**6. TokenCleanupService** _(in `Services/Background/`)_
+**5. TokenCleanupService** _(in `Services/Background/`)_
 - Runs periodically to clean up stale data
 - Scoped database access per execution
 
@@ -2338,10 +2457,10 @@ Six hosted services run as `IHostedService`:
 ```csharp
 builder.Services.AddHostedService<CacheManagementService>();
 builder.Services.AddHostedService<RateLimitCleanupService>();
+builder.Services.AddSingleton<StatisticsService>();
+builder.Services.AddHostedService<StatisticsRefreshWorker>();
 builder.Services.AddHostedService<GracefulShutdownService>();
-builder.Services.AddHostedService<PushNotificationSchedulerService>();
-builder.Services.AddHostedService<ShoppingListActivityMonitorService>();
-// TokenCleanupService also registered as IHostedService
+// TokenCleanupService also registered as a hosted background service
 ```
 
 ### Application Services
@@ -2804,6 +2923,9 @@ Homassy.API is a modern ASP.NET Core Web API with a unique architecture optimize
 - **Async progress tracking** for long-running jobs (image uploads) via `ProgressTrackerService` and `ProgressController`
 - **Web Push notifications** (VAPID) with per-device subscription management and scheduled sending
 - **Activity feed** per-family audit log with pagination and filtering
+- **Item automation engine** scheduled and low-stock (event-driven) actions over inventory, products, and shopping lists
+- **Approval-gated family join requests** join-by-share-code requiring an existing member's approval
+- **Global statistics** nightly-cached, public platform-wide counts
 - **Account lockout** after repeated failed auth attempts (429 with unlock timer)
 - **Graceful shutdown** drain period for zero-downtime rolling restarts
 - **Open Food Facts integration** enriches product data with barcode lookup and nutrition information

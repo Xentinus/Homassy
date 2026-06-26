@@ -55,7 +55,9 @@ Homassy.Notifications/
 ├── appsettings.json                    # Base configuration
 ├── appsettings.Development.json        # Development overrides
 ├── Endpoints/
-│   └── TestPushEndpoint.cs             # POST /push/test
+│   ├── TestPushEndpoint.cs             # POST /push/test
+│   ├── LowStockPushEndpoint.cs         # POST /push/low-stock
+│   └── TestEmailEndpoint.cs            # POST /email/test
 ├── HealthChecks/
 │   ├── DatabaseHealthCheck.cs          # DB connectivity check
 │   └── WebPushHealthCheck.cs           # VAPID config presence check
@@ -74,6 +76,8 @@ Homassy.Notifications/
     ├── PushNotificationSchedulerService.cs   # Hourly, Mon 07:00 → weekly push
     ├── ShoppingListActivityMonitorService.cs  # 5 min → shopping list push
     ├── InventoryActivityMonitorService.cs     # 5 min → inventory (készlet) push
+    ├── FamilyJoinRequestMonitorService.cs     # 1 min → family join request push
+    ├── ItemAutomationWorkerService.cs         # 5 min → item automation execution
     └── EmailWeeklySummaryService.cs           # Hourly, Mon 07:00 → weekly email
 ```
 
@@ -87,7 +91,8 @@ Homassy.Notifications/
 Homassy.API  →  POST /push/test  →  Homassy.Notifications  →  WebPush (browser)
                   (proxied)
 
-Homassy.Notifications  →  POST /email/weekly-summary  →  Homassy.Email  →  SMTP
+Homassy.Notifications  →  POST /email/weekly-summary         →  Homassy.Email  →  SMTP
+Homassy.Notifications  →  POST /email/automation-notification →  Homassy.Email  →  SMTP
 ```
 
 ### DB Access
@@ -108,6 +113,8 @@ builder.Services.AddDbContext<HomassyDbContext>(options =>
 | Method | Path | Auth | Description |
 |--------|------|------|-------------|
 | POST | `/push/test` | X-Api-Key | Send a test push to a user |
+| POST | `/push/low-stock` | X-Api-Key | Send a low-stock push (and email) to a user |
+| POST | `/email/test` | X-Api-Key | Send a test weekly summary email to a user |
 | GET | `/health/live` | None | Liveness probe (always 200) |
 | GET | `/health/ready` | None | Readiness probe (DB + WebPush) |
 
@@ -134,6 +141,25 @@ builder.Services.AddDbContext<HomassyDbContext>(options =>
   (create/update/delete/consume) goes idle for 5 minutes, sends one notification per non-zero action
   type (count-only, no product names) to family members who did not contribute
 - Uses the shared `FamilyPushNotifier`
+
+### FamilyJoinRequestMonitorService
+- Runs every minute (join requests are time-sensitive)
+- Polls the `Activities` table since the previous run for `FamilyJoinRequestCreate`/`Approve`/`Decline` events
+- New request → notifies every existing family member (excluding the requester)
+- Approve/Decline → notifies the requester (resolves the join request to user + family)
+- Uses the shared `FamilyPushNotifier`
+
+### ItemAutomationWorkerService
+- Runs every 5 minutes
+- Processes due item automation rules (`NextExecutionAt <= now`):
+  `AutoConsume` (decrements inventory, logs consumption), `NotifyOnly` (reminder),
+  and `AddToShoppingList` (adds an item to the target list), then recalculates `NextExecutionAt`
+  in the user's timezone
+- Also evaluates `LowStockAddToShoppingList` rules: when total non-consumed stock for a product
+  drops below the threshold it adds the product to the shopping list and marks the rule triggered;
+  triggered rules are re-armed once stock is replenished above the threshold
+- Records an `ItemAutomationExecution` for each rule and sends push + email notifications to the
+  owner via `IWebPushService` and `EmailServiceClient`
 
 ### EmailWeeklySummaryService
 - Runs every hour

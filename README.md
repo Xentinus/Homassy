@@ -54,17 +54,19 @@ Homassy is a modern full-stack system designed to simplify household inventory m
 
 ### 🎯 Functionality
 - 👤 **User Management** - Profiles, settings, profile pictures, activity feed
-- 👨‍👩‍👧‍👦 **Family Management** - Create families, join via invite codes, family pictures
+- 👨‍👩‍👧‍👦 **Family Management** - Create families, approval-gated join requests via share codes (request → approve/reject), member management, family pictures
 - 📦 **Product Management** - Complete product inventory with consumption tracking and images
 - 🛒 **Shopping Lists** - Collaborative family shopping lists with purchase tracking
 - 📍 **Locations** - Shopping locations (stores) and storage locations (home/freezer)
+- 📅 **Calendar** - Unified calendar of product expirations and shopping list deadlines
+- 📈 **Statistics** - Aggregated household counts (products, shopping items, families) with nightly caching
 - 🔍 **Product Lookup** - Barcode scanning via Open Food Facts API integration
 - 📊 **Select Values** - Dynamic dropdown options for forms
 - 📱 **Barcode Scanning** - Camera-based scanning with multi-format support, camera availability detection
 - 🔎 **Search Highlighting** - Visual highlighting of search results across product and location components
 - 🖼️ **Image Processing** - Browser-side compression and cropping
 - 🌍 **Internationalization** - Full i18n support with 3 languages (English, German, Hungarian)
-- 🔔 **Push Notifications** - Daily alerts at 7 AM for products expiring within 14 days, weekly summaries every Monday, and real-time notifications when a family member adds items to a shared shopping list
+- 🔔 **Push Notifications** - Daily alerts at 7 AM for products expiring within 14 days, weekly summaries every Monday, low-stock and item-automation alerts, family join-request notifications, and real-time notifications when a family member adds items to a shared shopping list or inventory
 - 📧 **Transactional Email** - Multilingual OTP emails (EN/HU/DE) for login, registration, verification, and recovery
 - ⚙️ **Item Automation** - Configurable automation rules for automatic inventory consumption, usage reminders, shopping list additions, and low-stock threshold alerts with multi-day scheduling support
 
@@ -89,7 +91,7 @@ Homassy/
 │   └── CLAUDE.md         📚 Detailed architecture documentation
 ├── Homassy.Email/        📧 Transactional Email Microservice
 │   ├── Endpoints/        🌐 KratosWebhookEndpoint, SendEmailEndpoint, WeeklySummaryEndpoint, AutomationNotificationEndpoint
-│   ├── Enums/            📋 EmailType (LoginCode, RegistrationCode, VerificationCode, RecoveryCode, WeeklySummary)
+│   ├── Enums/            📋 EmailType (LoginCode, RegistrationCode, VerificationCode, RecoveryCode)
 │   ├── HealthChecks/     💓 SMTP connectivity health probe
 │   ├── Middleware/       🔑 API key authentication (constant-time)
 │   ├── Models/           📋 EmailMessage, KratosWebhookRequest, SendEmailRequest, WeeklySummaryRequest, AutomationNotificationRequest
@@ -102,19 +104,19 @@ Homassy/
 │   ├── HealthChecks/     💓 Database + WebPush connectivity probes
 │   ├── Middleware/       🔑 API key authentication (constant-time)
 │   ├── Models/           📋 ExpiringProductItem, TestPushRequest, WeeklySummaryEmailRequest, LowStockPushRequest
-│   ├── Services/         ⚙️ WebPushService, PushNotificationContentService, InventoryExpirationService, EmailServiceClient
-│   ├── Workers/          ⏳ PushNotificationSchedulerService, ShoppingListActivityMonitorService, EmailWeeklySummaryService, ItemAutomationWorkerService
+│   ├── Services/         ⚙️ WebPushService, PushNotificationContentService, FamilyPushNotifier, InventoryExpirationService, EmailServiceClient
+│   ├── Workers/          ⏳ PushNotificationSchedulerService, InventoryActivityMonitorService, ShoppingListActivityMonitorService, FamilyJoinRequestMonitorService, ItemAutomationWorkerService, EmailWeeklySummaryService
 │   └── CLAUDE.md         📚 Architecture documentation
 ├── Homassy.Web/          🎨 Vue.js 3 + Nuxt 4 Web App (Frontend)
 │   ├── app/
-│   │   ├── pages/        🔖 File-based routing (15+ pages)
+│   │   ├── pages/        🔖 File-based routing (20+ pages)
 │   │   ├── components/   🧩 Reusable Vue components
 │   │   ├── composables/  🎣 Composition API helpers
-│   │   │   └── api/      📡 API client wrappers (12 services)
+│   │   │   └── api/      📡 API client wrappers (15 services)
 │   │   ├── stores/       🗃️ Pinia state management (auth)
 │   │   ├── layouts/      📐 Page layouts (auth, public)
 │   │   ├── middleware/   🛡️ Route guards (auth protection)
-│   │   ├── types/        📝 TypeScript definitions (15 type files)
+│   │   ├── types/        📝 TypeScript definitions (20 type files)
 │   │   └── utils/        🔧 Utility functions
 │   ├── i18n/             🌍 Translation files (en, de, hu)
 │   ├── public/           📂 Static assets and PWA icons
@@ -166,7 +168,7 @@ Homassy/
 |----------|------------|
 | **Framework** | ASP.NET Core 10.0 (Minimal API) |
 | **Push Notifications** | WebPush (VAPID protocol) |
-| **Background Workers** | .NET BackgroundService (4 workers) |
+| **Background Workers** | .NET BackgroundService (6 workers) |
 | **DB Access** | EF Core (shared via ProjectReference → Homassy.API) |
 | **Logging** | Serilog (structured) |
 
@@ -203,7 +205,8 @@ Homassy/
 BaseEntity (Id, PublicId)
   └── SoftDeleteEntity (IsDeleted)
       └── RecordChangeEntity (RecordChange JSON)
-          └── User, Family, Product, ShoppingList, Location, ...
+          └── User, Family, FamilyJoinRequest, Product, ProductInventoryItem,
+              ItemAutomation, ShoppingList, Location, Activity, ...
 ```
 
 All entities inherit a common base with:

@@ -69,12 +69,17 @@ Homassy.Tests/
 │   └── UserControllerTests.cs                    User profile tests
 ├── Unit/
 │   ├── AccountLockoutServiceTests.cs         AccountLockoutService logic
+│   ├── AutomationEmailContentTests.cs        Automation email content (multilingual)
+│   ├── AutomationFunctionsTests.cs           Automation next-execution calculations
+│   ├── AutomationNotificationIntegrationTests.cs  Automation notification wiring
 │   ├── BarcodeValidationServiceTests.cs      Barcode validation
 │   ├── CancellationTokenTests.cs             CancellationToken propagation
 │   ├── CorrelationIdMiddlewareTests.cs       Correlation ID middleware
 │   ├── GlobalExceptionMiddlewareTests.cs     Exception → ApiResponse mapping
 │   ├── ImageProcessingServiceTests.cs        Image resize/processing
 │   ├── InputSanitizationServiceTests.cs      Input sanitization
+│   ├── ItemAutomationTests.cs                Item automation logic
+│   ├── ItemAutomationWorkerServiceTests.cs   Automation worker execution
 │   ├── OpenFoodFactsHealthCheckTests.cs      OpenFoodFacts health check
 │   ├── RateLimitServiceTests.cs              Rate limit logic
 │   ├── RateLimitingMiddlewareTests.cs        Rate limiting middleware
