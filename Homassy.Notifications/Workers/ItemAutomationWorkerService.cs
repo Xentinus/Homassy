@@ -389,7 +389,9 @@ public sealed class ItemAutomationWorkerService : BackgroundService
         try
         {
             var userId = automation.CreatedByUserId;
-            var familyId = automation.FamilyId;
+            // Visibility follows the target list's privacy, not the automation's:
+            // a personal list (FamilyId == null) must stay hidden from the family.
+            var familyId = shoppingList.FamilyId;
             await new ActivityFunctions().RecordActivityAsync(
                 userId, familyId,
                 ActivityType.AutomationExecute,

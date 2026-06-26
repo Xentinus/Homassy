@@ -477,7 +477,7 @@ namespace Homassy.API.Functions
                 {
                     await new ActivityFunctions().RecordActivityAsync(
                         userId.Value,
-                        familyId,
+                        shoppingList.FamilyId,
                         Enums.ActivityType.ShoppingListCreate,
                         shoppingList.Id,
                         shoppingList.Name,
@@ -592,7 +592,7 @@ namespace Homassy.API.Functions
                     {
                         await new ActivityFunctions().RecordActivityAsync(
                             userId.Value,
-                            familyId,
+                            trackedList.FamilyId,
                             Enums.ActivityType.ShoppingListUpdate,
                             trackedList.Id,
                             trackedList.Name,
@@ -680,7 +680,7 @@ namespace Homassy.API.Functions
                 {
                     await new ActivityFunctions().RecordActivityAsync(
                         userId.Value,
-                        familyId,
+                        shoppingList.FamilyId,
                         Enums.ActivityType.ShoppingListDelete,
                         shoppingList.Id,
                         shoppingList.Name,
@@ -794,7 +794,7 @@ namespace Homassy.API.Functions
                     
                     await new ActivityFunctions().RecordActivityAsync(
                         userId.Value,
-                        familyId,
+                        shoppingList.FamilyId,
                         Enums.ActivityType.ShoppingListItemAdd,
                         shoppingListItem.Id,
                         $"{shoppingList.Name} - {itemName}",
@@ -967,7 +967,7 @@ namespace Homassy.API.Functions
                         
                         await new ActivityFunctions().RecordActivityAsync(
                             userId.Value,
-                            familyId,
+                            shoppingList.FamilyId,
                             Enums.ActivityType.ShoppingListItemUpdate,
                             trackedItem.Id,
                             $"{shoppingList.Name} - {itemName}",
@@ -1061,7 +1061,7 @@ namespace Homassy.API.Functions
                     
                     await new ActivityFunctions().RecordActivityAsync(
                         userId.Value,
-                        familyId,
+                        shoppingList.FamilyId,
                         Enums.ActivityType.ShoppingListItemDelete,
                         shoppingListItem.Id,
                         $"{shoppingList.Name} - {itemName}",
@@ -1138,7 +1138,7 @@ namespace Homassy.API.Functions
                     {
                         await new ActivityFunctions().RecordActivityAsync(
                             userId.Value,
-                            familyId,
+                            shoppingList.FamilyId,
                             Enums.ActivityType.ShoppingListItemPurchase,
                             shoppingListItem.Id,
                             $"{shoppingList.Name} - {trackedShoppingListItem.CustomName ?? "Custom Item"}",
@@ -1241,7 +1241,7 @@ namespace Homassy.API.Functions
                 {
                     await new ActivityFunctions().RecordActivityAsync(
                         userId.Value,
-                        familyId,
+                        shoppingList.FamilyId,
                         Enums.ActivityType.ShoppingListItemPurchase,
                         shoppingListItem.Id,
                         $"{shoppingList.Name} - {product.Name}",
@@ -1335,7 +1335,7 @@ namespace Homassy.API.Functions
 
                     await new ActivityFunctions().RecordActivityAsync(
                         userId.Value,
-                        familyId,
+                        shoppingList.FamilyId,
                         Enums.ActivityType.ShoppingListItemQuickPurchase,
                         shoppingListItem.Id,
                         $"{shoppingList.Name} - {displayName}",
@@ -1435,7 +1435,7 @@ namespace Homassy.API.Functions
 
                     await new ActivityFunctions().RecordActivityAsync(
                         userId.Value,
-                        familyId,
+                        shoppingList.FamilyId,
                         Enums.ActivityType.ShoppingListItemRestorePurchase,
                         shoppingListItem.Id,
                         $"{shoppingList.Name} - {displayName}",
@@ -1591,7 +1591,7 @@ namespace Homassy.API.Functions
                         
                         await new ActivityFunctions().RecordActivityAsync(
                             userId.Value,
-                            familyId,
+                            shoppingList.FamilyId,
                             Enums.ActivityType.ShoppingListItemAdd,
                             sli.Id,
                             $"{shoppingList.Name} - {itemName}",
@@ -1689,7 +1689,7 @@ namespace Homassy.API.Functions
                         
                         await new ActivityFunctions().RecordActivityAsync(
                             userId.Value,
-                            familyId,
+                            shoppingList.FamilyId,
                             Enums.ActivityType.ShoppingListItemDelete,
                             shoppingListItem.Id,
                             $"{shoppingList.Name} - {itemName}",
@@ -1833,7 +1833,7 @@ namespace Homassy.API.Functions
                     {
                         await new ActivityFunctions().RecordActivityAsync(
                             userId.Value,
-                            familyId,
+                            shoppingList.FamilyId,
                             Enums.ActivityType.ShoppingListItemPurchase,
                             shoppingListItem.Id,
                             $"{shoppingList.Name} - {product.Name}",
