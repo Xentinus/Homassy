@@ -25,6 +25,9 @@ export const errorCodeMessages: Record<string, string> = {
   'FAMILY-0002': 'You are already a member of this family.',
   'FAMILY-0003': 'You are not a member of this family.',
   'FAMILY-0004': 'Invalid share code.',
+  'FAMILY-0005': 'You already have a pending join request. Withdraw it before sending a new one.',
+  'FAMILY-0006': 'Join request not found.',
+  'FAMILY-0007': 'This join request does not belong to your family.',
 
   // Product Errors (PRODUCT-0xxx)
   'PRODUCT-0001': 'Product not found.',

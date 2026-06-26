@@ -45,6 +45,32 @@ public sealed class FamilyPushNotifier
     }
 
     /// <summary>
+    /// Resolves a single user as a notification recipient, or null if they have push notifications
+    /// disabled or no active subscription. Used to notify the requester of a join request decision.
+    /// </summary>
+    public async Task<RecipientInfo?> GetRecipientAsync(
+        HomassyDbContext context,
+        int userId,
+        CancellationToken cancellationToken)
+    {
+        var user = await context.Users
+            .AsNoTracking()
+            .Where(u => u.Id == userId
+                && !u.IsDeleted
+                && u.NotificationPreferences != null
+                && u.NotificationPreferences.PushNotificationsEnabled)
+            .Where(u => context.UserPushSubscriptions.Any(s => s.UserId == u.Id && !s.IsDeleted))
+            .Select(u => new
+            {
+                u.Id,
+                Language = u.Profile != null ? u.Profile.DefaultLanguage : Language.Hungarian
+            })
+            .FirstOrDefaultAsync(cancellationToken);
+
+        return user == null ? null : new RecipientInfo(user.Id, user.Language);
+    }
+
+    /// <summary>
     /// Sends one or more notifications (built per recipient language) to every recipient, cleaning up
     /// any subscription the push service reports as invalid.
     /// </summary>

@@ -67,6 +67,59 @@
         </UButton>
       </div>
 
+      <!-- Incoming Join Requests Section -->
+      <div v-if="joinRequests.length > 0" class="space-y-4">
+        <div class="flex items-center gap-3">
+          <UIcon name="i-lucide-user-plus" class="text-2xl text-primary" />
+          <div class="flex-1">
+            <h3 class="text-md font-semibold text-gray-900 dark:text-gray-100">{{ $t('profile.family.joinRequests.title') }}</h3>
+            <p class="text-xs text-gray-500 dark:text-gray-400">{{ $t('profile.family.joinRequests.description') }}</p>
+          </div>
+          <div class="flex items-center justify-center min-w-[24px] h-6 px-2 rounded-full bg-primary-500 text-white text-xs font-bold">
+            {{ joinRequests.length }}
+          </div>
+        </div>
+
+        <div class="space-y-3">
+          <div v-for="req in joinRequests" :key="req.publicId" class="flex items-center gap-3 p-3 rounded-lg bg-gray-50 dark:bg-gray-800/50">
+            <UAvatar
+              :src="req.profilePictureBase64 ? `data:image/jpeg;base64,${req.profilePictureBase64}` : undefined"
+              :alt="req.displayName || req.name"
+              class="h-12 w-12"
+            />
+            <div class="flex-1 min-w-0">
+              <div class="font-medium truncate">{{ req.displayName || req.name }}</div>
+              <div class="text-sm text-gray-500 dark:text-gray-400">
+                {{ $t('profile.family.joinRequests.sentAt') }}: {{ formatTimestamp(req.requestedAt) }}
+              </div>
+            </div>
+            <div class="flex items-center gap-2 flex-shrink-0">
+              <UButton
+                color="primary"
+                variant="solid"
+                size="sm"
+                icon="i-lucide-check"
+                :loading="processingId === req.publicId"
+                :disabled="processingId !== null"
+                @click="onApproveRequest(req)"
+              >
+                {{ $t('profile.family.joinRequests.approve') }}
+              </UButton>
+              <UButton
+                color="error"
+                variant="soft"
+                size="sm"
+                icon="i-lucide-x"
+                :disabled="processingId !== null"
+                @click="onRejectRequest(req)"
+              >
+                {{ $t('profile.family.joinRequests.decline') }}
+              </UButton>
+            </div>
+          </div>
+        </div>
+      </div>
+
       <!-- Family Members Section -->
       <div class="space-y-4">
         <div class="flex items-center gap-3">
@@ -100,8 +153,27 @@
       </div>
     </div>
     <div v-else class="space-y-6">
+      <!-- Pending join request state -->
+      <div v-if="myRequest" class="rounded-lg border border-primary-200/50 dark:border-primary-700/50 p-6 space-y-4">
+        <div class="flex items-center gap-3">
+          <UIcon name="i-lucide-clock" class="text-xl text-primary" />
+          <h2 class="text-xl font-semibold">{{ $t('profile.family.pending.title') }}</h2>
+        </div>
+        <div class="rounded-md bg-primary-50 dark:bg-primary-900/20 border border-primary-200 dark:border-primary-800 p-4">
+          <p class="text-sm text-gray-800 dark:text-gray-200">
+            {{ $t('profile.family.pending.body', { family: myRequest.familyName }) }}
+          </p>
+          <p class="text-xs text-gray-500 dark:text-gray-400 mt-2">
+            {{ $t('profile.family.pending.sentAt') }}: {{ formatTimestamp(myRequest.requestedAt) }}
+          </p>
+        </div>
+        <UButton color="error" variant="soft" class="w-full flex items-center justify-center gap-2" icon="i-lucide-x" :loading="isWithdrawing" :disabled="isWithdrawing" @click="onWithdrawRequest">
+          {{ $t('profile.family.pending.withdraw') }}
+        </UButton>
+      </div>
+
       <!-- Show buttons when no mode selected -->
-      <div v-if="!mode" class="grid grid-cols-1 md:grid-cols-2 gap-6">
+      <div v-if="!mode && !myRequest" class="grid grid-cols-1 md:grid-cols-2 gap-6">
         <!-- Create Family Button -->
         <div @click="mode = 'create'" class="rounded-lg border border-primary-200/50 dark:border-primary-700/50 p-4 relative hover:border-primary-300 dark:hover:border-primary-700 transition-colors cursor-pointer flex items-start gap-3 h-full">
           <UIcon name="i-lucide-plus-circle" class="h-7 w-7 text-primary-500 mr-2 flex-shrink-0 self-center" />
@@ -124,7 +196,7 @@
       </div>
 
       <!-- Create Family Form -->
-      <div v-if="mode === 'create'" class="rounded-lg border border-primary-200/50 dark:border-primary-700/50 p-6">
+      <div v-if="mode === 'create' && !myRequest" class="rounded-lg border border-primary-200/50 dark:border-primary-700/50 p-6">
         <div class="flex items-center gap-3 mb-6">
           <UIcon name="i-lucide-plus-circle" class="text-xl text-primary" />
           <h2 class="text-xl font-semibold">{{ $t('profile.family.create') }}</h2>
@@ -150,7 +222,7 @@
       </div>
 
       <!-- Join Family Form -->
-      <div v-if="mode === 'join'" class="rounded-lg border border-primary-200/50 dark:border-primary-700/50 p-6">
+      <div v-if="mode === 'join' && !myRequest" class="rounded-lg border border-primary-200/50 dark:border-primary-700/50 p-6">
         <div class="flex items-center gap-3 mb-6">
           <UIcon name="i-lucide-user-plus" class="text-xl text-primary" />
           <h2 class="text-xl font-semibold">{{ $t('profile.family.join') }}</h2>
@@ -178,19 +250,34 @@
 import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useFamilyApi } from '~/composables/api/useFamilyApi'
-import type { FamilyDetailsResponse, FamilyMemberResponse } from '~/types/family'
+import type { FamilyDetailsResponse, FamilyMemberResponse, MyJoinRequestResponse, FamilyJoinRequestResponse } from '~/types/family'
 
 definePageMeta({ layout: 'auth', middleware: 'auth' })
 
-const { getFamily, getFamilyMembers, leaveFamily, createFamily, joinFamily } = useFamilyApi()
+const {
+  getFamily,
+  getFamilyMembers,
+  leaveFamily,
+  createFamily,
+  requestJoin,
+  getMyJoinRequest,
+  cancelMyJoinRequest,
+  getJoinRequests,
+  approveJoinRequest,
+  rejectJoinRequest
+} = useFamilyApi()
 const router = useRouter()
 const { t: $t } = useI18n()
 const toast = useToast()
 
 const family = ref<FamilyDetailsResponse | null>(null)
 const members = ref<FamilyMemberResponse[]>([])
+const joinRequests = ref<FamilyJoinRequestResponse[]>([])
+const myRequest = ref<MyJoinRequestResponse | null>(null)
 const loading = ref(true)
 const isLeavingFamily = ref(false)
+const isWithdrawing = ref(false)
+const processingId = ref<string | null>(null)
 const mode = ref<'create' | 'join' | null>(null)
 const familyName = ref('')
 const familyDescription = ref('')
@@ -214,6 +301,8 @@ const formatTimestamp = (timestamp: string): string => {
 
 async function fetchFamily() {
   loading.value = true
+  joinRequests.value = []
+  myRequest.value = null
   try {
     const res = await getFamily()
     family.value = res.data ?? null
@@ -228,6 +317,21 @@ async function fetchFamily() {
     } catch (error) {
       console.error('Failed to load family members:', error)
       members.value = []
+    }
+    try {
+      const requestsRes = await getJoinRequests()
+      joinRequests.value = requestsRes.data ?? []
+    } catch (error) {
+      console.error('Failed to load join requests:', error)
+      joinRequests.value = []
+    }
+  } else {
+    try {
+      const myRequestRes = await getMyJoinRequest()
+      myRequest.value = myRequestRes.data ?? null
+    } catch (error) {
+      console.error('Failed to load join request:', error)
+      myRequest.value = null
     }
   }
 
@@ -247,7 +351,7 @@ async function onLeaveFamily() {
     console.error('Failed to leave family:', error)
     toast.add({
       title: $t('profile.family.leaveFailed'),
-      color: 'red',
+      color: 'error',
       icon: 'i-lucide-alert-circle'
     })
   } finally {
@@ -264,9 +368,73 @@ async function onCreateFamily() {
 }
 
 async function onJoinFamily() {
-  await joinFamily({ shareCode: shareCode.value })
-  mode.value = null
-  shareCode.value = ''
-  await fetchFamily()
+  const res = await requestJoin({ shareCode: shareCode.value })
+  if (res.success && res.data) {
+    myRequest.value = res.data
+    mode.value = null
+    shareCode.value = ''
+    toast.add({
+      title: $t('profile.family.pending.submitted'),
+      color: 'success',
+      icon: 'i-lucide-check-circle'
+    })
+  }
+}
+
+async function onWithdrawRequest() {
+  isWithdrawing.value = true
+  try {
+    const res = await cancelMyJoinRequest()
+    if (res.success) {
+      myRequest.value = null
+      toast.add({
+        title: $t('profile.family.pending.withdrawn'),
+        color: 'success',
+        icon: 'i-lucide-check-circle'
+      })
+    }
+  } catch (error) {
+    console.error('Failed to withdraw join request:', error)
+  } finally {
+    isWithdrawing.value = false
+  }
+}
+
+async function onApproveRequest(request: FamilyJoinRequestResponse) {
+  processingId.value = request.publicId
+  try {
+    const res = await approveJoinRequest(request.publicId)
+    if (res.success) {
+      toast.add({
+        title: $t('profile.family.joinRequests.approved'),
+        color: 'success',
+        icon: 'i-lucide-check-circle'
+      })
+      await fetchFamily()
+    }
+  } catch (error) {
+    console.error('Failed to approve join request:', error)
+  } finally {
+    processingId.value = null
+  }
+}
+
+async function onRejectRequest(request: FamilyJoinRequestResponse) {
+  processingId.value = request.publicId
+  try {
+    const res = await rejectJoinRequest(request.publicId)
+    if (res.success) {
+      toast.add({
+        title: $t('profile.family.joinRequests.declined'),
+        color: 'success',
+        icon: 'i-lucide-check-circle'
+      })
+      await fetchFamily()
+    }
+  } catch (error) {
+    console.error('Failed to decline join request:', error)
+  } finally {
+    processingId.value = null
+  }
 }
 </script>

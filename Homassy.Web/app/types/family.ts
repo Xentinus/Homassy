@@ -41,3 +41,22 @@ export interface FamilyMemberResponse {
   profilePictureBase64?: string
   isCurrentUser: boolean
 }
+
+export type FamilyJoinRequestStatus = 'Pending' | 'Approved' | 'Rejected' | 'Cancelled'
+
+/** The current user's own pending request to join a family. */
+export interface MyJoinRequestResponse {
+  publicId: string
+  familyName: string
+  status: FamilyJoinRequestStatus
+  requestedAt: string
+}
+
+/** An incoming request to join the current user's family, shown to existing members. */
+export interface FamilyJoinRequestResponse {
+  publicId: string
+  name: string
+  displayName: string
+  profilePictureBase64?: string
+  requestedAt: string
+}

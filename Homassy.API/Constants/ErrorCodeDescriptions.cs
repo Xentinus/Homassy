@@ -30,6 +30,9 @@ public static class ErrorCodeDescriptions
         [ErrorCodes.FamilyAlreadyMember] = "User is already a member of a family.",
         [ErrorCodes.FamilyNotMember] = "User is not a member of any family.",
         [ErrorCodes.FamilyInvalidShareCode] = "Invalid or expired family share code.",
+        [ErrorCodes.FamilyJoinRequestPending] = "You already have a pending join request. Withdraw it before sending a new one.",
+        [ErrorCodes.FamilyJoinRequestNotFound] = "Join request not found.",
+        [ErrorCodes.FamilyJoinRequestAccessDenied] = "This join request does not belong to your family.",
 
         // Product Errors
         [ErrorCodes.ProductNotFound] = "Product not found.",

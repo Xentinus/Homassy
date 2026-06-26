@@ -78,21 +78,85 @@ namespace Homassy.API.Controllers
         }
 
         /// <summary>
-        /// Joins an existing family using an invite code.
+        /// Creates a request to join an existing family using its share code. Joining requires
+        /// approval from an existing family member; the request stays pending until then.
         /// </summary>
-        [HttpPost("join")]
+        [HttpPost("join-requests")]
         [MapToApiVersion(1.0)]
-        [ProducesResponseType(typeof(ApiResponse<FamilyInfo>), StatusCodes.Status200OK)]
+        [ProducesResponseType(typeof(ApiResponse<MyJoinRequestResponse>), StatusCodes.Status200OK)]
         [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status400BadRequest)]
-        public async Task<IActionResult> JoinFamily([FromBody] JoinFamilyRequest request, CancellationToken cancellationToken)
+        public async Task<IActionResult> CreateJoinRequest([FromBody] JoinFamilyRequest request, CancellationToken cancellationToken)
         {
             if (!ModelState.IsValid)
             {
                 return BadRequest(ApiResponse.ErrorResponse(ErrorCodes.ValidationInvalidRequest));
             }
 
-            var response = await new UserFunctions().JoinFamilyAsync(request, cancellationToken);
-            return Ok(ApiResponse<FamilyInfo>.SuccessResponse(response));
+            var response = await new FamilyJoinRequestFunctions().CreateJoinRequestAsync(request, cancellationToken);
+            return Ok(ApiResponse<MyJoinRequestResponse>.SuccessResponse(response));
+        }
+
+        /// <summary>
+        /// Gets the current user's pending join request, if any.
+        /// </summary>
+        [HttpGet("join-requests/mine")]
+        [MapToApiVersion(1.0)]
+        [ProducesResponseType(typeof(ApiResponse<MyJoinRequestResponse>), StatusCodes.Status200OK)]
+        public IActionResult GetMyJoinRequest()
+        {
+            var response = new FamilyJoinRequestFunctions().GetMyJoinRequest();
+            return Ok(ApiResponse<MyJoinRequestResponse?>.SuccessResponse(response));
+        }
+
+        /// <summary>
+        /// Withdraws the current user's pending join request.
+        /// </summary>
+        [HttpDelete("join-requests/mine")]
+        [MapToApiVersion(1.0)]
+        [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status200OK)]
+        [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status400BadRequest)]
+        public async Task<IActionResult> CancelMyJoinRequest(CancellationToken cancellationToken)
+        {
+            await new FamilyJoinRequestFunctions().CancelMyJoinRequestAsync(cancellationToken);
+            return Ok(ApiResponse.SuccessResponse());
+        }
+
+        /// <summary>
+        /// Lists the pending join requests for the current user's family.
+        /// </summary>
+        [HttpGet("join-requests")]
+        [MapToApiVersion(1.0)]
+        [ProducesResponseType(typeof(ApiResponse<List<FamilyJoinRequestResponse>>), StatusCodes.Status200OK)]
+        public IActionResult GetFamilyJoinRequests()
+        {
+            var response = new FamilyJoinRequestFunctions().GetFamilyJoinRequests();
+            return Ok(ApiResponse<List<FamilyJoinRequestResponse>>.SuccessResponse(response));
+        }
+
+        /// <summary>
+        /// Approves a pending join request, adding the requester to the family.
+        /// </summary>
+        [HttpPost("join-requests/{publicId:guid}/approve")]
+        [MapToApiVersion(1.0)]
+        [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status200OK)]
+        [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status400BadRequest)]
+        public async Task<IActionResult> ApproveJoinRequest(Guid publicId, CancellationToken cancellationToken)
+        {
+            await new FamilyJoinRequestFunctions().ApproveJoinRequestAsync(publicId, cancellationToken);
+            return Ok(ApiResponse.SuccessResponse());
+        }
+
+        /// <summary>
+        /// Declines a pending join request.
+        /// </summary>
+        [HttpPost("join-requests/{publicId:guid}/reject")]
+        [MapToApiVersion(1.0)]
+        [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status200OK)]
+        [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status400BadRequest)]
+        public async Task<IActionResult> RejectJoinRequest(Guid publicId, CancellationToken cancellationToken)
+        {
+            await new FamilyJoinRequestFunctions().RejectJoinRequestAsync(publicId, cancellationToken);
+            return Ok(ApiResponse.SuccessResponse());
         }
 
         /// <summary>

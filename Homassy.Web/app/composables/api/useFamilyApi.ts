@@ -8,7 +8,9 @@ import type {
   UpdateFamilyRequest,
   JoinFamilyRequest,
   UploadFamilyPictureRequest,
-  FamilyMemberResponse
+  FamilyMemberResponse,
+  MyJoinRequestResponse,
+  FamilyJoinRequestResponse
 } from '~/types/family'
 
 export const useFamilyApi = () => {
@@ -54,12 +56,59 @@ export const useFamilyApi = () => {
   }
 
   /**
-   * Join existing family
+   * Request to join an existing family (requires approval from a member)
    */
-  const joinFamily = async (request: JoinFamilyRequest) => {
-    return await client.post<FamilyDetailsResponse>(
-      '/api/v1/Family/join',
+  const requestJoin = async (request: JoinFamilyRequest) => {
+    return await client.post<MyJoinRequestResponse>(
+      '/api/v1/Family/join-requests',
       request
+    )
+  }
+
+  /**
+   * Get the current user's pending join request (null if none)
+   */
+  const getMyJoinRequest = async () => {
+    return await client.get<MyJoinRequestResponse | null>(
+      '/api/v1/Family/join-requests/mine',
+      { showErrorToast: false }
+    )
+  }
+
+  /**
+   * Withdraw the current user's pending join request
+   */
+  const cancelMyJoinRequest = async () => {
+    return await client.delete('/api/v1/Family/join-requests/mine')
+  }
+
+  /**
+   * List pending join requests for the current user's family
+   */
+  const getJoinRequests = async () => {
+    return await client.get<FamilyJoinRequestResponse[]>(
+      '/api/v1/Family/join-requests',
+      { showErrorToast: false }
+    )
+  }
+
+  /**
+   * Approve a pending join request
+   */
+  const approveJoinRequest = async (publicId: string) => {
+    return await client.post(
+      `/api/v1/Family/join-requests/${publicId}/approve`,
+      undefined
+    )
+  }
+
+  /**
+   * Decline a pending join request
+   */
+  const rejectJoinRequest = async (publicId: string) => {
+    return await client.post(
+      `/api/v1/Family/join-requests/${publicId}/reject`,
+      undefined
     )
   }
 
@@ -101,7 +150,12 @@ export const useFamilyApi = () => {
     getFamilyMembers,
     createFamily,
     updateFamily,
-    joinFamily,
+    requestJoin,
+    getMyJoinRequest,
+    cancelMyJoinRequest,
+    getJoinRequests,
+    approveJoinRequest,
+    rejectJoinRequest,
     leaveFamily,
     uploadFamilyPicture,
     deleteFamilyPicture

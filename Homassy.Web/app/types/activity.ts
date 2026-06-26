@@ -38,7 +38,18 @@ export enum ActivityType {
 
   // ShoppingListItem Activities (continued)
   ShoppingListItemQuickPurchase = 21,
-  ShoppingListItemRestorePurchase = 22
+  ShoppingListItemRestorePurchase = 22,
+
+  // Automation Activities (23-26)
+  AutomationCreate = 23,
+  AutomationUpdate = 24,
+  AutomationDelete = 25,
+  AutomationExecute = 26,
+
+  // Family Join Request Activities (27-29)
+  FamilyJoinRequestCreate = 27,
+  FamilyJoinRequestApprove = 28,
+  FamilyJoinRequestDecline = 29
 }
 
 /**

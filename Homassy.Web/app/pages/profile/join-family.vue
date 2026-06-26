@@ -42,11 +42,13 @@ import { useRouter } from 'vue-router'
 import { useFamilyApi } from '~/composables/api/useFamilyApi'
 
 const shareCode = ref('')
-const { joinFamily } = useFamilyApi()
+const { requestJoin } = useFamilyApi()
 const router = useRouter()
 
 async function onSubmit() {
-  await joinFamily({ shareCode: shareCode.value })
-  router.push('/profile')
+  const res = await requestJoin({ shareCode: shareCode.value })
+  if (res.success) {
+    router.push('/profile/family')
+  }
 }
 </script>

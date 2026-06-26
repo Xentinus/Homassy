@@ -42,6 +42,7 @@ try
     builder.Services.AddHostedService<PushNotificationSchedulerService>();
     builder.Services.AddHostedService<ShoppingListActivityMonitorService>();
     builder.Services.AddHostedService<InventoryActivityMonitorService>();
+    builder.Services.AddHostedService<FamilyJoinRequestMonitorService>();
     builder.Services.AddHostedService<EmailWeeklySummaryService>();
     builder.Services.AddHostedService<ItemAutomationWorkerService>();
 
