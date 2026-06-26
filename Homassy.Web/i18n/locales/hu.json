@@ -818,7 +818,24 @@
       "currentUserBadge": "Te",
       "lastSeen": "Utoljára látva",
       "infoSection": "Család információi",
-      "infoDescription": "A család neve, leírása és megosztási kódja"
+      "infoDescription": "A család neve, leírása és megosztási kódja",
+      "joinRequests": {
+        "title": "Belépési kérelmek",
+        "description": "Várakozó kérelmek a családhoz való csatlakozásra",
+        "approve": "Elfogadás",
+        "decline": "Elutasítás",
+        "sentAt": "Elküldve",
+        "approved": "Kérelem elfogadva",
+        "declined": "Kérelem elutasítva"
+      },
+      "pending": {
+        "title": "Csatlakozási kérelem folyamatban",
+        "body": "A(z) \"{family}\" családhoz való csatlakozási kérelmed jóváhagyásra vár.",
+        "sentAt": "Elküldve",
+        "withdraw": "Kérelem visszavonása",
+        "submitted": "Csatlakozási kérelem elküldve",
+        "withdrawn": "Csatlakozási kérelem visszavonva"
+      }
     },
     "settingsProfileSection": "Profil adatok",
     "settingsProfileDescription": "Név és megjelenítendő név kezelése.",
@@ -1190,7 +1207,10 @@
       "23": "Automatizálás létrehozva",
       "24": "Automatizálás frissítve",
       "25": "Automatizálás törölve",
-      "26": "Automatizálás végrehajtva"
+      "26": "Automatizálás végrehajtva",
+      "27": "Belépési kérelem elküldve",
+      "28": "Belépési kérelem elfogadva",
+      "29": "Belépési kérelem elutasítva"
     },
     "productCategory": {
       "0": "Egyéb",

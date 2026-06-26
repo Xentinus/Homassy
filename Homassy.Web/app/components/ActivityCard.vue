@@ -123,7 +123,8 @@ const getActivityIcon = (activityType: ActivityType): string => {
       activityType === ActivityType.ShoppingListItemRestorePurchase) {
     return 'i-lucide-list'
   }
-  if (activityType >= ActivityType.FamilyCreate && activityType <= ActivityType.FamilyLeave) {
+  if ((activityType >= ActivityType.FamilyCreate && activityType <= ActivityType.FamilyLeave) ||
+      (activityType >= ActivityType.FamilyJoinRequestCreate && activityType <= ActivityType.FamilyJoinRequestDecline)) {
     return 'i-lucide-users'
   }
   return 'i-lucide-activity'
@@ -145,7 +146,8 @@ const getActivityIconColor = (activityType: ActivityType): string => {
       activityType === ActivityType.ShoppingListItemRestorePurchase) {
     return 'text-pink-600 dark:text-pink-400'
   }
-  if (activityType >= ActivityType.FamilyCreate && activityType <= ActivityType.FamilyLeave) {
+  if ((activityType >= ActivityType.FamilyCreate && activityType <= ActivityType.FamilyLeave) ||
+      (activityType >= ActivityType.FamilyJoinRequestCreate && activityType <= ActivityType.FamilyJoinRequestDecline)) {
     return 'text-primary-600 dark:text-primary-400'
   }
   return 'text-gray-600 dark:text-gray-400'

@@ -366,4 +366,64 @@ public static class PushNotificationContentService
             )
         };
     }
+
+    /// <summary>Notification for existing family members when someone requests to join.</summary>
+    public static (string Title, string Body) GetFamilyJoinRequestContent(Language language, string requesterName)
+    {
+        return language switch
+        {
+            Language.Hungarian => (
+                "Új belépési kérelem",
+                $"{requesterName} szeretne csatlakozni a családodhoz."
+            ),
+            Language.German => (
+                "Neue Beitrittsanfrage",
+                $"{requesterName} möchte deiner Familie beitreten."
+            ),
+            _ => (
+                "New join request",
+                $"{requesterName} wants to join your family."
+            )
+        };
+    }
+
+    /// <summary>Notification for the requester when their join request is approved.</summary>
+    public static (string Title, string Body) GetFamilyJoinApprovedContent(Language language, string familyName)
+    {
+        return language switch
+        {
+            Language.Hungarian => (
+                "Belépési kérelem elfogadva",
+                $"Csatlakoztál a(z) \"{familyName}\" családhoz."
+            ),
+            Language.German => (
+                "Beitrittsanfrage genehmigt",
+                $"Du bist der Familie \"{familyName}\" beigetreten."
+            ),
+            _ => (
+                "Join request approved",
+                $"You have joined the \"{familyName}\" family."
+            )
+        };
+    }
+
+    /// <summary>Notification for the requester when their join request is declined.</summary>
+    public static (string Title, string Body) GetFamilyJoinDeclinedContent(Language language, string familyName)
+    {
+        return language switch
+        {
+            Language.Hungarian => (
+                "Belépési kérelem elutasítva",
+                $"A(z) \"{familyName}\" családhoz küldött kérelmedet elutasították."
+            ),
+            Language.German => (
+                "Beitrittsanfrage abgelehnt",
+                $"Deine Anfrage, der Familie \"{familyName}\" beizutreten, wurde abgelehnt."
+            ),
+            _ => (
+                "Join request declined",
+                $"Your request to join the \"{familyName}\" family was declined."
+            )
+        };
+    }
 }

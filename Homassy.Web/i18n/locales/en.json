@@ -817,7 +817,24 @@
       "currentUserBadge": "You",
       "lastSeen": "Last seen",
       "infoSection": "Family Information",
-      "infoDescription": "Family name, description, and share code"
+      "infoDescription": "Family name, description, and share code",
+      "joinRequests": {
+        "title": "Join Requests",
+        "description": "Pending requests to join your family",
+        "approve": "Approve",
+        "decline": "Decline",
+        "sentAt": "Sent",
+        "approved": "Request approved",
+        "declined": "Request declined"
+      },
+      "pending": {
+        "title": "Join request pending",
+        "body": "Your request to join the \"{family}\" family is awaiting approval.",
+        "sentAt": "Sent",
+        "withdraw": "Withdraw request",
+        "submitted": "Join request sent",
+        "withdrawn": "Join request withdrawn"
+      }
     },
     "settingsProfileSection": "Profile Information",
     "settingsProfileDescription": "Manage your name and display name.",
@@ -1189,7 +1206,10 @@
       "23": "Automation Created",
       "24": "Automation Updated",
       "25": "Automation Deleted",
-      "26": "Automation Executed"
+      "26": "Automation Executed",
+      "27": "Join Request Sent",
+      "28": "Join Request Approved",
+      "29": "Join Request Declined"
     },
     "productCategory": {
       "0": "Other",

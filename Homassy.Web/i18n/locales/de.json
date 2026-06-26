@@ -817,7 +817,24 @@
       "currentUserBadge": "Du",
       "lastSeen": "Zuletzt gesehen",
       "infoSection": "Familieninformationen",
-      "infoDescription": "Familienname, Beschreibung und Freigabecode"
+      "infoDescription": "Familienname, Beschreibung und Freigabecode",
+      "joinRequests": {
+        "title": "Beitrittsanfragen",
+        "description": "Ausstehende Anfragen zum Beitritt zu deiner Familie",
+        "approve": "Annehmen",
+        "decline": "Ablehnen",
+        "sentAt": "Gesendet",
+        "approved": "Anfrage angenommen",
+        "declined": "Anfrage abgelehnt"
+      },
+      "pending": {
+        "title": "Beitrittsanfrage ausstehend",
+        "body": "Deine Anfrage, der Familie \"{family}\" beizutreten, wartet auf Genehmigung.",
+        "sentAt": "Gesendet",
+        "withdraw": "Anfrage zurückziehen",
+        "submitted": "Beitrittsanfrage gesendet",
+        "withdrawn": "Beitrittsanfrage zurückgezogen"
+      }
     },
     "settingsProfileSection": "Profilinformationen",
     "settingsProfileDescription": "Verwalten Sie Ihren Namen und Anzeigenamen.",
@@ -1189,7 +1206,10 @@
       "23": "Automatisierung erstellt",
       "24": "Automatisierung aktualisiert",
       "25": "Automatisierung gelöscht",
-      "26": "Automatisierung ausgeführt"
+      "26": "Automatisierung ausgeführt",
+      "27": "Beitrittsanfrage gesendet",
+      "28": "Beitrittsanfrage genehmigt",
+      "29": "Beitrittsanfrage abgelehnt"
     },
     "productCategory": {
       "0": "Sonstiges",

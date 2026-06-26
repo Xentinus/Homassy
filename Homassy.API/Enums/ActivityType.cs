@@ -40,6 +40,11 @@ namespace Homassy.API.Enums
         AutomationCreate = 23,
         AutomationUpdate = 24,
         AutomationDelete = 25,
-        AutomationExecute = 26
+        AutomationExecute = 26,
+
+        // Family Join Request Activities (27-29)
+        FamilyJoinRequestCreate = 27,
+        FamilyJoinRequestApprove = 28,
+        FamilyJoinRequestDecline = 29
     }
 }

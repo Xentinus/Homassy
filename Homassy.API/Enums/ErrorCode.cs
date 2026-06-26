@@ -26,6 +26,9 @@ public static class ErrorCodes
     public const string FamilyAlreadyMember = "FAMILY-0002";
     public const string FamilyNotMember = "FAMILY-0003";
     public const string FamilyInvalidShareCode = "FAMILY-0004";
+    public const string FamilyJoinRequestPending = "FAMILY-0005";
+    public const string FamilyJoinRequestNotFound = "FAMILY-0006";
+    public const string FamilyJoinRequestAccessDenied = "FAMILY-0007";
     #endregion
 
     #region Product Errors (PRODUCT-0xxx)

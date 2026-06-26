@@ -105,6 +105,29 @@ namespace Homassy.API.Context
             });
             #endregion
 
+            #region FamilyJoinRequest Relationships
+            modelBuilder.Entity<FamilyJoinRequest>(entity =>
+            {
+                entity.HasOne(r => r.User)
+                    .WithMany()
+                    .HasForeignKey(r => r.UserId)
+                    .OnDelete(DeleteBehavior.Cascade);
+
+                entity.HasOne(r => r.Family)
+                    .WithMany()
+                    .HasForeignKey(r => r.FamilyId)
+                    .OnDelete(DeleteBehavior.Cascade);
+
+                entity.HasIndex(e => e.FamilyId);
+                entity.HasIndex(e => e.Status);
+
+                // At most one active pending request per user.
+                entity.HasIndex(e => e.UserId)
+                    .IsUnique()
+                    .HasFilter("\"Status\" = 0 AND \"IsDeleted\" = false");
+            });
+            #endregion
+
             #region Product Relationships
             modelBuilder.Entity<Product>()
                 .HasMany(p => p.Customizations)
@@ -241,6 +264,7 @@ namespace Homassy.API.Context
         public DbSet<UserNotificationPreferences> UserNotificationPreferences { get; set; }
         public DbSet<UserPushSubscription> UserPushSubscriptions { get; set; }
         public DbSet<Family> Families { get; set; }
+        public DbSet<FamilyJoinRequest> FamilyJoinRequests { get; set; }
         #endregion
 
         #region Product Related DbSets
