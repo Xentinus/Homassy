@@ -68,6 +68,10 @@ try
     builder.Services.AddSingleton<StatisticsService>();
     builder.Services.AddHostedService<StatisticsRefreshWorker>();
 
+    // External calendar sync
+    builder.Services.AddHttpClient("ExternalCalendarSync");
+    builder.Services.AddHostedService<ExternalCalendarSyncService>();
+
     // Kratos service registration
     builder.Services.AddHttpClient<IKratosService, KratosService>();
 

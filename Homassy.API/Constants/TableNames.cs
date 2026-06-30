@@ -24,5 +24,7 @@
 
         public const string ItemAutomations = "ItemAutomations";
         public const string ItemAutomationExecutions = "ItemAutomationExecutions";
+
+        public const string FamilyExternalCalendars = "FamilyExternalCalendars";
     }
 }

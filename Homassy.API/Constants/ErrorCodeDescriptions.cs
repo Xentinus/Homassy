@@ -94,7 +94,14 @@ public static class ErrorCodeDescriptions
         [ErrorCodes.AutomationAccessDenied] = "Access denied to this automation rule.",
         [ErrorCodes.AutomationInsufficientQuantity] = "Insufficient quantity to execute automation.",
         [ErrorCodes.AutomationShoppingListNotFound] = "Shopping list not found for automation.",
-        [ErrorCodes.AutomationProductNotFound] = "Product not found for automation."
+        [ErrorCodes.AutomationProductNotFound] = "Product not found for automation.",
+
+        // External Calendar Errors
+        [ErrorCodes.ExternalCalendarNotFound] = "External calendar not found.",
+        [ErrorCodes.ExternalCalendarAccessDenied] = "Access denied to this external calendar.",
+        [ErrorCodes.ExternalCalendarInvalidUrl] = "The provided URL is not a valid iCal feed.",
+        [ErrorCodes.ExternalCalendarFetchFailed] = "Failed to fetch the iCal feed from the provided URL.",
+        [ErrorCodes.ExternalCalendarRequiresFamily] = "You must be a member of a family to manage external calendars."
     }.ToFrozenDictionary();
 
     public static IReadOnlyList<ErrorCodeInfo> GetAllErrorCodes()

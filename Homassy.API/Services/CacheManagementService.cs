@@ -316,6 +316,11 @@ namespace Homassy.API.Services
                     await new ActivityFunctions().RefreshActivityCacheAsync(change.RecordId);
                     break;
 
+                case TableNames.FamilyExternalCalendars:
+                    // No in-memory cache for external calendars; data read directly from DB.
+                    Log.Debug("FamilyExternalCalendars change recorded (id: {RecordId})", change.RecordId);
+                    break;
+
                 default:
                     Log.Warning($"Unknown table name in TableRecordChanges: {change.TableName}");
                     break;

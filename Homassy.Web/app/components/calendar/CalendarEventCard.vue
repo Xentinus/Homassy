@@ -1,14 +1,18 @@
 <template>
   <div
-    class="rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 px-4 py-3 border-l-4 cursor-pointer active:opacity-70 transition-opacity"
-    :class="borderClass"
-    @click="emit('click')"
+    class="rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 px-4 py-3 border-l-4"
+    :class="isExternal ? '' : borderClass"
+    :style="isExternal ? { borderLeftColor: color ?? '#3B82F6' } : {}"
   >
     <div class="flex items-start justify-between gap-2">
       <span class="text-sm font-medium text-gray-900 dark:text-gray-100 leading-snug">
         {{ title }}
       </span>
-      <span class="shrink-0 text-xs rounded px-1.5 py-0.5 leading-tight" :class="chipClass">
+      <span
+        class="shrink-0 text-xs rounded px-1.5 py-0.5 leading-tight"
+        :class="isExternal ? 'text-white' : chipClass"
+        :style="isExternal ? { backgroundColor: color ?? '#3B82F6' } : {}"
+      >
         {{ t(`pages.calendar.eventTypes.${eventTypeKey}`) }}
       </span>
     </div>
@@ -25,11 +29,12 @@ const props = defineProps<{
   title: string
   eventType: CalendarEventType
   detail: string | null
+  color: string | null
 }>()
 
-const emit = defineEmits<{ click: [] }>()
-
 const { t } = useI18n()
+
+const isExternal = computed(() => props.eventType === CalendarEventType.ExternalCalendar)
 
 const borderClass = computed(() => {
   switch (props.eventType) {
@@ -58,6 +63,7 @@ const eventTypeKey = computed(() => {
     case CalendarEventType.InventoryExpiration: return 'inventoryExpiration'
     case CalendarEventType.AutomationExecution: return 'automationExecution'
     case CalendarEventType.ShoppingListDeadline: return 'shoppingListDeadline'
+    case CalendarEventType.ExternalCalendar: return 'externalCalendar'
     default: return 'inventoryExpiration'
   }
 })

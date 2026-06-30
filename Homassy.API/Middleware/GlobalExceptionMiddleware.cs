@@ -89,6 +89,13 @@ namespace Homassy.API.Middleware
                 AutomationShoppingListNotFoundException ex => (StatusCodes.Status404NotFound, ex.ErrorCode),
                 AutomationProductNotFoundException ex => (StatusCodes.Status404NotFound, ex.ErrorCode),
 
+                // External calendar exceptions
+                ExternalCalendarNotFoundException ex => (StatusCodes.Status404NotFound, ex.ErrorCode),
+                ExternalCalendarAccessDeniedException ex => (StatusCodes.Status403Forbidden, ex.ErrorCode),
+                ExternalCalendarInvalidUrlException ex => (StatusCodes.Status400BadRequest, ex.ErrorCode),
+                ExternalCalendarFetchFailedException ex => (StatusCodes.Status400BadRequest, ex.ErrorCode),
+                ExternalCalendarRequiresFamilyException ex => (StatusCodes.Status400BadRequest, ex.ErrorCode),
+
                 // Timeout exceptions
                 RequestTimeoutException ex => (StatusCodes.Status504GatewayTimeout, ex.ErrorCode),
 

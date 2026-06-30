@@ -4,7 +4,8 @@ namespace Homassy.API.Models.Calendar
     {
         InventoryExpiration = 0,
         AutomationExecution = 1,
-        ShoppingListDeadline = 2
+        ShoppingListDeadline = 2,
+        ExternalCalendar = 3
     }
 
     public class CalendarEventInfo
@@ -13,7 +14,10 @@ namespace Homassy.API.Models.Calendar
         public string Title { get; set; } = string.Empty;
         public CalendarEventType EventType { get; set; }
         public DateTime Start { get; set; }
+        public DateTime? End { get; set; }
         public string? Detail { get; set; }
         public Guid? RelatedEntityPublicId { get; set; }
+        public string? Color { get; set; }
+        public bool IsAllDay { get; set; }
     }
 }

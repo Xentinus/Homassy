@@ -102,7 +102,8 @@
                   v-for="(ev, ei) in cell.events"
                   :key="ei"
                   class="w-1.5 h-1.5 rounded-full"
-                  :class="dotClass(ev.eventType)"
+                  :class="ev.eventType !== CalendarEventType.ExternalCalendar ? dotClass(ev.eventType) : ''"
+                  :style="ev.eventType === CalendarEventType.ExternalCalendar ? { backgroundColor: ev.color ?? '#3B82F6' } : {}"
                   :title="ev.title"
                 />
               </div>
@@ -113,8 +114,8 @@
                   v-for="(ev, ei) in cell.events"
                   :key="ei"
                   class="text-xs rounded px-1 py-0.5 truncate leading-tight"
-                  :class="[chipClass(ev.eventType), ev.eventType !== CalendarEventType.InventoryExpiration ? 'cursor-pointer' : 'cursor-default']"
-                  @click.stop="openEventModal(ev)"
+                  :class="ev.eventType !== CalendarEventType.ExternalCalendar ? chipClass(ev.eventType) : 'text-white'"
+                  :style="ev.eventType === CalendarEventType.ExternalCalendar ? { backgroundColor: ev.color ?? '#3B82F6' } : {}"
                 >
                   {{ ev.title }}
                 </div>
@@ -128,6 +129,10 @@
           <div v-for="type in legendTypes" :key="type.key" class="flex items-center gap-1.5">
             <span class="w-2 h-2 rounded-full" :class="type.dot" />
             <span class="text-xs text-gray-600 dark:text-gray-400">{{ t(`pages.calendar.eventTypes.${type.key}`) }}</span>
+          </div>
+          <div v-for="cal in externalCalendars" :key="cal.publicId" class="flex items-center gap-1.5">
+            <span class="w-2 h-2 rounded-full" :style="{ backgroundColor: cal.color }" />
+            <span class="text-xs text-gray-600 dark:text-gray-400">{{ cal.name }}</span>
           </div>
         </div>
       </div>
@@ -157,13 +162,13 @@
               ref="scrollContainer"
               class="space-y-2 overflow-y-auto flex-1 min-h-0 lg:flex-none lg:max-h-[calc(100vh-8rem)]"
             >
-              <template v-for="item in visibleItems" :key="item.kind + '-' + item.data.publicId">
+              <template v-for="(item, idx) in visibleItems" :key="item.kind + '-' + item.data.publicId + '-' + idx">
                 <CalendarEventCard
                   v-if="item.kind === 'event'"
                   :title="item.data.title"
                   :event-type="item.data.eventType"
                   :detail="item.data.detail"
-                  @click="openEventModal(item.data)"
+                  :color="item.data.color"
                 />
                 <CalendarActivityCard
                   v-else-if="item.kind === 'activity'"
@@ -185,40 +190,13 @@
         </div>
       </div>
     </div>
-
-    <!-- Event detail modal -->
-    <UModal :open="!!selectedEvent" @update:open="(val) => { if (!val) selectedEvent = null }">
-      <template v-if="selectedEvent" #title>
-        {{ selectedEvent.title }}
-      </template>
-      <template v-if="selectedEvent" #default>
-        <div class="space-y-3 p-4">
-          <div class="flex items-center gap-2">
-            <span
-              class="inline-block w-3 h-3 rounded-full"
-              :class="dotClass(selectedEvent.eventType)"
-            />
-            <span class="text-sm font-medium text-gray-700 dark:text-gray-300">
-              {{ t(`pages.calendar.eventTypes.${eventTypeKey(selectedEvent.eventType)}`) }}
-            </span>
-          </div>
-          <div class="text-sm text-gray-600 dark:text-gray-400">
-            <span class="font-medium">{{ t('pages.calendar.date') }}:</span>
-            {{ formatDate(selectedEvent.dateStr) }}
-          </div>
-          <div v-if="selectedEvent.detail" class="text-sm text-gray-600 dark:text-gray-400">
-            <span class="font-medium">{{ t('pages.calendar.detail') }}:</span>
-            {{ selectedEvent.detail }}
-          </div>
-        </div>
-      </template>
-    </UModal>
   </div>
 </template>
 
 <script setup lang="ts">
 import { CalendarEventType } from '~/types/calendar'
 import type { CalendarEventInfo } from '~/types/calendar'
+import type { ExternalCalendarResponse } from '~/types/externalCalendar'
 import type { ActivityType, ActivityInfo } from '~/types/activity'
 import { useAuthStore } from '~/stores/auth'
 
@@ -227,6 +205,7 @@ definePageMeta({ layout: 'auth' })
 const { t, locale } = useI18n()
 const { getCalendarEvents } = useCalendarApi()
 const { getActivities } = useUserApi()
+const { getExternalCalendars } = useExternalCalendarApi()
 const authStore = useAuthStore()
 
 const greetingName = computed(() => authStore.user?.displayName || authStore.user?.name || '')
@@ -236,9 +215,12 @@ interface CalEvent {
   title: string
   eventType: CalendarEventType
   dateStr: string
+  endStr: string | null
   startAt: string
   detail: string | null
   relatedPublicId: string | null
+  color: string | null
+  isAllDay: boolean
 }
 
 interface CalActivity {
@@ -265,7 +247,7 @@ const currentDate = ref(new Date())
 const isLoading = ref(false)
 const calendarEvents = ref<CalEvent[]>([])
 const calendarActivities = ref<CalActivity[]>([])
-const selectedEvent = ref<CalEvent | null>(null)
+const externalCalendars = ref<ExternalCalendarResponse[]>([])
 
 const selectedDay = ref<string | null>(toLocalDate(new Date()))
 const visibleCount = ref(5)
@@ -288,10 +270,49 @@ const dayHeaders = computed(() => {
   })
 })
 
+// Upper bound on the number of days a single event may span, so a malformed
+// feed (e.g. an event ending years after it starts) can't blow up the buckets.
+const MAX_SPAN_DAYS = 370
+
+// All `YYYY-MM-DD` days an event covers. Single-day events return just their
+// start day; multi-day events are listed on every day they span.
+const eventDayKeys = (ev: CalEvent): string[] => {
+  const startKey = ev.dateStr
+  if (!ev.endStr) return [startKey]
+
+  const endKey = ev.endStr.split('T')[0] ?? ev.endStr
+  if (endKey <= startKey) return [startKey]
+
+  const parse = (key: string): Date | null => {
+    const [y, m, d] = key.split('-').map(Number)
+    if (!y || !m || !d) return null
+    return new Date(y, m - 1, d)
+  }
+
+  const start = parse(startKey)
+  const end = parse(endKey)
+  if (!start || !end) return [startKey]
+
+  // iCal all-day events use an exclusive DTEND (midnight after the last day),
+  // so the last visible day is end - 1; timed events end on the end date itself.
+  if (ev.isAllDay) end.setDate(end.getDate() - 1)
+  if (end <= start) return [startKey]
+
+  const keys: string[] = []
+  const cur = new Date(start)
+  while (cur <= end && keys.length < MAX_SPAN_DAYS) {
+    keys.push(toLocalDate(cur))
+    cur.setDate(cur.getDate() + 1)
+  }
+  return keys
+}
+
 const eventsByDate = computed(() => {
   const map: Record<string, CalEvent[]> = {}
   for (const ev of calendarEvents.value) {
-    ;(map[ev.dateStr] ??= []).push(ev)
+    for (const key of eventDayKeys(ev)) {
+      ;(map[key] ??= []).push(ev)
+    }
   }
   return map
 })
@@ -341,6 +362,9 @@ const selectedDayItems = computed((): DayItem[] => {
     .map(a => ({ kind: 'activity' as const, data: a }))
 
   return [...events, ...activities].sort((a, b) => {
+    const aAllDay = a.kind === 'event' && a.data.isAllDay
+    const bAllDay = b.kind === 'event' && b.data.isAllDay
+    if (aAllDay !== bAllDay) return aAllDay ? -1 : 1
     const ta = a.kind === 'event' ? a.data.startAt : a.data.timestamp
     const tb = b.kind === 'event' ? b.data.startAt : b.data.timestamp
     return tb.localeCompare(ta)
@@ -354,12 +378,6 @@ const visibleItems = computed(() =>
 const hasMore = computed(() =>
   visibleCount.value < selectedDayItems.value.length
 )
-
-const openEventModal = (ev: CalEvent) => {
-  if (ev.eventType !== CalendarEventType.InventoryExpiration) {
-    selectedEvent.value = ev
-  }
-}
 
 const selectDay = (dateStr: string) => {
   if (selectedDay.value === dateStr) return
@@ -402,9 +420,12 @@ const mapEvents = (items: CalendarEventInfo[]): CalEvent[] =>
     title: item.title,
     eventType: item.eventType,
     dateStr: item.start.split('T')[0] ?? item.start,
+    endStr: item.end ?? null,
     startAt: item.start,
     detail: item.detail,
-    relatedPublicId: item.relatedEntityPublicId
+    relatedPublicId: item.relatedEntityPublicId,
+    color: item.color ?? null,
+    isAllDay: item.isAllDay ?? false
   }))
 
 const mapActivities = (items: ActivityInfo[]): CalActivity[] =>
@@ -425,15 +446,18 @@ const loadEvents = async () => {
     const startStr = toLocalDate(new Date(year, month, 1))
     const endStr = toLocalDate(new Date(year, month + 1, 0))
 
-    const [eventsRes, activitiesRes] = await Promise.all([
+    const [eventsRes, activitiesRes, calendarsRes] = await Promise.all([
       getCalendarEvents(startStr, endStr),
-      getActivities({ startDate: startStr, endDate: endStr, returnAll: true })
+      getActivities({ startDate: startStr, endDate: endStr, returnAll: true }),
+      getExternalCalendars()
     ])
 
     if (eventsRes.success && eventsRes.data)
       calendarEvents.value = mapEvents(eventsRes.data)
     if (activitiesRes.success && activitiesRes.data)
       calendarActivities.value = mapActivities(activitiesRes.data.items)
+    if (calendarsRes.success && calendarsRes.data)
+      externalCalendars.value = calendarsRes.data.filter(c => c.isEnabled)
   } finally {
     isLoading.value = false
   }
@@ -485,15 +509,6 @@ const chipClass = (type: CalendarEventType): string => {
       return 'bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300'
     default:
       return 'bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300'
-  }
-}
-
-const eventTypeKey = (type: CalendarEventType): string => {
-  switch (type) {
-    case CalendarEventType.InventoryExpiration: return 'inventoryExpiration'
-    case CalendarEventType.AutomationExecution: return 'automationExecution'
-    case CalendarEventType.ShoppingListDeadline: return 'shoppingListDeadline'
-    default: return 'inventoryExpiration'
   }
 }
 
