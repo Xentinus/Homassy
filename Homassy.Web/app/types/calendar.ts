@@ -1,7 +1,8 @@
 export enum CalendarEventType {
   InventoryExpiration = 0,
   AutomationExecution = 1,
-  ShoppingListDeadline = 2
+  ShoppingListDeadline = 2,
+  ExternalCalendar = 3
 }
 
 export interface CalendarEventInfo {
@@ -11,4 +12,5 @@ export interface CalendarEventInfo {
   start: string
   detail: string | null
   relatedEntityPublicId: string | null
+  color: string | null
 }

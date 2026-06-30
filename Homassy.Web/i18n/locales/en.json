@@ -757,7 +757,8 @@
         "inventoryExpiration": "Expiring product",
         "automationExecution": "Automation",
         "shoppingListDeadline": "Shopping deadline",
-        "activity": "Activity"
+        "activity": "Activity",
+        "externalCalendar": "External calendar"
       },
       "views": {
         "month": "Month",
@@ -834,6 +835,27 @@
         "withdraw": "Withdraw request",
         "submitted": "Join request sent",
         "withdrawn": "Join request withdrawn"
+      },
+      "externalCalendars": {
+        "title": "External Calendars",
+        "description": "Import iCal calendars (Apple Calendar, Google, etc.) and show them in the family calendar.",
+        "add": "Add calendar",
+        "namePlaceholder": "Calendar name",
+        "urlLabel": "iCal URL",
+        "enabledLabel": "Enabled",
+        "disabled": "Disabled",
+        "lastSync": "Last synced",
+        "neverSynced": "Never synced",
+        "eventCount": "{count} events",
+        "sync": "Sync now",
+        "empty": "No external calendars added yet.",
+        "added": "Calendar added",
+        "addFailed": "Failed to add calendar. Check the URL and try again.",
+        "updated": "Calendar updated",
+        "updateFailed": "Failed to update calendar",
+        "deleted": "Calendar deleted",
+        "synced": "Calendar synced",
+        "syncFailed": "Sync failed"
       }
     },
     "settingsProfileSection": "Profile Information",

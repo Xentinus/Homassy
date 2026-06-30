@@ -17,15 +17,31 @@ namespace Homassy.API.Functions
             var inventoryTask = GetInventoryExpirationEventsAsync(new HomassyDbContext(), userId, familyId, startDate, endDate, cancellationToken);
             var automationTask = GetAutomationEventsAsync(new HomassyDbContext(), userId, familyId, startDate, endDate, cancellationToken);
             var shoppingTask = GetShoppingListDeadlineEventsAsync(new HomassyDbContext(), userId, familyId, startDate, endDate, cancellationToken);
+            var externalTask = GetExternalCalendarEventsAsync(familyId, startDate, endDate);
 
-            await Task.WhenAll(inventoryTask, automationTask, shoppingTask);
+            await Task.WhenAll(inventoryTask, automationTask, shoppingTask, externalTask);
 
             var result = new List<CalendarEventInfo>();
             result.AddRange(await inventoryTask);
             result.AddRange(await automationTask);
             result.AddRange(await shoppingTask);
+            result.AddRange(await externalTask);
 
             return result.OrderBy(e => e.Start).ToList();
+        }
+
+        private static Task<List<CalendarEventInfo>> GetExternalCalendarEventsAsync(
+            int? familyId,
+            DateTime startDate,
+            DateTime endDate)
+        {
+            if (!familyId.HasValue)
+                return Task.FromResult(new List<CalendarEventInfo>());
+
+            var events = new ExternalCalendarFunctions()
+                .GetCachedEventsForDateRange(familyId.Value, startDate, endDate);
+
+            return Task.FromResult(events);
         }
 
         private static async Task<List<CalendarEventInfo>> GetInventoryExpirationEventsAsync(

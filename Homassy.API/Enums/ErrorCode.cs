@@ -105,4 +105,12 @@ public static class ErrorCodes
     public const string AutomationShoppingListNotFound = "AUTOMATION-0006";
     public const string AutomationProductNotFound = "AUTOMATION-0007";
     #endregion
+
+    #region External Calendar Errors (EXTCAL-0xxx)
+    public const string ExternalCalendarNotFound = "EXTCAL-0001";
+    public const string ExternalCalendarAccessDenied = "EXTCAL-0002";
+    public const string ExternalCalendarInvalidUrl = "EXTCAL-0003";
+    public const string ExternalCalendarFetchFailed = "EXTCAL-0004";
+    public const string ExternalCalendarRequiresFamily = "EXTCAL-0005";
+    #endregion
 }
