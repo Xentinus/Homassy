@@ -162,7 +162,7 @@
               ref="scrollContainer"
               class="space-y-2 overflow-y-auto flex-1 min-h-0 lg:flex-none lg:max-h-[calc(100vh-8rem)]"
             >
-              <template v-for="item in visibleItems" :key="item.kind + '-' + item.data.publicId">
+              <template v-for="(item, idx) in visibleItems" :key="item.kind + '-' + item.data.publicId + '-' + idx">
                 <CalendarEventCard
                   v-if="item.kind === 'event'"
                   :title="item.data.title"
@@ -215,6 +215,7 @@ interface CalEvent {
   title: string
   eventType: CalendarEventType
   dateStr: string
+  endStr: string | null
   startAt: string
   detail: string | null
   relatedPublicId: string | null
@@ -269,10 +270,49 @@ const dayHeaders = computed(() => {
   })
 })
 
+// Upper bound on the number of days a single event may span, so a malformed
+// feed (e.g. an event ending years after it starts) can't blow up the buckets.
+const MAX_SPAN_DAYS = 370
+
+// All `YYYY-MM-DD` days an event covers. Single-day events return just their
+// start day; multi-day events are listed on every day they span.
+const eventDayKeys = (ev: CalEvent): string[] => {
+  const startKey = ev.dateStr
+  if (!ev.endStr) return [startKey]
+
+  const endKey = ev.endStr.split('T')[0] ?? ev.endStr
+  if (endKey <= startKey) return [startKey]
+
+  const parse = (key: string): Date | null => {
+    const [y, m, d] = key.split('-').map(Number)
+    if (!y || !m || !d) return null
+    return new Date(y, m - 1, d)
+  }
+
+  const start = parse(startKey)
+  const end = parse(endKey)
+  if (!start || !end) return [startKey]
+
+  // iCal all-day events use an exclusive DTEND (midnight after the last day),
+  // so the last visible day is end - 1; timed events end on the end date itself.
+  if (ev.isAllDay) end.setDate(end.getDate() - 1)
+  if (end <= start) return [startKey]
+
+  const keys: string[] = []
+  const cur = new Date(start)
+  while (cur <= end && keys.length < MAX_SPAN_DAYS) {
+    keys.push(toLocalDate(cur))
+    cur.setDate(cur.getDate() + 1)
+  }
+  return keys
+}
+
 const eventsByDate = computed(() => {
   const map: Record<string, CalEvent[]> = {}
   for (const ev of calendarEvents.value) {
-    ;(map[ev.dateStr] ??= []).push(ev)
+    for (const key of eventDayKeys(ev)) {
+      ;(map[key] ??= []).push(ev)
+    }
   }
   return map
 })
@@ -380,6 +420,7 @@ const mapEvents = (items: CalendarEventInfo[]): CalEvent[] =>
     title: item.title,
     eventType: item.eventType,
     dateStr: item.start.split('T')[0] ?? item.start,
+    endStr: item.end ?? null,
     startAt: item.start,
     detail: item.detail,
     relatedPublicId: item.relatedEntityPublicId,

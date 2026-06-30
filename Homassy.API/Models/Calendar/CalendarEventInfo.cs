@@ -14,6 +14,7 @@ namespace Homassy.API.Models.Calendar
         public string Title { get; set; } = string.Empty;
         public CalendarEventType EventType { get; set; }
         public DateTime Start { get; set; }
+        public DateTime? End { get; set; }
         public string? Detail { get; set; }
         public Guid? RelatedEntityPublicId { get; set; }
         public string? Color { get; set; }
