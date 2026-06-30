@@ -7,6 +7,7 @@ using Ical.Net;
 using Ical.Net.CalendarComponents;
 using Microsoft.EntityFrameworkCore;
 using Serilog;
+using System.Text;
 using System.Text.Json;
 
 namespace Homassy.API.Functions
@@ -196,10 +197,11 @@ namespace Homassy.API.Functions
 
                 var icsContent = await httpClient.GetStringAsync(calendar.ICalUrl, ct);
                 icsContent = SanitizeICalContent(icsContent);
-                var parsed = Calendar.Load(icsContent);
+
+                var calendarEvents = LoadEventsResiliently(icsContent, calendar.PublicId);
                 var events = new List<CachedICalEvent>();
 
-                foreach (var ev in parsed.Events)
+                foreach (var ev in calendarEvents)
                 {
                     var uid = ev.Uid ?? Guid.NewGuid().ToString();
                     var title = ev.Summary ?? string.Empty;
@@ -264,16 +266,20 @@ namespace Homassy.API.Functions
         }
 
         /// <summary>
-        /// Removes vendor properties that Ical.Net v4's content-line parser cannot handle
-        /// (notably Apple's <c>X-APPLE-STRUCTURED-LOCATION</c>, which carries quoted parameters
-        /// with embedded commas/colons and a long base64 <c>X-APPLE-MAPKIT-HANDLE</c> value).
-        /// A single bad line aborts the whole feed parse, so these lines are stripped before load.
-        /// RFC 5545 folded continuation lines are unfolded first so a folded property is dropped
-        /// in its entirety rather than leaving orphan fragments. None of the stripped data is used
+        /// Strips content that Ical.Net v4's content-line parser cannot handle, so a single bad
+        /// line does not abort the whole feed. RFC 5545 folded continuation lines (leading space/tab)
+        /// are unfolded first, then a logical line is kept only if its property-name token is a valid
+        /// RFC 5545 name (alphanumerics + hyphen) and is not an Apple vendor property (<c>X-APPLE-*</c>).
+        /// This drops Apple's <c>X-APPLE-STRUCTURED-LOCATION</c> as well as orphan fragments left when a
+        /// vendor value is broken across a raw (non-folded) newline — e.g. an address tail like
+        /// <c>...":geo:..."</c> whose "name" contains spaces/quotes. None of the stripped data is used
         /// (only Uid/Summary/DtStart/DtEnd/Description/IsAllDay are read).
         /// </summary>
         private static string SanitizeICalContent(string raw)
         {
+            // Strip a leading UTF-8 BOM so the first BEGIN:VCALENDAR isn't misjudged.
+            raw = raw.TrimStart('﻿');
+
             var physicalLines = raw.Replace("\r\n", "\n").Replace("\r", "\n").Split('\n');
 
             // Unfold: a line starting with space or tab continues the previous logical line.
@@ -290,10 +296,85 @@ namespace Homassy.API.Functions
             {
                 var nameEnd = line.IndexOfAny([';', ':']);
                 var name = nameEnd >= 0 ? line[..nameEnd] : line;
-                return !name.StartsWith("X-APPLE-", StringComparison.OrdinalIgnoreCase);
+
+                if (name.StartsWith("X-APPLE-", StringComparison.OrdinalIgnoreCase))
+                    return false;
+
+                // Valid iCal property name = alphanumerics + hyphen. Anything else (orphan
+                // fragments from raw-newline-broken values, blank lines) is dropped.
+                return name.Length > 0 && name.All(c => char.IsAsciiLetterOrDigit(c) || c == '-');
             });
 
             return string.Join("\r\n", kept);
+        }
+
+        /// <summary>
+        /// Loads events from sanitized iCal text without letting one bad event abort the whole feed.
+        /// Fast path parses the entire feed; if that throws, falls back to parsing each VEVENT block
+        /// on its own (wrapped in a minimal VCALENDAR that retains the feed's VTIMEZONE blocks so
+        /// TZID-based start/end times still resolve). Events that still fail to parse are skipped.
+        /// </summary>
+        private static List<CalendarEvent> LoadEventsResiliently(string ics, Guid calendarId)
+        {
+            try
+            {
+                return Calendar.Load(ics).Events.ToList();
+            }
+            catch (Exception ex)
+            {
+                Log.Warning(ex,
+                    "External calendar {CalendarId}: whole-feed parse failed, falling back to per-event parsing",
+                    calendarId);
+            }
+
+            var events = new List<CalendarEvent>();
+            var tzPrefix = string.Concat(ExtractComponentBlocks(ics, "VTIMEZONE"));
+
+            foreach (var vevent in ExtractComponentBlocks(ics, "VEVENT"))
+            {
+                var single = $"BEGIN:VCALENDAR\r\nVERSION:2.0\r\nPRODID:-//Homassy//EN\r\n{tzPrefix}{vevent}END:VCALENDAR\r\n";
+                try
+                {
+                    events.AddRange(Calendar.Load(single).Events);
+                }
+                catch (Exception ex)
+                {
+                    Log.Debug(ex, "External calendar {CalendarId}: skipped an unparseable event", calendarId);
+                }
+            }
+
+            return events;
+        }
+
+        /// <summary>
+        /// Extracts each <c>BEGIN:{component} … END:{component}</c> block (inclusive) as a CRLF-terminated string.
+        /// </summary>
+        private static List<string> ExtractComponentBlocks(string ics, string component)
+        {
+            var blocks = new List<string>();
+            var begin = $"BEGIN:{component}";
+            var end = $"END:{component}";
+
+            StringBuilder? current = null;
+            foreach (var line in ics.Replace("\r\n", "\n").Split('\n'))
+            {
+                if (line.Equals(begin, StringComparison.OrdinalIgnoreCase))
+                {
+                    current = new StringBuilder();
+                    current.Append(line).Append("\r\n");
+                }
+                else if (current != null)
+                {
+                    current.Append(line).Append("\r\n");
+                    if (line.Equals(end, StringComparison.OrdinalIgnoreCase))
+                    {
+                        blocks.Add(current.ToString());
+                        current = null;
+                    }
+                }
+            }
+
+            return blocks;
         }
 
         private static string NormalizeICalUrl(string url)
