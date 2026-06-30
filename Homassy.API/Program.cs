@@ -2,6 +2,7 @@
 using Homassy.API.Extensions;
 using Homassy.API.Functions;
 using Homassy.API.HealthChecks;
+using Homassy.API.Hubs;
 using Homassy.API.Infrastructure;
 using Homassy.API.Middleware;
 using Homassy.API.Models.ApplicationSettings;
@@ -19,6 +20,7 @@ using System.IO.Compression;
 using System.Net.Http.Headers;
 using System.Reflection;
 using System.Text;
+using System.Text.Json;
 
 Log.Logger = new LoggerConfiguration()
     .MinimumLevel.Debug()
@@ -169,6 +171,14 @@ try
         {
             options.JsonSerializerOptions.PropertyNameCaseInsensitive = true;
         });
+
+    // SignalR realtime hub for shopping lists. camelCase payloads match the MVC JSON
+    // output and the frontend TypeScript types (publicId, shoppingListPublicId, ...).
+    builder.Services.AddSignalR()
+        .AddJsonProtocol(options =>
+        {
+            options.PayloadSerializerOptions.PropertyNamingPolicy = JsonNamingPolicy.CamelCase;
+        });
     builder.Services.AddOpenApi(options =>
     {
         options.AddDocumentTransformer((document, context, cancellationToken) =>
@@ -291,6 +301,10 @@ try
     app.UseAuthorization();
     app.UseMiddleware<SessionInfoMiddleware>();
     app.MapControllers();
+
+    // Realtime shopping list channel. Auth flows through KratosSessionMiddleware (above) just
+    // like the controllers; RequireCors is explicit because credentialed WS negotiation is strict.
+    app.MapHub<ShoppingListHub>("/hubs/shopping-list").RequireCors("HomassyPolicy");
 
     Log.Information("Homassy API started successfully");
 
