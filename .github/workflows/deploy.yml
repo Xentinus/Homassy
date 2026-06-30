@@ -120,7 +120,16 @@ jobs:
             cd /opt/homassy
             mv -f Homassy.Kratos/kratos.production.yml Homassy.Kratos/kratos.yml
             echo "$GHCR_PAT" | docker login ghcr.io -u "$GHCR_USERNAME" --password-stdin
-            docker compose -f docker-compose.production.yml pull
+            n=0
+            until docker compose -f docker-compose.production.yml pull; do
+              n=$((n+1))
+              if [ "$n" -ge 3 ]; then
+                echo "docker compose pull failed after $n attempts" >&2
+                exit 1
+              fi
+              echo "pull attempt $n failed (transient registry error), retrying in 10s..."
+              sleep 10
+            done
             docker compose -f docker-compose.production.yml up -d --wait --remove-orphans
             docker image prune -f
             docker logout ghcr.io
