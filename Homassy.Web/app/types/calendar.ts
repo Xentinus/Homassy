@@ -13,4 +13,5 @@ export interface CalendarEventInfo {
   detail: string | null
   relatedEntityPublicId: string | null
   color: string | null
+  isAllDay: boolean
 }

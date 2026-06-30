@@ -17,5 +17,6 @@ namespace Homassy.API.Models.Calendar
         public string? Detail { get; set; }
         public Guid? RelatedEntityPublicId { get; set; }
         public string? Color { get; set; }
+        public bool IsAllDay { get; set; }
     }
 }
