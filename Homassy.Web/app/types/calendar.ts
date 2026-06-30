@@ -10,6 +10,7 @@ export interface CalendarEventInfo {
   title: string
   eventType: CalendarEventType
   start: string
+  end: string | null
   detail: string | null
   relatedEntityPublicId: string | null
   color: string | null

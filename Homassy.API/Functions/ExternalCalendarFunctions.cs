@@ -169,6 +169,7 @@ namespace Homassy.API.Functions
                                 Title = ev.Title,
                                 EventType = CalendarEventType.ExternalCalendar,
                                 Start = eventStart,
+                                End = ev.End,
                                 Detail = ev.Description,
                                 RelatedEntityPublicId = null,
                                 Color = calendar.Color,
@@ -199,28 +200,7 @@ namespace Homassy.API.Functions
                 var icsContent = await httpClient.GetStringAsync(calendar.ICalUrl, ct);
                 icsContent = SanitizeICalContent(icsContent);
 
-                var calendarEvents = LoadEventsResiliently(icsContent, calendar.PublicId);
-                var events = new List<CachedICalEvent>();
-
-                foreach (var ev in calendarEvents)
-                {
-                    var uid = ev.Uid ?? Guid.NewGuid().ToString();
-                    var title = ev.Summary ?? string.Empty;
-                    var isAllDay = ev.IsAllDay;
-                    var start = ev.DtStart?.AsSystemLocal ?? DateTime.UtcNow;
-                    var end = ev.DtEnd?.AsSystemLocal;
-                    var description = ev.Description;
-
-                    events.Add(new CachedICalEvent
-                    {
-                        Uid = uid,
-                        Title = title,
-                        Start = start,
-                        End = end,
-                        Description = description,
-                        IsAllDay = isAllDay
-                    });
-                }
+                var events = LoadAndExpandEvents(icsContent, calendar.PublicId);
 
                 calendar.CachedEventsJson = JsonSerializer.Serialize(events, JsonOptions);
                 calendar.LastSyncedAt = DateTime.UtcNow;
@@ -310,16 +290,22 @@ namespace Homassy.API.Functions
         }
 
         /// <summary>
-        /// Loads events from sanitized iCal text without letting one bad event abort the whole feed.
-        /// Fast path parses the entire feed; if that throws, falls back to parsing each VEVENT block
-        /// on its own (wrapped in a minimal VCALENDAR that retains the feed's VTIMEZONE blocks so
-        /// TZID-based start/end times still resolve). Events that still fail to parse are skipped.
+        /// Loads events from sanitized iCal text and expands recurrences into concrete occurrences
+        /// without letting one bad event abort the whole feed. Fast path parses + expands the entire
+        /// feed; if that throws, falls back to parsing each VEVENT block on its own (wrapped in a
+        /// minimal VCALENDAR that retains the feed's VTIMEZONE blocks so TZID-based start/end times
+        /// still resolve). Events that still fail to parse are skipped.
         /// </summary>
-        private static List<CalendarEvent> LoadEventsResiliently(string ics, Guid calendarId)
+        private static List<CachedICalEvent> LoadAndExpandEvents(string ics, Guid calendarId)
         {
+            // Recurrence rules can be unbounded, so expansion is limited to a rolling window.
+            // Sync runs hourly (and on startup), so the window keeps sliding forward over time.
+            var windowStart = DateTime.Now.AddMonths(-2);
+            var windowEnd = DateTime.Now.AddMonths(12);
+
             try
             {
-                return Calendar.Load(ics).Events.ToList();
+                return ExpandCalendar(Calendar.Load(ics), windowStart, windowEnd, calendarId);
             }
             catch (Exception ex)
             {
@@ -328,7 +314,7 @@ namespace Homassy.API.Functions
                     calendarId);
             }
 
-            var events = new List<CalendarEvent>();
+            var events = new List<CachedICalEvent>();
             var tzPrefix = string.Concat(ExtractComponentBlocks(ics, "VTIMEZONE"));
 
             foreach (var vevent in ExtractComponentBlocks(ics, "VEVENT"))
@@ -336,7 +322,7 @@ namespace Homassy.API.Functions
                 var single = $"BEGIN:VCALENDAR\r\nVERSION:2.0\r\nPRODID:-//Homassy//EN\r\n{tzPrefix}{vevent}END:VCALENDAR\r\n";
                 try
                 {
-                    events.AddRange(Calendar.Load(single).Events);
+                    events.AddRange(ExpandCalendar(Calendar.Load(single), windowStart, windowEnd, calendarId));
                 }
                 catch (Exception ex)
                 {
@@ -346,6 +332,63 @@ namespace Homassy.API.Functions
 
             return events;
         }
+
+        /// <summary>
+        /// Expands a parsed calendar into <see cref="CachedICalEvent"/>s. Recurring events and any
+        /// single events that fall inside the window are expanded via Ical.Net's occurrence engine
+        /// (RRULE/RDATE expanded, EXDATE excluded, RECURRENCE-ID overrides applied). Non-recurring
+        /// events whose only occurrence lies entirely outside the window are added directly so distant
+        /// single events are not lost. If occurrence expansion itself throws on a malformed recurrence,
+        /// every master event is stored once so we never regress to zero events.
+        /// </summary>
+        private static List<CachedICalEvent> ExpandCalendar(Calendar cal, DateTime windowStart, DateTime windowEnd, Guid calendarId)
+        {
+            var result = new List<CachedICalEvent>();
+
+            try
+            {
+                foreach (var occ in cal.GetOccurrences(windowStart, windowEnd))
+                {
+                    if (occ.Source is not CalendarEvent ev) continue;
+                    result.Add(MapEvent(ev, occ.Period.StartTime?.AsSystemLocal, occ.Period.EndTime?.AsSystemLocal));
+                }
+            }
+            catch (Exception ex)
+            {
+                Log.Warning(ex,
+                    "External calendar {CalendarId}: occurrence expansion failed, storing master events only",
+                    calendarId);
+                return cal.Events.Select(ev => MapEvent(ev, ev.DtStart?.AsSystemLocal, ev.DtEnd?.AsSystemLocal)).ToList();
+            }
+
+            // Safety net: a non-recurring event that does not overlap the window is dropped by
+            // GetOccurrences. Add those directly (overlapping ones were already returned above).
+            foreach (var ev in cal.Events)
+            {
+                if (ev.RecurrenceRules?.Count > 0 || ev.RecurrenceDates?.Count > 0) continue;
+
+                var start = ev.DtStart?.AsSystemLocal;
+                if (start == null) continue;
+
+                var end = ev.DtEnd?.AsSystemLocal ?? start.Value;
+                var overlapsWindow = start.Value <= windowEnd && end >= windowStart;
+                if (overlapsWindow) continue;
+
+                result.Add(MapEvent(ev, start, ev.DtEnd?.AsSystemLocal));
+            }
+
+            return result;
+        }
+
+        private static CachedICalEvent MapEvent(CalendarEvent ev, DateTime? start, DateTime? end) => new()
+        {
+            Uid = ev.Uid ?? Guid.NewGuid().ToString(),
+            Title = ev.Summary ?? string.Empty,
+            Start = start ?? DateTime.UtcNow,
+            End = end,
+            Description = ev.Description,
+            IsAllDay = ev.IsAllDay
+        };
 
         /// <summary>
         /// Extracts each <c>BEGIN:{component} … END:{component}</c> block (inclusive) as a CRLF-terminated string.
