@@ -1,0 +1,109 @@
+name: Build & Deploy
+
+on:
+  push:
+    branches: [master]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  packages: write          # GITHUB_TOKEN pushes images to GHCR
+
+jobs:
+  build:
+    name: Build & push images
+    runs-on: ubuntu-latest
+    outputs:
+      tag: ${{ steps.meta.outputs.tag }}
+    strategy:
+      fail-fast: true
+      matrix:
+        include:
+          - { name: homassyapi,           file: Homassy.API/Dockerfile,           context: ., target: final }
+          - { name: homassyemail,         file: Homassy.Email/Dockerfile,         context: ., target: final }
+          - { name: homassynotifications, file: Homassy.Notifications/Dockerfile, context: ., target: final }
+          - { name: homassymigrator,      file: Homassy.Migrator/Dockerfile,      context: ., target: final }
+          - { name: homassyweb,           file: Homassy.Web/Dockerfile,           context: Homassy.Web, target: production }
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Compute date+time tag
+        id: meta
+        run: echo "tag=$(TZ=Europe/Budapest date +%Y%m%d-%H%M%S)" >> "$GITHUB_OUTPUT"
+
+      - uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build & push ${{ matrix.name }}
+        uses: docker/build-push-action@v6
+        with:
+          context: ${{ matrix.context }}
+          file: ${{ matrix.file }}
+          target: ${{ matrix.target }}
+          platforms: linux/amd64
+          push: true
+          tags: |
+            ghcr.io/xentinus/${{ matrix.name }}:${{ steps.meta.outputs.tag }}
+            ghcr.io/xentinus/${{ matrix.name }}:latest
+          labels: |
+            org.opencontainers.image.source=https://github.com/Xentinus/Homassy
+            org.opencontainers.image.revision=${{ github.sha }}
+          build-args: |
+            NUXT_PUBLIC_KRATOS_URL=${{ vars.NUXT_PUBLIC_KRATOS_URL }}
+            NUXT_PUBLIC_API_BASE=${{ vars.NUXT_PUBLIC_API_BASE }}
+          cache-from: type=gha,scope=${{ matrix.name }}
+          cache-to: type=gha,mode=max,scope=${{ matrix.name }}
+
+  deploy:
+    name: Deploy to VPS
+    needs: build
+    runs-on: ubuntu-latest
+    environment: production          # manual approval gate (required reviewers)
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Write production .env
+        run: |
+          printf '%s\n' "${{ secrets.PROD_ENV }}" > .env
+          {
+            echo "DOCKER_REGISTRY=ghcr.io/xentinus/"
+            echo "IMAGE_TAG=${{ needs.build.outputs.tag }}"
+          } >> .env
+
+      - name: Sync compose + Kratos config + .env to VPS
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: ${{ secrets.VPS_USER }}
+          port: ${{ secrets.VPS_PORT }}
+          password: ${{ secrets.VPS_PASSWORD }}
+          source: "docker-compose.production.yml,.env,Homassy.Kratos/identity.schema.json,Homassy.Kratos/webhook_body.jsonnet,Homassy.Kratos/init-kratos-schema.sql,Homassy.Kratos/kratos.production.yml"
+          target: /opt/homassy
+          overwrite: true
+
+      - name: Pull & restart on VPS
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: ${{ secrets.VPS_USER }}
+          port: ${{ secrets.VPS_PORT }}
+          password: ${{ secrets.VPS_PASSWORD }}
+          envs: GHCR_PAT,GHCR_USERNAME
+          script: |
+            set -e
+            cd /opt/homassy
+            mv -f Homassy.Kratos/kratos.production.yml Homassy.Kratos/kratos.yml
+            echo "$GHCR_PAT" | docker login ghcr.io -u "$GHCR_USERNAME" --password-stdin
+            docker compose -f docker-compose.production.yml pull
+            docker compose -f docker-compose.production.yml up -d --wait --remove-orphans
+            docker image prune -f
+            docker logout ghcr.io
+        env:
+          GHCR_PAT: ${{ secrets.GHCR_PAT }}
+          GHCR_USERNAME: ${{ secrets.GHCR_USERNAME }}

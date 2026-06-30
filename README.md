@@ -215,6 +215,31 @@ All entities inherit a common base with:
 - 🗑️ Soft delete support
 - 📝 Automatic change tracking
 
+## 🚀 Deployment
+
+Deployment is fully automated with **GitHub Actions → GitHub Container Registry (GHCR) → VPS**. There is no local deploy script.
+
+**Flow** (`.github/workflows/deploy.yml`):
+1. A push to `master` (or a manual `workflow_dispatch`) builds all 5 service images for `linux/amd64`.
+2. Images are pushed to `ghcr.io/xentinus/<service>`, tagged with a shared `YYYYMMDD-HHmmss` timestamp **and** `latest`, and linked to this repository (private packages).
+3. The `deploy` job waits for **manual approval** of the `production` environment.
+4. After approval it ships `docker-compose.production.yml`, the Kratos config and a generated `.env` to the VPS, then runs `docker compose pull` + `up -d --wait` — pulling the exact timestamped images just built.
+
+**Images** (`ghcr.io/xentinus/…`): `homassyapi`, `homassyweb`, `homassyemail`, `homassynotifications`, `homassymigrator`.
+
+**Required GitHub configuration** (Settings → Environments / Secrets and variables):
+
+| Where | Name | Purpose |
+|-------|------|---------|
+| `production` environment secret | `VPS_HOST`, `VPS_USER`, `VPS_PORT`, `VPS_PASSWORD` | SSH access to the VPS (username + password) |
+| `production` environment secret | `GHCR_USERNAME`, `GHCR_PAT` | `read:packages` token so the VPS can pull the private images |
+| `production` environment secret | `PROD_ENV` | The full production `.env` (multiline) — everything from `.env.example` except the deploy-only block |
+| Repository variable | `NUXT_PUBLIC_API_BASE`, `NUXT_PUBLIC_KRATOS_URL` | Baked into the web image at build time |
+
+Add **required reviewers** to the `production` environment — that is the approval gate.
+
+**Rollback:** set `IMAGE_TAG` in `/opt/homassy/.env` to an earlier timestamp on the VPS and run `docker compose -f docker-compose.production.yml up -d`.
+
 ## 📄 License
 
 AGPL-3.0 License - see [LICENSE.txt](LICENSE.txt)

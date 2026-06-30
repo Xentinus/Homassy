@@ -23,7 +23,7 @@
 
   homassy.migrator:
     container_name: homassy-migrator
-    image: ${DOCKER_REGISTRY-}homassymigrator
+    image: ${DOCKER_REGISTRY-}homassymigrator:${IMAGE_TAG-latest}
     environment:
       - ConnectionStrings__DefaultConnection=${DB_CONNECTION_STRING_DOCKER}
     networks:
@@ -92,7 +92,7 @@
 
   homassy.api:
     container_name: homassy-api
-    image: ${DOCKER_REGISTRY-}homassyapi
+    image: ${DOCKER_REGISTRY-}homassyapi:${IMAGE_TAG-latest}
     restart: unless-stopped
     ports:
       - "5226:8080"
@@ -125,7 +125,7 @@
 
   homassy.web:
     container_name: homassy-web
-    image: ${DOCKER_REGISTRY-}homassyweb
+    image: ${DOCKER_REGISTRY-}homassyweb:${IMAGE_TAG-latest}
     restart: unless-stopped
     ports:
       - "3000:3000"
@@ -145,7 +145,7 @@
 
   homassy.email:
     container_name: homassy-email
-    image: ${DOCKER_REGISTRY-}homassyemail
+    image: ${DOCKER_REGISTRY-}homassyemail:${IMAGE_TAG-latest}
     restart: unless-stopped
     environment:
       - ASPNETCORE_ENVIRONMENT=Production
@@ -167,7 +167,7 @@
 
   homassy.notifications:
     container_name: homassy-notifications
-    image: ${DOCKER_REGISTRY-}homassynotifications
+    image: ${DOCKER_REGISTRY-}homassynotifications:${IMAGE_TAG-latest}
     restart: unless-stopped
     environment:
       - ASPNETCORE_ENVIRONMENT=Production
