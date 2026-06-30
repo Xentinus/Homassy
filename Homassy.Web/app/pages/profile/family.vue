@@ -129,7 +129,7 @@
             <p class="text-xs text-gray-500 dark:text-gray-400">{{ $t('profile.family.membersDescription') }}</p>
           </div>
         </div>
-        
+
         <div class="space-y-3">
           <div v-for="member in members" :key="member.publicId" class="flex items-center gap-3 p-3 rounded-lg bg-gray-50 dark:bg-gray-800/50">
             <UAvatar
@@ -149,6 +149,129 @@
               </div>
             </div>
           </div>
+        </div>
+      </div>
+
+      <!-- External Calendars Section -->
+      <div class="space-y-4">
+        <div class="flex items-center gap-3">
+          <UIcon name="i-lucide-calendar-plus" class="text-2xl text-primary" />
+          <div class="flex-1">
+            <h3 class="text-md font-semibold text-gray-900 dark:text-gray-100">{{ $t('profile.family.externalCalendars.title') }}</h3>
+            <p class="text-xs text-gray-500 dark:text-gray-400">{{ $t('profile.family.externalCalendars.description') }}</p>
+          </div>
+          <UButton
+            size="sm"
+            variant="outline"
+            color="primary"
+            icon="i-lucide-plus"
+            @click="showAddCalendar = !showAddCalendar"
+          >
+            {{ $t('profile.family.externalCalendars.add') }}
+          </UButton>
+        </div>
+
+        <!-- Add form -->
+        <div v-if="showAddCalendar" class="rounded-lg border border-gray-200 dark:border-gray-700 p-4 space-y-3">
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div>
+              <label class="block text-sm font-medium mb-1.5">{{ $t('common.name') }}</label>
+              <UInput v-model="newCalName" :placeholder="$t('profile.family.externalCalendars.namePlaceholder')" class="w-full" />
+            </div>
+            <div>
+              <label class="block text-sm font-medium mb-1.5">{{ $t('profile.family.externalCalendars.urlLabel') }}</label>
+              <UInput v-model="newCalUrl" placeholder="webcal://..." class="w-full" />
+            </div>
+          </div>
+          <div class="flex items-center gap-3">
+            <label class="text-sm font-medium">{{ $t('common.color') }}</label>
+            <div class="flex items-center gap-2">
+              <span v-if="!showNewColorPicker" class="w-6 h-6 rounded-full border border-gray-300 cursor-pointer" :style="{ backgroundColor: newCalColor }" @click="showNewColorPicker = true" />
+              <template v-else>
+                <input type="color" v-model="newCalColor" class="w-8 h-8 rounded cursor-pointer border-0 bg-transparent" />
+                <UButton size="xs" variant="ghost" color="neutral" icon="i-lucide-x" @click="showNewColorPicker = false" />
+              </template>
+            </div>
+          </div>
+          <div class="flex gap-2">
+            <UButton color="primary" size="sm" icon="i-lucide-plus" :loading="isAddingCalendar" :disabled="!newCalName.trim() || !newCalUrl.trim()" @click="onAddCalendar">
+              {{ $t('profile.family.externalCalendars.add') }}
+            </UButton>
+            <UButton color="neutral" variant="soft" size="sm" icon="i-lucide-x" @click="showAddCalendar = false">
+              {{ $t('common.cancel') }}
+            </UButton>
+          </div>
+        </div>
+
+        <!-- Calendar list -->
+        <div v-if="externalCalendars.length > 0" class="space-y-2">
+          <div v-for="cal in externalCalendars" :key="cal.publicId" class="rounded-lg border border-gray-200 dark:border-gray-700 p-3">
+            <div v-if="editingCalId !== cal.publicId">
+              <div class="flex items-center gap-3">
+                <span class="w-4 h-4 rounded-full flex-shrink-0" :style="{ backgroundColor: cal.color }" />
+                <div class="flex-1 min-w-0">
+                  <div class="flex items-center gap-2">
+                    <span class="font-medium truncate">{{ cal.name }}</span>
+                    <span v-if="!cal.isEnabled" class="text-xs px-1.5 py-0.5 rounded bg-gray-100 dark:bg-gray-700 text-gray-500">{{ $t('profile.family.externalCalendars.disabled') }}</span>
+                  </div>
+                  <div class="text-xs text-gray-500 dark:text-gray-400 truncate mt-0.5">{{ cal.iCalUrl }}</div>
+                  <div class="flex items-center gap-2 mt-1 text-xs text-gray-400">
+                    <span v-if="cal.lastSyncedAt">{{ $t('profile.family.externalCalendars.lastSync') }}: {{ formatTimestamp(cal.lastSyncedAt) }}</span>
+                    <span v-else>{{ $t('profile.family.externalCalendars.neverSynced') }}</span>
+                    <span>·</span>
+                    <span>{{ $t('profile.family.externalCalendars.eventCount', { count: cal.eventCount }) }}</span>
+                  </div>
+                  <div v-if="cal.lastSyncError" class="mt-1 text-xs text-red-500 flex items-center gap-1">
+                    <UIcon name="i-lucide-alert-circle" class="h-3 w-3" />
+                    {{ cal.lastSyncError }}
+                  </div>
+                </div>
+                <div class="flex items-center gap-1 flex-shrink-0">
+                  <UButton size="xs" variant="ghost" color="neutral" icon="i-lucide-refresh-cw" :loading="syncingId === cal.publicId" :disabled="syncingId !== null" :title="$t('profile.family.externalCalendars.sync')" @click="onSyncCalendar(cal)" />
+                  <UButton size="xs" variant="ghost" color="neutral" icon="i-lucide-pencil" :title="$t('common.edit')" @click="startEditCalendar(cal)" />
+                  <UButton size="xs" variant="ghost" color="error" icon="i-lucide-trash-2" :title="$t('common.delete')" @click="onDeleteCalendar(cal)" />
+                </div>
+              </div>
+            </div>
+            <!-- Edit inline -->
+            <div v-else class="space-y-3">
+              <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label class="block text-sm font-medium mb-1.5">{{ $t('common.name') }}</label>
+                  <UInput v-model="editCalName" class="w-full" />
+                </div>
+                <div>
+                  <label class="block text-sm font-medium mb-1.5">{{ $t('profile.family.externalCalendars.urlLabel') }}</label>
+                  <UInput v-model="editCalUrl" class="w-full" />
+                </div>
+              </div>
+              <div class="flex items-center gap-3 flex-wrap">
+                <div class="flex items-center gap-2">
+                  <label class="text-sm font-medium">{{ $t('common.color') }}</label>
+                  <span v-if="!showEditColorPicker" class="w-6 h-6 rounded-full border border-gray-300 cursor-pointer" :style="{ backgroundColor: editCalColor }" @click="showEditColorPicker = true" />
+                  <template v-else>
+                    <input type="color" v-model="editCalColor" class="w-8 h-8 rounded cursor-pointer border-0 bg-transparent" />
+                    <UButton size="xs" variant="ghost" color="neutral" icon="i-lucide-x" @click="showEditColorPicker = false" />
+                  </template>
+                </div>
+                <div class="flex items-center gap-2">
+                  <label class="text-sm font-medium">{{ $t('profile.family.externalCalendars.enabledLabel') }}</label>
+                  <UToggle v-model="editCalEnabled" />
+                </div>
+              </div>
+              <div class="flex gap-2">
+                <UButton color="primary" size="sm" icon="i-lucide-check" :loading="isSavingCalendar" @click="onSaveEditCalendar">
+                  {{ $t('common.save') }}
+                </UButton>
+                <UButton color="neutral" variant="soft" size="sm" icon="i-lucide-x" @click="editingCalId = null">
+                  {{ $t('common.cancel') }}
+                </UButton>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div v-else class="text-sm text-gray-400 dark:text-gray-500 py-2">
+          {{ $t('profile.family.externalCalendars.empty') }}
         </div>
       </div>
     </div>
@@ -250,7 +373,9 @@
 import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useFamilyApi } from '~/composables/api/useFamilyApi'
+import { useExternalCalendarApi } from '~/composables/api/useExternalCalendarApi'
 import type { FamilyDetailsResponse, FamilyMemberResponse, MyJoinRequestResponse, FamilyJoinRequestResponse } from '~/types/family'
+import type { ExternalCalendarResponse } from '~/types/externalCalendar'
 
 definePageMeta({ layout: 'auth', middleware: 'auth' })
 
@@ -266,6 +391,13 @@ const {
   approveJoinRequest,
   rejectJoinRequest
 } = useFamilyApi()
+const {
+  getExternalCalendars,
+  createExternalCalendar,
+  updateExternalCalendar,
+  deleteExternalCalendar,
+  syncExternalCalendar
+} = useExternalCalendarApi()
 const router = useRouter()
 const { t: $t } = useI18n()
 const toast = useToast()
@@ -282,6 +414,23 @@ const mode = ref<'create' | 'join' | null>(null)
 const familyName = ref('')
 const familyDescription = ref('')
 const shareCode = ref('')
+
+// External calendars state
+const externalCalendars = ref<ExternalCalendarResponse[]>([])
+const showAddCalendar = ref(false)
+const newCalName = ref('')
+const newCalUrl = ref('')
+const newCalColor = ref('#3B82F6')
+const showNewColorPicker = ref(false)
+const isAddingCalendar = ref(false)
+const syncingId = ref<string | null>(null)
+const editingCalId = ref<string | null>(null)
+const editCalName = ref('')
+const editCalUrl = ref('')
+const editCalColor = ref('#3B82F6')
+const editCalEnabled = ref(true)
+const showEditColorPicker = ref(false)
+const isSavingCalendar = ref(false)
 
 const formatTimestamp = (timestamp: string): string => {
   const date = new Date(timestamp)
@@ -324,6 +473,13 @@ async function fetchFamily() {
     } catch (error) {
       console.error('Failed to load join requests:', error)
       joinRequests.value = []
+    }
+    try {
+      const calsRes = await getExternalCalendars()
+      externalCalendars.value = calsRes.data ?? []
+    } catch (error) {
+      console.error('Failed to load external calendars:', error)
+      externalCalendars.value = []
     }
   } else {
     try {
@@ -435,6 +591,91 @@ async function onRejectRequest(request: FamilyJoinRequestResponse) {
     console.error('Failed to decline join request:', error)
   } finally {
     processingId.value = null
+  }
+}
+
+async function onAddCalendar() {
+  if (!newCalName.value.trim() || !newCalUrl.value.trim()) return
+  isAddingCalendar.value = true
+  try {
+    const res = await createExternalCalendar({
+      name: newCalName.value.trim(),
+      iCalUrl: newCalUrl.value.trim(),
+      color: newCalColor.value
+    })
+    if (res.success && res.data) {
+      externalCalendars.value.push(res.data)
+      newCalName.value = ''
+      newCalUrl.value = ''
+      newCalColor.value = '#3B82F6'
+      showNewColorPicker.value = false
+      showAddCalendar.value = false
+      toast.add({ title: $t('profile.family.externalCalendars.added'), color: 'success', icon: 'i-lucide-check-circle' })
+    } else {
+      toast.add({ title: $t('profile.family.externalCalendars.addFailed'), color: 'error', icon: 'i-lucide-alert-circle' })
+    }
+  } catch {
+    toast.add({ title: $t('profile.family.externalCalendars.addFailed'), color: 'error', icon: 'i-lucide-alert-circle' })
+  } finally {
+    isAddingCalendar.value = false
+  }
+}
+
+function startEditCalendar(cal: ExternalCalendarResponse) {
+  editingCalId.value = cal.publicId
+  editCalName.value = cal.name
+  editCalUrl.value = cal.iCalUrl
+  editCalColor.value = cal.color
+  editCalEnabled.value = cal.isEnabled
+  showEditColorPicker.value = false
+}
+
+async function onSaveEditCalendar() {
+  if (!editingCalId.value) return
+  isSavingCalendar.value = true
+  try {
+    const res = await updateExternalCalendar(editingCalId.value, {
+      name: editCalName.value.trim(),
+      iCalUrl: editCalUrl.value.trim(),
+      color: editCalColor.value,
+      isEnabled: editCalEnabled.value
+    })
+    if (res.success && res.data) {
+      const idx = externalCalendars.value.findIndex(c => c.publicId === editingCalId.value)
+      if (idx >= 0) externalCalendars.value[idx] = res.data
+      editingCalId.value = null
+      toast.add({ title: $t('profile.family.externalCalendars.updated'), color: 'success', icon: 'i-lucide-check-circle' })
+    }
+  } catch {
+    toast.add({ title: $t('profile.family.externalCalendars.updateFailed'), color: 'error', icon: 'i-lucide-alert-circle' })
+  } finally {
+    isSavingCalendar.value = false
+  }
+}
+
+async function onDeleteCalendar(cal: ExternalCalendarResponse) {
+  const res = await deleteExternalCalendar(cal.publicId)
+  if (res.success) {
+    externalCalendars.value = externalCalendars.value.filter(c => c.publicId !== cal.publicId)
+    toast.add({ title: $t('profile.family.externalCalendars.deleted'), color: 'success', icon: 'i-lucide-check-circle' })
+  }
+}
+
+async function onSyncCalendar(cal: ExternalCalendarResponse) {
+  syncingId.value = cal.publicId
+  try {
+    const res = await syncExternalCalendar(cal.publicId)
+    if (res.success && res.data) {
+      const idx = externalCalendars.value.findIndex(c => c.publicId === cal.publicId)
+      if (idx >= 0) externalCalendars.value[idx] = res.data
+      toast.add({ title: $t('profile.family.externalCalendars.synced'), color: 'success', icon: 'i-lucide-check-circle' })
+    } else {
+      toast.add({ title: $t('profile.family.externalCalendars.syncFailed'), color: 'error', icon: 'i-lucide-alert-circle' })
+    }
+  } catch {
+    toast.add({ title: $t('profile.family.externalCalendars.syncFailed'), color: 'error', icon: 'i-lucide-alert-circle' })
+  } finally {
+    syncingId.value = null
   }
 }
 </script>

@@ -105,6 +105,20 @@ namespace Homassy.API.Context
             });
             #endregion
 
+            #region FamilyExternalCalendar Relationships
+            modelBuilder.Entity<FamilyExternalCalendar>(entity =>
+            {
+                entity.HasOne(c => c.Family)
+                    .WithMany()
+                    .HasForeignKey(c => c.FamilyId)
+                    .OnDelete(DeleteBehavior.Cascade);
+
+                entity.HasIndex(e => e.FamilyId);
+                entity.HasIndex(e => new { e.FamilyId, e.IsEnabled });
+                entity.Property(e => e.CachedEventsJson).HasColumnType("text");
+            });
+            #endregion
+
             #region FamilyJoinRequest Relationships
             modelBuilder.Entity<FamilyJoinRequest>(entity =>
             {
@@ -265,6 +279,7 @@ namespace Homassy.API.Context
         public DbSet<UserPushSubscription> UserPushSubscriptions { get; set; }
         public DbSet<Family> Families { get; set; }
         public DbSet<FamilyJoinRequest> FamilyJoinRequests { get; set; }
+        public DbSet<FamilyExternalCalendar> FamilyExternalCalendars { get; set; }
         #endregion
 
         #region Product Related DbSets

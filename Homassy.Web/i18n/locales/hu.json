@@ -756,7 +756,8 @@
         "inventoryExpiration": "Lejáró termék",
         "automationExecution": "Automatizálás",
         "shoppingListDeadline": "Bevásárlás határidő",
-        "activity": "Tevékenység"
+        "activity": "Tevékenység",
+        "externalCalendar": "Külső naptár"
       },
       "views": {
         "month": "Hónap",
@@ -835,6 +836,27 @@
         "withdraw": "Kérelem visszavonása",
         "submitted": "Csatlakozási kérelem elküldve",
         "withdrawn": "Csatlakozási kérelem visszavonva"
+      },
+      "externalCalendars": {
+        "title": "Külső naptárak",
+        "description": "iCal naptárak importálása (Apple Calendar, Google stb.) a családi naptárba.",
+        "add": "Naptár hozzáadása",
+        "namePlaceholder": "Naptár neve",
+        "urlLabel": "iCal URL",
+        "enabledLabel": "Engedélyezve",
+        "disabled": "Letiltva",
+        "lastSync": "Utoljára szinkronizálva",
+        "neverSynced": "Még nem szinkronizálva",
+        "eventCount": "{count} esemény",
+        "sync": "Szinkronizálás",
+        "empty": "Még nem lett külső naptár hozzáadva.",
+        "added": "Naptár hozzáadva",
+        "addFailed": "Nem sikerült hozzáadni a naptárt. Ellenőrizd az URL-t.",
+        "updated": "Naptár frissítve",
+        "updateFailed": "Nem sikerült frissíteni a naptárt",
+        "deleted": "Naptár törölve",
+        "synced": "Naptár szinkronizálva",
+        "syncFailed": "Szinkronizálás sikertelen"
       }
     },
     "settingsProfileSection": "Profil adatok",

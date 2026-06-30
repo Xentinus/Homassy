@@ -102,7 +102,8 @@
                   v-for="(ev, ei) in cell.events"
                   :key="ei"
                   class="w-1.5 h-1.5 rounded-full"
-                  :class="dotClass(ev.eventType)"
+                  :class="ev.eventType !== CalendarEventType.ExternalCalendar ? dotClass(ev.eventType) : ''"
+                  :style="ev.eventType === CalendarEventType.ExternalCalendar ? { backgroundColor: ev.color ?? '#3B82F6' } : {}"
                   :title="ev.title"
                 />
               </div>
@@ -113,7 +114,8 @@
                   v-for="(ev, ei) in cell.events"
                   :key="ei"
                   class="text-xs rounded px-1 py-0.5 truncate leading-tight"
-                  :class="[chipClass(ev.eventType), ev.eventType !== CalendarEventType.InventoryExpiration ? 'cursor-pointer' : 'cursor-default']"
+                  :class="ev.eventType !== CalendarEventType.ExternalCalendar ? [chipClass(ev.eventType), ev.eventType !== CalendarEventType.InventoryExpiration ? 'cursor-pointer' : 'cursor-default'] : 'text-white cursor-pointer'"
+                  :style="ev.eventType === CalendarEventType.ExternalCalendar ? { backgroundColor: ev.color ?? '#3B82F6' } : {}"
                   @click.stop="openEventModal(ev)"
                 >
                   {{ ev.title }}
@@ -128,6 +130,10 @@
           <div v-for="type in legendTypes" :key="type.key" class="flex items-center gap-1.5">
             <span class="w-2 h-2 rounded-full" :class="type.dot" />
             <span class="text-xs text-gray-600 dark:text-gray-400">{{ t(`pages.calendar.eventTypes.${type.key}`) }}</span>
+          </div>
+          <div v-for="cal in externalCalendars" :key="cal.publicId" class="flex items-center gap-1.5">
+            <span class="w-2 h-2 rounded-full" :style="{ backgroundColor: cal.color }" />
+            <span class="text-xs text-gray-600 dark:text-gray-400">{{ cal.name }}</span>
           </div>
         </div>
       </div>
@@ -196,7 +202,8 @@
           <div class="flex items-center gap-2">
             <span
               class="inline-block w-3 h-3 rounded-full"
-              :class="dotClass(selectedEvent.eventType)"
+              :class="selectedEvent.eventType !== CalendarEventType.ExternalCalendar ? dotClass(selectedEvent.eventType) : ''"
+              :style="selectedEvent.eventType === CalendarEventType.ExternalCalendar ? { backgroundColor: selectedEvent.color ?? '#3B82F6' } : {}"
             />
             <span class="text-sm font-medium text-gray-700 dark:text-gray-300">
               {{ t(`pages.calendar.eventTypes.${eventTypeKey(selectedEvent.eventType)}`) }}
@@ -219,6 +226,7 @@
 <script setup lang="ts">
 import { CalendarEventType } from '~/types/calendar'
 import type { CalendarEventInfo } from '~/types/calendar'
+import type { ExternalCalendarResponse } from '~/types/externalCalendar'
 import type { ActivityType, ActivityInfo } from '~/types/activity'
 import { useAuthStore } from '~/stores/auth'
 
@@ -227,6 +235,7 @@ definePageMeta({ layout: 'auth' })
 const { t, locale } = useI18n()
 const { getCalendarEvents } = useCalendarApi()
 const { getActivities } = useUserApi()
+const { getExternalCalendars } = useExternalCalendarApi()
 const authStore = useAuthStore()
 
 const greetingName = computed(() => authStore.user?.displayName || authStore.user?.name || '')
@@ -239,6 +248,7 @@ interface CalEvent {
   startAt: string
   detail: string | null
   relatedPublicId: string | null
+  color: string | null
 }
 
 interface CalActivity {
@@ -265,6 +275,7 @@ const currentDate = ref(new Date())
 const isLoading = ref(false)
 const calendarEvents = ref<CalEvent[]>([])
 const calendarActivities = ref<CalActivity[]>([])
+const externalCalendars = ref<ExternalCalendarResponse[]>([])
 const selectedEvent = ref<CalEvent | null>(null)
 
 const selectedDay = ref<string | null>(toLocalDate(new Date()))
@@ -404,7 +415,8 @@ const mapEvents = (items: CalendarEventInfo[]): CalEvent[] =>
     dateStr: item.start.split('T')[0] ?? item.start,
     startAt: item.start,
     detail: item.detail,
-    relatedPublicId: item.relatedEntityPublicId
+    relatedPublicId: item.relatedEntityPublicId,
+    color: item.color ?? null
   }))
 
 const mapActivities = (items: ActivityInfo[]): CalActivity[] =>
@@ -425,15 +437,18 @@ const loadEvents = async () => {
     const startStr = toLocalDate(new Date(year, month, 1))
     const endStr = toLocalDate(new Date(year, month + 1, 0))
 
-    const [eventsRes, activitiesRes] = await Promise.all([
+    const [eventsRes, activitiesRes, calendarsRes] = await Promise.all([
       getCalendarEvents(startStr, endStr),
-      getActivities({ startDate: startStr, endDate: endStr, returnAll: true })
+      getActivities({ startDate: startStr, endDate: endStr, returnAll: true }),
+      getExternalCalendars()
     ])
 
     if (eventsRes.success && eventsRes.data)
       calendarEvents.value = mapEvents(eventsRes.data)
     if (activitiesRes.success && activitiesRes.data)
       calendarActivities.value = mapActivities(activitiesRes.data.items)
+    if (calendarsRes.success && calendarsRes.data)
+      externalCalendars.value = calendarsRes.data.filter(c => c.isEnabled)
   } finally {
     isLoading.value = false
   }
@@ -493,6 +508,7 @@ const eventTypeKey = (type: CalendarEventType): string => {
     case CalendarEventType.InventoryExpiration: return 'inventoryExpiration'
     case CalendarEventType.AutomationExecution: return 'automationExecution'
     case CalendarEventType.ShoppingListDeadline: return 'shoppingListDeadline'
+    case CalendarEventType.ExternalCalendar: return 'externalCalendar'
     default: return 'inventoryExpiration'
   }
 }

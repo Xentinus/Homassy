@@ -755,7 +755,8 @@
         "inventoryExpiration": "Ablaufendes Produkt",
         "automationExecution": "Automatisierung",
         "shoppingListDeadline": "Einkaufsfrist",
-        "activity": "Aktivität"
+        "activity": "Aktivität",
+        "externalCalendar": "Externer Kalender"
       },
       "views": {
         "month": "Monat",
@@ -834,6 +835,27 @@
         "withdraw": "Anfrage zurückziehen",
         "submitted": "Beitrittsanfrage gesendet",
         "withdrawn": "Beitrittsanfrage zurückgezogen"
+      },
+      "externalCalendars": {
+        "title": "Externe Kalender",
+        "description": "iCal-Kalender importieren (Apple Calendar, Google usw.) und im Familienkalender anzeigen.",
+        "add": "Kalender hinzufügen",
+        "namePlaceholder": "Kalendername",
+        "urlLabel": "iCal-URL",
+        "enabledLabel": "Aktiviert",
+        "disabled": "Deaktiviert",
+        "lastSync": "Zuletzt synchronisiert",
+        "neverSynced": "Noch nie synchronisiert",
+        "eventCount": "{count} Ereignisse",
+        "sync": "Jetzt synchronisieren",
+        "empty": "Noch keine externen Kalender hinzugefügt.",
+        "added": "Kalender hinzugefügt",
+        "addFailed": "Kalender konnte nicht hinzugefügt werden. URL prüfen.",
+        "updated": "Kalender aktualisiert",
+        "updateFailed": "Kalender konnte nicht aktualisiert werden",
+        "deleted": "Kalender gelöscht",
+        "synced": "Kalender synchronisiert",
+        "syncFailed": "Synchronisierung fehlgeschlagen"
       }
     },
     "settingsProfileSection": "Profilinformationen",
