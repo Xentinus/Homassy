@@ -195,6 +195,7 @@ namespace Homassy.API.Functions
                 Log.Information("Syncing external calendar {CalendarId} ({Name})", calendar.PublicId, calendar.Name);
 
                 var icsContent = await httpClient.GetStringAsync(calendar.ICalUrl, ct);
+                icsContent = SanitizeICalContent(icsContent);
                 var parsed = Calendar.Load(icsContent);
                 var events = new List<CachedICalEvent>();
 
@@ -260,6 +261,39 @@ namespace Homassy.API.Functions
             {
                 throw new ExternalCalendarFetchFailedException($"Failed to fetch iCal feed: {ex.Message}");
             }
+        }
+
+        /// <summary>
+        /// Removes vendor properties that Ical.Net v4's content-line parser cannot handle
+        /// (notably Apple's <c>X-APPLE-STRUCTURED-LOCATION</c>, which carries quoted parameters
+        /// with embedded commas/colons and a long base64 <c>X-APPLE-MAPKIT-HANDLE</c> value).
+        /// A single bad line aborts the whole feed parse, so these lines are stripped before load.
+        /// RFC 5545 folded continuation lines are unfolded first so a folded property is dropped
+        /// in its entirety rather than leaving orphan fragments. None of the stripped data is used
+        /// (only Uid/Summary/DtStart/DtEnd/Description/IsAllDay are read).
+        /// </summary>
+        private static string SanitizeICalContent(string raw)
+        {
+            var physicalLines = raw.Replace("\r\n", "\n").Replace("\r", "\n").Split('\n');
+
+            // Unfold: a line starting with space or tab continues the previous logical line.
+            var logicalLines = new List<string>();
+            foreach (var line in physicalLines)
+            {
+                if (line.Length > 0 && (line[0] == ' ' || line[0] == '\t') && logicalLines.Count > 0)
+                    logicalLines[^1] += line[1..];
+                else
+                    logicalLines.Add(line);
+            }
+
+            var kept = logicalLines.Where(line =>
+            {
+                var nameEnd = line.IndexOfAny([';', ':']);
+                var name = nameEnd >= 0 ? line[..nameEnd] : line;
+                return !name.StartsWith("X-APPLE-", StringComparison.OrdinalIgnoreCase);
+            });
+
+            return string.Join("\r\n", kept);
         }
 
         private static string NormalizeICalUrl(string url)
