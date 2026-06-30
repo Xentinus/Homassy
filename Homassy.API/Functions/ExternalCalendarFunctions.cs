@@ -171,7 +171,8 @@ namespace Homassy.API.Functions
                                 Start = eventStart,
                                 Detail = ev.Description,
                                 RelatedEntityPublicId = null,
-                                Color = calendar.Color
+                                Color = calendar.Color,
+                                IsAllDay = ev.IsAllDay
                             });
                         }
                     }

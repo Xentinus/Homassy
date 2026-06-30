@@ -114,9 +114,8 @@
                   v-for="(ev, ei) in cell.events"
                   :key="ei"
                   class="text-xs rounded px-1 py-0.5 truncate leading-tight"
-                  :class="ev.eventType !== CalendarEventType.ExternalCalendar ? [chipClass(ev.eventType), ev.eventType !== CalendarEventType.InventoryExpiration ? 'cursor-pointer' : 'cursor-default'] : 'text-white cursor-pointer'"
+                  :class="ev.eventType !== CalendarEventType.ExternalCalendar ? chipClass(ev.eventType) : 'text-white'"
                   :style="ev.eventType === CalendarEventType.ExternalCalendar ? { backgroundColor: ev.color ?? '#3B82F6' } : {}"
-                  @click.stop="openEventModal(ev)"
                 >
                   {{ ev.title }}
                 </div>
@@ -169,7 +168,7 @@
                   :title="item.data.title"
                   :event-type="item.data.eventType"
                   :detail="item.data.detail"
-                  @click="openEventModal(item.data)"
+                  :color="item.data.color"
                 />
                 <CalendarActivityCard
                   v-else-if="item.kind === 'activity'"
@@ -191,35 +190,6 @@
         </div>
       </div>
     </div>
-
-    <!-- Event detail modal -->
-    <UModal :open="!!selectedEvent" @update:open="(val) => { if (!val) selectedEvent = null }">
-      <template v-if="selectedEvent" #title>
-        {{ selectedEvent.title }}
-      </template>
-      <template v-if="selectedEvent" #default>
-        <div class="space-y-3 p-4">
-          <div class="flex items-center gap-2">
-            <span
-              class="inline-block w-3 h-3 rounded-full"
-              :class="selectedEvent.eventType !== CalendarEventType.ExternalCalendar ? dotClass(selectedEvent.eventType) : ''"
-              :style="selectedEvent.eventType === CalendarEventType.ExternalCalendar ? { backgroundColor: selectedEvent.color ?? '#3B82F6' } : {}"
-            />
-            <span class="text-sm font-medium text-gray-700 dark:text-gray-300">
-              {{ t(`pages.calendar.eventTypes.${eventTypeKey(selectedEvent.eventType)}`) }}
-            </span>
-          </div>
-          <div class="text-sm text-gray-600 dark:text-gray-400">
-            <span class="font-medium">{{ t('pages.calendar.date') }}:</span>
-            {{ formatDate(selectedEvent.dateStr) }}
-          </div>
-          <div v-if="selectedEvent.detail" class="text-sm text-gray-600 dark:text-gray-400">
-            <span class="font-medium">{{ t('pages.calendar.detail') }}:</span>
-            {{ selectedEvent.detail }}
-          </div>
-        </div>
-      </template>
-    </UModal>
   </div>
 </template>
 
@@ -249,6 +219,7 @@ interface CalEvent {
   detail: string | null
   relatedPublicId: string | null
   color: string | null
+  isAllDay: boolean
 }
 
 interface CalActivity {
@@ -276,7 +247,6 @@ const isLoading = ref(false)
 const calendarEvents = ref<CalEvent[]>([])
 const calendarActivities = ref<CalActivity[]>([])
 const externalCalendars = ref<ExternalCalendarResponse[]>([])
-const selectedEvent = ref<CalEvent | null>(null)
 
 const selectedDay = ref<string | null>(toLocalDate(new Date()))
 const visibleCount = ref(5)
@@ -352,6 +322,9 @@ const selectedDayItems = computed((): DayItem[] => {
     .map(a => ({ kind: 'activity' as const, data: a }))
 
   return [...events, ...activities].sort((a, b) => {
+    const aAllDay = a.kind === 'event' && a.data.isAllDay
+    const bAllDay = b.kind === 'event' && b.data.isAllDay
+    if (aAllDay !== bAllDay) return aAllDay ? -1 : 1
     const ta = a.kind === 'event' ? a.data.startAt : a.data.timestamp
     const tb = b.kind === 'event' ? b.data.startAt : b.data.timestamp
     return tb.localeCompare(ta)
@@ -365,12 +338,6 @@ const visibleItems = computed(() =>
 const hasMore = computed(() =>
   visibleCount.value < selectedDayItems.value.length
 )
-
-const openEventModal = (ev: CalEvent) => {
-  if (ev.eventType !== CalendarEventType.InventoryExpiration) {
-    selectedEvent.value = ev
-  }
-}
 
 const selectDay = (dateStr: string) => {
   if (selectedDay.value === dateStr) return
@@ -416,7 +383,8 @@ const mapEvents = (items: CalendarEventInfo[]): CalEvent[] =>
     startAt: item.start,
     detail: item.detail,
     relatedPublicId: item.relatedEntityPublicId,
-    color: item.color ?? null
+    color: item.color ?? null,
+    isAllDay: item.isAllDay ?? false
   }))
 
 const mapActivities = (items: ActivityInfo[]): CalActivity[] =>
@@ -500,16 +468,6 @@ const chipClass = (type: CalendarEventType): string => {
       return 'bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300'
     default:
       return 'bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300'
-  }
-}
-
-const eventTypeKey = (type: CalendarEventType): string => {
-  switch (type) {
-    case CalendarEventType.InventoryExpiration: return 'inventoryExpiration'
-    case CalendarEventType.AutomationExecution: return 'automationExecution'
-    case CalendarEventType.ShoppingListDeadline: return 'shoppingListDeadline'
-    case CalendarEventType.ExternalCalendar: return 'externalCalendar'
-    default: return 'inventoryExpiration'
   }
 }
 
