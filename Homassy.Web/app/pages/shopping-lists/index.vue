@@ -507,7 +507,7 @@
 <script setup lang="ts">
 import { ref, computed, watch, onMounted, onBeforeUnmount } from 'vue'
 import type { SelectValue } from '../../types/selectValue'
-import type { DetailedShoppingListInfo, CreateShoppingListRequest, UpdateShoppingListRequest, ShoppingListItemInfo } from '../../types/shoppingList'
+import type { DetailedShoppingListInfo, CreateShoppingListRequest, UpdateShoppingListRequest, ShoppingListItemInfo, ShoppingListInfo } from '../../types/shoppingList'
 import { SelectValueType } from '../../types/enums'
 import { useSelectValueApi } from '../../composables/api/useSelectValueApi'
 import { useShoppingListApi } from '../../composables/api/useShoppingListApi'
@@ -524,6 +524,10 @@ const { getSelectValues } = useSelectValueApi()
 const { getShoppingListDetails, createShoppingList, updateShoppingList, deleteShoppingList } = useShoppingListApi()
 const { showCameraButton } = useCameraAvailability()
 const { isExpired: checkIsExpired, isExpiringWithinTwoWeeks: checkIsExpiringWithinTwoWeeks } = useExpirationCheck()
+
+// Realtime channel for the currently-open list (see useShoppingListSocket).
+const socket = useShoppingListSocket()
+const { emit: emitBusEvent } = useEventBus()
 
 const { pullDistance, isPulling, isRefreshing, isReady } = usePullToRefresh(async () => {
   await loadShoppingLists()
@@ -857,18 +861,29 @@ const loadShoppingLists = async () => {
   }
 }
 
+const fetchListDetailsRest = async (publicId: string) => {
+  const response = await getShoppingListDetails(publicId, showPurchased.value)
+  if (response.success && response.data) {
+    currentListDetails.value = response.data
+  }
+}
+
 const loadListDetails = async (publicId: string) => {
   isLoadingDetails.value = true
   searchQuery.value = '' // Reset search when switching lists
 
   try {
-    const response = await getShoppingListDetails(publicId)
-
-    if (response.success && response.data) {
-      currentListDetails.value = response.data
+    // Join the realtime channel; the hub returns the current snapshot, so no extra
+    // fetch is needed. Falls back to a plain REST fetch when sockets are unavailable.
+    const snapshot = await socket.joinList(publicId, showPurchased.value)
+    if (snapshot) {
+      currentListDetails.value = snapshot
+    } else {
+      await fetchListDetailsRest(publicId)
     }
   } catch (error) {
     console.error('Failed to load list details:', error)
+    try { await fetchListDetailsRest(publicId) } catch { /* already logged above */ }
   } finally {
     isLoadingDetails.value = false
   }
@@ -996,11 +1011,51 @@ const handleDeleteList = async () => {
   }
 }
 
-// Handle item refresh (when item is updated, deleted, purchased, or restored)
+// Handle item refresh (when item is updated, deleted, purchased, or restored).
+// The realtime channel keeps the open list in sync — including this client's own change,
+// echoed back from the server — so a manual refetch is only needed when the socket is down.
 const handleItemRefresh = async () => {
-  if (selectedListId.value) {
+  if (!socket.isConnected.value && selectedListId.value) {
     await loadListDetails(selectedListId.value)
   }
+}
+
+// --- Realtime handlers: mutate the open list in place instead of refetching. ---
+const handleRealtimeItemUpserted = (item: ShoppingListItemInfo) => {
+  if (!currentListDetails.value || item.shoppingListPublicId !== selectedListId.value) return
+  const items = currentListDetails.value.items
+  const index = items.findIndex(i => i.publicId === item.publicId)
+  if (index >= 0) items[index] = item
+  else items.push(item)
+  // Nudge the bottom-nav deadline badge to recount.
+  emitBusEvent('shopping-list-item:updated')
+}
+
+const handleRealtimeItemDeleted = (payload: { publicId: string; shoppingListPublicId: string }) => {
+  if (!currentListDetails.value || payload.shoppingListPublicId !== selectedListId.value) return
+  currentListDetails.value.items = currentListDetails.value.items.filter(i => i.publicId !== payload.publicId)
+  emitBusEvent('shopping-list-item:deleted')
+}
+
+const handleRealtimeListUpdated = (list: ShoppingListInfo) => {
+  if (!currentListDetails.value || list.publicId !== selectedListId.value) return
+  currentListDetails.value.name = list.name
+  currentListDetails.value.description = list.description
+  currentListDetails.value.color = list.color
+  currentListDetails.value.isSharedWithFamily = list.isSharedWithFamily
+}
+
+const handleRealtimeListDeleted = (payload: { publicId: string }) => {
+  if (payload.publicId !== selectedListId.value) return
+  // The open list was deleted by someone else — reset selection and refresh the selector.
+  currentListDetails.value = null
+  selectedListId.value = null
+  loadShoppingLists()
+}
+
+const handleSocketReconnected = () => {
+  // Re-sync the snapshot after a dropped connection (this also re-joins the group).
+  if (selectedListId.value) loadListDetails(selectedListId.value)
 }
 
 // Barcode scanner handler
@@ -1009,11 +1064,14 @@ const handleBarcodeScanned = (barcode: string) => {
 }
 
 // Watchers
-watch(selectedListId, (newId) => {
+watch(selectedListId, (newId, oldId) => {
   // Reset list-dependent filters when switching lists (options differ per list).
   locationFilter.value = 'all'
   minQuantity.value = null
   maxQuantity.value = null
+
+  // Leave the previous list's channel so we stop receiving its events.
+  if (oldId) socket.leaveList(oldId)
 
   if (newId) {
     loadListDetails(newId)
@@ -1043,6 +1101,13 @@ watch(showPurchased, (newValue) => {
 
 // Lifecycle
 onMounted(() => {
+  // Register realtime handlers before any list is joined so no events are missed.
+  socket.on('ItemUpserted', handleRealtimeItemUpserted)
+  socket.on('ItemDeleted', handleRealtimeItemDeleted)
+  socket.on('ListUpdated', handleRealtimeListUpdated)
+  socket.on('ListDeleted', handleRealtimeListDeleted)
+  socket.onReconnected(handleSocketReconnected)
+
   // Restore showPurchased state from localStorage
   const savedShowPurchased = localStorage.getItem(SHOW_PURCHASED_KEY)
   if (savedShowPurchased !== null) {
@@ -1073,6 +1138,15 @@ onMounted(() => {
 })
 
 onBeforeUnmount(() => {
+  // Tear down realtime subscriptions and leave the open list's channel (the shared
+  // connection itself stays alive for other pages / quick re-entry).
+  socket.off('ItemUpserted', handleRealtimeItemUpserted)
+  socket.off('ItemDeleted', handleRealtimeItemDeleted)
+  socket.off('ListUpdated', handleRealtimeListUpdated)
+  socket.off('ListDeleted', handleRealtimeListDeleted)
+  socket.offReconnected(handleSocketReconnected)
+  if (selectedListId.value) socket.leaveList(selectedListId.value)
+
   if (headerObserver) {
     headerObserver.disconnect()
     headerObserver = null

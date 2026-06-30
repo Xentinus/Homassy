@@ -13,6 +13,7 @@
     "@iconify-json/heroicons": "^1.2.3",
     "@iconify-json/lucide": "^1.2.82",
     "@internationalized/date": "^3.10.1",
+    "@microsoft/signalr": "^10.0.0",
     "@nuxt/content": "^3.9.0",
     "@nuxt/eslint": "^1.12.1",
     "@nuxt/hints": "^1.0.0-alpha.4",

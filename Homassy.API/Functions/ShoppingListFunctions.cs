@@ -2,6 +2,7 @@
 using Homassy.API.Entities.ShoppingList;
 using Homassy.API.Exceptions;
 using Homassy.API.Extensions;
+using Homassy.API.Hubs;
 using Homassy.API.Models.Common;
 using Homassy.API.Models.ShoppingList;
 using Microsoft.EntityFrameworkCore;
@@ -400,8 +401,6 @@ namespace Homassy.API.Functions
             }
 
             var items = GetShoppingListItemsByShoppingListId(shoppingList.Id, showPurchased);
-            var locationFunctions = new LocationFunctions();
-            var productFunctions = new ProductFunctions();
 
             return new DetailedShoppingListInfo
             {
@@ -410,28 +409,40 @@ namespace Homassy.API.Functions
                 Description = shoppingList.Description,
                 Color = shoppingList.Color,
                 IsSharedWithFamily = shoppingList.FamilyId.HasValue,
-                Items = items.Select(sli =>
-                {
-                    var product = sli.ProductId.HasValue ? productFunctions.GetProductById(sli.ProductId) : null;
-                    var shoppingLocation = sli.ShoppingLocationId.HasValue ? locationFunctions.GetShoppingLocationById(sli.ShoppingLocationId) : null;
+                Items = items.Select(sli => BuildItemInfo(sli, shoppingList)).ToList()
+            };
+        }
 
-                    return new ShoppingListItemInfo
-                    {
-                        PublicId = sli.PublicId,
-                        ShoppingListPublicId = shoppingList.PublicId,
-                        ProductPublicId = product?.PublicId,
-                        ShoppingLocationPublicId = shoppingLocation?.PublicId,
-                        Product = productFunctions.ConvertToProductInfo(product, userId),
-                        ShoppingLocation = locationFunctions.ConvertToShoppingLocationInfo(shoppingLocation),
-                        CustomName = sli.CustomName,
-                        Quantity = sli.Quantity,
-                        Unit = sli.Unit,
-                        Note = sli.Note,
-                        PurchasedAt = sli.PurchasedAt,
-                        DeadlineAt = sli.DeadlineAt,
-                        DueAt = sli.DueAt
-                    };
-                }).ToList()
+        /// <summary>
+        /// Builds a fully-hydrated <see cref="ShoppingListItemInfo"/> (with nested product and
+        /// shopping-location details) for a shopping list item. Used both for the list snapshot
+        /// and for realtime broadcasts, so receivers can render an item without an extra fetch.
+        /// The product's per-user fields (e.g. favorite) reflect the current <see cref="SessionInfo"/>.
+        /// </summary>
+        public ShoppingListItemInfo BuildItemInfo(ShoppingListItem item, ShoppingList list)
+        {
+            var productFunctions = new ProductFunctions();
+            var locationFunctions = new LocationFunctions();
+            var userId = SessionInfo.GetUserId();
+
+            var product = item.ProductId.HasValue ? productFunctions.GetProductById(item.ProductId) : null;
+            var shoppingLocation = item.ShoppingLocationId.HasValue ? locationFunctions.GetShoppingLocationById(item.ShoppingLocationId) : null;
+
+            return new ShoppingListItemInfo
+            {
+                PublicId = item.PublicId,
+                ShoppingListPublicId = list.PublicId,
+                ProductPublicId = product?.PublicId,
+                ShoppingLocationPublicId = shoppingLocation?.PublicId,
+                Product = productFunctions.ConvertToProductInfo(product, userId),
+                ShoppingLocation = locationFunctions.ConvertToShoppingLocationInfo(shoppingLocation),
+                CustomName = item.CustomName,
+                Quantity = item.Quantity,
+                Unit = item.Unit,
+                Note = item.Note,
+                PurchasedAt = item.PurchasedAt,
+                DeadlineAt = item.DeadlineAt,
+                DueAt = item.DueAt
             };
         }
 
@@ -603,6 +614,16 @@ namespace Homassy.API.Functions
                     {
                         Log.Error(ex, $"Failed to record ShoppingListUpdate activity for shopping list {trackedList.Name}");
                     }
+
+                    // Notify everyone viewing this list of the metadata change.
+                    await ShoppingListRealtime.ListUpdatedAsync(new ShoppingListInfo
+                    {
+                        PublicId = trackedList.PublicId,
+                        Name = trackedList.Name,
+                        Description = trackedList.Description,
+                        Color = trackedList.Color,
+                        IsSharedWithFamily = trackedList.FamilyId.HasValue
+                    }, cancellationToken);
                 }
 
                 return new ShoppingListInfo
@@ -691,6 +712,9 @@ namespace Homassy.API.Functions
                 {
                     Log.Error(ex, $"Failed to record ShoppingListDelete activity for shopping list {shoppingList.Name}");
                 }
+
+                // Notify everyone viewing this list that it was deleted.
+                await ShoppingListRealtime.ListDeletedAsync(shoppingList.PublicId, cancellationToken);
             }
             catch (Exception ex)
             {
@@ -805,6 +829,9 @@ namespace Homassy.API.Functions
                 {
                     Log.Error(ex, $"Failed to record ShoppingListItemAdd activity for shopping list item {shoppingListItem.PublicId}");
                 }
+
+                // Notify everyone viewing this list of the new item.
+                await ShoppingListRealtime.ItemUpsertedAsync(shoppingList.PublicId, BuildItemInfo(shoppingListItem, shoppingList), cancellationToken);
 
                 return new ShoppingListItemInfo
                 {
@@ -978,6 +1005,9 @@ namespace Homassy.API.Functions
                     {
                         Log.Error(ex, $"Failed to record ShoppingListItemUpdate activity for shopping list item {trackedItem.PublicId}");
                     }
+
+                    // Notify everyone viewing this list of the change.
+                    await ShoppingListRealtime.ItemUpsertedAsync(shoppingList.PublicId, BuildItemInfo(trackedItem, shoppingList), cancellationToken);
                 }
 
                 return new ShoppingListItemInfo
@@ -1074,6 +1104,9 @@ namespace Homassy.API.Functions
                 {
                     Log.Error(ex, $"Failed to record ShoppingListItemDelete activity for shopping list item {shoppingListItem.PublicId}");
                 }
+
+                // Notify everyone viewing this list that the item was removed.
+                await ShoppingListRealtime.ItemDeletedAsync(shoppingList.PublicId, shoppingListItem.PublicId, cancellationToken);
             }
             catch (Exception ex)
             {
@@ -1166,6 +1199,8 @@ namespace Homassy.API.Functions
                         DeadlineAt = trackedShoppingListItem.DeadlineAt,
                         DueAt = trackedShoppingListItem.DueAt
                     };
+
+                    await ShoppingListRealtime.ItemUpsertedAsync(shoppingList.PublicId, BuildItemInfo(trackedShoppingListItem, shoppingList), cancellationToken);
 
                     return customItemInfo;
                 }
@@ -1270,6 +1305,8 @@ namespace Homassy.API.Functions
                     DueAt = trackedShoppingListItem.DueAt
                 };
 
+                await ShoppingListRealtime.ItemUpsertedAsync(shoppingList.PublicId, BuildItemInfo(trackedShoppingListItem, shoppingList), cancellationToken);
+
                 return shoppingListItemInfo;
             }
             catch (Exception ex)
@@ -1370,6 +1407,8 @@ namespace Homassy.API.Functions
                     DueAt = trackedShoppingListItem.DueAt
                 };
 
+                await ShoppingListRealtime.ItemUpsertedAsync(shoppingList.PublicId, BuildItemInfo(trackedShoppingListItem, shoppingList), cancellationToken);
+
                 return shoppingListItemInfo;
             }
             catch (Exception ex)
@@ -1469,6 +1508,8 @@ namespace Homassy.API.Functions
                     DeadlineAt = trackedShoppingListItem.DeadlineAt,
                     DueAt = trackedShoppingListItem.DueAt
                 };
+
+                await ShoppingListRealtime.ItemUpsertedAsync(shoppingList.PublicId, BuildItemInfo(trackedShoppingListItem, shoppingList), cancellationToken);
 
                 return shoppingListItemInfo;
             }
@@ -1604,6 +1645,12 @@ namespace Homassy.API.Functions
                     }
                 }
 
+                // Notify everyone viewing this list of each new item.
+                foreach (var sli in createdItems)
+                {
+                    await ShoppingListRealtime.ItemUpsertedAsync(shoppingList.PublicId, BuildItemInfo(sli, shoppingList), cancellationToken);
+                }
+
                 return createdItems.Select(sli => new ShoppingListItemInfo
                 {
                     PublicId = sli.PublicId,
@@ -1643,6 +1690,7 @@ namespace Homassy.API.Functions
 
             var familyId = SessionInfo.GetFamilyId();
             var productFunctions = new ProductFunctions();
+            var deletedItems = new List<(Guid listPublicId, Guid itemPublicId)>();
 
             var context = new HomassyDbContext();
             await using var transaction = await context.Database.BeginTransactionAsync(cancellationToken);
@@ -1679,6 +1727,7 @@ namespace Homassy.API.Functions
 
                     trackedItem.DeleteRecord(userId.Value);
                     context.ShoppingListItems.Update(trackedItem);
+                    deletedItems.Add((shoppingList.PublicId, shoppingListItem.PublicId));
 
                     // Record activity for each deleted item
                     try
@@ -1706,6 +1755,12 @@ namespace Homassy.API.Functions
                 await transaction.CommitAsync(cancellationToken);
 
                 Log.Information($"User {userId.Value} deleted {request.ItemPublicIds.Count} shopping list items");
+
+                // Notify everyone viewing the affected list(s) that the items were removed.
+                foreach (var (listPublicId, itemPublicId) in deletedItems)
+                {
+                    await ShoppingListRealtime.ItemDeletedAsync(listPublicId, itemPublicId, cancellationToken);
+                }
             }
             catch (Exception ex)
             {
@@ -1741,6 +1796,7 @@ namespace Homassy.API.Functions
             {
                 var results = new List<ShoppingListItemInfo>();
                 var affectedProductIds = new HashSet<int>();
+                var upsertedItems = new List<(ShoppingList list, ShoppingListItem item)>();
 
                 foreach (var itemRequest in request.Items)
                 {
@@ -1859,6 +1915,8 @@ namespace Homassy.API.Functions
                         DeadlineAt = trackedShoppingListItem.DeadlineAt,
                         DueAt = trackedShoppingListItem.DueAt
                     });
+
+                    upsertedItems.Add((shoppingList, trackedShoppingListItem));
                 }
 
                 await context.SaveChangesAsync(cancellationToken);
@@ -1869,6 +1927,12 @@ namespace Homassy.API.Functions
                     await AutomationFunctions.CheckLowStockForProductAsync(pid, cancellationToken);
 
                 Log.Information($"User {userId.Value} quick purchased {results.Count} shopping list items");
+
+                // Notify everyone viewing the affected list(s) of each purchased item.
+                foreach (var (list, item) in upsertedItems)
+                {
+                    await ShoppingListRealtime.ItemUpsertedAsync(list.PublicId, BuildItemInfo(item, list), cancellationToken);
+                }
 
                 return results;
             }
