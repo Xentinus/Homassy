@@ -218,14 +218,20 @@ try
 
     builder.Services.AddHttpClient("OpenFoodFactsHealthCheck");
 
-    builder.Services.AddHealthChecks()
-        .AddNpgSql(
-            builder.Configuration.GetConnectionString("DefaultConnection")!,
+    var healthChecksBuilder = builder.Services.AddHealthChecks();
+
+    var dbConnectionString = builder.Configuration.GetConnectionString("DefaultConnection");
+    if (!string.IsNullOrWhiteSpace(dbConnectionString))
+    {
+        healthChecksBuilder.AddNpgSql(
+            dbConnectionString,
             name: "database",
-            tags: ["db", "ready"])
-        .AddCheck<OpenFoodFactsHealthCheck>(
-            "openfoodfacts",
-            tags: ["external"]);
+            tags: ["db", "ready"]);
+    }
+
+    healthChecksBuilder.AddCheck<OpenFoodFactsHealthCheck>(
+        "openfoodfacts",
+        tags: ["external"]);
 
     var app = builder.Build();
 

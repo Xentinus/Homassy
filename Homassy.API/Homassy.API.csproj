@@ -11,8 +11,9 @@
   </PropertyGroup>
 
   <PropertyGroup>
-    <OpenApiGenerateDocuments>true</OpenApiGenerateDocuments>
-    <OpenApiDocumentsDirectory>$(MSBuildProjectDirectory)</OpenApiDocumentsDirectory>
+    <!-- Don't boot the app to emit OpenAPI during build (no consumer; needs a DB the CI build lacks).
+         OpenAPI is still served at runtime via MapOpenApi(). -->
+    <OpenApiGenerateDocumentsOnBuild>false</OpenApiGenerateDocumentsOnBuild>
   </PropertyGroup>
 
   <ItemGroup>
