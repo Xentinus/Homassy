@@ -76,6 +76,21 @@ jobs:
             echo "IMAGE_TAG=${{ needs.build.outputs.tag }}"
           } >> .env
 
+      - name: Prepare VPS deploy directory
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: ${{ secrets.VPS_USER }}
+          port: ${{ secrets.VPS_PORT }}
+          password: ${{ secrets.VPS_PASSWORD }}
+          script: |
+            set -e
+            # Docker auto-creates a missing bind-mount source as an empty directory.
+            # Prior deploys never shipped these Kratos files, so they exist as dirs on the
+            # VPS and block the scp untar (file-vs-directory). Reset the dir to land real files.
+            rm -rf /opt/homassy/Homassy.Kratos
+            mkdir -p /opt/homassy/Homassy.Kratos
+
       - name: Sync compose + Kratos config + .env to VPS
         uses: appleboy/scp-action@v0.1.7
         with:
