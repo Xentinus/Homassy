@@ -105,6 +105,8 @@
       - RegistrationEnabled=${REGISTRATION_ENABLED}
       - NotificationsService__BaseUrl=http://homassy-notifications:8080
       - NotificationsService__ApiKey=${NOTIFICATIONS_SERVICE_API_KEY}
+      - Cors__AllowedOrigins__0=${KRATOS_BROWSER_RETURN_URL}
+      - WebPush__VapidPublicKey=${VAPID_PUBLIC_KEY}
     networks:
       - homassy-network
     depends_on:
