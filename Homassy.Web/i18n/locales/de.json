@@ -626,6 +626,8 @@
       "title": "Einkaufen",
       "description": "Planen und verfolgen Sie Ihre geteilten Einkaufslisten.",
       "addProductButton": "Produkt hinzufügen",
+      "addWithSearch": "Mit Produktsuche hinzufügen",
+      "addCustom": "Als eigenes Produkt hinzufügen",
       "selectPlaceholder": "Wählen Sie eine Einkaufsliste...",
       "searchPlaceholder": "Artikel suchen...",
       "showPurchasedToggle": "Gekaufte Artikel anzeigen",
@@ -702,6 +704,8 @@
           "create": "Neu erstellen",
           "custom": "Benutzerdefiniert"
         },
+        "createNewProduct": "Neues Produkt erstellen",
+        "backToSearch": "Zurück zur Suche",
         "custom": {
           "label": "Benutzerdefinierter Artikelname",
           "placeholder": "z.B. Frisches Brot, Bio-Milch",

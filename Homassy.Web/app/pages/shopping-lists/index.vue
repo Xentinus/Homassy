@@ -499,6 +499,13 @@
       </template>
     </UModal>
 
+    <!-- Add item wizard (fullscreen modal) -->
+    <AddShoppingListItemModal
+      v-model:open="isAddItemModalOpen"
+      :list-id="selectedListId"
+      :mode="addItemMode"
+    />
+
     <!-- Barcode Scanner Modal -->
     <BarcodeScannerModal :on-barcode-detected="handleBarcodeScanned" />
   </div>
@@ -548,16 +555,30 @@ const showPurchased = ref(false)
 const isLoadingLists = ref(false)
 const isLoadingDetails = ref(false)
 
-// Dynamic add-action on the nav FAB: only when a list is selected.
+// Add-item wizard (fullscreen modal) state.
+const isAddItemModalOpen = ref(false)
+const addItemMode = ref<'product' | 'custom'>('product')
+const openAddItemModal = (mode: 'product' | 'custom') => {
+  if (!selectedListId.value) return
+  addItemMode.value = mode
+  isAddItemModalOpen.value = true
+}
+
+// Dynamic add-actions on the nav FAB: only when a list is selected. Two options →
+// the FAB opens a chooser (see useFabActions); each opens the wizard in a given mode.
 useFabActions(() => selectedListId.value
-  ? [{
-      label: $t('pages.shoppingLists.addProductButton'),
-      icon: 'i-lucide-plus',
-      handler: () => navigateTo({
-        path: '/shopping-lists/add-product',
-        query: { listId: selectedListId.value }
-      })
-    }]
+  ? [
+      {
+        label: $t('pages.shoppingLists.addWithSearch'),
+        icon: 'i-lucide-search',
+        handler: () => openAddItemModal('product')
+      },
+      {
+        label: $t('pages.shoppingLists.addCustom'),
+        icon: 'i-lucide-pencil-line',
+        handler: () => openAddItemModal('custom')
+      }
+    ]
   : [])
 
 // Filter state

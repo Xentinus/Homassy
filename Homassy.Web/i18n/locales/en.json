@@ -628,6 +628,8 @@
       "title": "Shopping",
       "description": "Plan and track your shared shopping lists.",
       "addProductButton": "Add Product",
+      "addWithSearch": "Add with product search",
+      "addCustom": "Add as custom item",
       "selectPlaceholder": "Select a shopping list...",
       "searchPlaceholder": "Search items...",
       "showPurchasedToggle": "Show purchased items",
@@ -704,6 +706,8 @@
           "create": "Create New",
           "custom": "Custom Item"
         },
+        "createNewProduct": "Create new product",
+        "backToSearch": "Back to search",
         "custom": {
           "label": "Custom Item Name",
           "placeholder": "e.g. Fresh Bread, Organic Milk",

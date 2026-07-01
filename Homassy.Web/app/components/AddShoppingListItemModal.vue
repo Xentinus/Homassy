@@ -1,232 +1,263 @@
 <template>
-  <div>
-    <!-- Fixed Header -->
-    <div class="fixed top-0 left-0 right-0 z-10 bg-white dark:bg-gray-900 px-6 sm:px-10 lg:px-16 py-6 space-y-4">
-      <div class="flex items-center gap-3">
-        <NuxtLink to="/shopping-lists">
+  <UModal
+    :open="open"
+    :dismissible="false"
+    fullscreen
+    :ui="{ body: 'overflow-y-auto' }"
+    @update:open="onOpenChange"
+  >
+    <template #header>
+      <div class="w-full space-y-4">
+        <div class="flex items-center gap-3">
           <UButton
             icon="i-lucide-arrow-left"
             color="neutral"
             variant="ghost"
+            @click="onHeaderBack"
           />
-        </NuxtLink>
-        <UIcon name="i-lucide-shopping-cart" class="h-7 w-7 text-primary-500" />
-        <h1 class="text-2xl font-semibold">{{ t('pages.shoppingLists.addProduct.title') }}</h1>
+          <UIcon name="i-lucide-shopping-cart" class="h-7 w-7 text-primary-500" />
+          <h1 class="text-2xl font-semibold">{{ t('pages.shoppingLists.addProduct.title') }}</h1>
+        </div>
+
+        <!-- Stepper -->
+        <UStepper
+          :model-value="currentStep"
+          :items="stepperItems"
+          orientation="horizontal"
+          @update:model-value="handleStepChange"
+        />
       </div>
+    </template>
 
-      <!-- Stepper -->
-      <UStepper
-        :model-value="currentStep"
-        :items="stepperItems"
-        orientation="horizontal"
-        @update:model-value="handleStepChange"
-      />
-    </div>
-
-    <!-- Content Section with padding to account for fixed header -->
-    <div class="pt-48 px-4 sm:px-8 lg:px-14 pb-6">
-      <!-- Step 0: Product Selection (3 Tabs) -->
+    <template #body>
+      <!-- Step 0: Product Selection (mode-based) -->
       <div v-if="currentStep === 0" class="space-y-6">
-        <UTabs v-model="activeTab" :items="tabItems">
-          <!-- Tab 1: Search Product -->
-          <template #search>
-            <div class="space-y-4 py-4">
-              <UFieldGroup size="lg" orientation="horizontal" class="w-full">
+        <!-- Product mode: search + create-product sub-view -->
+        <template v-if="mode === 'product'">
+          <!-- Search sub-view -->
+          <div v-if="!showCreateProduct" class="space-y-4">
+            <UFieldGroup size="lg" orientation="horizontal" class="w-full">
+              <UInput
+                v-model="searchQuery"
+                :placeholder="t('pages.addProduct.search.placeholder')"
+                icon="i-lucide-search"
+                size="lg"
+                class="flex-1"
+              />
+              <BarcodeScannerButton v-if="showCameraButton" @scanned="handleSearchBarcodeScanned" />
+            </UFieldGroup>
+
+            <!-- Create new product entry -->
+            <div class="flex justify-end">
+              <UButton
+                icon="i-lucide-plus"
+                color="neutral"
+                variant="ghost"
+                @click="showCreateProduct = true"
+              >
+                {{ t('pages.shoppingLists.addProduct.createNewProduct') }}
+              </UButton>
+            </div>
+
+            <!-- Loading State -->
+            <div v-if="isSearching" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
+              <USkeleton class="h-32 w-full" />
+              <USkeleton class="h-32 w-full" />
+              <USkeleton class="h-32 w-full" />
+              <USkeleton class="h-32 w-full" />
+              <USkeleton class="h-32 w-full" />
+              <USkeleton class="h-32 w-full" />
+            </div>
+
+            <!-- Empty State -->
+            <div
+              v-else-if="searchQuery.trim() === ''"
+              class="text-center py-12 text-gray-500"
+            >
+              {{ t('pages.addProduct.search.startTyping') }}
+            </div>
+
+            <!-- No Results -->
+            <div
+              v-else-if="searchResults.length === 0 && !isSearching"
+              class="text-center py-12 space-y-4"
+            >
+              <p class="text-gray-500">{{ t('pages.addProduct.search.noResults') }}</p>
+              <UButton
+                icon="i-lucide-plus"
+                color="primary"
+                variant="soft"
+                @click="showCreateProduct = true"
+              >
+                {{ t('pages.shoppingLists.addProduct.createNewProduct') }}
+              </UButton>
+            </div>
+
+            <!-- Results Grid -->
+            <div
+              v-else
+              class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4"
+            >
+              <SelectableProductCard
+                v-for="product in searchResults"
+                :key="product.publicId"
+                :product="product"
+                :search-query="searchQuery"
+                :is-selected="selectedCardId === product.publicId"
+                @select="onProductCardClick"
+              />
+            </div>
+          </div>
+
+          <!-- Create Product sub-view -->
+          <div v-else class="space-y-4">
+            <div class="flex justify-start">
+              <UButton
+                icon="i-lucide-arrow-left"
+                color="neutral"
+                variant="ghost"
+                @click="showCreateProduct = false"
+              >
+                {{ t('pages.shoppingLists.addProduct.backToSearch') }}
+              </UButton>
+            </div>
+
+            <UForm
+              :schema="createProductSchema"
+              :state="productFormData"
+              class="space-y-4"
+              @submit="onCreateProduct"
+            >
+              <UFormField :label="t('pages.addProduct.form.name')" name="name" required>
                 <UInput
-                  v-model="searchQuery"
-                  :placeholder="t('pages.addProduct.search.placeholder')"
-                  icon="i-lucide-search"
-                  size="lg"
-                  class="flex-1"
-                />
-                <BarcodeScannerButton v-if="showCameraButton" @scanned="handleSearchBarcodeScanned" />
-              </UFieldGroup>
-
-              <!-- Loading State -->
-              <div v-if="isSearching" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
-                <USkeleton class="h-32 w-full" />
-                <USkeleton class="h-32 w-full" />
-                <USkeleton class="h-32 w-full" />
-                <USkeleton class="h-32 w-full" />
-                <USkeleton class="h-32 w-full" />
-                <USkeleton class="h-32 w-full" />
-              </div>
-
-              <!-- Empty State -->
-              <div
-                v-else-if="searchQuery.trim() === ''"
-                class="text-center py-12 text-gray-500"
-              >
-                {{ t('pages.addProduct.search.startTyping') }}
-              </div>
-
-              <!-- No Results -->
-              <div
-                v-else-if="searchResults.length === 0 && !isSearching"
-                class="text-center py-12 text-gray-500"
-              >
-                {{ t('pages.addProduct.search.noResults') }}
-              </div>
-
-              <!-- Results Grid -->
-              <div
-                v-else
-                class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4"
-              >
-                <SelectableProductCard
-                  v-for="product in searchResults"
-                  :key="product.publicId"
-                  :product="product"
-                  :search-query="searchQuery"
-                  :is-selected="selectedCardId === product.publicId"
-                  @select="onProductCardClick"
-                />
-              </div>
-            </div>
-          </template>
-
-          <!-- Tab 2: Create New Product -->
-          <template #create>
-            <div class="py-4">
-              <UForm
-                :schema="createProductSchema"
-                :state="productFormData"
-                class="space-y-4"
-                @submit="onCreateProduct"
-              >
-                <UFormField :label="t('pages.addProduct.form.name')" name="name" required>
-                  <UInput
-                    v-model="productFormData.name"
-                    :placeholder="t('pages.addProduct.form.namePlaceholder')"
-                    :disabled="isCreating"
-                    class="w-full"
-                  />
-                </UFormField>
-
-                <UFormField :label="t('pages.addProduct.form.brand')" name="brand" required>
-                  <UInput
-                    v-model="productFormData.brand"
-                    :placeholder="t('pages.addProduct.form.brandPlaceholder')"
-                    :disabled="isCreating"
-                    class="w-full"
-                  />
-                </UFormField>
-
-                <UFormField :label="t('pages.addProduct.form.category')" name="category">
-                  <USelectMenu
-                    v-model="productFormData.category"
-                    :items="categoryOptions"
-                    value-key="value"
-                    :placeholder="t('pages.addProduct.form.categoryPlaceholder')"
-                    :disabled="isCreating"
-                    class="w-full"
-                  />
-                </UFormField>
-
-                <UFormField :label="t('pages.addProduct.form.unit')" name="unit" required>
-                  <USelect
-                    v-model="productFormData.unit"
-                    :items="unitOptions"
-                    :placeholder="t('pages.addProduct.form.unitPlaceholder')"
-                    :disabled="isCreating"
-                    class="w-full"
-                  />
-                </UFormField>
-
-                <UFormField :label="t('pages.addProduct.form.barcode')" name="barcode">
-                  <UFieldGroup size="md" orientation="horizontal" class="w-full">
-                    <UInput
-                      v-model="productFormData.barcode"
-                      :placeholder="t('pages.addProduct.form.barcodePlaceholder')"
-                      :disabled="isCreating"
-                      inputmode="numeric"
-                      pattern="[0-9]*"
-                      class="flex-1"
-                    />
-                    <BarcodeScannerButton v-if="showCameraButton" :disabled="isCreating" @scanned="handleBarcodeScanned" />
-                    <UButton
-                      :label="t('pages.addProduct.form.barcodeQuery')"
-                      icon="i-lucide-barcode"
-                      color="primary"
-                      size="sm"
-                      :loading="isQueryingBarcode"
-                      :disabled="isCreating"
-                      @click="queryOpenFoodFacts"
-                    />
-                  </UFieldGroup>
-                </UFormField>
-
-                <UFormField name="isEatable">
-                  <UCheckbox
-                    v-model="productFormData.isEatable"
-                    :label="t('pages.addProduct.form.isEatableLabel')"
-                    :disabled="isCreating"
-                  />
-                </UFormField>
-
-                <UFormField :label="t('pages.addProduct.form.notes')" name="notes">
-                  <UTextarea
-                    v-model="productFormData.notes"
-                    :placeholder="t('pages.addProduct.form.notesPlaceholder')"
-                    :disabled="isCreating"
-                    :rows="3"
-                    class="w-full"
-                  />
-                </UFormField>
-
-                <UFormField name="isFavorite">
-                  <UCheckbox
-                    v-model="productFormData.isFavorite"
-                    :label="t('pages.addProduct.form.isFavoriteLabel')"
-                    :disabled="isCreating"
-                  />
-                </UFormField>
-
-                <UButton
-                  type="submit"
-                  color="primary"
-                  block
-                  :loading="isCreating"
+                  v-model="productFormData.name"
+                  :placeholder="t('pages.addProduct.form.namePlaceholder')"
                   :disabled="isCreating"
-                >
-                  {{ t('pages.addProduct.form.createButton') }}
-                </UButton>
-              </UForm>
-            </div>
-          </template>
+                  class="w-full"
+                />
+              </UFormField>
 
-          <!-- Tab 3: Custom Item (NEW) -->
-          <template #custom>
-            <div class="py-4">
-              <p class="text-sm text-gray-600 dark:text-gray-400 mb-4">
-                {{ t('pages.shoppingLists.addProduct.custom.description') }}
-              </p>
+              <UFormField :label="t('pages.addProduct.form.brand')" name="brand" required>
+                <UInput
+                  v-model="productFormData.brand"
+                  :placeholder="t('pages.addProduct.form.brandPlaceholder')"
+                  :disabled="isCreating"
+                  class="w-full"
+                />
+              </UFormField>
 
-              <UForm
-                :schema="customNameSchema"
-                :state="customFormData"
-                class="space-y-4"
-                @submit="onCustomNameSubmit"
-              >
-                <UFormField :label="t('pages.shoppingLists.addProduct.custom.label')" name="customName" required>
+              <UFormField :label="t('pages.addProduct.form.category')" name="category">
+                <USelectMenu
+                  v-model="productFormData.category"
+                  :items="categoryOptions"
+                  value-key="value"
+                  :placeholder="t('pages.addProduct.form.categoryPlaceholder')"
+                  :disabled="isCreating"
+                  class="w-full"
+                />
+              </UFormField>
+
+              <UFormField :label="t('pages.addProduct.form.unit')" name="unit" required>
+                <USelect
+                  v-model="productFormData.unit"
+                  :items="unitOptions"
+                  :placeholder="t('pages.addProduct.form.unitPlaceholder')"
+                  :disabled="isCreating"
+                  class="w-full"
+                />
+              </UFormField>
+
+              <UFormField :label="t('pages.addProduct.form.barcode')" name="barcode">
+                <UFieldGroup size="md" orientation="horizontal" class="w-full">
                   <UInput
-                    v-model="customFormData.customName"
-                    :placeholder="t('pages.shoppingLists.addProduct.custom.placeholder')"
-                    class="w-full"
+                    v-model="productFormData.barcode"
+                    :placeholder="t('pages.addProduct.form.barcodePlaceholder')"
+                    :disabled="isCreating"
+                    inputmode="numeric"
+                    pattern="[0-9]*"
+                    class="flex-1"
                   />
-                </UFormField>
+                  <BarcodeScannerButton v-if="showCameraButton" :disabled="isCreating" @scanned="handleBarcodeScanned" />
+                  <UButton
+                    :label="t('pages.addProduct.form.barcodeQuery')"
+                    icon="i-lucide-barcode"
+                    color="primary"
+                    size="sm"
+                    :loading="isQueryingBarcode"
+                    :disabled="isCreating"
+                    @click="queryOpenFoodFacts"
+                  />
+                </UFieldGroup>
+              </UFormField>
 
-                <UButton
-                  type="submit"
-                  color="primary"
-                  block
-                >
-                  {{ t('pages.shoppingLists.addProduct.custom.submitButton') }}
-                </UButton>
-              </UForm>
-            </div>
-          </template>
-        </UTabs>
+              <UFormField name="isEatable">
+                <UCheckbox
+                  v-model="productFormData.isEatable"
+                  :label="t('pages.addProduct.form.isEatableLabel')"
+                  :disabled="isCreating"
+                />
+              </UFormField>
+
+              <UFormField :label="t('pages.addProduct.form.notes')" name="notes">
+                <UTextarea
+                  v-model="productFormData.notes"
+                  :placeholder="t('pages.addProduct.form.notesPlaceholder')"
+                  :disabled="isCreating"
+                  :rows="3"
+                  class="w-full"
+                />
+              </UFormField>
+
+              <UFormField name="isFavorite">
+                <UCheckbox
+                  v-model="productFormData.isFavorite"
+                  :label="t('pages.addProduct.form.isFavoriteLabel')"
+                  :disabled="isCreating"
+                />
+              </UFormField>
+
+              <UButton
+                type="submit"
+                color="primary"
+                block
+                :loading="isCreating"
+                :disabled="isCreating"
+              >
+                {{ t('pages.addProduct.form.createButton') }}
+              </UButton>
+            </UForm>
+          </div>
+        </template>
+
+        <!-- Custom mode: custom name form -->
+        <template v-else>
+          <p class="text-sm text-gray-600 dark:text-gray-400 mb-4">
+            {{ t('pages.shoppingLists.addProduct.custom.description') }}
+          </p>
+
+          <UForm
+            :schema="customNameSchema"
+            :state="customFormData"
+            class="space-y-4"
+            @submit="onCustomNameSubmit"
+          >
+            <UFormField :label="t('pages.shoppingLists.addProduct.custom.label')" name="customName" required>
+              <UInput
+                v-model="customFormData.customName"
+                :placeholder="t('pages.shoppingLists.addProduct.custom.placeholder')"
+                class="w-full"
+              />
+            </UFormField>
+
+            <UButton
+              type="submit"
+              color="primary"
+              block
+            >
+              {{ t('pages.shoppingLists.addProduct.custom.submitButton') }}
+            </UButton>
+          </UForm>
+        </template>
       </div>
 
       <!-- Step 1: Shopping Location (OPTIONAL with Skip) -->
@@ -519,110 +550,114 @@
           </UButton>
         </UForm>
       </div>
-    </div>
 
-    <!-- OpenFoodFacts Modal -->
-    <UModal
-      :open="isOpenFoodFactsModalOpen"
-      @update:open="(val) => { if (!val) isOpenFoodFactsModalOpen = false }"
-      :dismissible="false"
-    >
-      <template #title>
-        {{ t('pages.addProduct.openFoodFacts.modalTitle') }}
-      </template>
+      <!-- OpenFoodFacts Modal -->
+      <UModal
+        :open="isOpenFoodFactsModalOpen"
+        :dismissible="false"
+        @update:open="(val) => { if (!val) isOpenFoodFactsModalOpen = false }"
+      >
+        <template #title>
+          {{ t('pages.addProduct.openFoodFacts.modalTitle') }}
+        </template>
 
-      <template #description>
-        {{ t('pages.addProduct.openFoodFacts.modalDescription') }}
-      </template>
+        <template #description>
+          {{ t('pages.addProduct.openFoodFacts.modalDescription') }}
+        </template>
 
-      <template #body>
-        <div class="space-y-4">
-          <!-- Product Image -->
-          <div class="flex justify-center">
-            <div class="relative w-40 h-40">
-              <USkeleton
-                v-if="isImageLoading && openFoodFactsProduct?.image_base64"
-                class="w-full h-full rounded-lg"
-              />
-              <img
-                v-if="openFoodFactsProduct?.image_base64"
-                :src="openFoodFactsProduct.image_base64"
-                alt="Product image"
-                class="w-full h-full object-contain rounded-lg border border-gray-200 dark:border-gray-700"
-                :class="{ 'opacity-0': isImageLoading }"
-                @load="isImageLoading = false"
-              >
-              <div
-                v-else
-                class="w-full h-full flex items-center justify-center bg-gray-100 dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700"
-              >
-                <UIcon name="i-lucide-package" class="h-16 w-16 text-gray-400" />
+        <template #body>
+          <div class="space-y-4">
+            <!-- Product Image -->
+            <div class="flex justify-center">
+              <div class="relative w-40 h-40">
+                <USkeleton
+                  v-if="isImageLoading && openFoodFactsProduct?.image_base64"
+                  class="w-full h-full rounded-lg"
+                />
+                <img
+                  v-if="openFoodFactsProduct?.image_base64"
+                  :src="openFoodFactsProduct.image_base64"
+                  alt="Product image"
+                  class="w-full h-full object-contain rounded-lg border border-gray-200 dark:border-gray-700"
+                  :class="{ 'opacity-0': isImageLoading }"
+                  @load="isImageLoading = false"
+                >
+                <div
+                  v-else
+                  class="w-full h-full flex items-center justify-center bg-gray-100 dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700"
+                >
+                  <UIcon name="i-lucide-package" class="h-16 w-16 text-gray-400" />
+                </div>
+              </div>
+            </div>
+
+            <!-- Product Information -->
+            <div class="space-y-3">
+              <div v-if="openFoodFactsProduct?.product_name">
+                <span class="text-sm font-medium text-gray-700 dark:text-gray-300">
+                  {{ t('pages.addProduct.openFoodFacts.productName') }}:
+                </span>
+                <p class="text-sm mt-1">{{ openFoodFactsProduct.product_name }}</p>
+              </div>
+
+              <div v-if="openFoodFactsProduct?.brands">
+                <span class="text-sm font-medium text-gray-700 dark:text-gray-300">
+                  {{ t('pages.addProduct.openFoodFacts.brands') }}:
+                </span>
+                <p class="text-sm mt-1">{{ openFoodFactsProduct.brands }}</p>
               </div>
             </div>
           </div>
+        </template>
 
-          <!-- Product Information -->
-          <div class="space-y-3">
-            <div v-if="openFoodFactsProduct?.product_name">
-              <span class="text-sm font-medium text-gray-700 dark:text-gray-300">
-                {{ t('pages.addProduct.openFoodFacts.productName') }}:
-              </span>
-              <p class="text-sm mt-1">{{ openFoodFactsProduct.product_name }}</p>
-            </div>
-
-            <div v-if="openFoodFactsProduct?.brands">
-              <span class="text-sm font-medium text-gray-700 dark:text-gray-300">
-                {{ t('pages.addProduct.openFoodFacts.brands') }}:
-              </span>
-              <p class="text-sm mt-1">{{ openFoodFactsProduct.brands }}</p>
-            </div>
+        <template #footer>
+          <div class="flex justify-end gap-2">
+            <UButton
+              :label="t('pages.addProduct.openFoodFacts.cancel')"
+              color="neutral"
+              variant="outline"
+              @click="isOpenFoodFactsModalOpen = false"
+            />
+            <UButton
+              :label="t('pages.addProduct.openFoodFacts.import')"
+              color="primary"
+              @click="importOpenFoodFactsData"
+            />
           </div>
-        </div>
-      </template>
+        </template>
+      </UModal>
 
-      <template #footer>
-        <div class="flex justify-end gap-2">
-          <UButton
-            :label="t('pages.addProduct.openFoodFacts.cancel')"
-            color="neutral"
-            variant="outline"
-            @click="isOpenFoodFactsModalOpen = false"
-          />
-          <UButton
-            :label="t('pages.addProduct.openFoodFacts.import')"
-            color="primary"
-            @click="importOpenFoodFactsData"
-          />
-        </div>
-      </template>
-    </UModal>
-
-    <!-- Barcode Scanner Modal -->
-    <BarcodeScannerModal :on-barcode-detected="activeBarcodeHandler" />
-  </div>
+      <!-- Barcode Scanner Modal -->
+      <BarcodeScannerModal :on-barcode-detected="activeBarcodeHandler" />
+    </template>
+  </UModal>
 </template>
 
 <script setup lang="ts">
 import { z } from 'zod'
 import { watchDebounced } from '@vueuse/core'
-import { computed, nextTick } from 'vue'
+import { computed, nextTick, ref, watch, onMounted, onUnmounted } from 'vue'
 import type { ProductInfo, CreateProductRequest } from '~/types/product'
 import type { ShoppingLocationInfo, CreateShoppingLocationRequest } from '~/types/location'
 import type { CreateShoppingListItemRequest } from '~/types/shoppingList'
 import type { OpenFoodFactsProduct } from '~/types/openFoodFacts'
 import type { SelectValue } from '~/types/selectValue'
 import { Unit, ProductCategory, SelectValueType } from '~/types/enums'
+import type { DateValue } from '@internationalized/date'
 import type { FormSubmitEvent } from '#ui/types'
 
-// Middleware & Layout
-definePageMeta({
-  middleware: 'auth',
-  layout: 'auth'
-})
+// Props & Emits
+const props = defineProps<{
+  open: boolean
+  listId: string | null
+  mode: 'product' | 'custom'
+}>()
+
+const emit = defineEmits<{
+  'update:open': [value: boolean]
+}>()
 
 // Composables
-const route = useRoute()
-const router = useRouter()
 const { t } = useI18n()
 const { inputDateLocale } = useInputDateLocale()
 const toast = useToast()
@@ -632,41 +667,6 @@ const { createShoppingListItem } = useShoppingListApi()
 const { getProductByBarcode } = useOpenFoodFactsApi()
 const { getSelectValues } = useSelectValueApi()
 const { showCameraButton } = useCameraAvailability()
-
-// =========================
-// Shopping List ID Validation
-// =========================
-const shoppingListId = ref<string | null>(null)
-
-// Reset tabs to search when component mounts
-onMounted(() => {
-  activeTab.value = 0
-  shoppingLocationTab.value = 0
-})
-
-// Fetch category options
-onMounted(async () => {
-  const response = await getSelectValues(SelectValueType.ProductCategory)
-  if (response.success && response.data) {
-    categoryOptionsRaw.value = response.data
-  }
-})
-
-onMounted(() => {
-  const listId = route.query.listId as string | undefined
-
-  if (!listId) {
-    toast.add({
-      title: t('toast.error'),
-      description: t('pages.shoppingLists.addProduct.noListSelected'),
-      color: 'error'
-    })
-    router.push('/shopping-lists')
-    return
-  }
-
-  shoppingListId.value = listId
-})
 
 // =========================
 // Stepper State
@@ -687,12 +687,8 @@ const handleStepChange = (newStep: number) => {
 // =========================
 // Step 0: Product Selection State
 // =========================
-const activeTab = ref(0)
-const tabItems = computed(() => [
-  { label: t('pages.shoppingLists.addProduct.tabs.search'), value: 0, slot: 'search' },
-  { label: t('pages.shoppingLists.addProduct.tabs.create'), value: 1, slot: 'create' },
-  { label: t('pages.shoppingLists.addProduct.tabs.custom'), value: 2, slot: 'custom' }
-])
+// Product mode toggles between the search sub-view and the create-product sub-view.
+const showCreateProduct = ref(false)
 
 // Product Selection Mode
 const productSelectionMode = ref<'product' | 'custom' | null>(null)
@@ -702,12 +698,12 @@ const selectedProductUnit = ref<Unit | undefined>(undefined)
 const customProductName = ref<string>('')
 const selectedCardId = ref<string | null>(null)
 
-// Tab 1: Search Product
+// Search Product
 const searchQuery = ref('')
 const searchResults = ref<ProductInfo[]>([])
 const isSearching = ref(false)
 
-// Tab 2: Create Product
+// Create Product
 const productFormData = ref<CreateProductRequest>({
   name: '',
   brand: '',
@@ -731,7 +727,7 @@ const openFoodFactsProduct = ref<OpenFoodFactsProduct | null>(null)
 const isOpenFoodFactsModalOpen = ref(false)
 const isImageLoading = ref(true)
 
-// Tab 3: Custom Name
+// Custom Name
 const customFormData = ref({
   customName: ''
 })
@@ -776,8 +772,8 @@ const itemFormData = ref({
   quantity: 1,
   unit: undefined as Unit | undefined,
   note: '',
-  deadlineAt: null as any,
-  dueAt: null as any
+  deadlineAt: null as DateValue | null,
+  dueAt: null as DateValue | null
 })
 const isCreatingItem = ref(false)
 
@@ -862,6 +858,102 @@ const paginatedShoppingLocations = computed(() => {
   )
 })
 
+// Barcode scanner handler is context-aware: search sub-view vs create-product sub-view.
+const activeBarcodeHandler = computed(() => {
+  return showCreateProduct.value ? handleBarcodeScanned : handleSearchBarcodeScanned
+})
+
+// =========================
+// Open/Reset lifecycle
+// =========================
+const resetState = () => {
+  currentStep.value = 0
+  showCreateProduct.value = false
+
+  productSelectionMode.value = null
+  selectedProductId.value = null
+  selectedProductUnit.value = undefined
+  customProductName.value = ''
+  selectedCardId.value = null
+
+  searchQuery.value = ''
+  searchResults.value = []
+  isSearching.value = false
+
+  productFormData.value = {
+    name: '',
+    brand: '',
+    category: undefined,
+    unit: Unit.Piece,
+    barcode: '',
+    isEatable: false,
+    notes: '',
+    isFavorite: false
+  }
+  isQueryingBarcode.value = false
+  openFoodFactsProduct.value = null
+  isOpenFoodFactsModalOpen.value = false
+
+  customFormData.value = { customName: '' }
+
+  shoppingLocationTab.value = 0
+  shoppingLocationSearchQuery.value = ''
+  selectedShoppingLocationId.value = null
+  selectedShoppingLocationCardId.value = null
+  currentShoppingLocationPage.value = 1
+
+  shoppingLocationFormData.value = {
+    name: '',
+    description: '',
+    color: '',
+    address: '',
+    city: '',
+    postalCode: '',
+    country: '',
+    website: '',
+    googleMaps: '',
+    isSharedWithFamily: true
+  }
+
+  itemFormData.value = {
+    quantity: 1,
+    unit: undefined,
+    note: '',
+    deadlineAt: null,
+    dueAt: null
+  }
+}
+
+// Reset the wizard to a clean state each time the modal opens.
+watch(() => props.open, (isOpen) => {
+  if (isOpen) resetState()
+})
+
+const onOpenChange = (val: boolean) => {
+  emit('update:open', val)
+}
+
+const onHeaderBack = () => {
+  // Smart back: create-product sub-view → search; step > 0 → previous step; step 0 → close.
+  if (showCreateProduct.value) {
+    showCreateProduct.value = false
+    return
+  }
+  if (currentStep.value > 0) {
+    currentStep.value = currentStep.value - 1
+    return
+  }
+  emit('update:open', false)
+}
+
+// Fetch category options once.
+onMounted(async () => {
+  const response = await getSelectValues(SelectValueType.ProductCategory)
+  if (response.success && response.data) {
+    categoryOptionsRaw.value = response.data
+  }
+})
+
 // =========================
 // Watchers
 // =========================
@@ -907,15 +999,10 @@ watchDebounced(
 
 // Load shopping locations when Step 1 is entered
 watch(currentStep, async (newStep) => {
-  // Always reset to search tab when entering Step 0
-  if (newStep === 0) {
-    activeTab.value = 0
-  }
-  
   // Always reset to search tab when entering Step 1
   if (newStep === 1) {
     shoppingLocationTab.value = 0
-    
+
     if (allShoppingLocations.value.length === 0) {
       isLoadingShoppingLocations.value = true
       try {
@@ -937,10 +1024,17 @@ watch(shoppingLocationSearchQuery, () => {
   currentShoppingLocationPage.value = 1
 })
 
-// Intersection Observer for lazy loading shopping locations
-onMounted(() => {
-  if (shoppingLocationSentinelRef.value) {
-    const observer = new IntersectionObserver(
+// Intersection Observer for lazy loading shopping locations. The sentinel only exists
+// while Step 1 is rendered, so (re)attach the observer whenever it appears in the DOM.
+let shoppingLocationObserver: IntersectionObserver | null = null
+watch(shoppingLocationSentinelRef, (sentinel) => {
+  if (shoppingLocationObserver) {
+    shoppingLocationObserver.disconnect()
+    shoppingLocationObserver = null
+  }
+
+  if (sentinel && typeof IntersectionObserver !== 'undefined') {
+    shoppingLocationObserver = new IntersectionObserver(
       (entries) => {
         if (entries[0].isIntersecting && !loadingMoreShoppingLocations.value) {
           const hasMore = paginatedShoppingLocations.value.length < filteredShoppingLocations.value.length
@@ -953,12 +1047,14 @@ onMounted(() => {
       },
       { threshold: 0.1 }
     )
+    shoppingLocationObserver.observe(sentinel)
+  }
+})
 
-    observer.observe(shoppingLocationSentinelRef.value)
-
-    onUnmounted(() => {
-      observer.disconnect()
-    })
+onUnmounted(() => {
+  if (shoppingLocationObserver) {
+    shoppingLocationObserver.disconnect()
+    shoppingLocationObserver = null
   }
 })
 
@@ -966,7 +1062,7 @@ onMounted(() => {
 // Step 0: Product Selection Handlers
 // =========================
 
-// Tab 1: Product Card Click
+// Product Card Click
 const onProductCardClick = (product: ProductInfo) => {
   selectedCardId.value = product.publicId
   selectedProductId.value = product.publicId
@@ -976,7 +1072,7 @@ const onProductCardClick = (product: ProductInfo) => {
   currentStep.value = 1
 }
 
-// Tab 2: Create Product
+// Create Product
 const onCreateProduct = async (event: FormSubmitEvent<typeof createProductSchema>) => {
   isCreating.value = true
   try {
@@ -997,6 +1093,7 @@ const onCreateProduct = async (event: FormSubmitEvent<typeof createProductSchema
       selectedProductUnit.value = response.data.unit
       customProductName.value = ''
       productSelectionMode.value = 'product'
+      showCreateProduct.value = false
       currentStep.value = 1
     }
   } catch (error) {
@@ -1006,7 +1103,7 @@ const onCreateProduct = async (event: FormSubmitEvent<typeof createProductSchema
   }
 }
 
-// Tab 2: OpenFoodFacts Query
+// OpenFoodFacts Query
 const queryOpenFoodFacts = async () => {
   if (!productFormData.value.barcode) {
     toast.add({
@@ -1053,7 +1150,7 @@ const importOpenFoodFactsData = () => {
   isOpenFoodFactsModalOpen.value = false
 }
 
-// Barcode scanner handler (for Create Product tab)
+// Barcode scanner handler (for Create Product sub-view)
 const handleBarcodeScanned = (barcode: string) => {
   productFormData.value.barcode = barcode
   // Auto-trigger OpenFoodFacts query
@@ -1062,17 +1159,12 @@ const handleBarcodeScanned = (barcode: string) => {
   })
 }
 
-// Barcode scanner handler (for Search Product tab)
+// Barcode scanner handler (for Search sub-view)
 const handleSearchBarcodeScanned = (barcode: string) => {
   searchQuery.value = barcode
 }
 
-// Dynamic handler based on context
-const activeBarcodeHandler = computed(() => {
-  return activeTab.value === 0 ? handleSearchBarcodeScanned : handleBarcodeScanned
-})
-
-// Tab 3: Custom Name Submit
+// Custom Name Submit
 const onCustomNameSubmit = (event: FormSubmitEvent<typeof customNameSchema>) => {
   customProductName.value = event.data.customName
   selectedProductId.value = null
@@ -1129,7 +1221,7 @@ const onCreateShoppingLocation = async (event: FormSubmitEvent<typeof createShop
 // =========================
 
 const onCreateShoppingListItem = async (event: FormSubmitEvent<typeof createShoppingListItemSchema>) => {
-  if (!shoppingListId.value) {
+  if (!props.listId) {
     toast.add({
       title: t('toast.error'),
       description: t('pages.shoppingLists.addProduct.noListSelected'),
@@ -1157,7 +1249,7 @@ const onCreateShoppingListItem = async (event: FormSubmitEvent<typeof createShop
     }
 
     const requestData: CreateShoppingListItemRequest = {
-      shoppingListPublicId: shoppingListId.value,
+      shoppingListPublicId: props.listId,
       productPublicId: productSelectionMode.value === 'product' ? selectedProductId.value! : undefined,
       customName: productSelectionMode.value === 'custom' ? customProductName.value : undefined,
       shoppingLocationPublicId: selectedShoppingLocationId.value || undefined,
@@ -1172,7 +1264,9 @@ const onCreateShoppingListItem = async (event: FormSubmitEvent<typeof createShop
     const response = await createShoppingListItem(requestData)
 
     if (response.success && response.data) {
-      router.push('/shopping-lists')
+      // The new item arrives on the list via the realtime socket (ItemUpserted),
+      // so just close the modal — no navigation or manual refresh needed.
+      emit('update:open', false)
     }
   } catch (error) {
     console.error('Shopping list item creation failed:', error)

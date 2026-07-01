@@ -627,6 +627,8 @@
       "title": "Bevásárlás",
       "description": "Tervezd és kövesd nyomon a megosztott bevásárlólistáidat.",
       "addProductButton": "Termék hozzáadása",
+      "addWithSearch": "Hozzáadás termék keresővel",
+      "addCustom": "Hozzáadás egyedi termékként",
       "selectPlaceholder": "Válassz egy bevásárlólistát...",
       "searchPlaceholder": "Tételek keresése...",
       "showPurchasedToggle": "Megvásárolt tételek mutatása",
@@ -703,6 +705,8 @@
           "create": "Új létrehozása",
           "custom": "Egyedi"
         },
+        "createNewProduct": "Új termék létrehozása",
+        "backToSearch": "Vissza a kereséshez",
         "custom": {
           "label": "Egyedi termék neve",
           "placeholder": "pl. Friss kenyér, Bio tej",
