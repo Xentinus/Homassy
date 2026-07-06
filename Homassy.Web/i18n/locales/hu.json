@@ -708,6 +708,17 @@
         },
         "createNewProduct": "Új termék létrehozása",
         "backToSearch": "Vissza a kereséshez",
+        "pick": {
+          "createProduct": "„{name}” létrehozása termékként",
+          "createLocation": "„{name}” létrehozása bolthelyként",
+          "properties": "Tulajdonság",
+          "favorite": "Kedvenc",
+          "eatable": "Ehető",
+          "city": "Város",
+          "shared": "Megosztott",
+          "allCities": "Összes",
+          "noFilterMatch": "Nincs a szűrőnek megfelelő termék"
+        },
         "custom": {
           "label": "Egyedi termék neve",
           "placeholder": "pl. Friss kenyér, Bio tej",

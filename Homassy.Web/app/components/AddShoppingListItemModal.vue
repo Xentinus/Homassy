@@ -18,95 +18,63 @@
       <div v-if="currentStep === 0" class="space-y-6">
         <!-- Product mode: search + create-product sub-view -->
         <template v-if="mode === 'product'">
-          <!-- Search sub-view -->
-          <div v-if="!showCreateProduct" class="space-y-4">
-            <UFieldGroup size="lg" orientation="horizontal" class="w-full">
-              <UInput
-                v-model="searchQuery"
-                :placeholder="t('pages.addProduct.search.placeholder')"
-                icon="i-lucide-search"
-                size="lg"
-                class="flex-1"
-              />
+          <PickOrCreate
+            v-model:query="searchQuery"
+            v-model:show-create="showCreateProduct"
+            :placeholder="t('pages.addProduct.search.placeholder')"
+            :create-label="t('pages.shoppingLists.addProduct.pick.createProduct', { name: searchQuery.trim() })"
+            :filter-count="productFilterCount"
+            @create="onStartCreateProduct"
+          >
+            <template #search-trailing>
               <BarcodeScannerButton v-if="showCameraButton" @scanned="handleSearchBarcodeScanned" />
-            </UFieldGroup>
+            </template>
 
-            <!-- Create new product entry -->
-            <div class="flex justify-end">
-              <UButton
-                icon="i-lucide-plus"
-                color="neutral"
-                variant="ghost"
-                @click="showCreateProduct = true"
-              >
-                {{ t('pages.shoppingLists.addProduct.createNewProduct') }}
-              </UButton>
-            </div>
+            <template #filters>
+              <div role="group" :aria-label="t('pages.shoppingLists.addProduct.pick.properties')">
+                <p class="text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">{{ t('pages.shoppingLists.addProduct.pick.properties') }}</p>
+                <div class="flex flex-wrap gap-2">
+                  <UButton :label="t('pages.shoppingLists.addProduct.pick.favorite')" icon="i-lucide-star" size="sm" class="rounded-full" :color="productFavoriteFilter ? 'primary' : 'neutral'" :variant="productFavoriteFilter ? 'solid' : 'outline'" :aria-pressed="productFavoriteFilter" @click="productFavoriteFilter = !productFavoriteFilter" />
+                  <UButton :label="t('pages.shoppingLists.addProduct.pick.eatable')" icon="i-lucide-utensils" size="sm" class="rounded-full" :color="productEatableFilter ? 'primary' : 'neutral'" :variant="productEatableFilter ? 'solid' : 'outline'" :aria-pressed="productEatableFilter" @click="productEatableFilter = !productEatableFilter" />
+                </div>
+              </div>
+            </template>
 
-            <!-- Loading State -->
-            <div v-if="isSearching" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
-              <USkeleton class="h-32 w-full" />
-              <USkeleton class="h-32 w-full" />
-              <USkeleton class="h-32 w-full" />
-              <USkeleton class="h-32 w-full" />
-              <USkeleton class="h-32 w-full" />
-              <USkeleton class="h-32 w-full" />
-            </div>
+            <template #chips>
+              <UButton v-if="productFavoriteFilter" :label="t('pages.shoppingLists.addProduct.pick.favorite')" size="xs" color="primary" variant="soft" trailing-icon="i-lucide-x" class="rounded-full" @click="productFavoriteFilter = false" />
+              <UButton v-if="productEatableFilter" :label="t('pages.shoppingLists.addProduct.pick.eatable')" size="xs" color="primary" variant="soft" trailing-icon="i-lucide-x" class="rounded-full" @click="productEatableFilter = false" />
+            </template>
 
-            <!-- Empty State -->
-            <div
-              v-else-if="searchQuery.trim() === ''"
-              class="text-center py-12 text-gray-500"
-            >
-              {{ t('pages.addProduct.search.startTyping') }}
-            </div>
+            <template #results>
+              <div v-if="isSearching" class="space-y-2">
+                <USkeleton class="h-14 w-full" />
+                <USkeleton class="h-14 w-full" />
+                <USkeleton class="h-14 w-full" />
+              </div>
+              <div v-else-if="searchQuery.trim() === ''" class="text-center py-10 text-sm text-gray-500">
+                {{ t('pages.addProduct.search.startTyping') }}
+              </div>
+              <div v-else-if="filteredProductResults.length === 0" class="text-center py-8 text-sm text-gray-500">
+                {{ productFilterCount > 0 ? t('pages.shoppingLists.addProduct.pick.noFilterMatch') : t('pages.addProduct.search.noResults') }}
+              </div>
+              <ul v-else class="flex flex-col gap-2">
+                <li v-for="product in filteredProductResults" :key="product.publicId">
+                  <button type="button" class="w-full flex items-center justify-between gap-3 rounded-lg border px-3 py-2.5 text-left transition" :class="selectedCardId === product.publicId ? 'border-primary-400 bg-primary-50 dark:border-primary-600 dark:bg-primary-950/40' : 'border-default hover:bg-elevated/50'" @click="onProductCardClick(product)">
+                    <span class="flex min-w-0 flex-col">
+                      <span class="flex items-center gap-1.5 truncate text-sm font-medium">
+                        <UIcon v-if="product.isFavorite" name="i-lucide-star" class="h-3.5 w-3.5 shrink-0 text-primary-500" />
+                        {{ product.name }}
+                      </span>
+                      <span class="truncate text-xs text-gray-500 dark:text-gray-400">{{ [product.brand, t(`enums.unit.${product.unit}`)].filter(Boolean).join(' · ') }}</span>
+                    </span>
+                    <UIcon v-if="selectedCardId === product.publicId" name="i-lucide-check" class="h-5 w-5 shrink-0 text-primary-500" />
+                  </button>
+                </li>
+              </ul>
+            </template>
 
-            <!-- No Results -->
-            <div
-              v-else-if="searchResults.length === 0 && !isSearching"
-              class="text-center py-12 space-y-4"
-            >
-              <p class="text-gray-500">{{ t('pages.addProduct.search.noResults') }}</p>
-              <UButton
-                icon="i-lucide-plus"
-                color="primary"
-                variant="soft"
-                @click="showCreateProduct = true"
-              >
-                {{ t('pages.shoppingLists.addProduct.createNewProduct') }}
-              </UButton>
-            </div>
-
-            <!-- Results Grid -->
-            <div
-              v-else
-              class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4"
-            >
-              <SelectableProductCard
-                v-for="product in searchResults"
-                :key="product.publicId"
-                :product="product"
-                :search-query="searchQuery"
-                :is-selected="selectedCardId === product.publicId"
-                @select="onProductCardClick"
-              />
-            </div>
-          </div>
-
-          <!-- Create Product sub-view -->
-          <div v-else class="space-y-4">
-            <div class="flex justify-start">
-              <UButton
-                icon="i-lucide-arrow-left"
-                color="neutral"
-                variant="ghost"
-                @click="showCreateProduct = false"
-              >
-                {{ t('pages.shoppingLists.addProduct.backToSearch') }}
-              </UButton>
-            </div>
-
-            <UForm
+            <template #create>
+              <UForm
               :schema="createProductSchema"
               :state="productFormData"
               class="space-y-4"
@@ -209,8 +177,9 @@
               >
                 {{ t('pages.addProduct.form.createButton') }}
               </UButton>
-            </UForm>
-          </div>
+              </UForm>
+            </template>
+          </PickOrCreate>
         </template>
 
         <!-- Custom mode: custom name form -->
@@ -239,57 +208,61 @@
       <!-- Step 1: Shopping Location (optional — "Next" proceeds without one) -->
       <div v-if="currentStep === 1" class="space-y-6">
 
-        <UTabs v-model="shoppingLocationTab" :items="shoppingLocationTabItems">
-          <!-- Search Shopping Location -->
-          <template #search>
-            <div class="space-y-4 py-4">
-              <UInput
-                v-model="shoppingLocationSearchQuery"
-                :placeholder="t('pages.addProduct.shoppingLocation.search.placeholder')"
-                icon="i-lucide-search"
-                size="lg"
-                class="w-full"
-              />
-
-              <!-- Loading State -->
-              <div v-if="isLoadingShoppingLocations" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-                <USkeleton class="h-32 w-full" />
-                <USkeleton class="h-32 w-full" />
-                <USkeleton class="h-32 w-full" />
-                <USkeleton class="h-32 w-full" />
-              </div>
-
-              <!-- No Results -->
-              <div
-                v-else-if="filteredShoppingLocations.length === 0"
-                class="text-center py-12 text-gray-500"
-              >
-                {{ t('pages.addProduct.shoppingLocation.search.noResults') }}
-              </div>
-
-              <!-- Results Grid -->
-              <div
-                v-else
-                class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4"
-              >
-                <ShoppingLocationCard
-                  v-for="location in paginatedShoppingLocations"
-                  :key="location.publicId"
-                  :location="location"
-                  :search-query="shoppingLocationSearchQuery"
-                  :is-active="selectedShoppingLocationCardId === location.publicId"
-                  @click="onShoppingLocationCardClick(location)"
-                />
-              </div>
-
-              <!-- Load More Sentinel -->
-              <div ref="shoppingLocationSentinelRef" class="h-1" />
+        <PickOrCreate
+          v-model:query="shoppingLocationSearchQuery"
+          v-model:show-create="showCreateLocation"
+          :placeholder="t('pages.addProduct.shoppingLocation.search.placeholder')"
+          :create-label="t('pages.shoppingLists.addProduct.pick.createLocation', { name: shoppingLocationSearchQuery.trim() })"
+          :filter-count="locationFilterCount"
+          @create="onStartCreateLocation"
+        >
+          <template #filters>
+            <FilterChipGroup
+              v-if="locationCityOptions.length > 1"
+              v-model="locationCityFilter"
+              :label="t('pages.shoppingLists.addProduct.pick.city')"
+              :options="locationCityOptions"
+            />
+            <div role="group" :aria-label="t('pages.shoppingLists.addProduct.pick.properties')">
+              <p class="text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">{{ t('pages.shoppingLists.addProduct.pick.properties') }}</p>
+              <UButton :label="t('pages.shoppingLists.addProduct.pick.shared')" icon="i-lucide-users" size="sm" class="rounded-full" :color="locationSharedFilter ? 'primary' : 'neutral'" :variant="locationSharedFilter ? 'solid' : 'outline'" :aria-pressed="locationSharedFilter" @click="locationSharedFilter = !locationSharedFilter" />
             </div>
           </template>
 
-          <!-- Create Shopping Location -->
+          <template #chips>
+            <UButton v-if="locationCityFilter !== 'all'" :label="locationCityFilter" size="xs" color="primary" variant="soft" trailing-icon="i-lucide-x" class="rounded-full" @click="locationCityFilter = 'all'" />
+            <UButton v-if="locationSharedFilter" :label="t('pages.shoppingLists.addProduct.pick.shared')" size="xs" color="primary" variant="soft" trailing-icon="i-lucide-x" class="rounded-full" @click="locationSharedFilter = false" />
+          </template>
+
+          <template #results>
+            <div v-if="isLoadingShoppingLocations" class="space-y-2">
+              <USkeleton class="h-14 w-full" />
+              <USkeleton class="h-14 w-full" />
+              <USkeleton class="h-14 w-full" />
+            </div>
+            <div v-else-if="filteredShoppingLocations.length === 0" class="text-center py-8 text-sm text-gray-500">
+              {{ t('pages.addProduct.shoppingLocation.search.noResults') }}
+            </div>
+            <ul v-else class="flex flex-col gap-2">
+              <li v-for="location in paginatedShoppingLocations" :key="location.publicId">
+                <button type="button" class="w-full flex items-center justify-between gap-3 rounded-lg border px-3 py-2.5 text-left transition" :class="selectedShoppingLocationCardId === location.publicId ? 'border-primary-400 bg-primary-50 dark:border-primary-600 dark:bg-primary-950/40' : 'border-default hover:bg-elevated/50'" @click="onShoppingLocationCardClick(location)">
+                  <span class="flex min-w-0 flex-col">
+                    <span class="flex items-center gap-1.5 truncate text-sm font-medium">
+                      <span v-if="location.color" class="h-2.5 w-2.5 shrink-0 rounded-full" :style="{ backgroundColor: location.color }" />
+                      {{ location.name }}
+                      <UIcon v-if="location.isSharedWithFamily" name="i-lucide-users" class="h-3.5 w-3.5 shrink-0 text-primary-500" />
+                    </span>
+                    <span v-if="location.address || location.city" class="truncate text-xs text-gray-500 dark:text-gray-400">{{ [location.address, location.city].filter(Boolean).join(', ') }}</span>
+                  </span>
+                  <UIcon v-if="selectedShoppingLocationCardId === location.publicId" name="i-lucide-check" class="h-5 w-5 shrink-0 text-primary-500" />
+                </button>
+              </li>
+            </ul>
+            <div ref="shoppingLocationSentinelRef" class="h-1" />
+          </template>
+
           <template #create>
-            <div class="py-4">
+            <div class="py-1">
               <UForm
                 :schema="createShoppingLocationSchema"
                 :state="shoppingLocationFormData"
@@ -425,7 +398,7 @@
               </UForm>
             </div>
           </template>
-        </UTabs>
+        </PickOrCreate>
       </div>
 
       <!-- Step 2: Item Details -->
@@ -639,22 +612,55 @@ const stepperItems = computed(() => [
 // location only marks the selection and no longer auto-advances.
 const stepTwoFormRef = ref()
 
-const canGoBack = computed(() => showCreateProduct.value || currentStep.value > 0)
+// Inline create sub-view for the location step (mirrors showCreateProduct).
+const showCreateLocation = ref(false)
+
+// Client-side pick-list filters (mirroring the inventory page's filter style).
+const productFavoriteFilter = ref(false)
+const productEatableFilter = ref(false)
+const locationCityFilter = ref('all')
+const locationSharedFilter = ref(false)
+
+const productFilterCount = computed(() =>
+  (productFavoriteFilter.value ? 1 : 0) + (productEatableFilter.value ? 1 : 0)
+)
+const locationFilterCount = computed(() =>
+  (locationCityFilter.value !== 'all' ? 1 : 0) + (locationSharedFilter.value ? 1 : 0)
+)
+
+// Prefill the create form's name from what was typed, then reveal it.
+const onStartCreateProduct = () => {
+  productFormData.value.name = searchQuery.value.trim()
+}
+const onStartCreateLocation = () => {
+  shoppingLocationFormData.value.name = shoppingLocationSearchQuery.value.trim()
+}
+
+const canGoBack = computed(() =>
+  showCreateProduct.value || showCreateLocation.value || currentStep.value > 0
+)
 
 // Whether the current step's requirements are met to move on.
 const canProceed = computed(() => {
-  // Step 1 (location) is optional and step 2 uses "Finish", so only step 0 gates.
-  if (currentStep.value !== 0) return true
-  // The create-product sub-view has its own "create" action.
-  if (showCreateProduct.value) return false
-  return props.mode === 'product'
-    ? !!selectedProductId.value
-    : customFormData.value.customName.trim().length >= 2
+  if (currentStep.value === 0) {
+    // The create-product sub-view has its own "create" action.
+    if (showCreateProduct.value) return false
+    return props.mode === 'product'
+      ? !!selectedProductId.value
+      : customFormData.value.customName.trim().length >= 2
+  }
+  // Location is optional; only block while its create sub-view is open.
+  if (currentStep.value === 1) return !showCreateLocation.value
+  return true
 })
 
 const goPrevious = () => {
   if (showCreateProduct.value) {
     showCreateProduct.value = false
+    return
+  }
+  if (showCreateLocation.value) {
+    showCreateLocation.value = false
     return
   }
   if (currentStep.value > 0) currentStep.value = currentStep.value - 1
@@ -700,6 +706,14 @@ const searchQuery = ref('')
 const searchResults = ref<ProductInfo[]>([])
 const isSearching = ref(false)
 
+// Search results narrowed by the active pick-list filters.
+const filteredProductResults = computed(() =>
+  searchResults.value.filter(p =>
+    (!productFavoriteFilter.value || p.isFavorite)
+    && (!productEatableFilter.value || p.isEatable)
+  )
+)
+
 // Create Product
 const productFormData = ref<CreateProductRequest>({
   name: '',
@@ -732,12 +746,6 @@ const customFormData = ref({
 // =========================
 // Step 1: Shopping Location State
 // =========================
-const shoppingLocationTab = ref(0)
-const shoppingLocationTabItems = computed(() => [
-  { label: t('pages.addProduct.shoppingLocation.tabs.search'), value: 0, slot: 'search' },
-  { label: t('pages.addProduct.shoppingLocation.tabs.create'), value: 1, slot: 'create' }
-])
-
 const allShoppingLocations = ref<ShoppingLocationInfo[]>([])
 const shoppingLocationSearchQuery = ref('')
 const isLoadingShoppingLocations = ref(false)
@@ -826,6 +834,17 @@ const unitOptions = computed(() => {
     }))
 })
 
+// City options for the location filter (distinct cities present in the data).
+const locationCityOptions = computed(() => {
+  const cities = Array.from(
+    new Set(allShoppingLocations.value.map(l => l.city).filter((c): c is string => !!c))
+  ).sort((a, b) => a.localeCompare(b, 'hu'))
+  return [
+    { label: t('pages.shoppingLists.addProduct.pick.allCities'), value: 'all' },
+    ...cities.map(c => ({ label: c, value: c }))
+  ]
+})
+
 const filteredShoppingLocations = computed(() => {
   const query = shoppingLocationSearchQuery.value.toLowerCase().trim()
 
@@ -838,6 +857,14 @@ const filteredShoppingLocations = computed(() => {
       location.address?.toLowerCase().includes(query) ||
       location.city?.toLowerCase().includes(query)
     )
+  }
+
+  // Pick-list filters
+  if (locationCityFilter.value !== 'all') {
+    result = result.filter(location => location.city === locationCityFilter.value)
+  }
+  if (locationSharedFilter.value) {
+    result = result.filter(location => location.isSharedWithFamily)
   }
 
   // Sort alphabetically by name
@@ -893,11 +920,18 @@ const resetState = () => {
 
   customFormData.value = { customName: '' }
 
-  shoppingLocationTab.value = 0
   shoppingLocationSearchQuery.value = ''
   selectedShoppingLocationId.value = null
   selectedShoppingLocationCardId.value = null
   currentShoppingLocationPage.value = 1
+
+  // Pick-or-create sub-views + filters
+  showCreateProduct.value = false
+  showCreateLocation.value = false
+  productFavoriteFilter.value = false
+  productEatableFilter.value = false
+  locationCityFilter.value = 'all'
+  locationSharedFilter.value = false
 
   shoppingLocationFormData.value = {
     name: '',
@@ -983,10 +1017,7 @@ watchDebounced(
 
 // Load shopping locations when Step 1 is entered
 watch(currentStep, async (newStep) => {
-  // Always reset to search tab when entering Step 1
   if (newStep === 1) {
-    shoppingLocationTab.value = 0
-
     if (allShoppingLocations.value.length === 0) {
       isLoadingShoppingLocations.value = true
       try {
@@ -1189,6 +1220,8 @@ const onCreateShoppingLocation = async (event: FormSubmitEvent<typeof createShop
     const response = await createShoppingLocation(locationData)
     if (response.success && response.data) {
       selectedShoppingLocationId.value = response.data.publicId
+      selectedShoppingLocationCardId.value = response.data.publicId
+      showCreateLocation.value = false
       currentStep.value = 2
     }
   } catch (error) {

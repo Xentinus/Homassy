@@ -707,6 +707,17 @@
         },
         "createNewProduct": "Neues Produkt erstellen",
         "backToSearch": "Zurück zur Suche",
+        "pick": {
+          "createProduct": "Produkt „{name}“ anlegen",
+          "createLocation": "Ort „{name}“ anlegen",
+          "properties": "Eigenschaften",
+          "favorite": "Favorit",
+          "eatable": "Essbar",
+          "city": "Stadt",
+          "shared": "Geteilt",
+          "allCities": "Alle",
+          "noFilterMatch": "Keine Produkte entsprechen den Filtern"
+        },
         "custom": {
           "label": "Benutzerdefinierter Artikelname",
           "placeholder": "z.B. Frisches Brot, Bio-Milch",

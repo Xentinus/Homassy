@@ -709,6 +709,17 @@
         },
         "createNewProduct": "Create new product",
         "backToSearch": "Back to search",
+        "pick": {
+          "createProduct": "Create product \"{name}\"",
+          "createLocation": "Create location \"{name}\"",
+          "properties": "Properties",
+          "favorite": "Favorite",
+          "eatable": "Eatable",
+          "city": "City",
+          "shared": "Shared",
+          "allCities": "All",
+          "noFilterMatch": "No products match the filters"
+        },
         "custom": {
           "label": "Custom Item Name",
           "placeholder": "e.g. Fresh Bread, Organic Milk",
