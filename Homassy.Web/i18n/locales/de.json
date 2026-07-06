@@ -22,6 +22,7 @@
     "filter": "Filtern",
     "previous": "Zurück",
     "next": "Weiter",
+    "finish": "Abschließen",
     "noData": "Keine Daten",
     "pagination": "Seitennummerierung",
     "paginationInfo": "Seite {current} von {total} ({items} Artikel gesamt)",

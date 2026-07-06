@@ -22,6 +22,7 @@
     "filter": "Filter",
     "previous": "Previous",
     "next": "Next",
+    "finish": "Finish",
     "noData": "No data",
     "pagination": "Pagination",
     "paginationInfo": "Showing page {current} of {total} ({items} items total)",

@@ -23,6 +23,7 @@
     "filter": "Szűrés",
     "previous": "Előző",
     "next": "Következő",
+    "finish": "Befejezés",
     "noData": "Nincs adat",
     "pagination": "Oldalszámozás",
     "paginationInfo": "{current}. oldal ({total}-ből) {items} termék",

@@ -1,35 +1,19 @@
 <template>
-  <UModal
+  <WizardDrawer
     :open="open"
-    :dismissible="false"
-    fullscreen
-    :ui="{ body: 'overflow-y-auto' }"
+    :title="t('pages.shoppingLists.addProduct.title')"
+    icon="i-lucide-shopping-cart"
+    :steps="stepperItems"
+    :current-step="currentStep"
+    :can-proceed="canProceed"
+    :can-go-back="canGoBack"
+    :loading="isCreatingItem"
     @update:open="onOpenChange"
+    @previous="goPrevious"
+    @next="goNext"
+    @finish="finish"
   >
-    <template #header>
-      <div class="w-full space-y-4">
-        <div class="flex items-center gap-3">
-          <UButton
-            icon="i-lucide-arrow-left"
-            color="neutral"
-            variant="ghost"
-            @click="onHeaderBack"
-          />
-          <UIcon name="i-lucide-shopping-cart" class="h-7 w-7 text-primary-500" />
-          <h1 class="text-2xl font-semibold">{{ t('pages.shoppingLists.addProduct.title') }}</h1>
-        </div>
-
-        <!-- Stepper -->
-        <UStepper
-          :model-value="currentStep"
-          :items="stepperItems"
-          orientation="horizontal"
-          @update:model-value="handleStepChange"
-        />
-      </div>
-    </template>
-
-    <template #body>
+    <template #default>
       <!-- Step 0: Product Selection (mode-based) -->
       <div v-if="currentStep === 0" class="space-y-6">
         <!-- Product mode: search + create-product sub-view -->
@@ -248,31 +232,12 @@
                 class="w-full"
               />
             </UFormField>
-
-            <UButton
-              type="submit"
-              color="primary"
-              block
-            >
-              {{ t('pages.shoppingLists.addProduct.custom.submitButton') }}
-            </UButton>
           </UForm>
         </template>
       </div>
 
-      <!-- Step 1: Shopping Location (OPTIONAL with Skip) -->
+      <!-- Step 1: Shopping Location (optional — "Next" proceeds without one) -->
       <div v-if="currentStep === 1" class="space-y-6">
-        <!-- Skip Button -->
-        <div class="flex justify-end">
-          <UButton
-            color="neutral"
-            variant="ghost"
-            icon="i-lucide-skip-forward"
-            @click="onSkipLocation"
-          >
-            {{ t('pages.shoppingLists.addProduct.skipLocation') }}
-          </UButton>
-        </div>
 
         <UTabs v-model="shoppingLocationTab" :items="shoppingLocationTabItems">
           <!-- Search Shopping Location -->
@@ -466,6 +431,7 @@
       <!-- Step 2: Item Details -->
       <div v-if="currentStep === 2" class="space-y-6">
         <UForm
+          ref="stepTwoFormRef"
           :schema="createShoppingListItemSchema"
           :state="itemFormData"
           class="space-y-4"
@@ -538,16 +504,6 @@
               </template>
             </UInputDate>
           </UFormField>
-
-          <UButton
-            type="submit"
-            color="primary"
-            block
-            :loading="isCreatingItem"
-            :disabled="isCreatingItem"
-          >
-            {{ t('pages.shoppingLists.addProduct.item.createButton') }}
-          </UButton>
         </UForm>
       </div>
 
@@ -630,7 +586,7 @@
       <!-- Barcode Scanner Modal -->
       <BarcodeScannerModal :on-barcode-detected="activeBarcodeHandler" />
     </template>
-  </UModal>
+  </WizardDrawer>
 </template>
 
 <script setup lang="ts">
@@ -678,11 +634,52 @@ const stepperItems = computed(() => [
   { label: t('pages.shoppingLists.addProduct.stepLabels.step3') }
 ])
 
-const handleStepChange = (newStep: number) => {
-  if (newStep <= currentStep.value) {
-    currentStep.value = newStep
+// --- Footer navigation -------------------------------------------------------
+// Explicit Previous / Next / Finish drives the wizard; selecting a product or
+// location only marks the selection and no longer auto-advances.
+const stepTwoFormRef = ref()
+
+const canGoBack = computed(() => showCreateProduct.value || currentStep.value > 0)
+
+// Whether the current step's requirements are met to move on.
+const canProceed = computed(() => {
+  // Step 1 (location) is optional and step 2 uses "Finish", so only step 0 gates.
+  if (currentStep.value !== 0) return true
+  // The create-product sub-view has its own "create" action.
+  if (showCreateProduct.value) return false
+  return props.mode === 'product'
+    ? !!selectedProductId.value
+    : customFormData.value.customName.trim().length >= 2
+})
+
+const goPrevious = () => {
+  if (showCreateProduct.value) {
+    showCreateProduct.value = false
+    return
+  }
+  if (currentStep.value > 0) currentStep.value = currentStep.value - 1
+}
+
+const goNext = () => {
+  if (!canProceed.value) return
+  if (currentStep.value === 0) {
+    if (props.mode === 'product') {
+      productSelectionMode.value = 'product'
+      customProductName.value = ''
+    } else {
+      customProductName.value = customFormData.value.customName.trim()
+      selectedProductId.value = null
+      selectedProductUnit.value = undefined
+      productSelectionMode.value = 'custom'
+    }
+    currentStep.value = 1
+  } else if (currentStep.value === 1) {
+    currentStep.value = 2
   }
 }
+
+// Submit the item form (step 2) from the footer's Finish button.
+const finish = () => stepTwoFormRef.value?.submit()
 
 // =========================
 // Step 0: Product Selection State
@@ -933,19 +930,6 @@ const onOpenChange = (val: boolean) => {
   emit('update:open', val)
 }
 
-const onHeaderBack = () => {
-  // Smart back: create-product sub-view → search; step > 0 → previous step; step 0 → close.
-  if (showCreateProduct.value) {
-    showCreateProduct.value = false
-    return
-  }
-  if (currentStep.value > 0) {
-    currentStep.value = currentStep.value - 1
-    return
-  }
-  emit('update:open', false)
-}
-
 // Fetch category options once.
 onMounted(async () => {
   const response = await getSelectValues(SelectValueType.ProductCategory)
@@ -1064,12 +1048,13 @@ onUnmounted(() => {
 
 // Product Card Click
 const onProductCardClick = (product: ProductInfo) => {
-  selectedCardId.value = product.publicId
-  selectedProductId.value = product.publicId
-  selectedProductUnit.value = product.unit
+  // Toggle selection; advancing is done via the footer "Next" button.
+  const alreadySelected = selectedCardId.value === product.publicId
+  selectedCardId.value = alreadySelected ? null : product.publicId
+  selectedProductId.value = alreadySelected ? null : product.publicId
+  selectedProductUnit.value = alreadySelected ? undefined : product.unit
   customProductName.value = ''
   productSelectionMode.value = 'product'
-  currentStep.value = 1
 }
 
 // Create Product
@@ -1177,15 +1162,12 @@ const onCustomNameSubmit = (event: FormSubmitEvent<typeof customNameSchema>) => 
 // Step 1: Shopping Location Handlers
 // =========================
 
-const onSkipLocation = () => {
-  selectedShoppingLocationId.value = null
-  currentStep.value = 2
-}
-
 const onShoppingLocationCardClick = (location: ShoppingLocationInfo) => {
-  selectedShoppingLocationCardId.value = location.publicId
-  selectedShoppingLocationId.value = location.publicId
-  currentStep.value = 2
+  // Toggle selection; advancing is done via the footer "Next" button. Leaving it
+  // unselected is allowed (location is optional) — Next then proceeds without one.
+  const alreadySelected = selectedShoppingLocationCardId.value === location.publicId
+  selectedShoppingLocationCardId.value = alreadySelected ? null : location.publicId
+  selectedShoppingLocationId.value = alreadySelected ? null : location.publicId
 }
 
 const onCreateShoppingLocation = async (event: FormSubmitEvent<typeof createShoppingLocationSchema>) => {
