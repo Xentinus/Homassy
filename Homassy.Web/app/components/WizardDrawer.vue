@@ -3,7 +3,7 @@
     :open="open"
     :dismissible="dismissible"
     :ui="{
-      content: 'h-[88dvh] rounded-t-2xl overflow-hidden',
+      content: 'h-[94dvh] rounded-t-2xl overflow-hidden',
       container: 'flex flex-1 flex-col min-h-0 gap-0 p-0 overflow-hidden',
       header: 'shrink-0 border-b border-default p-4 sm:px-6',
       body: 'flex-1 min-h-0 overflow-y-auto p-4 sm:p-6',
