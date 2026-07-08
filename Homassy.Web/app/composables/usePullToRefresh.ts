@@ -38,7 +38,7 @@ export function usePullToRefresh(onRefresh: () => Promise<void> | void) {
     isPulling.value = damped > 4
     isReady.value = damped >= THRESHOLD * DAMPING
 
-    if (damped > 4) {
+    if (damped > 4 && e.cancelable) {
       e.preventDefault()
     }
   }

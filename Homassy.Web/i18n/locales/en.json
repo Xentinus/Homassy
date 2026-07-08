@@ -628,6 +628,7 @@
     "shoppingLists": {
       "title": "Shopping",
       "description": "Plan and track your shared shopping lists.",
+      "infoAriaLabel": "Information",
       "addProductButton": "Add Product",
       "addWithSearch": "Add with product search",
       "addCustom": "Add as custom item",

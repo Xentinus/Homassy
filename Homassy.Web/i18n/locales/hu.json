@@ -627,6 +627,7 @@
     "shoppingLists": {
       "title": "Bevásárlás",
       "description": "Tervezd és kövesd nyomon a megosztott bevásárlólistáidat.",
+      "infoAriaLabel": "Információ",
       "addProductButton": "Termék hozzáadása",
       "addWithSearch": "Hozzáadás termék keresővel",
       "addCustom": "Hozzáadás egyedi termékként",

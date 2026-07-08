@@ -6,7 +6,23 @@
       <div class="flex items-center gap-3">
         <UIcon name="i-lucide-shopping-cart" class="h-7 w-7 text-primary-500 shrink-0" />
         <div class="min-w-0">
-          <h1 class="text-2xl font-semibold leading-tight">{{ $t('pages.shoppingLists.title') }}</h1>
+          <div class="flex items-center gap-1.5">
+            <h1 class="text-2xl font-semibold leading-tight">{{ $t('pages.shoppingLists.title') }}</h1>
+            <UPopover>
+              <UButton
+                icon="i-lucide-info"
+                color="neutral"
+                variant="ghost"
+                size="xs"
+                :aria-label="$t('pages.shoppingLists.infoAriaLabel')"
+              />
+              <template #content>
+                <p class="p-3 max-w-xs text-sm text-gray-600 dark:text-gray-400">
+                  {{ $t('pages.shoppingLists.description') }}
+                </p>
+              </template>
+            </UPopover>
+          </div>
           <div
             v-if="currentListDetails"
             class="flex items-center gap-1.5 text-sm text-gray-600 dark:text-gray-400"
@@ -25,11 +41,6 @@
           </div>
         </div>
       </div>
-
-      <!-- Description -->
-      <p class="text-gray-600 dark:text-gray-400">
-        {{ $t('pages.shoppingLists.description') }}
-      </p>
 
       <!-- Search row + filters trigger -->
       <div class="flex gap-2">

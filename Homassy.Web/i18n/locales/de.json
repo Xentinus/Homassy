@@ -626,6 +626,7 @@
     "shoppingLists": {
       "title": "Einkaufen",
       "description": "Planen und verfolgen Sie Ihre geteilten Einkaufslisten.",
+      "infoAriaLabel": "Information",
       "addProductButton": "Produkt hinzufügen",
       "addWithSearch": "Mit Produktsuche hinzufügen",
       "addCustom": "Als eigenes Produkt hinzufügen",
