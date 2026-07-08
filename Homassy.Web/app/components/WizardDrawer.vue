@@ -12,7 +12,7 @@
     @update:open="(value) => emit('update:open', value)"
   >
     <template #header>
-      <div class="w-full space-y-4">
+      <div ref="headerEl" class="w-full space-y-4" style="touch-action: none">
         <div class="flex items-center gap-3">
           <UIcon v-if="icon" :name="icon" class="h-7 w-7 shrink-0 text-primary-500" />
           <h1 class="text-xl sm:text-2xl font-semibold">{{ title }}</h1>
@@ -75,7 +75,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, ref } from 'vue'
 
 /**
  * A step-by-step wizard rendered as a bottom sheet (UDrawer): a header with a
@@ -130,6 +130,15 @@ const emit = defineEmits<{
 }>()
 
 const { t } = useI18n()
+
+// Drag the header down to dismiss. Native vaul dismiss stays disabled
+// (dismissible: false) so outside-tap / Esc keep the wizard from closing by
+// accident; only this gesture and the close button dismiss it.
+const headerEl = ref<HTMLElement | null>(null)
+useDrawerDragToClose(headerEl, {
+  onClose: () => emit('update:open', false),
+  disabled: () => props.loading
+})
 
 const isLastStep = computed(() => props.currentStep >= props.steps.length - 1)
 const resolvedCanGoBack = computed(() =>
