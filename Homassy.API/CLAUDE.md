@@ -52,6 +52,7 @@ Homassy.API is a home storage management system built with ASP.NET Core. The pro
 - **Graceful Shutdown**: Configurable drain period before process exit, ensuring in-flight requests complete
 - **CORS Support**: Configurable cross-origin resource sharing for web clients
 - **Response Compression**: Brotli and Gzip for improved performance
+- **SignalR Realtime (Shopping Lists)**: Each shopping list is a SignalR group; clients join the list they are viewing and receive live item/list events. Writes stay on the REST endpoints — after a successful commit the Functions layer broadcasts via the static `ShoppingListRealtime` helper
 
 ---
 
@@ -200,6 +201,9 @@ Homassy.API/
 │   └── UserFunctions.cs
 ├── HealthChecks/         Health check implementations
 │   └── OpenFoodFactsHealthCheck.cs
+├── Hubs/                 SignalR realtime hubs
+│   ├── ShoppingListHub.cs         Per-list groups; JoinList returns the current snapshot
+│   └── ShoppingListRealtime.cs    Static broadcast helper (ItemUpserted/ItemDeleted/ListUpdated/ListDeleted)
 ├── Infrastructure/       Infrastructure components
 │   └── DatabaseTriggerInitializer.cs
 ├── Middleware/           Custom middleware
@@ -928,6 +932,12 @@ Manages shopping lists and items (all endpoints require `[Authorize]`).
 - Purchased items auto-hidden after 1 day (configurable via `showPurchased`)
 - Family sharing support
 - Shopping location assignment per item
+
+**Realtime (SignalR):**
+- Hub at `/hubs/shopping-list` (`ShoppingListHub`, `[Authorize]`) — the Kratos session cookie rides the WebSocket handshake, so the existing auth pipeline works unchanged
+- `JoinList(publicId, showPurchased)` joins the list's group (`shopping-list:{publicId}`) and returns the current `DetailedShoppingListInfo` snapshot via the same access-checked path as the REST endpoint; `LeaveList(publicId)` leaves the group
+- After a successful REST write, `ShoppingListFunctions` broadcasts through the static `ShoppingListRealtime` helper: `ItemUpserted` (create/update/purchase/restore, hydrated item), `ItemDeleted`, `ListUpdated`, `ListDeleted`
+- Broadcast failures are logged but never break the HTTP write that triggered them
 
 ### HealthController
 
@@ -2926,6 +2936,7 @@ Homassy.API is a modern ASP.NET Core Web API with a unique architecture optimize
 - **Item automation engine** scheduled and low-stock (event-driven) actions over inventory, products, and shopping lists
 - **Approval-gated family join requests** join-by-share-code requiring an existing member's approval
 - **Global statistics** nightly-cached, public platform-wide counts
+- **SignalR realtime** per-list groups push live shopping-list changes to viewing clients; writes remain on REST
 - **Account lockout** after repeated failed auth attempts (429 with unlock timer)
 - **Graceful shutdown** drain period for zero-downtime rolling restarts
 - **Open Food Facts integration** enriches product data with barcode lookup and nutrition information
