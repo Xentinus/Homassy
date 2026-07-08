@@ -3,6 +3,7 @@ using Homassy.API.Entities.Product;
 using Homassy.API.Enums;
 using Homassy.API.Exceptions;
 using Homassy.API.Extensions;
+using Homassy.API.Hubs;
 using Homassy.API.Infrastructure;
 using Homassy.API.Models.Automation;
 using Homassy.API.Models.Common;
@@ -872,6 +873,28 @@ namespace Homassy.API.Functions
             await context.SaveChangesAsync(cancellationToken);
 
             Log.Information($"Automation {automation.PublicId}: consumed {consumeQuantity} from inventory item {trackedItem.PublicId}, remaining: {remainingQuantity}");
+
+            // Realtime: reflect the auto-consume on every grid showing this item. Scope from the item
+            // itself (family-shared vs personal), not the automation.
+            var broadcastProduct = new ProductFunctions().GetProductById(trackedItem.ProductId);
+            if (broadcastProduct != null)
+            {
+                var itemUserId = trackedItem.UserId ?? userId;
+                if (trackedItem.IsFullyConsumed)
+                {
+                    await InventoryRealtime.InventoryDeletedAsync(
+                        itemUserId, trackedItem.FamilyId, trackedItem.FamilyId.HasValue,
+                        broadcastProduct.PublicId, trackedItem.PublicId, cancellationToken);
+                }
+                else
+                {
+                    await InventoryRealtime.InventoryUpsertedAsync(
+                        itemUserId, trackedItem.FamilyId,
+                        ProductFunctions.BuildGridProductCarrier(broadcastProduct),
+                        ProductFunctions.BuildGridItem(trackedItem, broadcastProduct.PublicId),
+                        cancellationToken);
+                }
+            }
 
             return execution;
         }

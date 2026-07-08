@@ -89,6 +89,7 @@ Homassy.Web/
 │   │   ├── usePullToRefresh.ts
 │   │   ├── usePushNotifications.ts
 │   │   ├── useShoppingListSocket.ts  SignalR realtime client for shopping lists
+│   │   ├── useInventorySocket.ts  SignalR realtime client for the Készletek (inventory) grid
 │   │   ├── useSwipeActions.ts  Swipe-to-action gestures on cards (left/right + threshold commit)
 │   │   └── useWebAuthn.ts
 │   ├── layouts/
@@ -284,6 +285,12 @@ One composable per API controller. All use `useApiClient` internally:
 - `joinList(publicId, showPurchased)` joins the list's SignalR group and returns the current snapshot (`DetailedShoppingListInfo`) — no separate REST fetch needed; falls back to REST when the socket is down
 - Server events: `ItemUpserted`, `ItemDeleted`, `ListUpdated`, `ListDeleted` — the shopping list page patches its local state from these
 - All writes still go through `useShoppingListApi` (REST); the API broadcasts the change back to the group, so the acting client's own changes are also reflected via the socket
+
+`useInventorySocket` does the same for the Készletek (inventory) grid, connecting to `${apiBase}/hubs/inventory`.
+
+- Groups are identity-derived server-side (per-family + per-user), so there is no per-resource join — `joinInventory()` just returns the light `InventoryGridProductInfo[]` snapshot (only the fields the cards need); falls back to REST on SSR / socket down
+- Server events: `InventoryUpserted` / `InventoryDeleted` (item-level, carry the parent product), `ProductUpdated` / `ProductFavoriteChanged` / `ProductDeleted` (product-level). The grid (`products/index.vue`) patches `allProducts` in place — inserting a card on the first in-scope item and removing it when the last one is gone. The product detail page (`products/[publicId].vue`) treats a matching event as a trigger to refetch that single product (the light event lacks storage/purchase/consumption detail)
+- Writes still go through `useProductsApi` (REST); the API broadcasts the change back, and automation-driven changes from `Homassy.Notifications` are relayed via the API's internal broadcast endpoint, so all clients (including automations) stay in sync
 
 ### Swipe Actions
 

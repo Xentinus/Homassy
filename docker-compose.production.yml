@@ -68,14 +68,14 @@
       # Cookies
       - SESSION_COOKIE_DOMAIN=${KRATOS_COOKIE_DOMAIN}
       - COOKIES_DOMAIN=${KRATOS_COOKIE_DOMAIN}
-      # Email microservice
-      - EMAIL_SERVICE_API_KEY=${EMAIL_SERVICE_API_KEY}
+      # Global internal service-to-service API key (used to authenticate the courier webhook to Homassy.Email)
+      - INTERNAL_API_KEY=${INTERNAL_API_KEY}
     volumes:
       - ./Homassy.Kratos/kratos.yml:/etc/config/kratos/kratos.yml:ro
       - ./Homassy.Kratos/identity.schema.json:/etc/config/kratos/identity.schema.json:ro
       - ./Homassy.Kratos/webhook_body.jsonnet:/etc/config/kratos/webhook_body.jsonnet:ro
     entrypoint: /bin/sh
-    command: ["-c", "sed \"s|REPLACE_EMAIL_SERVICE_API_KEY|${EMAIL_SERVICE_API_KEY}|g\" /etc/config/kratos/kratos.yml > /tmp/kratos.yml && kratos serve -c /tmp/kratos.yml --watch-courier"]
+    command: ["-c", "sed \"s|REPLACE_INTERNAL_API_KEY|${INTERNAL_API_KEY}|g\" /etc/config/kratos/kratos.yml > /tmp/kratos.yml && kratos serve -c /tmp/kratos.yml --watch-courier"]
     networks:
       - homassy-network
     depends_on:
@@ -104,7 +104,7 @@
       - AppSettings__RegistrationEnabled=${REGISTRATION_ENABLED}
       - RegistrationEnabled=${REGISTRATION_ENABLED}
       - NotificationsService__BaseUrl=http://homassy-notifications:8080
-      - NotificationsService__ApiKey=${NOTIFICATIONS_SERVICE_API_KEY}
+      - InternalApi__ApiKey=${INTERNAL_API_KEY}
       - Cors__AllowedOrigins__0=${KRATOS_BROWSER_RETURN_URL}
       - WebPush__VapidPublicKey=${VAPID_PUBLIC_KEY}
     networks:
@@ -157,7 +157,7 @@
       - Email__SenderEmail=${EMAIL_SENDER_EMAIL}
       - Email__Username=${EMAIL_USERNAME}
       - Email__Password=${EMAIL_PASSWORD}
-      - Email__ApiKey=${EMAIL_SERVICE_API_KEY}
+      - InternalApi__ApiKey=${INTERNAL_API_KEY}
     networks:
       - homassy-network
     healthcheck:
@@ -178,9 +178,9 @@
       - WebPush__VapidSubject=${VAPID_SUBJECT}
       - WebPush__VapidPublicKey=${VAPID_PUBLIC_KEY}
       - WebPush__VapidPrivateKey=${VAPID_PRIVATE_KEY}
-      - Notifications__ApiKey=${NOTIFICATIONS_SERVICE_API_KEY}
+      - InternalApi__ApiKey=${INTERNAL_API_KEY}
       - EmailService__BaseUrl=http://homassy-email:8080
-      - EmailService__ApiKey=${EMAIL_SERVICE_API_KEY}
+      - HomassyApi__BaseUrl=http://homassy-api:8080
     networks:
       - homassy-network
     depends_on:

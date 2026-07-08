@@ -4,6 +4,7 @@ using Homassy.API.Entities.Product;
 using Homassy.API.Entities.User;
 using Homassy.API.Exceptions;
 using Homassy.API.Extensions;
+using Homassy.API.Hubs;
 using Homassy.API.Models.Common;
 using Homassy.API.Models.Product;
 using Microsoft.EntityFrameworkCore;
@@ -677,6 +678,15 @@ namespace Homassy.API.Functions
 
                 await transaction.CommitAsync(cancellationToken);
 
+                // Realtime: push catalog-field changes to viewers (client preserves its own favorite state).
+                if (hasChanges)
+                {
+                    await InventoryRealtime.ProductUpdatedAsync(
+                        userId.Value, SessionInfo.GetFamilyId(),
+                        BuildGridProductCarrier(product),
+                        cancellationToken);
+                }
+
                 // Record activity only if changes were made
                 if (hasChanges)
                 {
@@ -776,6 +786,10 @@ namespace Homassy.API.Functions
                 Log.Information($"User {userId} deleted product {product.Id} (PublicId: {product.PublicId})");
                 await transaction.CommitAsync(cancellationToken);
 
+                // Realtime: remove the product card from everyone's grid.
+                await InventoryRealtime.ProductDeletedAsync(
+                    userId.Value, SessionInfo.GetFamilyId(), product.PublicId, cancellationToken);
+
                 // Record activity
                 try
                 {
@@ -853,6 +867,10 @@ namespace Homassy.API.Functions
 
                 await context.SaveChangesAsync(cancellationToken);
                 await transaction.CommitAsync(cancellationToken);
+
+                // Realtime: favorite is per-user, so notify only the acting user's own connections.
+                await InventoryRealtime.ProductFavoriteChangedAsync(
+                    userId.Value, product.PublicId, newFavoriteStatus, cancellationToken);
 
                 return new ProductInfo
                 {
@@ -1071,6 +1089,73 @@ namespace Homassy.API.Functions
             return detailedProductInfos.ToPagedResult(pagination);
         }
 
+        /// <summary>
+        /// Lightweight snapshot of the caller's Készletek grid — same scoping as
+        /// <see cref="GetAllDetailedProductsForUser"/> (products with ≥1 in-scope inventory item;
+        /// per-product items filtered to the user's own + family-shared) but projected to only the
+        /// fields the grid cards render. Backs the realtime snapshot (<see cref="Hubs.InventoryHub.JoinInventory"/>).
+        /// </summary>
+        public List<InventoryGridProductInfo> GetInventoryGridForUser()
+        {
+            var userId = SessionInfo.GetUserId();
+            if (!userId.HasValue)
+            {
+                Log.Warning("Invalid session: User ID not found");
+                throw new UserNotFoundException("User not found");
+            }
+
+            var familyId = SessionInfo.GetFamilyId();
+            var products = GetProductsByUserAndFamily(userId.Value, familyId);
+
+            return products.Select(product =>
+            {
+                var customization = GetCustomizationByProductAndUser(product.Id, userId.Value);
+                var items = GetInventoryItemsByProductId(product.Id, includeConsumed: false)
+                    .Where(item => item.UserId == userId.Value ||
+                                   (familyId.HasValue && item.FamilyId == familyId.Value))
+                    .Select(item => BuildGridItem(item, product.PublicId))
+                    .ToList();
+
+                return new InventoryGridProductInfo
+                {
+                    PublicId = product.PublicId,
+                    Name = product.Name,
+                    Brand = product.Brand,
+                    Barcode = product.Barcode,
+                    IsEatable = product.IsEatable,
+                    IsFavorite = customization?.IsFavorite ?? false,
+                    InventoryItems = items
+                };
+            }).ToList();
+        }
+
+        /// <summary>Builds the lightweight grid item projection used by the snapshot and realtime broadcasts.</summary>
+        public static InventoryGridItemInfo BuildGridItem(ProductInventoryItem item, Guid productPublicId) => new()
+        {
+            PublicId = item.PublicId,
+            ProductPublicId = productPublicId,
+            CurrentQuantity = item.CurrentQuantity,
+            Unit = item.Unit,
+            ExpirationAt = item.ExpirationAt,
+            IsSharedWithFamily = item.FamilyId.HasValue
+        };
+
+        /// <summary>
+        /// Builds a lightweight grid product carrier (no items) for an <c>InventoryUpserted</c> broadcast,
+        /// so a receiver can insert a new card for a product it hasn't seen yet. <see cref="InventoryGridProductInfo.IsFavorite"/>
+        /// is left <c>false</c> — favorite is per-user and not meaningful in a group broadcast.
+        /// </summary>
+        public static InventoryGridProductInfo BuildGridProductCarrier(Product product) => new()
+        {
+            PublicId = product.PublicId,
+            Name = product.Name,
+            Brand = product.Brand,
+            Barcode = product.Barcode,
+            IsEatable = product.IsEatable,
+            IsFavorite = false,
+            InventoryItems = new()
+        };
+
         public async Task<int> GetExpiringAndExpiredInventoryCountAsync(CancellationToken cancellationToken = default)
         {
             var userId = SessionInfo.GetUserId();
@@ -1206,6 +1291,13 @@ namespace Homassy.API.Functions
 
                 Log.Information($"User {userId} created inventory item {inventoryItem.Id} (PublicId: {inventoryItem.PublicId}) for product {product.Id}");
 
+                // Realtime: push the new item to everyone whose grid shows it.
+                await InventoryRealtime.InventoryUpsertedAsync(
+                    userId.Value, familyId,
+                    BuildGridProductCarrier(product),
+                    BuildGridItem(inventoryItem, product.PublicId),
+                    cancellationToken);
+
                 // Check low-stock automations
                 await AutomationFunctions.CheckLowStockForProductAsync(product.Id, cancellationToken);
 
@@ -1305,6 +1397,13 @@ namespace Homassy.API.Functions
                 await context.SaveChangesAsync(cancellationToken);
                 await transaction.CommitAsync(cancellationToken);
 
+                // Realtime: push the new item to everyone whose grid shows it.
+                await InventoryRealtime.InventoryUpsertedAsync(
+                    userId.Value, familyId,
+                    BuildGridProductCarrier(product),
+                    BuildGridItem(inventoryItem, product.PublicId),
+                    cancellationToken);
+
                 // Check low-stock automations
                 await AutomationFunctions.CheckLowStockForProductAsync(product.Id, cancellationToken);
 
@@ -1368,6 +1467,9 @@ namespace Homassy.API.Functions
             {
                 throw new UnauthorizedException("You don't have permission to update this inventory item");
             }
+
+            // Capture the pre-update scope so we can move the item between groups if IsSharedWithFamily flips.
+            var wasSharedWithFamily = inventoryItem.FamilyId.HasValue;
 
             var locationFunctions = new LocationFunctions();
             var context = new HomassyDbContext();
@@ -1484,6 +1586,29 @@ namespace Homassy.API.Functions
                 }
 
                 await transaction.CommitAsync(cancellationToken);
+
+                // Realtime: push the change. If IsSharedWithFamily flipped, the item moves between the
+                // family and user group — remove it from the old scope, upsert into the new one.
+                if (hasChanges)
+                {
+                    var broadcastProduct = GetProductById(trackedItem.ProductId);
+                    if (broadcastProduct != null)
+                    {
+                        var nowSharedWithFamily = trackedItem.FamilyId.HasValue;
+                        if (wasSharedWithFamily != nowSharedWithFamily)
+                        {
+                            await InventoryRealtime.InventoryDeletedAsync(
+                                userId.Value, familyId, wasSharedWithFamily,
+                                broadcastProduct.PublicId, trackedItem.PublicId, cancellationToken);
+                        }
+
+                        await InventoryRealtime.InventoryUpsertedAsync(
+                            userId.Value, familyId,
+                            BuildGridProductCarrier(broadcastProduct),
+                            BuildGridItem(trackedItem, broadcastProduct.PublicId),
+                            cancellationToken);
+                    }
+                }
 
                 // Check low-stock automations
                 if (hasChanges)
@@ -1607,6 +1732,15 @@ namespace Homassy.API.Functions
                 await context.SaveChangesAsync(cancellationToken);
                 await transaction.CommitAsync(cancellationToken);
 
+                // Realtime: remove the item from everyone's grid (card disappears if it was the last one).
+                var deletedProduct = GetProductById(inventoryItem.ProductId);
+                if (deletedProduct != null)
+                {
+                    await InventoryRealtime.InventoryDeletedAsync(
+                        userId.Value, familyId, inventoryItem.FamilyId.HasValue,
+                        deletedProduct.PublicId, inventoryItem.PublicId, cancellationToken);
+                }
+
                 // Check low-stock automations
                 await AutomationFunctions.CheckLowStockForProductAsync(inventoryItem.ProductId, cancellationToken);
 
@@ -1704,6 +1838,26 @@ namespace Homassy.API.Functions
 
                 await context.SaveChangesAsync(cancellationToken);
                 await transaction.CommitAsync(cancellationToken);
+
+                // Realtime: fully consumed items leave the grid, partial consumption updates the quantity.
+                var consumedProduct = GetProductById(trackedItem.ProductId);
+                if (consumedProduct != null)
+                {
+                    if (trackedItem.IsFullyConsumed)
+                    {
+                        await InventoryRealtime.InventoryDeletedAsync(
+                            userId.Value, familyId, trackedItem.FamilyId.HasValue,
+                            consumedProduct.PublicId, trackedItem.PublicId, cancellationToken);
+                    }
+                    else
+                    {
+                        await InventoryRealtime.InventoryUpsertedAsync(
+                            userId.Value, familyId,
+                            BuildGridProductCarrier(consumedProduct),
+                            BuildGridItem(trackedItem, consumedProduct.PublicId),
+                            cancellationToken);
+                    }
+                }
 
                 // Check low-stock automations
                 await AutomationFunctions.CheckLowStockForProductAsync(trackedItem.ProductId, cancellationToken);
@@ -1818,6 +1972,7 @@ namespace Homassy.API.Functions
             {
                 var result = new List<InventoryItemInfo>();
                 var affectedProductIds = new HashSet<int>();
+                var createdForBroadcast = new List<(Product Product, ProductInventoryItem Item)>();
 
                 foreach (var item in request.Items)
                 {
@@ -1843,6 +1998,7 @@ namespace Homassy.API.Functions
                     await context.SaveChangesAsync(cancellationToken);
 
                     affectedProductIds.Add(product.Id);
+                    createdForBroadcast.Add((product, inventoryItem));
 
                     result.Add(new InventoryItemInfo
                     {
@@ -1856,6 +2012,14 @@ namespace Homassy.API.Functions
                 }
 
                 await transaction.CommitAsync(cancellationToken);
+
+                // Realtime: push each new item to everyone whose grid shows it.
+                foreach (var (bp, bi) in createdForBroadcast)
+                    await InventoryRealtime.InventoryUpsertedAsync(
+                        userId.Value, familyId,
+                        BuildGridProductCarrier(bp),
+                        BuildGridItem(bi, bp.PublicId),
+                        cancellationToken);
 
                 // Check low-stock automations for all affected products
                 foreach (var pid in affectedProductIds)
@@ -1898,6 +2062,7 @@ namespace Homassy.API.Functions
             try
             {
                 var result = new List<InventoryItemInfo>();
+                var movedForBroadcast = new List<(Product Product, ProductInventoryItem Item)>();
 
                 foreach (var inventoryItemPublicId in request.InventoryItemPublicIds)
                 {
@@ -1922,6 +2087,12 @@ namespace Homassy.API.Functions
                     }
 
                     trackedItem.StorageLocationId = storageLocation.Id;
+
+                    var moveProduct = GetProductById(trackedItem.ProductId);
+                    if (moveProduct != null)
+                    {
+                        movedForBroadcast.Add((moveProduct, trackedItem));
+                    }
 
                     var purchaseInfo = GetPurchaseInfoByInventoryItemId(trackedItem.Id);
                     var consumptionLogs = GetConsumptionLogsByInventoryItemId(trackedItem.Id);
@@ -1976,6 +2147,15 @@ namespace Homassy.API.Functions
                 await context.SaveChangesAsync(cancellationToken);
                 await transaction.CommitAsync(cancellationToken);
 
+                // Realtime: the grid payload is unchanged (it ignores storage), but the event lets the
+                // product detail page refetch the moved item's new location.
+                foreach (var (bp, bi) in movedForBroadcast)
+                    await InventoryRealtime.InventoryUpsertedAsync(
+                        userId.Value, familyId,
+                        BuildGridProductCarrier(bp),
+                        BuildGridItem(bi, bp.PublicId),
+                        cancellationToken);
+
                 Log.Information($"User {userId} moved {request.InventoryItemPublicIds.Count} inventory items to storage location {storageLocation.Id}");
 
                 return result;
@@ -2010,6 +2190,7 @@ namespace Homassy.API.Functions
             try
             {
                 var affectedProductIds = new HashSet<int>();
+                var deletedForBroadcast = new List<(Product Product, Guid ItemPublicId, bool Shared)>();
 
                 foreach (var itemPublicId in request.ItemPublicIds)
                 {
@@ -2038,6 +2219,12 @@ namespace Homassy.API.Functions
 
                     affectedProductIds.Add(inventoryItem.ProductId);
 
+                    var delProduct = GetProductById(inventoryItem.ProductId);
+                    if (delProduct != null)
+                    {
+                        deletedForBroadcast.Add((delProduct, inventoryItem.PublicId, inventoryItem.FamilyId.HasValue));
+                    }
+
                     // Record activity for each deleted item
                     try
                     {
@@ -2061,6 +2248,12 @@ namespace Homassy.API.Functions
 
                 await context.SaveChangesAsync(cancellationToken);
                 await transaction.CommitAsync(cancellationToken);
+
+                // Realtime: remove each item from everyone's grid.
+                foreach (var (bp, itemPublicId, shared) in deletedForBroadcast)
+                    await InventoryRealtime.InventoryDeletedAsync(
+                        userId.Value, familyId, shared,
+                        bp.PublicId, itemPublicId, cancellationToken);
 
                 // Check low-stock automations for all affected products
                 foreach (var pid in affectedProductIds)
@@ -2100,6 +2293,7 @@ namespace Homassy.API.Functions
             {
                 var results = new List<InventoryItemInfo>();
                 var affectedProductIds = new HashSet<int>();
+                var consumedForBroadcast = new List<(Product Product, ProductInventoryItem Item)>();
 
                 foreach (var itemRequest in request.Items)
                 {
@@ -2153,6 +2347,12 @@ namespace Homassy.API.Functions
                     }
 
                     affectedProductIds.Add(trackedItem.ProductId);
+
+                    var consumeProduct = GetProductById(trackedItem.ProductId);
+                    if (consumeProduct != null)
+                    {
+                        consumedForBroadcast.Add((consumeProduct, trackedItem));
+                    }
 
                     // Record activity for each consumed item
                     try
@@ -2214,6 +2414,21 @@ namespace Homassy.API.Functions
 
                 await context.SaveChangesAsync(cancellationToken);
                 await transaction.CommitAsync(cancellationToken);
+
+                // Realtime: fully consumed items leave the grid, partial consumption updates the quantity.
+                foreach (var (bp, bi) in consumedForBroadcast)
+                {
+                    if (bi.IsFullyConsumed)
+                        await InventoryRealtime.InventoryDeletedAsync(
+                            userId.Value, familyId, bi.FamilyId.HasValue,
+                            bp.PublicId, bi.PublicId, cancellationToken);
+                    else
+                        await InventoryRealtime.InventoryUpsertedAsync(
+                            userId.Value, familyId,
+                            BuildGridProductCarrier(bp),
+                            BuildGridItem(bi, bp.PublicId),
+                            cancellationToken);
+                }
 
                 // Check low-stock automations for all affected products
                 foreach (var pid in affectedProductIds)
@@ -2342,6 +2557,22 @@ namespace Homassy.API.Functions
 
                 await context.SaveChangesAsync(cancellationToken);
                 await transaction.CommitAsync(cancellationToken);
+
+                // Realtime: the original item's quantity changed and a new item appeared — upsert both.
+                var splitProduct = GetProductById(trackedItem.ProductId);
+                if (splitProduct != null)
+                {
+                    await InventoryRealtime.InventoryUpsertedAsync(
+                        userId.Value, familyId,
+                        BuildGridProductCarrier(splitProduct),
+                        BuildGridItem(trackedItem, splitProduct.PublicId),
+                        cancellationToken);
+                    await InventoryRealtime.InventoryUpsertedAsync(
+                        userId.Value, familyId,
+                        BuildGridProductCarrier(splitProduct),
+                        BuildGridItem(newItem, splitProduct.PublicId),
+                        cancellationToken);
+                }
 
                 // Check low-stock automations
                 await AutomationFunctions.CheckLowStockForProductAsync(trackedItem.ProductId, cancellationToken);

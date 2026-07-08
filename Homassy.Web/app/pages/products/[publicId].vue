@@ -369,13 +369,22 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
-import type { DetailedProductInfo, UpdateProductRequest } from '../../types/product'
+import { ref, computed, onMounted, onBeforeUnmount } from 'vue'
+import type {
+  DetailedProductInfo,
+  UpdateProductRequest,
+  InventoryGridProductInfo,
+  InventoryUpsertedEvent,
+  InventoryDeletedEvent,
+  ProductDeletedEvent,
+  ProductFavoriteChangedEvent
+} from '../../types/product'
 import { Unit } from '../../types/enums'
 import type { OpenFoodFactsProduct } from '../../types/openFoodFacts'
 import { useProductsApi } from '../../composables/api/useProductsApi'
 import { useOpenFoodFactsApi } from '../../composables/api/useOpenFoodFactsApi'
 import { useEnumLabel } from '../../composables/useEnumLabel'
+import { useInventorySocket } from '../../composables/useInventorySocket'
 
 definePageMeta({
   layout: 'auth',
@@ -388,6 +397,7 @@ const { getProductDetails, toggleFavorite, updateProduct, deleteProduct, uploadP
 const { getProductByBarcode } = useOpenFoodFactsApi()
 const toast = useToast()
 const { formatProductCategory } = useEnumLabel()
+const inventorySocket = useInventorySocket()
 
 const { pullDistance, isPulling, isRefreshing, isReady } = usePullToRefresh(() => loadProductDetails())
 
@@ -756,8 +766,51 @@ const handleDeleteProduct = async () => {
   }
 }
 
+// --- Realtime: keep the open product in sync with changes from other users / automation ---
+// The grid payload is lightweight and lacks storage/purchase/consumption detail, so for this page
+// a relevant event triggers a single-product refetch (never the whole grid).
+const isThisProduct = (publicId: string) => publicId === (route.params.publicId as string)
+
+const handleRealtimeInventoryUpserted = (payload: InventoryUpsertedEvent) => {
+  if (isThisProduct(payload.product.publicId)) loadProductDetails()
+}
+
+const handleRealtimeInventoryDeleted = (payload: InventoryDeletedEvent) => {
+  if (isThisProduct(payload.productPublicId)) loadProductDetails()
+}
+
+const handleRealtimeProductUpdated = (updated: InventoryGridProductInfo) => {
+  if (isThisProduct(updated.publicId)) loadProductDetails()
+}
+
+const handleRealtimeProductFavoriteChanged = (payload: ProductFavoriteChangedEvent) => {
+  if (isThisProduct(payload.publicId) && product.value) {
+    product.value.isFavorite = payload.isFavorite
+  }
+}
+
+const handleRealtimeProductDeleted = (payload: ProductDeletedEvent) => {
+  if (isThisProduct(payload.publicId)) navigateTo('/products')
+}
+
 // Lifecycle
 onMounted(() => {
   loadProductDetails()
+
+  // Ensure the socket is connected (groups are joined server-side on connect) and subscribe.
+  inventorySocket.ensureConnected()
+  inventorySocket.on('InventoryUpserted', handleRealtimeInventoryUpserted)
+  inventorySocket.on('InventoryDeleted', handleRealtimeInventoryDeleted)
+  inventorySocket.on('ProductUpdated', handleRealtimeProductUpdated)
+  inventorySocket.on('ProductFavoriteChanged', handleRealtimeProductFavoriteChanged)
+  inventorySocket.on('ProductDeleted', handleRealtimeProductDeleted)
+})
+
+onBeforeUnmount(() => {
+  inventorySocket.off('InventoryUpserted', handleRealtimeInventoryUpserted)
+  inventorySocket.off('InventoryDeleted', handleRealtimeInventoryDeleted)
+  inventorySocket.off('ProductUpdated', handleRealtimeProductUpdated)
+  inventorySocket.off('ProductFavoriteChanged', handleRealtimeProductFavoriteChanged)
+  inventorySocket.off('ProductDeleted', handleRealtimeProductDeleted)
 })
 </script>

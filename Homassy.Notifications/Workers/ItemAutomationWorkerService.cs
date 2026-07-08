@@ -62,6 +62,7 @@ public sealed class ItemAutomationWorkerService : BackgroundService
         using var scope = _scopeFactory.CreateScope();
         var context = scope.ServiceProvider.GetRequiredService<HomassyDbContext>();
         var emailClient = scope.ServiceProvider.GetRequiredService<EmailServiceClient>();
+        var broadcastClient = scope.ServiceProvider.GetRequiredService<InventoryBroadcastServiceClient>();
 
         var dueAutomations = await context.ItemAutomations
             .Include(a => a.ProductInventoryItem)
@@ -83,7 +84,7 @@ public sealed class ItemAutomationWorkerService : BackgroundService
         {
             try
             {
-                await ProcessSingleAutomationAsync(context, emailClient, automation, cancellationToken);
+                await ProcessSingleAutomationAsync(context, emailClient, broadcastClient, automation, cancellationToken);
             }
             catch (Exception ex)
             {
@@ -113,6 +114,7 @@ public sealed class ItemAutomationWorkerService : BackgroundService
     private async Task ProcessSingleAutomationAsync(
         HomassyDbContext context,
         EmailServiceClient emailClient,
+        InventoryBroadcastServiceClient broadcastClient,
         ItemAutomation automation,
         CancellationToken cancellationToken)
     {
@@ -210,6 +212,27 @@ public sealed class ItemAutomationWorkerService : BackgroundService
 
         Log.Information("Automation {AutomationId} executed successfully. Next execution at: {NextExecution}",
             automation.Id, automation.NextExecutionAt);
+
+        // Realtime: relay the auto-consume to connected grids via the API (this process has no hub).
+        // Scope from the item itself (family-shared vs personal), matching the API's own routing.
+        if (automation.ActionType == AutomationActionType.AutoConsume && product != null)
+        {
+            var itemUserId = inventoryItem.UserId ?? automation.CreatedByUserId;
+            if (inventoryItem.IsFullyConsumed)
+            {
+                await broadcastClient.BroadcastDeleteAsync(
+                    itemUserId, inventoryItem.FamilyId, inventoryItem.FamilyId.HasValue,
+                    product.PublicId, inventoryItem.PublicId, cancellationToken);
+            }
+            else
+            {
+                await broadcastClient.BroadcastUpsertAsync(
+                    itemUserId, inventoryItem.FamilyId,
+                    ProductFunctions.BuildGridProductCarrier(product),
+                    ProductFunctions.BuildGridItem(inventoryItem, product.PublicId),
+                    cancellationToken);
+            }
+        }
     }
 
     private async Task ExecuteAutoConsumeAsync(

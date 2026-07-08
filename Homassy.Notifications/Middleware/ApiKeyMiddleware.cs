@@ -25,11 +25,11 @@ public sealed class ApiKeyMiddleware
             return;
         }
 
-        var configuredKey = _configuration["Notifications:ApiKey"];
+        var configuredKey = _configuration["InternalApi:ApiKey"];
 
         if (string.IsNullOrEmpty(configuredKey))
         {
-            _logger.LogError("Notifications:ApiKey is not configured");
+            _logger.LogError("InternalApi:ApiKey is not configured");
             context.Response.StatusCode = StatusCodes.Status500InternalServerError;
             return;
         }

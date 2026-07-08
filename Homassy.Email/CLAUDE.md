@@ -408,7 +408,7 @@ All endpoints except `/health/*` require an `X-Api-Key` header.
 - **Constant-time comparison** using `CryptographicOperations.FixedTimeEquals()` to prevent timing side-channel attacks
 - Pads both keys to the same length before comparison
 - Returns `401 Unauthorized` on missing or invalid key
-- Returns `500 Internal Server Error` if `Email:ApiKey` is not configured
+- Returns `500 Internal Server Error` if `InternalApi:ApiKey` is not configured
 - Health endpoints (`/health/*`) are always exempt
 
 **Usage (from Homassy.API or Kratos):**
@@ -451,8 +451,10 @@ Tests a live SMTP connection on every readiness probe call:
     "SmtpPort": "587",
     "SenderEmail": "noreply@example.com",
     "Username": "smtp-user",
-    "Password": "smtp-password",
-    "ApiKey": "internal-api-key"
+    "Password": "smtp-password"
+  },
+  "InternalApi": {
+    "ApiKey": "the-global-internal-api-key"
   },
   "Logging": {
     "LogLevel": {
@@ -472,7 +474,7 @@ Tests a live SMTP connection on every readiness probe call:
 | `Email:SenderEmail` | ✅ | – | From address |
 | `Email:Username` | ✅ | – | SMTP auth username |
 | `Email:Password` | ✅ | – | SMTP auth password |
-| `Email:ApiKey` | ✅ | – | Internal API key for `X-Api-Key` header |
+| `InternalApi:ApiKey` | ✅ | – | Global internal API key for the `X-Api-Key` header (shared by all services; from `.env` `INTERNAL_API_KEY`) |
 
 ---
 

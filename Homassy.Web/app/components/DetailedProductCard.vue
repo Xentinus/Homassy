@@ -62,10 +62,10 @@
 import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useRouter } from 'vue-router'
-import type { DetailedProductInfo } from '../types/product'
+import type { InventoryGridProductInfo } from '../types/product'
 
 interface Props {
-  product: DetailedProductInfo
+  product: InventoryGridProductInfo
   searchQuery?: string
 }
 

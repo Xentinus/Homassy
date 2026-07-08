@@ -136,7 +136,7 @@ courier:
       body: file:///etc/config/kratos/webhook_body.jsonnet
       headers:
         Content-Type: application/json
-        X-Api-Key: REPLACE_EMAIL_SERVICE_API_KEY
+        X-Api-Key: REPLACE_INTERNAL_API_KEY
 
 session:
   lifespan: 720h
