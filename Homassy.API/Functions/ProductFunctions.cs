@@ -2,6 +2,7 @@
 using Homassy.API.Entities.Location;
 using Homassy.API.Entities.Product;
 using Homassy.API.Entities.User;
+using Homassy.API.Enums;
 using Homassy.API.Exceptions;
 using Homassy.API.Extensions;
 using Homassy.API.Hubs;
@@ -979,6 +980,154 @@ namespace Homassy.API.Functions
                 IsFavorite = customization?.IsFavorite ?? false,
                 InventoryItems = inventoryItemInfos
             };
+        }
+
+        /// <summary>
+        /// Builds the full, global stock history for a product across ALL of its inventory items,
+        /// including fully-consumed and soft-deleted ones (so the timeline survives item lifecycle).
+        /// Purchases + consumptions come from the retained relational rows (rich detail: quantity,
+        /// price, location, remaining), while add/update/delete events come from the append-only
+        /// Activity log (accurate timestamp + actor). Moves are not recorded anywhere and splits are
+        /// stored as ordinary consumption, so neither is separately represented.
+        /// Returns null when the product is not found / not visible to the caller.
+        /// </summary>
+        public async Task<List<ProductHistoryEventInfo>?> GetProductHistoryAsync(Guid productPublicId, CancellationToken cancellationToken = default)
+        {
+            var userId = SessionInfo.GetUserId();
+            if (!userId.HasValue)
+            {
+                Log.Warning("Invalid session: User ID not found");
+                throw new UserNotFoundException("User not found");
+            }
+
+            var product = GetProductByPublicId(productPublicId);
+            if (product == null)
+            {
+                return null;
+            }
+
+            var context = new HomassyDbContext();
+
+            // All inventory items for this product — include fully-consumed AND soft-deleted rows.
+            var items = await context.ProductInventoryItems
+                .IgnoreQueryFilters()
+                .Where(i => i.ProductId == product.Id)
+                .Select(i => new { i.Id, i.PublicId, i.Unit })
+                .ToListAsync(cancellationToken);
+
+            if (items.Count == 0)
+            {
+                return new List<ProductHistoryEventInfo>();
+            }
+
+            var itemIds = items.Select(i => i.Id).ToList();
+            var itemById = items.ToDictionary(i => i.Id);
+
+            var locationFunctions = new LocationFunctions();
+            var userFunctions = new UserFunctions();
+            var events = new List<ProductHistoryEventInfo>();
+
+            // Purchases (retained even after the item is gone)
+            var purchases = await context.ProductPurchaseInfos
+                .IgnoreQueryFilters()
+                .Where(p => itemIds.Contains(p.ProductInventoryItemId))
+                .ToListAsync(cancellationToken);
+
+            foreach (var p in purchases)
+            {
+                itemById.TryGetValue(p.ProductInventoryItemId, out var item);
+
+                LocationInfo? location = null;
+                if (p.ShoppingLocationId.HasValue)
+                {
+                    var shoppingLocation = locationFunctions.GetShoppingLocationById(p.ShoppingLocationId.Value);
+                    if (shoppingLocation != null)
+                    {
+                        location = new LocationInfo { PublicId = shoppingLocation.PublicId, Name = shoppingLocation.Name };
+                    }
+                }
+
+                events.Add(new ProductHistoryEventInfo
+                {
+                    EventId = p.PublicId,
+                    Type = ProductHistoryEventType.Purchased,
+                    Date = p.PurchasedAt,
+                    Quantity = p.OriginalQuantity,
+                    Unit = item?.Unit,
+                    Price = p.Price,
+                    Currency = p.Currency,
+                    Location = location,
+                    InventoryItemPublicId = item?.PublicId ?? Guid.Empty
+                });
+            }
+
+            // Consumptions (retained even after the item is gone; also covers split-as-consume)
+            var consumptionLogs = await context.ProductConsumptionLogs
+                .IgnoreQueryFilters()
+                .Where(l => itemIds.Contains(l.ProductInventoryItemId))
+                .ToListAsync(cancellationToken);
+
+            foreach (var log in consumptionLogs)
+            {
+                itemById.TryGetValue(log.ProductInventoryItemId, out var item);
+
+                var user = log.UserId.HasValue ? userFunctions.GetUserById(log.UserId.Value) : null;
+
+                events.Add(new ProductHistoryEventInfo
+                {
+                    EventId = log.PublicId,
+                    Type = ProductHistoryEventType.Consumed,
+                    Date = log.ConsumedAt,
+                    Quantity = log.ConsumedQuantity,
+                    RemainingQuantity = log.RemainingQuantity,
+                    Unit = item?.Unit,
+                    UserName = user?.Name,
+                    InventoryItemPublicId = item?.PublicId ?? Guid.Empty
+                });
+            }
+
+            // Add / update / delete — from the append-only activity log (RecordId is the item Id here).
+            // ProductInventoryDecrease is intentionally skipped: consumptions above already cover it.
+            var historyActivityTypes = new[]
+            {
+                ActivityType.ProductInventoryCreate,
+                ActivityType.ProductInventoryUpdate,
+                ActivityType.ProductInventoryDelete
+            };
+
+            var activities = await context.Activities
+                .IgnoreQueryFilters()
+                .Where(a => historyActivityTypes.Contains(a.ActivityType) && itemIds.Contains(a.RecordId))
+                .ToListAsync(cancellationToken);
+
+            foreach (var activity in activities)
+            {
+                itemById.TryGetValue(activity.RecordId, out var item);
+                var user = userFunctions.GetUserById(activity.UserId);
+
+                var type = activity.ActivityType switch
+                {
+                    ActivityType.ProductInventoryCreate => ProductHistoryEventType.Added,
+                    ActivityType.ProductInventoryUpdate => ProductHistoryEventType.Updated,
+                    ActivityType.ProductInventoryDelete => ProductHistoryEventType.Deleted,
+                    _ => ProductHistoryEventType.Updated
+                };
+
+                events.Add(new ProductHistoryEventInfo
+                {
+                    EventId = activity.PublicId,
+                    Type = type,
+                    Date = activity.Timestamp,
+                    Quantity = activity.Quantity,
+                    Unit = activity.Unit ?? item?.Unit,
+                    UserName = user?.Name,
+                    InventoryItemPublicId = item?.PublicId ?? Guid.Empty
+                });
+            }
+
+            return events
+                .OrderByDescending(e => e.Date)
+                .ToList();
         }
 
         public PagedResult<DetailedProductInfo> GetAllDetailedProductsForUser(PaginationRequest pagination)

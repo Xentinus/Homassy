@@ -46,6 +46,8 @@
     "add": "Add",
     "success": "Success",
     "error": "Error",
+    "close": "Close",
+    "actions": "Actions",
     "confirm": "Confirm",
     "address": "Address",
     "city": "City",
@@ -392,6 +394,19 @@
           "cancel": "Cancel",
           "move": "Move",
           "success": "Inventory moved successfully"
+        },
+        "operationsTitle": "Inventory operations",
+        "operationsHint": "Select items, then choose an operation.",
+        "operationsSelectedCount": "{count} selected",
+        "settingsAriaLabel": "Inventory operations",
+        "historyHeader": "History",
+        "noHistory": "No history yet",
+        "history": {
+          "purchased": "Purchased",
+          "added": "Added",
+          "consumed": "Consumed",
+          "updated": "Updated",
+          "deleted": "Deleted"
         },
         "splitItem": "Split Inventory",
         "splitModal": {

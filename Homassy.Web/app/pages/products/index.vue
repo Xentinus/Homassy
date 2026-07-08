@@ -205,11 +205,12 @@
 
     <!-- Products Grid -->
     <div v-else class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-      <DetailedProductCard 
-        v-for="product in displayedProducts" 
-        :key="product.publicId" 
+      <DetailedProductCard
+        v-for="product in displayedProducts"
+        :key="product.publicId"
         :product="product"
         :search-query="searchQuery"
+        @select="openOverview"
       />
     </div>
 
@@ -227,6 +228,9 @@
 
     <!-- Add Inventory Wizard (bottom-sheet) -->
     <AddInventoryItemModal v-model:open="isAddInventoryOpen" @created="handleInventoryCreated" />
+
+    <!-- Inventory overview (bottom-sheet), opened by tapping a card -->
+    <InventoryOverviewDrawer v-model:open="isOverviewOpen" :product-public-id="overviewProductId" />
   </div>
 </template>
 
@@ -259,6 +263,14 @@ const eventBus = useEventBus()
 
 // The add-inventory wizard (bottom-sheet) opened from the nav FAB.
 const isAddInventoryOpen = ref(false)
+
+// The inventory-overview bottom-sheet, opened by tapping a product card.
+const isOverviewOpen = ref(false)
+const overviewProductId = ref<string | null>(null)
+const openOverview = (publicId: string) => {
+  overviewProductId.value = publicId
+  isOverviewOpen.value = true
+}
 
 // Register the page's add-action(s) on the dynamic nav FAB.
 useFabActions(() => [

@@ -22,12 +22,12 @@ import type {
   DeleteMultipleInventoryItemsRequest,
   SplitInventoryItemRequest,
   SplitInventoryItemResponse,
-  ExpirationCountResponse
+  ExpirationCountResponse,
+  ProductHistoryEventInfo
 } from '~/types/product'
 
 export const useProductsApi = () => {
   const client = useApiClient()
-  const $i18n = useI18n()
   const eventBus = useEventBus()
 
   /**
@@ -80,6 +80,16 @@ export const useProductsApi = () => {
   const getProductDetails = async (productPublicId: string) => {
     return await client.get<DetailedProductInfo>(
       `/api/v1/Product/${productPublicId}/detailed`
+    )
+  }
+
+  /**
+   * Get the product's full global stock history (purchases, consumptions,
+   * add/update/delete events) across all its inventory items, newest first.
+   */
+  const getProductHistory = async (productPublicId: string) => {
+    return await client.get<ProductHistoryEventInfo[]>(
+      `/api/v1/Product/${productPublicId}/history`
     )
   }
 
@@ -329,6 +339,7 @@ export const useProductsApi = () => {
     getProducts,
     getDetailedProducts,
     getProductDetails,
+    getProductHistory,
     createProduct,
     updateProduct,
     deleteProduct,

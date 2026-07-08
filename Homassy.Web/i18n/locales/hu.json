@@ -47,6 +47,8 @@
     "add": "Hozzáadás",
     "success": "Siker",
     "error": "Hiba",
+    "close": "Bezárás",
+    "actions": "Műveletek",
     "address": "Cím",
     "city": "Város",
     "postalCode": "Irányítószám",
@@ -393,6 +395,19 @@
           "cancel": "Mégse",
           "move": "Mozgatás",
           "success": "Készlet sikeresen áthelyezve"
+        },
+        "operationsTitle": "Készlet műveletek",
+        "operationsHint": "Válaszd ki az elemeket, majd a műveletet.",
+        "operationsSelectedCount": "{count} kijelölve",
+        "settingsAriaLabel": "Készlet műveletek",
+        "historyHeader": "Előzmények",
+        "noHistory": "Nincs előzmény",
+        "history": {
+          "purchased": "Vásárlás",
+          "added": "Hozzáadva",
+          "consumed": "Fogyasztás",
+          "updated": "Módosítva",
+          "deleted": "Törölve"
         },
         "splitItem": "Készlet felosztás",
         "splitModal": {

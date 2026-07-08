@@ -4,9 +4,9 @@
     tabindex="0"
     class="group relative bg-default rounded-2xl border-2 p-3 cursor-pointer shadow-sm hover:shadow-lg transition-shadow duration-200 flex flex-col overflow-hidden card-animate"
     :class="cardBorderClass"
-    @click="navigateToProduct"
-    @keydown.enter="navigateToProduct"
-    @keydown.space.prevent="navigateToProduct"
+    @click="selectProduct"
+    @keydown.enter="selectProduct"
+    @keydown.space.prevent="selectProduct"
   >
     <!-- Header: Name, Brand, Barcode, Icons -->
     <div class="space-y-1 mb-2">
@@ -61,7 +61,6 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { useRouter } from 'vue-router'
 import type { InventoryGridProductInfo } from '../types/product'
 
 interface Props {
@@ -72,6 +71,10 @@ interface Props {
 const props = withDefaults(defineProps<Props>(), {
   searchQuery: ''
 })
+
+const emit = defineEmits<{
+  select: [publicId: string]
+}>()
 
 const { t } = useI18n()
 const { isExpired: checkIsExpired, isExpiringSoon: checkIsExpiringSoon } = useExpirationCheck()
@@ -141,10 +144,8 @@ const hasExpiringSoonItems = computed(() => {
   })
 })
 
-const router = useRouter()
-
-const navigateToProduct = () => {
-  router.push(`/products/${props.product.publicId}`)
+const selectProduct = () => {
+  emit('select', props.product.publicId)
 }
 </script>
 

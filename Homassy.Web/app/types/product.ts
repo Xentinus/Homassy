@@ -221,3 +221,29 @@ export interface MoveInventoryItemsRequest {
 export interface DeleteMultipleInventoryItemsRequest {
   itemPublicIds: string[]
 }
+
+// ===================
+// Product history (global timeline across all inventory items)
+// ===================
+
+export enum ProductHistoryEventType {
+  Purchased = 0,
+  Added = 1,
+  Consumed = 2,
+  Updated = 3,
+  Deleted = 4
+}
+
+export interface ProductHistoryEventInfo {
+  eventId: string
+  type: ProductHistoryEventType
+  date: string
+  quantity?: number
+  remainingQuantity?: number
+  unit?: Unit
+  price?: number
+  currency?: Currency
+  userName?: string
+  location?: LocationInfo
+  inventoryItemPublicId: string
+}
