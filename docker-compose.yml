@@ -48,14 +48,14 @@ services:
       # Secrets (Kratos standard env vars)
       - SECRETS_COOKIE=${KRATOS_COOKIE_SECRET:-PLEASE-CHANGE-ME-I-AM-VERY-INSECURE!}
       - SECRETS_CIPHER=${KRATOS_CIPHER_SECRET:-32-character-cipher-key-here-012}
-      # Email microservice
-      - EMAIL_SERVICE_API_KEY=${EMAIL_SERVICE_API_KEY}
+      # Global internal service-to-service API key (used to authenticate the courier webhook to Homassy.Email)
+      - INTERNAL_API_KEY=${INTERNAL_API_KEY}
     volumes:
       - ./Homassy.Kratos/kratos.yml:/etc/config/kratos/kratos.yml:ro
       - ./Homassy.Kratos/identity.schema.json:/etc/config/kratos/identity.schema.json:ro
       - ./Homassy.Kratos/webhook_body.jsonnet:/etc/config/kratos/webhook_body.jsonnet:ro
     entrypoint: /bin/sh
-    command: ["-c", "sed \"s|REPLACE_EMAIL_SERVICE_API_KEY|${EMAIL_SERVICE_API_KEY}|g\" /etc/config/kratos/kratos.yml > /tmp/kratos.yml && kratos migrate sql -e --yes -c /tmp/kratos.yml && kratos serve -c /tmp/kratos.yml --dev --watch-courier"]
+    command: ["-c", "sed \"s|REPLACE_INTERNAL_API_KEY|${INTERNAL_API_KEY}|g\" /etc/config/kratos/kratos.yml > /tmp/kratos.yml && kratos migrate sql -e --yes -c /tmp/kratos.yml && kratos serve -c /tmp/kratos.yml --dev --watch-courier"]
     networks:
       - homassy-network
     depends_on:
@@ -92,7 +92,7 @@ services:
       - Kratos__AdminUrl=http://homassy-kratos:4434
       - RegistrationEnabled=${REGISTRATION_ENABLED:-true}
       - NotificationsService__BaseUrl=http://homassy-notifications:8080
-      - NotificationsService__ApiKey=${NOTIFICATIONS_SERVICE_API_KEY:-dev-notifications-key}
+      - InternalApi__ApiKey=${INTERNAL_API_KEY:-dev-internal-api-key}
       - WebPush__VapidPublicKey=${VAPID_PUBLIC_KEY}
     networks:
       - homassy-network
@@ -152,7 +152,7 @@ services:
       - Email__SenderEmail=${EMAIL_SENDER_EMAIL}
       - Email__Username=${EMAIL_USERNAME}
       - Email__Password=${EMAIL_PASSWORD}
-      - Email__ApiKey=${EMAIL_SERVICE_API_KEY}
+      - InternalApi__ApiKey=${INTERNAL_API_KEY}
     networks:
       - homassy-network
     healthcheck:
@@ -180,9 +180,9 @@ services:
       - WebPush__VapidSubject=${VAPID_SUBJECT:-mailto:noreply@homassy.com}
       - WebPush__VapidPublicKey=${VAPID_PUBLIC_KEY}
       - WebPush__VapidPrivateKey=${VAPID_PRIVATE_KEY}
-      - Notifications__ApiKey=${NOTIFICATIONS_SERVICE_API_KEY:-dev-notifications-key}
+      - InternalApi__ApiKey=${INTERNAL_API_KEY:-dev-internal-api-key}
       - EmailService__BaseUrl=http://homassy-email:8080
-      - EmailService__ApiKey=${EMAIL_SERVICE_API_KEY}
+      - HomassyApi__BaseUrl=http://homassy-api:8080
     networks:
       - homassy-network
     depends_on:

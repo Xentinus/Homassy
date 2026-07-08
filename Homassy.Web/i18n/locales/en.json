@@ -46,6 +46,8 @@
     "add": "Add",
     "success": "Success",
     "error": "Error",
+    "close": "Close",
+    "actions": "Actions",
     "confirm": "Confirm",
     "address": "Address",
     "city": "City",
@@ -288,6 +290,7 @@
     "products": {
       "title": "Inventory",
       "description": "Manage your household products and inventory.",
+      "infoAriaLabel": "Information",
       "addProductButton": "Add Product",
       "noResults": "No products found. Try adjusting your search criteria.",
       "filters": {
@@ -392,6 +395,19 @@
           "move": "Move",
           "success": "Inventory moved successfully"
         },
+        "operationsTitle": "Inventory operations",
+        "operationsHint": "Select items, then choose an operation.",
+        "operationsSelectedCount": "{count} selected",
+        "settingsAriaLabel": "Inventory operations",
+        "historyHeader": "History",
+        "noHistory": "No history yet",
+        "history": {
+          "purchased": "Purchased",
+          "added": "Added",
+          "consumed": "Consumed",
+          "updated": "Updated",
+          "deleted": "Deleted"
+        },
         "splitItem": "Split Inventory",
         "splitModal": {
           "title": "Split Inventory Item",
@@ -454,6 +470,19 @@
         "barcodeSearch": "Barcode Search",
         "startTyping": "Start typing to search",
         "noResults": "No results found"
+      },
+      "pick": {
+        "createProduct": "Create product \"{name}\"",
+        "createLocation": "Create storage location \"{name}\"",
+        "createShoppingLocation": "Create shopping location \"{name}\"",
+        "properties": "Properties",
+        "favorite": "Favorite",
+        "eatable": "Eatable",
+        "freezer": "Freezer",
+        "city": "City",
+        "shared": "Shared",
+        "allCities": "All",
+        "noFilterMatch": "No results match the filters"
       },
       "form": {
         "name": "Product Name",

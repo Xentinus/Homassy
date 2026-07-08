@@ -15,7 +15,7 @@ public sealed class EmailServiceClient
         _logger = logger;
 
         var baseUrl = configuration["EmailService:BaseUrl"] ?? "http://homassy-email:8080";
-        var apiKey = configuration["EmailService:ApiKey"] ?? string.Empty;
+        var apiKey = configuration["InternalApi:ApiKey"] ?? string.Empty;
 
         _httpClient.BaseAddress = new Uri(baseUrl);
         _httpClient.DefaultRequestHeaders.Add("X-Api-Key", apiKey);

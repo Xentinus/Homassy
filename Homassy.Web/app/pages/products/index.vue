@@ -1,14 +1,29 @@
 ﻿<template>
   <div>
     <!-- Sticky Header with Search -->
-    <div ref="headerRef" class="fixed top-0 left-0 right-0 z-10 bg-white dark:bg-gray-900 px-6 sm:px-10 lg:px-16 py-4 border-b border-gray-200 dark:border-gray-800 space-y-3">
-      <div class="flex items-center justify-between gap-3">
-        <div class="flex items-center gap-3">
-          <UIcon name="i-lucide-package" class="h-7 w-7 text-primary-500" />
-          <h1 class="text-2xl font-semibold">{{ $t('pages.products.title') }}</h1>
+    <div ref="headerRef" class="fixed top-0 left-0 right-0 z-10 bg-white dark:bg-gray-900 px-6 sm:px-10 lg:px-16 py-6 border-b border-gray-200 dark:border-gray-800 space-y-3">
+      <div class="flex items-center gap-3">
+        <UIcon name="i-lucide-package" class="h-7 w-7 text-primary-500 shrink-0" />
+        <div class="min-w-0">
+          <div class="flex items-center gap-1.5">
+            <h1 class="text-2xl font-semibold leading-tight">{{ $t('pages.products.title') }}</h1>
+            <UPopover>
+              <UButton
+                icon="i-lucide-info"
+                color="neutral"
+                variant="ghost"
+                size="xs"
+                :aria-label="$t('pages.products.infoAriaLabel')"
+              />
+              <template #content>
+                <p class="p-3 max-w-xs text-sm text-gray-600 dark:text-gray-400">
+                  {{ $t('pages.products.description') }}
+                </p>
+              </template>
+            </UPopover>
+          </div>
         </div>
       </div>
-      <p class="text-gray-600 dark:text-gray-400">{{ $t('pages.products.description') }}</p>
 
       <!-- Search row (always visible) + filters trigger -->
       <div class="space-y-2">
@@ -168,7 +183,7 @@
     </UDrawer>
 
     <!-- Content Section (offset by the fixed header's measured height) -->
-    <div class="px-4 sm:px-8 lg:px-14 pb-6" :style="{ paddingTop: headerHeight ? `calc(${headerHeight}px + 0.5rem)` : '13rem' }">
+    <div class="px-4 sm:px-8 lg:px-14 pb-6" :style="{ paddingTop: headerHeight ? `calc(${headerHeight}px + 1.5rem)` : '15rem' }">
 
     <PullToRefreshIndicator
       :pull-distance="pullDistance"
@@ -190,11 +205,12 @@
 
     <!-- Products Grid -->
     <div v-else class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-      <DetailedProductCard 
-        v-for="product in displayedProducts" 
-        :key="product.publicId" 
+      <DetailedProductCard
+        v-for="product in displayedProducts"
+        :key="product.publicId"
         :product="product"
         :search-query="searchQuery"
+        @select="openOverview"
       />
     </div>
 
@@ -209,15 +225,29 @@
 
     <!-- Barcode Scanner Modal -->
     <BarcodeScannerModal :on-barcode-detected="handleBarcodeScanned" />
+
+    <!-- Add Inventory Wizard (bottom-sheet) -->
+    <AddInventoryItemModal v-model:open="isAddInventoryOpen" @created="handleInventoryCreated" />
+
+    <!-- Inventory overview (bottom-sheet), opened by tapping a card -->
+    <InventoryOverviewDrawer v-model:open="isOverviewOpen" :product-public-id="overviewProductId" />
   </div>
 </template>
 
 <script setup lang="ts">
 import { ref, computed, onMounted, watch, onBeforeUnmount } from 'vue'
 import { useProductsApi } from '../../composables/api/useProductsApi'
-import type { DetailedProductInfo } from '../../types/product'
+import type {
+  InventoryGridProductInfo,
+  InventoryUpsertedEvent,
+  InventoryDeletedEvent,
+  ProductDeletedEvent,
+  ProductFavoriteChangedEvent
+} from '../../types/product'
 import { normalizeForSearch } from '../../utils/stringUtils'
 import { useCameraAvailability } from '../../composables/useCameraAvailability'
+import { useInventorySocket } from '../../composables/useInventorySocket'
+import { useEventBus } from '../../composables/useEventBus'
 
 definePageMeta({
   layout: 'auth',
@@ -228,13 +258,26 @@ const { getDetailedProducts } = useProductsApi()
 const { isExpired: checkIsExpired, isExpiringSoon: checkIsExpiringSoon } = useExpirationCheck()
 const { t: $t } = useI18n()
 const { showCameraButton } = useCameraAvailability()
+const inventorySocket = useInventorySocket()
+const eventBus = useEventBus()
+
+// The add-inventory wizard (bottom-sheet) opened from the nav FAB.
+const isAddInventoryOpen = ref(false)
+
+// The inventory-overview bottom-sheet, opened by tapping a product card.
+const isOverviewOpen = ref(false)
+const overviewProductId = ref<string | null>(null)
+const openOverview = (publicId: string) => {
+  overviewProductId.value = publicId
+  isOverviewOpen.value = true
+}
 
 // Register the page's add-action(s) on the dynamic nav FAB.
 useFabActions(() => [
   {
     label: $t('pages.products.addProductButton'),
     icon: 'i-lucide-plus',
-    handler: () => navigateTo('/products/add-product')
+    handler: () => { isAddInventoryOpen.value = true }
   }
 ])
 
@@ -244,7 +287,7 @@ const { pullDistance, isPulling, isRefreshing, isReady } = usePullToRefresh(() =
 const FILTERS_KEY = 'productsFilters'
 
 // State
-const allProducts = ref<DetailedProductInfo[]>([])
+const allProducts = ref<InventoryGridProductInfo[]>([])
 const isLoading = ref(false)
 const searchQuery = ref('')
 const filtersOpen = ref(false)
@@ -437,9 +480,9 @@ const filteredProducts = computed(() => {
   }
 
   // Sort products by urgency and then alphabetically
-  const expiredProducts: DetailedProductInfo[] = []
-  const expiringSoonProducts: DetailedProductInfo[] = []
-  const otherProducts: DetailedProductInfo[] = []
+  const expiredProducts: InventoryGridProductInfo[] = []
+  const expiringSoonProducts: InventoryGridProductInfo[] = []
+  const otherProducts: InventoryGridProductInfo[] = []
 
   result.forEach(product => {
     if (hasExpiredItems(product)) {
@@ -452,7 +495,7 @@ const filteredProducts = computed(() => {
   })
 
   // Sort each category alphabetically
-  const sortAlphabetically = (a: DetailedProductInfo, b: DetailedProductInfo) => {
+  const sortAlphabetically = (a: InventoryGridProductInfo, b: InventoryGridProductInfo) => {
     const nameA = a.name.toLowerCase()
     const nameB = b.name.toLowerCase()
     return nameA.localeCompare(nameB, 'hu')
@@ -478,7 +521,7 @@ const hasMoreProducts = computed(() => {
 })
 
 // Helper function to check if product has expired items
-const hasExpiredItems = (product: DetailedProductInfo): boolean => {
+const hasExpiredItems = (product: InventoryGridProductInfo): boolean => {
   return product.inventoryItems.some(item => {
     if (!item.expirationAt) return false
     try {
@@ -490,7 +533,7 @@ const hasExpiredItems = (product: DetailedProductInfo): boolean => {
 }
 
 // Helper function to check if product has items expiring soon (within 2 weeks)
-const hasExpiringSoonItems = (product: DetailedProductInfo): boolean => {
+const hasExpiringSoonItems = (product: InventoryGridProductInfo): boolean => {
   return product.inventoryItems.some(item => {
     if (!item.expirationAt) return false
     try {
@@ -503,32 +546,107 @@ const hasExpiringSoonItems = (product: DetailedProductInfo): boolean => {
 
 // Scope helpers: a product matches "family" if it has any shared item, "personal"
 // if it has any personal item. A product with both kinds matches both scopes.
-const hasFamilyItems = (product: DetailedProductInfo): boolean => {
+const hasFamilyItems = (product: InventoryGridProductInfo): boolean => {
   return product.inventoryItems.some(item => item.isSharedWithFamily === true)
 }
 
-const hasPersonalItems = (product: DetailedProductInfo): boolean => {
+const hasPersonalItems = (product: InventoryGridProductInfo): boolean => {
   return product.inventoryItems.some(item => item.isSharedWithFamily === false)
 }
 
 // Total stock across all items. Items may use different units (pcs, g, l), so this
 // sum is unit-agnostic and only approximate when a product mixes units.
-const totalQuantity = (product: DetailedProductInfo): number => {
+const totalQuantity = (product: InventoryGridProductInfo): number => {
   return product.inventoryItems.reduce((sum, item) => sum + item.currentQuantity, 0)
 }
 
 // Methods
+// Load the grid: prefer the realtime snapshot (only card-needed fields), fall back to REST
+// (SSR or socket down), mapping the heavier DTO down to the light grid shape.
 const loadProducts = async () => {
   isLoading.value = true
   try {
-    const response = await getDetailedProducts({ returnAll: true })
+    const snapshot = await inventorySocket.joinInventory()
+    if (snapshot) {
+      allProducts.value = snapshot
+      return
+    }
 
+    const response = await getDetailedProducts({ returnAll: true })
     if (response.success && response.data) {
-      allProducts.value = response.data.items
+      allProducts.value = response.data.items.map(p => ({
+        publicId: p.publicId,
+        name: p.name,
+        brand: p.brand,
+        barcode: p.barcode,
+        isEatable: p.isEatable,
+        isFavorite: p.isFavorite,
+        inventoryItems: p.inventoryItems.map(i => ({
+          publicId: i.publicId,
+          productPublicId: p.publicId,
+          currentQuantity: i.currentQuantity,
+          unit: i.unit,
+          expirationAt: i.expirationAt,
+          isSharedWithFamily: i.isSharedWithFamily
+        }))
+      }))
     }
   } finally {
     isLoading.value = false
   }
+}
+
+// Reload only if the socket is down — a connected client receives its own change back over the
+// socket and patches in place, so no full refetch is needed.
+const handleInventoryCreated = () => {
+  if (!inventorySocket.isConnected.value) loadProducts()
+}
+
+// --- Realtime patch handlers: mutate allProducts in place instead of refetching ---
+
+const handleRealtimeInventoryUpserted = (payload: InventoryUpsertedEvent) => {
+  const { product, item } = payload
+  const existing = allProducts.value.find(p => p.publicId === product.publicId)
+  if (!existing) {
+    // A product enters the grid only once it has an in-scope item.
+    allProducts.value.push({ ...product, inventoryItems: [item] })
+  } else {
+    const idx = existing.inventoryItems.findIndex(i => i.publicId === item.publicId)
+    if (idx >= 0) existing.inventoryItems.splice(idx, 1, item)
+    else existing.inventoryItems.push(item)
+  }
+  eventBus.emit('inventory:updated')
+}
+
+const handleRealtimeInventoryDeleted = (payload: InventoryDeletedEvent) => {
+  const product = allProducts.value.find(p => p.publicId === payload.productPublicId)
+  if (!product) return
+  product.inventoryItems = product.inventoryItems.filter(i => i.publicId !== payload.itemPublicId)
+  // A product with no in-scope inventory left is no longer in the grid.
+  if (product.inventoryItems.length === 0) {
+    allProducts.value = allProducts.value.filter(p => p.publicId !== payload.productPublicId)
+  }
+  eventBus.emit('inventory:deleted')
+}
+
+const handleRealtimeProductUpdated = (product: InventoryGridProductInfo) => {
+  const existing = allProducts.value.find(p => p.publicId === product.publicId)
+  if (!existing) return // no in-scope inventory → not shown in the grid
+  // Catalog fields only — preserve local items and the per-user favorite flag.
+  existing.name = product.name
+  existing.brand = product.brand
+  existing.barcode = product.barcode
+  existing.isEatable = product.isEatable
+}
+
+const handleRealtimeProductFavoriteChanged = (payload: ProductFavoriteChangedEvent) => {
+  const existing = allProducts.value.find(p => p.publicId === payload.publicId)
+  if (existing) existing.isFavorite = payload.isFavorite
+}
+
+const handleRealtimeProductDeleted = (payload: ProductDeletedEvent) => {
+  allProducts.value = allProducts.value.filter(p => p.publicId !== payload.publicId)
+  eventBus.emit('product:deleted')
 }
 
 const loadMoreProducts = () => {
@@ -619,6 +737,14 @@ onMounted(() => {
 
   loadProducts()
 
+  // Live updates: patch the grid from server pushes instead of refetching.
+  inventorySocket.on('InventoryUpserted', handleRealtimeInventoryUpserted)
+  inventorySocket.on('InventoryDeleted', handleRealtimeInventoryDeleted)
+  inventorySocket.on('ProductUpdated', handleRealtimeProductUpdated)
+  inventorySocket.on('ProductFavoriteChanged', handleRealtimeProductFavoriteChanged)
+  inventorySocket.on('ProductDeleted', handleRealtimeProductDeleted)
+  inventorySocket.onReconnected(loadProducts)
+
   // Track the fixed header's height (changes when the filter chips row appears/disappears).
   updateHeaderHeight()
   if (headerRef.value && typeof ResizeObserver !== 'undefined') {
@@ -629,6 +755,13 @@ onMounted(() => {
 
 // Cleanup on unmount
 onBeforeUnmount(() => {
+  inventorySocket.off('InventoryUpserted', handleRealtimeInventoryUpserted)
+  inventorySocket.off('InventoryDeleted', handleRealtimeInventoryDeleted)
+  inventorySocket.off('ProductUpdated', handleRealtimeProductUpdated)
+  inventorySocket.off('ProductFavoriteChanged', handleRealtimeProductFavoriteChanged)
+  inventorySocket.off('ProductDeleted', handleRealtimeProductDeleted)
+  inventorySocket.offReconnected(loadProducts)
+
   if (observer.value) {
     observer.value.disconnect()
   }

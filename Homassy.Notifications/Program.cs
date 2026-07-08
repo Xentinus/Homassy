@@ -37,6 +37,7 @@ try
     builder.Services.AddSingleton<FamilyPushNotifier>();
     builder.Services.AddScoped<InventoryExpirationService>();
     builder.Services.AddHttpClient<EmailServiceClient>();
+    builder.Services.AddHttpClient<InventoryBroadcastServiceClient>();
 
     // Background workers
     builder.Services.AddHostedService<PushNotificationSchedulerService>();

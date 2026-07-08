@@ -23,6 +23,54 @@ export interface DetailedProductInfo extends ProductInfo {
   inventoryItems: InventoryItemInfo[]
 }
 
+// ===================
+// Realtime (SignalR) — lightweight grid projections + event payloads
+// ===================
+
+/** Lightweight inventory item carrying only what a Készletek grid card needs. */
+export interface InventoryGridItemInfo {
+  publicId: string
+  productPublicId: string
+  currentQuantity: number
+  unit: Unit
+  expirationAt?: string
+  isSharedWithFamily: boolean
+}
+
+/** Lightweight product for the grid: card fields + its in-scope inventory items. */
+export interface InventoryGridProductInfo {
+  publicId: string
+  name: string
+  brand: string
+  barcode?: string
+  isEatable: boolean
+  isFavorite: boolean
+  inventoryItems: InventoryGridItemInfo[]
+}
+
+/** `InventoryUpserted` — the product carrier (items usually empty) plus the affected item. */
+export interface InventoryUpsertedEvent {
+  product: InventoryGridProductInfo
+  item: InventoryGridItemInfo
+}
+
+/** `InventoryDeleted` — an item was removed / fully consumed. */
+export interface InventoryDeletedEvent {
+  productPublicId: string
+  itemPublicId: string
+}
+
+/** `ProductDeleted` — the product itself was removed. */
+export interface ProductDeletedEvent {
+  publicId: string
+}
+
+/** `ProductFavoriteChanged` — per-user favorite toggle. */
+export interface ProductFavoriteChangedEvent {
+  publicId: string
+  isFavorite: boolean
+}
+
 export interface CreateProductRequest {
   name: string
   brand: string
@@ -172,4 +220,30 @@ export interface MoveInventoryItemsRequest {
 
 export interface DeleteMultipleInventoryItemsRequest {
   itemPublicIds: string[]
+}
+
+// ===================
+// Product history (global timeline across all inventory items)
+// ===================
+
+export enum ProductHistoryEventType {
+  Purchased = 0,
+  Added = 1,
+  Consumed = 2,
+  Updated = 3,
+  Deleted = 4
+}
+
+export interface ProductHistoryEventInfo {
+  eventId: string
+  type: ProductHistoryEventType
+  date: string
+  quantity?: number
+  remainingQuantity?: number
+  unit?: Unit
+  price?: number
+  currency?: Currency
+  userName?: string
+  location?: LocationInfo
+  inventoryItemPublicId: string
 }

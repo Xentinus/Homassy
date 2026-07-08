@@ -310,6 +310,9 @@ try
     // like the controllers; RequireCors is explicit because credentialed WS negotiation is strict.
     app.MapHub<ShoppingListHub>("/hubs/shopping-list").RequireCors("HomassyPolicy");
 
+    // Realtime Készletek (inventory) channel — per-family / per-user groups joined on connect.
+    app.MapHub<InventoryHub>("/hubs/inventory").RequireCors("HomassyPolicy");
+
     Log.Information("Homassy API started successfully");
 
     if (gracefulShutdownSettings.Enabled)

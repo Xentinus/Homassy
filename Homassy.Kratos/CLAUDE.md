@@ -219,10 +219,10 @@ courier:
       body: file:///etc/config/kratos/webhook_body.jsonnet
       headers:
         Content-Type: application/json
-        X-Api-Key: REPLACE_EMAIL_SERVICE_API_KEY
+        X-Api-Key: REPLACE_INTERNAL_API_KEY
 ```
 
-**Important:** `REPLACE_EMAIL_SERVICE_API_KEY` must match the `Email:ApiKey` value in Homassy.Email's configuration. This is injected at runtime via Docker Compose environment variables.
+**Important:** `REPLACE_INTERNAL_API_KEY` is substituted at container start (compose `sed`) with the global `INTERNAL_API_KEY` env value, and must match the `InternalApi:ApiKey` Homassy.Email validates against — the single internal key shared by all services.
 
 **Triggered for:**
 - Login code emails
@@ -409,7 +409,7 @@ The frontend calls the Kratos Public API directly for all auth flows (login, reg
 ```
 Kratos Courier
   → POST http://homassy-email:8080/kratos/webhook
-  → X-Api-Key: <api key matching Email:ApiKey config>
+  → X-Api-Key: <the global INTERNAL_API_KEY, matching Email's InternalApi:ApiKey config>
   → Body: rendered by webhook_body.jsonnet
   → Homassy.Email enqueues and delivers the email
 ```

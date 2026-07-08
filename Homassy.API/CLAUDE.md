@@ -16,7 +16,9 @@
 9. [Cross-Cutting Concerns](#cross-cutting-concerns)
 10. [Development Guidelines](#development-guidelines)
 
-> **Controllers:** AuthController · UserController · FamilyController · ProductController · LocationController · ShoppingListController · SelectValueController · OpenFoodFactsController · VersionController · HealthController · ErrorCodesController · ProgressController · AutomationController · CalendarController · StatisticsController
+> **Controllers:** AuthController · UserController · FamilyController · ProductController · LocationController · ShoppingListController · SelectValueController · OpenFoodFactsController · VersionController · HealthController · ErrorCodesController · ProgressController · AutomationController · CalendarController · StatisticsController · InternalController
+
+> **Internal (service-to-service):** `InternalController` (`api/v1/internal/*`) is called only by trusted internal services (e.g. `Homassy.Notifications`), authenticated by the `X-Api-Key` header against `InternalApi:ApiKey` (not a Kratos session). `InternalApi:ApiKey` is the **single global internal key** shared by every service (API, Notifications, Email) — fed from the global `.env` `INTERNAL_API_KEY` via compose, and also used by the API's own outbound `NotificationsServiceClient`. Currently exposes `POST inventory/broadcast`, which relays an inventory change from an out-of-process worker to the SignalR inventory groups.
 
 ---
 
@@ -53,6 +55,7 @@ Homassy.API is a home storage management system built with ASP.NET Core. The pro
 - **CORS Support**: Configurable cross-origin resource sharing for web clients
 - **Response Compression**: Brotli and Gzip for improved performance
 - **SignalR Realtime (Shopping Lists)**: Each shopping list is a SignalR group; clients join the list they are viewing and receive live item/list events. Writes stay on the REST endpoints — after a successful commit the Functions layer broadcasts via the static `ShoppingListRealtime` helper
+- **SignalR Realtime (Inventory / Készletek)**: Identity-derived groups (per-family + per-user, joined on connect) push live inventory/product events to every grid that can see the change; the Functions layer broadcasts light card-only payloads via the static `InventoryRealtime` helper after each commit, and out-of-process automation relays through the internal broadcast endpoint
 
 ---
 
@@ -203,7 +206,9 @@ Homassy.API/
 │   └── OpenFoodFactsHealthCheck.cs
 ├── Hubs/                 SignalR realtime hubs
 │   ├── ShoppingListHub.cs         Per-list groups; JoinList returns the current snapshot
-│   └── ShoppingListRealtime.cs    Static broadcast helper (ItemUpserted/ItemDeleted/ListUpdated/ListDeleted)
+│   ├── ShoppingListRealtime.cs    Static broadcast helper (ItemUpserted/ItemDeleted/ListUpdated/ListDeleted)
+│   ├── InventoryHub.cs            Per-family + per-user groups joined on connect; JoinInventory returns the light grid snapshot
+│   └── InventoryRealtime.cs       Static broadcast helper (InventoryUpserted/InventoryDeleted/ProductUpdated/ProductFavoriteChanged/ProductDeleted)
 ├── Infrastructure/       Infrastructure components
 │   └── DatabaseTriggerInitializer.cs
 ├── Middleware/           Custom middleware
@@ -882,6 +887,13 @@ Manages product catalog and inventory (all endpoints require `[Authorize]`).
 - Product customization per user (favorites, notes)
 - Inventory tracking with purchase info and consumption logs
 - Family-shared products support
+
+**Realtime (SignalR):**
+- Hub at `/hubs/inventory` (`InventoryHub`, `[Authorize]`) — same Kratos-cookie-on-handshake auth as the shopping-list hub
+- Groups are identity-derived (not per-resource): on connect each connection joins `inventory:user:{userId}` and, if the user has a family, `inventory:family:{familyId}` — matching the grid's visibility filter (`item.UserId == me || item.FamilyId == myFamily`). `JoinInventory()` returns the light `List<InventoryGridProductInfo>` snapshot (only the fields the grid cards render)
+- After a successful write, `ProductFunctions` (and the in-process automation consume path in `AutomationFunctions`) broadcasts via the static `InventoryRealtime` helper: `InventoryUpserted` (create/quick-add/update/partial-consume/split/move — carries a light product + item), `InventoryDeleted` (delete / consume-to-zero), `ProductUpdated` (catalog fields), `ProductFavoriteChanged` (per-user, user group only), `ProductDeleted`. Family-shared items route to the family group, personal items to the user group
+- Out-of-process mutations (the `Homassy.Notifications` automation worker) relay through `POST /api/v1/internal/inventory/broadcast` (see InternalController), since they can't reach the hub in-process
+- Broadcast failures are logged but never break the write
 
 ### LocationController
 

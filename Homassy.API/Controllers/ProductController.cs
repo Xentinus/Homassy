@@ -130,6 +130,26 @@ namespace Homassy.API.Controllers
         }
 
         /// <summary>
+        /// Gets the full global stock history for a product (purchases, consumptions, and add/update/delete
+        /// events) aggregated across all of its inventory items, newest first.
+        /// </summary>
+        [HttpGet("{productPublicId}/history")]
+        [MapToApiVersion(1.0)]
+        [ProducesResponseType(typeof(ApiResponse<List<ProductHistoryEventInfo>>), StatusCodes.Status200OK)]
+        [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status404NotFound)]
+        public async Task<IActionResult> GetProductHistory(Guid productPublicId, CancellationToken cancellationToken)
+        {
+            var history = await new ProductFunctions().GetProductHistoryAsync(productPublicId, cancellationToken);
+
+            if (history == null)
+            {
+                return NotFound(ApiResponse.ErrorResponse(ErrorCodes.ProductNotFound));
+            }
+
+            return Ok(ApiResponse<List<ProductHistoryEventInfo>>.SuccessResponse(history));
+        }
+
+        /// <summary>
         /// Gets detailed information about all products including inventory items with pagination support.
         /// </summary>
         [HttpGet("detailed")]

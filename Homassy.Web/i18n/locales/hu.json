@@ -47,6 +47,8 @@
     "add": "Hozzáadás",
     "success": "Siker",
     "error": "Hiba",
+    "close": "Bezárás",
+    "actions": "Műveletek",
     "address": "Cím",
     "city": "Város",
     "postalCode": "Irányítószám",
@@ -288,6 +290,7 @@
     "products": {
       "title": "Készletek",
       "description": "Kezeld a háztartási termékeidet és készletedet.",
+      "infoAriaLabel": "Információ",
       "addProductButton": "Termék hozzáadása",
       "noResults": "Nem található termék. Próbálj meg más keresési feltételeket használni.",
       "filters": {
@@ -393,6 +396,19 @@
           "move": "Mozgatás",
           "success": "Készlet sikeresen áthelyezve"
         },
+        "operationsTitle": "Készlet műveletek",
+        "operationsHint": "Válaszd ki az elemeket, majd a műveletet.",
+        "operationsSelectedCount": "{count} kijelölve",
+        "settingsAriaLabel": "Készlet műveletek",
+        "historyHeader": "Előzmények",
+        "noHistory": "Nincs előzmény",
+        "history": {
+          "purchased": "Vásárlás",
+          "added": "Hozzáadva",
+          "consumed": "Fogyasztás",
+          "updated": "Módosítva",
+          "deleted": "Törölve"
+        },
         "splitItem": "Készlet felosztás",
         "splitModal": {
           "title": "Készlet felosztása",
@@ -455,6 +471,19 @@
         "barcodeSearch": "Vonalkód keresés",
         "startTyping": "Kezdj el gépelni a kereséshez",
         "noResults": "Nincs találat"
+      },
+      "pick": {
+        "createProduct": "„{name}” létrehozása termékként",
+        "createLocation": "„{name}” létrehozása tárolóhelyként",
+        "createShoppingLocation": "„{name}” létrehozása bolthelyként",
+        "properties": "Tulajdonság",
+        "favorite": "Kedvenc",
+        "eatable": "Ehető",
+        "freezer": "Fagyasztó",
+        "city": "Város",
+        "shared": "Megosztott",
+        "allCities": "Összes",
+        "noFilterMatch": "Nincs a szűrőnek megfelelő találat"
       },
       "form": {
         "name": "Termék neve",

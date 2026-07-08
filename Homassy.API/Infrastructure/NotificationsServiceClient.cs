@@ -13,7 +13,7 @@ public sealed class NotificationsServiceClient
         _logger = logger;
 
         var baseUrl = configuration["NotificationsService:BaseUrl"] ?? "http://homassy-notifications:8080";
-        var apiKey = configuration["NotificationsService:ApiKey"] ?? string.Empty;
+        var apiKey = configuration["InternalApi:ApiKey"] ?? string.Empty;
 
         _httpClient.BaseAddress = new Uri(baseUrl);
         _httpClient.DefaultRequestHeaders.Add("X-Api-Key", apiKey);

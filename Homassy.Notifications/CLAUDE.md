@@ -71,7 +71,8 @@ Homassy.Notifications/
 │   ├── PushNotificationContentService.cs  # Localised notification text
 │   ├── FamilyPushNotifier.cs           # Shared recipient resolution + push dispatch
 │   ├── InventoryExpirationService.cs   # Expiring/expired item queries
-│   └── EmailServiceClient.cs           # HTTP client → Homassy.Email
+│   ├── EmailServiceClient.cs           # HTTP client → Homassy.Email
+│   └── InventoryBroadcastServiceClient.cs  # HTTP client → Homassy.API internal broadcast (realtime relay)
 └── Workers/
     ├── PushNotificationSchedulerService.cs   # Hourly, Mon 07:00 → weekly push
     ├── ShoppingListActivityMonitorService.cs  # 5 min → shopping list push
@@ -160,6 +161,9 @@ builder.Services.AddDbContext<HomassyDbContext>(options =>
   triggered rules are re-armed once stock is replenished above the threshold
 - Records an `ItemAutomationExecution` for each rule and sends push + email notifications to the
   owner via `IWebPushService` and `EmailServiceClient`
+- After an `AutoConsume` commit it relays the inventory change to `Homassy.API` via
+  `InventoryBroadcastServiceClient` (→ `POST /api/v1/internal/inventory/broadcast`) so connected
+  Készletek grids update live; this process hosts no SignalR hub, so it cannot broadcast directly
 
 ### EmailWeeklySummaryService
 - Runs every hour
@@ -183,10 +187,19 @@ Endpoints:
 
 ## Security
 
+All internal service-to-service auth uses ONE global key: config key `InternalApi:ApiKey`,
+fed from the global `.env` `INTERNAL_API_KEY` via compose. Every service (API, Notifications,
+Email) validates and sends the same value.
+
 ### API Key Middleware (`ApiKeyMiddleware`)
-- Validates `X-Api-Key` header against `Notifications:ApiKey` config value
+- Validates `X-Api-Key` header against `InternalApi:ApiKey` config value
 - Uses constant-time comparison (`CryptographicOperations.FixedTimeEquals`) to prevent timing attacks
 - `/health/*` paths are exempt
+
+### Outbound clients (`EmailServiceClient`, `InventoryBroadcastServiceClient`)
+- Both send `X-Api-Key` = `InternalApi:ApiKey` (the global key) to Email and to the API's internal
+  broadcast endpoint respectively; base URLs come from `EmailService:BaseUrl` / `HomassyApi:BaseUrl`
+- Failures are logged and swallowed — a realtime relay must never break the worker
 
 ---
 
@@ -202,12 +215,14 @@ Endpoints:
     "VapidPublicKey": "",
     "VapidPrivateKey": ""
   },
-  "Notifications": {
+  "InternalApi": {
     "ApiKey": ""
   },
   "EmailService": {
-    "BaseUrl": "http://homassy-email:8080",
-    "ApiKey": ""
+    "BaseUrl": "http://homassy-email:8080"
+  },
+  "HomassyApi": {
+    "BaseUrl": "http://homassy-api:8080"
   }
 }
 ```

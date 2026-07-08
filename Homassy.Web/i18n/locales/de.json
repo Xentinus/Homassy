@@ -46,6 +46,8 @@
     "add": "Hinzufügen",
     "success": "Erfolg",
     "error": "Fehler",
+    "close": "Schließen",
+    "actions": "Aktionen",
     "address": "Adresse",
     "city": "Stadt",
     "postalCode": "Postleitzahl",
@@ -286,6 +288,7 @@
     "products": {
       "title": "Lagerbestand",
       "description": "Verwalten Sie Ihre Haushaltsprodukte und Ihr Inventar.",
+      "infoAriaLabel": "Information",
       "addProductButton": "Produkt hinzufügen",
       "noResults": "Keine Produkte gefunden. Versuchen Sie, Ihre Suchkriterien anzupassen.",
       "filters": {
@@ -390,6 +393,19 @@
           "move": "Verschieben",
           "success": "Bestand erfolgreich verschoben"
         },
+        "operationsTitle": "Bestandsaktionen",
+        "operationsHint": "Elemente auswählen, dann eine Aktion wählen.",
+        "operationsSelectedCount": "{count} ausgewählt",
+        "settingsAriaLabel": "Bestandsaktionen",
+        "historyHeader": "Verlauf",
+        "noHistory": "Noch kein Verlauf",
+        "history": {
+          "purchased": "Gekauft",
+          "added": "Hinzugefügt",
+          "consumed": "Verbraucht",
+          "updated": "Aktualisiert",
+          "deleted": "Gelöscht"
+        },
         "splitItem": "Bestand aufteilen",
         "splitModal": {
           "title": "Bestand aufteilen",
@@ -452,6 +468,19 @@
         "barcodeSearch": "Barcode-Suche",
         "startTyping": "Tippen Sie, um zu suchen",
         "noResults": "Keine Ergebnisse gefunden"
+      },
+      "pick": {
+        "createProduct": "Produkt „{name}“ anlegen",
+        "createLocation": "Lagerort „{name}“ anlegen",
+        "createShoppingLocation": "Einkaufsort „{name}“ anlegen",
+        "properties": "Eigenschaften",
+        "favorite": "Favorit",
+        "eatable": "Essbar",
+        "freezer": "Gefrierschrank",
+        "city": "Stadt",
+        "shared": "Geteilt",
+        "allCities": "Alle",
+        "noFilterMatch": "Keine Ergebnisse entsprechen den Filtern"
       },
       "form": {
         "name": "Produktname",

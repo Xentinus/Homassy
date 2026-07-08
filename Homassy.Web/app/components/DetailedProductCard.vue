@@ -2,22 +2,22 @@
   <div
     role="button"
     tabindex="0"
-    class="group relative bg-gradient-to-br from-white to-gray-50 dark:from-gray-800 dark:to-gray-900 rounded-xl border-2 p-3 cursor-pointer hover:shadow-lg hover:-translate-y-0.5 transition-all duration-200 flex flex-col overflow-hidden card-animate"
+    class="group relative bg-default rounded-2xl border-2 p-3 cursor-pointer shadow-sm hover:shadow-lg transition-shadow duration-200 flex flex-col overflow-hidden card-animate"
     :class="cardBorderClass"
-    @click="navigateToProduct"
-    @keydown.enter="navigateToProduct"
-    @keydown.space.prevent="navigateToProduct"
+    @click="selectProduct"
+    @keydown.enter="selectProduct"
+    @keydown.space.prevent="selectProduct"
   >
     <!-- Header: Name, Brand, Barcode, Icons -->
     <div class="space-y-1 mb-2">
       <!-- Product Name -->
-      <h3 
-        class="font-bold text-sm text-gray-900 dark:text-white break-words"
+      <h3
+        class="text-sm font-bold break-words text-highlighted"
         v-html="highlightText(product.name, searchQuery)"
       />
-      
+
       <!-- Brand -->
-      <div class="text-xs text-gray-500 dark:text-gray-400 break-words font-medium">
+      <div class="text-xs text-muted break-words font-medium">
         <span v-html="highlightText(product.brand || '-', searchQuery)" />
       </div>
 
@@ -44,14 +44,14 @@
 
     <!-- Stock Count by Unit -->
     <div class="mt-auto">
-      <p v-if="product.inventoryItems.length === 0" class="text-xs text-gray-400 italic text-center py-1">
+      <p v-if="product.inventoryItems.length === 0" class="text-xs text-muted italic text-center py-1">
         {{ $t('common.noData') }}
       </p>
       <div v-else class="flex flex-col gap-1">
         <div v-for="entry in stockByUnit" :key="entry.unit" class="flex items-center gap-2 text-xs">
           <UIcon name="i-lucide-package-2" class="h-3.5 w-3.5 text-amber-600 dark:text-amber-400 flex-shrink-0" />
-          <span class="font-bold text-gray-900 dark:text-gray-100">{{ entry.quantity }}</span>
-          <span class="text-gray-700 dark:text-gray-300">{{ entry.unitLabel }}</span>
+          <span class="font-bold text-highlighted">{{ entry.quantity }}</span>
+          <span class="text-toned">{{ entry.unitLabel }}</span>
         </div>
       </div>
     </div>
@@ -59,20 +59,22 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { useRouter } from 'vue-router'
-import type { DetailedProductInfo } from '../types/product'
-import type { Unit } from '../types/enums'
+import type { InventoryGridProductInfo } from '../types/product'
 
 interface Props {
-  product: DetailedProductInfo
+  product: InventoryGridProductInfo
   searchQuery?: string
 }
 
 const props = withDefaults(defineProps<Props>(), {
   searchQuery: ''
 })
+
+const emit = defineEmits<{
+  select: [publicId: string]
+}>()
 
 const { t } = useI18n()
 const { isExpired: checkIsExpired, isExpiringSoon: checkIsExpiringSoon } = useExpirationCheck()
@@ -142,36 +144,8 @@ const hasExpiringSoonItems = computed(() => {
   })
 })
 
-const getUnitLabel = (unit: Unit): string => {
-  const unitKey = `enums.unit.${unit}`
-  return t(unitKey)
-}
-
-const formatDate = (dateString: string): string => {
-  try {
-    const date = new Date(dateString)
-    return new Intl.DateTimeFormat(navigator.language, {
-      year: 'numeric',
-      month: '2-digit',
-      day: '2-digit'
-    }).format(date)
-  } catch {
-    return dateString
-  }
-}
-
-const isExpired = (expirationAt: string): boolean => {
-  try {
-    return checkIsExpired(expirationAt)
-  } catch {
-    return false
-  }
-}
-
-const router = useRouter()
-
-const navigateToProduct = () => {
-  router.push(`/products/${props.product.publicId}`)
+const selectProduct = () => {
+  emit('select', props.product.publicId)
 }
 </script>
 
