@@ -9,6 +9,7 @@ Homassy.Web is the **frontend application** of the Homassy platform. It is a **N
 - **Nuxt 4 + Vue 3 Composition API** – file-based routing, auto-imports, SSR disabled for auth-sensitive pages
 - **Ory Kratos** – session-based auth using httpOnly cookies (`ory_kratos_session`); no JWT on the frontend
 - **`nuxt-api-party`** – server-side API proxying to `Homassy.API`; `$api` plugin for client-side calls with automatic 401 handling
+- **SignalR realtime** – `@microsoft/signalr` client (`useShoppingListSocket`) keeps the open shopping list in sync; writes still go through REST, the server broadcasts changes back
 - **Pinia** – global state management (currently single `auth` store)
 - **Nuxt UI v4** – component library with custom `mocha` color palette
 - **PWA** – `@vite-pwa/nuxt`, auto-update, push notification support via `sw-push.js`
@@ -28,6 +29,7 @@ Homassy.Web is the **frontend application** of the Homassy platform. It is a **N
 | i18n | @nuxtjs/i18n 10.2.1 |
 | PWA | @vite-pwa/nuxt 1.1.0 |
 | API proxy | nuxt-api-party 3.4.2 |
+| Realtime | @microsoft/signalr 10.0.0 |
 | Image | @nuxt/image 2.0.0, browser-image-compression 2.0.2 |
 | Icons | @iconify-json/heroicons, @iconify-json/lucide |
 | Barcode | vue-qrcode-reader 5.7.3 |
@@ -86,6 +88,8 @@ Homassy.Web/
 │   │   ├── useInputDateLocale.ts
 │   │   ├── usePullToRefresh.ts
 │   │   ├── usePushNotifications.ts
+│   │   ├── useShoppingListSocket.ts  SignalR realtime client for shopping lists
+│   │   ├── useSwipeActions.ts  Swipe-to-action gestures on cards (left/right + threshold commit)
 │   │   └── useWebAuthn.ts
 │   ├── layouts/
 │   │   ├── auth.vue            Authenticated layout – bottom nav bar
@@ -272,6 +276,18 @@ One composable per API controller. All use `useApiClient` internally:
 | `useHealthApi` | API health check |
 | `useErrorCodesApi` | Error code descriptions |
 | `useVersionApi` | API version info |
+
+### Realtime (SignalR)
+
+`useShoppingListSocket` maintains a single app-wide SignalR connection to `${apiBase}/hubs/shopping-list` (`withCredentials: true`, automatic reconnect, client-only).
+
+- `joinList(publicId, showPurchased)` joins the list's SignalR group and returns the current snapshot (`DetailedShoppingListInfo`) — no separate REST fetch needed; falls back to REST when the socket is down
+- Server events: `ItemUpserted`, `ItemDeleted`, `ListUpdated`, `ListDeleted` — the shopping list page patches its local state from these
+- All writes still go through `useShoppingListApi` (REST); the API broadcasts the change back to the group, so the acting client's own changes are also reflected via the socket
+
+### Swipe Actions
+
+`useSwipeActions(el, options)` adds swipe gestures to an element (used by `ShoppingListItemCard`): swipe left/right past a threshold (`max(40% width, 56px)`) commits `onSwipeLeft`/`onSwipeRight`. Pointer-event based with axis lock (vertical drags fall through to native scroll / pull-to-refresh), damped overshoot, haptic tick at the threshold, and a `suppressClick` flag consumers must check in their click handler. Requires `touch-action: pan-y` on the wrapper and works with touch, pen, and mouse.
 
 ---
 

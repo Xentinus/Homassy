@@ -6,7 +6,23 @@
       <div class="flex items-center gap-3">
         <UIcon name="i-lucide-shopping-cart" class="h-7 w-7 text-primary-500 shrink-0" />
         <div class="min-w-0">
-          <h1 class="text-2xl font-semibold leading-tight">{{ $t('pages.shoppingLists.title') }}</h1>
+          <div class="flex items-center gap-1.5">
+            <h1 class="text-2xl font-semibold leading-tight">{{ $t('pages.shoppingLists.title') }}</h1>
+            <UPopover>
+              <UButton
+                icon="i-lucide-info"
+                color="neutral"
+                variant="ghost"
+                size="xs"
+                :aria-label="$t('pages.shoppingLists.infoAriaLabel')"
+              />
+              <template #content>
+                <p class="p-3 max-w-xs text-sm text-gray-600 dark:text-gray-400">
+                  {{ $t('pages.shoppingLists.description') }}
+                </p>
+              </template>
+            </UPopover>
+          </div>
           <div
             v-if="currentListDetails"
             class="flex items-center gap-1.5 text-sm text-gray-600 dark:text-gray-400"
@@ -25,11 +41,6 @@
           </div>
         </div>
       </div>
-
-      <!-- Description -->
-      <p class="text-gray-600 dark:text-gray-400">
-        {{ $t('pages.shoppingLists.description') }}
-      </p>
 
       <!-- Search row + filters trigger -->
       <div class="flex gap-2">
@@ -101,7 +112,7 @@
     </div>
 
     <!-- Content Section (offset by the fixed header's measured height) -->
-    <div class="px-2 sm:px-4 md:px-6 lg:px-8 pb-6" :style="{ paddingTop: headerHeight ? `calc(${headerHeight}px + 0.5rem)` : '15rem' }">
+    <div class="px-2 sm:px-4 md:px-6 lg:px-8 pb-6" :style="{ paddingTop: headerHeight ? `calc(${headerHeight}px + 1.5rem)` : '16rem' }">
       <PullToRefreshIndicator
         :pull-distance="pullDistance"
         :is-pulling="isPulling"
@@ -499,6 +510,13 @@
       </template>
     </UModal>
 
+    <!-- Add item wizard (fullscreen modal) -->
+    <AddShoppingListItemModal
+      v-model:open="isAddItemModalOpen"
+      :list-id="selectedListId"
+      :mode="addItemMode"
+    />
+
     <!-- Barcode Scanner Modal -->
     <BarcodeScannerModal :on-barcode-detected="handleBarcodeScanned" />
   </div>
@@ -548,16 +566,30 @@ const showPurchased = ref(false)
 const isLoadingLists = ref(false)
 const isLoadingDetails = ref(false)
 
-// Dynamic add-action on the nav FAB: only when a list is selected.
+// Add-item wizard (fullscreen modal) state.
+const isAddItemModalOpen = ref(false)
+const addItemMode = ref<'product' | 'custom'>('product')
+const openAddItemModal = (mode: 'product' | 'custom') => {
+  if (!selectedListId.value) return
+  addItemMode.value = mode
+  isAddItemModalOpen.value = true
+}
+
+// Dynamic add-actions on the nav FAB: only when a list is selected. Two options →
+// the FAB opens a chooser (see useFabActions); each opens the wizard in a given mode.
 useFabActions(() => selectedListId.value
-  ? [{
-      label: $t('pages.shoppingLists.addProductButton'),
-      icon: 'i-lucide-plus',
-      handler: () => navigateTo({
-        path: '/shopping-lists/add-product',
-        query: { listId: selectedListId.value }
-      })
-    }]
+  ? [
+      {
+        label: $t('pages.shoppingLists.addWithSearch'),
+        icon: 'i-lucide-search',
+        handler: () => openAddItemModal('product')
+      },
+      {
+        label: $t('pages.shoppingLists.addCustom'),
+        icon: 'i-lucide-pencil-line',
+        handler: () => openAddItemModal('custom')
+      }
+    ]
   : [])
 
 // Filter state

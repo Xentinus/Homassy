@@ -36,6 +36,7 @@ Homassy is a modern full-stack system designed to simplify household inventory m
 - **Progressive Web App (PWA)** - Web manifest with standalone mode
 - **Responsive design** - Mobile-first approach with touch optimization
 - **Pull-to-refresh** - Native-feel pull-to-refresh on all major data pages via a reusable `usePullToRefresh` composable and `PullToRefreshIndicator` component (damped touch physics, threshold-based trigger, spinner feedback)
+- **Swipe actions** - Swipe-to-delete (left) and swipe-to-edit (right) on shopping list item cards via a reusable `useSwipeActions` composable (pointer-based drag with axis lock, threshold commit with damped overshoot, haptic feedback, confirm modals as safety net; works with touch, pen, and mouse)
 - **SSR & Client-side rendering** - Optimized performance with Nuxt 4
 - **Camera Integration** - Camera availability detection and barcode/QR Code scanning support
 
@@ -56,7 +57,7 @@ Homassy is a modern full-stack system designed to simplify household inventory m
 - 👤 **User Management** - Profiles, settings, profile pictures, activity feed
 - 👨‍👩‍👧‍👦 **Family Management** - Create families, approval-gated join requests via share codes (request → approve/reject), member management, family pictures
 - 📦 **Product Management** - Complete product inventory with consumption tracking and images
-- 🛒 **Shopping Lists** - Collaborative family shopping lists with purchase tracking
+- 🛒 **Shopping Lists** - Collaborative family shopping lists with purchase tracking (tap card to quick-purchase, swipe left/right to delete/edit)
 - 📍 **Locations** - Shopping locations (stores) and storage locations (home/freezer)
 - 📅 **Calendar** - Unified calendar of product expirations and shopping list deadlines
 - 📈 **Statistics** - Aggregated household counts (products, shopping items, families) with nightly caching

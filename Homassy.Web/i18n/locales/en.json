@@ -22,6 +22,7 @@
     "filter": "Filter",
     "previous": "Previous",
     "next": "Next",
+    "finish": "Finish",
     "noData": "No data",
     "pagination": "Pagination",
     "paginationInfo": "Showing page {current} of {total} ({items} items total)",
@@ -627,7 +628,10 @@
     "shoppingLists": {
       "title": "Shopping",
       "description": "Plan and track your shared shopping lists.",
+      "infoAriaLabel": "Information",
       "addProductButton": "Add Product",
+      "addWithSearch": "Add with product search",
+      "addCustom": "Add as custom item",
       "selectPlaceholder": "Select a shopping list...",
       "searchPlaceholder": "Search items...",
       "showPurchasedToggle": "Show purchased items",
@@ -703,6 +707,19 @@
           "search": "Search Product",
           "create": "Create New",
           "custom": "Custom Item"
+        },
+        "createNewProduct": "Create new product",
+        "backToSearch": "Back to search",
+        "pick": {
+          "createProduct": "Create product \"{name}\"",
+          "createLocation": "Create location \"{name}\"",
+          "properties": "Properties",
+          "favorite": "Favorite",
+          "eatable": "Eatable",
+          "city": "City",
+          "shared": "Shared",
+          "allCities": "All",
+          "noFilterMatch": "No products match the filters"
         },
         "custom": {
           "label": "Custom Item Name",

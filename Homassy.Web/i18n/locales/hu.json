@@ -23,6 +23,7 @@
     "filter": "Szűrés",
     "previous": "Előző",
     "next": "Következő",
+    "finish": "Befejezés",
     "noData": "Nincs adat",
     "pagination": "Oldalszámozás",
     "paginationInfo": "{current}. oldal ({total}-ből) {items} termék",
@@ -626,7 +627,10 @@
     "shoppingLists": {
       "title": "Bevásárlás",
       "description": "Tervezd és kövesd nyomon a megosztott bevásárlólistáidat.",
+      "infoAriaLabel": "Információ",
       "addProductButton": "Termék hozzáadása",
+      "addWithSearch": "Hozzáadás termék keresővel",
+      "addCustom": "Hozzáadás egyedi termékként",
       "selectPlaceholder": "Válassz egy bevásárlólistát...",
       "searchPlaceholder": "Tételek keresése...",
       "showPurchasedToggle": "Megvásárolt tételek mutatása",
@@ -702,6 +706,19 @@
           "search": "Termék keresése",
           "create": "Új létrehozása",
           "custom": "Egyedi"
+        },
+        "createNewProduct": "Új termék létrehozása",
+        "backToSearch": "Vissza a kereséshez",
+        "pick": {
+          "createProduct": "„{name}” létrehozása termékként",
+          "createLocation": "„{name}” létrehozása bolthelyként",
+          "properties": "Tulajdonság",
+          "favorite": "Kedvenc",
+          "eatable": "Ehető",
+          "city": "Város",
+          "shared": "Megosztott",
+          "allCities": "Összes",
+          "noFilterMatch": "Nincs a szűrőnek megfelelő termék"
         },
         "custom": {
           "label": "Egyedi termék neve",

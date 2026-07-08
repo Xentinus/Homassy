@@ -2,18 +2,13 @@
   <Transition name="fab-pop">
     <div
       v-if="fabVisible"
+      ref="rootRef"
       class="absolute left-1/2 top-0 z-30 -translate-x-1/2 -translate-y-1/2"
     >
-    <!-- Dimmed backdrop while the chooser is open (teleported so it sits below the nav) -->
-    <Teleport to="body">
-      <Transition name="fab-fade">
-        <div
-          v-if="open"
-          class="fixed inset-0 z-40 bg-black/40 backdrop-blur-[2px]"
-          @click="close"
-        />
-      </Transition>
-    </Teleport>
+    <!-- No dimming/backdrop: an overlay teleported to <body> would paint above the
+         nav (UApp sets `isolation: isolate`, trapping the nav's z-index) and swallow
+         taps on the option buttons. Outside taps are dismissed via a pointer listener
+         (see onPointerDown) so the buttons stay clickable. -->
 
     <!-- Speed-dial: heading + stacked options, anchored above the button -->
     <div class="absolute bottom-full left-1/2 mb-4 flex -translate-x-1/2 flex-col items-end gap-2.5">
@@ -75,6 +70,7 @@ import type { FabAction } from '~/composables/useFabActions'
 const { actions, fabVisible } = useFab()
 const route = useRoute()
 
+const rootRef = ref<HTMLElement | null>(null)
 const open = ref(false)
 
 // Only render option buttons while open — keeps the closed state clean and lets
@@ -103,8 +99,24 @@ const onKeydown = (event: KeyboardEvent) => {
   if (event.key === 'Escape') close()
 }
 
-onMounted(() => window.addEventListener('keydown', onKeydown))
-onUnmounted(() => window.removeEventListener('keydown', onKeydown))
+// Dismiss the open chooser when pressing anywhere outside the FAB. Replaces the old
+// backdrop element (which couldn't sit below the nav, see template comment) — this
+// leaves the option buttons as the topmost elements at their location so taps land
+// on them instead of a backdrop.
+const onPointerDown = (event: PointerEvent) => {
+  if (!open.value) return
+  const target = event.target as Node | null
+  if (rootRef.value && target && !rootRef.value.contains(target)) close()
+}
+
+onMounted(() => {
+  window.addEventListener('keydown', onKeydown)
+  window.addEventListener('pointerdown', onPointerDown)
+})
+onUnmounted(() => {
+  window.removeEventListener('keydown', onKeydown)
+  window.removeEventListener('pointerdown', onPointerDown)
+})
 
 // Close the chooser when navigating away or when the actions no longer warrant it.
 watch(() => route.fullPath, close)

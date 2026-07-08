@@ -22,6 +22,7 @@
     "filter": "Filtern",
     "previous": "Zurück",
     "next": "Weiter",
+    "finish": "Abschließen",
     "noData": "Keine Daten",
     "pagination": "Seitennummerierung",
     "paginationInfo": "Seite {current} von {total} ({items} Artikel gesamt)",
@@ -625,7 +626,10 @@
     "shoppingLists": {
       "title": "Einkaufen",
       "description": "Planen und verfolgen Sie Ihre geteilten Einkaufslisten.",
+      "infoAriaLabel": "Information",
       "addProductButton": "Produkt hinzufügen",
+      "addWithSearch": "Mit Produktsuche hinzufügen",
+      "addCustom": "Als eigenes Produkt hinzufügen",
       "selectPlaceholder": "Wählen Sie eine Einkaufsliste...",
       "searchPlaceholder": "Artikel suchen...",
       "showPurchasedToggle": "Gekaufte Artikel anzeigen",
@@ -701,6 +705,19 @@
           "search": "Produkt suchen",
           "create": "Neu erstellen",
           "custom": "Benutzerdefiniert"
+        },
+        "createNewProduct": "Neues Produkt erstellen",
+        "backToSearch": "Zurück zur Suche",
+        "pick": {
+          "createProduct": "Produkt „{name}“ anlegen",
+          "createLocation": "Ort „{name}“ anlegen",
+          "properties": "Eigenschaften",
+          "favorite": "Favorit",
+          "eatable": "Essbar",
+          "city": "Stadt",
+          "shared": "Geteilt",
+          "allCities": "Alle",
+          "noFilterMatch": "Keine Produkte entsprechen den Filtern"
         },
         "custom": {
           "label": "Benutzerdefinierter Artikelname",
