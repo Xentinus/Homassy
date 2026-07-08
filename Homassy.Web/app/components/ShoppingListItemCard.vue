@@ -1,5 +1,5 @@
 <template>
-  <div class="relative rounded-2xl overflow-hidden card-animate" style="touch-action: pan-y">
+  <div class="relative rounded-2xl overflow-hidden card-animate" style="touch-action: pan-y" data-no-pull-refresh>
     <!-- Swipe action layer (revealed behind the card while dragging) -->
     <div
       v-show="swipe.isSwiping.value"
