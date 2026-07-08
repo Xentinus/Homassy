@@ -4,7 +4,12 @@ const THRESHOLD = 70
 const MAX_PULL = 110
 const DAMPING = 0.45
 
-export function usePullToRefresh(onRefresh: () => Promise<void> | void) {
+export function usePullToRefresh(
+  onRefresh: () => Promise<void> | void,
+  options: { ignoreSelector?: string } = {}
+) {
+  const ignoreSelector = options.ignoreSelector ?? '[data-no-pull-refresh]'
+
   const pullDistance = ref(0)
   const isPulling = ref(false)
   const isRefreshing = ref(false)
@@ -15,6 +20,12 @@ export function usePullToRefresh(onRefresh: () => Promise<void> | void) {
 
   const onTouchStart = (e: TouchEvent) => {
     if (isRefreshing.value) return
+    // Gestures that start on a card (e.g. a diagonal swipe) must not pull-to-refresh
+    const target = e.target as Element | null
+    if (ignoreSelector && target?.closest?.(ignoreSelector)) {
+      startedAtTop = false
+      return
+    }
     startY = e.touches[0]!.clientY
     startedAtTop = window.scrollY === 0
     isPulling.value = false
