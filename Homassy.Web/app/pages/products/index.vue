@@ -1,14 +1,29 @@
 ﻿<template>
   <div>
     <!-- Sticky Header with Search -->
-    <div ref="headerRef" class="fixed top-0 left-0 right-0 z-10 bg-white dark:bg-gray-900 px-6 sm:px-10 lg:px-16 py-4 border-b border-gray-200 dark:border-gray-800 space-y-3">
-      <div class="flex items-center justify-between gap-3">
-        <div class="flex items-center gap-3">
-          <UIcon name="i-lucide-package" class="h-7 w-7 text-primary-500" />
-          <h1 class="text-2xl font-semibold">{{ $t('pages.products.title') }}</h1>
+    <div ref="headerRef" class="fixed top-0 left-0 right-0 z-10 bg-white dark:bg-gray-900 px-6 sm:px-10 lg:px-16 py-6 border-b border-gray-200 dark:border-gray-800 space-y-3">
+      <div class="flex items-center gap-3">
+        <UIcon name="i-lucide-package" class="h-7 w-7 text-primary-500 shrink-0" />
+        <div class="min-w-0">
+          <div class="flex items-center gap-1.5">
+            <h1 class="text-2xl font-semibold leading-tight">{{ $t('pages.products.title') }}</h1>
+            <UPopover>
+              <UButton
+                icon="i-lucide-info"
+                color="neutral"
+                variant="ghost"
+                size="xs"
+                :aria-label="$t('pages.products.infoAriaLabel')"
+              />
+              <template #content>
+                <p class="p-3 max-w-xs text-sm text-gray-600 dark:text-gray-400">
+                  {{ $t('pages.products.description') }}
+                </p>
+              </template>
+            </UPopover>
+          </div>
         </div>
       </div>
-      <p class="text-gray-600 dark:text-gray-400">{{ $t('pages.products.description') }}</p>
 
       <!-- Search row (always visible) + filters trigger -->
       <div class="space-y-2">
@@ -168,7 +183,7 @@
     </UDrawer>
 
     <!-- Content Section (offset by the fixed header's measured height) -->
-    <div class="px-4 sm:px-8 lg:px-14 pb-6" :style="{ paddingTop: headerHeight ? `calc(${headerHeight}px + 0.5rem)` : '13rem' }">
+    <div class="px-4 sm:px-8 lg:px-14 pb-6" :style="{ paddingTop: headerHeight ? `calc(${headerHeight}px + 1.5rem)` : '15rem' }">
 
     <PullToRefreshIndicator
       :pull-distance="pullDistance"
@@ -209,6 +224,9 @@
 
     <!-- Barcode Scanner Modal -->
     <BarcodeScannerModal :on-barcode-detected="handleBarcodeScanned" />
+
+    <!-- Add Inventory Wizard (bottom-sheet) -->
+    <AddInventoryItemModal v-model:open="isAddInventoryOpen" @created="loadProducts" />
   </div>
 </template>
 
@@ -229,12 +247,15 @@ const { isExpired: checkIsExpired, isExpiringSoon: checkIsExpiringSoon } = useEx
 const { t: $t } = useI18n()
 const { showCameraButton } = useCameraAvailability()
 
+// The add-inventory wizard (bottom-sheet) opened from the nav FAB.
+const isAddInventoryOpen = ref(false)
+
 // Register the page's add-action(s) on the dynamic nav FAB.
 useFabActions(() => [
   {
     label: $t('pages.products.addProductButton'),
     icon: 'i-lucide-plus',
-    handler: () => navigateTo('/products/add-product')
+    handler: () => { isAddInventoryOpen.value = true }
   }
 ])
 

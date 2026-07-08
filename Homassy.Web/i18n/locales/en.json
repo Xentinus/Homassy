@@ -288,6 +288,7 @@
     "products": {
       "title": "Inventory",
       "description": "Manage your household products and inventory.",
+      "infoAriaLabel": "Information",
       "addProductButton": "Add Product",
       "noResults": "No products found. Try adjusting your search criteria.",
       "filters": {
@@ -454,6 +455,19 @@
         "barcodeSearch": "Barcode Search",
         "startTyping": "Start typing to search",
         "noResults": "No results found"
+      },
+      "pick": {
+        "createProduct": "Create product \"{name}\"",
+        "createLocation": "Create storage location \"{name}\"",
+        "createShoppingLocation": "Create shopping location \"{name}\"",
+        "properties": "Properties",
+        "favorite": "Favorite",
+        "eatable": "Eatable",
+        "freezer": "Freezer",
+        "city": "City",
+        "shared": "Shared",
+        "allCities": "All",
+        "noFilterMatch": "No results match the filters"
       },
       "form": {
         "name": "Product Name",

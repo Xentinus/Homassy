@@ -288,6 +288,7 @@
     "products": {
       "title": "Készletek",
       "description": "Kezeld a háztartási termékeidet és készletedet.",
+      "infoAriaLabel": "Információ",
       "addProductButton": "Termék hozzáadása",
       "noResults": "Nem található termék. Próbálj meg más keresési feltételeket használni.",
       "filters": {
@@ -455,6 +456,19 @@
         "barcodeSearch": "Vonalkód keresés",
         "startTyping": "Kezdj el gépelni a kereséshez",
         "noResults": "Nincs találat"
+      },
+      "pick": {
+        "createProduct": "„{name}” létrehozása termékként",
+        "createLocation": "„{name}” létrehozása tárolóhelyként",
+        "createShoppingLocation": "„{name}” létrehozása bolthelyként",
+        "properties": "Tulajdonság",
+        "favorite": "Kedvenc",
+        "eatable": "Ehető",
+        "freezer": "Fagyasztó",
+        "city": "Város",
+        "shared": "Megosztott",
+        "allCities": "Összes",
+        "noFilterMatch": "Nincs a szűrőnek megfelelő találat"
       },
       "form": {
         "name": "Termék neve",

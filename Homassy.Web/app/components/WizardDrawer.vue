@@ -68,6 +68,7 @@
         color="primary"
         icon="i-lucide-check"
         :loading="loading"
+        :disabled="finishDisabled"
         @click="emit('finish')"
       />
     </template>
@@ -109,6 +110,8 @@ const props = withDefaults(defineProps<{
   canGoBack?: boolean | null
   /** Loading state for the Finish button. */
   loading?: boolean
+  /** Disables the last-step Finish button (Finish is NOT gated by canProceed). */
+  finishDisabled?: boolean
   /** Allow dragging/clicking outside to dismiss (default false). */
   dismissible?: boolean
   /** Custom label for the last-step button (defaults to common.finish). */
@@ -118,6 +121,7 @@ const props = withDefaults(defineProps<{
   canProceed: true,
   canGoBack: null,
   loading: false,
+  finishDisabled: false,
   dismissible: false,
   finishLabel: undefined
 })

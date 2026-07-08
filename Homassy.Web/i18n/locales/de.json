@@ -286,6 +286,7 @@
     "products": {
       "title": "Lagerbestand",
       "description": "Verwalten Sie Ihre Haushaltsprodukte und Ihr Inventar.",
+      "infoAriaLabel": "Information",
       "addProductButton": "Produkt hinzufügen",
       "noResults": "Keine Produkte gefunden. Versuchen Sie, Ihre Suchkriterien anzupassen.",
       "filters": {
@@ -452,6 +453,19 @@
         "barcodeSearch": "Barcode-Suche",
         "startTyping": "Tippen Sie, um zu suchen",
         "noResults": "Keine Ergebnisse gefunden"
+      },
+      "pick": {
+        "createProduct": "Produkt „{name}“ anlegen",
+        "createLocation": "Lagerort „{name}“ anlegen",
+        "createShoppingLocation": "Einkaufsort „{name}“ anlegen",
+        "properties": "Eigenschaften",
+        "favorite": "Favorit",
+        "eatable": "Essbar",
+        "freezer": "Gefrierschrank",
+        "city": "Stadt",
+        "shared": "Geteilt",
+        "allCities": "Alle",
+        "noFilterMatch": "Keine Ergebnisse entsprechen den Filtern"
       },
       "form": {
         "name": "Produktname",
