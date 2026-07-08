@@ -112,7 +112,7 @@
     </div>
 
     <!-- Content Section (offset by the fixed header's measured height) -->
-    <div class="px-2 sm:px-4 md:px-6 lg:px-8 pb-6" :style="{ paddingTop: headerHeight ? `calc(${headerHeight}px + 0.5rem)` : '15rem' }">
+    <div class="px-2 sm:px-4 md:px-6 lg:px-8 pb-6" :style="{ paddingTop: headerHeight ? `calc(${headerHeight}px + 1.5rem)` : '16rem' }">
       <PullToRefreshIndicator
         :pull-distance="pullDistance"
         :is-pulling="isPulling"

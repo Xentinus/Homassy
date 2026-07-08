@@ -1,38 +1,51 @@
 <template>
-  <div
-    class="group relative bg-gradient-to-br from-white to-gray-50 dark:from-gray-800 dark:to-gray-900 rounded-xl border-2 p-3 cursor-pointer hover:shadow-lg hover:-translate-y-0.5 transition-all duration-200 flex flex-col overflow-hidden card-animate"
-    :class="cardBorderClass"
-    @click="handleCardClick"
-  >
-    <!-- Header: Title and Action Buttons -->
-    <div class="flex items-start justify-between gap-2">
-      <!-- Item Details -->
-      <div class="flex-1 min-w-0 space-y-1">
-        <!-- Product Name -->
-        <h3 
-          class="text-sm font-bold break-words text-gray-900 dark:text-white"
-          v-html="highlightText(displayName, searchQuery)"
-        />
-        <!-- Brand -->
-        <p 
-          v-if="item.product?.brand" 
-          class="text-xs text-gray-500 dark:text-gray-400 break-words font-medium"
-          v-html="highlightText(item.product.brand, searchQuery)"
-        />
-      </div>
+  <div class="relative rounded-2xl overflow-hidden card-animate" style="touch-action: pan-y">
+    <!-- Swipe action layer (revealed behind the card while dragging) -->
+    <div
+      v-show="swipe.isSwiping.value"
+      aria-hidden="true"
+      class="absolute inset-0 rounded-2xl flex items-center justify-between px-4"
+      :class="swipe.direction.value === 'left' ? 'bg-error-500 dark:bg-error-600' : 'bg-primary-500 dark:bg-primary-600'"
+    >
+      <UIcon
+        name="i-lucide-pencil"
+        class="h-5 w-5 text-white transition-transform duration-150"
+        :class="[
+          swipe.direction.value === 'right' ? 'opacity-100' : 'opacity-0',
+          swipe.progress.value >= 1 ? 'scale-125' : ''
+        ]"
+      />
+      <UIcon
+        name="i-lucide-trash-2"
+        class="h-5 w-5 text-white transition-transform duration-150"
+        :class="[
+          swipe.direction.value === 'left' ? 'opacity-100' : 'opacity-0',
+          swipe.progress.value >= 1 ? 'scale-125' : ''
+        ]"
+      />
+    </div>
 
-      <!-- Action Button & Image Icon -->
-      <div class="flex items-center gap-0.5 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity duration-200">
-        <!-- Action Menu -->
-        <UDropdownMenu :items="dropdownItems" size="md">
-          <UButton
-            icon="i-lucide-ellipsis-vertical"
-            size="xs"
-            variant="subtle"
-            @click.stop
-          />
-        </UDropdownMenu>
-      </div>
+    <!-- Card surface (translates during swipe) -->
+    <div
+      ref="cardEl"
+      class="relative h-full bg-default rounded-2xl border-2 p-3 cursor-pointer shadow-sm hover:shadow-lg transition-shadow duration-200 flex flex-col overflow-hidden select-none"
+      :class="cardBorderClass"
+      :style="swipe.cardStyle.value"
+      @click="handleCardClick"
+    >
+    <!-- Header: Title and Brand -->
+    <div class="min-w-0 space-y-1">
+      <!-- Product Name -->
+      <h3
+        class="text-sm font-bold break-words text-highlighted"
+        v-html="highlightText(displayName, searchQuery)"
+      />
+      <!-- Brand -->
+      <p
+        v-if="item.product?.brand"
+        class="text-xs text-muted break-words font-medium"
+        v-html="highlightText(item.product.brand, searchQuery)"
+      />
     </div>
 
     <!-- Values Section (at the bottom) -->
@@ -40,7 +53,7 @@
       <!-- Shopping Location with Google Maps -->
       <div v-if="item.shoppingLocation" class="flex items-center gap-2 text-xs">
         <UIcon name="i-lucide-map-pin" class="h-3.5 w-3.5 text-blue-600 dark:text-blue-400 flex-shrink-0" />
-        <span class="text-gray-700 dark:text-gray-300 font-medium break-words line-clamp-1 flex-1">{{ item.shoppingLocation.name }}</span>
+        <span class="text-toned font-medium break-words line-clamp-1 flex-1">{{ item.shoppingLocation.name }}</span>
         <a
           v-if="item.shoppingLocation.googleMaps"
           :href="item.shoppingLocation.googleMaps"
@@ -55,15 +68,15 @@
       <!-- Quantity and Unit -->
       <div class="flex items-center gap-2 text-xs">
         <UIcon name="i-lucide-package-2" class="h-3.5 w-3.5 text-amber-600 dark:text-amber-400 flex-shrink-0" />
-        <span class="font-bold text-gray-900 dark:text-gray-100">{{ item.quantity }}</span>
-        <span class="text-gray-700 dark:text-gray-300">{{ unitLabel }}</span>
+        <span class="font-bold text-highlighted">{{ item.quantity }}</span>
+        <span class="text-toned">{{ unitLabel }}</span>
       </div>
 
       <!-- Note (if not empty) -->
       <div v-if="item.note" class="flex items-start gap-2 text-xs">
         <UIcon name="i-lucide-sticky-note" class="h-3.5 w-3.5 text-purple-600 dark:text-purple-400 mt-0.5 flex-shrink-0" />
-        <p 
-          class="text-gray-600 dark:text-gray-400 italic line-clamp-2"
+        <p
+          class="text-muted italic line-clamp-2"
           v-html="highlightText(item.note, searchQuery)"
         />
       </div>
@@ -72,23 +85,23 @@
       <div v-if="item.dueAt || item.deadlineAt" class="space-y-1.5">
         <div v-if="item.dueAt" class="flex items-center gap-2 text-xs">
           <UIcon name="i-lucide-calendar-clock" class="h-3.5 w-3.5 text-orange-600 dark:text-orange-400 flex-shrink-0" />
-          <span class="text-gray-600 dark:text-gray-400">{{ formatDate(item.dueAt) }}</span>
+          <span class="text-muted">{{ formatDate(item.dueAt) }}</span>
         </div>
         <div v-if="item.deadlineAt" class="flex items-center gap-2 text-xs">
           <UIcon name="i-lucide-calendar-x" class="h-3.5 w-3.5 text-red-600 dark:text-red-400 flex-shrink-0" />
-          <span class="text-gray-600 dark:text-gray-400">{{ formatDate(item.deadlineAt) }}</span>
+          <span class="text-muted">{{ formatDate(item.deadlineAt) }}</span>
         </div>
       </div>
 
       <!-- Purchased Badge -->
-      <div v-if="item.purchasedAt" class="flex items-center gap-2 px-3 py-1.5 bg-gradient-to-r from-green-50 to-emerald-50 dark:from-green-900/30 dark:to-emerald-900/30 rounded-lg border border-green-300/50 dark:border-green-700/50 shadow-sm">
+      <div v-if="item.purchasedAt" class="flex items-center gap-2 px-3 py-1.5 bg-green-50 dark:bg-green-900/30 rounded-lg border border-green-300/50 dark:border-green-700/50">
         <UIcon name="i-lucide-check-circle-2" class="h-4 w-4 text-green-600 dark:text-green-400 flex-shrink-0" />
         <span class="text-xs font-bold text-green-700 dark:text-green-300">{{ $t('common.purchased') }}</span>
       </div>
     </div>
 
     <!-- Purchase Confirmation Modal -->
-    <UModal :open="isPurchaseModalOpen" @update:open="(val) => isPurchaseModalOpen = val" :dismissible="false">
+    <UModal :open="isPurchaseModalOpen" :dismissible="false" @update:open="(val) => isPurchaseModalOpen = val">
       <template #title>
         {{ $t('shoppingList.markAsPurchased') }}
       </template>
@@ -170,7 +183,7 @@
     </UModal>
 
     <!-- Edit Modal -->
-    <UModal :open="isEditModalOpen" @update:open="(val) => isEditModalOpen = val" :dismissible="false">
+    <UModal :open="isEditModalOpen" :dismissible="false" @update:open="(val) => isEditModalOpen = val">
       <template #title>
         {{ $t('shoppingList.editItem') }}
       </template>
@@ -298,7 +311,7 @@
     </UModal>
 
     <!-- Delete Modal -->
-    <UModal :open="isDeleteModalOpen" @update:open="(val) => isDeleteModalOpen = val" :dismissible="false">
+    <UModal :open="isDeleteModalOpen" :dismissible="false" @update:open="(val) => isDeleteModalOpen = val">
       <template #title>
         {{ $t('shoppingList.deleteItem') }}
       </template>
@@ -356,7 +369,7 @@
     </UModal>
 
     <!-- Restore Purchase Modal -->
-    <UModal :open="isRestoreModalOpen" @update:open="(val) => isRestoreModalOpen = val" :dismissible="false">
+    <UModal :open="isRestoreModalOpen" :dismissible="false" @update:open="(val) => isRestoreModalOpen = val">
       <template #title>
         {{ $t('shoppingList.restorePurchase') }}
       </template>
@@ -412,7 +425,8 @@
           class="max-w-full max-h-full object-contain"
         >
       </div>
-    </Transition>
+      </Transition>
+    </div>
   </div>
 </template>
 
@@ -441,7 +455,6 @@ const { t, locale } = useI18n()
 const { inputDateLocale } = useInputDateLocale()
 const { quickPurchaseShoppingListItem, restorePurchaseShoppingListItem, updateShoppingListItem, deleteShoppingListItem } = useShoppingListApi()
 const { isExpired: checkIsExpired, isExpiringWithinTwoWeeks: checkIsExpiringWithinTwoWeeks } = useExpirationCheck()
-const toast = useToast()
 
 // State
 const isImageOverlayOpen = ref(false)
@@ -453,6 +466,24 @@ const isDeleteModalOpen = ref(false)
 const isRestoreModalOpen = ref(false)
 const isUpdating = ref(false)
 const isDeleting = ref(false)
+
+// Swipe gestures (left = delete, right = edit); disabled while a modal is open or an API call is pending
+const cardEl = ref<HTMLElement | null>(null)
+
+const anyModalOpen = computed(() =>
+  isPurchaseModalOpen.value || isEditModalOpen.value || isDeleteModalOpen.value
+  || isRestoreModalOpen.value || isImageOverlayOpen.value
+)
+
+const anyPending = computed(() =>
+  isQuickPurchasing.value || isUpdating.value || isDeleting.value || isRestoring.value
+)
+
+const swipe = useSwipeActions(cardEl, {
+  onSwipeLeft: () => openDeleteModal(),
+  onSwipeRight: () => openEditModal(),
+  disabled: () => anyModalOpen.value || anyPending.value
+})
 
 // Edit form state
 const editForm = ref<{
@@ -520,25 +551,6 @@ const highlightText = (text: string, query: string): string => {
   return text.replace(regex, '<span class="font-bold text-primary-600 dark:text-primary-400 bg-primary-100 dark:bg-primary-900/30 px-1 py-0.5 rounded">$1</span>')
 }
 
-// Dropdown menu items
-const dropdownItems = computed(() => {
-  const items = [
-    {
-      label: t('common.edit'),
-      icon: 'i-lucide-pencil',
-      onSelect: openEditModal
-    },
-    {
-      label: t('common.delete'),
-      icon: 'i-lucide-trash-2',
-      color: 'error' as const,
-      onSelect: openDeleteModal
-    }
-  ]
-
-  return [items]
-})
-
 // Unit options for edit form
 const unitOptions = computed(() => {
   return Object.entries(Unit)
@@ -580,6 +592,9 @@ const formatDate = (dateString: string): string => {
 
 // Card click handler
 const handleCardClick = (event: MouseEvent) => {
+  // Ignore the synthetic click fired after a swipe gesture
+  if (swipe.suppressClick.value) return
+
   // Ignore clicks on interactive elements
   const target = event.target as HTMLElement
   if (target.closest('a, button, img')) return
@@ -731,10 +746,6 @@ const handleDelete = async () => {
 }
 
 // Restore modal methods
-const openRestoreModal = () => {
-  isRestoreModalOpen.value = true
-}
-
 const closeRestoreModal = () => {
   isRestoreModalOpen.value = false
 }
