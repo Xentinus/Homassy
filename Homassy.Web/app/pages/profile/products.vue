@@ -5,6 +5,7 @@
       v-model:search="searchQuery"
       :title="$t('profile.allProducts.title')"
       icon="i-lucide-package"
+      back-to="/profile/data"
       :search-placeholder="$t('common.searchPlaceholder')"
       :active-filters="activeFilters"
       :filter-count="activeFilterCount"

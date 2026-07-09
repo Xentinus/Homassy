@@ -5,6 +5,7 @@
       v-model:search="searchQuery"
       :title="$t('profile.storageLocations.title')"
       icon="i-lucide-warehouse"
+      back-to="/profile/data"
       :search-placeholder="$t('profile.storageLocations.searchPlaceholder')"
       :active-filters="activeFilters"
       :filter-count="activeFilterCount"

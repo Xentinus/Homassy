@@ -846,6 +846,28 @@
     "uploadAvatar": "Profilkép feltöltése",
     "lightMode": "Világos mód",
     "darkMode": "Sötét mód",
+    "groups": {
+      "account": "Fiók",
+      "preferences": "Preferenciák",
+      "family": "Család",
+      "data": "Adatok"
+    },
+    "theme": {
+      "label": "Téma",
+      "system": "Rendszer",
+      "light": "Világos",
+      "dark": "Sötét"
+    },
+    "editName": {
+      "title": "Név szerkesztése"
+    },
+    "masterData": {
+      "title": "Törzsadatok",
+      "description": "Termékek, helyek, automatizálások és külső naptárak."
+    },
+    "externalCalendars": {
+      "emptyFamily": "A külső naptárak a családon belül közösek. Előbb csatlakozz egy családhoz vagy hozz létre egyet."
+    },
     "family": {
       "title": "Család",
       "cardDescription": "Családi adatok, meghívó kód és tagság kezelése.",

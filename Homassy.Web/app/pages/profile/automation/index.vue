@@ -5,6 +5,7 @@
       v-model:search="searchQuery"
       :title="$t('profile.automation.title')"
       icon="i-lucide-timer"
+      back-to="/profile/data"
       :search-placeholder="$t('profile.automation.searchPlaceholder')"
       :active-filters="activeFilters"
       :filter-count="activeFilterCount"

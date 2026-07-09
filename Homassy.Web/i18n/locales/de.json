@@ -845,6 +845,28 @@
     "uploadAvatar": "Profilbild hochladen",
     "lightMode": "Heller Modus",
     "darkMode": "Dunkler Modus",
+    "groups": {
+      "account": "Konto",
+      "preferences": "Präferenzen",
+      "family": "Familie",
+      "data": "Daten"
+    },
+    "theme": {
+      "label": "Erscheinungsbild",
+      "system": "System",
+      "light": "Hell",
+      "dark": "Dunkel"
+    },
+    "editName": {
+      "title": "Name bearbeiten"
+    },
+    "masterData": {
+      "title": "Stammdaten",
+      "description": "Produkte, Orte, Automatisierungen und externe Kalender."
+    },
+    "externalCalendars": {
+      "emptyFamily": "Externe Kalender werden innerhalb einer Familie geteilt. Tritt zuerst einer Familie bei oder erstelle eine."
+    },
     "family": {
       "title": "Familie",
       "cardDescription": "Familiendaten, Einladungscode und Mitgliedschaft verwalten.",
