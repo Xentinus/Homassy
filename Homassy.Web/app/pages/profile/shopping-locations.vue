@@ -5,6 +5,7 @@
       v-model:search="searchQuery"
       :title="$t('profile.shoppingLocations.title')"
       icon="i-lucide-shopping-cart"
+      back-to="/profile/data"
       :search-placeholder="$t('profile.shoppingLocations.searchPlaceholder')"
       :active-filters="activeFilters"
       :filter-count="activeFilterCount"

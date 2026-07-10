@@ -103,16 +103,23 @@ export const useAuthStore = defineStore('auth', {
         if (session && session.active) {
           this.session = session
           const traits = session.identity?.traits as KratosUserTraits
-          
+
           if (traits) {
             this.user = this.traitsToUserInfo(traits)
-            
+
             // Sync language locale
             if (traits.default_language) {
               this.syncLanguageLocale(traits.default_language)
             }
           }
-          
+
+          // Prefer the backend DB as the canonical source of truth (avatar,
+          // name, preferences). The Kratos session traits above are only a seed
+          // fallback — an avatar/settings change hits the backend first and the
+          // trait can lag, so backend-first keeps the store fresh. On failure
+          // fetchUserFromBackend() leaves the traits-seeded user untouched.
+          await this.fetchUserFromBackend()
+
           console.debug('[Auth] Session restored, user:', this.user?.name)
         } else {
           console.debug('[Auth] No active session found')
@@ -154,9 +161,12 @@ export const useAuthStore = defineStore('auth', {
             }
           }
           
-          // Sync user to backend API
+          // Sync user to backend API, then pull the canonical profile back so
+          // a freshly-changed avatar/name/preference isn't clobbered by a stale
+          // Kratos trait (this runs on visibility-change refreshes too).
           await this.syncUserToBackend()
-          
+          await this.fetchUserFromBackend()
+
           console.debug('[Auth] Session refreshed, user:', this.user?.name)
           return true
         } else {
@@ -192,6 +202,17 @@ export const useAuthStore = defineStore('auth', {
       } catch (error) {
         // Non-fatal error - backend sync is optional
         console.warn('[Auth] Failed to sync user to backend:', error)
+      }
+    },
+
+    /**
+     * Optimistically patch the in-store user so bindings (navbar avatar,
+     * profile header, preference rows, i18n locale watcher) react instantly
+     * before/without a backend round-trip. No-op when not logged in.
+     */
+    applyUserPatch(partial: Partial<UserInfo>) {
+      if (this.user) {
+        this.user = { ...this.user, ...partial }
       }
     },
 
@@ -371,10 +392,11 @@ export const useAuthStore = defineStore('auth', {
     },
 
     /**
-     * @deprecated Get user from session instead
+     * @deprecated Prefer fetchUserFromBackend(). Kept so existing callers still
+     * refresh the store (was previously a no-op that returned the stale user).
      */
     async fetchCurrentUser(_syncLocale: boolean = true): Promise<UserInfo | null> {
-      return this.user
+      return this.fetchUserFromBackend()
     },
 
     // Legacy cookie properties (for code that still references them)

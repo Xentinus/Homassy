@@ -2,7 +2,6 @@
   <div>
     <!-- Fixed Header -->
     <div class="fixed top-0 left-0 right-0 z-10 bg-white dark:bg-gray-900 px-6 sm:px-10 lg:px-16 py-6">
-      <!-- Header -->
       <div class="flex items-center gap-3">
         <UIcon name="i-lucide-user" class="h-7 w-7 text-primary-500" />
         <h1 class="text-2xl font-semibold">{{ $t('profile.title') }}</h1>
@@ -10,7 +9,7 @@
     </div>
 
     <!-- Content Section with padding to account for fixed header -->
-    <div class="pt-28 px-4 sm:px-8 lg:px-14 pb-6 space-y-6">
+    <div class="pt-28 px-4 sm:px-8 lg:px-14 pb-6 space-y-6 max-w-2xl mx-auto">
       <!-- Avatar Section -->
       <div class="flex flex-col items-center gap-4">
         <template v-if="loading">
@@ -19,7 +18,6 @@
           <USkeleton class="h-4 w-24 mt-1" />
         </template>
         <template v-else>
-          <!-- Avatar with delete icon overlay -->
           <div class="relative inline-block">
             <div class="border-4 border-primary-500 rounded-full p-1">
               <UAvatar
@@ -39,7 +37,6 @@
             />
           </div>
 
-          <!-- Name Display -->
           <div class="text-center">
             <p class="text-2xl font-semibold">{{ primaryName }}</p>
             <p v-if="secondaryName" class="text-sm text-gray-600 dark:text-gray-400 mt-1">
@@ -47,7 +44,6 @@
             </p>
           </div>
 
-          <!-- Upload Button -->
           <UButton v-if="!hasAvatar" color="primary" variant="soft" class="w-full" @click="triggerFileSelect">
             <UIcon name="i-lucide-upload" class="h-4 w-4 mr-2" />
             {{ $t('profile.uploadAvatar') }}
@@ -55,139 +51,220 @@
         </template>
       </div>
 
-    <!-- Image Cropper Modal -->
-    <ImageCropper
-      :is-open="imageCropperOpen"
-      :image-src="cropperImageSrc"
-      :default-aspect-ratio="1"
-      @close="imageCropperOpen = false"
-      @cropped="handleCroppedImage"
-    />
+      <!-- Image Cropper Modal -->
+      <ImageCropper
+        :is-open="imageCropperOpen"
+        :image-src="cropperImageSrc"
+        :default-aspect-ratio="1"
+        @close="imageCropperOpen = false"
+        @cropped="handleCroppedImage"
+      />
 
-    <!-- Upload Progress Modal -->
-    <UploadProgressModal
-      :is-open="isUploadProgressOpen"
-      :progress="uploadProgress"
-      :stage="uploadStage"
-      :status="uploadStatus"
-      :error-message="uploadErrorMessage"
-      @update:is-open="isUploadProgressOpen = $event"
-      @cancel="handleCancelUpload"
-      @close="handleCloseUploadModal"
-    />
+      <!-- Upload Progress Modal -->
+      <UploadProgressModal
+        :is-open="isUploadProgressOpen"
+        :progress="uploadProgress"
+        :stage="uploadStage"
+        :status="uploadStatus"
+        :error-message="uploadErrorMessage"
+        @update:is-open="isUploadProgressOpen = $event"
+        @cancel="handleCancelUpload"
+        @close="handleCloseUploadModal"
+      />
 
-    <!-- Action Buttons -->
-    <div class="space-y-3">
-      <!-- Light/Dark mode toggle -->
-      <ClientOnly>
-        <UButton color="neutral" variant="soft" class="w-full" @click="toggleColorMode">
-          <UIcon :name="colorMode.value === 'dark' ? 'i-lucide-sun' : 'i-lucide-moon'" class="h-4 w-4 mr-2" />
-          {{ colorModeText }}
-        </UButton>
-      </ClientOnly>
-      <UButton color="error" variant="soft" class="w-full" @click="onLogout">
-        <UIcon name="i-lucide-log-out" class="h-4 w-4 mr-2" />
-        {{ $t('auth.logout') }}
-      </UButton>
-    </div>
+      <!-- Auth-dependent content renders only after mount so SSR (user=null)
+           and client hydration agree — otherwise the skeleton/values mismatch. -->
+      <div v-if="!loading" class="space-y-6">
+        <!-- Account -->
+        <SettingsGroup :title="$t('profile.groups.account')">
+        <SettingsRow
+          :label="$t('profile.name')"
+          icon="i-lucide-user"
+          :value="primaryName"
+          @select="openNameDrawer"
+        />
+        <SettingsRow
+          :label="$t('profile.security.title')"
+          icon="i-lucide-shield"
+          @select="securityOpen = true"
+        />
+        <SettingsRow
+          :label="$t('profile.notifications.title')"
+          icon="i-lucide-bell"
+          @select="notificationsOpen = true"
+        />
+      </SettingsGroup>
 
-    <!-- Cards Grid: Settings, Family, ... -->
-    <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mt-8">
-      <ButtonCard
-        icon="i-lucide-settings"
-        :title="$t('profile.settings')"
-        :description="$t('profile.settingsCardDescription')"
-        to="/profile/settings"
-      />
-      <ButtonCard
-        icon="i-lucide-shield"
-        :title="$t('profile.security.title')"
-        :description="$t('profile.security.cardDescription')"
-        to="/profile/security"
-      />
-      <ButtonCard
-        icon="i-lucide-users"
-        :title="$t('profile.family.title')"
-        :description="$t('profile.family.cardDescription')"
-        to="/profile/family"
-      />
-      <ButtonCard
-        icon="i-lucide-bell"
-        :title="$t('profile.notifications.title')"
-        :description="$t('profile.notifications.cardDescription')"
-        to="/profile/notifications"
-      />
-      <ButtonCard
-        icon="i-lucide-package"
-        :title="$t('profile.allProducts.title')"
-        :description="$t('profile.allProducts.cardDescription')"
-        to="/profile/products"
-      />
-      <ButtonCard
-        icon="i-lucide-shopping-cart"
-        :title="$t('profile.shoppingLocations.title')"
-        :description="$t('profile.shoppingLocations.cardDescription')"
-        to="/profile/shopping-locations"
-      />
-      <ButtonCard
-        icon="i-lucide-warehouse"
-        :title="$t('profile.storageLocations.title')"
-        :description="$t('profile.storageLocations.cardDescription')"
-        to="/profile/storage-locations"
-      />
-      <ButtonCard
-        icon="i-lucide-timer"
-        :title="$t('profile.automation.title')"
-        :description="$t('profile.automation.cardDescription')"
-        to="/profile/automation"
-      />
-    </div>
+      <!-- Preferences -->
+      <SettingsGroup :title="$t('profile.groups.preferences')">
+        <SettingsRow
+          :label="$t('profile.language')"
+          icon="i-lucide-languages"
+          :value="authStore.user?.language"
+          :loading="savingField === 'language'"
+          @select="openSelect('language')"
+        />
+        <SettingsRow
+          :label="$t('profile.currency')"
+          icon="i-lucide-coins"
+          :value="authStore.user?.currency"
+          :loading="savingField === 'currency'"
+          @select="openSelect('currency')"
+        />
+        <SettingsRow
+          :label="$t('profile.timeZone')"
+          icon="i-lucide-clock"
+          :value="authStore.user?.timeZone"
+          :loading="savingField === 'timeZone'"
+          @select="openSelect('timeZone')"
+        />
+        <ClientOnly>
+          <SettingsRow static :chevron="false" :label="$t('profile.theme.label')" icon="i-lucide-palette">
+            <template #trailing>
+              <div class="flex items-center gap-0.5 rounded-lg border border-default p-0.5">
+                <button
+                  v-for="opt in themeOptions"
+                  :key="opt.value"
+                  type="button"
+                  class="p-1.5 rounded-md transition-colors"
+                  :class="colorMode.preference === opt.value
+                    ? 'bg-primary-500 text-white'
+                    : 'text-muted hover:text-default'"
+                  :aria-label="opt.label"
+                  :aria-pressed="colorMode.preference === opt.value"
+                  @click="colorMode.preference = opt.value"
+                >
+                  <UIcon :name="opt.icon" class="h-4 w-4" />
+                </button>
+              </div>
+            </template>
+          </SettingsRow>
+        </ClientOnly>
+      </SettingsGroup>
 
-    <!-- Version Info -->
-    <div v-if="versionLoading || versionInfo" class="text-center text-xs text-gray-500 dark:text-gray-400 mt-8 pb-4">
-      <template v-if="versionLoading">
-        <USkeleton class="h-4 w-32 mx-auto" />
-      </template>
-      <template v-else-if="versionInfo">
-        v{{ displayVersion }}
-      </template>
-    </div>
+      <!-- Family -->
+      <SettingsGroup :title="$t('profile.groups.family')">
+        <SettingsRow
+          :label="$t('profile.family.title')"
+          icon="i-lucide-users"
+          @select="familyOpen = true"
+        />
+      </SettingsGroup>
+
+      <!-- Master data -->
+      <SettingsGroup :title="$t('profile.groups.data')">
+        <SettingsRow
+          :label="$t('profile.masterData.title')"
+          :description="$t('profile.masterData.description')"
+          icon="i-lucide-database"
+          to="/profile/data"
+        />
+      </SettingsGroup>
+
+      <!-- Logout -->
+      <SettingsGroup>
+        <SettingsRow
+          :label="$t('auth.logout')"
+          icon="i-lucide-log-out"
+          variant="danger"
+          :chevron="false"
+          @select="onLogout"
+        />
+      </SettingsGroup>
+
+      <!-- Version Info -->
+      <div v-if="versionLoading || versionInfo" class="text-center text-xs text-gray-500 dark:text-gray-400 pt-2 pb-4">
+        <template v-if="versionLoading">
+          <USkeleton class="h-4 w-32 mx-auto" />
+        </template>
+        <template v-else-if="versionInfo">
+          v{{ displayVersion }}
+        </template>
+      </div>
+      </div>
+
+      <!-- Preference select bottom sheet -->
+      <SettingsSelectDrawer
+        :open="activeSelect !== null"
+        :title="selectConfig?.title || ''"
+        :items="selectConfig?.items || []"
+        :model-value="selectConfig?.value"
+        :searchable="selectConfig?.searchable"
+        :loading="isLoadingOptions"
+        @update:open="(v) => { if (!v) activeSelect = null }"
+        @save="onSavePreference"
+      />
+
+      <!-- Name edit bottom sheet -->
+      <SettingsEditDrawer
+        :open="nameDrawerOpen"
+        :title="$t('profile.editName.title')"
+        icon="i-lucide-user"
+        :loading="savingName"
+        :save-disabled="!nameForm.name.trim()"
+        @update:open="(v) => nameDrawerOpen = v"
+        @save="onSaveName"
+        @cancel="nameDrawerOpen = false"
+      >
+        <template #body>
+          <div class="space-y-4">
+            <div>
+              <label class="block text-sm font-medium mb-1.5">{{ $t('profile.name') }}</label>
+              <UInput v-model="nameForm.name" :placeholder="$t('profile.name')" class="w-full" />
+            </div>
+            <div>
+              <label class="block text-sm font-medium mb-1.5">{{ $t('profile.displayName') }}</label>
+              <UInput v-model="nameForm.displayName" :placeholder="$t('profile.displayName')" class="w-full" />
+            </div>
+          </div>
+        </template>
+      </SettingsEditDrawer>
+
+      <!-- Account sub-surfaces as drawers -->
+      <SecurityDrawer :open="securityOpen" @update:open="(v) => securityOpen = v" />
+      <NotificationsDrawer :open="notificationsOpen" @update:open="(v) => notificationsOpen = v" />
+      <FamilyDrawer :open="familyOpen" @update:open="(v) => familyOpen = v" />
     </div>
   </div>
 </template>
 
-<script setup lang="ts">
 
+<script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
 import { useAuthStore } from '~/stores/auth'
 import { useUserApi } from '~/composables/api/useUserApi'
 import { useProgressApi } from '~/composables/api/useProgressApi'
-import { useFamilyApi } from '~/composables/api/useFamilyApi'
 import { useVersionApi } from '~/composables/api/useVersionApi'
-import { useRouter } from 'vue-router'
+import { useUserPreferences, type PreferenceField } from '~/composables/useUserPreferences'
 import ImageCropper from '~/components/ImageCropper.vue'
 import UploadProgressModal from '~/components/UploadProgressModal.vue'
 import imageCompression from 'browser-image-compression'
 import { extractBase64 } from '~/composables/useImageCrop'
 import type { VersionInfo } from '~/types/version'
 
-
 definePageMeta({ layout: 'auth', middleware: 'auth' })
 
-
 const authStore = useAuthStore()
-const { uploadProfilePicture, uploadProfilePictureWithProgress, deleteProfilePicture, getUserProfile } = useUserApi()
+const { uploadProfilePictureWithProgress, deleteProfilePicture } = useUserApi()
 const progressApi = useProgressApi()
-const { leaveFamily } = useFamilyApi()
 const { getVersion } = useVersionApi()
-const router = useRouter()
-const { t, setLocale } = useI18n()
+const { t } = useI18n()
 const colorMode = useColorMode()
-const toast = useToast()
+const route = useRoute()
 
-const userProfile = ref<any>(null)
+const {
+  languageSelectOptions,
+  currencySelectOptions,
+  timeZoneSelectOptions,
+  isLoadingOptions,
+  loadSelectOptions,
+  savePreference,
+  saveName
+} = useUserPreferences()
+
+// Start true on both server and client so the initial (hydrated) render matches;
+// flip to false only after mount, when the auth store is guaranteed populated.
 const loading = ref(true)
-const isLeavingFamily = ref(false)
 const imageCropperOpen = ref(false)
 const cropperImageSrc = ref('')
 const versionInfo = ref<VersionInfo | null>(null)
@@ -202,31 +279,104 @@ const uploadStatus = ref<'inprogress' | 'completed' | 'failed' | 'cancelled'>('i
 const uploadErrorMessage = ref<string | undefined>(undefined)
 let stopPolling: (() => void) | null = null
 
-// Check if we're in production mode
 const isProduction = import.meta.env.PROD
 
-// Computed property for version display
 const displayVersion = computed(() => {
   if (!versionInfo.value) return ''
   return isProduction ? versionInfo.value.shortVersion : versionInfo.value.version
 })
 
-async function fetchUserProfile() {
-  loading.value = true
-  try {
-    const res = await getUserProfile()
-    userProfile.value = res.data
-    // Sync language locale and cookie
-    if (res.data?.language) {
-      const localeCode = authStore.syncLanguageLocale(res.data.language)
-      await setLocale(localeCode)
-    }
-  } catch {
-    userProfile.value = null
+// --- User display (single source of truth: the auth store) -----------------
+const hasAvatar = computed(() => !!authStore.user?.profilePictureBase64)
+const avatarSrc = computed(() => {
+  const b64 = authStore.user?.profilePictureBase64
+  return b64 ? `data:image/jpeg;base64,${b64}` : undefined
+})
+const avatarInitial = computed(() => {
+  const name = authStore.user?.displayName || authStore.user?.name
+  if (!name) return '?'
+  return name.trim().split(/\s+/).map(w => w.charAt(0).toUpperCase()).join('')
+})
+const hasDisplayName = computed(() =>
+  !!(authStore.user?.displayName && authStore.user.displayName.trim())
+)
+const primaryName = computed(() =>
+  hasDisplayName.value ? authStore.user?.displayName : authStore.user?.name
+)
+const secondaryName = computed(() =>
+  hasDisplayName.value ? authStore.user?.name : null
+)
+
+// --- Theme -----------------------------------------------------------------
+const themeOptions = computed(() => [
+  { value: 'system', icon: 'i-lucide-monitor', label: t('profile.theme.system') },
+  { value: 'light', icon: 'i-lucide-sun', label: t('profile.theme.light') },
+  { value: 'dark', icon: 'i-lucide-moon', label: t('profile.theme.dark') }
+])
+
+// --- Preference select drawer ----------------------------------------------
+const activeSelect = ref<PreferenceField | null>(null)
+const savingField = ref<PreferenceField | null>(null)
+
+const selectConfig = computed(() => {
+  switch (activeSelect.value) {
+    case 'language':
+      return { title: t('profile.language'), items: languageSelectOptions.value, value: authStore.user?.language, searchable: false }
+    case 'currency':
+      return { title: t('profile.currency'), items: currencySelectOptions.value, value: authStore.user?.currency, searchable: true }
+    case 'timeZone':
+      return { title: t('profile.timeZone'), items: timeZoneSelectOptions.value, value: authStore.user?.timeZone, searchable: true }
+    default:
+      return null
   }
-  loading.value = false
+})
+
+async function openSelect(field: PreferenceField) {
+  activeSelect.value = field
+  await loadSelectOptions()
 }
 
+async function onSavePreference(value: string) {
+  const field = activeSelect.value
+  if (!field) return
+  savingField.value = field
+  try {
+    await savePreference(field, value)
+  } finally {
+    savingField.value = null
+  }
+}
+
+// --- Account sub-surface drawers -------------------------------------------
+const securityOpen = ref(false)
+const notificationsOpen = ref(false)
+const familyOpen = ref(false)
+
+// --- Name edit drawer ------------------------------------------------------
+const nameDrawerOpen = ref(false)
+const savingName = ref(false)
+const nameForm = ref({ name: '', displayName: '' })
+
+function openNameDrawer() {
+  nameForm.value = {
+    name: authStore.user?.name || '',
+    displayName: authStore.user?.displayName || ''
+  }
+  nameDrawerOpen.value = true
+}
+
+async function onSaveName() {
+  if (!nameForm.value.name.trim()) return
+  savingName.value = true
+  try {
+    const ok = await saveName(nameForm.value.name.trim(), nameForm.value.displayName.trim())
+    if (ok) nameDrawerOpen.value = false
+  } finally {
+    savingName.value = false
+  }
+}
+
+// --- Version ---------------------------------------------------------------
 async function fetchVersion() {
   versionLoading.value = true
   try {
@@ -239,60 +389,24 @@ async function fetchVersion() {
 }
 
 onMounted(async () => {
-  await fetchUserProfile()
+  // The store is normally already populated by auth initialize(); only fetch
+  // when it isn't, so we never blank the header on a warm navigation.
+  if (!authStore.user) {
+    await authStore.fetchUserFromBackend()
+  }
+  loading.value = false
+
+  // Deep-link / reauth-return: ?open=security|notifications|family reopens the
+  // matching drawer (e.g. after the passkey re-auth redirect).
+  const open = route.query.open
+  if (open === 'security') securityOpen.value = true
+  else if (open === 'notifications') notificationsOpen.value = true
+  else if (open === 'family') familyOpen.value = true
+
   await fetchVersion()
 })
 
-async function onLeaveFamily() {
-  isLeavingFamily.value = true
-  try {
-    await leaveFamily()
-    await fetchUserProfile()
-  } catch (error) {
-    console.error('Failed to leave family:', error)
-    toast.add({
-      title: t('profile.family.leaveFailed'),
-      color: 'red',
-      icon: 'i-lucide-alert-circle'
-    })
-  } finally {
-    isLeavingFamily.value = false
-  }
-}
-
-const hasAvatar = computed(() => !!userProfile.value?.profilePictureBase64)
-const avatarSrc = computed(() => {
-  const b64 = userProfile.value?.profilePictureBase64
-  return b64 ? `data:image/jpeg;base64,${b64}` : undefined
-})
-
-const avatarInitial = computed(() => {
-  const name = userProfile.value?.displayName || userProfile.value?.name
-  if (!name) return '?'
-  const words = name.trim().split(/\s+/)
-  return words.map((word: string) => word.charAt(0).toUpperCase()).join('')
-})
-
-// Name display
-const hasDisplayName = computed(() =>
-  !!(userProfile.value?.displayName && userProfile.value.displayName.trim())
-)
-const primaryName = computed(() =>
-  hasDisplayName.value ? userProfile.value?.displayName : userProfile.value?.name
-)
-const secondaryName = computed(() =>
-  hasDisplayName.value ? userProfile.value?.name : null
-)
-
-// Color mode
-const colorModeText = computed(() =>
-  colorMode.value === 'dark' ? t('profile.lightMode') : t('profile.darkMode')
-)
-
-onMounted(() => {
-  // Auth middleware has already restored user via refreshAccessToken
-})
-
+// --- Avatar upload / delete ------------------------------------------------
 function triggerFileSelect() {
   const input = document.createElement('input')
   input.type = 'file'
@@ -317,7 +431,6 @@ async function handleCroppedImage(base64: string) {
   imageCropperOpen.value = false
 
   try {
-    // Compress using browser-image-compression
     const blob = await fetch(base64).then(r => r.blob())
     const compressed = await imageCompression(blob as File, {
       maxWidthOrHeight: 500,
@@ -325,12 +438,10 @@ async function handleCroppedImage(base64: string) {
       useWebWorker: true
     })
 
-    // Convert to base64
     const reader = new FileReader()
     reader.onload = async () => {
       const compressedBase64 = reader.result as string
       const pureBase64 = extractBase64(compressedBase64)
-
       await uploadWithProgress(pureBase64)
     }
     reader.readAsDataURL(compressed)
@@ -341,30 +452,27 @@ async function handleCroppedImage(base64: string) {
 
 async function uploadWithProgress(base64Data: string) {
   try {
-    // Open progress modal
     isUploadProgressOpen.value = true
     uploadProgress.value = 0
     uploadStage.value = 'validating'
     uploadStatus.value = 'inprogress'
     uploadErrorMessage.value = undefined
 
-    // Start async upload
     const response = await uploadProfilePictureWithProgress({ imageBase64: base64Data })
 
     if (response.data?.jobId) {
       currentUploadJobId.value = response.data.jobId
 
-      // Start polling for progress
       stopPolling = progressApi.pollProgress(response.data.jobId, async (progress) => {
         uploadProgress.value = progress.percentage
         uploadStage.value = progress.stage
         uploadStatus.value = progress.status
         uploadErrorMessage.value = progress.errorMessage
 
-        // If completed or failed, stop polling and update UI
         if (progress.status === 'completed') {
-          await fetchUserProfile()
-          // Auto-close modal after success
+          // Pull the canonical (server-processed) avatar into the store so the
+          // navbar avatar and this page repaint together.
+          await authStore.fetchUserFromBackend()
           setTimeout(() => {
             handleCloseUploadModal()
           }, 500)
@@ -400,14 +508,10 @@ function handleCloseUploadModal() {
 
 async function onDeleteAvatar() {
   await deleteProfilePicture()
-  await fetchUserProfile()
+  await authStore.fetchUserFromBackend()
 }
 
 async function onLogout() {
   await authStore.logout()
-}
-
-function toggleColorMode() {
-  colorMode.preference = colorMode.value === 'dark' ? 'light' : 'dark'
 }
 </script>

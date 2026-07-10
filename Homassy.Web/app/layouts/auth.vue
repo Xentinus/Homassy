@@ -48,15 +48,19 @@
                 v-if="item.avatar"
                 class="h-7 w-7 rounded-full border-2 border-primary-500 overflow-hidden flex items-center justify-center bg-primary-100 dark:bg-primary-900/40 shrink-0"
               >
-                <img
-                  v-if="avatarSrc"
-                  :src="avatarSrc"
-                  :alt="item.label"
-                  class="h-full w-full object-cover"
-                >
-                <span v-else class="text-[10px] font-semibold text-primary-600 dark:text-primary-300 leading-none">
-                  {{ avatarInitials }}
-                </span>
+                <!-- Avatar is auth-store driven (client-only): render on the client
+                     so SSR (user=null → "?") doesn't mismatch the hydrated initials. -->
+                <ClientOnly>
+                  <img
+                    v-if="avatarSrc"
+                    :src="avatarSrc"
+                    :alt="item.label"
+                    class="h-full w-full object-cover"
+                  >
+                  <span v-else class="text-[10px] font-semibold text-primary-600 dark:text-primary-300 leading-none">
+                    {{ avatarInitials }}
+                  </span>
+                </ClientOnly>
               </div>
               <UIcon v-else :name="item.icon" class="h-6 w-6" />
             </div>

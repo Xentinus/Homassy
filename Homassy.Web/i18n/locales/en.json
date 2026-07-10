@@ -847,6 +847,28 @@
     "uploadAvatar": "Upload Avatar",
     "lightMode": "Light Mode",
     "darkMode": "Dark Mode",
+    "groups": {
+      "account": "Account",
+      "preferences": "Preferences",
+      "family": "Family",
+      "data": "Data"
+    },
+    "theme": {
+      "label": "Theme",
+      "system": "System",
+      "light": "Light",
+      "dark": "Dark"
+    },
+    "editName": {
+      "title": "Edit name"
+    },
+    "masterData": {
+      "title": "Master Data",
+      "description": "Products, locations, automations and external calendars."
+    },
+    "externalCalendars": {
+      "emptyFamily": "External calendars are shared within a family. Join or create a family first."
+    },
     "family": {
       "title": "Family",
       "cardDescription": "View your family details, invite code, and manage membership.",

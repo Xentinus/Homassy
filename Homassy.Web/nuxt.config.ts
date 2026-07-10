@@ -116,18 +116,24 @@ export default defineNuxtConfig({
   },
 
   nitro: {
-    // devProxy: {
-    //   '/api': {
-    //     target: process.env.NUXT_PUBLIC_API_BASE || 'http://localhost:5226',
-    //     changeOrigin: true
-    //   }
-    // }
+    // Reduce Nitro build memory
+    minify: true,
+    sourceMap: false,
+    rollupConfig: {
+      maxParallelFileOps: 2
+    },
     routeRules: {
       '/': {
         headers: {
           'Cache-Control': 'no-cache, must-revalidate'
         }
-      }
+      },
+      // Settings + security/notifications/family were folded into the /profile
+      // grouped list + bottom-sheet drawers.
+      '/profile/settings': { redirect: '/profile' },
+      '/profile/security': { redirect: '/profile' },
+      '/profile/notifications': { redirect: '/profile' },
+      '/profile/family': { redirect: '/profile' }
     }
   },
 
@@ -197,15 +203,6 @@ export default defineNuxtConfig({
           manualChunks: undefined
         }
       }
-    }
-  },
-
-  // Reduce Nitro build memory
-  nitro: {
-    minify: true,
-    sourceMap: false,
-    rollupConfig: {
-      maxParallelFileOps: 2
     }
   }
 })

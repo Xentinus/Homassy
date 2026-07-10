@@ -48,7 +48,7 @@ const router = useRouter()
 async function onSubmit() {
   const res = await requestJoin({ shareCode: shareCode.value })
   if (res.success) {
-    router.push('/profile/family')
+    router.push('/profile?open=family')
   }
 }
 </script>
