@@ -844,6 +844,8 @@
     "currency": "Pénznem",
     "timeZone": "Időzóna",
     "uploadAvatar": "Profilkép feltöltése",
+    "changePhoto": "Kép módosítása",
+    "removePhoto": "Kép eltávolítása",
     "lightMode": "Világos mód",
     "darkMode": "Sötét mód",
     "groups": {
@@ -860,6 +862,9 @@
     },
     "editName": {
       "title": "Név szerkesztése"
+    },
+    "editProfile": {
+      "title": "Profil szerkesztése"
     },
     "masterData": {
       "title": "Törzsadatok",

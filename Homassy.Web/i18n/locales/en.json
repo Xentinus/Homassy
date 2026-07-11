@@ -845,6 +845,8 @@
     "currency": "Currency",
     "timeZone": "Time Zone",
     "uploadAvatar": "Upload Avatar",
+    "changePhoto": "Change photo",
+    "removePhoto": "Remove photo",
     "lightMode": "Light Mode",
     "darkMode": "Dark Mode",
     "groups": {
@@ -861,6 +863,9 @@
     },
     "editName": {
       "title": "Edit name"
+    },
+    "editProfile": {
+      "title": "Edit profile"
     },
     "masterData": {
       "title": "Master Data",

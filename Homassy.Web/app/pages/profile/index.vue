@@ -10,46 +10,15 @@
 
     <!-- Content Section with padding to account for fixed header -->
     <div class="pt-28 px-4 sm:px-8 lg:px-14 pb-6 space-y-6 max-w-2xl mx-auto">
-      <!-- Avatar Section -->
-      <div class="flex flex-col items-center gap-4">
-        <template v-if="loading">
-          <USkeleton class="h-40 w-40 rounded-full" />
-          <USkeleton class="h-6 w-32 mt-2" />
-          <USkeleton class="h-4 w-24 mt-1" />
-        </template>
-        <template v-else>
-          <div class="relative inline-block">
-            <div class="border-4 border-primary-500 rounded-full p-1">
-              <UAvatar
-                :src="avatarSrc"
-                :alt="primaryName || 'User'"
-                :text="avatarInitial"
-                class="h-40 w-40 text-6xl"
-              />
-            </div>
-            <UButton
-              v-if="hasAvatar"
-              icon="i-lucide-trash-2"
-              color="error"
-              size="xs"
-              class="absolute -top-1 -right-1 shadow-md rounded-full"
-              @click="onDeleteAvatar"
-            />
-          </div>
-
-          <div class="text-center">
-            <p class="text-2xl font-semibold">{{ primaryName }}</p>
-            <p v-if="secondaryName" class="text-sm text-gray-600 dark:text-gray-400 mt-1">
-              {{ secondaryName }}
-            </p>
-          </div>
-
-          <UButton v-if="!hasAvatar" color="primary" variant="soft" class="w-full" @click="triggerFileSelect">
-            <UIcon name="i-lucide-upload" class="h-4 w-4 mr-2" />
-            {{ $t('profile.uploadAvatar') }}
-          </UButton>
-        </template>
-      </div>
+      <!-- Identity card: avatar + name; tap to open the edit-profile drawer -->
+      <ProfileIdentityCard
+        :loading="loading"
+        :avatar-src="avatarSrc"
+        :avatar-initial="avatarInitial"
+        :primary-name="primaryName"
+        :secondary-name="secondaryName"
+        @select="openEditProfile"
+      />
 
       <!-- Image Cropper Modal -->
       <ImageCropper
@@ -77,12 +46,6 @@
       <div v-if="!loading" class="space-y-6">
         <!-- Account -->
         <SettingsGroup :title="$t('profile.groups.account')">
-        <SettingsRow
-          :label="$t('profile.name')"
-          icon="i-lucide-user"
-          :value="primaryName"
-          @select="openNameDrawer"
-        />
         <SettingsRow
           :label="$t('profile.security.title')"
           icon="i-lucide-shield"
@@ -195,10 +158,10 @@
         @save="onSavePreference"
       />
 
-      <!-- Name edit bottom sheet -->
+      <!-- Edit profile bottom sheet: avatar + name / display name -->
       <SettingsEditDrawer
         :open="nameDrawerOpen"
-        :title="$t('profile.editName.title')"
+        :title="$t('profile.editProfile.title')"
         icon="i-lucide-user"
         :loading="savingName"
         :save-disabled="!nameForm.name.trim()"
@@ -207,14 +170,46 @@
         @cancel="nameDrawerOpen = false"
       >
         <template #body>
-          <div class="space-y-4">
-            <div>
-              <label class="block text-sm font-medium mb-1.5">{{ $t('profile.name') }}</label>
-              <UInput v-model="nameForm.name" :placeholder="$t('profile.name')" class="w-full" />
+          <div class="space-y-6">
+            <!-- Avatar -->
+            <div class="flex flex-col items-center gap-3">
+              <div class="border-2 border-primary-500 rounded-full p-0.5">
+                <UAvatar
+                  :src="avatarSrc"
+                  :alt="primaryName || 'User'"
+                  :text="avatarInitial"
+                  class="h-24 w-24 text-3xl"
+                />
+              </div>
+              <div class="flex items-center gap-2">
+                <UButton
+                  icon="i-lucide-upload"
+                  color="primary"
+                  variant="soft"
+                  :label="hasAvatar ? $t('profile.changePhoto') : $t('profile.uploadAvatar')"
+                  @click="triggerFileSelect"
+                />
+                <UButton
+                  v-if="hasAvatar"
+                  icon="i-lucide-trash-2"
+                  color="error"
+                  variant="soft"
+                  :label="$t('profile.removePhoto')"
+                  @click="onDeleteAvatar"
+                />
+              </div>
             </div>
-            <div>
-              <label class="block text-sm font-medium mb-1.5">{{ $t('profile.displayName') }}</label>
-              <UInput v-model="nameForm.displayName" :placeholder="$t('profile.displayName')" class="w-full" />
+
+            <!-- Name fields -->
+            <div class="space-y-4">
+              <div>
+                <label class="block text-sm font-medium mb-1.5">{{ $t('profile.name') }}</label>
+                <UInput v-model="nameForm.name" :placeholder="$t('profile.name')" class="w-full" />
+              </div>
+              <div>
+                <label class="block text-sm font-medium mb-1.5">{{ $t('profile.displayName') }}</label>
+                <UInput v-model="nameForm.displayName" :placeholder="$t('profile.displayName')" class="w-full" />
+              </div>
             </div>
           </div>
         </template>
@@ -352,12 +347,12 @@ const securityOpen = ref(false)
 const notificationsOpen = ref(false)
 const familyOpen = ref(false)
 
-// --- Name edit drawer ------------------------------------------------------
+// --- Edit profile drawer (avatar + name) -----------------------------------
 const nameDrawerOpen = ref(false)
 const savingName = ref(false)
 const nameForm = ref({ name: '', displayName: '' })
 
-function openNameDrawer() {
+function openEditProfile() {
   nameForm.value = {
     name: authStore.user?.name || '',
     displayName: authStore.user?.displayName || ''

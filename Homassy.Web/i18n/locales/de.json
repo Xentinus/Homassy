@@ -843,6 +843,8 @@
     "currency": "Währung",
     "timeZone": "Zeitzone",
     "uploadAvatar": "Profilbild hochladen",
+    "changePhoto": "Foto ändern",
+    "removePhoto": "Foto entfernen",
     "lightMode": "Heller Modus",
     "darkMode": "Dunkler Modus",
     "groups": {
@@ -859,6 +861,9 @@
     },
     "editName": {
       "title": "Name bearbeiten"
+    },
+    "editProfile": {
+      "title": "Profil bearbeiten"
     },
     "masterData": {
       "title": "Stammdaten",
