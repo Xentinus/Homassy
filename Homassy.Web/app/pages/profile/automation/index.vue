@@ -81,10 +81,11 @@
 
       <!-- Automation Rules List -->
       <div v-else class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-        <AutomationRuleCard
+        <DataAutomationCard
           v-for="automation in filteredAutomations"
           :key="automation.publicId"
           :automation="automation"
+          @deleted="handleCardDeleted"
         />
       </div>
     </div>
@@ -237,6 +238,11 @@ function handleAutomationUpserted(dto: AutomationResponse) {
 
 function handleAutomationDeleted(payload: MasterDataDeletedEvent) {
   automations.value = automations.value.filter(a => a.publicId !== payload.publicId)
+}
+
+// Card emitted a delete (own API call) — remove locally; the realtime echo is then a no-op.
+function handleCardDeleted(publicId: string) {
+  automations.value = automations.value.filter(a => a.publicId !== publicId)
 }
 
 onMounted(async () => {

@@ -75,36 +75,17 @@
 
       <!-- Calendar list -->
       <div v-if="externalCalendars.length > 0" class="space-y-2">
-        <div v-for="cal in externalCalendars" :key="cal.publicId" class="rounded-lg border border-gray-200 dark:border-gray-700 p-3">
-          <div v-if="editingCalId !== cal.publicId">
-            <div class="flex items-center gap-3">
-              <span class="w-4 h-4 rounded-full flex-shrink-0" :style="{ backgroundColor: cal.color }" />
-              <div class="flex-1 min-w-0">
-                <div class="flex items-center gap-2">
-                  <span class="font-medium truncate">{{ cal.name }}</span>
-                  <span v-if="!cal.isEnabled" class="text-xs px-1.5 py-0.5 rounded bg-gray-100 dark:bg-gray-700 text-gray-500">{{ $t('profile.family.externalCalendars.disabled') }}</span>
-                </div>
-                <div class="text-xs text-gray-500 dark:text-gray-400 truncate mt-0.5">{{ cal.iCalUrl }}</div>
-                <div class="flex items-center gap-2 mt-1 text-xs text-gray-400">
-                  <span v-if="cal.lastSyncedAt">{{ $t('profile.family.externalCalendars.lastSync') }}: {{ formatTimestamp(cal.lastSyncedAt) }}</span>
-                  <span v-else>{{ $t('profile.family.externalCalendars.neverSynced') }}</span>
-                  <span>·</span>
-                  <span>{{ $t('profile.family.externalCalendars.eventCount', { count: cal.eventCount }) }}</span>
-                </div>
-                <div v-if="cal.lastSyncError" class="mt-1 text-xs text-red-500 flex items-center gap-1">
-                  <UIcon name="i-lucide-alert-circle" class="h-3 w-3" />
-                  {{ cal.lastSyncError }}
-                </div>
-              </div>
-              <div class="flex items-center gap-1 flex-shrink-0">
-                <UButton size="xs" variant="ghost" color="neutral" icon="i-lucide-refresh-cw" :loading="syncingId === cal.publicId" :disabled="syncingId !== null" :title="$t('profile.family.externalCalendars.sync')" @click="onSyncCalendar(cal)" />
-                <UButton size="xs" variant="ghost" color="neutral" icon="i-lucide-pencil" :title="$t('common.edit')" @click="startEditCalendar(cal)" />
-                <UButton size="xs" variant="ghost" color="error" icon="i-lucide-trash-2" :title="$t('common.delete')" @click="onDeleteCalendar(cal)" />
-              </div>
-            </div>
-          </div>
+        <template v-for="cal in externalCalendars" :key="cal.publicId">
+          <DataExternalCalendarCard
+            v-if="editingCalId !== cal.publicId"
+            :calendar="cal"
+            :syncing="syncingId === cal.publicId"
+            @edit="startEditCalendar"
+            @sync="onSyncCalendar"
+            @deleted="onDeleteCalendar"
+          />
           <!-- Edit inline -->
-          <div v-else class="space-y-3">
+          <div v-else class="rounded-lg border border-gray-200 dark:border-gray-700 p-3 space-y-3">
             <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div>
                 <label class="block text-sm font-medium mb-1.5">{{ $t('common.name') }}</label>
@@ -138,7 +119,7 @@
               </UButton>
             </div>
           </div>
-        </div>
+        </template>
       </div>
       <div v-else class="text-sm text-gray-400 dark:text-gray-500 py-2">
         {{ $t('profile.family.externalCalendars.empty') }}
@@ -186,22 +167,6 @@ const editCalColor = ref('#3B82F6')
 const editCalEnabled = ref(true)
 const showEditColorPicker = ref(false)
 const isSavingCalendar = ref(false)
-
-const formatTimestamp = (timestamp: string): string => {
-  const date = new Date(timestamp)
-  const now = new Date()
-  const diffMs = now.getTime() - date.getTime()
-  const diffMins = Math.floor(diffMs / 60000)
-  const diffHours = Math.floor(diffMs / 3600000)
-  const diffDays = Math.floor(diffMs / 86400000)
-
-  if (diffMins < 1) return $t('time.justNow')
-  if (diffMins < 60) return $t('time.minutesAgo', { count: diffMins })
-  if (diffHours < 24) return $t('time.hoursAgo', { count: diffHours })
-  if (diffDays < 7) return $t('time.daysAgo', { count: diffDays })
-
-  return date.toLocaleDateString()
-}
 
 async function load() {
   loading.value = true
@@ -310,10 +275,10 @@ async function onSaveEditCalendar() {
   }
 }
 
-async function onDeleteCalendar(cal: ExternalCalendarResponse) {
-  const res = await deleteExternalCalendar(cal.publicId)
+async function onDeleteCalendar(publicId: string) {
+  const res = await deleteExternalCalendar(publicId)
   if (res.success) {
-    externalCalendars.value = externalCalendars.value.filter(c => c.publicId !== cal.publicId)
+    externalCalendars.value = externalCalendars.value.filter(c => c.publicId !== publicId)
     toast.add({ title: $t('profile.family.externalCalendars.deleted'), color: 'success', icon: 'i-lucide-check-circle' })
   }
 }

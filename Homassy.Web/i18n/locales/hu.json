@@ -509,7 +509,8 @@
         "createButton": "Termék létrehozása",
         "nameRequired": "A név megadása kötelező",
         "brandRequired": "A márka megadása kötelező",
-        "saveFailed": "A termék mentése sikertelen"
+        "saveFailed": "A termék mentése sikertelen",
+        "imageFromBarcode": "Kép importálása vonalkódból"
       },
       "openFoodFacts": {
         "modalTitle": "Termék találva",
@@ -935,7 +936,9 @@
         "updateFailed": "Nem sikerült frissíteni a naptárt",
         "deleted": "Naptár törölve",
         "synced": "Naptár szinkronizálva",
-        "syncFailed": "Szinkronizálás sikertelen"
+        "syncFailed": "Szinkronizálás sikertelen",
+        "deleteTitle": "Naptár törlése",
+        "deleteWarning": "Biztosan törölni szeretnéd ezt a külső naptárat?"
       }
     },
     "settingsProfileSection": "Profil adatok",
@@ -1017,7 +1020,10 @@
       "updateFailed": "Nem sikerült frissíteni a bevásárlási helyet",
       "deleteFailed": "Nem sikerült törölni a bevásárlási helyet",
       "invalidWebsite": "Érvénytelen weboldal URL",
-      "invalidGoogleMaps": "Érvénytelen Google Maps URL"
+      "invalidGoogleMaps": "Érvénytelen Google Maps URL",
+      "purchases": "Vásárlások",
+      "noPurchases": "Még nincs innen rögzített vásárlás",
+      "mapTitle": "Térkép"
     },
     "storageLocations": {
       "title": "Tárolók",
@@ -1052,7 +1058,9 @@
       "updateFailed": "Nem sikerült frissíteni a tárolóhelyet",
       "locationDeleted": "Tárolóhely sikeresen törölve",
       "deleteFailed": "Nem sikerült törölni a tárolóhelyet",
-      "saveFailed": "A tárolóhely mentése sikertelen"
+      "saveFailed": "A tárolóhely mentése sikertelen",
+      "inStock": "Készleten",
+      "noStock": "Nincs készleten termék"
     },
     "automation": {
       "title": "Automatizálás",

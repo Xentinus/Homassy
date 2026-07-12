@@ -63,12 +63,12 @@
 
     <!-- Locations Grid -->
     <div v-else class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-      <DetailedShoppingLocationCard
+      <DataShoppingLocationCard
         v-for="location in filteredLocations"
         :key="location.publicId"
         :location="location"
         :search-query="searchQuery"
-        @click="handleLocationClick(location)"
+        @select="openOverview"
         @edit="openEditDrawer"
         @deleted="onDeleted"
       />
@@ -82,6 +82,9 @@
     @update:open="(v) => drawerOpen = v"
     @saved="onSaved"
   />
+
+  <!-- Tap a shopping location → overview (info + purchase history) -->
+  <ShoppingLocationOverviewDrawer v-model:open="isOverviewOpen" :location="overviewLocation" />
   </div>
 </template>
 
@@ -120,6 +123,14 @@ const countryFilter = ref('all')
 // Create / edit drawer state
 const drawerOpen = ref(false)
 const editingLocation = ref<ShoppingLocationInfo | null>(null)
+
+// Overview drawer state (info + purchase history) — opened on card tap
+const isOverviewOpen = ref(false)
+const overviewLocation = ref<ShoppingLocationInfo | null>(null)
+function openOverview(publicId: string) {
+  overviewLocation.value = locations.value.find(l => l.publicId === publicId) ?? null
+  isOverviewOpen.value = true
+}
 
 // Filter options
 const sharedOptions = computed(() => [
@@ -220,10 +231,6 @@ async function loadLocations() {
   } finally {
     loading.value = false
   }
-}
-
-function handleLocationClick(_location: ShoppingLocationInfo) {
-  // Location actions are handled by the card's menu
 }
 
 // Create / edit drawer functions

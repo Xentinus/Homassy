@@ -98,14 +98,13 @@
 
     <!-- Products Grid -->
     <div v-else class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
-      <ProductCard
+      <DataProductCard
         v-for="product in filteredProducts"
         :key="product.publicId"
         :product="product"
         :search-query="searchQuery"
-        :editable="true"
+        @select="openOverview"
         @edit="openEditDrawer"
-        @updated="loadProducts"
         @deleted="onDeleted"
       />
     </div>
@@ -118,7 +117,11 @@
     :product="editingProduct"
     @update:open="(v) => drawerOpen = v"
     @saved="onSaved"
+    @updated="loadProducts"
   />
+
+  <!-- Tap a product → overview (product info + current stock + history), like the inventory grid -->
+  <InventoryOverviewDrawer v-model:open="isOverviewOpen" :product-public-id="overviewProductId" />
 
   <!-- Barcode Scanner Modal (shared: routes to the open drawer or the search box) -->
   <BarcodeScannerModal :on-barcode-detected="dynamicBarcodeHandler" />
@@ -166,6 +169,14 @@ const barcodeFilter = ref(false)
 const drawerOpen = ref(false)
 const editingProduct = ref<ProductInfo | null>(null)
 const productDrawer = ref<{ applyScannedBarcode: (barcode: string) => void } | null>(null)
+
+// Overview drawer state (product info + current stock + history) — opened on card tap
+const isOverviewOpen = ref(false)
+const overviewProductId = ref<string | null>(null)
+function openOverview(publicId: string) {
+  overviewProductId.value = publicId
+  isOverviewOpen.value = true
+}
 
 // Load all products (client-side search + filtering)
 async function loadProducts() {

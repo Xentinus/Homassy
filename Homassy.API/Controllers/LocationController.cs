@@ -32,6 +32,19 @@ namespace Homassy.API.Controllers
         }
 
         /// <summary>
+        /// Gets the purchase history made at a shopping location (what was bought here, newest first).
+        /// </summary>
+        [HttpGet("shopping/{shoppingLocationPublicId}/purchases")]
+        [MapToApiVersion(1.0)]
+        [ProducesResponseType(typeof(ApiResponse<List<ShoppingLocationPurchaseInfo>>), StatusCodes.Status200OK)]
+        [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status404NotFound)]
+        public async Task<IActionResult> GetShoppingLocationPurchases(Guid shoppingLocationPublicId, CancellationToken cancellationToken)
+        {
+            var purchases = await new LocationFunctions().GetShoppingLocationPurchasesAsync(shoppingLocationPublicId, cancellationToken);
+            return Ok(ApiResponse<List<ShoppingLocationPurchaseInfo>>.SuccessResponse(purchases));
+        }
+
+        /// <summary>
         /// Creates a new shopping location.
         /// </summary>
         [HttpPost("shopping")]
@@ -130,6 +143,19 @@ namespace Homassy.API.Controllers
         {
             var storageLocations = new LocationFunctions().GetAllStorageLocations(pagination);
             return Ok(ApiResponse<PagedResult<StorageLocationInfo>>.SuccessResponse(storageLocations));
+        }
+
+        /// <summary>
+        /// Gets the products currently in stock at a storage location.
+        /// </summary>
+        [HttpGet("storage/{storageLocationPublicId}/inventory")]
+        [MapToApiVersion(1.0)]
+        [ProducesResponseType(typeof(ApiResponse<List<StorageLocationInventoryItemInfo>>), StatusCodes.Status200OK)]
+        [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status404NotFound)]
+        public async Task<IActionResult> GetStorageLocationInventory(Guid storageLocationPublicId, CancellationToken cancellationToken)
+        {
+            var inventory = await new LocationFunctions().GetStorageLocationInventoryAsync(storageLocationPublicId, cancellationToken);
+            return Ok(ApiResponse<List<StorageLocationInventoryItemInfo>>.SuccessResponse(inventory));
         }
 
         /// <summary>

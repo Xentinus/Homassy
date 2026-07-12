@@ -14,9 +14,10 @@
       <div ref="headerEl" class="w-full" style="touch-action: none">
         <div class="flex items-center gap-3">
           <UIcon name="i-lucide-package" class="h-6 w-6 shrink-0 text-primary-500" />
-          <h1 class="text-lg sm:text-xl font-semibold truncate">
+          <DrawerTitle class="text-lg sm:text-xl font-semibold truncate">
             {{ product?.name || $t('pages.products.details.overview') }}
-          </h1>
+          </DrawerTitle>
+          <DrawerDescription class="sr-only">{{ product?.name || $t('pages.products.details.overview') }}</DrawerDescription>
           <UButton
             class="ml-auto"
             icon="i-lucide-x"
@@ -93,6 +94,7 @@
 
 <script setup lang="ts">
 import { ref, computed, watch, onMounted, onBeforeUnmount } from 'vue'
+import { DrawerTitle, DrawerDescription } from 'vaul-vue'
 import type {
   DetailedProductInfo,
   ProductHistoryEventInfo,

@@ -56,12 +56,12 @@
 
     <!-- Locations Grid -->
     <div v-else class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-      <StorageLocationCard
+      <DataStorageLocationCard
         v-for="location in filteredLocations"
         :key="location.publicId"
         :location="location"
         :search-query="searchQuery"
-        @click="handleLocationClick(location)"
+        @select="openOverview"
         @edit="openEditDrawer"
         @deleted="onDeleted"
       />
@@ -75,6 +75,9 @@
     @update:open="(v) => drawerOpen = v"
     @saved="onSaved"
   />
+
+  <!-- Tap a storage location → overview (info + current stock) -->
+  <StorageLocationOverviewDrawer v-model:open="isOverviewOpen" :location="overviewLocation" />
   </div>
 </template>
 
@@ -112,6 +115,14 @@ const sharedFilter = ref('all')
 // Create / edit drawer state
 const drawerOpen = ref(false)
 const editingLocation = ref<StorageLocationInfo | null>(null)
+
+// Overview drawer state (info + current stock) — opened on card tap
+const isOverviewOpen = ref(false)
+const overviewLocation = ref<StorageLocationInfo | null>(null)
+function openOverview(publicId: string) {
+  overviewLocation.value = locations.value.find(l => l.publicId === publicId) ?? null
+  isOverviewOpen.value = true
+}
 
 // Filter options
 const freezerOptions = computed(() => [
@@ -186,10 +197,6 @@ async function loadStorageLocations() {
   } finally {
     loading.value = false
   }
-}
-
-function handleLocationClick(_location: StorageLocationInfo) {
-  // Location actions are handled by the card's menu
 }
 
 // Create / edit drawer functions

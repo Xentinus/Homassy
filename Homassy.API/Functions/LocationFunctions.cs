@@ -1176,6 +1176,103 @@ namespace Homassy.API.Functions
         }
         #endregion
 
+        #region Overview Queries
+        /// <summary>
+        /// Returns the products currently in stock at a storage location (live items only), newest
+        /// expirations last. Access-checked: only the owner or the family may read it.
+        /// </summary>
+        public async Task<List<StorageLocationInventoryItemInfo>> GetStorageLocationInventoryAsync(Guid storageLocationPublicId, CancellationToken cancellationToken = default)
+        {
+            var userId = SessionInfo.GetUserId();
+            if (!userId.HasValue)
+            {
+                Log.Warning("Invalid session: User ID not found");
+                throw new UserNotFoundException("User not found");
+            }
+
+            var storageLocation = GetStorageLocationByPublicId(storageLocationPublicId);
+            var familyId = SessionInfo.GetFamilyId();
+            if (storageLocation == null ||
+                (storageLocation.UserId != userId.Value &&
+                 (!familyId.HasValue || storageLocation.FamilyId != familyId.Value)))
+            {
+                throw new StorageLocationNotFoundException("Storage location not found");
+            }
+
+            var context = new HomassyDbContext();
+            var items = await context.ProductInventoryItems
+                .Include(i => i.Product)
+                .Where(i => i.StorageLocationId == storageLocation.Id
+                    && !i.IsFullyConsumed
+                    && (i.UserId == userId.Value || (familyId.HasValue && i.FamilyId == familyId.Value)))
+                .OrderBy(i => i.ExpirationAt == null)
+                .ThenBy(i => i.ExpirationAt)
+                .ToListAsync(cancellationToken);
+
+            return items.Select(i => new StorageLocationInventoryItemInfo
+            {
+                PublicId = i.PublicId,
+                ProductPublicId = i.Product.PublicId,
+                ProductName = i.Product.Name,
+                ProductBrand = i.Product.Brand,
+                CurrentQuantity = i.CurrentQuantity,
+                Unit = i.Unit,
+                ExpirationAt = i.ExpirationAt,
+                IsSharedWithFamily = i.FamilyId.HasValue
+            }).ToList();
+        }
+
+        /// <summary>
+        /// Returns the purchase history made at a shopping location (newest first). Uses
+        /// <c>IgnoreQueryFilters</c> so purchases of already-consumed items still appear; soft-deleted
+        /// purchases are excluded. Access-checked: only the owner or the family may read it. Visibility of
+        /// each purchase is derived from its parent inventory item (purchases carry no own scope).
+        /// </summary>
+        public async Task<List<ShoppingLocationPurchaseInfo>> GetShoppingLocationPurchasesAsync(Guid shoppingLocationPublicId, CancellationToken cancellationToken = default)
+        {
+            var userId = SessionInfo.GetUserId();
+            if (!userId.HasValue)
+            {
+                Log.Warning("Invalid session: User ID not found");
+                throw new UserNotFoundException("User not found");
+            }
+
+            var shoppingLocation = GetShoppingLocationByPublicId(shoppingLocationPublicId);
+            var familyId = SessionInfo.GetFamilyId();
+            if (shoppingLocation == null ||
+                (shoppingLocation.UserId != userId.Value &&
+                 (!familyId.HasValue || shoppingLocation.FamilyId != familyId.Value)))
+            {
+                throw new ShoppingLocationNotFoundException("Shopping location not found");
+            }
+
+            var context = new HomassyDbContext();
+            var purchases = await context.ProductPurchaseInfos
+                .IgnoreQueryFilters()
+                .Include(p => p.ProductInventoryItem)
+                    .ThenInclude(i => i.Product)
+                .Where(p => !p.IsDeleted
+                    && p.ShoppingLocationId == shoppingLocation.Id
+                    && (p.ProductInventoryItem.UserId == userId.Value
+                        || (familyId.HasValue && p.ProductInventoryItem.FamilyId == familyId.Value)))
+                .OrderByDescending(p => p.PurchasedAt)
+                .ToListAsync(cancellationToken);
+
+            return purchases.Select(p => new ShoppingLocationPurchaseInfo
+            {
+                PublicId = p.PublicId,
+                ProductPublicId = p.ProductInventoryItem.Product.PublicId,
+                ProductName = p.ProductInventoryItem.Product.Name,
+                ProductBrand = p.ProductInventoryItem.Product.Brand,
+                Quantity = p.OriginalQuantity,
+                Unit = p.ProductInventoryItem.Unit,
+                Price = p.Price,
+                Currency = p.Currency,
+                PurchasedAt = p.PurchasedAt
+            }).ToList();
+        }
+        #endregion
+
         #region Helper Methods
         /// <summary>
         /// Converts a ShoppingLocation entity to ShoppingLocationInfo DTO.

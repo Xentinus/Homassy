@@ -28,43 +28,59 @@
     </template>
 
     <template #body>
-      <UForm ref="formRef" :schema="schema" :state="form" class="space-y-4" @submit="onSubmit">
-        <UFormField :label="t('pages.addProduct.form.name')" name="name" required>
-          <UInput v-model="form.name" :placeholder="t('pages.addProduct.form.namePlaceholder')" :disabled="saving" class="w-full" />
-        </UFormField>
+      <div class="space-y-6">
+        <!-- Product image (edit only — upload needs an existing product) -->
+        <div v-if="isEdit" class="flex flex-col items-center gap-3">
+          <div class="h-28 w-28 rounded-xl overflow-hidden bg-gray-100 dark:bg-gray-800 flex items-center justify-center border border-default">
+            <img v-if="localImage" :src="`data:image/jpeg;base64,${localImage}`" :alt="form.name" class="w-full h-full object-contain">
+            <UIcon v-else name="i-lucide-package" class="h-12 w-12 text-gray-400" />
+          </div>
+          <input ref="fileInput" type="file" accept="image/*" class="hidden" @change="handleFileSelect">
+          <div class="flex items-center gap-2 flex-wrap justify-center">
+            <UButton icon="i-lucide-upload" color="primary" variant="soft" :label="t('profile.changePhoto')" :loading="isUploadingImage" @click="fileInput?.click()" />
+            <UButton v-if="!localImage && form.barcode" icon="i-lucide-barcode" color="primary" variant="soft" :label="t('pages.addProduct.form.imageFromBarcode')" :loading="isImportingImageFromBarcode" @click="handleImportImageFromBarcode" />
+            <UButton v-if="localImage" icon="i-lucide-trash-2" color="error" variant="soft" :label="t('profile.removePhoto')" :loading="isDeletingImage" @click="handleDeleteProductImage" />
+          </div>
+        </div>
 
-        <UFormField :label="t('pages.addProduct.form.brand')" name="brand" required>
-          <UInput v-model="form.brand" :placeholder="t('pages.addProduct.form.brandPlaceholder')" :disabled="saving" class="w-full" />
-        </UFormField>
+        <UForm ref="formRef" :schema="schema" :state="form" class="space-y-4" @submit="onSubmit">
+          <UFormField :label="t('pages.addProduct.form.name')" name="name" required>
+            <UInput v-model="form.name" :placeholder="t('pages.addProduct.form.namePlaceholder')" :disabled="saving" class="w-full" />
+          </UFormField>
 
-        <UFormField :label="t('pages.addProduct.form.category')" name="category">
-          <USelectMenu v-model="form.category" :items="categoryOptions" value-key="value" :placeholder="t('pages.addProduct.form.categoryPlaceholder')" :disabled="saving" class="w-full" />
-        </UFormField>
+          <UFormField :label="t('pages.addProduct.form.brand')" name="brand" required>
+            <UInput v-model="form.brand" :placeholder="t('pages.addProduct.form.brandPlaceholder')" :disabled="saving" class="w-full" />
+          </UFormField>
 
-        <UFormField :label="t('pages.addProduct.form.unit')" name="unit" required>
-          <USelect v-model="form.unit" :items="unitOptions" :placeholder="t('pages.addProduct.form.unitPlaceholder')" :disabled="saving" class="w-full" />
-        </UFormField>
+          <UFormField :label="t('pages.addProduct.form.category')" name="category">
+            <USelectMenu v-model="form.category" :items="categoryOptions" value-key="value" :placeholder="t('pages.addProduct.form.categoryPlaceholder')" :disabled="saving" class="w-full" />
+          </UFormField>
 
-        <UFormField :label="t('pages.addProduct.form.barcode')" name="barcode">
-          <UFieldGroup size="md" orientation="horizontal" class="w-full">
-            <UInput v-model="form.barcode" :placeholder="t('pages.addProduct.form.barcodePlaceholder')" :disabled="saving" inputmode="numeric" pattern="[0-9]*" class="flex-1" />
-            <BarcodeScannerButton v-if="showCameraButton" :disabled="saving" />
-            <UButton :label="t('pages.addProduct.form.barcodeQuery')" icon="i-lucide-barcode" color="primary" size="sm" :loading="isQueryingBarcode" :disabled="saving" @click="handleBarcodeQuery" />
-          </UFieldGroup>
-        </UFormField>
+          <UFormField :label="t('pages.addProduct.form.unit')" name="unit" required>
+            <USelect v-model="form.unit" :items="unitOptions" :placeholder="t('pages.addProduct.form.unitPlaceholder')" :disabled="saving" class="w-full" />
+          </UFormField>
 
-        <UFormField name="isEatable">
-          <UCheckbox v-model="form.isEatable" :label="t('pages.addProduct.form.isEatableLabel')" :disabled="saving" />
-        </UFormField>
+          <UFormField :label="t('pages.addProduct.form.barcode')" name="barcode">
+            <UFieldGroup size="md" orientation="horizontal" class="w-full">
+              <UInput v-model="form.barcode" :placeholder="t('pages.addProduct.form.barcodePlaceholder')" :disabled="saving" inputmode="numeric" pattern="[0-9]*" class="flex-1" />
+              <BarcodeScannerButton v-if="showCameraButton" :disabled="saving" />
+              <UButton :label="t('pages.addProduct.form.barcodeQuery')" icon="i-lucide-barcode" color="primary" size="sm" :loading="isQueryingBarcode" :disabled="saving" @click="handleBarcodeQuery" />
+            </UFieldGroup>
+          </UFormField>
 
-        <UFormField v-if="!isEdit" name="isFavorite">
-          <UCheckbox v-model="form.isFavorite" :label="t('pages.addProduct.form.isFavoriteLabel')" :disabled="saving" />
-        </UFormField>
+          <UFormField name="isEatable">
+            <UCheckbox v-model="form.isEatable" :label="t('pages.addProduct.form.isEatableLabel')" :disabled="saving" />
+          </UFormField>
 
-        <UFormField :label="t('pages.addProduct.form.notes')" name="notes">
-          <UTextarea v-model="form.notes" :placeholder="t('pages.addProduct.form.notesPlaceholder')" :disabled="saving" :rows="3" class="w-full" />
-        </UFormField>
-      </UForm>
+          <UFormField v-if="!isEdit" name="isFavorite">
+            <UCheckbox v-model="form.isFavorite" :label="t('pages.addProduct.form.isFavoriteLabel')" :disabled="saving" />
+          </UFormField>
+
+          <UFormField :label="t('pages.addProduct.form.notes')" name="notes">
+            <UTextarea v-model="form.notes" :placeholder="t('pages.addProduct.form.notesPlaceholder')" :disabled="saving" :rows="3" class="w-full" />
+          </UFormField>
+        </UForm>
+      </div>
     </template>
 
     <template #footer>
@@ -79,7 +95,7 @@
     </template>
   </UDrawer>
 
-  <!-- OpenFoodFacts import preview -->
+  <!-- OpenFoodFacts import preview (name / brand) -->
   <UModal
     :open="isOpenFoodFactsModalOpen"
     :dismissible="false"
@@ -121,6 +137,25 @@
       </div>
     </template>
   </UModal>
+
+  <!-- Image cropper + upload progress (product photo) -->
+  <ImageCropper
+    :is-open="isCropperOpen"
+    :image-src="cropperImageSrc"
+    :default-aspect-ratio="1"
+    @close="isCropperOpen = false"
+    @cropped="handleCroppedProductImage"
+  />
+  <UploadProgressModal
+    :is-open="isUploadProgressOpen"
+    :progress="uploadProgress"
+    :stage="uploadStage"
+    :status="uploadStatus"
+    :error-message="uploadErrorMessage"
+    @update:is-open="(v) => { isUploadProgressOpen = v }"
+    @cancel="handleCancelUpload"
+    @close="handleCloseUploadModal"
+  />
 </template>
 
 <script setup lang="ts">
@@ -129,19 +164,24 @@ import { z } from 'zod'
 import type { FormSubmitEvent } from '@nuxt/ui'
 import { DrawerTitle, DrawerDescription } from 'vaul-vue'
 import { useProductsApi } from '~/composables/api/useProductsApi'
+import { useProgressApi } from '~/composables/api/useProgressApi'
 import { useOpenFoodFactsApi } from '~/composables/api/useOpenFoodFactsApi'
 import { useSelectValueApi } from '~/composables/api/useSelectValueApi'
 import { useCameraAvailability } from '~/composables/useCameraAvailability'
+import ImageCropper from '~/components/ImageCropper.vue'
+import UploadProgressModal from '~/components/UploadProgressModal.vue'
+import imageCompression from 'browser-image-compression'
+import { extractBase64 } from '~/composables/useImageCrop'
 import { Unit, SelectValueType } from '~/types/enums'
 import type { ProductInfo } from '~/types/product'
 import type { OpenFoodFactsProduct } from '~/types/openFoodFacts'
 import type { SelectValue } from '~/types/selectValue'
 
 /**
- * Create/edit a product (catalog) in a modern bottom-sheet drawer (UForm + Zod). Adds the previously
- * missing `unit` field, keeps barcode scan + OpenFoodFacts import, and fixes the edit regressions
- * (category is a real select; notes are never sent empty, so existing notes are never clobbered).
- * Image upload stays on the card / detail screen. Owns the API call and emits `saved` with the DTO.
+ * Create/edit a product (catalog) in a modern bottom-sheet drawer (UForm + Zod). The product card is
+ * image-free — the photo and its management (upload / crop / OpenFoodFacts import / remove) live here,
+ * shown when the card is opened. Adds the `unit` field, keeps barcode scan + OFF name/brand import,
+ * and never sends notes empty (so existing notes are not clobbered). Owns the API calls.
  */
 const props = withDefaults(defineProps<{
   open: boolean
@@ -153,11 +193,13 @@ const props = withDefaults(defineProps<{
 const emit = defineEmits<{
   'update:open': [value: boolean]
   saved: [product: ProductInfo]
+  updated: []
 }>()
 
 const { t } = useI18n()
 const toast = useToast()
-const { createProduct, updateProduct } = useProductsApi()
+const { createProduct, updateProduct, uploadProductImageWithProgress, uploadProductImage, deleteProductImage } = useProductsApi()
+const progressApi = useProgressApi()
 const openFoodFactsApi = useOpenFoodFactsApi()
 const { getSelectValues } = useSelectValueApi()
 const { showCameraButton } = useCameraAvailability()
@@ -222,7 +264,23 @@ watch(() => form.value.barcode, (v) => {
   if (v) form.value.barcode = v.replace(/\D/g, '')
 })
 
-// Seed the form each time the drawer opens.
+// --- Product image -----------------------------------------------------------
+const localImage = ref<string | undefined>(undefined)
+const fileInput = ref<HTMLInputElement | null>(null)
+const isUploadingImage = ref(false)
+const isDeletingImage = ref(false)
+const isImportingImageFromBarcode = ref(false)
+const isCropperOpen = ref(false)
+const cropperImageSrc = ref('')
+const isUploadProgressOpen = ref(false)
+const currentUploadJobId = ref<string | null>(null)
+const uploadProgress = ref(0)
+const uploadStage = ref('validating')
+const uploadStatus = ref<'inprogress' | 'completed' | 'failed' | 'cancelled'>('inprogress')
+const uploadErrorMessage = ref<string | undefined>(undefined)
+let stopPolling: (() => void) | null = null
+
+// Seed the form (and image) each time the drawer opens.
 watch(() => props.open, (isOpen) => {
   if (!isOpen) return
   if (props.product) {
@@ -236,12 +294,138 @@ watch(() => props.open, (isOpen) => {
       isFavorite: props.product.isFavorite,
       notes: ''
     }
+    localImage.value = props.product.productPictureBase64 || undefined
   } else {
     form.value = emptyForm()
+    localImage.value = undefined
   }
 })
 
-// --- OpenFoodFacts import ----------------------------------------------------
+function handleFileSelect(event: Event) {
+  const target = event.target as HTMLInputElement
+  const file = target.files?.[0]
+  if (!file) return
+  const reader = new FileReader()
+  reader.onload = (e) => {
+    cropperImageSrc.value = e.target?.result as string
+    isCropperOpen.value = true
+  }
+  reader.readAsDataURL(file)
+  if (fileInput.value) fileInput.value.value = ''
+}
+
+async function handleCroppedProductImage(base64: string) {
+  isCropperOpen.value = false
+  if (!props.product) return
+  isUploadingImage.value = true
+  try {
+    const blob = await fetch(base64).then(r => r.blob())
+    const compressed = await imageCompression(blob as File, { maxWidthOrHeight: 500, maxSizeMB: 0.5, useWebWorker: true })
+    const reader = new FileReader()
+    reader.onload = async () => {
+      const base64Data = extractBase64(reader.result as string)
+      await uploadWithProgress(base64Data)
+    }
+    reader.readAsDataURL(compressed)
+  } catch (error) {
+    console.error('Failed to upload image:', error)
+    isUploadingImage.value = false
+  }
+}
+
+async function uploadWithProgress(base64Data: string) {
+  if (!props.product) return
+  try {
+    isUploadProgressOpen.value = true
+    uploadProgress.value = 0
+    uploadStage.value = 'validating'
+    uploadStatus.value = 'inprogress'
+    uploadErrorMessage.value = undefined
+
+    const response = await uploadProductImageWithProgress(props.product.publicId, {
+      productPublicId: props.product.publicId,
+      imageBase64: base64Data
+    })
+
+    if (response.data?.jobId) {
+      currentUploadJobId.value = response.data.jobId
+      stopPolling = progressApi.pollProgress(response.data.jobId, (progress) => {
+        uploadProgress.value = progress.percentage
+        uploadStage.value = progress.stage
+        uploadStatus.value = progress.status
+        uploadErrorMessage.value = progress.errorMessage
+        if (progress.status === 'completed') {
+          isUploadingImage.value = false
+          localImage.value = base64Data
+          emit('updated')
+          setTimeout(() => handleCloseUploadModal(), 500)
+        } else if (progress.status === 'failed' || progress.status === 'cancelled') {
+          isUploadingImage.value = false
+        }
+      })
+    }
+  } catch (error) {
+    console.error('Failed to start upload:', error)
+    isUploadingImage.value = false
+    isUploadProgressOpen.value = false
+  }
+}
+
+async function handleCancelUpload() {
+  if (currentUploadJobId.value) {
+    try {
+      await progressApi.cancelJob(currentUploadJobId.value)
+      if (stopPolling) { stopPolling(); stopPolling = null }
+      isUploadingImage.value = false
+    } catch (error) {
+      console.error('Failed to cancel upload:', error)
+    }
+  }
+}
+
+function handleCloseUploadModal() {
+  if (stopPolling) { stopPolling(); stopPolling = null }
+  isUploadProgressOpen.value = false
+  currentUploadJobId.value = null
+}
+
+async function handleDeleteProductImage() {
+  if (!props.product) return
+  isDeletingImage.value = true
+  try {
+    await deleteProductImage(props.product.publicId)
+    localImage.value = undefined
+    emit('updated')
+  } catch (error) {
+    console.error('Failed to delete image:', error)
+  } finally {
+    isDeletingImage.value = false
+  }
+}
+
+async function handleImportImageFromBarcode() {
+  if (!props.product || !form.value.barcode) return
+  isImportingImageFromBarcode.value = true
+  try {
+    const response = await openFoodFactsApi.getProductByBarcode(form.value.barcode.trim())
+    if (response.success && response.data && response.data.image_base64) {
+      let base64Data = response.data.image_base64
+      if (base64Data.includes(',')) base64Data = base64Data.split(',')[1] || ''
+      await uploadProductImage(props.product.publicId, { productPublicId: props.product.publicId, imageBase64: base64Data })
+      localImage.value = base64Data
+      emit('updated')
+    } else {
+      toast.add({ title: t('toast.error'), description: t('pages.addProduct.openFoodFacts.noProductError'), color: 'error' })
+    }
+  } catch (error) {
+    console.error('Failed to import image from barcode:', error)
+    toast.add({ title: t('toast.error'), description: t('pages.addProduct.openFoodFacts.noProductError'), color: 'error' })
+  } finally {
+    isImportingImageFromBarcode.value = false
+  }
+}
+
+// --- OpenFoodFacts name/brand import ----------------------------------------
 const isQueryingBarcode = ref(false)
 const isOpenFoodFactsModalOpen = ref(false)
 const openFoodFactsProduct = ref<OpenFoodFactsProduct | null>(null)

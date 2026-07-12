@@ -506,7 +506,8 @@
         "createButton": "Produkt erstellen",
         "nameRequired": "Name ist erforderlich",
         "brandRequired": "Marke ist erforderlich",
-        "saveFailed": "Produkt konnte nicht gespeichert werden"
+        "saveFailed": "Produkt konnte nicht gespeichert werden",
+        "imageFromBarcode": "Bild vom Barcode importieren"
       },
       "openFoodFacts": {
         "modalTitle": "Produkt gefunden",
@@ -932,7 +933,9 @@
         "updateFailed": "Kalender konnte nicht aktualisiert werden",
         "deleted": "Kalender gelöscht",
         "synced": "Kalender synchronisiert",
-        "syncFailed": "Synchronisierung fehlgeschlagen"
+        "syncFailed": "Synchronisierung fehlgeschlagen",
+        "deleteTitle": "Kalender löschen",
+        "deleteWarning": "Möchtest du diesen externen Kalender wirklich löschen?"
       }
     },
     "settingsProfileSection": "Profilinformationen",
@@ -1014,7 +1017,10 @@
       "updateFailed": "Einkaufsort konnte nicht aktualisiert werden",
       "deleteFailed": "Einkaufsort konnte nicht gelöscht werden",
       "invalidWebsite": "Ungültige Webseiten-URL",
-      "invalidGoogleMaps": "Ungültige Google Maps-URL"
+      "invalidGoogleMaps": "Ungültige Google Maps-URL",
+      "purchases": "Einkäufe",
+      "noPurchases": "Noch keine Einkäufe von hier",
+      "mapTitle": "Karte"
     },
     "storageLocations": {
       "title": "Lagerorte",
@@ -1048,6 +1054,8 @@
       "locationUpdated": "Lagerort erfolgreich aktualisiert",
       "updateFailed": "Lagerort konnte nicht aktualisiert werden",
       "saveFailed": "Lagerort konnte nicht gespeichert werden",
+      "inStock": "Auf Lager",
+      "noStock": "Keine Produkte auf Lager",
       "locationDeleted": "Lagerort erfolgreich gelöscht",
       "deleteFailed": "Lagerort konnte nicht gelöscht werden"
     },
