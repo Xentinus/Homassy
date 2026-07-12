@@ -585,7 +585,7 @@ namespace Homassy.API.Functions
                     Log.Error(ex, $"Failed to record ProductCreate activity for product {product.Name}");
                 }
 
-                return new ProductInfo
+                var info = new ProductInfo
                 {
                     PublicId = product.PublicId,
                     Name = product.Name,
@@ -597,6 +597,12 @@ namespace Homassy.API.Functions
                     IsEatable = product.IsEatable,
                     IsFavorite = isFavorite
                 };
+
+                // Realtime: add the new product to the master-data (catalog) list. Favorite is per-user,
+                // so viewers merge catalog fields and keep their own favorite state.
+                await MasterDataRealtime.ProductUpsertedAsync(userId.Value, SessionInfo.GetFamilyId(), info, cancellationToken);
+
+                return info;
             }
             catch (Exception ex)
             {
@@ -713,7 +719,7 @@ namespace Homassy.API.Functions
 
                 var customization = GetCustomizationByProductAndUser(product.Id, userId.Value);
 
-                return new ProductInfo
+                var info = new ProductInfo
                 {
                     PublicId = product.PublicId,
                     Name = product.Name,
@@ -725,6 +731,14 @@ namespace Homassy.API.Functions
                     IsEatable = product.IsEatable,
                     IsFavorite = customization?.IsFavorite ?? false
                 };
+
+                // Realtime: push the full catalog record (incl. category/unit) to the master-data list.
+                if (hasChanges)
+                {
+                    await MasterDataRealtime.ProductUpsertedAsync(userId.Value, SessionInfo.GetFamilyId(), info, cancellationToken);
+                }
+
+                return info;
             }
             catch (Exception ex)
             {
@@ -789,6 +803,10 @@ namespace Homassy.API.Functions
 
                 // Realtime: remove the product card from everyone's grid.
                 await InventoryRealtime.ProductDeletedAsync(
+                    userId.Value, SessionInfo.GetFamilyId(), product.PublicId, cancellationToken);
+
+                // Realtime: remove the product from everyone's master-data (catalog) list.
+                await MasterDataRealtime.ProductDeletedAsync(
                     userId.Value, SessionInfo.GetFamilyId(), product.PublicId, cancellationToken);
 
                 // Record activity
@@ -2928,6 +2946,13 @@ namespace Homassy.API.Functions
                 await transaction.CommitAsync(cancellationToken);
 
                 Log.Information($"User {userId.Value} created {results.Count} products");
+
+                // Realtime: add each new product to the master-data (catalog) list.
+                var familyId = SessionInfo.GetFamilyId();
+                foreach (var info in results)
+                {
+                    await MasterDataRealtime.ProductUpsertedAsync(userId.Value, familyId, info, cancellationToken);
+                }
 
                 return results;
             }

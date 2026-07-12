@@ -23,7 +23,7 @@
           <div
             v-if="index === centerIndex"
             class="shrink-0"
-            :style="{ width: hasFab ? '4.5rem' : '0px', transition: `width ${NAV_DURATION}ms ${NAV_EASE}` }"
+            :style="{ width: (mounted && hasFab) ? '4.5rem' : '0px', transition: `width ${NAV_DURATION}ms ${NAV_EASE}` }"
             aria-hidden="true"
           />
           <NuxtLink
@@ -109,6 +109,13 @@ const NAV_EASE = 'cubic-bezier(0.22, 1, 0.36, 1)'
 // The FAB occupies the centre slot whenever the (debounced) FAB is visible, so the
 // gap and the "+" animate in lock-step.
 const hasFab = fabVisible
+
+// Gate the FAB gap width on mount to avoid an SSR/client hydration mismatch: the active
+// page's setup makes `fabVisible` true during SSR, but it starts false on the client, so
+// SSR would render 4.5rem while the first client render expects 0px. With this flag both
+// render 0px initially, then the gap animates open after hydration.
+const mounted = ref(false)
+onMounted(() => { mounted.value = true })
 
 const fetchExpirationCount = async () => {
   try {

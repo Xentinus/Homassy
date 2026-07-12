@@ -56,140 +56,49 @@
 
     <!-- Locations Grid -->
     <div v-else class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-      <StorageLocationCard
+      <DataStorageLocationCard
         v-for="location in filteredLocations"
         :key="location.publicId"
         :location="location"
         :search-query="searchQuery"
-        @click="handleLocationClick(location)"
-        @updated="loadStorageLocations"
-        @deleted="loadStorageLocations"
+        @select="openOverview"
+        @edit="openEditDrawer"
+        @deleted="onDeleted"
       />
     </div>
     </div>
 
-  <!-- Create Modal -->
-  <UModal :open="isCreateModalOpen" @update:open="(val) => isCreateModalOpen = val" :dismissible="false">
-    <template #title>
-      {{ $t('profile.storageLocations.createLocation') }}
-    </template>
+  <!-- Create / edit bottom sheet -->
+  <StorageLocationFormDrawer
+    :open="drawerOpen"
+    :location="editingLocation"
+    @update:open="(v) => drawerOpen = v"
+    @saved="onSaved"
+  />
 
-    <template #description>
-      {{ $t('profile.storageLocations.createLocationDescription') }}
-    </template>
-
-    <template #body>
-      <div class="space-y-4">
-        <!-- Name -->
-        <div>
-          <label class="block text-sm font-medium mb-1">
-            {{ $t('common.name') }} <span class="text-red-500">*</span>
-          </label>
-          <UInput
-            v-model="createForm.name"
-            type="text"
-            class="w-full"
-            required
-          />
-        </div>
-
-        <!-- Description -->
-        <div>
-          <label class="block text-sm font-medium mb-1">
-            {{ $t('common.description') }}
-          </label>
-          <UTextarea
-            v-model="createForm.description"
-            :placeholder="$t('common.description')"
-            class="w-full"
-          />
-        </div>
-
-        <!-- Color -->
-        <div>
-          <label class="block text-sm font-medium mb-1">
-            {{ $t('common.color') }}
-          </label>
-          <div v-if="createForm.color === null" class="flex gap-2 items-center">
-            <UButton
-              icon="i-lucide-palette"
-              :label="$t('common.addColor')"
-              color="neutral"
-              variant="outline"
-              class="flex-1"
-              @click="createForm.color = '#3B82F6'"
-            />
-          </div>
-          <div v-else class="flex gap-2 items-center">
-            <input
-              v-model="createForm.color"
-              type="color"
-              class="flex-1 h-10 rounded-md border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 cursor-pointer"
-            >
-            <UButton
-              icon="i-lucide-x"
-              color="neutral"
-              variant="ghost"
-              size="sm"
-              @click.stop="createForm.color = null"
-            />
-          </div>
-        </div>
-
-        <!-- Is Freezer -->
-        <div class="flex items-center gap-2">
-          <UCheckbox
-            v-model="createForm.isFreezer"
-            :label="$t('profile.storageLocations.isFreezer')"
-          />
-        </div>
-
-        <!-- Is Shared With Family -->
-        <div class="flex items-center gap-2">
-          <UCheckbox
-            v-model="createForm.isSharedWithFamily"
-            :label="$t('profile.storageLocations.isSharedWithFamily')"
-          />
-        </div>
-      </div>
-    </template>
-
-    <template #footer>
-      <div class="flex justify-end gap-2">
-        <UButton
-          :label="$t('common.cancel')"
-          color="neutral"
-          variant="outline"
-          @click="closeCreateModal"
-        />
-        <UButton
-          :label="$t('common.save')"
-          :loading="isCreating"
-          @click="handleCreate"
-        />
-      </div>
-    </template>
-  </UModal>
+  <!-- Tap a storage location → overview (info + current stock) -->
+  <StorageLocationOverviewDrawer v-model:open="isOverviewOpen" :location="overviewLocation" />
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, onBeforeUnmount } from 'vue'
 import { useLocationsApi } from '~/composables/api/useLocationsApi'
 import type { StorageLocationInfo } from '~/types/location'
+import type { MasterDataDeletedEvent } from '~/types/masterData'
 
 definePageMeta({ layout: 'auth', middleware: 'auth' })
 
-const { getStorageLocations, createStorageLocation } = useLocationsApi()
+const { getStorageLocations } = useLocationsApi()
+const masterDataSocket = useMasterDataSocket()
 const { t } = useI18n()
-const toast = useToast()
 
 // Add-action lives on the dynamic nav FAB instead of an inline header button.
 useFabActions(() => [
   {
     label: t('common.add'),
     icon: 'i-lucide-plus',
-    handler: () => openCreateModal()
+    handler: () => openCreateDrawer()
   }
 ])
 
@@ -203,24 +112,17 @@ const searchQuery = ref('')
 const freezerFilter = ref('all')
 const sharedFilter = ref('all')
 
-// Create modal state
-const isCreateModalOpen = ref(false)
-const isCreating = ref(false)
+// Create / edit drawer state
+const drawerOpen = ref(false)
+const editingLocation = ref<StorageLocationInfo | null>(null)
 
-// Create form
-const createForm = ref<{
-  name: string
-  description: string
-  color: string | null
-  isFreezer: boolean
-  isSharedWithFamily: boolean
-}>({
-  name: '',
-  description: '',
-  color: null,
-  isFreezer: false,
-  isSharedWithFamily: false
-})
+// Overview drawer state (info + current stock) — opened on card tap
+const isOverviewOpen = ref(false)
+const overviewLocation = ref<StorageLocationInfo | null>(null)
+function openOverview(publicId: string) {
+  overviewLocation.value = locations.value.find(l => l.publicId === publicId) ?? null
+  isOverviewOpen.value = true
+}
 
 // Filter options
 const freezerOptions = computed(() => [
@@ -297,61 +199,57 @@ async function loadStorageLocations() {
   }
 }
 
-function handleLocationClick(location: StorageLocationInfo) {
-  // Location actions are handled by the card's menu
+// Create / edit drawer functions
+function openCreateDrawer() {
+  editingLocation.value = null
+  drawerOpen.value = true
 }
 
-// Create modal functions
-const openCreateModal = () => {
-  createForm.value = {
-    name: '',
-    description: '',
-    color: null,
-    isFreezer: false,
-    isSharedWithFamily: false
-  }
-  isCreateModalOpen.value = true
+function openEditDrawer(location: StorageLocationInfo) {
+  editingLocation.value = location
+  drawerOpen.value = true
 }
 
-const closeCreateModal = () => {
-  isCreateModalOpen.value = false
+// Idempotent local patch (upsert / delete) so the acting client updates instantly; the realtime
+// socket delivers the same change to other family members.
+function upsertLocation(location: StorageLocationInfo) {
+  const idx = locations.value.findIndex(l => l.publicId === location.publicId)
+  if (idx >= 0) locations.value[idx] = location
+  else locations.value.push(location)
 }
 
-const handleCreate = async () => {
-  if (!createForm.value.name.trim()) {
-    toast.add({
-      title: t('common.error'),
-      description: t('profile.storageLocations.nameRequired'),
-      color: 'error'
-    })
-    return
-  }
-
-  isCreating.value = true
-  try {
-    await createStorageLocation({
-      name: createForm.value.name,
-      description: createForm.value.description || undefined,
-      color: createForm.value.color || undefined,
-      isFreezer: createForm.value.isFreezer,
-      isSharedWithFamily: createForm.value.isSharedWithFamily
-    })
-
-    closeCreateModal()
-    await loadStorageLocations()
-  } catch (error) {
-    console.error('Failed to create storage location:', error)
-    toast.add({
-      title: t('common.error'),
-      description: t('profile.storageLocations.createFailed'),
-      color: 'error'
-    })
-  } finally {
-    isCreating.value = false
-  }
+function removeLocation(publicId: string) {
+  locations.value = locations.value.filter(l => l.publicId !== publicId)
 }
 
-onMounted(() => {
-  loadStorageLocations()
+function onSaved(location: StorageLocationInfo) {
+  upsertLocation(location)
+}
+
+function onDeleted(publicId: string) {
+  removeLocation(publicId)
+}
+
+// Realtime handlers
+function handleUpserted(dto: StorageLocationInfo) {
+  upsertLocation(dto)
+}
+
+function handleDeleted(payload: MasterDataDeletedEvent) {
+  removeLocation(payload.publicId)
+}
+
+onMounted(async () => {
+  await loadStorageLocations()
+  await masterDataSocket.ensureConnected()
+  masterDataSocket.on('StorageLocationUpserted', handleUpserted)
+  masterDataSocket.on('StorageLocationDeleted', handleDeleted)
+  masterDataSocket.onReconnected(loadStorageLocations)
+})
+
+onBeforeUnmount(() => {
+  masterDataSocket.off('StorageLocationUpserted', handleUpserted)
+  masterDataSocket.off('StorageLocationDeleted', handleDeleted)
+  masterDataSocket.offReconnected(loadStorageLocations)
 })
 </script>

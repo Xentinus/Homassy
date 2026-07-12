@@ -81,10 +81,11 @@
 
       <!-- Automation Rules List -->
       <div v-else class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-        <AutomationRuleCard
+        <DataAutomationCard
           v-for="automation in filteredAutomations"
           :key="automation.publicId"
           :automation="automation"
+          @deleted="handleCardDeleted"
         />
       </div>
     </div>
@@ -95,10 +96,12 @@
 import { useAutomationApi } from '~/composables/api/useAutomationApi'
 import { AutomationActionType, ScheduleType } from '~/types/automation'
 import type { AutomationResponse } from '~/types/automation'
+import type { MasterDataDeletedEvent } from '~/types/masterData'
 
 definePageMeta({ layout: 'auth', middleware: 'auth' })
 
 const { getAutomations } = useAutomationApi()
+const masterDataSocket = useMasterDataSocket()
 const { t } = useI18n()
 
 // Add-action lives on the dynamic nav FAB instead of an inline header button.
@@ -225,7 +228,34 @@ async function loadAutomations() {
   }
 }
 
-onMounted(() => {
-  loadAutomations()
+// Realtime: patch the list in place so a family member's (or another device's) create/update/delete
+// shows instantly. Handlers are idempotent, so the acting client's own echoed event is a no-op.
+function handleAutomationUpserted(dto: AutomationResponse) {
+  const idx = automations.value.findIndex(a => a.publicId === dto.publicId)
+  if (idx >= 0) automations.value.splice(idx, 1, dto)
+  else automations.value.push(dto)
+}
+
+function handleAutomationDeleted(payload: MasterDataDeletedEvent) {
+  automations.value = automations.value.filter(a => a.publicId !== payload.publicId)
+}
+
+// Card emitted a delete (own API call) — remove locally; the realtime echo is then a no-op.
+function handleCardDeleted(publicId: string) {
+  automations.value = automations.value.filter(a => a.publicId !== publicId)
+}
+
+onMounted(async () => {
+  await loadAutomations()
+  await masterDataSocket.ensureConnected()
+  masterDataSocket.on('AutomationUpserted', handleAutomationUpserted)
+  masterDataSocket.on('AutomationDeleted', handleAutomationDeleted)
+  masterDataSocket.onReconnected(loadAutomations)
+})
+
+onBeforeUnmount(() => {
+  masterDataSocket.off('AutomationUpserted', handleAutomationUpserted)
+  masterDataSocket.off('AutomationDeleted', handleAutomationDeleted)
+  masterDataSocket.offReconnected(loadAutomations)
 })
 </script>

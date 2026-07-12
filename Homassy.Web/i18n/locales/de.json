@@ -43,6 +43,7 @@
     "description": "Beschreibung",
     "color": "Farbe",
     "addColor": "Farbe hinzufügen",
+    "chooseColor": "Farbe wählen",
     "add": "Hinzufügen",
     "success": "Erfolg",
     "error": "Fehler",
@@ -502,7 +503,11 @@
         "isFavoriteLabel": "Lieblingsprodukt",
         "createProduct": "Produkt erstellen",
         "createProductDescription": "Fügen Sie ein neues Produkt zu Ihrer Datenbank hinzu",
-        "createButton": "Produkt erstellen"
+        "createButton": "Produkt erstellen",
+        "nameRequired": "Name ist erforderlich",
+        "brandRequired": "Marke ist erforderlich",
+        "saveFailed": "Produkt konnte nicht gespeichert werden",
+        "imageFromBarcode": "Bild vom Barcode importieren"
       },
       "openFoodFacts": {
         "modalTitle": "Produkt gefunden",
@@ -843,6 +848,8 @@
     "currency": "Währung",
     "timeZone": "Zeitzone",
     "uploadAvatar": "Profilbild hochladen",
+    "changePhoto": "Foto ändern",
+    "removePhoto": "Foto entfernen",
     "lightMode": "Heller Modus",
     "darkMode": "Dunkler Modus",
     "groups": {
@@ -859,6 +866,9 @@
     },
     "editName": {
       "title": "Name bearbeiten"
+    },
+    "editProfile": {
+      "title": "Profil bearbeiten"
     },
     "masterData": {
       "title": "Stammdaten",
@@ -923,7 +933,9 @@
         "updateFailed": "Kalender konnte nicht aktualisiert werden",
         "deleted": "Kalender gelöscht",
         "synced": "Kalender synchronisiert",
-        "syncFailed": "Synchronisierung fehlgeschlagen"
+        "syncFailed": "Synchronisierung fehlgeschlagen",
+        "deleteTitle": "Kalender löschen",
+        "deleteWarning": "Möchtest du diesen externen Kalender wirklich löschen?"
       }
     },
     "settingsProfileSection": "Profilinformationen",
@@ -1000,10 +1012,15 @@
       "deleteLocationWarning": "Möchten Sie diesen Einkaufsort wirklich löschen?",
       "isSharedWithFamily": "Mit Familie geteilt",
       "nameRequired": "Name ist erforderlich",
+      "createLocation": "Einkaufsort hinzufügen",
+      "saveFailed": "Einkaufsort konnte nicht gespeichert werden",
       "updateFailed": "Einkaufsort konnte nicht aktualisiert werden",
       "deleteFailed": "Einkaufsort konnte nicht gelöscht werden",
       "invalidWebsite": "Ungültige Webseiten-URL",
-      "invalidGoogleMaps": "Ungültige Google Maps-URL"
+      "invalidGoogleMaps": "Ungültige Google Maps-URL",
+      "purchases": "Einkäufe",
+      "noPurchases": "Noch keine Einkäufe von hier",
+      "mapTitle": "Karte"
     },
     "storageLocations": {
       "title": "Lagerorte",
@@ -1036,6 +1053,9 @@
       "nameRequired": "Name ist erforderlich",
       "locationUpdated": "Lagerort erfolgreich aktualisiert",
       "updateFailed": "Lagerort konnte nicht aktualisiert werden",
+      "saveFailed": "Lagerort konnte nicht gespeichert werden",
+      "inStock": "Auf Lager",
+      "noStock": "Keine Produkte auf Lager",
       "locationDeleted": "Lagerort erfolgreich gelöscht",
       "deleteFailed": "Lagerort konnte nicht gelöscht werden"
     },

@@ -44,6 +44,7 @@
     "description": "Leírás",
     "color": "Szín",
     "addColor": "Szín hozzáadása",
+    "chooseColor": "Szín választása",
     "add": "Hozzáadás",
     "success": "Siker",
     "error": "Hiba",
@@ -502,8 +503,14 @@
         "notes": "Megjegyzések",
         "notesPlaceholder": "Opcionális megjegyzések",
         "isFavorite": "Kedvenc termék",
-        "isFavoriteLabel": "Kedvenc termék",      "createProduct": "Termék létrehozása",
-      "createProductDescription": "Adj hozzá egy új terméket az adatbázisodhoz",        "createButton": "Termék létrehozása"
+        "isFavoriteLabel": "Kedvenc termék",
+        "createProduct": "Termék létrehozása",
+        "createProductDescription": "Adj hozzá egy új terméket az adatbázisodhoz",
+        "createButton": "Termék létrehozása",
+        "nameRequired": "A név megadása kötelező",
+        "brandRequired": "A márka megadása kötelező",
+        "saveFailed": "A termék mentése sikertelen",
+        "imageFromBarcode": "Kép importálása vonalkódból"
       },
       "openFoodFacts": {
         "modalTitle": "Termék találva",
@@ -844,6 +851,8 @@
     "currency": "Pénznem",
     "timeZone": "Időzóna",
     "uploadAvatar": "Profilkép feltöltése",
+    "changePhoto": "Kép módosítása",
+    "removePhoto": "Kép eltávolítása",
     "lightMode": "Világos mód",
     "darkMode": "Sötét mód",
     "groups": {
@@ -860,6 +869,9 @@
     },
     "editName": {
       "title": "Név szerkesztése"
+    },
+    "editProfile": {
+      "title": "Profil szerkesztése"
     },
     "masterData": {
       "title": "Törzsadatok",
@@ -924,7 +936,9 @@
         "updateFailed": "Nem sikerült frissíteni a naptárt",
         "deleted": "Naptár törölve",
         "synced": "Naptár szinkronizálva",
-        "syncFailed": "Szinkronizálás sikertelen"
+        "syncFailed": "Szinkronizálás sikertelen",
+        "deleteTitle": "Naptár törlése",
+        "deleteWarning": "Biztosan törölni szeretnéd ezt a külső naptárat?"
       }
     },
     "settingsProfileSection": "Profil adatok",
@@ -1001,10 +1015,15 @@
       "deleteLocationWarning": "Biztosan törölni szeretnéd ezt a bevásárlási helyet?",
       "isSharedWithFamily": "Megosztva a családdal",
       "nameRequired": "A név megadása kötelező",
+      "createLocation": "Új bolthely létrehozása",
+      "saveFailed": "A bolthely mentése sikertelen",
       "updateFailed": "Nem sikerült frissíteni a bevásárlási helyet",
       "deleteFailed": "Nem sikerült törölni a bevásárlási helyet",
       "invalidWebsite": "Érvénytelen weboldal URL",
-      "invalidGoogleMaps": "Érvénytelen Google Maps URL"
+      "invalidGoogleMaps": "Érvénytelen Google Maps URL",
+      "purchases": "Vásárlások",
+      "noPurchases": "Még nincs innen rögzített vásárlás",
+      "mapTitle": "Térkép"
     },
     "storageLocations": {
       "title": "Tárolók",
@@ -1038,7 +1057,10 @@
       "locationUpdated": "Tárolóhely sikeresen frissítve",
       "updateFailed": "Nem sikerült frissíteni a tárolóhelyet",
       "locationDeleted": "Tárolóhely sikeresen törölve",
-      "deleteFailed": "Nem sikerült törölni a tárolóhelyet"
+      "deleteFailed": "Nem sikerült törölni a tárolóhelyet",
+      "saveFailed": "A tárolóhely mentése sikertelen",
+      "inStock": "Készleten",
+      "noStock": "Nincs készleten termék"
     },
     "automation": {
       "title": "Automatizálás",

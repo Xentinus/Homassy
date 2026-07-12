@@ -11,12 +11,13 @@ import type {
   CreateMultipleStorageLocationsRequest,
   CreateMultipleShoppingLocationsRequest,
   DeleteMultipleStorageLocationsRequest,
-  DeleteMultipleShoppingLocationsRequest
+  DeleteMultipleShoppingLocationsRequest,
+  StorageLocationInventoryItemInfo,
+  ShoppingLocationPurchaseInfo
 } from '~/types/location'
 
 export const useLocationsApi = () => {
   const client = useApiClient()
-  const $i18n = useI18n()
 
   // ==================
   // Storage Locations
@@ -186,6 +187,28 @@ export const useLocationsApi = () => {
     )
   }
 
+  // ==================
+  // Overview queries
+  // ==================
+
+  /**
+   * Get the products currently in stock at a storage location.
+   */
+  const getStorageLocationInventory = async (storageLocationPublicId: string) => {
+    return await client.get<StorageLocationInventoryItemInfo[]>(
+      `/api/v1/Location/storage/${storageLocationPublicId}/inventory`
+    )
+  }
+
+  /**
+   * Get the purchase history made at a shopping location.
+   */
+  const getShoppingLocationPurchases = async (shoppingLocationPublicId: string) => {
+    return await client.get<ShoppingLocationPurchaseInfo[]>(
+      `/api/v1/Location/shopping/${shoppingLocationPublicId}/purchases`
+    )
+  }
+
   return {
     // Storage locations
     getStorageLocations,
@@ -200,6 +223,9 @@ export const useLocationsApi = () => {
     updateShoppingLocation,
     deleteShoppingLocation,
     createMultipleShoppingLocations,
-    deleteMultipleShoppingLocations
+    deleteMultipleShoppingLocations,
+    // Overview queries
+    getStorageLocationInventory,
+    getShoppingLocationPurchases
   }
 }

@@ -1,6 +1,7 @@
 using Homassy.API.Context;
 using Homassy.API.Entities.Family;
 using Homassy.API.Exceptions;
+using Homassy.API.Hubs;
 using Homassy.API.Models.Calendar;
 using Homassy.API.Models.ExternalCalendar;
 using Ical.Net;
@@ -56,7 +57,9 @@ namespace Homassy.API.Functions
             context.FamilyExternalCalendars.Add(calendar);
             await context.SaveChangesAsync(ct);
 
-            return MapToResponse(calendar);
+            var response = MapToResponse(calendar);
+            await MasterDataRealtime.ExternalCalendarUpsertedAsync(familyId, response, ct);
+            return response;
         }
 
         public async Task<ExternalCalendarResponse> UpdateExternalCalendarAsync(
@@ -92,7 +95,10 @@ namespace Homassy.API.Functions
             }
 
             await context.SaveChangesAsync(ct);
-            return MapToResponse(calendar);
+
+            var response = MapToResponse(calendar);
+            await MasterDataRealtime.ExternalCalendarUpsertedAsync(familyId, response, ct);
+            return response;
         }
 
         public async Task DeleteExternalCalendarAsync(Guid publicId, CancellationToken ct = default)
@@ -110,6 +116,8 @@ namespace Homassy.API.Functions
 
             calendar.DeleteRecord(SessionInfo.GetUserId());
             await context.SaveChangesAsync(ct);
+
+            await MasterDataRealtime.ExternalCalendarDeletedAsync(familyId, calendar.PublicId, ct);
         }
 
         public async Task<ExternalCalendarResponse> TriggerSyncAsync(
@@ -131,7 +139,9 @@ namespace Homassy.API.Functions
             await SyncCalendarAsync(calendar, context, httpClient, ct);
             await context.SaveChangesAsync(ct);
 
-            return MapToResponse(calendar);
+            var response = MapToResponse(calendar);
+            await MasterDataRealtime.ExternalCalendarUpsertedAsync(familyId, response, ct);
+            return response;
         }
 
         public List<CalendarEventInfo> GetCachedEventsForDateRange(

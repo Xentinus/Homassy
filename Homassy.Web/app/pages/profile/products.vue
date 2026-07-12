@@ -98,249 +98,48 @@
 
     <!-- Products Grid -->
     <div v-else class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
-      <ProductCard
+      <DataProductCard
         v-for="product in filteredProducts"
         :key="product.publicId"
         :product="product"
         :search-query="searchQuery"
-        :editable="true"
-        @updated="loadProducts"
-        @deleted="loadProducts"
+        @select="openOverview"
+        @edit="openEditDrawer"
+        @deleted="onDeleted"
       />
     </div>
     </div>
 
-  <!-- Create Product Modal -->
-  <UModal :open="isCreateModalOpen" @update:open="(val) => isCreateModalOpen = val" :dismissible="false">
-    <template #title>
-      {{ $t('pages.addProduct.form.createProduct') }}
-    </template>
+  <!-- Create / edit bottom sheet -->
+  <ProductFormDrawer
+    ref="productDrawer"
+    :open="drawerOpen"
+    :product="editingProduct"
+    @update:open="(v) => drawerOpen = v"
+    @saved="onSaved"
+    @updated="loadProducts"
+  />
 
-    <template #description>
-      {{ $t('pages.addProduct.form.createProductDescription') }}
-    </template>
+  <!-- Tap a product → overview (product info + current stock + history), like the inventory grid -->
+  <InventoryOverviewDrawer v-model:open="isOverviewOpen" :product-public-id="overviewProductId" />
 
-    <template #body>
-      <div class="space-y-4">
-        <!-- Name -->
-        <div>
-          <label class="block text-sm font-medium mb-1">
-            {{ $t('common.name') }} <span class="text-red-500">*</span>
-          </label>
-          <UInput
-            v-model="createForm.name"
-            type="text"
-            :placeholder="$t('pages.addProduct.form.namePlaceholder')"
-            class="w-full"
-            required
-          />
-        </div>
-
-        <!-- Brand -->
-        <div>
-          <label class="block text-sm font-medium mb-1">
-            {{ $t('pages.addProduct.form.brand') }} <span class="text-red-500">*</span>
-          </label>
-          <UInput
-            v-model="createForm.brand"
-            type="text"
-            :placeholder="$t('pages.addProduct.form.brandPlaceholder')"
-            class="w-full"
-            required
-          />
-        </div>
-
-        <!-- Category -->
-        <div>
-          <label class="block text-sm font-medium mb-1">
-            {{ $t('pages.addProduct.form.category') }}
-          </label>
-          <USelectMenu
-            v-model="createForm.category"
-            :items="categoryOptions"
-            value-key="value"
-            :placeholder="$t('pages.addProduct.form.categoryPlaceholder')"
-            class="w-full"
-          />
-        </div>
-
-        <!-- Barcode -->
-        <div>
-          <label class="block text-sm font-medium mb-1">
-            {{ $t('pages.addProduct.form.barcode') }}
-          </label>
-          <UFieldGroup size="md" orientation="horizontal" class="w-full">
-            <UInput
-              v-model="createForm.barcode"
-              type="text"
-              :placeholder="$t('pages.addProduct.form.barcodePlaceholder')"
-              inputmode="numeric"
-              pattern="[0-9]*"
-              class="flex-1"
-            />
-            <BarcodeScannerButton
-              v-if="showCameraButton"
-              :disabled="isCreating"
-              @scanned="handleBarcodeScanned"
-            />
-            <UButton
-              :label="$t('pages.addProduct.form.barcodeQuery')"
-              icon="i-lucide-barcode"
-              color="primary"
-              size="sm"
-              :loading="isQueryingBarcode"
-              @click="handleBarcodeQuery"
-            />
-          </UFieldGroup>
-        </div>
-
-        <!-- Is Eatable -->
-        <div class="flex items-center gap-2">
-          <UCheckbox
-            v-model="createForm.isEatable"
-            :label="$t('pages.addProduct.form.isEatableLabel')"
-          />
-        </div>
-
-        <!-- Is Favorite -->
-        <div class="flex items-center gap-2">
-          <UCheckbox
-            v-model="createForm.isFavorite"
-            :label="$t('pages.addProduct.form.isFavoriteLabel')"
-          />
-        </div>
-
-        <!-- Notes -->
-        <div>
-          <label class="block text-sm font-medium mb-1">
-            {{ $t('pages.addProduct.form.notes') }}
-          </label>
-          <UTextarea
-            v-model="createForm.notes"
-            :placeholder="$t('pages.addProduct.form.notesPlaceholder')"
-            class="w-full"
-          />
-        </div>
-      </div>
-    </template>
-
-    <template #footer>
-      <div class="flex justify-end gap-2">
-        <UButton
-          :label="$t('common.cancel')"
-          color="neutral"
-          variant="outline"
-          @click="closeCreateModal"
-        />
-        <UButton
-          :label="$t('common.save')"
-          :loading="isCreating"
-          @click="handleCreate"
-        />
-      </div>
-    </template>
-  </UModal>
-
-  <!-- OpenFoodFacts Modal -->
-  <UModal
-    :open="isOpenFoodFactsModalOpen"
-    @update:open="(val) => { if (!val) handleCancelImport() }"
-    :dismissible="false"
-  >
-    <template #title>
-      {{ $t('pages.addProduct.openFoodFacts.modalTitle') }}
-    </template>
-
-    <template #description>
-      {{ $t('pages.addProduct.openFoodFacts.modalDescription') }}
-    </template>
-
-    <template #body>
-      <div class="space-y-4">
-        <!-- Product Image -->
-        <div class="flex justify-center">
-          <div class="relative w-40 h-40">
-            <USkeleton
-              v-if="isImageLoading && openFoodFactsProduct?.image_base64"
-              class="w-full h-full rounded-lg"
-            />
-            <img
-              v-if="openFoodFactsProduct?.image_base64"
-              :src="openFoodFactsProduct.image_base64"
-              alt="Product image"
-              class="w-full h-full object-contain rounded-lg border border-gray-200 dark:border-gray-700"
-              :class="{ 'opacity-0': isImageLoading }"
-              @load="isImageLoading = false"
-            >
-            <div
-              v-else
-              class="w-full h-full flex items-center justify-center bg-gray-100 dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700"
-            >
-              <UIcon name="i-lucide-package" class="h-16 w-16 text-gray-400" />
-            </div>
-          </div>
-        </div>
-
-        <!-- Product Information -->
-        <div class="space-y-3">
-          <div v-if="openFoodFactsProduct?.product_name">
-            <span class="text-sm font-medium text-gray-700 dark:text-gray-300">
-              {{ $t('pages.addProduct.openFoodFacts.productName') }}:
-            </span>
-            <p class="text-sm mt-1">{{ openFoodFactsProduct.product_name }}</p>
-          </div>
-
-          <div v-if="openFoodFactsProduct?.brands">
-            <span class="text-sm font-medium text-gray-700 dark:text-gray-300">
-              {{ $t('pages.addProduct.openFoodFacts.brands') }}:
-            </span>
-            <p class="text-sm mt-1">{{ openFoodFactsProduct.brands }}</p>
-          </div>
-        </div>
-      </div>
-    </template>
-
-    <template #footer>
-      <div class="flex justify-end gap-2">
-        <UButton
-          :label="$t('pages.addProduct.openFoodFacts.cancel')"
-          color="neutral"
-          variant="outline"
-          @click="handleCancelImport"
-        />
-        <UButton
-          :label="$t('pages.addProduct.openFoodFacts.import')"
-          color="primary"
-          @click="handleImportProduct"
-        />
-      </div>
-    </template>
-  </UModal>
-
-  <!-- Barcode Scanner Modal -->
+  <!-- Barcode Scanner Modal (shared: routes to the open drawer or the search box) -->
   <BarcodeScannerModal :on-barcode-detected="dynamicBarcodeHandler" />
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, nextTick } from 'vue'
+import { ref, computed, onMounted, onBeforeUnmount } from 'vue'
 import { useProductsApi } from '~/composables/api/useProductsApi'
-import { useOpenFoodFactsApi } from '~/composables/api/useOpenFoodFactsApi'
-import { useSelectValueApi } from '~/composables/api/useSelectValueApi'
 import { useCameraAvailability } from '~/composables/useCameraAvailability'
 import type { ProductInfo } from '~/types/product'
-import type { OpenFoodFactsProduct } from '~/types/openFoodFacts'
-import type { SelectValue } from '~/types/selectValue'
-import { SelectValueType } from '~/types/enums'
-import type { ProductCategory } from '~/types/enums'
+import type { MasterDataDeletedEvent } from '~/types/masterData'
 
 definePageMeta({ layout: 'auth', middleware: 'auth' })
 
-const { getProducts, createProduct } = useProductsApi()
-const openFoodFactsApi = useOpenFoodFactsApi()
-const { getSelectValues } = useSelectValueApi()
+const { getProducts } = useProductsApi()
+const masterDataSocket = useMasterDataSocket()
 const { t } = useI18n()
-const toast = useToast()
 const { showCameraButton } = useCameraAvailability()
 
 // Add-action lives on the dynamic nav FAB instead of an inline header button.
@@ -348,7 +147,7 @@ useFabActions(() => [
   {
     label: t('common.add'),
     icon: 'i-lucide-plus',
-    handler: () => openCreateModal()
+    handler: () => openCreateDrawer()
   }
 ])
 
@@ -366,43 +165,18 @@ const eatableFilter = ref('all')
 const favoritesFilter = ref(false)
 const barcodeFilter = ref(false)
 
-// Create modal state
-const isCreateModalOpen = ref(false)
-const isCreating = ref(false)
-const isOpenFoodFactsModalOpen = ref(false)
-const isQueryingBarcode = ref(false)
-const isImageLoading = ref(true)
+// Create / edit drawer state
+const drawerOpen = ref(false)
+const editingProduct = ref<ProductInfo | null>(null)
+const productDrawer = ref<{ applyScannedBarcode: (barcode: string) => void } | null>(null)
 
-// OpenFoodFacts state
-const openFoodFactsProduct = ref<OpenFoodFactsProduct | null>(null)
-
-// Create form
-const createForm = ref<{
-  name: string
-  brand: string
-  category: ProductCategory | undefined
-  barcode: string
-  isEatable: boolean
-  isFavorite: boolean
-  notes: string
-}>({
-  name: '',
-  brand: '',
-  category: undefined,
-  barcode: '',
-  isEatable: false,
-  isFavorite: false,
-  notes: ''
-})
-
-// Category options for dropdown
-const categoryOptionsRaw = ref<SelectValue[]>([])
-const categoryOptions = computed(() => {
-  return categoryOptionsRaw.value.map(cat => ({
-    label: t(`enums.productCategory.${cat.text}`),
-    value: parseInt(cat.text)
-  }))
-})
+// Overview drawer state (product info + current stock + history) — opened on card tap
+const isOverviewOpen = ref(false)
+const overviewProductId = ref<string | null>(null)
+function openOverview(publicId: string) {
+  overviewProductId.value = publicId
+  isOverviewOpen.value = true
+}
 
 // Load all products (client-side search + filtering)
 async function loadProducts() {
@@ -508,153 +282,76 @@ function clearAllFilters() {
   barcodeFilter.value = false
 }
 
-// OpenFoodFacts handlers
-const handleBarcodeQuery = async () => {
-  if (!createForm.value.barcode || createForm.value.barcode.trim() === '') {
-    toast.add({
-      title: t('toast.error'),
-      description: t('pages.addProduct.openFoodFacts.noBarcodeError'),
-      color: 'error'
-    })
-    return
-  }
-
-  isQueryingBarcode.value = true
-  try {
-    const response = await openFoodFactsApi.getProductByBarcode(createForm.value.barcode.trim())
-    
-    if (response.success && response.data) {
-      openFoodFactsProduct.value = response.data
-      isImageLoading.value = true
-      isOpenFoodFactsModalOpen.value = true
-    } else {
-      toast.add({
-        title: t('toast.error'),
-        description: t('pages.addProduct.openFoodFacts.noProductError'),
-        color: 'error'
-      })
-    }
-  } catch (error) {
-    console.error('OpenFoodFacts query failed:', error)
-    toast.add({
-      title: t('toast.error'),
-      description: t('pages.addProduct.openFoodFacts.noProductError'),
-      color: 'error'
-    })
-  } finally {
-    isQueryingBarcode.value = false
-  }
-}
-
-const handleImportProduct = () => {
-  if (openFoodFactsProduct.value) {
-    if (openFoodFactsProduct.value.product_name) {
-      createForm.value.name = openFoodFactsProduct.value.product_name
-    }
-    if (openFoodFactsProduct.value.brands) {
-      createForm.value.brand = openFoodFactsProduct.value.brands
-    }
-  }
-  handleCancelImport()
-}
-
-const handleCancelImport = () => {
-  isOpenFoodFactsModalOpen.value = false
-  openFoodFactsProduct.value = null
-  isImageLoading.value = true
-}
-
-// Barcode scanner handler
-const handleBarcodeScanned = (barcode: string) => {
-  createForm.value.barcode = barcode
-  // Auto-trigger OpenFoodFacts query
-  nextTick(() => {
-    handleBarcodeQuery()
-  })
-}
-
 // Search barcode scanner handler
 const handleSearchBarcodeScanned = (barcode: string) => {
   searchQuery.value = barcode
 }
 
-// Dynamic barcode handler - routes to correct handler based on context
+// The single BarcodeScannerModal is shared: when the create/edit drawer is open the scan feeds the
+// product's barcode (and triggers its OpenFoodFacts lookup), otherwise it fills the search box.
 const dynamicBarcodeHandler = (barcode: string) => {
-  if (isCreateModalOpen.value) {
-    // We're in the create modal - use create handler
-    handleBarcodeScanned(barcode)
+  if (drawerOpen.value) {
+    productDrawer.value?.applyScannedBarcode(barcode)
   } else {
-    // We're in search mode - use search handler
     handleSearchBarcodeScanned(barcode)
   }
 }
 
-// Create modal functions
-const openCreateModal = () => {
-  createForm.value = {
-    name: '',
-    brand: '',
-    category: '',
-    barcode: '',
-    isEatable: false,
-    isFavorite: false,
-    notes: ''
-  }
-  isCreateModalOpen.value = true
+// Create / edit drawer functions
+function openCreateDrawer() {
+  editingProduct.value = null
+  drawerOpen.value = true
 }
 
-const closeCreateModal = () => {
-  isCreateModalOpen.value = false
+function openEditDrawer(product: ProductInfo) {
+  editingProduct.value = product
+  drawerOpen.value = true
 }
 
-const handleCreate = async () => {
-  if (!createForm.value.name.trim()) {
-    toast.add({
-      title: t('common.error'),
-      description: t('pages.addProduct.form.nameRequired'),
-      color: 'error'
-    })
-    return
-  }
+// Idempotent local patch for instant feedback; the realtime socket delivers the same change to other
+// family members. On upsert we preserve the client's own per-user favorite flag (the broadcast is
+// family-scoped and must not overwrite another member's favorite state).
+function upsertProduct(product: ProductInfo) {
+  const idx = products.value.findIndex(p => p.publicId === product.publicId)
+  const existing = idx >= 0 ? products.value[idx] : undefined
+  if (existing) products.value[idx] = { ...product, isFavorite: existing.isFavorite }
+  else products.value.push(product)
+}
 
-  if (!createForm.value.brand.trim()) {
-    toast.add({
-      title: t('common.error'),
-      description: t('pages.addProduct.form.brandRequired'),
-      color: 'error'
-    })
-    return
-  }
+function removeProduct(publicId: string) {
+  products.value = products.value.filter(p => p.publicId !== publicId)
+}
 
-  isCreating.value = true
-  try {
-    await createProduct({
-      name: createForm.value.name,
-      brand: createForm.value.brand,
-      category: createForm.value.category || null,
-      barcode: createForm.value.barcode || null,
-      isEatable: createForm.value.isEatable,
-      isFavorite: createForm.value.isFavorite,
-      notes: createForm.value.notes || null
-    })
+function onSaved(product: ProductInfo) {
+  // The acting client keeps the favorite it just set (create carries it; edit leaves it untouched).
+  const idx = products.value.findIndex(p => p.publicId === product.publicId)
+  if (idx >= 0) products.value[idx] = product
+  else products.value.push(product)
+}
 
-    closeCreateModal()
-  } catch (error) {
-    console.error('Failed to create product:', error)
-  } finally {
-    await loadProducts()
-    isCreating.value = false
-  }
+function onDeleted(publicId: string) {
+  removeProduct(publicId)
+}
+
+function handleUpserted(dto: ProductInfo) {
+  upsertProduct(dto)
+}
+
+function handleDeleted(payload: MasterDataDeletedEvent) {
+  removeProduct(payload.publicId)
 }
 
 onMounted(async () => {
   await loadProducts()
+  await masterDataSocket.ensureConnected()
+  masterDataSocket.on('ProductUpserted', handleUpserted)
+  masterDataSocket.on('ProductDeleted', handleDeleted)
+  masterDataSocket.onReconnected(loadProducts)
 })
 
-onMounted(async () => {
-  const response = await getSelectValues(SelectValueType.ProductCategory)
-  if (response.success && response.data) {
-    categoryOptionsRaw.value = response.data
-  }
+onBeforeUnmount(() => {
+  masterDataSocket.off('ProductUpserted', handleUpserted)
+  masterDataSocket.off('ProductDeleted', handleDeleted)
+  masterDataSocket.offReconnected(loadProducts)
 })
 </script>

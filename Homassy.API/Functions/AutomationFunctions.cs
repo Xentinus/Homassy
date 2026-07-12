@@ -397,7 +397,12 @@ namespace Homassy.API.Functions
             }
 
             var finalProduct = productEntity ?? (inventoryItem != null ? productFunctions.GetProductById(inventoryItem.ProductId) : null);
-            return MapToResponse(automation, inventoryItem, finalProduct);
+            var response = MapToResponse(automation, inventoryItem, finalProduct);
+
+            // Realtime: add the new rule to the master-data automation list.
+            await MasterDataRealtime.AutomationUpsertedAsync(automation.UserId ?? automation.CreatedByUserId, automation.FamilyId, response, cancellationToken);
+
+            return response;
         }
 
         /// <summary>
@@ -534,7 +539,12 @@ namespace Homassy.API.Functions
             var prod = item != null ? pf.GetProductById(item.ProductId) : null;
             if (prod == null && automation.ProductId.HasValue)
                 prod = pf.GetProductById(automation.ProductId.Value);
-            return MapToResponse(automation, item, prod);
+            var response = MapToResponse(automation, item, prod);
+
+            // Realtime: push the updated rule to the master-data automation list.
+            await MasterDataRealtime.AutomationUpsertedAsync(automation.UserId ?? automation.CreatedByUserId, automation.FamilyId, response, cancellationToken);
+
+            return response;
         }
 
         /// <summary>
@@ -564,6 +574,9 @@ namespace Homassy.API.Functions
             await context.SaveChangesAsync(cancellationToken);
 
             Log.Information($"User {userId} deleted automation {automation.PublicId}");
+
+            // Realtime: remove the rule from the master-data automation list.
+            await MasterDataRealtime.AutomationDeletedAsync(automation.UserId ?? automation.CreatedByUserId, automation.FamilyId, automation.PublicId, cancellationToken);
 
             // Record activity
             try
