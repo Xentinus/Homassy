@@ -98,179 +98,6 @@
       </div>
     </div>
 
-    <!-- Edit Modal -->
-    <UModal :open="isEditModalOpen" @update:open="(val) => isEditModalOpen = val" :dismissible="false">
-      <template #title>
-        {{ $t('profile.shoppingLocations.editLocation') }}
-      </template>
-
-      <template #description>
-        {{ $t('profile.shoppingLocations.editLocationDescription') }}
-      </template>
-
-      <template #body>
-        <div class="space-y-4">
-          <!-- Name -->
-          <div>
-            <label class="block text-sm font-medium mb-1">
-              {{ $t('common.name') }} <span class="text-red-500">*</span>
-            </label>
-            <UInput
-              v-model="editForm.name"
-              type="text"
-              class="w-full"
-              required
-            />
-          </div>
-
-          <!-- Description -->
-          <div>
-            <label class="block text-sm font-medium mb-1">
-              {{ $t('common.description') }}
-            </label>
-            <UTextarea
-              v-model="editForm.description"
-              :placeholder="$t('common.description')"
-              class="w-full"
-            />
-          </div>
-
-          <!-- Color -->
-          <div>
-            <label class="block text-sm font-medium mb-1">
-              {{ $t('common.color') }}
-            </label>
-            <div v-if="editForm.color === null" class="flex gap-2 items-center">
-              <UButton
-                icon="i-lucide-palette"
-                :label="$t('common.addColor')"
-                color="neutral"
-                variant="outline"
-                class="flex-1"
-                @click="editForm.color = '#3B82F6'"
-              />
-            </div>
-            <div v-else class="flex gap-2 items-center">
-              <UInput
-                v-model="editForm.color"
-                type="color"
-                class="flex-1"
-              />
-              <UButton
-                icon="i-lucide-x"
-                color="neutral"
-                variant="ghost"
-                size="sm"
-                @click="editForm.color = null"
-              />
-            </div>
-          </div>
-
-          <!-- Address -->
-          <div>
-            <label class="block text-sm font-medium mb-1">
-              {{ $t('common.address') }}
-            </label>
-            <UInput
-              v-model="editForm.address"
-              type="text"
-              :placeholder="$t('common.address')"
-              class="w-full"
-            />
-          </div>
-
-          <!-- City -->
-          <div>
-            <label class="block text-sm font-medium mb-1">
-              {{ $t('common.city') }}
-            </label>
-            <UInput
-              v-model="editForm.city"
-              type="text"
-              :placeholder="$t('common.city')"
-              class="w-full"
-            />
-          </div>
-
-          <!-- Postal Code -->
-          <div>
-            <label class="block text-sm font-medium mb-1">
-              {{ $t('common.postalCode') }}
-            </label>
-            <UInput
-              v-model="editForm.postalCode"
-              type="text"
-              :placeholder="$t('common.postalCode')"
-              class="w-full"
-            />
-          </div>
-
-          <!-- Country -->
-          <div>
-            <label class="block text-sm font-medium mb-1">
-              {{ $t('common.country') }}
-            </label>
-            <UInput
-              v-model="editForm.country"
-              type="text"
-              :placeholder="$t('common.country')"
-              class="w-full"
-            />
-          </div>
-
-          <!-- Website -->
-          <div>
-            <label class="block text-sm font-medium mb-1">
-              {{ $t('common.website') }}
-            </label>
-            <UInput
-              v-model="editForm.website"
-              type="url"
-              :placeholder="$t('common.website')"
-              class="w-full"
-            />
-          </div>
-
-          <!-- Google Maps -->
-          <div>
-            <label class="block text-sm font-medium mb-1">
-              {{ $t('profile.shoppingLocations.googleMaps') }}
-            </label>
-            <UInput
-              v-model="editForm.googleMaps"
-              type="url"
-              :placeholder="$t('profile.shoppingLocations.googleMaps')"
-              class="w-full"
-            />
-          </div>
-
-          <!-- Is Shared With Family -->
-          <div class="flex items-center gap-2">
-            <UCheckbox
-              v-model="editForm.isSharedWithFamily"
-              :label="$t('profile.shoppingLocations.isSharedWithFamily')"
-            />
-          </div>
-        </div>
-      </template>
-
-      <template #footer>
-        <div class="flex justify-end gap-2">
-          <UButton
-            :label="$t('common.cancel')"
-            color="neutral"
-            variant="outline"
-            @click="closeEditModal"
-          />
-          <UButton
-            :label="$t('common.save')"
-            :loading="isUpdating"
-            @click="handleUpdate"
-          />
-        </div>
-      </template>
-    </UModal>
-
     <!-- Delete Modal -->
     <UModal :open="isDeleteModalOpen" @update:open="(val) => isDeleteModalOpen = val" :dismissible="false">
       <template #title>
@@ -338,8 +165,8 @@ const props = withDefaults(defineProps<Props>(), {
 
 const emit = defineEmits<{
   click: []
-  updated: []
-  deleted: []
+  edit: [location: ShoppingLocationInfo]
+  deleted: [publicId: string]
 }>()
 
 const { t } = useI18n()
@@ -365,37 +192,10 @@ const highlightText = (text: string, query: string): string => {
 }
 
 // Modal states
-const isEditModalOpen = ref(false)
 const isDeleteModalOpen = ref(false)
 
 // Loading states
-const isUpdating = ref(false)
 const isDeleting = ref(false)
-
-// Edit form
-const editForm = ref<{
-  name: string
-  description: string
-  color: string | null
-  address: string
-  city: string
-  postalCode: string
-  country: string
-  website: string
-  googleMaps: string
-  isSharedWithFamily: boolean
-}>({
-  name: '',
-  description: '',
-  color: null,
-  address: '',
-  city: '',
-  postalCode: '',
-  country: '',
-  website: '',
-  googleMaps: '',
-  isSharedWithFamily: false
-})
 
 // Dropdown menu items
 const dropdownItems = computed(() => {
@@ -403,7 +203,7 @@ const dropdownItems = computed(() => {
     {
       label: t('common.edit'),
       icon: 'i-lucide-pencil',
-      onSelect: openEditModal
+      onSelect: () => emit('edit', props.location)
     },
     {
       label: t('common.delete'),
@@ -425,94 +225,6 @@ const handleCardClick = (event: MouseEvent) => {
   emit('click')
 }
 
-const isValidUrl = (url: string): boolean => {
-  if (!url.trim()) return true // Empty is valid
-  try {
-    new URL(url)
-    return true
-  } catch {
-    return false
-  }
-}
-
-const openEditModal = () => {
-  editForm.value = {
-    name: props.location.name,
-    description: props.location.description || '',
-    color: props.location.color || null,
-    address: props.location.address || '',
-    city: props.location.city || '',
-    postalCode: props.location.postalCode || '',
-    country: props.location.country || '',
-    website: props.location.website || '',
-    googleMaps: props.location.googleMaps || '',
-    isSharedWithFamily: props.location.isSharedWithFamily
-  }
-  isEditModalOpen.value = true
-}
-
-const closeEditModal = () => {
-  isEditModalOpen.value = false
-}
-
-const handleUpdate = async () => {
-  if (!editForm.value.name.trim()) {
-    toast.add({
-      title: t('common.error'),
-      description: t('profile.shoppingLocations.nameRequired'),
-      color: 'error'
-    })
-    return
-  }
-
-  // Validate URLs
-  if (editForm.value.website && !isValidUrl(editForm.value.website)) {
-    toast.add({
-      title: t('common.error'),
-      description: t('profile.shoppingLocations.invalidWebsite'),
-      color: 'error'
-    })
-    return
-  }
-
-  if (editForm.value.googleMaps && !isValidUrl(editForm.value.googleMaps)) {
-    toast.add({
-      title: t('common.error'),
-      description: t('profile.shoppingLocations.invalidGoogleMaps'),
-      color: 'error'
-    })
-    return
-  }
-
-  isUpdating.value = true
-  try {
-    await locationsApi.updateShoppingLocation(props.location.publicId, {
-      name: editForm.value.name,
-      description: editForm.value.description || undefined,
-      color: editForm.value.color === null ? '' : editForm.value.color,
-      address: editForm.value.address || undefined,
-      city: editForm.value.city || undefined,
-      postalCode: editForm.value.postalCode || undefined,
-      country: editForm.value.country || undefined,
-      website: editForm.value.website || undefined,
-      googleMaps: editForm.value.googleMaps || undefined,
-      isSharedWithFamily: editForm.value.isSharedWithFamily
-    })
-
-    closeEditModal()
-    emit('updated')
-  } catch (error) {
-    console.error('Failed to update shopping location:', error)
-    toast.add({
-      title: t('common.error'),
-      description: t('profile.shoppingLocations.updateFailed'),
-      color: 'error'
-    })
-  } finally {
-    isUpdating.value = false
-  }
-}
-
 const openDeleteModal = () => {
   isDeleteModalOpen.value = true
 }
@@ -527,7 +239,7 @@ const handleDelete = async () => {
     await locationsApi.deleteShoppingLocation(props.location.publicId)
 
     closeDeleteModal()
-    emit('deleted')
+    emit('deleted', props.location.publicId)
   } catch (error) {
     console.error('Failed to delete shopping location:', error)
     toast.add({

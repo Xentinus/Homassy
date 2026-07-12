@@ -2,6 +2,7 @@
 using Homassy.API.Entities.Location;
 using Homassy.API.Exceptions;
 using Homassy.API.Extensions;
+using Homassy.API.Hubs;
 using Homassy.API.Models.Common;
 using Homassy.API.Models.Location;
 using Microsoft.EntityFrameworkCore;
@@ -417,7 +418,7 @@ namespace Homassy.API.Functions
 
                 Log.Information($"User {userId.Value} created shopping location {shoppingLocation.Id} (PublicId: {shoppingLocation.PublicId}), shared with family: {request.IsSharedWithFamily}");
 
-                return new ShoppingLocationInfo
+                var info = new ShoppingLocationInfo
                 {
                     PublicId = shoppingLocation.PublicId,
                     Name = shoppingLocation.Name,
@@ -431,6 +432,10 @@ namespace Homassy.API.Functions
                     GoogleMaps = shoppingLocation.GoogleMaps,
                     IsSharedWithFamily = shoppingLocation.FamilyId.HasValue
                 };
+
+                await MasterDataRealtime.ShoppingLocationUpsertedAsync(shoppingLocation.UserId ?? userId.Value, shoppingLocation.FamilyId, info, cancellationToken);
+
+                return info;
             }
             catch (Exception ex)
             {
@@ -563,7 +568,7 @@ namespace Homassy.API.Functions
 
                 await transaction.CommitAsync(cancellationToken);
 
-                return new ShoppingLocationInfo
+                var info = new ShoppingLocationInfo
                 {
                     PublicId = trackedLocation.PublicId,
                     Name = trackedLocation.Name,
@@ -577,6 +582,10 @@ namespace Homassy.API.Functions
                     GoogleMaps = trackedLocation.GoogleMaps,
                     IsSharedWithFamily = trackedLocation.FamilyId.HasValue
                 };
+
+                await MasterDataRealtime.ShoppingLocationUpsertedAsync(trackedLocation.UserId ?? userId.Value, trackedLocation.FamilyId, info, cancellationToken);
+
+                return info;
             }
             catch (Exception ex)
             {
@@ -624,7 +633,7 @@ namespace Homassy.API.Functions
 
                 Log.Information($"User {userId.Value} created storage location {storageLocation.Id} (PublicId: {storageLocation.PublicId}), shared with family: {request.IsSharedWithFamily}");
 
-                return new StorageLocationInfo
+                var info = new StorageLocationInfo
                 {
                     PublicId = storageLocation.PublicId,
                     Name = storageLocation.Name,
@@ -633,6 +642,10 @@ namespace Homassy.API.Functions
                     IsFreezer = storageLocation.IsFreezer,
                     IsSharedWithFamily = storageLocation.FamilyId.HasValue
                 };
+
+                await MasterDataRealtime.StorageLocationUpsertedAsync(storageLocation.UserId ?? userId.Value, storageLocation.FamilyId, info, cancellationToken);
+
+                return info;
             }
             catch (Exception ex)
             {
@@ -725,7 +738,7 @@ namespace Homassy.API.Functions
 
                 await transaction.CommitAsync(cancellationToken);
 
-                return new StorageLocationInfo
+                var info = new StorageLocationInfo
                 {
                     PublicId = trackedLocation.PublicId,
                     Name = trackedLocation.Name,
@@ -734,6 +747,10 @@ namespace Homassy.API.Functions
                     IsFreezer = trackedLocation.IsFreezer,
                     IsSharedWithFamily = trackedLocation.FamilyId.HasValue
                 };
+
+                await MasterDataRealtime.StorageLocationUpsertedAsync(trackedLocation.UserId ?? userId.Value, trackedLocation.FamilyId, info, cancellationToken);
+
+                return info;
             }
             catch (Exception ex)
             {
@@ -782,6 +799,8 @@ namespace Homassy.API.Functions
                 await context.SaveChangesAsync(cancellationToken);
 
                 await transaction.CommitAsync(cancellationToken);
+
+                await MasterDataRealtime.ShoppingLocationDeletedAsync(trackedLocation.UserId ?? userId.Value, trackedLocation.FamilyId, trackedLocation.PublicId, cancellationToken);
 
                 Log.Information($"User {userId.Value} deleted shopping location {shoppingLocation.Id} (PublicId: {shoppingLocation.PublicId})");
             }
@@ -835,6 +854,8 @@ namespace Homassy.API.Functions
 
                 // Refresh cache
                 await RefreshStorageLocationCacheAsync(trackedLocation.Id, cancellationToken);
+
+                await MasterDataRealtime.StorageLocationDeletedAsync(trackedLocation.UserId ?? userId.Value, trackedLocation.FamilyId, trackedLocation.PublicId, cancellationToken);
 
                 Log.Information($"User {userId.Value} deleted storage location {storageLocation.Id} (PublicId: {storageLocation.PublicId})");
             }
@@ -901,15 +922,23 @@ namespace Homassy.API.Functions
 
                 Log.Information($"User {userId.Value} created {storageLocations.Count} storage locations");
 
-                return storageLocations.Select(sl => new StorageLocationInfo
+                var infos = new List<StorageLocationInfo>();
+                foreach (var sl in storageLocations)
                 {
-                    PublicId = sl.PublicId,
-                    Name = sl.Name,
-                    Description = sl.Description,
-                    Color = sl.Color,
-                    IsFreezer = sl.IsFreezer,
-                    IsSharedWithFamily = sl.FamilyId.HasValue
-                }).ToList();
+                    var info = new StorageLocationInfo
+                    {
+                        PublicId = sl.PublicId,
+                        Name = sl.Name,
+                        Description = sl.Description,
+                        Color = sl.Color,
+                        IsFreezer = sl.IsFreezer,
+                        IsSharedWithFamily = sl.FamilyId.HasValue
+                    };
+                    infos.Add(info);
+                    await MasterDataRealtime.StorageLocationUpsertedAsync(sl.UserId ?? userId.Value, sl.FamilyId, info, cancellationToken);
+                }
+
+                return infos;
             }
             catch (Exception ex)
             {
@@ -979,20 +1008,28 @@ namespace Homassy.API.Functions
 
                 Log.Information($"User {userId.Value} created {shoppingLocations.Count} shopping locations");
 
-                return shoppingLocations.Select(sl => new ShoppingLocationInfo
+                var infos = new List<ShoppingLocationInfo>();
+                foreach (var sl in shoppingLocations)
                 {
-                    PublicId = sl.PublicId,
-                    Name = sl.Name,
-                    Description = sl.Description,
-                    Color = sl.Color,
-                    Address = sl.Address,
-                    City = sl.City,
-                    PostalCode = sl.PostalCode,
-                    Country = sl.Country,
-                    Website = sl.Website,
-                    GoogleMaps = sl.GoogleMaps,
-                    IsSharedWithFamily = sl.FamilyId.HasValue
-                }).ToList();
+                    var info = new ShoppingLocationInfo
+                    {
+                        PublicId = sl.PublicId,
+                        Name = sl.Name,
+                        Description = sl.Description,
+                        Color = sl.Color,
+                        Address = sl.Address,
+                        City = sl.City,
+                        PostalCode = sl.PostalCode,
+                        Country = sl.Country,
+                        Website = sl.Website,
+                        GoogleMaps = sl.GoogleMaps,
+                        IsSharedWithFamily = sl.FamilyId.HasValue
+                    };
+                    infos.Add(info);
+                    await MasterDataRealtime.ShoppingLocationUpsertedAsync(sl.UserId ?? userId.Value, sl.FamilyId, info, cancellationToken);
+                }
+
+                return infos;
             }
             catch (Exception ex)
             {
@@ -1023,6 +1060,8 @@ namespace Homassy.API.Functions
 
             try
             {
+                var deleted = new List<(int ownerUserId, int? familyId, Guid publicId)>();
+
                 foreach (var locationPublicId in request.LocationPublicIds)
                 {
                     cancellationToken.ThrowIfCancellationRequested();
@@ -1047,10 +1086,16 @@ namespace Homassy.API.Functions
 
                     trackedLocation.DeleteRecord(userId.Value);
                     context.StorageLocations.Update(trackedLocation);
+                    deleted.Add((trackedLocation.UserId ?? userId.Value, trackedLocation.FamilyId, trackedLocation.PublicId));
                 }
 
                 await context.SaveChangesAsync(cancellationToken);
                 await transaction.CommitAsync(cancellationToken);
+
+                foreach (var d in deleted)
+                {
+                    await MasterDataRealtime.StorageLocationDeletedAsync(d.ownerUserId, d.familyId, d.publicId, cancellationToken);
+                }
 
                 Log.Information($"User {userId.Value} deleted {request.LocationPublicIds.Count} storage locations");
             }
@@ -1083,6 +1128,8 @@ namespace Homassy.API.Functions
 
             try
             {
+                var deleted = new List<(int ownerUserId, int? familyId, Guid publicId)>();
+
                 foreach (var locationPublicId in request.LocationPublicIds)
                 {
                     cancellationToken.ThrowIfCancellationRequested();
@@ -1107,10 +1154,16 @@ namespace Homassy.API.Functions
 
                     trackedLocation.DeleteRecord(userId.Value);
                     context.ShoppingLocations.Update(trackedLocation);
+                    deleted.Add((trackedLocation.UserId ?? userId.Value, trackedLocation.FamilyId, trackedLocation.PublicId));
                 }
 
                 await context.SaveChangesAsync(cancellationToken);
                 await transaction.CommitAsync(cancellationToken);
+
+                foreach (var d in deleted)
+                {
+                    await MasterDataRealtime.ShoppingLocationDeletedAsync(d.ownerUserId, d.familyId, d.publicId, cancellationToken);
+                }
 
                 Log.Information($"User {userId.Value} deleted {request.LocationPublicIds.Count} shopping locations");
             }

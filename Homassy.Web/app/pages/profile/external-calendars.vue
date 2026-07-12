@@ -148,14 +148,16 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, onBeforeUnmount } from 'vue'
 import { useFamilyApi } from '~/composables/api/useFamilyApi'
 import { useExternalCalendarApi } from '~/composables/api/useExternalCalendarApi'
 import type { ExternalCalendarResponse } from '~/types/externalCalendar'
+import type { MasterDataDeletedEvent } from '~/types/masterData'
 
 definePageMeta({ layout: 'auth', middleware: 'auth' })
 
 const { getFamily } = useFamilyApi()
+const masterDataSocket = useMasterDataSocket()
 const {
   getExternalCalendars,
   createExternalCalendar,
@@ -223,7 +225,31 @@ async function load() {
   loading.value = false
 }
 
-onMounted(load)
+// Realtime: mirror another family member's (or device's) change in place. Idempotent, so the acting
+// client's own echoed event is a no-op on top of its local patch.
+function handleCalendarUpserted(dto: ExternalCalendarResponse) {
+  const idx = externalCalendars.value.findIndex(c => c.publicId === dto.publicId)
+  if (idx >= 0) externalCalendars.value[idx] = dto
+  else externalCalendars.value.push(dto)
+}
+
+function handleCalendarDeleted(payload: MasterDataDeletedEvent) {
+  externalCalendars.value = externalCalendars.value.filter(c => c.publicId !== payload.publicId)
+}
+
+onMounted(async () => {
+  await load()
+  await masterDataSocket.ensureConnected()
+  masterDataSocket.on('ExternalCalendarUpserted', handleCalendarUpserted)
+  masterDataSocket.on('ExternalCalendarDeleted', handleCalendarDeleted)
+  masterDataSocket.onReconnected(load)
+})
+
+onBeforeUnmount(() => {
+  masterDataSocket.off('ExternalCalendarUpserted', handleCalendarUpserted)
+  masterDataSocket.off('ExternalCalendarDeleted', handleCalendarDeleted)
+  masterDataSocket.offReconnected(load)
+})
 
 async function onAddCalendar() {
   if (!newCalName.value.trim() || !newCalUrl.value.trim()) return

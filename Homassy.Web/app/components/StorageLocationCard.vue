@@ -62,110 +62,7 @@
       </div>
     </div>
 
-    <!-- Edit Modal -->
-  <UModal :open="isEditModalOpen" @update:open="(val) => isEditModalOpen = val" :dismissible="false">
-    <template #title>
-      {{ $t('profile.storageLocations.editLocation') }}
-    </template>
-
-    <template #description>
-      {{ $t('profile.storageLocations.editLocationDescription') }}
-    </template>
-
-    <template #body>
-      <div class="space-y-4">
-        <!-- Name -->
-        <div>
-          <label class="block text-sm font-medium mb-1">
-            {{ $t('common.name') }} <span class="text-red-500">*</span>
-          </label>
-          <UInput
-            v-model="editForm.name"
-            type="text"
-            class="w-full"
-            required
-          />
-        </div>
-
-        <!-- Description -->
-        <div>
-          <label class="block text-sm font-medium mb-1">
-            {{ $t('common.description') }}
-          </label>
-          <UTextarea
-            v-model="editForm.description"
-            :placeholder="$t('common.description')"
-            class="w-full"
-          />
-        </div>
-
-        <!-- Color -->
-        <div>
-          <label class="block text-sm font-medium mb-1">
-            {{ $t('common.color') }}
-          </label>
-          <div v-if="editForm.color === null" class="flex gap-2 items-center">
-            <UButton
-              icon="i-lucide-palette"
-              :label="$t('common.addColor')"
-              color="neutral"
-              variant="outline"
-              class="flex-1"
-              @click="editForm.color = '#3B82F6'"
-            />
-          </div>
-          <div v-else class="flex gap-2 items-center">
-            <UInput
-              v-model="editForm.color"
-              type="color"
-              class="flex-1"
-            />
-            <UButton
-              icon="i-lucide-x"
-              color="neutral"
-              variant="ghost"
-              size="sm"
-              @click="editForm.color = null"
-            />
-          </div>
-        </div>
-
-        <!-- Is Freezer -->
-        <div class="flex items-center gap-2">
-          <UCheckbox
-            v-model="editForm.isFreezer"
-            :label="$t('profile.storageLocations.isFreezer')"
-          />
-        </div>
-
-        <!-- Is Shared With Family -->
-        <div class="flex items-center gap-2">
-          <UCheckbox
-            v-model="editForm.isSharedWithFamily"
-            :label="$t('profile.storageLocations.isSharedWithFamily')"
-          />
-        </div>
-      </div>
-    </template>
-
-    <template #footer>
-      <div class="flex justify-end gap-2">
-        <UButton
-          :label="$t('common.cancel')"
-          color="neutral"
-          variant="outline"
-          @click="closeEditModal"
-        />
-        <UButton
-          :label="$t('common.save')"
-          :loading="isUpdating"
-          @click="handleUpdate"
-        />
-      </div>
-    </template>
-  </UModal>
-
-  <!-- Delete Modal -->
+    <!-- Delete Modal -->
   <UModal :open="isDeleteModalOpen" @update:open="(val) => isDeleteModalOpen = val">
     <template #title>
       {{ $t('profile.storageLocations.deleteLocation') }}
@@ -232,8 +129,8 @@ const props = withDefaults(defineProps<Props>(), {
 
 const emit = defineEmits<{
   click: []
-  updated: []
-  deleted: []
+  edit: [location: StorageLocationInfo]
+  deleted: [publicId: string]
 }>()
 
 const { t } = useI18n()
@@ -241,27 +138,10 @@ const toast = useToast()
 const locationsApi = useLocationsApi()
 
 // Modal states
-const isEditModalOpen = ref(false)
 const isDeleteModalOpen = ref(false)
 
 // Loading states
-const isUpdating = ref(false)
 const isDeleting = ref(false)
-
-// Edit form
-const editForm = ref<{
-  name: string
-  description: string
-  color: string | null
-  isFreezer: boolean
-  isSharedWithFamily: boolean
-}>({
-  name: '',
-  description: '',
-  color: null,
-  isFreezer: false,
-  isSharedWithFamily: false
-})
 
 // Helper function to escape regex special characters
 const escapeRegex = (str: string): string => {
@@ -287,7 +167,7 @@ const dropdownItems = computed(() => {
     {
       label: t('common.edit'),
       icon: 'i-lucide-pencil',
-      onSelect: openEditModal
+      onSelect: () => emit('edit', props.location)
     },
     {
       label: t('common.delete'),
@@ -309,55 +189,6 @@ const handleCardClick = (event: MouseEvent) => {
   emit('click')
 }
 
-const openEditModal = () => {
-  editForm.value = {
-    name: props.location.name,
-    description: props.location.description || '',
-    color: props.location.color || null,
-    isFreezer: props.location.isFreezer,
-    isSharedWithFamily: props.location.isSharedWithFamily
-  }
-  isEditModalOpen.value = true
-}
-
-const closeEditModal = () => {
-  isEditModalOpen.value = false
-}
-
-const handleUpdate = async () => {
-  if (!editForm.value.name.trim()) {
-    toast.add({
-      title: t('common.error'),
-      description: t('profile.storageLocations.nameRequired'),
-      color: 'error'
-    })
-    return
-  }
-
-  isUpdating.value = true
-  try {
-    await locationsApi.updateStorageLocation(props.location.publicId, {
-      name: editForm.value.name,
-      description: editForm.value.description || undefined,
-      color: editForm.value.color === null ? '' : editForm.value.color,
-      isFreezer: editForm.value.isFreezer,
-      isSharedWithFamily: editForm.value.isSharedWithFamily
-    })
-
-    closeEditModal()
-    emit('updated')
-  } catch (error) {
-    console.error('Failed to update storage location:', error)
-    toast.add({
-      title: t('common.error'),
-      description: t('profile.storageLocations.updateFailed'),
-      color: 'error'
-    })
-  } finally {
-    isUpdating.value = false
-  }
-}
-
 const openDeleteModal = () => {
   isDeleteModalOpen.value = true
 }
@@ -372,7 +203,7 @@ const handleDelete = async () => {
     await locationsApi.deleteStorageLocation(props.location.publicId)
 
     closeDeleteModal()
-    emit('deleted')
+    emit('deleted', props.location.publicId)
   } catch (error) {
     console.error('Failed to delete storage location:', error)
     toast.add({

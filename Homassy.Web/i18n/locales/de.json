@@ -43,6 +43,7 @@
     "description": "Beschreibung",
     "color": "Farbe",
     "addColor": "Farbe hinzufügen",
+    "chooseColor": "Farbe wählen",
     "add": "Hinzufügen",
     "success": "Erfolg",
     "error": "Fehler",
@@ -502,7 +503,10 @@
         "isFavoriteLabel": "Lieblingsprodukt",
         "createProduct": "Produkt erstellen",
         "createProductDescription": "Fügen Sie ein neues Produkt zu Ihrer Datenbank hinzu",
-        "createButton": "Produkt erstellen"
+        "createButton": "Produkt erstellen",
+        "nameRequired": "Name ist erforderlich",
+        "brandRequired": "Marke ist erforderlich",
+        "saveFailed": "Produkt konnte nicht gespeichert werden"
       },
       "openFoodFacts": {
         "modalTitle": "Produkt gefunden",
@@ -1005,6 +1009,8 @@
       "deleteLocationWarning": "Möchten Sie diesen Einkaufsort wirklich löschen?",
       "isSharedWithFamily": "Mit Familie geteilt",
       "nameRequired": "Name ist erforderlich",
+      "createLocation": "Einkaufsort hinzufügen",
+      "saveFailed": "Einkaufsort konnte nicht gespeichert werden",
       "updateFailed": "Einkaufsort konnte nicht aktualisiert werden",
       "deleteFailed": "Einkaufsort konnte nicht gelöscht werden",
       "invalidWebsite": "Ungültige Webseiten-URL",
@@ -1041,6 +1047,7 @@
       "nameRequired": "Name ist erforderlich",
       "locationUpdated": "Lagerort erfolgreich aktualisiert",
       "updateFailed": "Lagerort konnte nicht aktualisiert werden",
+      "saveFailed": "Lagerort konnte nicht gespeichert werden",
       "locationDeleted": "Lagerort erfolgreich gelöscht",
       "deleteFailed": "Lagerort konnte nicht gelöscht werden"
     },

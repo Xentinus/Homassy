@@ -44,6 +44,7 @@
     "description": "Leírás",
     "color": "Szín",
     "addColor": "Szín hozzáadása",
+    "chooseColor": "Szín választása",
     "add": "Hozzáadás",
     "success": "Siker",
     "error": "Hiba",
@@ -502,8 +503,13 @@
         "notes": "Megjegyzések",
         "notesPlaceholder": "Opcionális megjegyzések",
         "isFavorite": "Kedvenc termék",
-        "isFavoriteLabel": "Kedvenc termék",      "createProduct": "Termék létrehozása",
-      "createProductDescription": "Adj hozzá egy új terméket az adatbázisodhoz",        "createButton": "Termék létrehozása"
+        "isFavoriteLabel": "Kedvenc termék",
+        "createProduct": "Termék létrehozása",
+        "createProductDescription": "Adj hozzá egy új terméket az adatbázisodhoz",
+        "createButton": "Termék létrehozása",
+        "nameRequired": "A név megadása kötelező",
+        "brandRequired": "A márka megadása kötelező",
+        "saveFailed": "A termék mentése sikertelen"
       },
       "openFoodFacts": {
         "modalTitle": "Termék találva",
@@ -1006,6 +1012,8 @@
       "deleteLocationWarning": "Biztosan törölni szeretnéd ezt a bevásárlási helyet?",
       "isSharedWithFamily": "Megosztva a családdal",
       "nameRequired": "A név megadása kötelező",
+      "createLocation": "Új bolthely létrehozása",
+      "saveFailed": "A bolthely mentése sikertelen",
       "updateFailed": "Nem sikerült frissíteni a bevásárlási helyet",
       "deleteFailed": "Nem sikerült törölni a bevásárlási helyet",
       "invalidWebsite": "Érvénytelen weboldal URL",
@@ -1043,7 +1051,8 @@
       "locationUpdated": "Tárolóhely sikeresen frissítve",
       "updateFailed": "Nem sikerült frissíteni a tárolóhelyet",
       "locationDeleted": "Tárolóhely sikeresen törölve",
-      "deleteFailed": "Nem sikerült törölni a tárolóhelyet"
+      "deleteFailed": "Nem sikerült törölni a tárolóhelyet",
+      "saveFailed": "A tárolóhely mentése sikertelen"
     },
     "automation": {
       "title": "Automatizálás",

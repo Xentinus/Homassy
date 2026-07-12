@@ -43,6 +43,7 @@
     "description": "Description",
     "color": "Color",
     "addColor": "Add Color",
+    "chooseColor": "Choose color",
     "add": "Add",
     "success": "Success",
     "error": "Error",
@@ -504,7 +505,10 @@
         "isFavoriteLabel": "Favorite product",
         "createProduct": "Create Product",
         "createProductDescription": "Add a new product to your database",
-        "createButton": "Create Product"
+        "createButton": "Create Product",
+        "nameRequired": "Name is required",
+        "brandRequired": "Brand is required",
+        "saveFailed": "Failed to save the product"
       },
       "openFoodFacts": {
         "modalTitle": "Product Found",
@@ -1005,6 +1009,8 @@
       "deleteLocationWarning": "Are you sure you want to delete this shopping location?",
       "isSharedWithFamily": "Shared with family",
       "nameRequired": "Name is required",
+      "createLocation": "Add shopping location",
+      "saveFailed": "Failed to save the shopping location",
       "updateFailed": "Failed to update shopping location",
       "deleteFailed": "Failed to delete shopping location",
       "invalidWebsite": "Invalid website URL",
@@ -1041,6 +1047,7 @@
       "nameRequired": "Name is required",
       "locationUpdated": "Storage location updated successfully",
       "updateFailed": "Failed to update storage location",
+      "saveFailed": "Failed to save the storage location",
       "locationDeleted": "Storage location deleted successfully",
       "deleteFailed": "Failed to delete storage location"
     },

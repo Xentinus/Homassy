@@ -113,122 +113,6 @@
       </div>
     </div>
 
-    <!-- Edit Modal -->
-    <UModal :open="isEditModalOpen" @update:open="(val) => isEditModalOpen = val" :dismissible="false">
-      <template #title>
-        {{ $t('pages.products.details.editProduct') }}
-      </template>
-
-      <template #description>
-        {{ $t('pages.products.details.editProductModal.description') }}
-      </template>
-
-      <template #body>
-        <div class="space-y-4">
-          <!-- Name -->
-          <div>
-            <label class="block text-sm font-medium mb-1">
-              {{ $t('common.name') }} <span class="text-red-500">*</span>
-            </label>
-            <UInput
-              v-model="editForm.name"
-              type="text"
-              class="w-full"
-              required
-            />
-          </div>
-
-          <!-- Brand -->
-          <div>
-            <label class="block text-sm font-medium mb-1">
-              {{ $t('pages.addProduct.form.brand') }} <span class="text-red-500">*</span>
-            </label>
-            <UInput
-              v-model="editForm.brand"
-              type="text"
-              :placeholder="$t('pages.addProduct.form.brandPlaceholder')"
-              class="w-full"
-              required
-            />
-          </div>
-
-          <!-- Category -->
-          <div>
-            <label class="block text-sm font-medium mb-1">
-              {{ $t('pages.addProduct.form.category') }}
-            </label>
-            <UInput
-              v-model="editForm.category"
-              type="text"
-              :placeholder="$t('pages.addProduct.form.categoryPlaceholder')"
-              class="w-full"
-            />
-          </div>
-
-          <!-- Barcode -->
-          <div>
-            <label class="block text-sm font-medium mb-1">
-              {{ $t('pages.addProduct.form.barcode') }}
-            </label>
-            <UFieldGroup size="md" orientation="horizontal" class="w-full">
-              <UInput
-                v-model="editForm.barcode"
-                type="text"
-                :placeholder="$t('pages.addProduct.form.barcodePlaceholder')"
-                inputmode="numeric"
-                pattern="[0-9]*"
-                class="flex-1"
-              />
-              <UButton
-                :label="$t('pages.addProduct.form.barcodeQuery')"
-                icon="i-lucide-barcode"
-                color="primary"
-                size="sm"
-                :loading="isQueryingBarcode"
-                @click="handleBarcodeQuery"
-              />
-            </UFieldGroup>
-          </div>
-
-          <!-- Is Eatable -->
-          <div class="flex items-center gap-2">
-            <UCheckbox
-              v-model="editForm.isEatable"
-              :label="$t('pages.addProduct.form.isEatableLabel')"
-            />
-          </div>
-
-          <!-- Notes -->
-          <div>
-            <label class="block text-sm font-medium mb-1">
-              {{ $t('pages.addProduct.form.notes') }}
-            </label>
-            <UTextarea
-              v-model="editForm.notes"
-              :placeholder="$t('pages.addProduct.form.notesPlaceholder')"
-              class="w-full"
-            />
-          </div>
-        </div>
-      </template>
-
-      <template #footer>
-        <div class="flex justify-end gap-2">
-          <UButton
-            :label="$t('common.cancel')"
-            color="neutral"
-            variant="outline"
-            @click="closeEditModal"
-          />
-          <UButton
-            :label="$t('common.save')"
-            :loading="isUpdating"
-            @click="handleUpdate"
-          />
-        </div>
-      </template>
-    </UModal>
-
     <!-- Delete Modal -->
     <UModal :open="isDeleteModalOpen" @update:open="(val) => isDeleteModalOpen = val" :dismissible="false">
       <template #title>
@@ -285,82 +169,6 @@
       </template>
     </UModal>
 
-    <!-- OpenFoodFacts Modal -->
-    <UModal
-      :open="isOpenFoodFactsModalOpen"
-      @update:open="(val) => { if (!val) handleCancelImport() }"
-      :dismissible="false"
-    >
-      <template #title>
-        {{ $t('pages.addProduct.openFoodFacts.modalTitle') }}
-      </template>
-
-      <template #description>
-        {{ $t('pages.addProduct.openFoodFacts.modalDescription') }}
-      </template>
-
-      <template #body>
-        <div class="space-y-4">
-          <!-- Product Image -->
-          <div class="flex justify-center">
-            <div class="relative w-40 h-40">
-              <USkeleton
-                v-if="isImageLoading && openFoodFactsProduct?.image_base64"
-                class="w-full h-full rounded-lg"
-              />
-              <img
-                v-if="openFoodFactsProduct?.image_base64"
-                :src="openFoodFactsProduct.image_base64"
-                alt="Product image"
-                class="w-full h-full object-contain rounded-lg border border-gray-200 dark:border-gray-700"
-                :class="{ 'opacity-0': isImageLoading }"
-                @load="isImageLoading = false"
-              >
-              <div
-                v-else
-                class="w-full h-full flex items-center justify-center bg-gray-100 dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700"
-              >
-                <UIcon name="i-lucide-package" class="h-16 w-16 text-gray-400" />
-              </div>
-            </div>
-          </div>
-
-          <!-- Product Information -->
-          <div class="space-y-3">
-            <div v-if="openFoodFactsProduct?.product_name">
-              <span class="text-sm font-medium text-gray-700 dark:text-gray-300">
-                {{ $t('pages.addProduct.openFoodFacts.productName') }}:
-              </span>
-              <p class="text-sm mt-1">{{ openFoodFactsProduct.product_name }}</p>
-            </div>
-
-            <div v-if="openFoodFactsProduct?.brands">
-              <span class="text-sm font-medium text-gray-700 dark:text-gray-300">
-                {{ $t('pages.addProduct.openFoodFacts.brands') }}:
-              </span>
-              <p class="text-sm mt-1">{{ openFoodFactsProduct.brands }}</p>
-            </div>
-          </div>
-        </div>
-      </template>
-
-      <template #footer>
-        <div class="flex justify-end gap-2">
-          <UButton
-            :label="$t('pages.addProduct.openFoodFacts.cancel')"
-            color="neutral"
-            variant="outline"
-            @click="handleCancelImport"
-          />
-          <UButton
-            :label="$t('pages.addProduct.openFoodFacts.import')"
-            color="primary"
-            @click="handleImportProduct"
-          />
-        </div>
-      </template>
-    </UModal>
-
     <!-- Image Overlay -->
     <Transition
       enter-active-class="transition-opacity duration-200 ease-out"
@@ -409,9 +217,8 @@
 
 <script setup lang="ts">
 import type { ProductInfo } from '~/types/product'
-import type { OpenFoodFactsProduct } from '~/types/openFoodFacts'
 import { useProductsApi } from '~/composables/api/useProductsApi'
-import { useProgressApi, type ProgressStatus } from '~/composables/api/useProgressApi'
+import { useProgressApi } from '~/composables/api/useProgressApi'
 import { useOpenFoodFactsApi } from '~/composables/api/useOpenFoodFactsApi'
 import ImageCropper from '~/components/ImageCropper.vue'
 import UploadProgressModal from '~/components/UploadProgressModal.vue'
@@ -433,8 +240,9 @@ const props = withDefaults(defineProps<Props>(), {
 })
 
 const emit = defineEmits<{
+  edit: [product: ProductInfo]
   updated: []
-  deleted: []
+  deleted: [publicId: string]
 }>()
 
 const { t } = useI18n()
@@ -446,18 +254,13 @@ const router = useRouter()
 const { formatProductCategory } = useEnumLabel()
 
 // Modal states
-const isEditModalOpen = ref(false)
 const isDeleteModalOpen = ref(false)
 const isImageOverlayOpen = ref(false)
-const isOpenFoodFactsModalOpen = ref(false)
 const isCropperOpen = ref(false)
 const isUploadProgressOpen = ref(false)
 
 // Loading states
-const isUpdating = ref(false)
 const isDeleting = ref(false)
-const isQueryingBarcode = ref(false)
-const isImageLoading = ref(true)
 const isUploadingImage = ref(false)
 const isDeletingImage = ref(false)
 
@@ -475,33 +278,6 @@ let stopPolling: (() => void) | null = null
 
 // Refs
 const fileInput = ref<HTMLInputElement | null>(null)
-
-// OpenFoodFacts state
-const openFoodFactsProduct = ref<OpenFoodFactsProduct | null>(null)
-
-// Edit form
-const editForm = ref<{
-  name: string
-  brand: string
-  category: string
-  barcode: string
-  isEatable: boolean
-  notes: string
-}>({
-  name: '',
-  brand: '',
-  category: '',
-  barcode: '',
-  isEatable: false,
-  notes: ''
-})
-
-// Ensure barcode contains only numeric characters
-watch(() => editForm.value.barcode, (newValue) => {
-  if (newValue) {
-    editForm.value.barcode = newValue.replace(/\D/g, '')
-  }
-})
 
 // Dynamic border classes based on state
 const cardBorderClass = computed(() => {
@@ -543,7 +319,7 @@ const dropdownItems = computed(() => {
     {
       label: t('common.edit'),
       icon: 'i-lucide-pencil',
-      onSelect: openEditModal
+      onSelect: () => emit('edit', props.product)
     },
     {
       label: t('common.delete'),
@@ -731,121 +507,6 @@ const navigateToDetails = () => {
   router.push(`/products/${props.product.publicId}`)
 }
 
-const handleBarcodeQuery = async () => {
-  if (!editForm.value.barcode || editForm.value.barcode.trim() === '') {
-    toast.add({
-      title: t('toast.error'),
-      description: t('pages.addProduct.openFoodFacts.noBarcodeError'),
-      color: 'error'
-    })
-    return
-  }
-
-  isQueryingBarcode.value = true
-  try {
-    const response = await openFoodFactsApi.getProductByBarcode(editForm.value.barcode.trim())
-    
-    if (response.success && response.data) {
-      openFoodFactsProduct.value = response.data
-      isImageLoading.value = true
-      isOpenFoodFactsModalOpen.value = true
-    } else {
-      toast.add({
-        title: t('toast.error'),
-        description: t('pages.addProduct.openFoodFacts.noProductError'),
-        color: 'error'
-      })
-    }
-  } catch (error) {
-    console.error('OpenFoodFacts query failed:', error)
-    toast.add({
-      title: t('toast.error'),
-      description: t('pages.addProduct.openFoodFacts.noProductError'),
-      color: 'error'
-    })
-  } finally {
-    isQueryingBarcode.value = false
-  }
-}
-
-const handleImportProduct = () => {
-  if (openFoodFactsProduct.value) {
-    if (openFoodFactsProduct.value.product_name) {
-      editForm.value.name = openFoodFactsProduct.value.product_name
-    }
-    if (openFoodFactsProduct.value.brands) {
-      editForm.value.brand = openFoodFactsProduct.value.brands
-    }
-  }
-  handleCancelImport()
-}
-
-const handleCancelImport = () => {
-  isOpenFoodFactsModalOpen.value = false
-  openFoodFactsProduct.value = null
-  isImageLoading.value = true
-}
-
-const openEditModal = () => {
-  editForm.value = {
-    name: props.product.name,
-    brand: props.product.brand,
-    category: props.product.category || '',
-    barcode: props.product.barcode || '',
-    isEatable: props.product.isEatable,
-    notes: ''
-  }
-  isEditModalOpen.value = true
-}
-
-const closeEditModal = () => {
-  isEditModalOpen.value = false
-}
-
-const handleUpdate = async () => {
-  if (!editForm.value.name.trim()) {
-    toast.add({
-      title: t('common.error'),
-      description: t('pages.products.details.editProductModal.nameRequired'),
-      color: 'error'
-    })
-    return
-  }
-
-  if (!editForm.value.brand.trim()) {
-    toast.add({
-      title: t('common.error'),
-      description: t('pages.products.details.editProductModal.brandRequired'),
-      color: 'error'
-    })
-    return
-  }
-
-  isUpdating.value = true
-  try {
-    await productsApi.updateProduct(props.product.publicId, {
-      name: editForm.value.name,
-      brand: editForm.value.brand,
-      category: editForm.value.category || undefined,
-      barcode: editForm.value.barcode || undefined,
-      isEatable: editForm.value.isEatable,
-      notes: editForm.value.notes || undefined
-    })
-
-    closeEditModal()
-    emit('updated')
-  } catch (error) {
-    console.error('Failed to update product:', error)
-    toast.add({
-      title: t('common.error'),
-      description: t('pages.products.details.editProductModal.updateFailed'),
-      color: 'error'
-    })
-  } finally {
-    isUpdating.value = false
-  }
-}
-
 const openDeleteModal = () => {
   isDeleteModalOpen.value = true
 }
@@ -860,7 +521,7 @@ const handleDelete = async () => {
     await productsApi.deleteProduct(props.product.publicId)
 
     closeDeleteModal()
-    emit('deleted')
+    emit('deleted', props.product.publicId)
   } catch (error) {
     console.error('Failed to delete product:', error)
     toast.add({

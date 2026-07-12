@@ -69,204 +69,40 @@
         :location="location"
         :search-query="searchQuery"
         @click="handleLocationClick(location)"
-        @updated="loadLocations"
-        @deleted="loadLocations"
+        @edit="openEditDrawer"
+        @deleted="onDeleted"
       />
     </div>
     </div>
 
-  <!-- Create Modal -->
-  <UModal :open="isCreateModalOpen" @update:open="(val) => isCreateModalOpen = val" :dismissible="false">
-    <template #title>
-      {{ $t('profile.shoppingLocations.editLocation') }}
-    </template>
-
-    <template #description>
-      {{ $t('profile.shoppingLocations.editLocationDescription') }}
-    </template>
-
-    <template #body>
-      <div class="space-y-4">
-        <!-- Name -->
-        <div>
-          <label class="block text-sm font-medium mb-1">
-            {{ $t('common.name') }} <span class="text-red-500">*</span>
-          </label>
-          <UInput
-            v-model="createForm.name"
-            type="text"
-            class="w-full"
-            required
-          />
-        </div>
-
-        <!-- Description -->
-        <div>
-          <label class="block text-sm font-medium mb-1">
-            {{ $t('common.description') }}
-          </label>
-          <UTextarea
-            v-model="createForm.description"
-            :placeholder="$t('common.description')"
-            class="w-full"
-          />
-        </div>
-
-        <!-- Color -->
-        <div>
-          <label class="block text-sm font-medium mb-1">
-            {{ $t('common.color') }}
-          </label>
-          <div v-if="createForm.color === null" class="flex gap-2 items-center">
-            <UButton
-              icon="i-lucide-palette"
-              :label="$t('common.addColor')"
-              color="neutral"
-              variant="outline"
-              class="flex-1"
-              @click="createForm.color = '#3B82F6'"
-            />
-          </div>
-          <div v-else class="flex gap-2 items-center">
-            <input
-              v-model="createForm.color"
-              type="color"
-              class="flex-1 h-10 rounded-md border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 cursor-pointer"
-            >
-            <UButton
-              icon="i-lucide-x"
-              color="neutral"
-              variant="ghost"
-              size="sm"
-              @click.stop="createForm.color = null"
-            />
-          </div>
-        </div>
-
-        <!-- Address -->
-        <div>
-          <label class="block text-sm font-medium mb-1">
-            {{ $t('common.address') }}
-          </label>
-          <UInput
-            v-model="createForm.address"
-            type="text"
-            :placeholder="$t('common.address')"
-            class="w-full"
-          />
-        </div>
-
-        <!-- City -->
-        <div>
-          <label class="block text-sm font-medium mb-1">
-            {{ $t('common.city') }}
-          </label>
-          <UInput
-            v-model="createForm.city"
-            type="text"
-            :placeholder="$t('common.city')"
-            class="w-full"
-          />
-        </div>
-
-        <!-- Postal Code -->
-        <div>
-          <label class="block text-sm font-medium mb-1">
-            {{ $t('common.postalCode') }}
-          </label>
-          <UInput
-            v-model="createForm.postalCode"
-            type="text"
-            :placeholder="$t('common.postalCode')"
-            class="w-full"
-          />
-        </div>
-
-        <!-- Country -->
-        <div>
-          <label class="block text-sm font-medium mb-1">
-            {{ $t('common.country') }}
-          </label>
-          <UInput
-            v-model="createForm.country"
-            type="text"
-            :placeholder="$t('common.country')"
-            class="w-full"
-          />
-        </div>
-
-        <!-- Website -->
-        <div>
-          <label class="block text-sm font-medium mb-1">
-            {{ $t('common.website') }}
-          </label>
-          <UInput
-            v-model="createForm.website"
-            type="url"
-            :placeholder="$t('common.website')"
-            class="w-full"
-          />
-        </div>
-
-        <!-- Google Maps -->
-        <div>
-          <label class="block text-sm font-medium mb-1">
-            {{ $t('profile.shoppingLocations.googleMaps') }}
-          </label>
-          <UInput
-            v-model="createForm.googleMaps"
-            type="url"
-            :placeholder="$t('profile.shoppingLocations.googleMaps')"
-            class="w-full"
-          />
-        </div>
-
-        <!-- Is Shared With Family -->
-        <div class="flex items-center gap-2">
-          <UCheckbox
-            v-model="createForm.isSharedWithFamily"
-            :label="$t('profile.shoppingLocations.isSharedWithFamily')"
-          />
-        </div>
-      </div>
-    </template>
-
-    <template #footer>
-      <div class="flex justify-end gap-2">
-        <UButton
-          :label="$t('common.cancel')"
-          color="neutral"
-          variant="outline"
-          @click="closeCreateModal"
-        />
-        <UButton
-          :label="$t('common.save')"
-          :loading="isCreating"
-          @click="handleCreate"
-        />
-      </div>
-    </template>
-  </UModal>
+  <!-- Create / edit bottom sheet -->
+  <ShoppingLocationFormDrawer
+    :open="drawerOpen"
+    :location="editingLocation"
+    @update:open="(v) => drawerOpen = v"
+    @saved="onSaved"
+  />
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, onBeforeUnmount } from 'vue'
 import { useLocationsApi } from '~/composables/api/useLocationsApi'
 import type { ShoppingLocationInfo } from '~/types/location'
+import type { MasterDataDeletedEvent } from '~/types/masterData'
 
 definePageMeta({ layout: 'auth', middleware: 'auth' })
 
-const { getShoppingLocations, createShoppingLocation } = useLocationsApi()
+const { getShoppingLocations } = useLocationsApi()
+const masterDataSocket = useMasterDataSocket()
 const { t } = useI18n()
-const toast = useToast()
 
 // Add-action lives on the dynamic nav FAB instead of an inline header button.
 useFabActions(() => [
   {
     label: t('common.add'),
     icon: 'i-lucide-plus',
-    handler: () => handleAddLocation()
+    handler: () => openCreateDrawer()
   }
 ])
 
@@ -281,34 +117,9 @@ const sharedFilter = ref('all')
 const cityFilter = ref('all')
 const countryFilter = ref('all')
 
-// Create modal state
-const isCreateModalOpen = ref(false)
-const isCreating = ref(false)
-
-// Create form
-const createForm = ref<{
-  name: string
-  description: string
-  color: string | null
-  address: string
-  city: string
-  postalCode: string
-  country: string
-  website: string
-  googleMaps: string
-  isSharedWithFamily: boolean
-}>({
-  name: '',
-  description: '',
-  color: null,
-  address: '',
-  city: '',
-  postalCode: '',
-  country: '',
-  website: '',
-  googleMaps: '',
-  isSharedWithFamily: false
-})
+// Create / edit drawer state
+const drawerOpen = ref(false)
+const editingLocation = ref<ShoppingLocationInfo | null>(null)
 
 // Filter options
 const sharedOptions = computed(() => [
@@ -411,104 +222,60 @@ async function loadLocations() {
   }
 }
 
-function handleLocationClick(location: ShoppingLocationInfo) {
+function handleLocationClick(_location: ShoppingLocationInfo) {
   // Location actions are handled by the card's menu
 }
 
-// Create modal functions
-const openCreateModal = () => {
-  createForm.value = {
-    name: '',
-    description: '',
-    color: null,
-    address: '',
-    city: '',
-    postalCode: '',
-    country: '',
-    website: '',
-    googleMaps: '',
-    isSharedWithFamily: false
-  }
-  isCreateModalOpen.value = true
+// Create / edit drawer functions
+function openCreateDrawer() {
+  editingLocation.value = null
+  drawerOpen.value = true
 }
 
-const closeCreateModal = () => {
-  isCreateModalOpen.value = false
+function openEditDrawer(location: ShoppingLocationInfo) {
+  editingLocation.value = location
+  drawerOpen.value = true
 }
 
-const isValidUrl = (url: string): boolean => {
-  if (!url.trim()) return true // Empty is valid
-  try {
-    new URL(url)
-    return true
-  } catch {
-    return false
-  }
+// Idempotent local patch (upsert / delete) for instant feedback; the realtime socket delivers the
+// same change to other family members.
+function upsertLocation(location: ShoppingLocationInfo) {
+  const idx = locations.value.findIndex(l => l.publicId === location.publicId)
+  if (idx >= 0) locations.value[idx] = location
+  else locations.value.push(location)
 }
 
-const handleCreate = async () => {
-  if (!createForm.value.name.trim()) {
-    toast.add({
-      title: t('common.error'),
-      description: t('profile.shoppingLocations.nameRequired'),
-      color: 'error'
-    })
-    return
-  }
-
-  // Validate URLs
-  if (createForm.value.website && !isValidUrl(createForm.value.website)) {
-    toast.add({
-      title: t('common.error'),
-      description: t('profile.shoppingLocations.invalidWebsite'),
-      color: 'error'
-    })
-    return
-  }
-
-  if (createForm.value.googleMaps && !isValidUrl(createForm.value.googleMaps)) {
-    toast.add({
-      title: t('common.error'),
-      description: t('profile.shoppingLocations.invalidGoogleMaps'),
-      color: 'error'
-    })
-    return
-  }
-
-  isCreating.value = true
-  try {
-    await createShoppingLocation({
-      name: createForm.value.name,
-      description: createForm.value.description || undefined,
-      color: createForm.value.color || undefined,
-      address: createForm.value.address || undefined,
-      city: createForm.value.city || undefined,
-      postalCode: createForm.value.postalCode || undefined,
-      country: createForm.value.country || undefined,
-      website: createForm.value.website || undefined,
-      googleMaps: createForm.value.googleMaps || undefined,
-      isSharedWithFamily: createForm.value.isSharedWithFamily
-    })
-
-    closeCreateModal()
-  } catch (error) {
-    console.error('Failed to create shopping location:', error)
-    toast.add({
-      title: t('common.error'),
-      description: t('profile.shoppingLocations.createFailed'),
-      color: 'error'
-    })
-  } finally {
-    await loadLocations()
-    isCreating.value = false
-  }
+function removeLocation(publicId: string) {
+  locations.value = locations.value.filter(l => l.publicId !== publicId)
 }
 
-function handleAddLocation() {
-  openCreateModal()
+function onSaved(location: ShoppingLocationInfo) {
+  upsertLocation(location)
 }
 
-onMounted(() => {
-  loadLocations()
+function onDeleted(publicId: string) {
+  removeLocation(publicId)
+}
+
+function handleUpserted(dto: ShoppingLocationInfo) {
+  upsertLocation(dto)
+}
+
+function handleDeleted(payload: MasterDataDeletedEvent) {
+  removeLocation(payload.publicId)
+}
+
+onMounted(async () => {
+  await loadLocations()
+  await masterDataSocket.ensureConnected()
+  masterDataSocket.on('ShoppingLocationUpserted', handleUpserted)
+  masterDataSocket.on('ShoppingLocationDeleted', handleDeleted)
+  masterDataSocket.onReconnected(loadLocations)
+})
+
+onBeforeUnmount(() => {
+  masterDataSocket.off('ShoppingLocationUpserted', handleUpserted)
+  masterDataSocket.off('ShoppingLocationDeleted', handleDeleted)
+  masterDataSocket.offReconnected(loadLocations)
 })
 </script>
