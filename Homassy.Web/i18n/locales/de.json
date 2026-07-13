@@ -796,7 +796,6 @@
     "calendar": {
       "title": "Kalender",
       "greeting": "Willkommen, {name}!",
-      "greetingSubtitle": "Hier sind die heutigen Ereignisse.",
       "date": "Datum",
       "detail": "Details",
       "noEvents": "Keine Ereignisse in diesem Zeitraum",

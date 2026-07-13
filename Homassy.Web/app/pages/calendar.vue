@@ -6,7 +6,6 @@
         <UIcon name="i-lucide-calendar" class="h-7 w-7 text-primary-500 shrink-0" />
         <div>
           <h1 class="text-xl font-semibold">{{ t('pages.calendar.greeting', { name: greetingName }) }}</h1>
-          <p class="text-sm text-gray-500 dark:text-gray-400 mt-0.5">{{ t('pages.calendar.greetingSubtitle') }}</p>
         </div>
       </div>
     </div>
@@ -26,15 +25,15 @@
                 size="xs"
                 variant="ghost"
                 color="neutral"
-                @click="prevMonth"
+                @click="prevWeek"
               />
-              <span class="font-semibold text-sm min-w-[130px] text-center select-none">{{ monthTitle }}</span>
+              <span class="font-semibold text-sm min-w-[150px] text-center select-none">{{ weekTitle }}</span>
               <UButton
                 icon="i-lucide-chevron-right"
                 size="xs"
                 variant="ghost"
                 color="neutral"
-                @click="nextMonth"
+                @click="nextWeek"
               />
             </div>
             <div class="flex items-center gap-2">
@@ -69,10 +68,7 @@
               v-for="(cell, idx) in calendarCells"
               :key="idx"
               class="border-r border-b border-gray-200 dark:border-gray-700 p-0.5 min-h-[38px] sm:min-h-[52px] cursor-pointer select-none"
-              :class="[
-                !cell.isCurrentMonth ? 'bg-gray-50 dark:bg-gray-800/60' : '',
-                selectedDay === cell.dateStr ? 'ring-2 ring-inset ring-primary-500' : ''
-              ]"
+              :class="selectedDay === cell.dateStr ? 'ring-2 ring-inset ring-primary-500' : ''"
               @click="selectDay(cell.dateStr)"
             >
               <!-- Date row: number + activity badge -->
@@ -81,9 +77,7 @@
                   class="text-xs font-medium w-5 h-5 flex items-center justify-center leading-none"
                   :class="cell.isToday
                     ? 'rounded-full bg-primary-500 text-white'
-                    : cell.isCurrentMonth
-                      ? 'text-gray-900 dark:text-gray-100'
-                      : 'text-gray-400 dark:text-gray-600'"
+                    : 'text-gray-900 dark:text-gray-100'"
                 >
                   {{ cell.day }}
                 </div>
@@ -257,9 +251,41 @@ const scrollContainer = ref<HTMLElement | null>(null)
 
 const todayStr = computed(() => toLocalDate(new Date()))
 
-const monthTitle = computed(() =>
-  currentDate.value.toLocaleDateString(locale.value, { month: 'long', year: 'numeric' })
-)
+// Monday on/before currentDate — anchors the visible week (Monday-first).
+const weekStart = computed(() => {
+  const d = new Date(currentDate.value)
+  const dow = d.getDay()
+  const offset = dow === 0 ? 6 : dow - 1
+  d.setHours(0, 0, 0, 0)
+  d.setDate(d.getDate() - offset)
+  return d
+})
+
+const weekTitle = computed(() => {
+  const loc = locale.value
+  const start = weekStart.value
+  const end = new Date(start)
+  end.setDate(end.getDate() + 6)
+
+  const sameYear = start.getFullYear() === end.getFullYear()
+  const sameMonth = sameYear && start.getMonth() === end.getMonth()
+  const year = end.toLocaleDateString(loc, { year: 'numeric' })
+
+  // Compose from well-formed single-/multi-field parts; avoid day+year-only
+  // option combos, which Intl renders with a literal "(day: N)" artifact.
+  if (sameMonth) {
+    const startPart = start.toLocaleDateString(loc, { month: 'short', day: 'numeric' })
+    const endDay = end.toLocaleDateString(loc, { day: 'numeric' })
+    return `${startPart} – ${endDay}, ${year}`
+  }
+  if (sameYear) {
+    const startPart = start.toLocaleDateString(loc, { month: 'short', day: 'numeric' })
+    const endPart = end.toLocaleDateString(loc, { month: 'short', day: 'numeric' })
+    return `${startPart} – ${endPart}, ${year}`
+  }
+  const opts = { month: 'short', day: 'numeric', year: 'numeric' } as const
+  return `${start.toLocaleDateString(loc, opts)} – ${end.toLocaleDateString(loc, opts)}`
+})
 
 const dayHeaders = computed(() => {
   const base = new Date(2024, 0, 1) // Monday Jan 1 2024
@@ -326,22 +352,13 @@ const activitiesByDate = computed(() => {
 })
 
 const calendarCells = computed(() => {
-  const year = currentDate.value.getFullYear()
-  const month = currentDate.value.getMonth()
-  const firstDay = new Date(year, month, 1)
-  const dow = firstDay.getDay()
-  const offset = dow === 0 ? 6 : dow - 1
-  const start = new Date(firstDay)
-  start.setDate(start.getDate() - offset)
-
   const cells = []
-  const cur = new Date(start)
-  for (let i = 0; i < 42; i++) {
+  const cur = new Date(weekStart.value)
+  for (let i = 0; i < 7; i++) {
     const key = toLocalDate(cur)
     cells.push({
       date: new Date(cur),
       day: cur.getDate(),
-      isCurrentMonth: cur.getMonth() === month,
       isToday: key === todayStr.value,
       dateStr: key,
       events: eventsByDate.value[key] ?? [],
@@ -441,10 +458,10 @@ const mapActivities = (items: ActivityInfo[]): CalActivity[] =>
 const loadEvents = async () => {
   isLoading.value = true
   try {
-    const year = currentDate.value.getFullYear()
-    const month = currentDate.value.getMonth()
-    const startStr = toLocalDate(new Date(year, month, 1))
-    const endStr = toLocalDate(new Date(year, month + 1, 0))
+    const weekEnd = new Date(weekStart.value)
+    weekEnd.setDate(weekEnd.getDate() + 6)
+    const startStr = toLocalDate(weekStart.value)
+    const endStr = toLocalDate(weekEnd)
 
     const [eventsRes, activitiesRes, calendarsRes] = await Promise.all([
       getCalendarEvents(startStr, endStr),
@@ -464,25 +481,25 @@ const loadEvents = async () => {
 }
 
 watch(currentDate, () => {
-  const today = new Date()
-  const isSameMonth = currentDate.value.getFullYear() === today.getFullYear()
-    && currentDate.value.getMonth() === today.getMonth()
-  selectedDay.value = isSameMonth ? toLocalDate(today) : null
+  const weekEnd = new Date(weekStart.value)
+  weekEnd.setDate(weekEnd.getDate() + 6)
+  const startKey = toLocalDate(weekStart.value)
+  const endKey = toLocalDate(weekEnd)
+  const todayInWeek = todayStr.value >= startKey && todayStr.value <= endKey
+  selectedDay.value = todayInWeek ? todayStr.value : startKey
   loadEvents()
 })
 onMounted(loadEvents)
 
-const prevMonth = () => {
+const prevWeek = () => {
   const d = new Date(currentDate.value)
-  d.setDate(1)
-  d.setMonth(d.getMonth() - 1)
+  d.setDate(d.getDate() - 7)
   currentDate.value = d
 }
 
-const nextMonth = () => {
+const nextWeek = () => {
   const d = new Date(currentDate.value)
-  d.setDate(1)
-  d.setMonth(d.getMonth() + 1)
+  d.setDate(d.getDate() + 7)
   currentDate.value = d
 }
 

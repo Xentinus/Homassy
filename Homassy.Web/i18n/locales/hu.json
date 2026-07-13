@@ -799,7 +799,6 @@
     "calendar": {
       "title": "Naptár",
       "greeting": "Üdvözöllek, {name}!",
-      "greetingSubtitle": "A mai napon a következő események láthatóak.",
       "date": "Dátum",
       "detail": "Részletek",
       "noEvents": "Nincs esemény ebben az időszakban",
