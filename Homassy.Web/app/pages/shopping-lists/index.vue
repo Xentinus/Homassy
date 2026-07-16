@@ -69,6 +69,17 @@
             @scanned="handleBarcodeScanned"
           />
         </UFieldGroup>
+        <UButton
+          v-if="listLocations.length > 0"
+          :icon="locationTracking ? 'i-lucide-navigation' : 'i-lucide-navigation-off'"
+          :color="locationTracking ? 'primary' : 'neutral'"
+          :variant="locationTracking ? 'solid' : 'outline'"
+          size="md"
+          :loading="isLocating"
+          :aria-label="$t('pages.shoppingLists.nearby.toggle')"
+          :aria-pressed="locationTracking"
+          @click="toggleLocation"
+        />
         <UChip :show="activeFilterCount > 0" :text="activeFilterCount" color="primary" size="2xl">
           <UButton
             icon="i-lucide-sliders-horizontal"
@@ -119,6 +130,26 @@
         :is-refreshing="isRefreshing"
         :is-ready="isReady"
       />
+
+      <!-- "You are here" banner (foreground proximity) -->
+      <div
+        v-if="locationTracking && nearbyLocations.length > 0"
+        class="mb-4 flex items-center gap-3 px-4 py-3 rounded-2xl bg-blue-50 dark:bg-blue-900/30 border border-blue-300/60 dark:border-blue-600/50"
+      >
+        <UIcon name="i-lucide-navigation" class="h-5 w-5 text-blue-600 dark:text-blue-400 shrink-0" />
+        <p class="text-sm font-medium text-blue-800 dark:text-blue-200">
+          {{ $t('pages.shoppingLists.nearby.banner', { count: nearbyPendingTotal, location: nearbyLocationNames }) }}
+        </p>
+      </div>
+      <div
+        v-else-if="locationTracking"
+        class="mb-4 flex items-center gap-3 px-4 py-3 rounded-2xl bg-gray-50 dark:bg-gray-800/50 border border-gray-200 dark:border-gray-700"
+      >
+        <UIcon name="i-lucide-radar" class="h-5 w-5 text-gray-500 dark:text-gray-400 shrink-0" />
+        <p class="text-sm text-gray-600 dark:text-gray-400">
+          {{ $t('pages.shoppingLists.nearby.searching') }}
+        </p>
+      </div>
       <!-- Loading State -->
       <div v-if="isLoadingDetails" class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
         <USkeleton class="h-48 w-full" />
@@ -171,6 +202,7 @@
           :key="item.publicId"
           :item="item"
           :search-query="searchQuery"
+          :at-current-location="isItemAtCurrentLocation(item)"
           @refresh="handleItemRefresh"
           @deleted="handleItemRefresh"
         />
@@ -531,6 +563,8 @@ import { useSelectValueApi } from '../../composables/api/useSelectValueApi'
 import { useShoppingListApi } from '../../composables/api/useShoppingListApi'
 import { normalizeForSearch } from '../../utils/stringUtils'
 import { useCameraAvailability } from '../../composables/useCameraAvailability'
+import type { GeoPosition } from '../../composables/useGeolocation'
+import type { ShoppingLocationInfo } from '../../types/location'
 
 definePageMeta({
   layout: 'auth',
@@ -542,6 +576,12 @@ const { getSelectValues } = useSelectValueApi()
 const { getShoppingListDetails, createShoppingList, updateShoppingList, deleteShoppingList } = useShoppingListApi()
 const { showCameraButton } = useCameraAvailability()
 const { isExpired: checkIsExpired, isExpiringWithinTwoWeeks: checkIsExpiringWithinTwoWeeks } = useExpirationCheck()
+const toast = useToast()
+
+// Geolocation-based "you are here" highlighting (foreground-only; see useGeolocation).
+const { isSupported: isGeoSupported, getCurrentPosition, startWatch, stopWatch } = useGeolocation()
+const { geocode } = useGeocoding()
+const { permissionStatus: notificationPermission } = usePushNotifications()
 
 // Realtime channel for the currently-open list (see useShoppingListSocket).
 const socket = useShoppingListSocket()
@@ -598,6 +638,16 @@ const deadlineFilter = ref('all') // all | overdue | dueSoon
 const locationFilter = ref('all') // all | none | <shoppingLocationPublicId>
 const minQuantity = ref<number | null>(null)
 const maxQuantity = ref<number | null>(null)
+
+// --- "You are here" geolocation state --------------------------------------
+const myPosition = ref<GeoPosition | null>(null)
+const isLocating = ref(false)
+const locationTracking = ref(false)
+// Runtime-geocoded coordinates for locations that have an address but no stored
+// coordinates (older records). Keyed by location publicId; null means "couldn't resolve".
+const resolvedCoords = ref<Map<string, { lat: number, lon: number } | null>>(new Map())
+// Locations we've already fired a proximity notification for (re-armed when left).
+const notifiedLocationIds = ref<Set<string>>(new Set())
 
 // Fixed-header height measurement (offsets the scrollable content)
 const headerRef = ref<HTMLElement | null>(null)
@@ -866,6 +916,177 @@ const filteredItems = computed(() => {
   return [...overdueItems, ...dueSoonItems, ...otherItems]
 })
 
+// --- "You are here" geolocation logic --------------------------------------
+
+// Distinct shopping locations referenced by the open list's items, with a count of
+// items still to buy (not yet purchased) at each.
+const listLocations = computed(() => {
+  const map = new Map<string, { location: ShoppingLocationInfo, pendingCount: number }>()
+  for (const item of currentListDetails.value?.items ?? []) {
+    const loc = item.shoppingLocation
+    if (!loc) continue
+    const entry = map.get(loc.publicId)
+    const pending = item.purchasedAt ? 0 : 1
+    if (entry) entry.pendingCount += pending
+    else map.set(loc.publicId, { location: loc, pendingCount: pending })
+  }
+  return [...map.values()]
+})
+
+// Resolve a location's coordinates: stored coordinates win, otherwise fall back to any
+// runtime-geocoded coordinates we've cached for it.
+const coordsFor = (loc: ShoppingLocationInfo): { lat: number, lon: number } | null => {
+  if (typeof loc.latitude === 'number' && typeof loc.longitude === 'number') {
+    return { lat: loc.latitude, lon: loc.longitude }
+  }
+  return resolvedCoords.value.get(loc.publicId) ?? null
+}
+
+// Geocode any list locations that lack stored coordinates (older records). Cached so each
+// distinct location is only geocoded once per session.
+const ensureCoordsResolved = async () => {
+  for (const { location } of listLocations.value) {
+    const hasStored = typeof location.latitude === 'number' && typeof location.longitude === 'number'
+    if (hasStored || resolvedCoords.value.has(location.publicId)) continue
+
+    const query = buildLocationQuery(location)
+    if (!query) {
+      resolvedCoords.value = new Map(resolvedCoords.value).set(location.publicId, null)
+      continue
+    }
+    const coords = await geocode(query)
+    resolvedCoords.value = new Map(resolvedCoords.value).set(
+      location.publicId,
+      coords ? { lat: coords.lat, lon: coords.lon } : null
+    )
+  }
+}
+
+const buildLocationQuery = (loc: ShoppingLocationInfo): string =>
+  [loc.address, loc.postalCode, loc.city, loc.country]
+    .map(p => p?.trim())
+    .filter(Boolean)
+    .join(', ')
+
+// Location publicIds within NEARBY_RADIUS_METERS of the user's current position.
+const nearbyLocationIds = computed(() => {
+  const ids = new Set<string>()
+  const pos = myPosition.value
+  if (!pos) return ids
+  for (const { location } of listLocations.value) {
+    const coords = coordsFor(location)
+    if (!coords) continue
+    if (distanceMeters(pos.lat, pos.lon, coords.lat, coords.lon) <= NEARBY_RADIUS_METERS) {
+      ids.add(location.publicId)
+    }
+  }
+  return ids
+})
+
+// Nearby locations that still have items to buy — drives the "you are here" banner.
+const nearbyLocations = computed(() =>
+  listLocations.value.filter(l => l.pendingCount > 0 && nearbyLocationIds.value.has(l.location.publicId))
+)
+
+const nearbyPendingTotal = computed(() =>
+  nearbyLocations.value.reduce((sum, l) => sum + l.pendingCount, 0)
+)
+
+const nearbyLocationNames = computed(() =>
+  nearbyLocations.value.map(l => l.location.name).join(', ')
+)
+
+const isItemAtCurrentLocation = (item: ShoppingListItemInfo): boolean =>
+  !!item.shoppingLocation && nearbyLocationIds.value.has(item.shoppingLocation.publicId)
+
+const onPositionUpdate = (position: GeoPosition) => {
+  myPosition.value = position
+  ensureCoordsResolved().then(() => checkProximityNotification())
+}
+
+const enableLocation = async () => {
+  if (!isGeoSupported.value) {
+    toast.add({
+      title: $t('pages.shoppingLists.nearby.unsupportedTitle'),
+      description: $t('pages.shoppingLists.nearby.unsupportedBody'),
+      color: 'warning',
+      icon: 'i-lucide-map-pin-off'
+    })
+    return
+  }
+  isLocating.value = true
+  try {
+    myPosition.value = await getCurrentPosition()
+    locationTracking.value = true
+    await ensureCoordsResolved()
+    checkProximityNotification()
+    startWatch(onPositionUpdate)
+  } catch {
+    // Permission denied, timeout, or position unavailable.
+    toast.add({
+      title: $t('pages.shoppingLists.nearby.deniedTitle'),
+      description: $t('pages.shoppingLists.nearby.deniedBody'),
+      color: 'error',
+      icon: 'i-lucide-map-pin-off'
+    })
+  } finally {
+    isLocating.value = false
+  }
+}
+
+const disableLocation = () => {
+  stopWatch()
+  locationTracking.value = false
+  myPosition.value = null
+  notifiedLocationIds.value = new Set()
+}
+
+const toggleLocation = () => {
+  if (locationTracking.value) disableLocation()
+  else enableLocation()
+}
+
+// Fire a one-off local notification when arriving at a store with items to buy. Foreground
+// only (the app must be open); re-arms once the user leaves the store's radius.
+const checkProximityNotification = async () => {
+  if (!import.meta.client) return
+  const nearby = nearbyLocationIds.value
+
+  // Re-arm any location the user has since left.
+  const stillNearby = new Set<string>()
+  for (const id of notifiedLocationIds.value) {
+    if (nearby.has(id)) stillNearby.add(id)
+  }
+  notifiedLocationIds.value = stillNearby
+
+  if (notificationPermission.value !== 'granted') return
+
+  for (const { location, pendingCount } of nearbyLocations.value) {
+    if (pendingCount <= 0 || notifiedLocationIds.value.has(location.publicId)) continue
+    notifiedLocationIds.value.add(location.publicId)
+    await showProximityNotification(location.name, pendingCount)
+  }
+}
+
+const showProximityNotification = async (locationName: string, count: number) => {
+  try {
+    const registration = await navigator.serviceWorker?.ready
+    if (!registration) return
+    await registration.showNotification(
+      $t('pages.shoppingLists.nearby.notificationTitle', { location: locationName }),
+      {
+        body: $t('pages.shoppingLists.nearby.notificationBody', { count }),
+        icon: '/apple-touch-icon-180x180.png',
+        badge: '/favicon-32x32.png',
+        tag: `shopping-nearby-${locationName}`,
+        data: { url: '/shopping-lists' }
+      }
+    )
+  } catch (error) {
+    console.error('Failed to show proximity notification:', error)
+  }
+}
+
 // Methods
 const loadShoppingLists = async () => {
   isLoadingLists.value = true
@@ -1105,6 +1326,9 @@ watch(selectedListId, (newId, oldId) => {
   // Leave the previous list's channel so we stop receiving its events.
   if (oldId) socket.leaveList(oldId)
 
+  // Re-arm proximity notifications for the newly selected list.
+  notifiedLocationIds.value = new Set()
+
   if (newId) {
     loadListDetails(newId)
     // Save to localStorage
@@ -1178,6 +1402,9 @@ onBeforeUnmount(() => {
   socket.off('ListDeleted', handleRealtimeListDeleted)
   socket.offReconnected(handleSocketReconnected)
   if (selectedListId.value) socket.leaveList(selectedListId.value)
+
+  // Stop watching the device position when leaving the page.
+  stopWatch()
 
   if (headerObserver) {
     headerObserver.disconnect()

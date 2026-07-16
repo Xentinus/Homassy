@@ -670,6 +670,18 @@
       "noListsFound": "Keine Einkaufslisten gefunden.",
       "noItemsInList": "Diese Liste ist leer.",
       "noSearchResults": "Keine Artikel gefunden.",
+      "nearby": {
+        "toggle": "Artikel in meiner Nähe anzeigen",
+        "availableHere": "Hier kaufen",
+        "banner": "Du bist hier: {location} — {count} Artikel hier zu kaufen",
+        "searching": "Du bist noch in der Nähe keines deiner Geschäfte.",
+        "notificationTitle": "Du bist bei {location}",
+        "notificationBody": "Du hast hier {count} Artikel zu kaufen.",
+        "unsupportedTitle": "Standort nicht verfügbar",
+        "unsupportedBody": "Dein Gerät oder Browser unterstützt keine Standortbestimmung.",
+        "deniedTitle": "Standort konnte nicht ermittelt werden",
+        "deniedBody": "Erlaube den Standortzugriff, um Artikel in der Nähe hervorzuheben."
+      },
       "filters": {
         "toggle": "Filter",
         "all": "Alle",

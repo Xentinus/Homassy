@@ -27,6 +27,12 @@ namespace Homassy.API.Entities.Location
         [StringLength(255)]
         public string? GoogleMaps { get; set; }
 
+        // Geocoded coordinates (derived from the address on save) used for
+        // proximity-based features such as the shopping-list "you are here" highlight.
+        public double? Latitude { get; set; }
+
+        public double? Longitude { get; set; }
+
         // Navigation properties
         public ICollection<ProductPurchaseInfo>? Purchases { get; set; }
     }

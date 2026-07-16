@@ -673,6 +673,18 @@
       "noListsFound": "Nem található bevásárlólista.",
       "noItemsInList": "Ez a lista üres.",
       "noSearchResults": "Nem található tétel.",
+      "nearby": {
+        "toggle": "Közeli tételek mutatása",
+        "availableHere": "Itt megveheted",
+        "banner": "Itt vagy: {location} — {count} tétel vehető meg itt",
+        "searching": "Még egyik boltod közelében sem vagy.",
+        "notificationTitle": "Itt vagy: {location}",
+        "notificationBody": "{count} dolgot kell itt megvenned.",
+        "unsupportedTitle": "A helymeghatározás nem érhető el",
+        "unsupportedBody": "Az eszközöd vagy böngésződ nem támogatja a helymeghatározást.",
+        "deniedTitle": "Nem sikerült lekérni a helyzeted",
+        "deniedBody": "Engedélyezd a helyhozzáférést, hogy kiemelhessük a közelben megvehető tételeket."
+      },
       "filters": {
         "toggle": "Szűrők",
         "all": "Mind",

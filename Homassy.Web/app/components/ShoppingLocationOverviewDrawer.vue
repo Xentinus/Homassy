@@ -47,6 +47,8 @@
             :city="location.city"
             :postal-code="location.postalCode"
             :country="location.country"
+            :latitude="location.latitude"
+            :longitude="location.longitude"
           />
 
           <div v-if="location.website || location.googleMaps" class="flex flex-wrap gap-2">

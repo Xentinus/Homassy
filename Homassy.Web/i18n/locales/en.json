@@ -672,6 +672,18 @@
       "noListsFound": "No shopping lists found.",
       "noItemsInList": "This list is empty.",
       "noSearchResults": "No items found.",
+      "nearby": {
+        "toggle": "Show items near me",
+        "availableHere": "Buy here",
+        "banner": "You're here: {location} — {count} item(s) to buy here",
+        "searching": "You're not near any of your stores yet.",
+        "notificationTitle": "You're at {location}",
+        "notificationBody": "You have {count} item(s) to buy here.",
+        "unsupportedTitle": "Location unavailable",
+        "unsupportedBody": "Your device or browser doesn't support location.",
+        "deniedTitle": "Couldn't get your location",
+        "deniedBody": "Allow location access to highlight items to buy nearby."
+      },
       "filters": {
         "toggle": "Filters",
         "all": "All",

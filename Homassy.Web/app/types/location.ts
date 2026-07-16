@@ -23,6 +23,8 @@ export interface ShoppingLocationInfo {
   country?: string
   website?: string
   googleMaps?: string
+  latitude?: number
+  longitude?: number
   isSharedWithFamily: boolean
 }
 
@@ -44,6 +46,8 @@ export interface ShoppingLocationRequest {
   country?: string
   website?: string
   googleMaps?: string
+  latitude?: number
+  longitude?: number
   isSharedWithFamily?: boolean
 }
 

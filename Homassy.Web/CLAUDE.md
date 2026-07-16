@@ -84,6 +84,8 @@ Homassy.Web/
 │   │   ├── useEventBus.ts
 │   │   ├── useExpirationCheck.ts
 │   │   ├── useFabActions.ts    Shared state for the layout floating action button
+│   │   ├── useGeocoding.ts     Address → coordinates via Nominatim (OpenStreetMap, keyless)
+│   │   ├── useGeolocation.ts   Browser Geolocation wrapper (permission + getCurrentPosition + watch)
 │   │   ├── useImageCrop.ts
 │   │   ├── useInputDateLocale.ts
 │   │   ├── usePullToRefresh.ts
@@ -149,6 +151,7 @@ Homassy.Web/
 │   └── utils/
 │       ├── enumMappers.ts
 │       ├── errorCodes.ts
+│       ├── geoUtils.ts           Haversine distanceMeters + NEARBY_RADIUS_METERS
 │       └── stringUtils.ts
 ├── i18n/
 │   └── locales/
@@ -337,6 +340,16 @@ Language setting from the user's profile (`UserInfo.language`) is synced to the 
   - Pages: `NetworkFirst`, 1-day cache
   - Static assets: `CacheFirst`, 30-day cache
   - Push notifications: `/sw-push.js` (imported into SW)
+
+---
+
+## Shopping-list proximity ("you are here")
+
+On the shopping-list page a locate button (shown when the open list has location-bound items) requests the device position via `useGeolocation` and highlights items to buy at a nearby store:
+
+- Shopping locations store `latitude`/`longitude` (geocoded once on save in `ShoppingLocationFormDrawer` via `useGeocoding`); locations without stored coords are geocoded at runtime as a fallback. `LocationMap` prefers stored coords.
+- Items whose shopping location is within `NEARBY_RADIUS_METERS` (`utils/geoUtils.ts`, haversine) get a blue border + "buy here" chip (`ShoppingListItemCard` `atCurrentLocation` prop), plus a "you are here" banner.
+- While the page is open, `watchPosition` fires a **foreground-only** local notification (via the SW registration, reusing the existing Notification permission) on arriving at a store with items to buy. There is **no background geolocation/geofencing** in a PWA — a closed-app "you arrived" notification would need a native (Capacitor) wrapper.
 
 ---
 

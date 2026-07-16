@@ -105,7 +105,7 @@ import { z } from 'zod'
 import type { FormSubmitEvent } from '@nuxt/ui'
 import { DrawerTitle, DrawerDescription } from 'vaul-vue'
 import { useLocationsApi } from '~/composables/api/useLocationsApi'
-import type { ShoppingLocationInfo } from '~/types/location'
+import type { ShoppingLocationInfo, ShoppingLocationRequest } from '~/types/location'
 
 /**
  * Create/edit a shopping location in a modern bottom-sheet drawer (UForm + Zod + UColorPicker).
@@ -127,6 +127,7 @@ const emit = defineEmits<{
 const { t } = useI18n()
 const toast = useToast()
 const { createShoppingLocation, updateShoppingLocation } = useLocationsApi()
+const { geocode, buildAddressQuery } = useGeocoding()
 
 const isEdit = computed(() => !!props.location)
 const title = computed(() => isEdit.value
@@ -200,7 +201,7 @@ async function onSubmit(event: FormSubmitEvent<Schema>) {
   const data = event.data
   saving.value = true
   try {
-    const payload = {
+    const payload: ShoppingLocationRequest = {
       name: data.name.trim(),
       description: data.description?.trim() || undefined,
       address: data.address?.trim() || undefined,
@@ -211,6 +212,19 @@ async function onSubmit(event: FormSubmitEvent<Schema>) {
       googleMaps: data.googleMaps?.trim() || undefined,
       color: data.color || (isEdit.value ? '' : undefined),
       isSharedWithFamily: data.isSharedWithFamily
+    }
+
+    // Geocode the address once on save so proximity features have coordinates. Only when
+    // there is an address and it changed (or this is a new location); a failed geocode is
+    // non-fatal and simply leaves the coordinates unset.
+    const newQuery = buildAddressQuery([payload.address, payload.postalCode, payload.city, payload.country])
+    const oldQuery = buildAddressQuery([props.location?.address, props.location?.postalCode, props.location?.city, props.location?.country])
+    if (newQuery && (!props.location || newQuery !== oldQuery)) {
+      const coords = await geocode(newQuery)
+      if (coords) {
+        payload.latitude = coords.lat
+        payload.longitude = coords.lon
+      }
     }
 
     const res = props.location

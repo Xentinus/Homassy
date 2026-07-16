@@ -327,6 +327,8 @@ namespace Homassy.API.Functions
                 Country = s.Country,
                 Website = s.Website,
                 GoogleMaps = s.GoogleMaps,
+                Latitude = s.Latitude,
+                Longitude = s.Longitude,
                 Color = s.Color,
                 IsSharedWithFamily = s.FamilyId.HasValue
             })
@@ -407,6 +409,8 @@ namespace Homassy.API.Functions
                     Country = request.Country?.Trim(),
                     Website = request.Website?.Trim(),
                     GoogleMaps = request.GoogleMaps?.Trim(),
+                    Latitude = request.Latitude,
+                    Longitude = request.Longitude,
                     UserId = userId.Value,
                     FamilyId = request.IsSharedWithFamily == true && familyId.HasValue ? familyId : null
                 };
@@ -430,6 +434,8 @@ namespace Homassy.API.Functions
                     Country = shoppingLocation.Country,
                     Website = shoppingLocation.Website,
                     GoogleMaps = shoppingLocation.GoogleMaps,
+                    Latitude = shoppingLocation.Latitude,
+                    Longitude = shoppingLocation.Longitude,
                     IsSharedWithFamily = shoppingLocation.FamilyId.HasValue
                 };
 
@@ -548,6 +554,15 @@ namespace Homassy.API.Functions
                     hasChanges = true;
                 }
 
+                // Coordinates are geocoded on the client and sent as a pair whenever the
+                // address changes. Update them together when either value is supplied.
+                if (request.Latitude.HasValue || request.Longitude.HasValue)
+                {
+                    trackedLocation.Latitude = request.Latitude;
+                    trackedLocation.Longitude = request.Longitude;
+                    hasChanges = true;
+                }
+
                 if (request.IsSharedWithFamily.HasValue)
                 {
                     trackedLocation.FamilyId = request.IsSharedWithFamily.Value && familyId.HasValue
@@ -580,6 +595,8 @@ namespace Homassy.API.Functions
                     Country = trackedLocation.Country,
                     Website = trackedLocation.Website,
                     GoogleMaps = trackedLocation.GoogleMaps,
+                    Latitude = trackedLocation.Latitude,
+                    Longitude = trackedLocation.Longitude,
                     IsSharedWithFamily = trackedLocation.FamilyId.HasValue
                 };
 
@@ -994,6 +1011,8 @@ namespace Homassy.API.Functions
                         Country = request.Country?.Trim(),
                         Website = request.Website?.Trim(),
                         GoogleMaps = request.GoogleMaps?.Trim(),
+                        Latitude = request.Latitude,
+                        Longitude = request.Longitude,
                         UserId = userId.Value,
                         FamilyId = request.IsSharedWithFamily == true && familyId.HasValue ? familyId : null
                     };
@@ -1023,6 +1042,8 @@ namespace Homassy.API.Functions
                         Country = sl.Country,
                         Website = sl.Website,
                         GoogleMaps = sl.GoogleMaps,
+                        Latitude = sl.Latitude,
+                        Longitude = sl.Longitude,
                         IsSharedWithFamily = sl.FamilyId.HasValue
                     };
                     infos.Add(info);
@@ -1292,6 +1313,8 @@ namespace Homassy.API.Functions
                 Country = shoppingLocation.Country,
                 Website = shoppingLocation.Website,
                 GoogleMaps = shoppingLocation.GoogleMaps,
+                Latitude = shoppingLocation.Latitude,
+                Longitude = shoppingLocation.Longitude,
                 Color = shoppingLocation.Color,
                 IsSharedWithFamily = shoppingLocation.FamilyId.HasValue
             };

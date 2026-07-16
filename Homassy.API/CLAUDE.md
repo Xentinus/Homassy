@@ -917,6 +917,7 @@ Manages shopping and storage locations (all endpoints require `[Authorize]`).
 - Color coding support for UI
 - Family sharing via `IsSharedWithFamily` flag
 - Ownership validation for modifications
+- Shopping locations carry optional `Latitude`/`Longitude` (nullable `double`) — geocoded on the client at save time and sent in `ShoppingLocationRequest`; on update they are treated as a pair. Powers the frontend shopping-list proximity ("you are here") feature. No server-side geocoding.
 
 ### ShoppingListController
 

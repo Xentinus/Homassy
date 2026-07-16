@@ -48,6 +48,12 @@
       />
     </div>
 
+    <!-- "You are here" badge — item is buyable at the user's current location -->
+    <div v-if="isHereToBuy" class="mt-2 flex items-center gap-1.5 self-start px-2 py-1 bg-blue-50 dark:bg-blue-900/30 rounded-full border border-blue-300/60 dark:border-blue-600/50">
+      <UIcon name="i-lucide-navigation" class="h-3.5 w-3.5 text-blue-600 dark:text-blue-400 flex-shrink-0" />
+      <span class="text-[11px] font-bold text-blue-700 dark:text-blue-300">{{ $t('pages.shoppingLists.nearby.availableHere') }}</span>
+    </div>
+
     <!-- Values Section (at the bottom) -->
     <div class="mt-auto pt-4 space-y-2.5">
       <!-- Shopping Location with Google Maps -->
@@ -440,11 +446,17 @@ import { CalendarDate as CalendarDateClass } from '@internationalized/date'
 interface Props {
   item: ShoppingListItemInfo
   searchQuery?: string
+  // True when the user's current location is near this item's shopping location.
+  atCurrentLocation?: boolean
 }
 
 const props = withDefaults(defineProps<Props>(), {
-  searchQuery: ''
+  searchQuery: '',
+  atCurrentLocation: false
 })
+
+// Highlight "buy it here" only for items still to be bought at a nearby location.
+const isHereToBuy = computed(() => props.atCurrentLocation && !props.item.purchasedAt)
 
 const emit = defineEmits<{
   refresh: []
@@ -565,6 +577,11 @@ const cardBorderClass = computed(() => {
   // If purchased, show green border
   if (props.item.purchasedAt) {
     return 'border-green-400 dark:border-green-500'
+  }
+
+  // "You are here" — item is buyable at the user's current location
+  if (isHereToBuy.value) {
+    return 'border-blue-500 dark:border-blue-400 ring-2 ring-blue-500/30 dark:ring-blue-400/30'
   }
 
   // Check if has expired or expiring dates
