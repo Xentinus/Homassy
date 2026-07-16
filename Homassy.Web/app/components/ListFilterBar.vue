@@ -1,23 +1,12 @@
 <template>
   <div>
-    <!-- Fixed Header -->
+    <!-- Sticky search + filter sub-bar. The page identity (back arrow, icon,
+         title) now lives in the persistent AppHeader via usePageHeader (script);
+         this bar sticks just below it, aligned with the content below. -->
     <div
-      ref="headerRef"
-      class="fixed top-0 left-0 right-0 z-10 bg-white dark:bg-gray-900 px-6 sm:px-10 lg:px-16 py-6 space-y-3"
+      class="sticky z-30 -mx-4 sm:-mx-6 lg:-mx-8 px-6 sm:px-10 lg:px-16 py-3 mb-4 space-y-3 border-b border-gray-200 dark:border-gray-800 bg-default/95 backdrop-blur"
+      :style="{ top: 'var(--app-header-height, 5.5rem)' }"
     >
-      <!-- Title row -->
-      <div class="flex items-center gap-3">
-        <NuxtLink :to="backTo">
-          <UButton
-            icon="i-lucide-arrow-left"
-            color="neutral"
-            variant="ghost"
-          />
-        </NuxtLink>
-        <UIcon :name="icon" class="h-7 w-7 text-primary-500" />
-        <h1 class="text-2xl font-semibold">{{ title }}</h1>
-      </div>
-
       <!-- Search row + filter trigger -->
       <div class="flex items-center gap-2">
         <UFieldGroup size="md" orientation="horizontal" class="flex-1">
@@ -69,9 +58,6 @@
       </div>
     </div>
 
-    <!-- Spacer matching the fixed header height so content flows naturally -->
-    <div :style="{ height: `${headerHeight}px` }" />
-
     <!-- Filter drawer (bottom sheet) -->
     <UDrawer v-model:open="filtersOpen" :title="$t('common.filters.toggle')">
       <template #body>
@@ -103,9 +89,9 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, onBeforeUnmount } from 'vue'
+import { ref } from 'vue'
 
-withDefaults(defineProps<{
+const props = withDefaults(defineProps<{
   title: string
   icon: string
   backTo?: string
@@ -123,26 +109,12 @@ const emit = defineEmits<{ 'clear-all': [] }>()
 const search = defineModel<string>('search', { default: '' })
 
 const filtersOpen = ref(false)
-const headerRef = ref<HTMLElement | null>(null)
-// Seed with a sensible default (~the previous pt-40) so content doesn't slip
-// under the fixed header before the ResizeObserver measures the real height.
-const headerHeight = ref(160)
-let observer: ResizeObserver | null = null
 
-const GAP = 8 // small breathing room between the fixed header and content
-
-function measure() {
-  if (headerRef.value) headerHeight.value = headerRef.value.offsetHeight + GAP
-}
-
-onMounted(() => {
-  if (!import.meta.client || !headerRef.value) return
-  observer = new ResizeObserver(measure)
-  observer.observe(headerRef.value)
-  measure()
-})
-
-onBeforeUnmount(() => {
-  observer?.disconnect()
-})
+// The page identity (back arrow + icon + title) is rendered by the persistent
+// AppHeader in the auth layout; feed it from this bar's props.
+usePageHeader(() => ({
+  backTo: props.backTo,
+  icon: props.icon,
+  title: props.title
+}))
 </script>

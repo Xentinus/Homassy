@@ -17,7 +17,15 @@
   --color-mocha-950: #3F3027;
 }
 
-/* Page content cross-fade on navigation (the bottom nav stays fixed in the layout). */
+/* Persistent header height — measured at runtime by AppHeader.vue and published
+   as this custom property. The default keeps layouts sane before/without a
+   measurement (SSR, first paint) so pages can offset content with
+   var(--app-header-height) safely. */
+:root {
+  --app-header-height: 5.5rem;
+}
+
+/* Page content cross-fade on navigation (the bottom nav + header stay fixed in the layout). */
 .page-enter-active,
 .page-leave-active {
   transition: opacity 0.18s ease, transform 0.18s ease;

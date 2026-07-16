@@ -1,30 +1,10 @@
 ﻿<template>
   <div>
-    <!-- Sticky Header with Search -->
-    <div ref="headerRef" class="fixed top-0 left-0 right-0 z-10 bg-white dark:bg-gray-900 px-6 sm:px-10 lg:px-16 py-6 border-b border-gray-200 dark:border-gray-800 space-y-3">
-      <div class="flex items-center gap-3">
-        <UIcon name="i-lucide-package" class="h-7 w-7 text-primary-500 shrink-0" />
-        <div class="min-w-0">
-          <div class="flex items-center gap-1.5">
-            <h1 class="text-2xl font-semibold leading-tight">{{ $t('pages.products.title') }}</h1>
-            <UPopover>
-              <UButton
-                icon="i-lucide-info"
-                color="neutral"
-                variant="ghost"
-                size="xs"
-                :aria-label="$t('pages.products.infoAriaLabel')"
-              />
-              <template #content>
-                <p class="p-3 max-w-xs text-sm text-gray-600 dark:text-gray-400">
-                  {{ $t('pages.products.description') }}
-                </p>
-              </template>
-            </UPopover>
-          </div>
-        </div>
-      </div>
-
+    <!-- Sticky search + filters sub-bar (page identity lives in the persistent AppHeader) -->
+    <div
+      class="sticky z-30 -mx-4 sm:-mx-6 lg:-mx-8 px-6 sm:px-10 lg:px-16 py-3 mb-4 border-b border-gray-200 dark:border-gray-800 bg-default/95 backdrop-blur"
+      :style="{ top: 'var(--app-header-height, 5.5rem)' }"
+    >
       <!-- Search row (always visible) + filters trigger -->
       <div class="space-y-2">
         <div class="flex gap-2">
@@ -182,8 +162,8 @@
       </template>
     </UDrawer>
 
-    <!-- Content Section (offset by the fixed header's measured height) -->
-    <div class="px-4 sm:px-8 lg:px-14 pb-6" :style="{ paddingTop: headerHeight ? `calc(${headerHeight}px + 1.5rem)` : '15rem' }">
+    <!-- Content Section -->
+    <div class="px-4 sm:px-8 lg:px-14 pb-6">
 
     <PullToRefreshIndicator
       :pull-distance="pullDistance"
@@ -261,6 +241,13 @@ const { showCameraButton } = useCameraAvailability()
 const inventorySocket = useInventorySocket()
 const eventBus = useEventBus()
 
+// Persistent header (auth layout) — page identity + info popover.
+usePageHeader(() => ({
+  icon: 'i-lucide-package',
+  title: $t('pages.products.title'),
+  info: $t('pages.products.description')
+}))
+
 // The add-inventory wizard (bottom-sheet) opened from the nav FAB.
 const isAddInventoryOpen = ref(false)
 
@@ -307,15 +294,6 @@ const pageSize = 20
 const loadingMore = ref(false)
 const sentinelRef = ref<HTMLElement | null>(null)
 const observer = ref<IntersectionObserver | null>(null)
-
-// Fixed header: measure its (variable) height so the scrollable content can be offset by it.
-const headerRef = ref<HTMLElement | null>(null)
-const headerHeight = ref(0)
-let headerObserver: ResizeObserver | null = null
-
-const updateHeaderHeight = () => {
-  if (headerRef.value) headerHeight.value = headerRef.value.offsetHeight
-}
 
 // Filter dropdown options
 const expirationOptions = computed(() => [
@@ -744,13 +722,6 @@ onMounted(() => {
   inventorySocket.on('ProductFavoriteChanged', handleRealtimeProductFavoriteChanged)
   inventorySocket.on('ProductDeleted', handleRealtimeProductDeleted)
   inventorySocket.onReconnected(loadProducts)
-
-  // Track the fixed header's height (changes when the filter chips row appears/disappears).
-  updateHeaderHeight()
-  if (headerRef.value && typeof ResizeObserver !== 'undefined') {
-    headerObserver = new ResizeObserver(() => updateHeaderHeight())
-    headerObserver.observe(headerRef.value)
-  }
 })
 
 // Cleanup on unmount
@@ -764,10 +735,6 @@ onBeforeUnmount(() => {
 
   if (observer.value) {
     observer.value.disconnect()
-  }
-  if (headerObserver) {
-    headerObserver.disconnect()
-    headerObserver = null
   }
 })
 </script>

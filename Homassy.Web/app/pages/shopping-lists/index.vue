@@ -1,46 +1,10 @@
 <template>
   <div>
-    <!-- Fixed Header -->
-    <div ref="headerRef" class="fixed top-0 left-0 right-0 z-10 bg-white dark:bg-gray-900 px-6 sm:px-10 lg:px-16 py-6 border-b border-gray-200 dark:border-gray-800 space-y-3">
-      <!-- Title Row + active list subtitle -->
-      <div class="flex items-center gap-3">
-        <UIcon name="i-lucide-shopping-cart" class="h-7 w-7 text-primary-500 shrink-0" />
-        <div class="min-w-0">
-          <div class="flex items-center gap-1.5">
-            <h1 class="text-2xl font-semibold leading-tight">{{ $t('pages.shoppingLists.title') }}</h1>
-            <UPopover>
-              <UButton
-                icon="i-lucide-info"
-                color="neutral"
-                variant="ghost"
-                size="xs"
-                :aria-label="$t('pages.shoppingLists.infoAriaLabel')"
-              />
-              <template #content>
-                <p class="p-3 max-w-xs text-sm text-gray-600 dark:text-gray-400">
-                  {{ $t('pages.shoppingLists.description') }}
-                </p>
-              </template>
-            </UPopover>
-          </div>
-          <div
-            v-if="currentListDetails"
-            class="flex items-center gap-1.5 text-sm text-gray-600 dark:text-gray-400"
-          >
-            <span
-              v-if="currentListDetails.color"
-              class="w-2.5 h-2.5 rounded-full shrink-0"
-              :style="{ backgroundColor: currentListDetails.color }"
-            />
-            <span class="truncate">{{ currentListDetails.name }}</span>
-            <UIcon
-              v-if="currentListDetails.isSharedWithFamily"
-              name="i-lucide-users"
-              class="h-3.5 w-3.5 text-primary-500 shrink-0"
-            />
-          </div>
-        </div>
-      </div>
+    <!-- Sticky search + filters sub-bar (identity + active-list subtitle live in the persistent AppHeader) -->
+    <div
+      class="sticky z-30 -mx-4 sm:-mx-6 lg:-mx-8 px-6 sm:px-10 lg:px-16 py-3 mb-4 space-y-3 border-b border-gray-200 dark:border-gray-800 bg-default/95 backdrop-blur"
+      :style="{ top: 'var(--app-header-height, 5.5rem)' }"
+    >
 
       <!-- Search row + filters trigger -->
       <div class="flex gap-2">
@@ -122,8 +86,8 @@
       </div>
     </div>
 
-    <!-- Content Section (offset by the fixed header's measured height) -->
-    <div class="px-2 sm:px-4 md:px-6 lg:px-8 pb-6" :style="{ paddingTop: headerHeight ? `calc(${headerHeight}px + 1.5rem)` : '16rem' }">
+    <!-- Content Section -->
+    <div class="px-2 sm:px-4 md:px-6 lg:px-8 pb-6">
       <PullToRefreshIndicator
         :pull-distance="pullDistance"
         :is-pulling="isPulling"
@@ -657,14 +621,17 @@ const notifiedLocationIds = ref<Set<string>>(new Set())
 // picker. Only locations with resolvable coordinates participate in proximity.
 const allShoppingLocations = ref<ShoppingLocationInfo[]>([])
 
-// Fixed-header height measurement (offsets the scrollable content)
-const headerRef = ref<HTMLElement | null>(null)
-const headerHeight = ref(0)
-let headerObserver: ResizeObserver | null = null
-
-const updateHeaderHeight = () => {
-  if (headerRef.value) headerHeight.value = headerRef.value.offsetHeight
-}
+// Persistent header (auth layout) — identity + info + the active list's subtitle
+// (name, colour dot, shared icon). The subtitle skeletons while a list loads.
+usePageHeader(() => ({
+  icon: 'i-lucide-shopping-cart',
+  title: $t('pages.shoppingLists.title'),
+  info: $t('pages.shoppingLists.description'),
+  subtitle: currentListDetails.value?.name,
+  subtitleColor: currentListDetails.value?.color || undefined,
+  subtitleIcon: currentListDetails.value?.isSharedWithFamily ? 'i-lucide-users' : undefined,
+  hasSubtitle: isLoadingDetails.value || !!currentListDetails.value
+}))
 
 // Create modal state
 const isCreateModalOpen = ref(false)
@@ -1428,13 +1395,6 @@ onMounted(() => {
 
   loadShoppingLists()
   loadAllShoppingLocations()
-
-  // Track the fixed header's height (changes when subtitle/filter chips appear)
-  updateHeaderHeight()
-  if (headerRef.value && typeof ResizeObserver !== 'undefined') {
-    headerObserver = new ResizeObserver(() => updateHeaderHeight())
-    headerObserver.observe(headerRef.value)
-  }
 })
 
 onBeforeUnmount(() => {
@@ -1449,10 +1409,5 @@ onBeforeUnmount(() => {
 
   // Stop watching the device position when leaving the page.
   stopWatch()
-
-  if (headerObserver) {
-    headerObserver.disconnect()
-    headerObserver = null
-  }
 })
 </script>

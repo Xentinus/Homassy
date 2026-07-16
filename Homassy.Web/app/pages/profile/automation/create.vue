@@ -1,20 +1,10 @@
 ﻿<template>
   <div>
-    <!-- Fixed Header -->
-    <div class="fixed top-0 left-0 right-0 z-10 bg-white dark:bg-gray-900 px-6 sm:px-10 lg:px-16 py-6 space-y-4">
-      <div class="flex items-center gap-3">
-        <NuxtLink to="/profile/automation">
-          <UButton
-            icon="i-lucide-arrow-left"
-            color="neutral"
-            variant="ghost"
-          />
-        </NuxtLink>
-        <UIcon name="i-lucide-timer" class="h-7 w-7 text-primary-500" />
-        <h1 class="text-2xl font-semibold">{{ t('profile.automation.createAutomation') }}</h1>
-      </div>
-
-      <!-- Stepper -->
+    <!-- Sticky stepper sub-bar (page identity lives in the persistent AppHeader) -->
+    <div
+      class="sticky z-30 -mx-4 sm:-mx-6 lg:-mx-8 px-6 sm:px-10 lg:px-16 py-3 mb-4 border-b border-gray-200 dark:border-gray-800 bg-default/95 backdrop-blur"
+      :style="{ top: 'var(--app-header-height, 5.5rem)' }"
+    >
       <UStepper
         :model-value="currentStep"
         :items="stepperItems"
@@ -23,8 +13,8 @@
       />
     </div>
 
-    <!-- Content Section with padding to account for fixed header -->
-    <div class="pt-48 px-4 sm:px-8 lg:px-14 pb-6">
+    <!-- Content Section -->
+    <div class="px-4 sm:px-8 lg:px-14 pb-6">
 
       <!-- Step 1: Action Type -->
       <div v-if="currentStep === 0" class="space-y-6">
@@ -476,6 +466,13 @@ const { getShoppingLists } = useShoppingListApi()
 const { t } = useI18n()
 const toast = useToast()
 const { showCameraButton } = useCameraAvailability()
+
+// Persistent header (auth layout) — back + identity (the stepper stays in-page).
+usePageHeader(() => ({
+  backTo: '/profile/automation',
+  icon: 'i-lucide-timer',
+  title: t('profile.automation.createAutomation')
+}))
 
 // Stepper state
 const currentStep = ref(0)

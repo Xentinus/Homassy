@@ -1,15 +1,5 @@
 <template>
-  <div class="flex flex-col h-[calc(100dvh-8rem)] overflow-hidden lg:block lg:h-auto lg:overflow-visible lg:pb-4">
-    <!-- Page header (capped with a divider; pinned on desktop, always visible on mobile) -->
-    <div class="mb-4 pt-4 pb-3 shrink-0 border-b border-gray-200 dark:border-gray-800 lg:sticky lg:top-0 lg:z-20 lg:bg-white lg:dark:bg-gray-900">
-      <div class="flex items-center gap-3">
-        <UIcon name="i-lucide-calendar" class="h-7 w-7 text-primary-500 shrink-0" />
-        <div>
-          <h1 class="text-xl font-semibold">{{ t('pages.calendar.greeting', { name: greetingName }) }}</h1>
-        </div>
-      </div>
-    </div>
-
+  <div class="flex flex-col h-[calc(100dvh-var(--app-header-height)-1rem-8rem)] overflow-hidden lg:block lg:h-auto lg:overflow-visible lg:pb-4">
     <!-- Desktop: 2-column (calendar left, events right); Mobile: stacked -->
     <div class="flex flex-1 flex-col min-h-0 lg:flex-none lg:grid lg:grid-cols-2 lg:gap-4 lg:items-start">
 
@@ -203,6 +193,13 @@ const { getExternalCalendars } = useExternalCalendarApi()
 const authStore = useAuthStore()
 
 const greetingName = computed(() => authStore.user?.displayName || authStore.user?.name || '')
+
+// Persistent header (auth layout) — greeting is async (waits for the user to load).
+usePageHeader(() => ({
+  icon: 'i-lucide-calendar',
+  title: authStore.user ? t('pages.calendar.greeting', { name: greetingName.value }) : undefined,
+  loading: !authStore.user
+}))
 
 interface CalEvent {
   publicId: string

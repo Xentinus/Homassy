@@ -12,7 +12,7 @@
       v-else
       type="button"
       class="w-full flex items-center gap-4 px-4 py-4 text-left transition-colors active:bg-elevated hover:bg-elevated/60 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500/50"
-      @click="emit('select')"
+      @click="onSelect"
     >
       <div class="border-2 border-primary-500 rounded-full p-0.5 shrink-0">
         <UAvatar
@@ -56,4 +56,12 @@ withDefaults(defineProps<{
 })
 
 const emit = defineEmits<{ select: [] }>()
+
+// Drop focus before the parent opens the edit-profile drawer, so the trigger
+// isn't left focused inside the aria-hidden app root (browser a11y warning).
+function onSelect(event: MouseEvent) {
+  const el = event.currentTarget as HTMLElement | null
+  el?.blur()
+  emit('select')
+}
 </script>

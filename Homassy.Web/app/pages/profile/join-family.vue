@@ -1,20 +1,5 @@
 ﻿<template>
   <div class="px-4 sm:px-6 lg:px-8 py-6 space-y-6">
-    <!-- Header with back button -->
-    <div class="flex items-center gap-3">
-      <NuxtLink to="/profile">
-        <UButton
-          icon="i-lucide-arrow-left"
-          color="neutral"
-          variant="ghost"
-        />
-      </NuxtLink>
-      <UIcon name="i-lucide-users" class="text-xl text-primary" />
-      <div>
-        <h1 class="text-2xl font-semibold">{{ $t('profile.family.join') }}</h1>
-      </div>
-    </div>
-
     <!-- Join Family Form -->
     <UForm @submit.prevent="onSubmit" class="space-y-4">
       <div>
@@ -36,14 +21,23 @@
 </template>
 
 <script setup lang="ts">
-definePageMeta({ layout: 'auth', middleware: 'auth' })
 import { ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { useFamilyApi } from '~/composables/api/useFamilyApi'
 
+definePageMeta({ layout: 'auth', middleware: 'auth' })
+
 const shareCode = ref('')
 const { requestJoin } = useFamilyApi()
 const router = useRouter()
+const { t } = useI18n()
+
+// Persistent header (auth layout) — back + identity.
+usePageHeader(() => ({
+  backTo: '/profile',
+  icon: 'i-lucide-users',
+  title: t('profile.family.join')
+}))
 
 async function onSubmit() {
   const res = await requestJoin({ shareCode: shareCode.value })

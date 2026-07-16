@@ -17,9 +17,17 @@ definePageMeta({
 
 const route = useRoute()
 const router = useRouter()
+const { t } = useI18n()
 
 const productPublicId = ref<string | null>((route.params.publicId as string) || null)
 const isOpen = ref(false)
+
+// This route only opens the product drawer over the grid; mirror the products
+// page identity so the persistent header doesn't skeleton behind the drawer.
+usePageHeader(() => ({
+  icon: 'i-lucide-package',
+  title: t('pages.products.title')
+}))
 
 // Open the overview drawer once mounted (the drawer loads on the closed→open transition).
 onMounted(() => {

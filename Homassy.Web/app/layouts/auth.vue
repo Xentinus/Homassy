@@ -1,6 +1,13 @@
 ﻿<template>
   <UApp class="flex flex-col min-h-screen">
-    <UMain class="flex-1 px-4 sm:px-6 lg:px-8 pb-32">
+    <!-- Persistent page header — lives here (a sibling of the page slot) so it
+         stays mounted across navigation, exactly like the bottom nav below. -->
+    <AppHeader />
+
+    <UMain
+      class="flex-1 px-4 sm:px-6 lg:px-8 pb-32"
+      :style="{ paddingTop: 'calc(var(--app-header-height, 5.5rem) + 1rem)' }"
+    >
       <slot />
     </UMain>
 
