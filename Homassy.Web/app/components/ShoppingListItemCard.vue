@@ -54,6 +54,12 @@
       <span class="text-[11px] font-bold text-blue-700 dark:text-blue-300">{{ $t('pages.shoppingLists.nearby.availableHere') }}</span>
     </div>
 
+    <!-- "Similar store" badge — a different store of the same type is nearby -->
+    <div v-else-if="isSimilarTypeHere" class="mt-2 flex items-center gap-1.5 self-start px-2 py-1 bg-cyan-50 dark:bg-cyan-900/30 rounded-full border border-cyan-300/60 dark:border-cyan-600/50">
+      <UIcon name="i-lucide-git-compare-arrows" class="h-3.5 w-3.5 text-cyan-600 dark:text-cyan-400 flex-shrink-0" />
+      <span class="text-[11px] font-bold text-cyan-700 dark:text-cyan-300">{{ $t('pages.shoppingLists.nearby.availableSimilarType') }}</span>
+    </div>
+
     <!-- Values Section (at the bottom) -->
     <div class="mt-auto pt-4 space-y-2.5">
       <!-- Shopping Location with Google Maps -->
@@ -240,6 +246,20 @@
               :items="unitOptions"
               class="w-full"
               @update:model-value="(val) => editForm.unit = val ?? null"
+            />
+          </div>
+
+          <!-- Shopping Location -->
+          <div>
+            <label class="block text-sm font-medium mb-1">
+              {{ $t('shoppingList.shoppingLocation') }}
+            </label>
+            <USelectMenu
+              v-model="editForm.shoppingLocationPublicId"
+              :items="shoppingLocationOptions"
+              value-key="value"
+              :search-input="{ placeholder: $t('common.search') }"
+              class="w-full"
             />
           </div>
 
@@ -439,6 +459,7 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue'
 import type { ShoppingListItemInfo } from '../types/shoppingList'
+import type { ShoppingLocationInfo } from '../types/location'
 import { Unit } from '../types/enums'
 import type { CalendarDate } from '@internationalized/date'
 import { CalendarDate as CalendarDateClass } from '@internationalized/date'
@@ -448,15 +469,26 @@ interface Props {
   searchQuery?: string
   // True when the user's current location is near this item's shopping location.
   atCurrentLocation?: boolean
+  // True when the user is at a DIFFERENT store that shares a type with this item's store.
+  similarTypeAtCurrentLocation?: boolean
+  // All saved shopping locations, for the edit-item location picker.
+  shoppingLocations?: ShoppingLocationInfo[]
 }
 
 const props = withDefaults(defineProps<Props>(), {
   searchQuery: '',
-  atCurrentLocation: false
+  atCurrentLocation: false,
+  similarTypeAtCurrentLocation: false,
+  shoppingLocations: () => []
 })
 
 // Highlight "buy it here" only for items still to be bought at a nearby location.
 const isHereToBuy = computed(() => props.atCurrentLocation && !props.item.purchasedAt)
+
+// "Similar store here" — a different store of a matching type is nearby (and not an exact match).
+const isSimilarTypeHere = computed(() =>
+  props.similarTypeAtCurrentLocation && !props.item.purchasedAt && !isHereToBuy.value
+)
 
 const emit = defineEmits<{
   refresh: []
@@ -505,13 +537,15 @@ const editForm = ref<{
   note: string | null
   dueAt: CalendarDate | null
   deadlineAt: CalendarDate | null
+  shoppingLocationPublicId: string
 }>({
   customName: null,
   quantity: null,
   unit: null,
   note: null,
   dueAt: null,
-  deadlineAt: null
+  deadlineAt: null,
+  shoppingLocationPublicId: ''
 })
 
 // Computed
@@ -573,6 +607,12 @@ const unitOptions = computed(() => {
     }))
 })
 
+// Shopping-location options for the edit form (includes a "no location" entry).
+const shoppingLocationOptions = computed(() => [
+  { label: t('pages.shoppingLists.filters.noLocation'), value: '' },
+  ...props.shoppingLocations.map(l => ({ label: l.name, value: l.publicId }))
+])
+
 const cardBorderClass = computed(() => {
   // If purchased, show green border
   if (props.item.purchasedAt) {
@@ -582,6 +622,11 @@ const cardBorderClass = computed(() => {
   // "You are here" — item is buyable at the user's current location
   if (isHereToBuy.value) {
     return 'border-blue-500 dark:border-blue-400 ring-2 ring-blue-500/30 dark:ring-blue-400/30'
+  }
+
+  // "Similar store here" — a different store of the same type is nearby
+  if (isSimilarTypeHere.value) {
+    return 'border-dashed border-cyan-500 dark:border-cyan-400'
   }
 
   // Check if has expired or expiring dates
@@ -690,7 +735,8 @@ const openEditModal = () => {
     unit: props.item.unit,
     note: props.item.note || null,
     dueAt: dueDate,
-    deadlineAt: deadlineDate
+    deadlineAt: deadlineDate,
+    shoppingLocationPublicId: props.item.shoppingLocationPublicId ?? ''
   }
   isEditModalOpen.value = true
 }
@@ -717,13 +763,17 @@ const handleUpdate = async () => {
       deadlineAtString = localDate.toISOString()
     }
 
+    // '' means "no location" — send an explicit clear flag (null can't be told from "no change").
+    const selectedLocation = editForm.value.shoppingLocationPublicId
     const updateData = {
       quantity: editForm.value.quantity ?? undefined,
       unit: editForm.value.unit ?? undefined,
       note: editForm.value.note || undefined,
       dueAt: dueAtString,
       deadlineAt: deadlineAtString,
-      customName: !props.item.product ? (editForm.value.customName || undefined) : undefined
+      customName: !props.item.product ? (editForm.value.customName || undefined) : undefined,
+      shoppingLocationPublicId: selectedLocation || undefined,
+      clearShoppingLocation: selectedLocation ? undefined : true
     }
 
     const response = await updateShoppingListItem(props.item.publicId, updateData)

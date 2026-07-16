@@ -1,4 +1,5 @@
 ﻿using Homassy.API.Attributes.Validation;
+using Homassy.API.Enums;
 using System.ComponentModel.DataAnnotations;
 
 namespace Homassy.API.Models.Location
@@ -46,6 +47,9 @@ namespace Homassy.API.Models.Location
 
         [Range(-180, 180)]
         public double? Longitude { get; set; }
+
+        // Store types (0..N). Null means "no change" on update; an empty list clears all types.
+        public List<StoreType>? StoreTypes { get; set; }
 
         public bool? IsSharedWithFamily { get; set; }
     }

@@ -961,3 +961,96 @@ export enum UserStatus {
   Suspended = 2,
   Deleted = 3
 }
+
+/**
+ * Type(s) of a shopping location. A location may have several at once (e.g. OBI is both
+ * HardwareStore and GardenCenter). Values mirror the backend StoreType enum exactly.
+ * Drives the shopping-list "similar store here" highlight. Labels: enums.storeType.<value>.
+ */
+export enum StoreType {
+  Other = 0,
+
+  // Grocery & general food
+  Supermarket = 10,
+  Hypermarket = 11,
+  DiscountStore = 12,
+  GroceryStore = 13,
+  ConvenienceStore = 14,
+  Market = 15,
+  FarmersMarket = 16,
+  OrganicStore = 17,
+  WholesaleStore = 18,
+
+  // Specialty food
+  Bakery = 20,
+  Confectionery = 21,
+  Butcher = 22,
+  Fishmonger = 23,
+  Greengrocer = 24,
+  Delicatessen = 25,
+  BeverageStore = 26,
+  TobaccoShop = 27,
+  CandyStore = 28,
+  CoffeeTeaShop = 29,
+
+  // Health & beauty
+  Drugstore = 30,
+  Pharmacy = 31,
+  Perfumery = 32,
+  Optician = 33,
+  MedicalSupply = 34,
+
+  // Home, DIY & garden
+  HardwareStore = 40,
+  BuildingMaterials = 41,
+  PaintStore = 42,
+  GardenCenter = 43,
+  FurnitureStore = 44,
+  HomeDecorStore = 45,
+  HouseholdGoods = 46,
+
+  // Electronics & media
+  ElectronicsStore = 50,
+  ComputerStore = 51,
+  MobilePhoneShop = 52,
+  Bookstore = 53,
+  StationeryStore = 54,
+  MusicStore = 55,
+  PhotoStore = 56,
+
+  // Clothing & accessories
+  ClothingStore = 60,
+  ShoeStore = 61,
+  SportsStore = 62,
+  JewelryStore = 63,
+  LeatherGoodsStore = 64,
+  FabricStore = 65,
+  SecondHandStore = 66,
+  BabyStore = 67,
+
+  // Hobby, kids, pets & leisure
+  ToyStore = 70,
+  HobbyCraftStore = 71,
+  PetStore = 72,
+  BicycleShop = 73,
+  OutdoorStore = 74,
+  GiftShop = 75,
+  ArtSupplies = 76,
+
+  // Automotive & fuel
+  PetrolStation = 80,
+  AutoPartsStore = 81,
+
+  // Large-format & mixed
+  DepartmentStore = 90,
+  ShoppingMall = 91,
+  OutletStore = 92,
+  VarietyStore = 93,
+  FleaMarket = 94,
+
+  // Online & other
+  OnlineStore = 100,
+  OnlineMarketplace = 101,
+  Kiosk = 102,
+  PostOffice = 103
+}

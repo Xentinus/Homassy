@@ -287,6 +287,19 @@
                   />
                 </UFormField>
 
+                <UFormField :label="t('profile.shoppingLocations.storeTypes')" name="storeTypes">
+                  <USelectMenu
+                    v-model="shoppingLocationFormData.storeTypes"
+                    :items="storeTypeOptions"
+                    value-key="value"
+                    multiple
+                    :disabled="isCreatingShoppingLocation"
+                    :placeholder="t('profile.shoppingLocations.storeTypesPlaceholder')"
+                    :search-input="{ placeholder: t('common.search') }"
+                    class="w-full"
+                  />
+                </UFormField>
+
                 <UFormField :label="t('pages.addProduct.shoppingLocation.form.address')" name="address">
                   <UInput
                     v-model="shoppingLocationFormData.address"
@@ -567,11 +580,11 @@ import { z } from 'zod'
 import { watchDebounced } from '@vueuse/core'
 import { computed, nextTick, ref, watch, onMounted, onUnmounted } from 'vue'
 import type { ProductInfo, CreateProductRequest } from '~/types/product'
-import type { ShoppingLocationInfo, CreateShoppingLocationRequest } from '~/types/location'
+import type { ShoppingLocationInfo, ShoppingLocationRequest } from '~/types/location'
 import type { CreateShoppingListItemRequest } from '~/types/shoppingList'
 import type { OpenFoodFactsProduct } from '~/types/openFoodFacts'
 import type { SelectValue } from '~/types/selectValue'
-import { Unit, ProductCategory, SelectValueType } from '~/types/enums'
+import { Unit, ProductCategory, SelectValueType, StoreType } from '~/types/enums'
 import type { DateValue } from '@internationalized/date'
 import type { FormSubmitEvent } from '#ui/types'
 
@@ -756,7 +769,7 @@ const shoppingLocationPageSize = 20
 const loadingMoreShoppingLocations = ref(false)
 const shoppingLocationSentinelRef = ref<HTMLElement | null>(null)
 
-const shoppingLocationFormData = ref<CreateShoppingLocationRequest>({
+const shoppingLocationFormData = ref<ShoppingLocationRequest>({
   name: '',
   description: '',
   color: '',
@@ -766,6 +779,7 @@ const shoppingLocationFormData = ref<CreateShoppingLocationRequest>({
   country: '',
   website: '',
   googleMaps: '',
+  storeTypes: [] as StoreType[],
   isSharedWithFamily: true
 })
 const isCreatingShoppingLocation = ref(false)
@@ -810,6 +824,7 @@ const createShoppingLocationSchema = z.object({
   country: z.string().max(128, 'Country must not exceed 128 characters').optional().or(z.literal('')),
   website: z.string().url('Must be a valid URL').optional().or(z.literal('')),
   googleMaps: z.string().url('Must be a valid URL').optional().or(z.literal('')),
+  storeTypes: z.array(z.nativeEnum(StoreType)).optional().default([]),
   isSharedWithFamily: z.boolean().optional().default(true)
 })
 
@@ -831,6 +846,16 @@ const unitOptions = computed(() => {
     .map(([_key, value]) => ({
       label: t(`enums.unit.${value}`),
       value: value as Unit
+    }))
+})
+
+// Store-type multi-select options for the inline "create location" form.
+const storeTypeOptions = computed(() => {
+  return Object.entries(StoreType)
+    .filter(([key]) => isNaN(Number(key)))
+    .map(([_key, value]) => ({
+      label: t(`enums.storeType.${value}`),
+      value: value as StoreType
     }))
 })
 
@@ -1204,7 +1229,7 @@ const onShoppingLocationCardClick = (location: ShoppingLocationInfo) => {
 const onCreateShoppingLocation = async (event: FormSubmitEvent<typeof createShoppingLocationSchema>) => {
   isCreatingShoppingLocation.value = true
   try {
-    const locationData: CreateShoppingLocationRequest = {
+    const locationData: ShoppingLocationRequest = {
       name: event.data.name,
       description: event.data.description || undefined,
       color: event.data.color || undefined,
@@ -1214,6 +1239,7 @@ const onCreateShoppingLocation = async (event: FormSubmitEvent<typeof createShop
       country: event.data.country || undefined,
       website: event.data.website || undefined,
       googleMaps: event.data.googleMaps || undefined,
+      storeTypes: event.data.storeTypes ?? [],
       isSharedWithFamily: event.data.isSharedWithFamily ?? true
     }
 

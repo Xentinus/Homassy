@@ -923,6 +923,11 @@ namespace Homassy.API.Functions
                     trackedItem.ShoppingLocationId = shoppingLocation.Id;
                     hasChanges = true;
                 }
+                else if (request.ClearShoppingLocation == true)
+                {
+                    trackedItem.ShoppingLocationId = null;
+                    hasChanges = true;
+                }
 
                 if (request.CustomName != null)
                 {

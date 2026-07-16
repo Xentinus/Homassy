@@ -329,6 +329,7 @@ namespace Homassy.API.Functions
                 GoogleMaps = s.GoogleMaps,
                 Latitude = s.Latitude,
                 Longitude = s.Longitude,
+                StoreTypes = s.StoreTypes,
                 Color = s.Color,
                 IsSharedWithFamily = s.FamilyId.HasValue
             })
@@ -411,6 +412,7 @@ namespace Homassy.API.Functions
                     GoogleMaps = request.GoogleMaps?.Trim(),
                     Latitude = request.Latitude,
                     Longitude = request.Longitude,
+                    StoreTypes = request.StoreTypes ?? new(),
                     UserId = userId.Value,
                     FamilyId = request.IsSharedWithFamily == true && familyId.HasValue ? familyId : null
                 };
@@ -436,6 +438,7 @@ namespace Homassy.API.Functions
                     GoogleMaps = shoppingLocation.GoogleMaps,
                     Latitude = shoppingLocation.Latitude,
                     Longitude = shoppingLocation.Longitude,
+                    StoreTypes = shoppingLocation.StoreTypes,
                     IsSharedWithFamily = shoppingLocation.FamilyId.HasValue
                 };
 
@@ -563,6 +566,13 @@ namespace Homassy.API.Functions
                     hasChanges = true;
                 }
 
+                // Store types are sent as the full set; a non-null (possibly empty) list replaces them.
+                if (request.StoreTypes != null)
+                {
+                    trackedLocation.StoreTypes = request.StoreTypes;
+                    hasChanges = true;
+                }
+
                 if (request.IsSharedWithFamily.HasValue)
                 {
                     trackedLocation.FamilyId = request.IsSharedWithFamily.Value && familyId.HasValue
@@ -597,6 +607,7 @@ namespace Homassy.API.Functions
                     GoogleMaps = trackedLocation.GoogleMaps,
                     Latitude = trackedLocation.Latitude,
                     Longitude = trackedLocation.Longitude,
+                    StoreTypes = trackedLocation.StoreTypes,
                     IsSharedWithFamily = trackedLocation.FamilyId.HasValue
                 };
 
@@ -1013,6 +1024,7 @@ namespace Homassy.API.Functions
                         GoogleMaps = request.GoogleMaps?.Trim(),
                         Latitude = request.Latitude,
                         Longitude = request.Longitude,
+                        StoreTypes = request.StoreTypes ?? new(),
                         UserId = userId.Value,
                         FamilyId = request.IsSharedWithFamily == true && familyId.HasValue ? familyId : null
                     };
@@ -1044,6 +1056,7 @@ namespace Homassy.API.Functions
                         GoogleMaps = sl.GoogleMaps,
                         Latitude = sl.Latitude,
                         Longitude = sl.Longitude,
+                        StoreTypes = sl.StoreTypes,
                         IsSharedWithFamily = sl.FamilyId.HasValue
                     };
                     infos.Add(info);
@@ -1315,6 +1328,7 @@ namespace Homassy.API.Functions
                 GoogleMaps = shoppingLocation.GoogleMaps,
                 Latitude = shoppingLocation.Latitude,
                 Longitude = shoppingLocation.Longitude,
+                StoreTypes = shoppingLocation.StoreTypes,
                 Color = shoppingLocation.Color,
                 IsSharedWithFamily = shoppingLocation.FamilyId.HasValue
             };

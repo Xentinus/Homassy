@@ -15,8 +15,13 @@
     return getEnumLabel('productCategory', value)
   }
 
+  const formatStoreType = (value: string | number | null | undefined): string => {
+    return getEnumLabel('storeType', value)
+  }
+
   return {
     getEnumLabel,
-    formatProductCategory
+    formatProductCategory,
+    formatStoreType
   }
 }

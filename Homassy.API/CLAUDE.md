@@ -168,6 +168,7 @@ Homassy.API/
 │   ├── Language.cs
 │   ├── ProductCategory.cs
 │   ├── SelectValueType.cs
+│   ├── StoreType.cs
 │   ├── Unit.cs
 │   ├── UserStatus.cs
 │   └── UserTimeZone.cs
@@ -918,6 +919,7 @@ Manages shopping and storage locations (all endpoints require `[Authorize]`).
 - Family sharing via `IsSharedWithFamily` flag
 - Ownership validation for modifications
 - Shopping locations carry optional `Latitude`/`Longitude` (nullable `double`) — geocoded on the client at save time and sent in `ShoppingLocationRequest`; on update they are treated as a pair. Powers the frontend shopping-list proximity ("you are here") feature. No server-side geocoding.
+- Shopping locations also carry `StoreTypes` — a set of `StoreType` enum values stored as a PostgreSQL `integer[]` (Npgsql maps `List<StoreType>` → `integer[]`; no converter). A location can belong to several (e.g. OBI = `HardwareStore` + `GardenCenter`). On update a non-null (possibly empty) `StoreTypes` list replaces the set; `null` means "no change". Localized client-side only (`enums.storeType.*`); powers the shopping-list "similar store here" highlight.
 
 ### ShoppingListController
 
@@ -944,7 +946,7 @@ Manages shopping lists and items (all endpoints require `[Authorize]`).
 - Items can reference Products or use custom names
 - Purchased items auto-hidden after 1 day (configurable via `showPurchased`)
 - Family sharing support
-- Shopping location assignment per item
+- Shopping location assignment per item — `PUT /item/{publicId}` can reassign it (`ShoppingLocationPublicId`) or clear it (`ClearShoppingLocation: true`, needed because a null id means "no change")
 
 **Realtime (SignalR):**
 - Hub at `/hubs/shopping-list` (`ShoppingListHub`, `[Authorize]`) — the Kratos session cookie rides the WebSocket handshake, so the existing auth pipeline works unchanged

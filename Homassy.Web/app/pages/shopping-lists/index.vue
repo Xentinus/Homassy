@@ -203,6 +203,8 @@
           :item="item"
           :search-query="searchQuery"
           :at-current-location="isItemAtCurrentLocation(item)"
+          :similar-type-at-current-location="isItemSimilarTypeHere(item)"
+          :shopping-locations="allShoppingLocations"
           @refresh="handleItemRefresh"
           @deleted="handleItemRefresh"
         />
@@ -558,9 +560,10 @@
 import { ref, computed, watch, onMounted, onBeforeUnmount } from 'vue'
 import type { SelectValue } from '../../types/selectValue'
 import type { DetailedShoppingListInfo, CreateShoppingListRequest, UpdateShoppingListRequest, ShoppingListItemInfo, ShoppingListInfo } from '../../types/shoppingList'
-import { SelectValueType } from '../../types/enums'
+import { SelectValueType, StoreType } from '../../types/enums'
 import { useSelectValueApi } from '../../composables/api/useSelectValueApi'
 import { useShoppingListApi } from '../../composables/api/useShoppingListApi'
+import { useLocationsApi } from '../../composables/api/useLocationsApi'
 import { normalizeForSearch } from '../../utils/stringUtils'
 import { useCameraAvailability } from '../../composables/useCameraAvailability'
 import type { GeoPosition } from '../../composables/useGeolocation'
@@ -574,6 +577,7 @@ definePageMeta({
 const { t: $t } = useI18n()
 const { getSelectValues } = useSelectValueApi()
 const { getShoppingListDetails, createShoppingList, updateShoppingList, deleteShoppingList } = useShoppingListApi()
+const { getShoppingLocations } = useLocationsApi()
 const { showCameraButton } = useCameraAvailability()
 const { isExpired: checkIsExpired, isExpiringWithinTwoWeeks: checkIsExpiringWithinTwoWeeks } = useExpirationCheck()
 const toast = useToast()
@@ -648,6 +652,10 @@ const locationTracking = ref(false)
 const resolvedCoords = ref<Map<string, { lat: number, lon: number } | null>>(new Map())
 // Locations we've already fired a proximity notification for (re-armed when left).
 const notifiedLocationIds = ref<Set<string>>(new Set())
+// All saved shopping locations (loaded once). Used for proximity store detection (so being
+// at any store — not just ones on this list — is recognized) and for the item edit location
+// picker. Only locations with resolvable coordinates participate in proximity.
+const allShoppingLocations = ref<ShoppingLocationInfo[]>([])
 
 // Fixed-header height measurement (offsets the scrollable content)
 const headerRef = ref<HTMLElement | null>(null)
@@ -945,7 +953,7 @@ const coordsFor = (loc: ShoppingLocationInfo): { lat: number, lon: number } | nu
 // Geocode any list locations that lack stored coordinates (older records). Cached so each
 // distinct location is only geocoded once per session.
 const ensureCoordsResolved = async () => {
-  for (const { location } of listLocations.value) {
+  for (const location of allShoppingLocations.value) {
     const hasStored = typeof location.latitude === 'number' && typeof location.longitude === 'number'
     if (hasStored || resolvedCoords.value.has(location.publicId)) continue
 
@@ -968,12 +976,14 @@ const buildLocationQuery = (loc: ShoppingLocationInfo): string =>
     .filter(Boolean)
     .join(', ')
 
-// Location publicIds within NEARBY_RADIUS_METERS of the user's current position.
+// Location publicIds within NEARBY_RADIUS_METERS of the user's current position. Considers
+// ALL saved shopping locations (not just ones on the list), so the "similar store" detection
+// works even when the store you're standing in has no items on the current list.
 const nearbyLocationIds = computed(() => {
   const ids = new Set<string>()
   const pos = myPosition.value
   if (!pos) return ids
-  for (const { location } of listLocations.value) {
+  for (const location of allShoppingLocations.value) {
     const coords = coordsFor(location)
     if (!coords) continue
     if (distanceMeters(pos.lat, pos.lon, coords.lat, coords.lon) <= NEARBY_RADIUS_METERS) {
@@ -999,6 +1009,28 @@ const nearbyLocationNames = computed(() =>
 const isItemAtCurrentLocation = (item: ShoppingListItemInfo): boolean =>
   !!item.shoppingLocation && nearbyLocationIds.value.has(item.shoppingLocation.publicId)
 
+// The union of store types of the saved location(s) the user is currently standing in
+// (excluding Other). Drives the "similar store here" highlight.
+const currentStoreTypes = computed(() => {
+  const types = new Set<StoreType>()
+  for (const location of allShoppingLocations.value) {
+    if (!nearbyLocationIds.value.has(location.publicId)) continue
+    for (const t of location.storeTypes ?? []) {
+      if (t !== StoreType.Other) types.add(t)
+    }
+  }
+  return types
+})
+
+// True when the item's store is NOT the one you're at, but shares at least one (non-Other)
+// store type with a store you're currently at — e.g. its Tesco items while you're in an Auchan.
+const isItemSimilarTypeHere = (item: ShoppingListItemInfo): boolean => {
+  const loc = item.shoppingLocation
+  if (!loc || nearbyLocationIds.value.has(loc.publicId)) return false
+  if (currentStoreTypes.value.size === 0) return false
+  return (loc.storeTypes ?? []).some(t => t !== StoreType.Other && currentStoreTypes.value.has(t))
+}
+
 const onPositionUpdate = (position: GeoPosition) => {
   myPosition.value = position
   ensureCoordsResolved().then(() => checkProximityNotification())
@@ -1018,6 +1050,7 @@ const enableLocation = async () => {
   try {
     myPosition.value = await getCurrentPosition()
     locationTracking.value = true
+    if (!allShoppingLocations.value.length) await loadAllShoppingLocations()
     await ensureCoordsResolved()
     checkProximityNotification()
     startWatch(onPositionUpdate)
@@ -1084,6 +1117,16 @@ const showProximityNotification = async (locationName: string, count: number) =>
     )
   } catch (error) {
     console.error('Failed to show proximity notification:', error)
+  }
+}
+
+// Load all saved shopping locations (once) for proximity detection + the item edit picker.
+const loadAllShoppingLocations = async () => {
+  try {
+    const res = await getShoppingLocations({ returnAll: true })
+    if (res.success && res.data) allShoppingLocations.value = res.data.items ?? []
+  } catch {
+    // Non-fatal: proximity simply has nothing to match and the edit picker shows an empty list.
   }
 }
 
@@ -1384,6 +1427,7 @@ onMounted(() => {
   }
 
   loadShoppingLists()
+  loadAllShoppingLocations()
 
   // Track the fixed header's height (changes when subtitle/filter chips appear)
   updateHeaderHeight()

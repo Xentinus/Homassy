@@ -63,6 +63,8 @@ export interface CreateShoppingListItemRequest {
 export interface UpdateShoppingListItemRequest {
   productPublicId?: string
   shoppingLocationPublicId?: string
+  // Set true to remove the item's shopping location (null publicId means "no change").
+  clearShoppingLocation?: boolean
   customName?: string
   quantity?: number
   unit?: Unit
