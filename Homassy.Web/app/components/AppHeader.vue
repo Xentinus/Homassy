@@ -5,7 +5,7 @@
     :style="{ paddingTop: 'env(safe-area-inset-top)' }"
   >
     <div class="px-6 sm:px-10 lg:px-16 py-4">
-      <div class="flex items-center gap-3">
+      <div class="flex flex-wrap items-center gap-3">
         <!-- Back button -->
         <NuxtLink v-if="header.backTo" :to="header.backTo" class="shrink-0">
           <UButton
@@ -70,6 +70,20 @@
         <!-- Page-specific trailing actions (teleport target). Kept INSIDE UApp
              (not <body>) so it does not hit the isolation/z-index trap that makes
              body-teleported overlays paint above the nav and swallow taps. -->
+        <!-- Page search (teleport target). Full-width second row on mobile; inline on
+             the right, next to the title, from md: up. A skeleton stands in while the
+             header is stale/loading, matching the title skeleton above. Kept inside UApp
+             (not <body>) so it does not hit the teleport isolation/z-index trap. -->
+        <USkeleton
+          v-if="showSearchSkeleton"
+          class="order-last w-full md:order-none md:w-80 h-9 rounded-md"
+        />
+        <div
+          v-show="!showSearchSkeleton"
+          id="app-header-search"
+          class="order-last w-full md:order-none md:w-80 empty:hidden"
+        />
+
         <div id="app-header-actions" class="shrink-0 flex items-center gap-2 empty:hidden" />
       </div>
     </div>
@@ -95,6 +109,10 @@ const isStale = computed(() =>
 )
 
 const showTitleSkeleton = computed(() => isStale.value || !header.value.title)
+
+// Search lives in a teleport target below the title; skeleton it in lockstep with
+// the title whenever the header is stale/loading, but only for pages that have one.
+const showSearchSkeleton = computed(() => isStale.value && !!header.value.hasSearch)
 
 // The subtitle row only appears once the header is committed for the current
 // route, so navigation shows a single title skeleton (no phantom subtitle line).

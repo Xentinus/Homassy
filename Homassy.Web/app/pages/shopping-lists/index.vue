@@ -1,90 +1,89 @@
 <template>
   <div>
-    <!-- Sticky search + filters sub-bar (identity + active-list subtitle live in the persistent AppHeader) -->
-    <div
-      class="sticky z-30 -mx-4 sm:-mx-6 lg:-mx-8 px-6 sm:px-10 lg:px-16 py-3 mb-4 space-y-3 border-b border-gray-200 dark:border-gray-800 bg-default/95 backdrop-blur"
-      :style="{ top: 'var(--app-header-height, 5.5rem)' }"
-    >
-
-      <!-- Search row + filters trigger -->
-      <div class="flex gap-2">
-        <UFieldGroup size="md" orientation="horizontal" class="flex-1">
-          <UInput
-            v-model="searchQuery"
-            :disabled="!isSearchEnabled"
-            :placeholder="$t('pages.shoppingLists.searchPlaceholder')"
-            class="flex-1"
-          >
-            <template #trailing>
-              <UButton
-                v-if="searchQuery"
-                icon="i-lucide-x"
-                size="xs"
-                color="neutral"
-                variant="ghost"
-                :disabled="!isSearchEnabled"
-                @click="searchQuery = ''"
-              />
-            </template>
-          </UInput>
-          <BarcodeScannerButton
-            v-if="showCameraButton"
-            :disabled="!isSearchEnabled"
-            @scanned="handleBarcodeScanned"
-          />
-        </UFieldGroup>
-        <UButton
-          v-if="listLocations.length > 0"
-          :icon="locationTracking ? 'i-lucide-navigation' : 'i-lucide-navigation-off'"
-          :color="locationTracking ? 'primary' : 'neutral'"
-          :variant="locationTracking ? 'solid' : 'outline'"
-          size="md"
-          :loading="isLocating"
-          :aria-label="$t('pages.shoppingLists.nearby.toggle')"
-          :aria-pressed="locationTracking"
-          @click="toggleLocation"
-        />
-        <UChip :show="activeFilterCount > 0" :text="activeFilterCount" color="primary" size="2xl">
+    <!-- Search + filters bar, teleported into the persistent AppHeader (identity +
+         active-list subtitle live there too; the header skeletons this slot). -->
+    <Teleport to="#app-header-search">
+      <div class="space-y-3">
+        <!-- Search row + filters trigger -->
+        <div class="flex gap-2">
+          <UFieldGroup size="md" orientation="horizontal" class="flex-1">
+            <UInput
+              v-model="searchQuery"
+              :disabled="!isSearchEnabled"
+              :placeholder="$t('pages.shoppingLists.searchPlaceholder')"
+              class="flex-1"
+            >
+              <template #trailing>
+                <UButton
+                  v-if="searchQuery"
+                  icon="i-lucide-x"
+                  size="xs"
+                  color="neutral"
+                  variant="ghost"
+                  :disabled="!isSearchEnabled"
+                  @click="searchQuery = ''"
+                />
+              </template>
+            </UInput>
+            <BarcodeScannerButton
+              v-if="showCameraButton"
+              :disabled="!isSearchEnabled"
+              @scanned="handleBarcodeScanned"
+            />
+          </UFieldGroup>
           <UButton
-            icon="i-lucide-sliders-horizontal"
-            color="primary"
+            v-if="listLocations.length > 0"
+            :icon="locationTracking ? 'i-lucide-navigation' : 'i-lucide-navigation-off'"
+            :color="locationTracking ? 'primary' : 'neutral'"
+            :variant="locationTracking ? 'solid' : 'outline'"
             size="md"
-            :aria-label="$t('pages.shoppingLists.filters.toggle')"
-            :aria-expanded="filtersOpen"
-            @click="filtersOpen = true"
-          >
-            <span class="hidden sm:inline">{{ $t('pages.shoppingLists.filters.toggle') }}</span>
-          </UButton>
-        </UChip>
-      </div>
+            :loading="isLocating"
+            :aria-label="$t('pages.shoppingLists.nearby.toggle')"
+            :aria-pressed="locationTracking"
+            @click="toggleLocation"
+          />
+          <UChip :show="activeFilterCount > 0" :text="activeFilterCount" color="primary" size="2xl">
+            <UButton
+              icon="i-lucide-sliders-horizontal"
+              color="primary"
+              size="md"
+              :aria-label="$t('pages.shoppingLists.filters.toggle')"
+              :aria-expanded="filtersOpen"
+              @click="filtersOpen = true"
+            >
+              <span class="hidden sm:inline">{{ $t('pages.shoppingLists.filters.toggle') }}</span>
+            </UButton>
+          </UChip>
+        </div>
 
-      <!-- Active filter chips (dismissible) -->
-      <div
-        v-if="activeFilters.length"
-        class="flex items-center gap-2 overflow-x-auto pb-1 -mx-1 px-1"
-      >
-        <UButton
-          v-for="f in activeFilters"
-          :key="f.key"
-          :label="f.label"
-          size="xs"
-          color="primary"
-          variant="soft"
-          trailing-icon="i-lucide-x"
-          class="rounded-full shrink-0"
-          :aria-label="`${$t('pages.shoppingLists.filters.removeFilter')}: ${f.label}`"
-          @click="f.clear()"
-        />
-        <UButton
-          :label="$t('pages.shoppingLists.filters.clearAll')"
-          size="xs"
-          color="neutral"
-          variant="ghost"
-          class="shrink-0"
-          @click="clearAllFilters"
-        />
+        <!-- Active filter chips (dismissible) -->
+        <div
+          v-if="activeFilters.length"
+          class="flex items-center gap-2 overflow-x-auto pb-1 -mx-1 px-1"
+        >
+          <UButton
+            v-for="f in activeFilters"
+            :key="f.key"
+            :label="f.label"
+            size="xs"
+            color="primary"
+            variant="soft"
+            trailing-icon="i-lucide-x"
+            class="rounded-full shrink-0"
+            :aria-label="`${$t('pages.shoppingLists.filters.removeFilter')}: ${f.label}`"
+            @click="f.clear()"
+          />
+          <UButton
+            :label="$t('pages.shoppingLists.filters.clearAll')"
+            size="xs"
+            color="neutral"
+            variant="ghost"
+            class="shrink-0"
+            @click="clearAllFilters"
+          />
+        </div>
       </div>
-    </div>
+    </Teleport>
 
     <!-- Content Section -->
     <div class="px-2 sm:px-4 md:px-6 lg:px-8 pb-6">
@@ -630,7 +629,8 @@ usePageHeader(() => ({
   subtitle: currentListDetails.value?.name,
   subtitleColor: currentListDetails.value?.color || undefined,
   subtitleIcon: currentListDetails.value?.isSharedWithFamily ? 'i-lucide-users' : undefined,
-  hasSubtitle: isLoadingDetails.value || !!currentListDetails.value
+  hasSubtitle: isLoadingDetails.value || !!currentListDetails.value,
+  hasSearch: true
 }))
 
 // Create modal state

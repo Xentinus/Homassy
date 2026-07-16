@@ -20,6 +20,8 @@ export interface PageHeaderConfig {
   loading?: boolean
   /** Reserve the subtitle line (so its skeleton shows while the subtitle loads). */
   hasSubtitle?: boolean
+  /** The page teleports a search bar into the header; reserve + skeleton its row. */
+  hasSearch?: boolean
 }
 
 interface HeaderState extends PageHeaderConfig {

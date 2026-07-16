@@ -1,62 +1,61 @@
 <template>
   <div>
-    <!-- Sticky search + filter sub-bar. The page identity (back arrow, icon,
-         title) now lives in the persistent AppHeader via usePageHeader (script);
-         this bar sticks just below it, aligned with the content below. -->
-    <div
-      class="sticky z-30 -mx-4 sm:-mx-6 lg:-mx-8 px-6 sm:px-10 lg:px-16 py-3 mb-4 space-y-3 border-b border-gray-200 dark:border-gray-800 bg-default/95 backdrop-blur"
-      :style="{ top: 'var(--app-header-height, 5.5rem)' }"
-    >
-      <!-- Search row + filter trigger -->
-      <div class="flex items-center gap-2">
-        <UFieldGroup size="md" orientation="horizontal" class="flex-1">
-          <UInput
-            v-model="search"
-            trailing-icon="i-lucide-search"
-            :placeholder="searchPlaceholder"
-            class="flex-1"
-          />
-          <slot name="search-trailing" />
-        </UFieldGroup>
-        <UChip :show="filterCount > 0" :text="filterCount" color="primary" size="2xl">
-          <UButton
-            icon="i-lucide-sliders-horizontal"
-            color="neutral"
-            variant="outline"
-            :aria-label="$t('common.filters.toggle')"
-            :aria-expanded="filtersOpen"
-            @click="filtersOpen = true"
-          />
-        </UChip>
-      </div>
+    <!-- Search + filter bar, teleported into the persistent AppHeader (the page
+         identity lives there too via usePageHeader). The header renders a
+         skeleton in this slot while it is stale/loading. -->
+    <Teleport to="#app-header-search">
+      <div class="space-y-3">
+        <!-- Search row + filter trigger -->
+        <div class="flex items-center gap-2">
+          <UFieldGroup size="md" orientation="horizontal" class="flex-1">
+            <UInput
+              v-model="search"
+              trailing-icon="i-lucide-search"
+              :placeholder="searchPlaceholder"
+              class="flex-1"
+            />
+            <slot name="search-trailing" />
+          </UFieldGroup>
+          <UChip :show="filterCount > 0" :text="filterCount" color="primary" size="2xl">
+            <UButton
+              icon="i-lucide-sliders-horizontal"
+              color="neutral"
+              variant="outline"
+              :aria-label="$t('common.filters.toggle')"
+              :aria-expanded="filtersOpen"
+              @click="filtersOpen = true"
+            />
+          </UChip>
+        </div>
 
-      <!-- Active filter chips (dismissible) -->
-      <div
-        v-if="activeFilters.length"
-        class="flex items-center gap-2 overflow-x-auto pb-1 -mx-1 px-1"
-      >
-        <UButton
-          v-for="f in activeFilters"
-          :key="f.key"
-          :label="f.label"
-          size="xs"
-          color="primary"
-          variant="soft"
-          trailing-icon="i-lucide-x"
-          class="rounded-full shrink-0"
-          :aria-label="`${$t('common.filters.removeFilter')}: ${f.label}`"
-          @click="f.clear()"
-        />
-        <UButton
-          :label="$t('common.filters.clearAll')"
-          size="xs"
-          color="neutral"
-          variant="ghost"
-          class="shrink-0"
-          @click="emit('clear-all')"
-        />
+        <!-- Active filter chips (dismissible) -->
+        <div
+          v-if="activeFilters.length"
+          class="flex items-center gap-2 overflow-x-auto pb-1 -mx-1 px-1"
+        >
+          <UButton
+            v-for="f in activeFilters"
+            :key="f.key"
+            :label="f.label"
+            size="xs"
+            color="primary"
+            variant="soft"
+            trailing-icon="i-lucide-x"
+            class="rounded-full shrink-0"
+            :aria-label="`${$t('common.filters.removeFilter')}: ${f.label}`"
+            @click="f.clear()"
+          />
+          <UButton
+            :label="$t('common.filters.clearAll')"
+            size="xs"
+            color="neutral"
+            variant="ghost"
+            class="shrink-0"
+            @click="emit('clear-all')"
+          />
+        </div>
       </div>
-    </div>
+    </Teleport>
 
     <!-- Filter drawer (bottom sheet) -->
     <UDrawer v-model:open="filtersOpen" :title="$t('common.filters.toggle')">
@@ -115,6 +114,7 @@ const filtersOpen = ref(false)
 usePageHeader(() => ({
   backTo: props.backTo,
   icon: props.icon,
-  title: props.title
+  title: props.title,
+  hasSearch: true
 }))
 </script>

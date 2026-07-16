@@ -1,10 +1,8 @@
 ﻿<template>
   <div>
-    <!-- Sticky search + filters sub-bar (page identity lives in the persistent AppHeader) -->
-    <div
-      class="sticky z-30 -mx-4 sm:-mx-6 lg:-mx-8 px-6 sm:px-10 lg:px-16 py-3 mb-4 border-b border-gray-200 dark:border-gray-800 bg-default/95 backdrop-blur"
-      :style="{ top: 'var(--app-header-height, 5.5rem)' }"
-    >
+    <!-- Search + filters bar, teleported into the persistent AppHeader (which
+         renders a skeleton in this slot while it is stale/loading). -->
+    <Teleport to="#app-header-search">
       <!-- Search row (always visible) + filters trigger -->
       <div class="space-y-2">
         <div class="flex gap-2">
@@ -70,7 +68,7 @@
           />
         </div>
       </div>
-    </div>
+    </Teleport>
 
     <!-- Filter drawer (bottom sheet) -->
     <UDrawer v-model:open="filtersOpen" :title="$t('pages.products.filters.toggle')">
@@ -245,7 +243,8 @@ const eventBus = useEventBus()
 usePageHeader(() => ({
   icon: 'i-lucide-package',
   title: $t('pages.products.title'),
-  info: $t('pages.products.description')
+  info: $t('pages.products.description'),
+  hasSearch: true
 }))
 
 // The add-inventory wizard (bottom-sheet) opened from the nav FAB.
