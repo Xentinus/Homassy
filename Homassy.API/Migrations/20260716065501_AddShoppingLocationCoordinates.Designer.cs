@@ -3,6 +3,7 @@ using System;
 using Homassy.API.Context;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
@@ -11,9 +12,11 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace Homassy.API.Migrations
 {
     [DbContext(typeof(HomassyDbContext))]
-    partial class HomassyDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260716065501_AddShoppingLocationCoordinates")]
+    partial class AddShoppingLocationCoordinates
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -329,10 +332,6 @@ namespace Homassy.API.Migrations
                     b.Property<string>("RecordChange")
                         .IsRequired()
                         .HasColumnType("text");
-
-                    b.PrimitiveCollection<int[]>("StoreTypes")
-                        .IsRequired()
-                        .HasColumnType("integer[]");
 
                     b.Property<int?>("UserId")
                         .HasColumnType("integer");

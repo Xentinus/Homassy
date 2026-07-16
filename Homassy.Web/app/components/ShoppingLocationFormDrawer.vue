@@ -37,6 +37,19 @@
           <UTextarea v-model="form.description" :placeholder="t('common.description')" :disabled="saving" :rows="3" class="w-full" />
         </UFormField>
 
+        <UFormField :label="t('profile.shoppingLocations.storeTypes')" name="storeTypes">
+          <USelectMenu
+            v-model="form.storeTypes"
+            :items="storeTypeOptions"
+            value-key="value"
+            multiple
+            :disabled="saving"
+            :placeholder="t('profile.shoppingLocations.storeTypesPlaceholder')"
+            :search-input="{ placeholder: t('common.search') }"
+            class="w-full"
+          />
+        </UFormField>
+
         <UFormField :label="t('common.address')" name="address">
           <UInput v-model="form.address" :placeholder="t('common.address')" :disabled="saving" class="w-full" />
         </UFormField>
@@ -105,7 +118,8 @@ import { z } from 'zod'
 import type { FormSubmitEvent } from '@nuxt/ui'
 import { DrawerTitle, DrawerDescription } from 'vaul-vue'
 import { useLocationsApi } from '~/composables/api/useLocationsApi'
-import type { ShoppingLocationInfo } from '~/types/location'
+import { StoreType } from '~/types/enums'
+import type { ShoppingLocationInfo, ShoppingLocationRequest } from '~/types/location'
 
 /**
  * Create/edit a shopping location in a modern bottom-sheet drawer (UForm + Zod + UColorPicker).
@@ -127,11 +141,19 @@ const emit = defineEmits<{
 const { t } = useI18n()
 const toast = useToast()
 const { createShoppingLocation, updateShoppingLocation } = useLocationsApi()
+const { geocode, buildAddressQuery } = useGeocoding()
 
 const isEdit = computed(() => !!props.location)
 const title = computed(() => isEdit.value
   ? t('profile.shoppingLocations.editLocation')
   : t('profile.shoppingLocations.createLocation'))
+
+// Store-type multi-select options (client-side, localized via enums.storeType.*).
+const storeTypeOptions = computed(() =>
+  Object.entries(StoreType)
+    .filter(([key]) => isNaN(Number(key)))
+    .map(([, value]) => ({ label: t(`enums.storeType.${value}`), value: value as StoreType }))
+)
 
 const schema = z.object({
   name: z.string({ required_error: t('profile.shoppingLocations.nameRequired') })
@@ -145,6 +167,7 @@ const schema = z.object({
   website: z.string().url(t('profile.shoppingLocations.invalidWebsite')).max(255).optional().or(z.literal('')),
   googleMaps: z.string().url(t('profile.shoppingLocations.invalidGoogleMaps')).max(255).optional().or(z.literal('')),
   color: z.string().regex(/^#[0-9A-Fa-f]{6}$/i).optional().or(z.literal('')),
+  storeTypes: z.array(z.nativeEnum(StoreType)).optional().default([]),
   isSharedWithFamily: z.boolean().optional().default(false)
 })
 type Schema = z.output<typeof schema>
@@ -159,6 +182,7 @@ const emptyForm = () => ({
   website: '',
   googleMaps: '',
   color: '',
+  storeTypes: [] as StoreType[],
   isSharedWithFamily: false
 })
 
@@ -189,6 +213,7 @@ watch(() => props.open, (isOpen) => {
       website: props.location.website || '',
       googleMaps: props.location.googleMaps || '',
       color: props.location.color || '',
+      storeTypes: props.location.storeTypes ?? [],
       isSharedWithFamily: props.location.isSharedWithFamily
     }
   } else {
@@ -200,7 +225,7 @@ async function onSubmit(event: FormSubmitEvent<Schema>) {
   const data = event.data
   saving.value = true
   try {
-    const payload = {
+    const payload: ShoppingLocationRequest = {
       name: data.name.trim(),
       description: data.description?.trim() || undefined,
       address: data.address?.trim() || undefined,
@@ -210,7 +235,21 @@ async function onSubmit(event: FormSubmitEvent<Schema>) {
       website: data.website?.trim() || undefined,
       googleMaps: data.googleMaps?.trim() || undefined,
       color: data.color || (isEdit.value ? '' : undefined),
+      storeTypes: data.storeTypes ?? [],
       isSharedWithFamily: data.isSharedWithFamily
+    }
+
+    // Geocode the address once on save so proximity features have coordinates. Only when
+    // there is an address and it changed (or this is a new location); a failed geocode is
+    // non-fatal and simply leaves the coordinates unset.
+    const newQuery = buildAddressQuery([payload.address, payload.postalCode, payload.city, payload.country])
+    const oldQuery = buildAddressQuery([props.location?.address, props.location?.postalCode, props.location?.city, props.location?.country])
+    if (newQuery && (!props.location || newQuery !== oldQuery)) {
+      const coords = await geocode(newQuery)
+      if (coords) {
+        payload.latitude = coords.lat
+        payload.longitude = coords.lon
+      }
     }
 
     const res = props.location

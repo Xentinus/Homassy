@@ -10,6 +10,10 @@ namespace Homassy.API.Models.ShoppingList
 
         public Guid? ShoppingLocationPublicId { get; set; }
 
+        // When true, removes the item's shopping location (set to "no location").
+        // Needed because a null ShoppingLocationPublicId means "no change", not "clear".
+        public bool? ClearShoppingLocation { get; set; }
+
         [StringLength(255, MinimumLength = 4)]
         [SanitizedString]
         public string? CustomName { get; set; }

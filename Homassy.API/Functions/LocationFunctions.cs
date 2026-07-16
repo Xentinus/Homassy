@@ -327,6 +327,9 @@ namespace Homassy.API.Functions
                 Country = s.Country,
                 Website = s.Website,
                 GoogleMaps = s.GoogleMaps,
+                Latitude = s.Latitude,
+                Longitude = s.Longitude,
+                StoreTypes = s.StoreTypes,
                 Color = s.Color,
                 IsSharedWithFamily = s.FamilyId.HasValue
             })
@@ -407,6 +410,9 @@ namespace Homassy.API.Functions
                     Country = request.Country?.Trim(),
                     Website = request.Website?.Trim(),
                     GoogleMaps = request.GoogleMaps?.Trim(),
+                    Latitude = request.Latitude,
+                    Longitude = request.Longitude,
+                    StoreTypes = request.StoreTypes ?? new(),
                     UserId = userId.Value,
                     FamilyId = request.IsSharedWithFamily == true && familyId.HasValue ? familyId : null
                 };
@@ -430,6 +436,9 @@ namespace Homassy.API.Functions
                     Country = shoppingLocation.Country,
                     Website = shoppingLocation.Website,
                     GoogleMaps = shoppingLocation.GoogleMaps,
+                    Latitude = shoppingLocation.Latitude,
+                    Longitude = shoppingLocation.Longitude,
+                    StoreTypes = shoppingLocation.StoreTypes,
                     IsSharedWithFamily = shoppingLocation.FamilyId.HasValue
                 };
 
@@ -548,6 +557,22 @@ namespace Homassy.API.Functions
                     hasChanges = true;
                 }
 
+                // Coordinates are geocoded on the client and sent as a pair whenever the
+                // address changes. Update them together when either value is supplied.
+                if (request.Latitude.HasValue || request.Longitude.HasValue)
+                {
+                    trackedLocation.Latitude = request.Latitude;
+                    trackedLocation.Longitude = request.Longitude;
+                    hasChanges = true;
+                }
+
+                // Store types are sent as the full set; a non-null (possibly empty) list replaces them.
+                if (request.StoreTypes != null)
+                {
+                    trackedLocation.StoreTypes = request.StoreTypes;
+                    hasChanges = true;
+                }
+
                 if (request.IsSharedWithFamily.HasValue)
                 {
                     trackedLocation.FamilyId = request.IsSharedWithFamily.Value && familyId.HasValue
@@ -580,6 +605,9 @@ namespace Homassy.API.Functions
                     Country = trackedLocation.Country,
                     Website = trackedLocation.Website,
                     GoogleMaps = trackedLocation.GoogleMaps,
+                    Latitude = trackedLocation.Latitude,
+                    Longitude = trackedLocation.Longitude,
+                    StoreTypes = trackedLocation.StoreTypes,
                     IsSharedWithFamily = trackedLocation.FamilyId.HasValue
                 };
 
@@ -994,6 +1022,9 @@ namespace Homassy.API.Functions
                         Country = request.Country?.Trim(),
                         Website = request.Website?.Trim(),
                         GoogleMaps = request.GoogleMaps?.Trim(),
+                        Latitude = request.Latitude,
+                        Longitude = request.Longitude,
+                        StoreTypes = request.StoreTypes ?? new(),
                         UserId = userId.Value,
                         FamilyId = request.IsSharedWithFamily == true && familyId.HasValue ? familyId : null
                     };
@@ -1023,6 +1054,9 @@ namespace Homassy.API.Functions
                         Country = sl.Country,
                         Website = sl.Website,
                         GoogleMaps = sl.GoogleMaps,
+                        Latitude = sl.Latitude,
+                        Longitude = sl.Longitude,
+                        StoreTypes = sl.StoreTypes,
                         IsSharedWithFamily = sl.FamilyId.HasValue
                     };
                     infos.Add(info);
@@ -1292,6 +1326,9 @@ namespace Homassy.API.Functions
                 Country = shoppingLocation.Country,
                 Website = shoppingLocation.Website,
                 GoogleMaps = shoppingLocation.GoogleMaps,
+                Latitude = shoppingLocation.Latitude,
+                Longitude = shoppingLocation.Longitude,
+                StoreTypes = shoppingLocation.StoreTypes,
                 Color = shoppingLocation.Color,
                 IsSharedWithFamily = shoppingLocation.FamilyId.HasValue
             };

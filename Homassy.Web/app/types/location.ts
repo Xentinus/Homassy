@@ -1,7 +1,7 @@
 ﻿/**
  * Location related types (Storage and Shopping)
  */
-import type { Unit, Currency } from './enums'
+import type { Unit, Currency, StoreType } from './enums'
 
 export interface StorageLocationInfo {
   publicId: string
@@ -23,6 +23,9 @@ export interface ShoppingLocationInfo {
   country?: string
   website?: string
   googleMaps?: string
+  latitude?: number
+  longitude?: number
+  storeTypes?: StoreType[]
   isSharedWithFamily: boolean
 }
 
@@ -44,6 +47,9 @@ export interface ShoppingLocationRequest {
   country?: string
   website?: string
   googleMaps?: string
+  latitude?: number
+  longitude?: number
+  storeTypes?: StoreType[]
   isSharedWithFamily?: boolean
 }
 

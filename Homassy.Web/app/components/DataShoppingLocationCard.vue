@@ -29,6 +29,15 @@
           <UIcon v-if="location.isSharedWithFamily" name="i-lucide-users" class="h-3.5 w-3.5 text-primary-500 flex-shrink-0" :title="$t('common.family')" />
         </div>
         <p v-if="location.description" class="text-xs text-muted break-words line-clamp-2" v-html="highlightText(location.description, searchQuery)" />
+        <div v-if="location.storeTypes?.length" class="flex flex-wrap gap-1 pt-0.5">
+          <span
+            v-for="st in location.storeTypes"
+            :key="st"
+            class="inline-flex items-center rounded-full border border-primary-200/60 bg-primary-50 px-2 py-0.5 text-[10px] font-medium text-primary-700 dark:border-primary-700/50 dark:bg-primary-900/30 dark:text-primary-300"
+          >
+            {{ formatStoreType(st) }}
+          </span>
+        </div>
       </div>
 
       <!-- Address + links (pinned bottom) -->
@@ -126,6 +135,7 @@ const { t } = useI18n()
 const toast = useToast()
 const { deleteShoppingLocation } = useLocationsApi()
 const { highlightText } = useSearchHighlight()
+const { formatStoreType } = useEnumLabel()
 
 const isDeleteModalOpen = ref(false)
 const isDeleting = ref(false)

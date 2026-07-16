@@ -59,6 +59,7 @@ Homassy is a modern full-stack system designed to simplify household inventory m
 - 📦 **Product Management** - Complete product inventory with consumption tracking and images
 - 🛒 **Shopping Lists** - Collaborative family shopping lists with purchase tracking (tap card to quick-purchase, swipe left/right to delete/edit)
 - 📍 **Locations** - Shopping locations (stores) and storage locations (home/freezer)
+- 🧭 **Nearby Shopping** - Optional geolocation highlights the items to buy at the store you're currently at (blue card border + banner) and, while the app is open, fires a local "you have N items to buy here" notification (foreground-only; no background geofencing)
 - 📅 **Calendar** - Unified calendar of product expirations and shopping list deadlines
 - 📈 **Statistics** - Aggregated household counts (products, shopping items, families) with nightly caching
 - 🔍 **Product Lookup** - Barcode scanning via Open Food Facts API integration

@@ -31,6 +31,15 @@
             <UIcon v-if="location.isSharedWithFamily" name="i-lucide-users" class="h-4 w-4 text-primary-500 flex-shrink-0" :title="$t('common.family')" />
           </div>
           <p v-if="location.description" class="text-sm text-muted">{{ location.description }}</p>
+          <div v-if="location.storeTypes?.length" class="flex flex-wrap gap-1.5">
+            <span
+              v-for="st in location.storeTypes"
+              :key="st"
+              class="inline-flex items-center rounded-full border border-primary-200/60 bg-primary-50 px-2.5 py-0.5 text-xs font-medium text-primary-700 dark:border-primary-700/50 dark:bg-primary-900/30 dark:text-primary-300"
+            >
+              {{ formatStoreType(st) }}
+            </span>
+          </div>
           <div v-if="hasAddress" class="flex items-start gap-2 text-sm">
             <UIcon name="i-lucide-map-pin" class="h-4 w-4 text-amber-600 dark:text-amber-400 mt-0.5 flex-shrink-0" />
             <div class="min-w-0 space-y-0.5 text-toned">
@@ -47,6 +56,8 @@
             :city="location.city"
             :postal-code="location.postalCode"
             :country="location.country"
+            :latitude="location.latitude"
+            :longitude="location.longitude"
           />
 
           <div v-if="location.website || location.googleMaps" class="flex flex-wrap gap-2">
@@ -116,6 +127,7 @@ const emit = defineEmits<{ 'update:open': [value: boolean] }>()
 
 const { locale } = useI18n()
 const { getShoppingLocationPurchases } = useLocationsApi()
+const { formatStoreType } = useEnumLabel()
 
 const purchases = ref<ShoppingLocationPurchaseInfo[]>([])
 const isLoading = ref(false)
