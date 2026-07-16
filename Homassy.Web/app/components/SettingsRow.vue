@@ -96,6 +96,12 @@ function onClick(event: MouseEvent) {
     event.preventDefault()
     return
   }
+  // Drop focus before the parent opens an overlay: an open drawer/modal marks the
+  // app root aria-hidden, and a still-focused trigger inside it trips the browser's
+  // "aria-hidden on a focused ancestor" warning (and blocks the background from
+  // being hidden from assistive tech). The overlay manages its own focus.
+  const el = event.currentTarget as HTMLElement | null
+  el?.blur()
   emit('select')
 }
 </script>

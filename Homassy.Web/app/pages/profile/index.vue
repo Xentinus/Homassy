@@ -1,15 +1,7 @@
 <template>
   <div>
-    <!-- Fixed Header -->
-    <div class="fixed top-0 left-0 right-0 z-10 bg-white dark:bg-gray-900 px-6 sm:px-10 lg:px-16 py-6">
-      <div class="flex items-center gap-3">
-        <UIcon name="i-lucide-user" class="h-7 w-7 text-primary-500" />
-        <h1 class="text-2xl font-semibold">{{ $t('profile.title') }}</h1>
-      </div>
-    </div>
-
-    <!-- Content Section with padding to account for fixed header -->
-    <div class="pt-28 px-4 sm:px-8 lg:px-14 pb-6 space-y-6 max-w-2xl mx-auto">
+    <!-- Content Section (page identity lives in the persistent AppHeader) -->
+    <div class="px-4 sm:px-8 lg:px-14 pb-6 space-y-6 max-w-2xl mx-auto">
       <!-- Identity card: avatar + name; tap to open the edit-profile drawer -->
       <ProfileIdentityCard
         :loading="loading"
@@ -246,6 +238,12 @@ const { getVersion } = useVersionApi()
 const { t } = useI18n()
 const colorMode = useColorMode()
 const route = useRoute()
+
+// Persistent header (auth layout) — page identity.
+usePageHeader(() => ({
+  icon: 'i-lucide-user',
+  title: t('profile.title')
+}))
 
 const {
   languageSelectOptions,

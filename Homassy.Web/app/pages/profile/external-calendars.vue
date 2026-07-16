@@ -1,14 +1,5 @@
 <template>
   <div class="px-4 sm:px-6 lg:px-8 py-6 space-y-6 max-w-2xl mx-auto">
-    <!-- Header with back button -->
-    <div class="flex items-center gap-3">
-      <NuxtLink to="/profile/data">
-        <UButton icon="i-lucide-arrow-left" color="neutral" variant="ghost" />
-      </NuxtLink>
-      <UIcon name="i-lucide-calendar-plus" class="text-xl text-primary" />
-      <h1 class="text-2xl font-semibold">{{ $t('profile.family.externalCalendars.title') }}</h1>
-    </div>
-
     <template v-if="loading">
       <USkeleton class="h-4 w-2/3 rounded mb-4" />
       <USkeleton class="h-20 w-full rounded-lg mb-3" />
@@ -148,6 +139,13 @@ const {
 } = useExternalCalendarApi()
 const { t: $t } = useI18n()
 const toast = useToast()
+
+// Persistent header (auth layout) — back + identity.
+usePageHeader(() => ({
+  backTo: '/profile/data',
+  icon: 'i-lucide-calendar-plus',
+  title: $t('profile.family.externalCalendars.title')
+}))
 
 const loading = ref(true)
 const hasFamily = ref(false)

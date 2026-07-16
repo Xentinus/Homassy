@@ -1,129 +1,92 @@
 <template>
   <div>
-    <!-- Fixed Header -->
-    <div ref="headerRef" class="fixed top-0 left-0 right-0 z-10 bg-white dark:bg-gray-900 px-6 sm:px-10 lg:px-16 py-6 border-b border-gray-200 dark:border-gray-800 space-y-3">
-      <!-- Title Row + active list subtitle -->
-      <div class="flex items-center gap-3">
-        <UIcon name="i-lucide-shopping-cart" class="h-7 w-7 text-primary-500 shrink-0" />
-        <div class="min-w-0">
-          <div class="flex items-center gap-1.5">
-            <h1 class="text-2xl font-semibold leading-tight">{{ $t('pages.shoppingLists.title') }}</h1>
-            <UPopover>
-              <UButton
-                icon="i-lucide-info"
-                color="neutral"
-                variant="ghost"
-                size="xs"
-                :aria-label="$t('pages.shoppingLists.infoAriaLabel')"
-              />
-              <template #content>
-                <p class="p-3 max-w-xs text-sm text-gray-600 dark:text-gray-400">
-                  {{ $t('pages.shoppingLists.description') }}
-                </p>
+    <!-- Search + filters bar, teleported into the persistent AppHeader (identity +
+         active-list subtitle live there too; the header skeletons this slot). -->
+    <Teleport to="#app-header-search">
+      <div class="space-y-3">
+        <!-- Search row + filters trigger -->
+        <div class="flex gap-2">
+          <UFieldGroup size="md" orientation="horizontal" class="flex-1">
+            <UInput
+              v-model="searchQuery"
+              :disabled="!isSearchEnabled"
+              :placeholder="$t('pages.shoppingLists.searchPlaceholder')"
+              class="flex-1"
+            >
+              <template #trailing>
+                <UButton
+                  v-if="searchQuery"
+                  icon="i-lucide-x"
+                  size="xs"
+                  color="neutral"
+                  variant="ghost"
+                  :disabled="!isSearchEnabled"
+                  @click="searchQuery = ''"
+                />
               </template>
-            </UPopover>
-          </div>
-          <div
-            v-if="currentListDetails"
-            class="flex items-center gap-1.5 text-sm text-gray-600 dark:text-gray-400"
-          >
-            <span
-              v-if="currentListDetails.color"
-              class="w-2.5 h-2.5 rounded-full shrink-0"
-              :style="{ backgroundColor: currentListDetails.color }"
+            </UInput>
+            <BarcodeScannerButton
+              v-if="showCameraButton"
+              :disabled="!isSearchEnabled"
+              @scanned="handleBarcodeScanned"
             />
-            <span class="truncate">{{ currentListDetails.name }}</span>
-            <UIcon
-              v-if="currentListDetails.isSharedWithFamily"
-              name="i-lucide-users"
-              class="h-3.5 w-3.5 text-primary-500 shrink-0"
-            />
-          </div>
+          </UFieldGroup>
+          <UButton
+            v-if="listLocations.length > 0"
+            :icon="locationTracking ? 'i-lucide-navigation' : 'i-lucide-navigation-off'"
+            :color="locationTracking ? 'primary' : 'neutral'"
+            :variant="locationTracking ? 'solid' : 'outline'"
+            size="md"
+            :loading="isLocating"
+            :aria-label="$t('pages.shoppingLists.nearby.toggle')"
+            :aria-pressed="locationTracking"
+            @click="toggleLocation"
+          />
+          <UChip :show="activeFilterCount > 0" :text="activeFilterCount" color="primary" size="2xl">
+            <UButton
+              icon="i-lucide-sliders-horizontal"
+              color="primary"
+              size="md"
+              :aria-label="$t('pages.shoppingLists.filters.toggle')"
+              :aria-expanded="filtersOpen"
+              @click="filtersOpen = true"
+            >
+              <span class="hidden sm:inline">{{ $t('pages.shoppingLists.filters.toggle') }}</span>
+            </UButton>
+          </UChip>
+        </div>
+
+        <!-- Active filter chips (dismissible) -->
+        <div
+          v-if="activeFilters.length"
+          class="flex items-center gap-2 overflow-x-auto pb-1 -mx-1 px-1"
+        >
+          <UButton
+            v-for="f in activeFilters"
+            :key="f.key"
+            :label="f.label"
+            size="xs"
+            color="primary"
+            variant="soft"
+            trailing-icon="i-lucide-x"
+            class="rounded-full shrink-0"
+            :aria-label="`${$t('pages.shoppingLists.filters.removeFilter')}: ${f.label}`"
+            @click="f.clear()"
+          />
+          <UButton
+            :label="$t('pages.shoppingLists.filters.clearAll')"
+            size="xs"
+            color="neutral"
+            variant="ghost"
+            class="shrink-0"
+            @click="clearAllFilters"
+          />
         </div>
       </div>
+    </Teleport>
 
-      <!-- Search row + filters trigger -->
-      <div class="flex gap-2">
-        <UFieldGroup size="md" orientation="horizontal" class="flex-1">
-          <UInput
-            v-model="searchQuery"
-            :disabled="!isSearchEnabled"
-            :placeholder="$t('pages.shoppingLists.searchPlaceholder')"
-            class="flex-1"
-          >
-            <template #trailing>
-              <UButton
-                v-if="searchQuery"
-                icon="i-lucide-x"
-                size="xs"
-                color="neutral"
-                variant="ghost"
-                :disabled="!isSearchEnabled"
-                @click="searchQuery = ''"
-              />
-            </template>
-          </UInput>
-          <BarcodeScannerButton
-            v-if="showCameraButton"
-            :disabled="!isSearchEnabled"
-            @scanned="handleBarcodeScanned"
-          />
-        </UFieldGroup>
-        <UButton
-          v-if="listLocations.length > 0"
-          :icon="locationTracking ? 'i-lucide-navigation' : 'i-lucide-navigation-off'"
-          :color="locationTracking ? 'primary' : 'neutral'"
-          :variant="locationTracking ? 'solid' : 'outline'"
-          size="md"
-          :loading="isLocating"
-          :aria-label="$t('pages.shoppingLists.nearby.toggle')"
-          :aria-pressed="locationTracking"
-          @click="toggleLocation"
-        />
-        <UChip :show="activeFilterCount > 0" :text="activeFilterCount" color="primary" size="2xl">
-          <UButton
-            icon="i-lucide-sliders-horizontal"
-            color="primary"
-            size="md"
-            :aria-label="$t('pages.shoppingLists.filters.toggle')"
-            :aria-expanded="filtersOpen"
-            @click="filtersOpen = true"
-          >
-            <span class="hidden sm:inline">{{ $t('pages.shoppingLists.filters.toggle') }}</span>
-          </UButton>
-        </UChip>
-      </div>
-
-      <!-- Active filter chips (dismissible) -->
-      <div
-        v-if="activeFilters.length"
-        class="flex items-center gap-2 overflow-x-auto pb-1 -mx-1 px-1"
-      >
-        <UButton
-          v-for="f in activeFilters"
-          :key="f.key"
-          :label="f.label"
-          size="xs"
-          color="primary"
-          variant="soft"
-          trailing-icon="i-lucide-x"
-          class="rounded-full shrink-0"
-          :aria-label="`${$t('pages.shoppingLists.filters.removeFilter')}: ${f.label}`"
-          @click="f.clear()"
-        />
-        <UButton
-          :label="$t('pages.shoppingLists.filters.clearAll')"
-          size="xs"
-          color="neutral"
-          variant="ghost"
-          class="shrink-0"
-          @click="clearAllFilters"
-        />
-      </div>
-    </div>
-
-    <!-- Content Section (offset by the fixed header's measured height) -->
-    <div class="px-2 sm:px-4 md:px-6 lg:px-8 pb-6" :style="{ paddingTop: headerHeight ? `calc(${headerHeight}px + 1.5rem)` : '16rem' }">
+    <!-- Content Section -->
+    <div class="px-2 sm:px-4 md:px-6 lg:px-8 pb-6">
       <PullToRefreshIndicator
         :pull-distance="pullDistance"
         :is-pulling="isPulling"
@@ -657,14 +620,18 @@ const notifiedLocationIds = ref<Set<string>>(new Set())
 // picker. Only locations with resolvable coordinates participate in proximity.
 const allShoppingLocations = ref<ShoppingLocationInfo[]>([])
 
-// Fixed-header height measurement (offsets the scrollable content)
-const headerRef = ref<HTMLElement | null>(null)
-const headerHeight = ref(0)
-let headerObserver: ResizeObserver | null = null
-
-const updateHeaderHeight = () => {
-  if (headerRef.value) headerHeight.value = headerRef.value.offsetHeight
-}
+// Persistent header (auth layout) — identity + info + the active list's subtitle
+// (name, colour dot, shared icon). The subtitle skeletons while a list loads.
+usePageHeader(() => ({
+  icon: 'i-lucide-shopping-cart',
+  title: $t('pages.shoppingLists.title'),
+  info: $t('pages.shoppingLists.description'),
+  subtitle: currentListDetails.value?.name,
+  subtitleColor: currentListDetails.value?.color || undefined,
+  subtitleIcon: currentListDetails.value?.isSharedWithFamily ? 'i-lucide-users' : undefined,
+  hasSubtitle: isLoadingDetails.value || !!currentListDetails.value,
+  hasSearch: true
+}))
 
 // Create modal state
 const isCreateModalOpen = ref(false)
@@ -1428,13 +1395,6 @@ onMounted(() => {
 
   loadShoppingLists()
   loadAllShoppingLocations()
-
-  // Track the fixed header's height (changes when subtitle/filter chips appear)
-  updateHeaderHeight()
-  if (headerRef.value && typeof ResizeObserver !== 'undefined') {
-    headerObserver = new ResizeObserver(() => updateHeaderHeight())
-    headerObserver.observe(headerRef.value)
-  }
 })
 
 onBeforeUnmount(() => {
@@ -1449,10 +1409,5 @@ onBeforeUnmount(() => {
 
   // Stop watching the device position when leaving the page.
   stopWatch()
-
-  if (headerObserver) {
-    headerObserver.disconnect()
-    headerObserver = null
-  }
 })
 </script>

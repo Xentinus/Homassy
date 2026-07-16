@@ -1,45 +1,35 @@
 ﻿<template>
   <div>
-    <!-- Fixed Header -->
-    <div class="fixed top-0 left-0 right-0 z-10 bg-white dark:bg-gray-900 px-6 sm:px-10 lg:px-16 py-6 border-b border-gray-200 dark:border-gray-800">
-      <div class="flex items-center justify-between gap-3">
-        <div class="flex items-center gap-3 min-w-0 flex-1">
-          <NuxtLink to="/profile/automation">
-            <UButton
-              icon="i-lucide-arrow-left"
-              color="neutral"
-              variant="ghost"
-            />
-          </NuxtLink>
-        </div>
-        <div v-if="automation" class="flex items-center gap-2 flex-shrink-0">
-          <USwitch
-            :model-value="automation.isEnabled"
-            :disabled="isToggling"
-            :loading="isToggling"
-            size="sm"
-            @update:model-value="toggleEnabled"
-          />
-          <UButton
-            icon="i-lucide-pencil"
-            color="neutral"
-            variant="ghost"
-            size="sm"
-            @click="openEditModal"
-          />
-          <UButton
-            icon="i-lucide-trash-2"
-            color="error"
-            variant="ghost"
-            size="sm"
-            @click="confirmDelete"
-          />
-        </div>
-      </div>
-    </div>
+    <!-- Enable/edit/delete actions live in the persistent AppHeader (teleported);
+         back + product identity come from usePageHeader (script). -->
+    <Teleport to="#app-header-actions">
+      <template v-if="automation">
+        <USwitch
+          :model-value="automation.isEnabled"
+          :disabled="isToggling"
+          :loading="isToggling"
+          size="sm"
+          @update:model-value="toggleEnabled"
+        />
+        <UButton
+          icon="i-lucide-pencil"
+          color="neutral"
+          variant="ghost"
+          size="sm"
+          @click="openEditModal"
+        />
+        <UButton
+          icon="i-lucide-trash-2"
+          color="error"
+          variant="ghost"
+          size="sm"
+          @click="confirmDelete"
+        />
+      </template>
+    </Teleport>
 
     <!-- Content -->
-    <div class="pt-28 px-4 sm:px-8 lg:px-14 pb-6">
+    <div class="px-4 sm:px-8 lg:px-14 pb-6">
       <!-- Loading State -->
       <div v-if="isLoading" class="space-y-6">
         <USkeleton class="h-64 w-full rounded-xl" />
@@ -58,22 +48,6 @@
       <div v-else-if="automation" class="space-y-6">
         <!-- Details Card -->
         <div class="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-5 space-y-4">
-          <!-- Product Info -->
-          <div class="flex items-center gap-3">
-            <div
-              class="flex-shrink-0 w-12 h-12 rounded-xl flex items-center justify-center"
-              :class="actionTypeIconBg"
-            >
-              <UIcon :name="actionTypeIconName" class="h-6 w-6 text-white" />
-            </div>
-            <div class="min-w-0 flex-1">
-              <h2 class="text-lg font-bold text-gray-900 dark:text-white truncate">{{ automation.productName }}</h2>
-              <p v-if="automation.productBrand" class="text-sm text-gray-500 dark:text-gray-400">{{ automation.productBrand }}</p>
-            </div>
-          </div>
-
-          <div class="border-t border-gray-100 dark:border-gray-700" />
-
           <!-- Action Type -->
           <div class="flex items-center gap-2">
             <span
@@ -533,15 +507,16 @@ const actionTypeIconName = computed(() => {
   }
 })
 
-const actionTypeIconBg = computed(() => {
-  switch (automation.value?.actionType) {
-    case AutomationActionType.AutoConsume: return 'bg-blue-500'
-    case AutomationActionType.NotifyOnly: return 'bg-amber-500'
-    case AutomationActionType.AddToShoppingList: return 'bg-green-500'
-    case AutomationActionType.LowStockAddToShoppingList: return 'bg-red-500'
-    default: return 'bg-gray-500'
-  }
-})
+// Persistent header (auth layout) — the rule's product identity (async); the
+// enable/edit/delete actions are teleported into the header from the template.
+usePageHeader(() => ({
+  backTo: '/profile/automation',
+  icon: actionTypeIconName.value,
+  title: automation.value?.productName,
+  subtitle: automation.value?.productBrand,
+  hasSubtitle: !!automation.value?.productBrand,
+  loading: isLoading.value
+}))
 
 const actionTypeBadgeClass = computed(() => {
   switch (automation.value?.actionType) {

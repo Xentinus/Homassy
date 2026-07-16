@@ -1,14 +1,5 @@
 <template>
   <div class="px-4 sm:px-6 lg:px-8 py-6 space-y-6 max-w-2xl mx-auto">
-    <!-- Header with back button -->
-    <div class="flex items-center gap-3">
-      <NuxtLink to="/profile">
-        <UButton icon="i-lucide-arrow-left" color="neutral" variant="ghost" />
-      </NuxtLink>
-      <UIcon name="i-lucide-database" class="text-xl text-primary" />
-      <h1 class="text-2xl font-semibold">{{ $t('profile.masterData.title') }}</h1>
-    </div>
-
     <SettingsGroup :hint="$t('profile.masterData.description')">
       <SettingsRow
         :label="$t('profile.allProducts.title')"
@@ -46,4 +37,13 @@
 
 <script setup lang="ts">
 definePageMeta({ layout: 'auth', middleware: 'auth' })
+
+const { t } = useI18n()
+
+// Persistent header (auth layout) — back + identity.
+usePageHeader(() => ({
+  backTo: '/profile',
+  icon: 'i-lucide-database',
+  title: t('profile.masterData.title')
+}))
 </script>
