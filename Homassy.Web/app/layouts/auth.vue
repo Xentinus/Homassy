@@ -4,7 +4,7 @@
       <slot />
     </UMain>
 
-    <nav class="fixed inset-x-4 bottom-4 z-50">
+    <nav class="fixed inset-x-4 bottom-4 z-50 max-w-2xl mx-auto">
       <!-- Dynamic add button, centred on the nav's top border -->
       <NavFab />
 
