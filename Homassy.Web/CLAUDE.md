@@ -8,7 +8,7 @@ Homassy.Web is the **frontend application** of the Homassy platform. It is a **N
 
 - **Nuxt 4 + Vue 3 Composition API** – file-based routing, auto-imports, SSR disabled for auth-sensitive pages
 - **Ory Kratos** – session-based auth using httpOnly cookies (`ory_kratos_session`); no JWT on the frontend
-- **`nuxt-api-party`** – server-side API proxying to `Homassy.API`; `$api` plugin for client-side calls with automatic 401 handling
+- **`$api` plugin** – a `$fetch` wrapper (`credentials: 'include'`) for all calls to `Homassy.API`, with automatic 401 → `/auth/login` handling
 - **SignalR realtime** – `@microsoft/signalr` client (`useShoppingListSocket`) keeps the open shopping list in sync; writes still go through REST, the server broadcasts changes back
 - **Pinia** – global state management (currently single `auth` store)
 - **Nuxt UI v4** – component library with custom `mocha` color palette
