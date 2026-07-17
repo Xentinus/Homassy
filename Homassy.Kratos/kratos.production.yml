@@ -9,7 +9,9 @@ dsn: postgres://placeholder:placeholder@localhost:5432/kratos
 serve:
   public:
     # Overridden by SERVE_PUBLIC_BASE_URL env var
-    base_url: https://homassy-kratos.kellner.dev
+    # Served under the /kratos path of the single public domain; the reverse proxy
+    # (Homassy.Proxy/Caddyfile) strips the prefix before forwarding to port 4433.
+    base_url: https://homassy.kellner.dev/kratos
     cors:
       enabled: true
       # Overridden by SERVE_PUBLIC_CORS_ALLOWED_ORIGINS_0 env var
@@ -155,9 +157,9 @@ session:
     persistent: true
     same_site: Lax
     # Overridden by SESSION_COOKIE_DOMAIN env var
-    domain: .kellner.dev
+    domain: homassy.kellner.dev
 
 cookies:
   # Overridden by COOKIES_DOMAIN env var
-  domain: .kellner.dev
+  domain: homassy.kellner.dev
   same_site: Lax

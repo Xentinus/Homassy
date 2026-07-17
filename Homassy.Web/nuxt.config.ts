@@ -87,6 +87,9 @@ export default defineNuxtConfig({
       // Let @vite-pwa/nuxt handle navigation routes via its built-in allowlist.
       // A custom 'navigate' mode handler here conflicts with the PWA navigation
       // route allowlist and causes the "not being used" warning.
+      // Server-handled paths behind the same-origin reverse proxy (Kratos flows,
+      // REST API, SignalR) must never get the cached app shell.
+      navigateFallbackDenylist: [/^\/kratos\//, /^\/api\//, /^\/hubs\//],
       runtimeCaching: [
         {
           urlPattern: /^https:\/\/.*\.(js|css|woff2?|png|jpg|jpeg|svg|gif|webp|ico)$/,
