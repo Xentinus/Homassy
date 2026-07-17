@@ -95,6 +95,8 @@ jobs:
             # VPS and block the scp untar (file-vs-directory). Reset the dir to land real files.
             rm -rf /opt/homassy/Homassy.Kratos
             mkdir -p /opt/homassy/Homassy.Kratos
+            rm -rf /opt/homassy/Homassy.Proxy
+            mkdir -p /opt/homassy/Homassy.Proxy
 
       - name: Sync compose + Kratos config + .env to VPS
         uses: appleboy/scp-action@v0.1.7
@@ -103,7 +105,7 @@ jobs:
           username: ${{ secrets.VPS_USER }}
           port: ${{ secrets.VPS_PORT }}
           password: ${{ secrets.VPS_PASSWORD }}
-          source: "docker-compose.production.yml,.env,Homassy.Kratos/identity.schema.json,Homassy.Kratos/webhook_body.jsonnet,Homassy.Kratos/init-kratos-schema.sql,Homassy.Kratos/kratos.production.yml"
+          source: "docker-compose.production.yml,.env,Homassy.Kratos/identity.schema.json,Homassy.Kratos/webhook_body.jsonnet,Homassy.Kratos/init-kratos-schema.sql,Homassy.Kratos/kratos.production.yml,Homassy.Proxy/Caddyfile"
           target: /opt/homassy
           overwrite: true
 

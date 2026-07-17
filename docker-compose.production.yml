@@ -36,9 +36,6 @@
     container_name: homassy-kratos
     image: oryd/kratos:v1.2.0
     restart: unless-stopped
-    ports:
-      - "4433:4433"
-      - "4434:4434"
     environment:
       # Database - Kratos DSN (this is the correct env var name)
       - DSN=postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@${DATABASE_HOST}:${DATABASE_PORT:-5432}/${POSTGRES_KRATOS_DB:-kratos}?sslmode=disable
@@ -94,8 +91,6 @@
     container_name: homassy-api
     image: ${DOCKER_REGISTRY-}homassyapi:${IMAGE_TAG-latest}
     restart: unless-stopped
-    ports:
-      - "5226:8080"
     environment:
       - ASPNETCORE_ENVIRONMENT=Production
       - ConnectionStrings__DefaultConnection=${DB_CONNECTION_STRING_DOCKER}
@@ -129,8 +124,6 @@
     container_name: homassy-web
     image: ${DOCKER_REGISTRY-}homassyweb:${IMAGE_TAG-latest}
     restart: unless-stopped
-    ports:
-      - "3000:3000"
     environment:
       - NODE_ENV=production
       - NUXT_PUBLIC_API_BASE=${NUXT_PUBLIC_API_BASE}
@@ -144,6 +137,30 @@
         condition: service_healthy
       homassy.kratos:
         condition: service_healthy
+
+  homassy.caddy:
+    container_name: homassy-caddy
+    image: caddy:2-alpine
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./Homassy.Proxy/Caddyfile:/etc/caddy/Caddyfile:ro
+    networks:
+      - homassy-network
+    depends_on:
+      homassy.web:
+        condition: service_started      # web defines no healthcheck
+      homassy.api:
+        condition: service_healthy
+      homassy.kratos:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:3000/healthz"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
 
   homassy.email:
     container_name: homassy-email

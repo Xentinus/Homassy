@@ -189,17 +189,17 @@ session:
     name: ory_kratos_session
     persistent: true
     same_site: Lax
-    domain: localhost   # ".kellner.dev" in production (leading dot = all subdomains)
+    domain: localhost   # "homassy.kellner.dev" in production (single-domain setup)
 
 cookies:
-  domain: localhost     # ".kellner.dev" in production
+  domain: localhost     # "homassy.kellner.dev" in production
   same_site: Lax
 ```
 
 **Key details:**
 - Session cookie name: `ory_kratos_session`
 - Sessions last **30 days** in production (720 hours)
-- Production cookie domain uses `.kellner.dev` (leading dot = valid across all subdomains)
+- Production cookie domain is the exact public host `homassy.kellner.dev` (no leading dot — everything is served from one domain behind the Caddy reverse proxy)
 - `SameSite: Lax` – cookie sent on top-level navigations, not cross-site POST
 - Homassy.API also accepts sessions via `X-Session-Token` header (for API/mobile clients)
 
@@ -361,9 +361,9 @@ Merged on top of `kratos.yml` for development. Overrides:
 ### `kratos.production.yml` – Production Config
 
 A complete standalone production config (not merged with `kratos.yml`). Key differences:
-- Production URLs (`https://homassy.kellner.dev`, `https://homassy-kratos.kellner.dev`)
+- Production URLs — everything on one domain: UI at `https://homassy.kellner.dev`, Kratos public API at `https://homassy.kellner.dev/kratos` (the Caddy reverse proxy in `Homassy.Proxy/Caddyfile` strips the `/kratos` prefix before forwarding to port 4433)
 - Log level: `warning`, format: `json`
-- Cookie domain: `.kellner.dev` (subdomain wildcard)
+- Cookie domain: `homassy.kellner.dev` (exact host, no leading dot)
 - Stronger Argon2 settings
 - Many values overridable via environment variables (documented inline with comments)
 
@@ -391,6 +391,8 @@ A complete standalone production config (not merged with `kratos.yml`). Key diff
 |------|---------|
 | `4433` | Kratos Public API (used by Homassy.Web and Homassy.API) |
 | `4434` | Kratos Admin API (used only by Homassy.API internally) |
+
+In production neither port is published on the host: the browser reaches the Public API through the Caddy reverse proxy at `https://homassy.kellner.dev/kratos/*`, and the Admin API stays Docker-network-internal.
 
 ### Homassy.API
 
@@ -420,10 +422,10 @@ Kratos Courier
 
 | Setting | Development | Production |
 |---------|-------------|------------|
-| Public base URL | `http://localhost:4433` | `https://homassy-kratos.kellner.dev` |
+| Public base URL | `http://localhost:4433` | `https://homassy.kellner.dev/kratos` |
 | Frontend URL | `http://localhost:3000` | `https://homassy.kellner.dev` |
 | WebAuthn RP ID | `localhost` | `kellner.dev` |
-| Cookie domain | `localhost` | `.kellner.dev` |
+| Cookie domain | `localhost` | `homassy.kellner.dev` |
 | Log level | `debug` (text) | `warning` (json) |
 | Leak sensitive values | `true` | `false` |
 | Session lifespan | 168h (7 days) | 720h (30 days) |

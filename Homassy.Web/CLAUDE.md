@@ -8,7 +8,7 @@ Homassy.Web is the **frontend application** of the Homassy platform. It is a **N
 
 - **Nuxt 4 + Vue 3 Composition API** – file-based routing, auto-imports, SSR disabled for auth-sensitive pages
 - **Ory Kratos** – session-based auth using httpOnly cookies (`ory_kratos_session`); no JWT on the frontend
-- **`nuxt-api-party`** – server-side API proxying to `Homassy.API`; `$api` plugin for client-side calls with automatic 401 handling
+- **`$api` plugin** – a `$fetch` wrapper (`credentials: 'include'`) for all calls to `Homassy.API`, with automatic 401 → `/auth/login` handling
 - **SignalR realtime** – `@microsoft/signalr` client (`useShoppingListSocket`) keeps the open shopping list in sync; writes still go through REST, the server broadcasts changes back
 - **Pinia** – global state management (currently single `auth` store)
 - **Nuxt UI v4** – component library with custom `mocha` color palette
@@ -360,10 +360,10 @@ On the shopping-list page a locate button (shown when the open list has location
 
 | Variable | Default | Description |
 |---|---|---|
-| `NUXT_PUBLIC_API_BASE` | `http://localhost:5226` | Homassy.API base URL |
-| `NUXT_PUBLIC_KRATOS_URL` | `http://localhost:4433` | Kratos public URL |
+| `NUXT_PUBLIC_API_BASE` | `http://localhost:5226` | Homassy.API base URL (production: `https://homassy.kellner.dev` — same origin, the reverse proxy routes `/api/v*` + `/hubs/*` to the API; other `/api/*` paths such as `@nuxt/icon`'s `/api/_nuxt_icon/*` stay on the Nuxt server) |
+| `NUXT_PUBLIC_KRATOS_URL` | `http://localhost:4433` | Kratos public URL (production: `https://homassy.kellner.dev/kratos`) |
 
-In Docker, these are passed as build args and compiled into the static bundle. Set them at build time, not at runtime.
+In Docker, these are passed as build args and compiled into the static bundle. Set them at build time, not at runtime. In production both point at the single public domain served by the Caddy reverse proxy (`Homassy.Proxy/Caddyfile`).
 
 ---
 
@@ -383,11 +383,11 @@ FROM node:22-alpine AS build
 # Serves .output/ with node .output/server/index.mjs on :3000
 ```
 
-Build-time env:
+Build-time env (single-domain reverse-proxy setup):
 ```bash
 docker build \
-  --build-arg NUXT_PUBLIC_API_BASE=https://api.example.com \
-  --build-arg NUXT_PUBLIC_KRATOS_URL=https://kratos.example.com \
+  --build-arg NUXT_PUBLIC_API_BASE=https://app.example.com \
+  --build-arg NUXT_PUBLIC_KRATOS_URL=https://app.example.com/kratos \
   -t homassy-web .
 ```
 

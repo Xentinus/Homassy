@@ -1,0 +1,49 @@
+{
+	auto_https off
+	servers {
+		# cloudflared connects from the docker bridge (private range). Trusting it
+		# preserves Cloudflare's X-Forwarded-For, which the API uses for
+		# per-client rate limiting (first XFF entry = real client IP).
+		trusted_proxies static private_ranges
+	}
+}
+
+:3000 {
+	# Proxy self-check — compose healthcheck + post-deploy smoke test.
+	handle /healthz {
+		respond "OK" 200
+	}
+
+	# Ory Kratos public API. handle_path strips the prefix:
+	#   /kratos/self-service/login/browser -> /self-service/login/browser
+	# Kratos generates all URLs from serve.public.base_url (https://homassy.kellner.dev/kratos).
+	handle_path /kratos/* {
+		reverse_proxy homassy-kratos:4433
+	}
+
+	# REST API — every Homassy.API route is versioned (/api/v1.0/...), so only
+	# /api/v* belongs to the backend. Other /api/* paths are Nuxt server routes
+	# registered by modules (e.g. @nuxt/icon at /api/_nuxt_icon/*) and fall
+	# through to the web container below.
+	handle /api/v* {
+		reverse_proxy homassy-api:8080
+	}
+
+	# SignalR hubs — WebSocket upgrade handled natively by Caddy.
+	handle /hubs/* {
+		reverse_proxy homassy-api:8080
+	}
+
+	# TEMPORARY — remove ~30 days after cutover. Purges the legacy wildcard-domain
+	# session cookie, which would otherwise shadow the new host-scoped cookie after
+	# the first logout (browser sends the older cookie first; Kratos reads only it).
+	handle /auth/* {
+		header +Set-Cookie "ory_kratos_session=; Domain=.kellner.dev; Path=/; Max-Age=0; Secure; HttpOnly; SameSite=Lax"
+		reverse_proxy homassy-web:3000
+	}
+
+	# Everything else -> Nuxt (SSR, static assets, PWA files).
+	handle {
+		reverse_proxy homassy-web:3000
+	}
+}
