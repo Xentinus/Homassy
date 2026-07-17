@@ -1,6 +1,7 @@
 using System.Net;
 using System.Net.Http.Json;
 using Homassy.API.Models.Common;
+using Homassy.API.Models.Location;
 using Homassy.API.Models.Product;
 using Homassy.API.Models.ShoppingList;
 using Homassy.Tests.Infrastructure;
@@ -873,6 +874,221 @@ public class ShoppingListControllerTests : IClassFixture<HomassyWebApplicationFa
             _authHelper.ClearAuthToken();
             if (testEmail != null)
                 await _authHelper.CleanupUserAsync(testEmail);
+        }
+    }
+    #endregion
+
+    #region PurchaseShoppingListItem Tests
+    [Fact]
+    public async Task PurchaseShoppingListItem_WithoutToken_ReturnsUnauthorized()
+    {
+        var request = new PurchaseShoppingListItemRequest
+        {
+            ShoppingListItemPublicId = Guid.NewGuid(),
+            PurchasedAt = DateTime.UtcNow
+        };
+        var response = await _client.PostAsJsonAsync("/api/v1.0/shoppinglist/item/purchase", request);
+        Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
+    }
+
+    // Helper: create a list with a single custom item of the given quantity, returns its public id.
+    private async Task<(Guid listId, Guid itemId)> CreateListWithCustomItemAsync(string name, decimal quantity)
+    {
+        var listResponse = await _client.PostAsJsonAsync("/api/v1.0/shoppinglist", new CreateShoppingListRequest { Name = name });
+        var listContent = await listResponse.Content.ReadFromJsonAsync<ApiResponse<ShoppingListInfo>>();
+        var listId = listContent!.Data!.PublicId;
+
+        var itemResponse = await _client.PostAsJsonAsync("/api/v1.0/shoppinglist/item", new CreateShoppingListItemRequest
+        {
+            ShoppingListPublicId = listId,
+            CustomName = "Apples",
+            Quantity = quantity,
+            Unit = ProductUnit.Piece
+        });
+        var itemContent = await itemResponse.Content.ReadFromJsonAsync<ApiResponse<ShoppingListItemInfo>>();
+        return (listId, itemContent!.Data!.PublicId);
+    }
+
+    [Fact]
+    public async Task PurchaseShoppingListItem_PartialKeepRemainder_ReducesQuantityAndStaysUnpurchased()
+    {
+        string? testEmail = null;
+        Guid? listId = null;
+        try
+        {
+            var (email, auth) = await _authHelper.CreateAndAuthenticateUserAsync("purchase-partial-keep");
+            testEmail = email;
+            _authHelper.SetAuthToken(auth.AccessToken);
+
+            var (list, itemId) = await CreateListWithCustomItemAsync("Partial keep", 4);
+            listId = list;
+
+            var response = await _client.PostAsJsonAsync("/api/v1.0/shoppinglist/item/purchase", new PurchaseShoppingListItemRequest
+            {
+                ShoppingListItemPublicId = itemId,
+                PurchasedAt = DateTime.UtcNow,
+                PurchasedQuantity = 3m,
+                KeepRemainder = true
+            });
+            var body = await response.Content.ReadAsStringAsync();
+            _output.WriteLine($"Status: {response.StatusCode}\nResponse: {body}");
+
+            Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+            var content = await response.Content.ReadFromJsonAsync<ApiResponse<ShoppingListItemInfo>>();
+            Assert.NotNull(content?.Data);
+            Assert.Null(content!.Data!.PurchasedAt);   // stays on the list
+            Assert.Equal(1m, content.Data.Quantity);    // 4 - 3 remainder
+        }
+        finally
+        {
+            if (listId.HasValue) await _client.DeleteAsync($"/api/v1.0/shoppinglist/{listId}");
+            _authHelper.ClearAuth();
+            if (testEmail != null) await _authHelper.CleanupUserAsync(testEmail);
+        }
+    }
+
+    [Fact]
+    public async Task PurchaseShoppingListItem_PartialWithoutKeepRemainder_MarksWholePurchased()
+    {
+        string? testEmail = null;
+        Guid? listId = null;
+        try
+        {
+            var (email, auth) = await _authHelper.CreateAndAuthenticateUserAsync("purchase-partial-nokeep");
+            testEmail = email;
+            _authHelper.SetAuthToken(auth.AccessToken);
+
+            var (list, itemId) = await CreateListWithCustomItemAsync("Partial no keep", 4);
+            listId = list;
+
+            var response = await _client.PostAsJsonAsync("/api/v1.0/shoppinglist/item/purchase", new PurchaseShoppingListItemRequest
+            {
+                ShoppingListItemPublicId = itemId,
+                PurchasedAt = DateTime.UtcNow,
+                PurchasedQuantity = 3m,
+                KeepRemainder = false
+            });
+            var body = await response.Content.ReadAsStringAsync();
+            _output.WriteLine($"Status: {response.StatusCode}\nResponse: {body}");
+
+            Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+            var content = await response.Content.ReadFromJsonAsync<ApiResponse<ShoppingListItemInfo>>();
+            Assert.NotNull(content?.Data);
+            Assert.NotNull(content!.Data!.PurchasedAt);  // whole item marked purchased
+            Assert.Equal(4m, content.Data.Quantity);      // quantity unchanged
+        }
+        finally
+        {
+            if (listId.HasValue) await _client.DeleteAsync($"/api/v1.0/shoppinglist/{listId}");
+            _authHelper.ClearAuth();
+            if (testEmail != null) await _authHelper.CleanupUserAsync(testEmail);
+        }
+    }
+
+    [Fact]
+    public async Task PurchaseShoppingListItem_FullQuantity_MarksPurchased()
+    {
+        string? testEmail = null;
+        Guid? listId = null;
+        try
+        {
+            var (email, auth) = await _authHelper.CreateAndAuthenticateUserAsync("purchase-full");
+            testEmail = email;
+            _authHelper.SetAuthToken(auth.AccessToken);
+
+            var (list, itemId) = await CreateListWithCustomItemAsync("Full", 4);
+            listId = list;
+
+            var response = await _client.PostAsJsonAsync("/api/v1.0/shoppinglist/item/purchase", new PurchaseShoppingListItemRequest
+            {
+                ShoppingListItemPublicId = itemId,
+                PurchasedAt = DateTime.UtcNow
+                // no PurchasedQuantity => whole quantity
+            });
+            var body = await response.Content.ReadAsStringAsync();
+            _output.WriteLine($"Status: {response.StatusCode}\nResponse: {body}");
+
+            Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+            var content = await response.Content.ReadFromJsonAsync<ApiResponse<ShoppingListItemInfo>>();
+            Assert.NotNull(content?.Data);
+            Assert.NotNull(content!.Data!.PurchasedAt);
+        }
+        finally
+        {
+            if (listId.HasValue) await _client.DeleteAsync($"/api/v1.0/shoppinglist/{listId}");
+            _authHelper.ClearAuth();
+            if (testEmail != null) await _authHelper.CleanupUserAsync(testEmail);
+        }
+    }
+
+    [Fact]
+    public async Task PurchaseShoppingListItem_QuantityExceedsItem_ReturnsBadRequest()
+    {
+        string? testEmail = null;
+        Guid? listId = null;
+        try
+        {
+            var (email, auth) = await _authHelper.CreateAndAuthenticateUserAsync("purchase-invalid-qty");
+            testEmail = email;
+            _authHelper.SetAuthToken(auth.AccessToken);
+
+            var (list, itemId) = await CreateListWithCustomItemAsync("Too much", 4);
+            listId = list;
+
+            var response = await _client.PostAsJsonAsync("/api/v1.0/shoppinglist/item/purchase", new PurchaseShoppingListItemRequest
+            {
+                ShoppingListItemPublicId = itemId,
+                PurchasedAt = DateTime.UtcNow,
+                PurchasedQuantity = 5m   // more than the item's 4
+            });
+            _output.WriteLine($"Status: {response.StatusCode}");
+            Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        }
+        finally
+        {
+            if (listId.HasValue) await _client.DeleteAsync($"/api/v1.0/shoppinglist/{listId}");
+            _authHelper.ClearAuth();
+            if (testEmail != null) await _authHelper.CleanupUserAsync(testEmail);
+        }
+    }
+
+    [Fact]
+    public async Task PurchaseShoppingListItem_WithLocation_SetsShoppingLocation()
+    {
+        string? testEmail = null;
+        Guid? listId = null;
+        try
+        {
+            var (email, auth) = await _authHelper.CreateAndAuthenticateUserAsync("purchase-location");
+            testEmail = email;
+            _authHelper.SetAuthToken(auth.AccessToken);
+
+            var locationResponse = await _client.PostAsJsonAsync("/api/v1.0/location/shopping", new ShoppingLocationRequest { Name = "Corner Shop" });
+            var locationContent = await locationResponse.Content.ReadFromJsonAsync<ApiResponse<ShoppingLocationInfo>>();
+            var locationId = locationContent!.Data!.PublicId;
+
+            var (list, itemId) = await CreateListWithCustomItemAsync("With location", 2);
+            listId = list;
+
+            var response = await _client.PostAsJsonAsync("/api/v1.0/shoppinglist/item/purchase", new PurchaseShoppingListItemRequest
+            {
+                ShoppingListItemPublicId = itemId,
+                PurchasedAt = DateTime.UtcNow,
+                ShoppingLocationPublicId = locationId
+            });
+            var body = await response.Content.ReadAsStringAsync();
+            _output.WriteLine($"Status: {response.StatusCode}\nResponse: {body}");
+
+            Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+            var content = await response.Content.ReadFromJsonAsync<ApiResponse<ShoppingListItemInfo>>();
+            Assert.NotNull(content?.Data);
+            Assert.Equal(locationId, content!.Data!.ShoppingLocationPublicId);
+        }
+        finally
+        {
+            if (listId.HasValue) await _client.DeleteAsync($"/api/v1.0/shoppinglist/{listId}");
+            _authHelper.ClearAuth();
+            if (testEmail != null) await _authHelper.CleanupUserAsync(testEmail);
         }
     }
     #endregion

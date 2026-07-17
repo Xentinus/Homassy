@@ -14,7 +14,7 @@ namespace Homassy.API.Models.ShoppingList
         // Needed because a null ShoppingLocationPublicId means "no change", not "clear".
         public bool? ClearShoppingLocation { get; set; }
 
-        [StringLength(255, MinimumLength = 4)]
+        [StringLength(255, MinimumLength = 2)]
         [SanitizedString]
         public string? CustomName { get; set; }
 

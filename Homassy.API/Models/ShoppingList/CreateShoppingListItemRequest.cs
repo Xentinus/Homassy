@@ -13,7 +13,7 @@ namespace Homassy.API.Models.ShoppingList
 
         public Guid? ShoppingLocationPublicId { get; set; }
 
-        [StringLength(255, MinimumLength = 4)]
+        [StringLength(255, MinimumLength = 2)]
         [SanitizedString]
         public string? CustomName { get; set; }
 

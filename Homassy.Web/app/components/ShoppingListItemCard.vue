@@ -112,8 +112,8 @@
       </div>
     </div>
 
-    <!-- Purchase Confirmation Modal -->
-    <UModal :open="isPurchaseModalOpen" :dismissible="false" @update:open="(val) => isPurchaseModalOpen = val">
+    <!-- Purchase Drawer (bottom sheet) -->
+    <UDrawer :open="isPurchaseModalOpen" :dismissible="false" @update:open="(val) => isPurchaseModalOpen = val">
       <template #title>
         {{ $t('shoppingList.markAsPurchased') }}
       </template>
@@ -174,11 +174,130 @@
               </div>
             </div>
           </div>
+
+          <!-- How much of the quantity was bought -->
+          <div>
+            <p class="text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">
+              {{ $t('shoppingList.purchase.quantityQuestion') }}
+            </p>
+            <div class="flex gap-2">
+              <UButton
+                :label="$t('shoppingList.purchase.buyAll')"
+                icon="i-lucide-check-check"
+                size="sm"
+                class="rounded-full"
+                :color="purchaseMode === 'all' ? 'primary' : 'neutral'"
+                :variant="purchaseMode === 'all' ? 'solid' : 'outline'"
+                :aria-pressed="purchaseMode === 'all'"
+                @click="purchaseMode = 'all'"
+              />
+              <UButton
+                :label="$t('shoppingList.purchase.buyPartial')"
+                icon="i-lucide-scissors"
+                size="sm"
+                class="rounded-full"
+                :color="purchaseMode === 'partial' ? 'primary' : 'neutral'"
+                :variant="purchaseMode === 'partial' ? 'solid' : 'outline'"
+                :aria-pressed="purchaseMode === 'partial'"
+                @click="setPartialMode"
+              />
+            </div>
+
+            <!-- Partial quantity controls -->
+            <div v-if="purchaseMode === 'partial'" class="mt-3 space-y-3">
+              <div>
+                <label class="block text-sm font-medium mb-1">
+                  {{ $t('shoppingList.purchase.purchasedQuantityLabel') }}
+                </label>
+                <div class="flex items-center gap-2">
+                  <UButton
+                    icon="i-lucide-minus"
+                    color="neutral"
+                    variant="outline"
+                    :aria-label="$t('shoppingList.purchase.decrease')"
+                    :disabled="purchaseQuantity <= purchaseMin"
+                    @click="stepQuantity(-1)"
+                  />
+                  <UInput
+                    v-model.number="purchaseQuantity"
+                    type="number"
+                    :min="purchaseMin"
+                    :max="item.quantity"
+                    step="1"
+                    class="flex-1"
+                    @blur="clampQuantity"
+                  >
+                    <template v-if="unitLabel" #trailing>
+                      <span class="text-sm text-gray-500 dark:text-gray-400">{{ unitLabel }}</span>
+                    </template>
+                  </UInput>
+                  <UButton
+                    icon="i-lucide-plus"
+                    color="neutral"
+                    variant="outline"
+                    :aria-label="$t('shoppingList.purchase.increase')"
+                    :disabled="purchaseQuantity >= item.quantity"
+                    @click="stepQuantity(1)"
+                  />
+                </div>
+                <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                  {{ $t('shoppingList.purchase.ofTotal', { total: item.quantity, unit: unitLabel }) }}
+                </p>
+              </div>
+
+              <!-- Keep the remainder on the list -->
+              <div class="flex items-center justify-between gap-3">
+                <div class="min-w-0">
+                  <p class="text-sm font-medium text-gray-700 dark:text-gray-300">
+                    {{ $t('shoppingList.purchase.keepRemainder') }}
+                  </p>
+                  <p class="text-xs text-gray-500 dark:text-gray-400">
+                    {{ $t('shoppingList.purchase.keepRemainderHint', { remaining: remainingQuantity, unit: unitLabel }) }}
+                  </p>
+                </div>
+                <USwitch v-model="keepRemainder" />
+              </div>
+            </div>
+          </div>
+
+          <!-- Where the item was bought -->
+          <div>
+            <p class="text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">
+              {{ $t('shoppingList.purchase.locationQuestion') }}
+            </p>
+            <div
+              v-if="currentStore"
+              class="mb-2 flex items-center gap-1.5 px-2 py-1 w-fit bg-blue-50 dark:bg-blue-900/30 rounded-full border border-blue-300/60 dark:border-blue-600/50"
+            >
+              <UIcon name="i-lucide-navigation" class="h-3.5 w-3.5 text-blue-600 dark:text-blue-400 flex-shrink-0" />
+              <span class="text-[11px] font-bold text-blue-700 dark:text-blue-300">
+                {{ $t('shoppingList.purchase.youAreHere', { location: currentStore.name }) }}
+              </span>
+            </div>
+            <div class="flex items-center gap-2">
+              <USelectMenu
+                v-model="purchaseLocationPublicId"
+                :items="shoppingLocationOptions"
+                value-key="value"
+                :placeholder="$t('pages.shoppingLists.filters.noLocation')"
+                :search-input="{ placeholder: $t('common.search') }"
+                class="flex-1"
+              />
+              <UButton
+                v-if="purchaseLocationPublicId"
+                icon="i-lucide-x"
+                color="neutral"
+                variant="ghost"
+                :aria-label="$t('common.clear')"
+                @click="purchaseLocationPublicId = undefined"
+              />
+            </div>
+          </div>
         </div>
       </template>
 
       <template #footer>
-        <div class="flex justify-end gap-2">
+        <div class="flex justify-end gap-2 w-full">
           <UButton
             :label="$t('common.cancel')"
             variant="subtle"
@@ -192,10 +311,10 @@
           />
         </div>
       </template>
-    </UModal>
+    </UDrawer>
 
-    <!-- Edit Modal -->
-    <UModal :open="isEditModalOpen" :dismissible="false" @update:open="(val) => isEditModalOpen = val">
+    <!-- Edit Drawer (bottom sheet) -->
+    <UDrawer :open="isEditModalOpen" :dismissible="false" @update:open="(val) => isEditModalOpen = val">
       <template #title>
         {{ $t('shoppingList.editItem') }}
       </template>
@@ -254,13 +373,24 @@
             <label class="block text-sm font-medium mb-1">
               {{ $t('shoppingList.shoppingLocation') }}
             </label>
-            <USelectMenu
-              v-model="editForm.shoppingLocationPublicId"
-              :items="shoppingLocationOptions"
-              value-key="value"
-              :search-input="{ placeholder: $t('common.search') }"
-              class="w-full"
-            />
+            <div class="flex items-center gap-2">
+              <USelectMenu
+                v-model="editForm.shoppingLocationPublicId"
+                :items="shoppingLocationOptions"
+                value-key="value"
+                :placeholder="$t('pages.shoppingLists.filters.noLocation')"
+                :search-input="{ placeholder: $t('common.search') }"
+                class="flex-1"
+              />
+              <UButton
+                v-if="editForm.shoppingLocationPublicId"
+                icon="i-lucide-x"
+                color="neutral"
+                variant="ghost"
+                :aria-label="$t('common.clear')"
+                @click="editForm.shoppingLocationPublicId = undefined"
+              />
+            </div>
           </div>
 
           <!-- Note -->
@@ -334,10 +464,10 @@
           />
         </div>
       </template>
-    </UModal>
+    </UDrawer>
 
-    <!-- Delete Modal -->
-    <UModal :open="isDeleteModalOpen" :dismissible="false" @update:open="(val) => isDeleteModalOpen = val">
+    <!-- Delete Drawer (bottom sheet) -->
+    <UDrawer :open="isDeleteModalOpen" :dismissible="false" @update:open="(val) => isDeleteModalOpen = val">
       <template #title>
         {{ $t('shoppingList.deleteItem') }}
       </template>
@@ -392,10 +522,10 @@
           />
         </div>
       </template>
-    </UModal>
+    </UDrawer>
 
-    <!-- Restore Purchase Modal -->
-    <UModal :open="isRestoreModalOpen" :dismissible="false" @update:open="(val) => isRestoreModalOpen = val">
+    <!-- Restore Purchase Drawer (bottom sheet) -->
+    <UDrawer :open="isRestoreModalOpen" :dismissible="false" @update:open="(val) => isRestoreModalOpen = val">
       <template #title>
         {{ $t('shoppingList.restorePurchase') }}
       </template>
@@ -428,7 +558,7 @@
           />
         </div>
       </template>
-    </UModal>
+    </UDrawer>
 
     <!-- Image Overlay -->
     <Transition
@@ -458,7 +588,7 @@
 
 <script setup lang="ts">
 import { ref, computed } from 'vue'
-import type { ShoppingListItemInfo } from '../types/shoppingList'
+import type { ShoppingListItemInfo, PurchaseShoppingListItemRequest } from '../types/shoppingList'
 import type { ShoppingLocationInfo } from '../types/location'
 import { Unit } from '../types/enums'
 import type { CalendarDate } from '@internationalized/date'
@@ -471,15 +601,18 @@ interface Props {
   atCurrentLocation?: boolean
   // True when the user is at a DIFFERENT store that shares a type with this item's store.
   similarTypeAtCurrentLocation?: boolean
-  // All saved shopping locations, for the edit-item location picker.
+  // All saved shopping locations, for the edit-item and purchase location pickers.
   shoppingLocations?: ShoppingLocationInfo[]
+  // The store the user is currently standing at (GPS), pre-filled as the purchase location.
+  currentStore?: ShoppingLocationInfo
 }
 
 const props = withDefaults(defineProps<Props>(), {
   searchQuery: '',
   atCurrentLocation: false,
   similarTypeAtCurrentLocation: false,
-  shoppingLocations: () => []
+  shoppingLocations: () => [],
+  currentStore: undefined
 })
 
 // Highlight "buy it here" only for items still to be bought at a nearby location.
@@ -497,7 +630,7 @@ const emit = defineEmits<{
 
 const { t, locale } = useI18n()
 const { inputDateLocale } = useInputDateLocale()
-const { quickPurchaseShoppingListItem, restorePurchaseShoppingListItem, updateShoppingListItem, deleteShoppingListItem } = useShoppingListApi()
+const { purchaseShoppingListItem, restorePurchaseShoppingListItem, updateShoppingListItem, deleteShoppingListItem } = useShoppingListApi()
 const { isExpired: checkIsExpired, isExpiringWithinTwoWeeks: checkIsExpiringWithinTwoWeeks } = useExpirationCheck()
 
 // State
@@ -510,6 +643,18 @@ const isDeleteModalOpen = ref(false)
 const isRestoreModalOpen = ref(false)
 const isUpdating = ref(false)
 const isDeleting = ref(false)
+
+// Purchase sheet state
+const purchaseMode = ref<'all' | 'partial'>('all')
+const purchaseQuantity = ref(0)
+const keepRemainder = ref(true)
+const purchaseLocationPublicId = ref<string | undefined>(undefined)
+
+// Smallest sensible partial amount: 1 for countable totals, else the (sub-unit) total itself.
+const purchaseMin = computed(() => (props.item.quantity < 1 ? props.item.quantity : 1))
+const remainingQuantity = computed(() =>
+  Math.max(0, Math.round((props.item.quantity - (purchaseQuantity.value || 0)) * 1000) / 1000)
+)
 
 // Swipe gestures (left = delete, right = edit); disabled while a modal is open or an API call is pending
 const cardEl = ref<HTMLElement | null>(null)
@@ -537,7 +682,7 @@ const editForm = ref<{
   note: string | null
   dueAt: CalendarDate | null
   deadlineAt: CalendarDate | null
-  shoppingLocationPublicId: string
+  shoppingLocationPublicId: string | undefined
 }>({
   customName: null,
   quantity: null,
@@ -545,7 +690,7 @@ const editForm = ref<{
   note: null,
   dueAt: null,
   deadlineAt: null,
-  shoppingLocationPublicId: ''
+  shoppingLocationPublicId: undefined
 })
 
 // Computed
@@ -607,11 +752,11 @@ const unitOptions = computed(() => {
     }))
 })
 
-// Shopping-location options for the edit form (includes a "no location" entry).
-const shoppingLocationOptions = computed(() => [
-  { label: t('pages.shoppingLists.filters.noLocation'), value: '' },
-  ...props.shoppingLocations.map(l => ({ label: l.name, value: l.publicId }))
-])
+// Shopping-location options for the location pickers. No empty-value entry — an unset
+// picker (undefined) means "no location"; USelectMenu rejects an item with value ''.
+const shoppingLocationOptions = computed(() =>
+  props.shoppingLocations.map(l => ({ label: l.name, value: l.publicId }))
+)
 
 const cardBorderClass = computed(() => {
   // If purchased, show green border
@@ -661,42 +806,77 @@ const handleCardClick = (event: MouseEvent) => {
   const target = event.target as HTMLElement
   if (target.closest('a, button, img')) return
   
-  // If already purchased, open restore modal
+  // If already purchased, open restore sheet
   if (props.item.purchasedAt) {
     isRestoreModalOpen.value = true
   } else {
-    // If not purchased, open purchase modal
-    isPurchaseModalOpen.value = true
+    // If not purchased, open the purchase sheet
+    openPurchaseSheet()
   }
 }
 
-// Confirm purchase from modal
+// Open the purchase sheet, resetting its state and pre-filling the store from GPS / the item.
+const openPurchaseSheet = () => {
+  purchaseMode.value = 'all'
+  purchaseQuantity.value = props.item.quantity
+  keepRemainder.value = true
+  // Only pre-fill the location when the user is actually standing at a known store (GPS).
+  // Otherwise leave it unset — recording where you bought it is optional.
+  purchaseLocationPublicId.value = props.currentStore?.publicId ?? undefined
+  isPurchaseModalOpen.value = true
+}
+
+// Switch to partial mode, defaulting the amount to one below the total (so a remainder exists).
+const setPartialMode = () => {
+  purchaseMode.value = 'partial'
+  purchaseQuantity.value = props.item.quantity > 1 ? props.item.quantity - 1 : props.item.quantity
+}
+
+const stepQuantity = (dir: number) => {
+  const next = Math.round(((purchaseQuantity.value || 0) + dir) * 1000) / 1000
+  purchaseQuantity.value = Math.min(props.item.quantity, Math.max(purchaseMin.value, next))
+}
+
+const clampQuantity = () => {
+  let v = Number(purchaseQuantity.value)
+  if (!Number.isFinite(v) || v <= 0) v = purchaseMin.value
+  purchaseQuantity.value = Math.min(props.item.quantity, Math.max(0.001, Math.round(v * 1000) / 1000))
+}
+
+// Confirm the purchase: partial (with optional kept remainder) or whole, plus purchase location.
 const confirmPurchase = async () => {
-  await handleQuickPurchase()
-  isPurchaseModalOpen.value = false
-}
-
-// Open image from modal - close modal first, then open overlay
-const openImageFromModal = () => {
-  isPurchaseModalOpen.value = false
-  // Use setTimeout to ensure modal closes before opening overlay
-  setTimeout(() => {
-    isImageOverlayOpen.value = true
-  }, 100)
-}
-
-const handleQuickPurchase = async () => {
   isQuickPurchasing.value = true
   try {
-    const response = await quickPurchaseShoppingListItem(props.item.publicId)
+    const isPartial = purchaseMode.value === 'partial'
+    const selectedLocation = purchaseLocationPublicId.value
+    const request: PurchaseShoppingListItemRequest = {
+      shoppingListItemPublicId: props.item.publicId,
+      purchasedAt: new Date().toISOString(),
+      purchasedQuantity: isPartial ? purchaseQuantity.value : undefined,
+      keepRemainder: isPartial ? keepRemainder.value : undefined,
+      // Recording where you bought it is optional: only set it when a store is chosen.
+      // Never auto-clear the item's planned store from here (use the edit drawer for that).
+      shoppingLocationPublicId: selectedLocation || undefined
+    }
+    const response = await purchaseShoppingListItem(request)
     if (response.success) {
+      isPurchaseModalOpen.value = false
       emit('refresh')
     }
   } catch (error) {
-    console.error('Failed to quick purchase item:', error)
+    console.error('Failed to purchase item:', error)
   } finally {
     isQuickPurchasing.value = false
   }
+}
+
+// Open image from sheet - close it first, then open overlay
+const openImageFromModal = () => {
+  isPurchaseModalOpen.value = false
+  // Use setTimeout to ensure the sheet closes before opening the overlay
+  setTimeout(() => {
+    isImageOverlayOpen.value = true
+  }, 100)
 }
 
 const handleRestorePurchase = async () => {
@@ -736,7 +916,7 @@ const openEditModal = () => {
     note: props.item.note || null,
     dueAt: dueDate,
     deadlineAt: deadlineDate,
-    shoppingLocationPublicId: props.item.shoppingLocationPublicId ?? ''
+    shoppingLocationPublicId: props.item.shoppingLocationPublicId ?? undefined
   }
   isEditModalOpen.value = true
 }
