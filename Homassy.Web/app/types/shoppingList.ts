@@ -110,6 +110,19 @@ export interface QuickPurchaseMultipleShoppingListItemsRequest {
   items: QuickPurchaseFromShoppingListItemRequest[]
 }
 
+export interface PurchaseShoppingListItemRequest {
+  shoppingListItemPublicId: string
+  purchasedAt: string
+  // How much of the item's quantity was bought. Omit for the whole quantity.
+  purchasedQuantity?: number
+  // When only part was bought, whether the remainder stays on the list (default true).
+  keepRemainder?: boolean
+  // Where the item was bought. Omit for "no change".
+  shoppingLocationPublicId?: string
+  // Set true to remove the item's shopping location (a null publicId means "no change").
+  clearShoppingLocation?: boolean
+}
+
 export interface DeadlineCountResponse {
   totalCount: number
 }

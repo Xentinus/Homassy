@@ -1,13 +1,9 @@
 <template>
-  <UModal
+  <UDrawer
     :open="isScannerOpen"
-    @update:open="handleUpdateOpen"
     :dismissible="false"
-    :ui="{
-      container: 'items-center justify-center',
-      width: 'max-w-full sm:max-w-lg',
-      height: 'h-full sm:h-auto'
-    }"
+    :ui="{ content: 'max-h-[92dvh]', body: 'overflow-y-auto' }"
+    @update:open="handleUpdateOpen"
   >
     <template #title>
       {{ t('barcodeScanner.title') }}
@@ -152,7 +148,7 @@
         </div>
       </div>
     </template>
-  </UModal>
+  </UDrawer>
 </template>
 
 <script setup lang="ts">
@@ -229,7 +225,7 @@ const handleTabChange = (value: string) => {
   zoomLevel.value = 1
 }
 
-// Watch for modal open and start scanner
+// Watch for the scanner sheet opening and start the scanner
 watch(isScannerOpen, async (isOpen: boolean) => {
   if (isOpen) {
     // Clear frozen image when opening scanner
@@ -241,7 +237,7 @@ watch(isScannerOpen, async (isOpen: boolean) => {
 
 const handleUpdateOpen = async (value: boolean) => {
   if (!value) {
-    // Modal is being closed
+    // Sheet is being closed
     await closeScanner()
     frozenImage.value = null
     videoRef.value = null

@@ -175,6 +175,27 @@ namespace Homassy.API.Controllers
         }
 
         /// <summary>
+        /// Marks a shopping list item as purchased, supporting a partial quantity and a purchase
+        /// location. When only part of the quantity is bought and the remainder is kept, the item's
+        /// quantity is reduced and it stays on the list; otherwise the whole item is marked purchased.
+        /// Does not create inventory.
+        /// </summary>
+        [HttpPost("item/purchase")]
+        [MapToApiVersion(1.0)]
+        [ProducesResponseType(typeof(ApiResponse<ShoppingListItemInfo>), StatusCodes.Status200OK)]
+        [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status400BadRequest)]
+        public async Task<IActionResult> PurchaseShoppingListItem([FromBody] PurchaseShoppingListItemRequest request, CancellationToken cancellationToken)
+        {
+            if (!ModelState.IsValid)
+            {
+                return BadRequest(ApiResponse.ErrorResponse(ErrorCodes.ValidationInvalidRequest));
+            }
+
+            var shoppingListItem = await new ShoppingListFunctions().PurchaseShoppingListItemAsync(request, cancellationToken);
+            return Ok(ApiResponse<ShoppingListItemInfo>.SuccessResponse(shoppingListItem));
+        }
+
+        /// <summary>
         /// Quickly marks a shopping list item as purchased without creating inventory.
         /// </summary>
         [HttpGet("item/{publicId}/quick-purchase")]

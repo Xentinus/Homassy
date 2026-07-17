@@ -1424,6 +1424,139 @@ namespace Homassy.API.Functions
             }
         }
 
+        public async Task<ShoppingListItemInfo> PurchaseShoppingListItemAsync(PurchaseShoppingListItemRequest request, CancellationToken cancellationToken = default)
+        {
+            var userId = SessionInfo.GetUserId();
+            if (!userId.HasValue)
+            {
+                Log.Warning("Invalid session: User ID not found");
+                throw new UserNotFoundException("User not found");
+            }
+
+            var shoppingListItem = GetShoppingListItemByPublicId(request.ShoppingListItemPublicId);
+            if (shoppingListItem == null)
+            {
+                throw new ShoppingListItemNotFoundException();
+            }
+
+            var shoppingList = GetShoppingListById(shoppingListItem.ShoppingListId);
+            if (shoppingList == null)
+            {
+                throw new ShoppingListNotFoundException();
+            }
+
+            var familyId = SessionInfo.GetFamilyId();
+            if (shoppingList.UserId != userId.Value &&
+                (!familyId.HasValue || shoppingList.FamilyId != familyId.Value))
+            {
+                throw new ShoppingListAccessDeniedException();
+            }
+
+            var locationFunctions = new LocationFunctions();
+            var productFunctions = new ProductFunctions();
+
+            var context = new HomassyDbContext();
+            await using var transaction = await context.Database.BeginTransactionAsync(cancellationToken);
+
+            try
+            {
+                var trackedShoppingListItem = await context.ShoppingListItems.FindAsync([shoppingListItem.Id], cancellationToken);
+                if (trackedShoppingListItem == null)
+                {
+                    throw new ShoppingListItemNotFoundException();
+                }
+
+                // How much was actually bought (defaults to the whole quantity).
+                var purchasedQuantity = request.PurchasedQuantity ?? trackedShoppingListItem.Quantity;
+                if (purchasedQuantity <= 0 || purchasedQuantity > trackedShoppingListItem.Quantity)
+                {
+                    throw new InvalidShoppingListItemException("Purchased quantity must be greater than 0 and not exceed the item quantity");
+                }
+
+                // Record where the item was bought (a null id means "no change").
+                if (request.ShoppingLocationPublicId.HasValue)
+                {
+                    var shoppingLocation = locationFunctions.GetShoppingLocationByPublicId(request.ShoppingLocationPublicId.Value);
+                    if (shoppingLocation == null)
+                    {
+                        throw new ShoppingLocationNotFoundException("Shopping location not found");
+                    }
+                    trackedShoppingListItem.ShoppingLocationId = shoppingLocation.Id;
+                }
+                else if (request.ClearShoppingLocation)
+                {
+                    trackedShoppingListItem.ShoppingLocationId = null;
+                }
+
+                // Partial purchase with the remainder kept: reduce the quantity and leave it on the
+                // list. Otherwise (full quantity, or the user chose not to keep the remainder) the
+                // whole item is marked purchased.
+                var keptRemainder = request.KeepRemainder && purchasedQuantity < trackedShoppingListItem.Quantity;
+                if (keptRemainder)
+                {
+                    trackedShoppingListItem.Quantity -= purchasedQuantity;
+                }
+                else
+                {
+                    trackedShoppingListItem.PurchasedAt = request.PurchasedAt;
+                }
+
+                await context.SaveChangesAsync(cancellationToken);
+                await transaction.CommitAsync(cancellationToken);
+
+                Log.Information($"User {userId} purchased {purchasedQuantity} of shopping list item {shoppingListItem.Id} (PublicId: {shoppingListItem.PublicId}); keptRemainder={keptRemainder}");
+
+                // Record activity
+                try
+                {
+                    var displayName = shoppingListItem.ProductId.HasValue
+                        ? productFunctions.GetProductById(shoppingListItem.ProductId)?.Name
+                        : trackedShoppingListItem.CustomName ?? "Item";
+
+                    await new ActivityFunctions().RecordActivityAsync(
+                        userId.Value,
+                        shoppingList.FamilyId,
+                        Enums.ActivityType.ShoppingListItemQuickPurchase,
+                        shoppingListItem.Id,
+                        $"{shoppingList.Name} - {displayName}",
+                        trackedShoppingListItem.Unit,
+                        purchasedQuantity,
+                        cancellationToken: cancellationToken
+                    );
+                }
+                catch (Exception ex)
+                {
+                    Log.Error(ex, $"Failed to record ShoppingListItemQuickPurchase activity for shopping list item {shoppingListItem.PublicId}");
+                }
+
+                // Refresh cache
+                await RefreshShoppingListItemCacheAsync(shoppingListItem.Id, cancellationToken);
+
+                await ShoppingListRealtime.ItemUpsertedAsync(shoppingList.PublicId, BuildItemInfo(trackedShoppingListItem, shoppingList), cancellationToken);
+
+                return new ShoppingListItemInfo
+                {
+                    PublicId = trackedShoppingListItem.PublicId,
+                    ShoppingListPublicId = shoppingList.PublicId,
+                    ProductPublicId = shoppingListItem.ProductId.HasValue ? productFunctions.GetProductById(shoppingListItem.ProductId)?.PublicId : null,
+                    ShoppingLocationPublicId = trackedShoppingListItem.ShoppingLocationId.HasValue ? locationFunctions.GetShoppingLocationById(trackedShoppingListItem.ShoppingLocationId)?.PublicId : null,
+                    CustomName = trackedShoppingListItem.CustomName,
+                    Quantity = trackedShoppingListItem.Quantity,
+                    Unit = trackedShoppingListItem.Unit,
+                    Note = trackedShoppingListItem.Note,
+                    PurchasedAt = trackedShoppingListItem.PurchasedAt,
+                    DeadlineAt = trackedShoppingListItem.DeadlineAt,
+                    DueAt = trackedShoppingListItem.DueAt
+                };
+            }
+            catch (Exception ex)
+            {
+                await transaction.RollbackAsync(cancellationToken);
+                Log.Error(ex, $"Failed to purchase shopping list item {request.ShoppingListItemPublicId} for user {userId}");
+                throw;
+            }
+        }
+
         public async Task<ShoppingListItemInfo> RestorePurchaseAsync(Guid publicId, CancellationToken cancellationToken = default)
         {
             var userId = SessionInfo.GetUserId();

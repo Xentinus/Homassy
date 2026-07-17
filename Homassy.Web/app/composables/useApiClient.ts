@@ -2,7 +2,6 @@
  * API Client wrapper with toast/error handling
  */
 import type { ApiResponse } from '~/types/common'
-import { getErrorMessages } from '~/utils/errorCodes'
 
 interface RequestOptions {
   method?: 'GET' | 'POST' | 'PUT' | 'DELETE'
@@ -66,14 +65,22 @@ export const useApiClient = () => {
 
       return response
     } catch (error: any) {
-      // Handle API response errors with error codes
-      if (error.data && error.data.errorCodes && Array.isArray(error.data.errorCodes)) {
-        const errorMessages = getErrorMessages(error.data.errorCodes)
-
+      // Surface the API's specific, localized error code(s) so failures are diagnosable
+      // instead of a generic message (falls back to the raw code if a code is unmapped).
+      const codes = error?.data?.errorCodes
+      if (Array.isArray(codes) && codes.length) {
         if (showErrorToast) {
+          const description = codes
+            .map((code: string) => {
+              const key = `errorCodes.${code}`
+              const translated = $i18n.t(key)
+              return translated === key ? code : translated
+            })
+            .join('\n')
+
           toast.add({
             title: $i18n.t('toast.error'),
-            description: $i18n.t('toast.requestError'),
+            description,
             color: 'error',
             icon: 'i-heroicons-x-circle'
           })
@@ -82,7 +89,7 @@ export const useApiClient = () => {
         return error.data as ApiResponse<T>
       }
 
-      // Handle network or other errors
+      // Network or other errors without a structured error body
       if (showErrorToast) {
         toast.add({
           title: $i18n.t('toast.error'),

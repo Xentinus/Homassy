@@ -168,6 +168,7 @@
           :at-current-location="isItemAtCurrentLocation(item)"
           :similar-type-at-current-location="isItemSimilarTypeHere(item)"
           :shopping-locations="allShoppingLocations"
+          :current-store="currentStoreForItem(item)"
           @refresh="handleItemRefresh"
           @deleted="handleItemRefresh"
         />
@@ -996,6 +997,15 @@ const isItemSimilarTypeHere = (item: ShoppingListItemInfo): boolean => {
   if (!loc || nearbyLocationIds.value.has(loc.publicId)) return false
   if (currentStoreTypes.value.size === 0) return false
   return (loc.storeTypes ?? []).some(t => t !== StoreType.Other && currentStoreTypes.value.has(t))
+}
+
+// The store the user is currently standing at, used to pre-fill an item's purchase location.
+// Prefers the item's own store if the user is at it, otherwise the first nearby saved store.
+const currentStoreForItem = (item: ShoppingListItemInfo): ShoppingLocationInfo | undefined => {
+  const ids = nearbyLocationIds.value
+  if (!ids.size) return undefined
+  if (item.shoppingLocation && ids.has(item.shoppingLocation.publicId)) return item.shoppingLocation
+  return allShoppingLocations.value.find(l => ids.has(l.publicId))
 }
 
 const onPositionUpdate = (position: GeoPosition) => {

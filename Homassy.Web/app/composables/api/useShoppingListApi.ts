@@ -15,12 +15,12 @@ import type {
   DeleteMultipleShoppingListItemsRequest,
   QuickPurchaseFromShoppingListItemRequest,
   QuickPurchaseMultipleShoppingListItemsRequest,
+  PurchaseShoppingListItemRequest,
   DeadlineCountResponse
 } from '~/types/shoppingList'
 
 export const useShoppingListApi = () => {
   const client = useApiClient()
-  const $i18n = useI18n()
   const { emit } = useEventBus()
   const { isExpiringWithinTwoWeeks } = useExpirationCheck()
 
@@ -180,6 +180,21 @@ export const useShoppingListApi = () => {
   }
 
   /**
+   * Purchase a shopping list item with an optional partial quantity and purchase location.
+   * When only part of the quantity is bought and keepRemainder is true, the remainder stays
+   * on the list; otherwise the whole item is marked purchased. Does not create inventory.
+   */
+  const purchaseShoppingListItem = async (request: PurchaseShoppingListItemRequest) => {
+    const result = await client.post<ShoppingListItemInfo>(
+      '/api/v1/ShoppingList/item/purchase',
+      request
+    )
+
+    emit('shopping-list-item:purchased')
+    return result
+  }
+
+  /**
    * Quick purchase shopping list item (simple - just marks as purchased)
    */
   const quickPurchaseShoppingListItem = async (publicId: string) => {
@@ -231,6 +246,7 @@ export const useShoppingListApi = () => {
     deleteMultipleShoppingListItems,
     quickPurchaseItem,
     quickPurchaseMultipleItems,
+    purchaseShoppingListItem,
     quickPurchaseShoppingListItem,
     restorePurchaseShoppingListItem,
     getDeadlineCount
