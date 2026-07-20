@@ -71,8 +71,7 @@
     </Teleport>
 
     <!-- Filter drawer (bottom sheet) -->
-    <UDrawer v-model:open="filtersOpen" :title="$t('pages.products.filters.toggle')">
-      <template #body>
+    <AppDrawer v-model:open="filtersOpen" :title="$t('pages.products.filters.toggle')" icon="i-lucide-sliders-horizontal">
         <div class="space-y-5 pb-2">
           <FilterChipGroup
             v-model="expirationFilter"
@@ -138,7 +137,7 @@
             />
           </div>
         </div>
-      </template>
+
       <template #footer>
         <div class="flex items-center gap-2 w-full">
           <UButton
@@ -158,7 +157,7 @@
           />
         </div>
       </template>
-    </UDrawer>
+    </AppDrawer>
 
     <!-- Content Section -->
     <div class="px-4 sm:px-8 lg:px-14 pb-6">

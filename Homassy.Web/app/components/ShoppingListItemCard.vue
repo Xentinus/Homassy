@@ -113,17 +113,9 @@
     </div>
 
     <!-- Purchase Drawer (bottom sheet) -->
-    <UDrawer :open="isPurchaseModalOpen" :dismissible="false" @update:open="(val) => isPurchaseModalOpen = val">
-      <template #title>
-        {{ $t('shoppingList.markAsPurchased') }}
-      </template>
-
-      <template #description>
-        {{ $t('shoppingList.purchaseConfirmation') }}
-      </template>
-
-      <template #body>
+    <AppDrawer :open="isPurchaseModalOpen" :title="$t('shoppingList.markAsPurchased')" icon="i-lucide-shopping-cart" @update:open="(val) => isPurchaseModalOpen = val">
         <div class="space-y-3">
+          <p class="text-sm text-muted">{{ $t('shoppingList.purchaseConfirmation') }}</p>
           <!-- Product Image (if available) -->
           <div v-if="item.product?.productPictureBase64" class="flex justify-center">
             <img
@@ -294,7 +286,6 @@
             </div>
           </div>
         </div>
-      </template>
 
       <template #footer>
         <div class="flex justify-end gap-2 w-full">
@@ -311,20 +302,12 @@
           />
         </div>
       </template>
-    </UDrawer>
+    </AppDrawer>
 
     <!-- Edit Drawer (bottom sheet) -->
-    <UDrawer :open="isEditModalOpen" :dismissible="false" @update:open="(val) => isEditModalOpen = val">
-      <template #title>
-        {{ $t('shoppingList.editItem') }}
-      </template>
-
-      <template #description>
-        {{ $t('shoppingList.editItemDescription') }}
-      </template>
-
-      <template #body>
+    <AppDrawer :open="isEditModalOpen" :title="$t('shoppingList.editItem')" icon="i-lucide-pencil" @update:open="(val) => isEditModalOpen = val">
         <div class="space-y-4">
+          <p class="text-sm text-muted">{{ $t('shoppingList.editItemDescription') }}</p>
           <!-- Custom Name (only if no product) -->
           <div v-if="!item.product">
             <label class="block text-sm font-medium mb-1">
@@ -447,7 +430,6 @@
             </UInputDate>
           </div>
         </div>
-      </template>
 
       <template #footer>
         <div class="flex justify-end gap-2">
@@ -464,20 +446,12 @@
           />
         </div>
       </template>
-    </UDrawer>
+    </AppDrawer>
 
     <!-- Delete Drawer (bottom sheet) -->
-    <UDrawer :open="isDeleteModalOpen" :dismissible="false" @update:open="(val) => isDeleteModalOpen = val">
-      <template #title>
-        {{ $t('shoppingList.deleteItem') }}
-      </template>
-
-      <template #description>
-        {{ $t('shoppingList.deleteItemWarning') }}
-      </template>
-
-      <template #body>
+    <AppDrawer :open="isDeleteModalOpen" :title="$t('shoppingList.deleteItem')" icon="i-lucide-trash-2" @update:open="(val) => isDeleteModalOpen = val">
         <div class="space-y-3">
+          <p class="text-sm text-muted">{{ $t('shoppingList.deleteItemWarning') }}</p>
           <!-- Item Name -->
           <div>
             <span class="text-sm font-medium text-gray-700 dark:text-gray-300">
@@ -504,7 +478,6 @@
             <span class="text-sm ml-2">{{ item.note }}</span>
           </div>
         </div>
-      </template>
 
       <template #footer>
         <div class="flex justify-end gap-2">
@@ -522,25 +495,18 @@
           />
         </div>
       </template>
-    </UDrawer>
+    </AppDrawer>
 
     <!-- Restore Purchase Drawer (bottom sheet) -->
-    <UDrawer :open="isRestoreModalOpen" :dismissible="false" @update:open="(val) => isRestoreModalOpen = val">
-      <template #title>
-        {{ $t('shoppingList.restorePurchase') }}
-      </template>
-
-      <template #description>
-        {{ $t('shoppingList.restorePurchaseWarning') }}
-      </template>
-
-      <template #body>
-        <div class="p-4 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-lg">
+    <AppDrawer :open="isRestoreModalOpen" :title="$t('shoppingList.restorePurchase')" icon="i-lucide-rotate-ccw" @update:open="(val) => isRestoreModalOpen = val">
+        <div class="space-y-3">
+          <p class="text-sm text-muted">{{ $t('shoppingList.restorePurchaseWarning') }}</p>
+          <div class="p-4 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-lg">
           <p class="text-sm text-amber-800 dark:text-amber-200">
             {{ $t('shoppingList.restorePurchaseInventoryWarning') }}
           </p>
         </div>
-      </template>
+        </div>
 
       <template #footer>
         <div class="flex justify-end gap-2">
@@ -558,7 +524,7 @@
           />
         </div>
       </template>
-    </UDrawer>
+    </AppDrawer>
 
     <!-- Image Overlay -->
     <Transition

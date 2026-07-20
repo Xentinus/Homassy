@@ -176,8 +176,7 @@
     </div>
 
     <!-- Filter drawer (bottom sheet) -->
-    <UDrawer v-model:open="filtersOpen" :title="$t('pages.shoppingLists.filters.toggle')">
-      <template #body>
+    <AppDrawer v-model:open="filtersOpen" :title="$t('pages.shoppingLists.filters.toggle')" icon="i-lucide-sliders-horizontal">
         <div class="space-y-5 pb-2">
           <!-- Shopping list selection + management -->
           <div role="group" :aria-label="$t('pages.shoppingLists.filterLabels.list')">
@@ -264,7 +263,7 @@
             :options="locationOptions"
           />
         </div>
-      </template>
+
       <template #footer>
         <div class="flex items-center gap-2 w-full">
           <UButton
@@ -284,7 +283,7 @@
           />
         </div>
       </template>
-    </UDrawer>
+    </AppDrawer>
 
     <!-- Create Shopping List Modal -->
     <UModal :open="isCreateModalOpen" @update:open="(val) => isCreateModalOpen = val" :dismissible="false">

@@ -1,35 +1,13 @@
 <template>
-  <UDrawer
+  <AppDrawer
     :open="open"
-    :dismissible="false"
-    :ui="{
-      content: 'h-[80dvh] rounded-t-2xl overflow-hidden',
-      container: 'flex flex-1 flex-col min-h-0 gap-0 p-0 overflow-hidden',
-      header: 'shrink-0 border-b border-default p-4 sm:px-6',
-      body: 'flex-1 min-h-0 overflow-y-auto p-0',
-      footer: 'shrink-0 flex flex-row items-center justify-end gap-2 border-t border-default p-4 sm:px-6'
-    }"
+    :title="title"
+    :icon="icon"
+    :loading="loading"
+    :padded="false"
     @update:open="(value) => emit('update:open', value)"
   >
-    <template #header>
-      <div ref="headerEl" class="flex items-center gap-3 w-full" style="touch-action: none">
-        <UIcon v-if="icon" :name="icon" class="h-7 w-7 shrink-0 text-primary-500" />
-        <DrawerTitle class="text-xl sm:text-2xl font-semibold">{{ title }}</DrawerTitle>
-        <DrawerDescription class="sr-only">{{ title }}</DrawerDescription>
-        <UButton
-          class="ml-auto"
-          icon="i-lucide-x"
-          color="neutral"
-          variant="ghost"
-          :aria-label="t('common.close')"
-          @click="emit('update:open', false)"
-        />
-      </div>
-    </template>
-
-    <template #body>
-      <div ref="scrollEl" class="h-full overflow-y-auto">
-        <div v-if="searchable" class="sticky top-0 z-10 bg-default p-4 sm:px-6 pb-2 border-b border-default">
+    <div v-if="searchable" class="sticky top-0 z-10 bg-default p-4 sm:px-6 pb-2 border-b border-default">
           <UInput
             v-model="query"
             icon="i-lucide-search"
@@ -66,8 +44,6 @@
             </p>
           </template>
         </div>
-      </div>
-    </template>
 
     <template #footer>
       <UButton :label="t('common.cancel')" color="neutral" variant="ghost" @click="onCancel" />
@@ -80,12 +56,11 @@
         @click="onSave"
       />
     </template>
-  </UDrawer>
+  </AppDrawer>
 </template>
 
 <script setup lang="ts">
 import { ref, computed, watch, nextTick } from 'vue'
-import { DrawerTitle, DrawerDescription } from 'vaul-vue'
 
 /**
  * Single-select bottom sheet with an explicit Cancel/Save footer (language /
@@ -122,14 +97,7 @@ const { t } = useI18n()
 
 const query = ref('')
 const pending = ref<string | undefined>(props.modelValue)
-const headerEl = ref<HTMLElement | null>(null)
-const scrollEl = ref<HTMLElement | null>(null)
 const optionEls = new Map<string, HTMLElement>()
-
-useDrawerDragToClose(headerEl, {
-  onClose: () => emit('update:open', false),
-  disabled: () => props.loading
-})
 
 function registerOption(value: string, el: unknown) {
   if (el instanceof HTMLElement) optionEls.set(value, el)

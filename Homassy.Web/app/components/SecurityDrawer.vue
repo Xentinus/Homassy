@@ -1,125 +1,102 @@
 <template>
-  <UDrawer
+  <AppDrawer
     :open="open"
-    :dismissible="false"
-    :ui="{
-      content: 'h-[94dvh] rounded-t-2xl overflow-hidden',
-      container: 'flex flex-1 flex-col min-h-0 gap-0 p-0 overflow-hidden',
-      header: 'shrink-0 border-b border-default p-4 sm:px-6',
-      body: 'flex-1 min-h-0 overflow-y-auto p-4 sm:p-6',
-      footer: 'shrink-0 flex flex-row items-center justify-between gap-2 border-t border-default p-4 sm:px-6'
-    }"
+    :title="headerTitle"
+    icon="i-lucide-shield"
+    :loading="isRegistering || isDeleting"
     @update:open="(value) => emit('update:open', value)"
   >
-    <template #header>
-      <div ref="headerEl" class="flex items-center gap-3 w-full" style="touch-action: none">
-        <UIcon name="i-lucide-shield" class="h-7 w-7 shrink-0 text-primary-500" />
-        <DrawerTitle class="text-xl sm:text-2xl font-semibold">{{ headerTitle }}</DrawerTitle>
-        <DrawerDescription class="sr-only">{{ headerTitle }}</DrawerDescription>
-        <UButton
-          class="ml-auto"
-          icon="i-lucide-x"
-          color="neutral"
-          variant="ghost"
-          :aria-label="t('common.close')"
-          @click="emit('update:open', false)"
-        />
-      </div>
-    </template>
+    <!-- LIST -->
+    <div v-if="view === 'list'" class="space-y-4">
+      <p class="text-sm text-muted">{{ t('profile.security.passkeysDescription') }}</p>
 
-    <template #body>
-      <!-- LIST -->
-      <div v-if="view === 'list'" class="space-y-4">
-        <p class="text-sm text-muted">{{ t('profile.security.passkeysDescription') }}</p>
+      <UAlert
+        v-if="!webauthnSupported"
+        color="warning"
+        variant="soft"
+        icon="i-heroicons-exclamation-triangle"
+        :title="t('auth.passkeyNotSupported')"
+        :description="t('profile.security.passkeyNotSupportedDescription')"
+      />
 
-        <UAlert
-          v-if="!webauthnSupported"
-          color="warning"
-          variant="soft"
-          icon="i-heroicons-exclamation-triangle"
-          :title="t('auth.passkeyNotSupported')"
-          :description="t('profile.security.passkeyNotSupportedDescription')"
-        />
-
-        <template v-else>
-          <template v-if="loading">
-            <USkeleton v-for="i in 2" :key="i" class="h-20 w-full rounded-xl mb-3" />
-          </template>
-          <template v-else>
-            <div
-              v-if="passkeys.length === 0"
-              class="text-center py-8 bg-gray-50 dark:bg-gray-800/50 rounded-xl"
-            >
-              <UIcon name="i-heroicons-finger-print" class="w-12 h-12 mx-auto text-gray-400 dark:text-gray-600 mb-3" />
-              <p class="text-gray-600 dark:text-gray-400 mb-1">{{ t('profile.security.noPasskeys') }}</p>
-              <p class="text-sm text-gray-500 dark:text-gray-500">{{ t('profile.security.noPasskeysHint') }}</p>
-            </div>
-            <div v-else class="space-y-3">
-              <PasskeyCard
-                v-for="passkey in passkeys"
-                :key="passkey.id"
-                :passkey="passkey"
-                @delete="requestDelete"
-              />
-            </div>
-          </template>
+      <template v-else>
+        <template v-if="loading">
+          <USkeleton v-for="i in 2" :key="i" class="h-20 w-full rounded-xl mb-3" />
         </template>
+        <template v-else>
+          <div
+            v-if="passkeys.length === 0"
+            class="text-center py-8 bg-gray-50 dark:bg-gray-800/50 rounded-xl"
+          >
+            <UIcon name="i-heroicons-finger-print" class="w-12 h-12 mx-auto text-gray-400 dark:text-gray-600 mb-3" />
+            <p class="text-gray-600 dark:text-gray-400 mb-1">{{ t('profile.security.noPasskeys') }}</p>
+            <p class="text-sm text-gray-500 dark:text-gray-500">{{ t('profile.security.noPasskeysHint') }}</p>
+          </div>
+          <div v-else class="space-y-3">
+            <PasskeyCard
+              v-for="passkey in passkeys"
+              :key="passkey.id"
+              :passkey="passkey"
+              @delete="requestDelete"
+            />
+          </div>
+        </template>
+      </template>
 
-        <UAlert
-          v-if="errorMessage"
-          color="error"
-          variant="soft"
-          :description="errorMessage"
+      <UAlert
+        v-if="errorMessage"
+        color="error"
+        variant="soft"
+        :description="errorMessage"
+      />
+    </div>
+
+    <!-- ADD -->
+    <div v-else-if="view === 'add'" class="space-y-4">
+      <UAlert
+        v-if="!webauthnSupported"
+        color="warning"
+        variant="soft"
+        :title="t('auth.passkeyNotSupported')"
+      />
+      <div v-else>
+        <label class="block text-sm font-medium mb-1">{{ t('profile.security.passkeyName') }}</label>
+        <UInput
+          v-model="displayName"
+          :placeholder="t('profile.security.passkeyNamePlaceholder')"
+          :disabled="isRegistering"
+          class="w-full"
         />
+        <p class="text-xs text-gray-500 dark:text-gray-400 mt-1">{{ t('profile.security.passkeyNameHint') }}</p>
       </div>
 
-      <!-- ADD -->
-      <div v-else-if="view === 'add'" class="space-y-4">
-        <UAlert
-          v-if="!webauthnSupported"
-          color="warning"
-          variant="soft"
-          :title="t('auth.passkeyNotSupported')"
-        />
-        <div v-else>
-          <label class="block text-sm font-medium mb-1">{{ t('profile.security.passkeyName') }}</label>
-          <UInput
-            v-model="displayName"
-            :placeholder="t('profile.security.passkeyNamePlaceholder')"
-            :disabled="isRegistering"
-            class="w-full"
-          />
-          <p class="text-xs text-gray-500 dark:text-gray-400 mt-1">{{ t('profile.security.passkeyNameHint') }}</p>
-        </div>
-
-        <div v-if="webauthnSupported && hasPlatformAuth" class="flex items-center gap-2 p-3 rounded-lg bg-blue-50 dark:bg-blue-900/20">
-          <UIcon name="i-heroicons-finger-print" class="w-5 h-5 text-blue-600 dark:text-blue-400" />
-          <p class="text-sm text-blue-700 dark:text-blue-300">{{ t('auth.passkeyWithBiometrics') }}</p>
-        </div>
-
-        <UAlert
-          v-if="errorMessage"
-          color="error"
-          variant="soft"
-          :description="errorMessage"
-        />
+      <div v-if="webauthnSupported && hasPlatformAuth" class="flex items-center gap-2 p-3 rounded-lg bg-blue-50 dark:bg-blue-900/20">
+        <UIcon name="i-heroicons-finger-print" class="w-5 h-5 text-blue-600 dark:text-blue-400" />
+        <p class="text-sm text-blue-700 dark:text-blue-300">{{ t('auth.passkeyWithBiometrics') }}</p>
       </div>
 
-      <!-- CONFIRM DELETE -->
-      <div v-else class="space-y-3">
-        <p class="text-sm">{{ t('profile.security.deletePasskeyWarning') }}</p>
-        <div class="p-3 rounded-lg bg-gray-50 dark:bg-gray-800/50">
-          <span class="text-sm font-medium text-gray-700 dark:text-gray-300">{{ t('common.name') }}:</span>
-          <span class="text-sm ml-2">{{ pendingDelete?.displayName }}</span>
-        </div>
-        <UAlert
-          v-if="errorMessage"
-          color="error"
-          variant="soft"
-          :description="errorMessage"
-        />
+      <UAlert
+        v-if="errorMessage"
+        color="error"
+        variant="soft"
+        :description="errorMessage"
+      />
+    </div>
+
+    <!-- CONFIRM DELETE -->
+    <div v-else class="space-y-3">
+      <p class="text-sm">{{ t('profile.security.deletePasskeyWarning') }}</p>
+      <div class="p-3 rounded-lg bg-gray-50 dark:bg-gray-800/50">
+        <span class="text-sm font-medium text-gray-700 dark:text-gray-300">{{ t('common.name') }}:</span>
+        <span class="text-sm ml-2">{{ pendingDelete?.displayName }}</span>
       </div>
-    </template>
+      <UAlert
+        v-if="errorMessage"
+        color="error"
+        variant="soft"
+        :description="errorMessage"
+      />
+    </div>
 
     <template #footer>
       <!-- LIST footer -->
@@ -153,12 +130,11 @@
         <UButton :label="t('common.delete')" color="error" icon="i-lucide-trash-2" :loading="isDeleting" @click="confirmDelete" />
       </template>
     </template>
-  </UDrawer>
+  </AppDrawer>
 </template>
 
 <script setup lang="ts">
 import { ref, computed, watch } from 'vue'
-import { DrawerTitle, DrawerDescription } from 'vaul-vue'
 import type { SettingsFlow } from '@ory/client'
 import { useKratos, type WebAuthnCredential } from '~/composables/useKratos'
 import { useWebAuthn } from '~/composables/useWebAuthn'
@@ -185,12 +161,6 @@ const displayName = ref('')
 const pendingDelete = ref<WebAuthnCredential | null>(null)
 // Held so the header drag-gesture can be disabled during a ceremony.
 const currentFlow = ref<SettingsFlow | null>(null)
-
-const headerEl = ref<HTMLElement | null>(null)
-useDrawerDragToClose(headerEl, {
-  onClose: () => emit('update:open', false),
-  disabled: () => isRegistering.value || isDeleting.value
-})
 
 const headerTitle = computed(() => {
   if (view.value === 'add') return t('profile.security.addPasskey')

@@ -1,20 +1,11 @@
 <template>
-  <UDrawer
+  <AppDrawer
     :open="isScannerOpen"
-    :dismissible="false"
-    :ui="{ content: 'max-h-[92dvh]', body: 'overflow-y-auto' }"
+    :title="t('barcodeScanner.title')"
+    icon="i-lucide-scan-barcode"
     @update:open="handleUpdateOpen"
   >
-    <template #title>
-      {{ t('barcodeScanner.title') }}
-    </template>
-
-    <template #description>
-      {{ activeDescription }}
-    </template>
-
-    <template #body>
-      <div class="space-y-4">
+    <div class="space-y-4">
         <!-- Mode Tabs -->
         <UTabs
           :items="scanTabs"
@@ -22,6 +13,9 @@
           :model-value="scanMode"
           @update:model-value="handleTabChange"
         />
+
+        <!-- Per-mode hint -->
+        <p class="text-sm text-center text-muted">{{ activeDescription }}</p>
 
         <!-- Camera Preview -->
         <div ref="streamWrapperRef" class="relative cursor-pointer" @click="handleCameraClick">
@@ -147,8 +141,18 @@
           </p>
         </div>
       </div>
+
+    <template #footer>
+      <UButton
+        class="ml-auto"
+        :label="t('common.cancel')"
+        color="neutral"
+        variant="ghost"
+        icon="i-lucide-x"
+        @click="handleUpdateOpen(false)"
+      />
     </template>
-  </UDrawer>
+  </AppDrawer>
 </template>
 
 <script setup lang="ts">

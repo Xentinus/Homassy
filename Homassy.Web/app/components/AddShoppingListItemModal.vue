@@ -8,11 +8,40 @@
     :can-proceed="canProceed"
     :can-go-back="canGoBack"
     :loading="isCreatingItem"
+    :override-footer="showCreateProduct || showCreateLocation"
     @update:open="onOpenChange"
     @previous="goPrevious"
     @next="goNext"
     @finish="finish"
   >
+    <!-- Inline create sub-forms replace the stepper footer with a Create action. -->
+    <template #footer>
+      <UButton
+        :label="t('common.previous')"
+        color="neutral"
+        variant="ghost"
+        icon="i-lucide-arrow-left"
+        :disabled="isCreating || isCreatingShoppingLocation"
+        @click="goPrevious"
+      />
+      <UButton
+        v-if="showCreateProduct"
+        :label="t('pages.addProduct.form.createButton')"
+        color="primary"
+        icon="i-lucide-plus"
+        :loading="isCreating"
+        @click="() => createProductFormRef?.submit()"
+      />
+      <UButton
+        v-else-if="showCreateLocation"
+        :label="t('pages.addProduct.shoppingLocation.form.createButton')"
+        color="primary"
+        icon="i-lucide-plus"
+        :loading="isCreatingShoppingLocation"
+        @click="() => createLocationFormRef?.submit()"
+      />
+    </template>
+
     <template #default>
       <!-- Step 0: Product Selection (mode-based) -->
       <div v-if="currentStep === 0" class="space-y-6">
@@ -75,6 +104,7 @@
 
             <template #create>
               <UForm
+              ref="createProductFormRef"
               :schema="createProductSchema"
               :state="productFormData"
               class="space-y-4"
@@ -167,16 +197,6 @@
                   :disabled="isCreating"
                 />
               </UFormField>
-
-              <UButton
-                type="submit"
-                color="primary"
-                block
-                :loading="isCreating"
-                :disabled="isCreating"
-              >
-                {{ t('pages.addProduct.form.createButton') }}
-              </UButton>
               </UForm>
             </template>
           </PickOrCreate>
@@ -264,6 +284,7 @@
           <template #create>
             <div class="py-1">
               <UForm
+                ref="createLocationFormRef"
                 :schema="createShoppingLocationSchema"
                 :state="shoppingLocationFormData"
                 class="space-y-4"
@@ -398,16 +419,6 @@
                     :disabled="isCreatingShoppingLocation"
                   />
                 </UFormField>
-
-                <UButton
-                  type="submit"
-                  color="primary"
-                  block
-                  :loading="isCreatingShoppingLocation"
-                  :disabled="isCreatingShoppingLocation"
-                >
-                  {{ t('pages.addProduct.shoppingLocation.form.createButton') }}
-                </UButton>
               </UForm>
             </div>
           </template>
@@ -624,6 +635,8 @@ const stepperItems = computed(() => [
 // Explicit Previous / Next / Finish drives the wizard; selecting a product or
 // location only marks the selection and no longer auto-advances.
 const stepTwoFormRef = ref()
+const createProductFormRef = ref()
+const createLocationFormRef = ref()
 
 // Inline create sub-view for the location step (mirrors showCreateProduct).
 const showCreateLocation = ref(false)

@@ -1,34 +1,12 @@
 <template>
-  <UDrawer
+  <AppDrawer
     :open="open"
-    :dismissible="false"
-    :ui="{
-      content: 'max-h-[90dvh] rounded-t-2xl overflow-hidden',
-      container: 'flex flex-col min-h-0 gap-0 p-0 overflow-hidden',
-      header: 'shrink-0 border-b border-default p-4 sm:px-6',
-      body: 'min-h-0 overflow-y-auto p-4 sm:p-6',
-      footer: 'shrink-0 flex flex-row items-center justify-end gap-2 border-t border-default p-4 sm:px-6'
-    }"
+    :title="title"
+    icon="i-lucide-package"
+    :loading="saving"
     @update:open="(v) => emit('update:open', v)"
   >
-    <template #header>
-      <div ref="headerEl" class="flex items-center gap-3 w-full" style="touch-action: none">
-        <UIcon name="i-lucide-package" class="h-7 w-7 shrink-0 text-primary-500" />
-        <DrawerTitle class="text-xl sm:text-2xl font-semibold">{{ title }}</DrawerTitle>
-        <DrawerDescription class="sr-only">{{ title }}</DrawerDescription>
-        <UButton
-          class="ml-auto"
-          icon="i-lucide-x"
-          color="neutral"
-          variant="ghost"
-          :aria-label="t('common.close')"
-          @click="emit('update:open', false)"
-        />
-      </div>
-    </template>
-
-    <template #body>
-      <div class="space-y-6">
+    <div class="space-y-6">
         <!-- Product image (edit only — upload needs an existing product) -->
         <div v-if="isEdit" class="flex flex-col items-center gap-3">
           <div class="h-28 w-28 rounded-xl overflow-hidden bg-gray-100 dark:bg-gray-800 flex items-center justify-center border border-default">
@@ -81,7 +59,6 @@
           </UFormField>
         </UForm>
       </div>
-    </template>
 
     <template #footer>
       <UButton :label="t('common.cancel')" color="neutral" variant="ghost" @click="emit('update:open', false)" />
@@ -93,7 +70,7 @@
         @click="formRef?.submit()"
       />
     </template>
-  </UDrawer>
+  </AppDrawer>
 
   <!-- OpenFoodFacts import preview (name / brand) -->
   <UModal
@@ -162,7 +139,6 @@
 import { ref, watch, nextTick } from 'vue'
 import { z } from 'zod'
 import type { FormSubmitEvent } from '@nuxt/ui'
-import { DrawerTitle, DrawerDescription } from 'vaul-vue'
 import { useProductsApi } from '~/composables/api/useProductsApi'
 import { useProgressApi } from '~/composables/api/useProgressApi'
 import { useOpenFoodFactsApi } from '~/composables/api/useOpenFoodFactsApi'
@@ -235,12 +211,6 @@ const emptyForm = () => ({
 const form = ref(emptyForm())
 const saving = ref(false)
 const formRef = ref()
-const headerEl = ref<HTMLElement | null>(null)
-
-useDrawerDragToClose(headerEl, {
-  onClose: () => emit('update:open', false),
-  disabled: () => saving.value
-})
 
 // Category options (from the shared select-value endpoint), loaded once.
 const categoryOptionsRaw = ref<SelectValue[]>([])

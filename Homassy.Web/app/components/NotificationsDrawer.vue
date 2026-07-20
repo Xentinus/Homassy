@@ -1,34 +1,12 @@
 <template>
-  <UDrawer
+  <AppDrawer
     :open="open"
-    :dismissible="false"
-    :ui="{
-      content: 'h-[80dvh] rounded-t-2xl overflow-hidden',
-      container: 'flex flex-1 flex-col min-h-0 gap-0 p-0 overflow-hidden',
-      header: 'shrink-0 border-b border-default p-4 sm:px-6',
-      body: 'flex-1 min-h-0 overflow-y-auto p-4 sm:p-6',
-      footer: 'shrink-0 flex flex-row items-center justify-end gap-2 border-t border-default p-4 sm:px-6'
-    }"
+    :title="t('profile.notifications.title')"
+    icon="i-lucide-bell"
+    :loading="isSaving"
     @update:open="(value) => emit('update:open', value)"
   >
-    <template #header>
-      <div ref="headerEl" class="flex items-center gap-3 w-full" style="touch-action: none">
-        <UIcon name="i-lucide-bell" class="h-7 w-7 shrink-0 text-primary-500" />
-        <DrawerTitle class="text-xl sm:text-2xl font-semibold">{{ t('profile.notifications.title') }}</DrawerTitle>
-        <DrawerDescription class="sr-only">{{ t('profile.notifications.title') }}</DrawerDescription>
-        <UButton
-          class="ml-auto"
-          icon="i-lucide-x"
-          color="neutral"
-          variant="ghost"
-          :aria-label="t('common.close')"
-          @click="emit('update:open', false)"
-        />
-      </div>
-    </template>
-
-    <template #body>
-      <div class="space-y-8">
+    <div class="space-y-8">
         <!-- Email -->
         <div class="space-y-4">
           <div class="flex items-center gap-3">
@@ -112,7 +90,6 @@
           </template>
         </div>
       </div>
-    </template>
 
     <template #footer>
       <UButton :label="t('common.cancel')" color="neutral" variant="ghost" :disabled="isSaving" @click="emit('update:open', false)" />
@@ -125,12 +102,11 @@
         @click="onSave"
       />
     </template>
-  </UDrawer>
+  </AppDrawer>
 </template>
 
 <script setup lang="ts">
 import { ref, computed, watch } from 'vue'
-import { DrawerTitle, DrawerDescription } from 'vaul-vue'
 import { useUserApi } from '~/composables/api/useUserApi'
 import { usePushNotifications } from '~/composables/usePushNotifications'
 
@@ -170,12 +146,6 @@ const pushSubscribed = ref(false)
 const pushSupported = computed(() => isSupported.value)
 const pushPermission = computed(() => permissionStatus.value)
 const hasChanges = computed(() => JSON.stringify(form.value) !== JSON.stringify(original.value))
-
-const headerEl = ref<HTMLElement | null>(null)
-useDrawerDragToClose(headerEl, {
-  onClose: () => emit('update:open', false),
-  disabled: () => isSaving.value
-})
 
 // Turning push off cascades to the weekly push summary (local buffer only).
 watch(() => form.value.pushNotificationsEnabled, (enabled) => {

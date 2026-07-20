@@ -1,34 +1,12 @@
 <template>
-  <UDrawer
+  <AppDrawer
     :open="open"
-    :dismissible="false"
-    :ui="{
-      content: 'max-h-[90dvh] rounded-t-2xl overflow-hidden',
-      container: 'flex flex-col min-h-0 gap-0 p-0 overflow-hidden',
-      header: 'shrink-0 border-b border-default p-4 sm:px-6',
-      body: 'min-h-0 overflow-y-auto p-4 sm:p-6',
-      footer: 'shrink-0 flex flex-row items-center justify-end gap-2 border-t border-default p-4 sm:px-6'
-    }"
+    :title="title"
+    icon="i-lucide-warehouse"
+    :loading="saving"
     @update:open="(v) => emit('update:open', v)"
   >
-    <template #header>
-      <div ref="headerEl" class="flex items-center gap-3 w-full" style="touch-action: none">
-        <UIcon name="i-lucide-warehouse" class="h-7 w-7 shrink-0 text-primary-500" />
-        <DrawerTitle class="text-xl sm:text-2xl font-semibold">{{ title }}</DrawerTitle>
-        <DrawerDescription class="sr-only">{{ title }}</DrawerDescription>
-        <UButton
-          class="ml-auto"
-          icon="i-lucide-x"
-          color="neutral"
-          variant="ghost"
-          :aria-label="t('common.close')"
-          @click="emit('update:open', false)"
-        />
-      </div>
-    </template>
-
-    <template #body>
-      <UForm ref="formRef" :schema="schema" :state="form" class="space-y-4" @submit="onSubmit">
+    <UForm ref="formRef" :schema="schema" :state="form" class="space-y-4" @submit="onSubmit">
         <UFormField :label="t('common.name')" name="name" required>
           <UInput v-model="form.name" :placeholder="t('common.name')" :disabled="saving" class="w-full" />
         </UFormField>
@@ -62,7 +40,6 @@
           <UCheckbox v-model="form.isSharedWithFamily" :label="t('profile.storageLocations.isSharedWithFamily')" :disabled="saving" />
         </UFormField>
       </UForm>
-    </template>
 
     <template #footer>
       <UButton :label="t('common.cancel')" color="neutral" variant="ghost" @click="emit('update:open', false)" />
@@ -74,14 +51,13 @@
         @click="formRef?.submit()"
       />
     </template>
-  </UDrawer>
+  </AppDrawer>
 </template>
 
 <script setup lang="ts">
 import { ref, watch } from 'vue'
 import { z } from 'zod'
 import type { FormSubmitEvent } from '@nuxt/ui'
-import { DrawerTitle, DrawerDescription } from 'vaul-vue'
 import { useLocationsApi } from '~/composables/api/useLocationsApi'
 import type { StorageLocationInfo } from '~/types/location'
 
@@ -133,12 +109,6 @@ const emptyForm = () => ({
 const form = ref(emptyForm())
 const saving = ref(false)
 const formRef = ref()
-const headerEl = ref<HTMLElement | null>(null)
-
-useDrawerDragToClose(headerEl, {
-  onClose: () => emit('update:open', false),
-  disabled: () => saving.value
-})
 
 function clearColor() {
   form.value.color = ''
