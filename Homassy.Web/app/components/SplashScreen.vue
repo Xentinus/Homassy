@@ -72,13 +72,21 @@ onMounted(async () => {
   transition: opacity 0.3s ease;
 }
 
-/* Only ever visible when launched as an installed PWA. */
+/* Only ever visible when launched as an installed PWA. `pwa-standalone` is set
+   by the inline head script (covers iOS, where the media query is unreliable);
+   the media query covers Android/desktop installed PWAs. */
 @media all and (display-mode: standalone) {
   .splash {
     display: flex;
     align-items: center;
     justify-content: center;
   }
+}
+
+:root.pwa-standalone .splash {
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 /* Dismissal: stamped on <html> by useSplashScreen().markReady(). */
