@@ -76,12 +76,12 @@
              (not <body>) so it does not hit the teleport isolation/z-index trap. -->
         <USkeleton
           v-if="showSearchSkeleton"
-          class="order-last w-full md:order-none md:w-80 h-9 rounded-md"
+          class="order-last w-full md:order-none md:w-96 lg:w-[28rem] h-9 rounded-md"
         />
         <div
           v-show="!showSearchSkeleton"
           id="app-header-search"
-          class="order-last w-full md:order-none md:w-80 empty:hidden"
+          class="order-last w-full md:order-none md:w-96 lg:w-[28rem] empty:hidden"
         />
 
         <div id="app-header-actions" class="shrink-0 flex items-center gap-2 empty:hidden" />

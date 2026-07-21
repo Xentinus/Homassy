@@ -1,92 +1,83 @@
 <template>
-  <UModal
+  <AppDrawer
     :open="isOpen"
+    :title="$t('pages.addProduct.progressModal.title')"
+    icon="i-lucide-package-plus"
+    fit="content"
+    :closable="!isProcessing"
     @update:open="handleModalUpdate"
-    :dismissible="!isProcessing"
-    :ui="{ width: 'sm:max-w-lg' }"
   >
-    <template #title>
-      {{ $t('pages.addProduct.progressModal.title') }}
-    </template>
+    <p class="text-sm text-muted">{{ getDescriptionText() }}</p>
+    <div class="space-y-3">
+      <!-- Items List -->
+      <div class="space-y-2 max-h-96 overflow-y-auto">
+        <div
+          v-for="item in items"
+          :key="item.id"
+          class="flex items-center gap-3 p-3 rounded-lg border transition-colors"
+          :class="getItemCardClass(item.status)"
+        >
+          <!-- Status Icon -->
+          <div class="flex-shrink-0">
+            <div v-if="item.status === 'pending'" class="h-5 w-5 rounded-full bg-gray-300 dark:bg-gray-600" />
+            <UIcon
+              v-else-if="item.status === 'in-progress'"
+              name="i-lucide-loader-2"
+              class="h-5 w-5 text-primary-500 animate-spin"
+            />
+            <UIcon
+              v-else-if="item.status === 'success'"
+              name="i-lucide-check-circle"
+              class="h-5 w-5 text-green-500"
+            />
+            <UIcon
+              v-else-if="item.status === 'error'"
+              name="i-lucide-x-circle"
+              class="h-5 w-5 text-red-500"
+            />
+          </div>
 
-    <template #description>
-      {{ getDescriptionText() }}
-    </template>
+          <!-- Item Info -->
+          <div class="flex-1 min-w-0">
+            <p class="text-sm font-medium truncate">
+              {{ item.displayText }}
+            </p>
+            <p v-if="item.errorMessage" class="text-xs text-red-600 dark:text-red-400 mt-1">
+              {{ item.errorMessage }}
+            </p>
+          </div>
 
-    <template #body>
-      <div class="space-y-3">
-        <!-- Items List -->
-        <div class="space-y-2 max-h-96 overflow-y-auto">
-          <div
-            v-for="(item, index) in items"
-            :key="item.id"
-            class="flex items-center gap-3 p-3 rounded-lg border transition-colors"
-            :class="getItemCardClass(item.status)"
-          >
-            <!-- Status Icon -->
-            <div class="flex-shrink-0">
-              <div v-if="item.status === 'pending'" class="h-5 w-5 rounded-full bg-gray-300 dark:bg-gray-600" />
-              <UIcon
-                v-else-if="item.status === 'in-progress'"
-                name="i-lucide-loader-2"
-                class="h-5 w-5 text-primary-500 animate-spin"
-              />
-              <UIcon
-                v-else-if="item.status === 'success'"
-                name="i-lucide-check-circle"
-                class="h-5 w-5 text-green-500"
-              />
-              <UIcon
-                v-else-if="item.status === 'error'"
-                name="i-lucide-x-circle"
-                class="h-5 w-5 text-red-500"
-              />
-            </div>
-
-            <!-- Item Info -->
-            <div class="flex-1 min-w-0">
-              <p class="text-sm font-medium truncate">
-                {{ item.displayText }}
-              </p>
-              <p v-if="item.errorMessage" class="text-xs text-red-600 dark:text-red-400 mt-1">
-                {{ item.errorMessage }}
-              </p>
-            </div>
-
-            <!-- Status Badge -->
-            <div class="flex-shrink-0">
-              <UBadge
-                v-if="item.status === 'error'"
-                color="error"
-                variant="soft"
-                size="sm"
-              >
-                {{ $t('pages.addProduct.progressModal.failed') }}
-              </UBadge>
-            </div>
+          <!-- Status Badge -->
+          <div class="flex-shrink-0">
+            <UBadge
+              v-if="item.status === 'error'"
+              color="error"
+              variant="soft"
+              size="sm"
+            >
+              {{ $t('pages.addProduct.progressModal.failed') }}
+            </UBadge>
           </div>
         </div>
-
-        <!-- Summary -->
-        <div v-if="allProcessed" class="mt-4 p-3 rounded-lg bg-gray-50 dark:bg-gray-800">
-          <p class="text-sm font-medium">
-            {{ getSummaryText() }}
-          </p>
-        </div>
       </div>
-    </template>
+
+      <!-- Summary -->
+      <div v-if="allProcessed" class="mt-4 p-3 rounded-lg bg-gray-50 dark:bg-gray-800">
+        <p class="text-sm font-medium">
+          {{ getSummaryText() }}
+        </p>
+      </div>
+    </div>
 
     <template #footer>
-      <div class="flex justify-end">
-        <UButton
-          v-if="allProcessed && hasFailures"
-          :label="$t('common.confirm')"
-          color="primary"
-          @click="handleClose"
-        />
-      </div>
+      <UButton
+        v-if="allProcessed && hasFailures"
+        :label="$t('common.confirm')"
+        color="primary"
+        @click="handleClose"
+      />
     </template>
-  </UModal>
+  </AppDrawer>
 </template>
 
 <script setup lang="ts">

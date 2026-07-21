@@ -86,28 +86,23 @@
     </div>
 
     <!-- Delete confirmation -->
-    <UModal :open="isDeleteModalOpen" :dismissible="false" @update:open="(v) => { isDeleteModalOpen = v }">
-      <template #title>{{ $t('profile.shoppingLocations.deleteLocation') }}</template>
-      <template #description>{{ $t('profile.shoppingLocations.deleteLocationWarning') }}</template>
-      <template #body>
-        <div class="space-y-2">
-          <div>
-            <span class="text-sm font-medium text-gray-700 dark:text-gray-300">{{ $t('common.name') }}:</span>
-            <span class="text-sm ml-2">{{ location.name }}</span>
-          </div>
-          <div v-if="location.description">
-            <span class="text-sm font-medium text-gray-700 dark:text-gray-300">{{ $t('common.description') }}:</span>
-            <span class="text-sm ml-2">{{ location.description }}</span>
-          </div>
+    <AppDrawer :open="isDeleteModalOpen" :title="$t('profile.shoppingLocations.deleteLocation')" icon="i-lucide-trash-2" fit="content" @update:open="(v) => { isDeleteModalOpen = v }">
+      <p class="text-sm text-muted">{{ $t('profile.shoppingLocations.deleteLocationWarning') }}</p>
+      <div class="space-y-2">
+        <div>
+          <span class="text-sm font-medium text-gray-700 dark:text-gray-300">{{ $t('common.name') }}:</span>
+          <span class="text-sm ml-2">{{ location.name }}</span>
         </div>
-      </template>
+        <div v-if="location.description">
+          <span class="text-sm font-medium text-gray-700 dark:text-gray-300">{{ $t('common.description') }}:</span>
+          <span class="text-sm ml-2">{{ location.description }}</span>
+        </div>
+      </div>
       <template #footer>
-        <div class="flex justify-end gap-2">
-          <UButton :label="$t('common.cancel')" color="neutral" variant="outline" @click="() => { isDeleteModalOpen = false }" />
-          <UButton :label="$t('common.delete')" color="error" :loading="isDeleting" @click="handleDelete" />
-        </div>
+        <UButton :label="$t('common.cancel')" color="neutral" variant="outline" @click="() => { isDeleteModalOpen = false }" />
+        <UButton :label="$t('common.delete')" color="error" :loading="isDeleting" @click="handleDelete" />
       </template>
-    </UModal>
+    </AppDrawer>
   </div>
 </template>
 

@@ -8,11 +8,40 @@
     :can-proceed="canProceed"
     :can-go-back="canGoBack"
     :loading="isCreatingItem"
+    :override-footer="showCreateProduct || showCreateLocation"
     @update:open="onOpenChange"
     @previous="goPrevious"
     @next="goNext"
     @finish="finish"
   >
+    <!-- Inline create sub-forms replace the stepper footer with a Create action. -->
+    <template #footer>
+      <UButton
+        :label="t('common.backToSearch')"
+        color="neutral"
+        variant="ghost"
+        icon="i-lucide-arrow-left"
+        :disabled="isCreating || isCreatingShoppingLocation"
+        @click="goPrevious"
+      />
+      <UButton
+        v-if="showCreateProduct"
+        :label="t('pages.addProduct.form.createButton')"
+        color="primary"
+        icon="i-lucide-plus"
+        :loading="isCreating"
+        @click="() => createProductFormRef?.submit()"
+      />
+      <UButton
+        v-else-if="showCreateLocation"
+        :label="t('pages.addProduct.shoppingLocation.form.createButton')"
+        color="primary"
+        icon="i-lucide-plus"
+        :loading="isCreatingShoppingLocation"
+        @click="() => createLocationFormRef?.submit()"
+      />
+    </template>
+
     <template #default>
       <!-- Step 0: Product Selection (mode-based) -->
       <div v-if="currentStep === 0" class="space-y-6">
@@ -75,6 +104,7 @@
 
             <template #create>
               <UForm
+              ref="createProductFormRef"
               :schema="createProductSchema"
               :state="productFormData"
               class="space-y-4"
@@ -167,16 +197,6 @@
                   :disabled="isCreating"
                 />
               </UFormField>
-
-              <UButton
-                type="submit"
-                color="primary"
-                block
-                :loading="isCreating"
-                :disabled="isCreating"
-              >
-                {{ t('pages.addProduct.form.createButton') }}
-              </UButton>
               </UForm>
             </template>
           </PickOrCreate>
@@ -264,6 +284,7 @@
           <template #create>
             <div class="py-1">
               <UForm
+                ref="createLocationFormRef"
                 :schema="createShoppingLocationSchema"
                 :state="shoppingLocationFormData"
                 class="space-y-4"
@@ -398,16 +419,6 @@
                     :disabled="isCreatingShoppingLocation"
                   />
                 </UFormField>
-
-                <UButton
-                  type="submit"
-                  color="primary"
-                  block
-                  :loading="isCreatingShoppingLocation"
-                  :disabled="isCreatingShoppingLocation"
-                >
-                  {{ t('pages.addProduct.shoppingLocation.form.createButton') }}
-                </UButton>
               </UForm>
             </div>
           </template>
@@ -494,80 +505,71 @@
       </div>
 
       <!-- OpenFoodFacts Modal -->
-      <UModal
+      <AppDrawer
         :open="isOpenFoodFactsModalOpen"
-        :dismissible="false"
+        :title="t('pages.addProduct.openFoodFacts.modalTitle')"
+        icon="i-lucide-download"
+        fit="content"
         @update:open="(val) => { if (!val) isOpenFoodFactsModalOpen = false }"
       >
-        <template #title>
-          {{ t('pages.addProduct.openFoodFacts.modalTitle') }}
-        </template>
-
-        <template #description>
-          {{ t('pages.addProduct.openFoodFacts.modalDescription') }}
-        </template>
-
-        <template #body>
-          <div class="space-y-4">
-            <!-- Product Image -->
-            <div class="flex justify-center">
-              <div class="relative w-40 h-40">
-                <USkeleton
-                  v-if="isImageLoading && openFoodFactsProduct?.image_base64"
-                  class="w-full h-full rounded-lg"
-                />
-                <img
-                  v-if="openFoodFactsProduct?.image_base64"
-                  :src="openFoodFactsProduct.image_base64"
-                  alt="Product image"
-                  class="w-full h-full object-contain rounded-lg border border-gray-200 dark:border-gray-700"
-                  :class="{ 'opacity-0': isImageLoading }"
-                  @load="isImageLoading = false"
-                >
-                <div
-                  v-else
-                  class="w-full h-full flex items-center justify-center bg-gray-100 dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700"
-                >
-                  <UIcon name="i-lucide-package" class="h-16 w-16 text-gray-400" />
-                </div>
-              </div>
-            </div>
-
-            <!-- Product Information -->
-            <div class="space-y-3">
-              <div v-if="openFoodFactsProduct?.product_name">
-                <span class="text-sm font-medium text-gray-700 dark:text-gray-300">
-                  {{ t('pages.addProduct.openFoodFacts.productName') }}:
-                </span>
-                <p class="text-sm mt-1">{{ openFoodFactsProduct.product_name }}</p>
-              </div>
-
-              <div v-if="openFoodFactsProduct?.brands">
-                <span class="text-sm font-medium text-gray-700 dark:text-gray-300">
-                  {{ t('pages.addProduct.openFoodFacts.brands') }}:
-                </span>
-                <p class="text-sm mt-1">{{ openFoodFactsProduct.brands }}</p>
+        <p class="text-sm text-muted">{{ t('pages.addProduct.openFoodFacts.modalDescription') }}</p>
+        <div class="space-y-4">
+          <!-- Product Image -->
+          <div class="flex justify-center">
+            <div class="relative w-40 h-40">
+              <USkeleton
+                v-if="isImageLoading && openFoodFactsProduct?.image_base64"
+                class="w-full h-full rounded-lg"
+              />
+              <img
+                v-if="openFoodFactsProduct?.image_base64"
+                :src="openFoodFactsProduct.image_base64"
+                alt="Product image"
+                class="w-full h-full object-contain rounded-lg border border-gray-200 dark:border-gray-700"
+                :class="{ 'opacity-0': isImageLoading }"
+                @load="isImageLoading = false"
+              >
+              <div
+                v-else
+                class="w-full h-full flex items-center justify-center bg-gray-100 dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700"
+              >
+                <UIcon name="i-lucide-package" class="h-16 w-16 text-gray-400" />
               </div>
             </div>
           </div>
-        </template>
+
+          <!-- Product Information -->
+          <div class="space-y-3">
+            <div v-if="openFoodFactsProduct?.product_name">
+              <span class="text-sm font-medium text-gray-700 dark:text-gray-300">
+                {{ t('pages.addProduct.openFoodFacts.productName') }}:
+              </span>
+              <p class="text-sm mt-1">{{ openFoodFactsProduct.product_name }}</p>
+            </div>
+
+            <div v-if="openFoodFactsProduct?.brands">
+              <span class="text-sm font-medium text-gray-700 dark:text-gray-300">
+                {{ t('pages.addProduct.openFoodFacts.brands') }}:
+              </span>
+              <p class="text-sm mt-1">{{ openFoodFactsProduct.brands }}</p>
+            </div>
+          </div>
+        </div>
 
         <template #footer>
-          <div class="flex justify-end gap-2">
-            <UButton
-              :label="t('pages.addProduct.openFoodFacts.cancel')"
-              color="neutral"
-              variant="outline"
-              @click="isOpenFoodFactsModalOpen = false"
-            />
-            <UButton
-              :label="t('pages.addProduct.openFoodFacts.import')"
-              color="primary"
-              @click="importOpenFoodFactsData"
-            />
-          </div>
+          <UButton
+            :label="t('pages.addProduct.openFoodFacts.cancel')"
+            color="neutral"
+            variant="outline"
+            @click="isOpenFoodFactsModalOpen = false"
+          />
+          <UButton
+            :label="t('pages.addProduct.openFoodFacts.import')"
+            color="primary"
+            @click="importOpenFoodFactsData"
+          />
         </template>
-      </UModal>
+      </AppDrawer>
 
       <!-- Barcode Scanner Modal -->
       <BarcodeScannerModal :on-barcode-detected="activeBarcodeHandler" />
@@ -624,6 +626,8 @@ const stepperItems = computed(() => [
 // Explicit Previous / Next / Finish drives the wizard; selecting a product or
 // location only marks the selection and no longer auto-advances.
 const stepTwoFormRef = ref()
+const createProductFormRef = ref()
+const createLocationFormRef = ref()
 
 // Inline create sub-view for the location step (mirrors showCreateProduct).
 const showCreateLocation = ref(false)

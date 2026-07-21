@@ -58,12 +58,10 @@
     </Teleport>
 
     <!-- Filter drawer (bottom sheet) -->
-    <UDrawer v-model:open="filtersOpen" :title="$t('common.filters.toggle')">
-      <template #body>
-        <div class="space-y-5 pb-2">
-          <slot name="filters" />
-        </div>
-      </template>
+    <AppDrawer v-model:open="filtersOpen" :title="$t('common.filters.toggle')" icon="i-lucide-sliders-horizontal">
+      <div class="space-y-5 pb-2">
+        <slot name="filters" />
+      </div>
       <template #footer>
         <div class="flex items-center gap-2 w-full">
           <UButton
@@ -83,7 +81,7 @@
           />
         </div>
       </template>
-    </UDrawer>
+    </AppDrawer>
   </div>
 </template>
 

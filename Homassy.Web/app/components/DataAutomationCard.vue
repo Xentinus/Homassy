@@ -53,22 +53,17 @@
     </div>
 
     <!-- Delete confirmation -->
-    <UModal :open="isDeleteModalOpen" :dismissible="false" @update:open="(v) => { isDeleteModalOpen = v }">
-      <template #title>{{ $t('profile.automation.deleteAutomation') }}</template>
-      <template #description>{{ $t('profile.automation.deleteWarning') }}</template>
-      <template #body>
-        <div>
-          <span class="text-sm font-medium text-gray-700 dark:text-gray-300">{{ $t('common.name') }}:</span>
-          <span class="text-sm ml-2">{{ automation.productName }}</span>
-        </div>
-      </template>
+    <AppDrawer :open="isDeleteModalOpen" :title="$t('profile.automation.deleteAutomation')" icon="i-lucide-trash-2" fit="content" @update:open="(v) => { isDeleteModalOpen = v }">
+      <p class="text-sm text-muted">{{ $t('profile.automation.deleteWarning') }}</p>
+      <div>
+        <span class="text-sm font-medium text-gray-700 dark:text-gray-300">{{ $t('common.name') }}:</span>
+        <span class="text-sm ml-2">{{ automation.productName }}</span>
+      </div>
       <template #footer>
-        <div class="flex justify-end gap-2">
-          <UButton :label="$t('common.cancel')" color="neutral" variant="outline" @click="() => { isDeleteModalOpen = false }" />
-          <UButton :label="$t('common.delete')" color="error" :loading="isDeleting" @click="handleDelete" />
-        </div>
+        <UButton :label="$t('common.cancel')" color="neutral" variant="outline" @click="() => { isDeleteModalOpen = false }" />
+        <UButton :label="$t('common.delete')" color="error" :loading="isDeleting" @click="handleDelete" />
       </template>
-    </UModal>
+    </AppDrawer>
   </div>
 </template>
 

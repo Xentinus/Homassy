@@ -22,6 +22,7 @@
     "searchPlaceholder": "Keresés név, márka vagy vonalkód alapján...",
     "filter": "Szűrés",
     "previous": "Előző",
+    "backToSearch": "Vissza a kereséshez",
     "next": "Következő",
     "finish": "Befejezés",
     "noData": "Nincs adat",
@@ -758,7 +759,6 @@
           "custom": "Egyedi"
         },
         "createNewProduct": "Új termék létrehozása",
-        "backToSearch": "Vissza a kereséshez",
         "pick": {
           "createProduct": "„{name}” létrehozása termékként",
           "createLocation": "„{name}” létrehozása bolthelyként",

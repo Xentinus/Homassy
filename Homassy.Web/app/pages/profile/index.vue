@@ -12,25 +12,19 @@
         @select="openEditProfile"
       />
 
-      <!-- Image Cropper Modal -->
+      <!-- Image cropper + upload progress in one drawer (phase-switched) -->
       <ImageCropper
         :is-open="imageCropperOpen"
         :image-src="cropperImageSrc"
         :default-aspect-ratio="1"
+        :upload-status="uploadStatus"
+        :upload-progress="uploadProgress"
+        :upload-stage="uploadStage"
+        :upload-error-message="uploadErrorMessage"
         @close="imageCropperOpen = false"
         @cropped="handleCroppedImage"
-      />
-
-      <!-- Upload Progress Modal -->
-      <UploadProgressModal
-        :is-open="isUploadProgressOpen"
-        :progress="uploadProgress"
-        :stage="uploadStage"
-        :status="uploadStatus"
-        :error-message="uploadErrorMessage"
-        @update:is-open="isUploadProgressOpen = $event"
-        @cancel="handleCancelUpload"
-        @close="handleCloseUploadModal"
+        @cancel-upload="handleCancelUpload"
+        @close-upload="handleCloseUpload"
       />
 
       <!-- Auth-dependent content renders only after mount so SSR (user=null)
@@ -224,7 +218,6 @@ import { useProgressApi } from '~/composables/api/useProgressApi'
 import { useVersionApi } from '~/composables/api/useVersionApi'
 import { useUserPreferences, type PreferenceField } from '~/composables/useUserPreferences'
 import ImageCropper from '~/components/ImageCropper.vue'
-import UploadProgressModal from '~/components/UploadProgressModal.vue'
 import imageCompression from 'browser-image-compression'
 import { extractBase64 } from '~/composables/useImageCrop'
 import type { VersionInfo } from '~/types/version'
@@ -263,12 +256,12 @@ const cropperImageSrc = ref('')
 const versionInfo = ref<VersionInfo | null>(null)
 const versionLoading = ref(false)
 
-// Upload progress state
-const isUploadProgressOpen = ref(false)
+// Upload progress state ('idle' = still cropping; the cropper drawer switches
+// to the progress view once this leaves 'idle').
 const currentUploadJobId = ref<string | null>(null)
 const uploadProgress = ref(0)
 const uploadStage = ref('validating')
-const uploadStatus = ref<'inprogress' | 'completed' | 'failed' | 'cancelled'>('inprogress')
+const uploadStatus = ref<'idle' | 'inprogress' | 'completed' | 'failed' | 'cancelled'>('idle')
 const uploadErrorMessage = ref<string | undefined>(undefined)
 let stopPolling: (() => void) | null = null
 
@@ -412,6 +405,7 @@ function triggerFileSelect() {
     const reader = new FileReader()
     reader.onload = (event) => {
       cropperImageSrc.value = event.target?.result as string
+      uploadStatus.value = 'idle'
       imageCropperOpen.value = true
     }
     reader.readAsDataURL(file)
@@ -421,7 +415,11 @@ function triggerFileSelect() {
 }
 
 async function handleCroppedImage(base64: string) {
-  imageCropperOpen.value = false
+  // Keep the drawer open; switch it to the upload progress view.
+  uploadStatus.value = 'inprogress'
+  uploadProgress.value = 0
+  uploadStage.value = 'validating'
+  uploadErrorMessage.value = undefined
 
   try {
     const blob = await fetch(base64).then(r => r.blob())
@@ -440,12 +438,12 @@ async function handleCroppedImage(base64: string) {
     reader.readAsDataURL(compressed)
   } catch (error) {
     console.error('Failed to process image:', error)
+    uploadStatus.value = 'failed'
   }
 }
 
 async function uploadWithProgress(base64Data: string) {
   try {
-    isUploadProgressOpen.value = true
     uploadProgress.value = 0
     uploadStage.value = 'validating'
     uploadStatus.value = 'inprogress'
@@ -467,14 +465,14 @@ async function uploadWithProgress(base64Data: string) {
           // navbar avatar and this page repaint together.
           await authStore.fetchUserFromBackend()
           setTimeout(() => {
-            handleCloseUploadModal()
+            handleCloseUpload()
           }, 500)
         }
       })
     }
   } catch (error) {
     console.error('Failed to start upload:', error)
-    isUploadProgressOpen.value = false
+    uploadStatus.value = 'failed'
   }
 }
 
@@ -488,15 +486,17 @@ function handleCancelUpload() {
       stopPolling = null
     }
   }
+  uploadStatus.value = 'cancelled'
 }
 
-function handleCloseUploadModal() {
+function handleCloseUpload() {
   if (stopPolling) {
     stopPolling()
     stopPolling = null
   }
-  isUploadProgressOpen.value = false
+  imageCropperOpen.value = false
   currentUploadJobId.value = null
+  uploadStatus.value = 'idle'
 }
 
 async function onDeleteAvatar() {

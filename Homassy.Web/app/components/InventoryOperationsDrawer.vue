@@ -1,149 +1,121 @@
 <template>
-  <UDrawer
+  <AppDrawer
     :open="open"
-    :dismissible="false"
-    :ui="{
-      content: 'h-[80dvh] rounded-t-2xl overflow-hidden',
-      container: 'flex flex-1 flex-col min-h-0 gap-0 p-0 overflow-hidden',
-      header: 'shrink-0 border-b border-default p-4 sm:px-6',
-      body: 'flex-1 min-h-0 overflow-y-auto p-4 sm:p-6',
-      footer: 'shrink-0 flex flex-row items-center justify-between gap-2 border-t border-default p-4 sm:px-6'
-    }"
+    :title="view === 'split' ? $t('pages.products.details.splitModal.title') : view === 'move' ? $t('pages.products.details.moveModal.title') : $t('pages.products.details.operationsTitle')"
+    icon="i-lucide-settings"
+    :loading="isSplitting || isMoving"
     @update:open="(value) => emit('update:open', value)"
   >
-    <template #header>
-      <div ref="headerEl" class="w-full" style="touch-action: none">
-        <div class="flex items-center gap-3">
-          <UIcon name="i-lucide-settings" class="h-6 w-6 shrink-0 text-primary-500" />
-          <h1 class="text-xl font-semibold">
-            {{ view === 'split' ? $t('pages.products.details.splitModal.title')
-              : view === 'move' ? $t('pages.products.details.moveModal.title')
-              : $t('pages.products.details.operationsTitle') }}
-          </h1>
-          <UButton
-            class="ml-auto"
-            icon="i-lucide-x"
-            color="neutral"
-            variant="ghost"
-            :aria-label="$t('common.close')"
-            @click="emit('update:open', false)"
-          />
-        </div>
-      </div>
-    </template>
+    <!-- List view: select items, then pick an operation -->
+    <div v-if="view === 'list'" class="space-y-3">
+      <p class="text-sm text-muted">{{ $t('pages.products.details.operationsHint') }}</p>
 
-    <template #body>
-      <!-- List view: select items, then pick an operation -->
-      <div v-if="view === 'list'" class="space-y-3">
-        <p class="text-sm text-muted">{{ $t('pages.products.details.operationsHint') }}</p>
-
-        <div v-if="items.length === 0" class="text-center py-8 text-gray-500 dark:text-gray-400">
-          {{ $t('pages.products.details.noInventoryItems') }}
-        </div>
-
-        <button
-          v-for="it in items"
-          :key="it.publicId"
-          type="button"
-          class="w-full flex items-center justify-between gap-3 rounded-xl border-2 px-4 py-3 text-left transition"
-          :class="selectedIds.includes(it.publicId)
-            ? 'border-primary-400 bg-primary-50 dark:border-primary-600 dark:bg-primary-950/40'
-            : 'border-gray-200 dark:border-gray-700 hover:bg-elevated/50'"
-          @click="toggleSelection(it.publicId)"
-        >
-          <div class="min-w-0">
-            <div class="font-semibold text-highlighted">
-              {{ it.currentQuantity }} {{ $t(`enums.unit.${it.unit}`) }}
-            </div>
-            <div v-if="it.storageLocation" class="text-sm text-muted truncate">
-              {{ it.storageLocation.name }}
-            </div>
-            <div v-if="it.expirationAt" class="text-xs text-muted">
-              {{ $t('common.expirationDate') }}: {{ formatDate(it.expirationAt) }}
-            </div>
-          </div>
-          <UIcon
-            :name="selectedIds.includes(it.publicId) ? 'i-lucide-check-circle-2' : 'i-lucide-circle'"
-            class="h-5 w-5 shrink-0"
-            :class="selectedIds.includes(it.publicId) ? 'text-primary-500' : 'text-gray-400'"
-          />
-        </button>
+      <div v-if="items.length === 0" class="text-center py-8 text-gray-500 dark:text-gray-400">
+        {{ $t('pages.products.details.noInventoryItems') }}
       </div>
 
-      <!-- Split view -->
-      <div v-else-if="view === 'split' && splitTarget" class="space-y-4">
-        <div class="p-3 bg-gray-50 dark:bg-gray-800 rounded-lg">
-          <div class="text-sm text-gray-600 dark:text-gray-400">
-            {{ $t('pages.products.details.splitModal.currentQuantity') }}
+      <button
+        v-for="it in items"
+        :key="it.publicId"
+        type="button"
+        class="w-full flex items-center justify-between gap-3 rounded-xl border-2 px-4 py-3 text-left transition"
+        :class="selectedIds.includes(it.publicId)
+          ? 'border-primary-400 bg-primary-50 dark:border-primary-600 dark:bg-primary-950/40'
+          : 'border-gray-200 dark:border-gray-700 hover:bg-elevated/50'"
+        @click="toggleSelection(it.publicId)"
+      >
+        <div class="min-w-0">
+          <div class="font-semibold text-highlighted">
+            {{ it.currentQuantity }} {{ $t(`enums.unit.${it.unit}`) }}
           </div>
-          <div class="text-lg font-semibold">
-            {{ splitTarget.currentQuantity }} {{ $t(`enums.unit.${splitTarget.unit}`) }}
+          <div v-if="it.storageLocation" class="text-sm text-muted truncate">
+            {{ it.storageLocation.name }}
+          </div>
+          <div v-if="it.expirationAt" class="text-xs text-muted">
+            {{ $t('common.expirationDate') }}: {{ formatDate(it.expirationAt) }}
           </div>
         </div>
+        <UIcon
+          :name="selectedIds.includes(it.publicId) ? 'i-lucide-check-circle-2' : 'i-lucide-circle'"
+          class="h-5 w-5 shrink-0"
+          :class="selectedIds.includes(it.publicId) ? 'text-primary-500' : 'text-gray-400'"
+        />
+      </button>
+    </div>
 
-        <div>
-          <label class="block text-sm font-medium mb-1">
-            {{ $t('pages.products.details.splitModal.splitQuantity') }} <span class="text-red-500">*</span>
-          </label>
-          <UInput
-            v-model.number="splitQuantity"
-            type="number"
-            :min="0.1"
-            :max="splitTarget.currentQuantity - 0.1"
-            step="0.1"
-            :placeholder="$t('pages.products.details.splitModal.splitQuantityPlaceholder')"
-            class="w-full"
-          />
-          <p class="text-xs text-gray-500 dark:text-gray-400 mt-1">
-            {{ $t('pages.products.details.splitModal.maxQuantity', { max: (splitTarget.currentQuantity - 0.1).toFixed(1) }) }}
-          </p>
+    <!-- Split view -->
+    <div v-else-if="view === 'split' && splitTarget" class="space-y-4">
+      <div class="p-3 bg-gray-50 dark:bg-gray-800 rounded-lg">
+        <div class="text-sm text-gray-600 dark:text-gray-400">
+          {{ $t('pages.products.details.splitModal.currentQuantity') }}
         </div>
-
-        <div class="flex flex-wrap gap-2">
-          <UButton
-            v-for="step in [-10, -1, -0.1, 0.1, 1, 10]"
-            :key="step"
-            size="sm"
-            variant="outline"
-            :label="step > 0 ? `+${step}` : `${step}`"
-            @click="adjustSplitQuantity(step)"
-          />
-        </div>
-
-        <div class="p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-800">
-          <div class="text-sm text-blue-600 dark:text-blue-400">
-            {{ $t('pages.products.details.splitModal.remainingPreview') }}
-          </div>
-          <div class="text-lg font-semibold text-blue-700 dark:text-blue-300">
-            {{ splitQuantity ? (splitTarget.currentQuantity - splitQuantity).toFixed(1) : splitTarget.currentQuantity }}
-            {{ $t(`enums.unit.${splitTarget.unit}`) }}
-          </div>
+        <div class="text-lg font-semibold">
+          {{ splitTarget.currentQuantity }} {{ $t(`enums.unit.${splitTarget.unit}`) }}
         </div>
       </div>
 
-      <!-- Move view -->
-      <div v-else-if="view === 'move'" class="space-y-4">
-        <div class="p-3 bg-gray-50 dark:bg-gray-800 rounded-lg text-sm">
-          <span class="font-medium text-gray-700 dark:text-gray-300">
-            {{ $t('pages.products.details.operationsSelectedCount', { count: selectedIds.length }) }}
-          </span>
-        </div>
+      <div>
+        <label class="block text-sm font-medium mb-1">
+          {{ $t('pages.products.details.splitModal.splitQuantity') }} <span class="text-red-500">*</span>
+        </label>
+        <UInput
+          v-model.number="splitQuantity"
+          type="number"
+          :min="0.1"
+          :max="splitTarget.currentQuantity - 0.1"
+          step="0.1"
+          :placeholder="$t('pages.products.details.splitModal.splitQuantityPlaceholder')"
+          class="w-full"
+        />
+        <p class="text-xs text-gray-500 dark:text-gray-400 mt-1">
+          {{ $t('pages.products.details.splitModal.maxQuantity', { max: (splitTarget.currentQuantity - 0.1).toFixed(1) }) }}
+        </p>
+      </div>
 
-        <div>
-          <label class="block text-sm font-medium mb-1">
-            {{ $t('pages.products.details.moveModal.targetLocation') }} <span class="text-red-500">*</span>
-          </label>
-          <USelect
-            v-model="selectedStorageId"
-            :items="storageOptions"
-            :loading="isLoadingStorages"
-            :disabled="isMoving"
-            :placeholder="$t('pages.products.details.moveModal.targetLocationPlaceholder')"
-            class="w-full"
-          />
+      <div class="flex flex-wrap gap-2">
+        <UButton
+          v-for="step in [-10, -1, -0.1, 0.1, 1, 10]"
+          :key="step"
+          size="sm"
+          variant="outline"
+          :label="step > 0 ? `+${step}` : `${step}`"
+          @click="adjustSplitQuantity(step)"
+        />
+      </div>
+
+      <div class="p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-800">
+        <div class="text-sm text-blue-600 dark:text-blue-400">
+          {{ $t('pages.products.details.splitModal.remainingPreview') }}
+        </div>
+        <div class="text-lg font-semibold text-blue-700 dark:text-blue-300">
+          {{ splitQuantity ? (splitTarget.currentQuantity - splitQuantity).toFixed(1) : splitTarget.currentQuantity }}
+          {{ $t(`enums.unit.${splitTarget.unit}`) }}
         </div>
       </div>
-    </template>
+    </div>
+
+    <!-- Move view -->
+    <div v-else-if="view === 'move'" class="space-y-4">
+      <div class="p-3 bg-gray-50 dark:bg-gray-800 rounded-lg text-sm">
+        <span class="font-medium text-gray-700 dark:text-gray-300">
+          {{ $t('pages.products.details.operationsSelectedCount', { count: selectedIds.length }) }}
+        </span>
+      </div>
+
+      <div>
+        <label class="block text-sm font-medium mb-1">
+          {{ $t('pages.products.details.moveModal.targetLocation') }} <span class="text-red-500">*</span>
+        </label>
+        <USelect
+          v-model="selectedStorageId"
+          :items="storageOptions"
+          :loading="isLoadingStorages"
+          :disabled="isMoving"
+          :placeholder="$t('pages.products.details.moveModal.targetLocationPlaceholder')"
+          class="w-full"
+        />
+      </div>
+    </div>
 
     <template #footer>
       <!-- List footer -->
@@ -191,7 +163,7 @@
         />
       </template>
     </template>
-  </UDrawer>
+  </AppDrawer>
 </template>
 
 <script setup lang="ts">
@@ -231,13 +203,6 @@ const isMoving = ref(false)
 const isLoadingStorages = ref(false)
 const selectedStorageId = ref<string | null>(null)
 const storageOptions = ref<{ label: string; value: string }[]>([])
-
-// Drag the header down to dismiss, like the other bottom sheets.
-const headerEl = ref<HTMLElement | null>(null)
-useDrawerDragToClose(headerEl, {
-  onClose: () => emit('update:open', false),
-  disabled: () => isSplitting.value || isMoving.value
-})
 
 // Reset when the drawer opens/closes.
 watch(() => props.open, (isOpen) => {

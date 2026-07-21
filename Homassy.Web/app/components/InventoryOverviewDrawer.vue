@@ -1,72 +1,45 @@
 <template>
-  <UDrawer
+  <AppDrawer
     :open="open"
-    :dismissible="false"
-    :ui="{
-      content: 'h-[94dvh] rounded-t-2xl overflow-hidden',
-      container: 'flex flex-1 flex-col min-h-0 gap-0 p-0 overflow-hidden',
-      header: 'shrink-0 border-b border-default p-4 sm:px-6',
-      body: 'flex-1 min-h-0 overflow-y-auto p-4 sm:p-6'
-    }"
+    :title="product?.name || $t('pages.products.details.overview')"
+    icon="i-lucide-package"
     @update:open="(value) => emit('update:open', value)"
   >
-    <template #header>
-      <div ref="headerEl" class="w-full" style="touch-action: none">
-        <div class="flex items-center gap-3">
-          <UIcon name="i-lucide-package" class="h-6 w-6 shrink-0 text-primary-500" />
-          <DrawerTitle class="text-lg sm:text-xl font-semibold truncate">
-            {{ product?.name || $t('pages.products.details.overview') }}
-          </DrawerTitle>
-          <DrawerDescription class="sr-only">{{ product?.name || $t('pages.products.details.overview') }}</DrawerDescription>
-          <UButton
-            class="ml-auto"
-            icon="i-lucide-x"
-            color="neutral"
-            variant="ghost"
-            :aria-label="$t('common.close')"
-            @click="emit('update:open', false)"
-          />
-        </div>
-      </div>
-    </template>
+    <!-- Loading -->
+    <div v-if="isLoading" class="space-y-6">
+      <USkeleton class="h-32 w-full" />
+      <USkeleton class="h-40 w-full" />
+      <USkeleton class="h-40 w-full" />
+    </div>
 
-    <template #body>
-      <!-- Loading -->
-      <div v-if="isLoading" class="space-y-6">
-        <USkeleton class="h-32 w-full" />
-        <USkeleton class="h-40 w-full" />
-        <USkeleton class="h-40 w-full" />
-      </div>
+    <!-- Error -->
+    <div v-else-if="error" class="text-center py-12">
+      <UIcon name="i-lucide-alert-circle" class="h-16 w-16 mx-auto text-red-500 mb-4" />
+      <p class="text-lg text-gray-600 dark:text-gray-400">
+        {{ $t('pages.products.details.productNotFound') }}
+      </p>
+    </div>
 
-      <!-- Error -->
-      <div v-else-if="error" class="text-center py-12">
-        <UIcon name="i-lucide-alert-circle" class="h-16 w-16 mx-auto text-red-500 mb-4" />
-        <p class="text-lg text-gray-600 dark:text-gray-400">
-          {{ $t('pages.products.details.productNotFound') }}
-        </p>
-      </div>
+    <!-- Content -->
+    <div v-else-if="product" class="space-y-6">
+      <ProductInfoPanel
+        :product="product"
+        @image-click="isImageOverlayOpen = true"
+        @toggle-favorite="handleToggleFavorite"
+      />
 
-      <!-- Content -->
-      <div v-else-if="product" class="space-y-6">
-        <ProductInfoPanel
-          :product="product"
-          @image-click="isImageOverlayOpen = true"
-          @toggle-favorite="handleToggleFavorite"
-        />
+      <InventoryItemList
+        :items="sortedInventoryItems"
+        :product-name="product.name"
+        @refresh="refreshAll"
+      />
 
-        <InventoryItemList
-          :items="sortedInventoryItems"
-          :product-name="product.name"
-          @refresh="refreshAll"
-        />
-
-        <ProductHistoryList
-          :items="history"
-          :loading="isLoadingHistory"
-        />
-      </div>
-    </template>
-  </UDrawer>
+      <ProductHistoryList
+        :items="history"
+        :loading="isLoadingHistory"
+      />
+    </div>
+  </AppDrawer>
 
   <!-- Image Overlay -->
   <Transition
@@ -94,7 +67,6 @@
 
 <script setup lang="ts">
 import { ref, computed, watch, onMounted, onBeforeUnmount } from 'vue'
-import { DrawerTitle, DrawerDescription } from 'vaul-vue'
 import type {
   DetailedProductInfo,
   ProductHistoryEventInfo,
@@ -254,11 +226,5 @@ onBeforeUnmount(() => {
   inventorySocket.off('ProductUpdated', handleRealtimeProductUpdated)
   inventorySocket.off('ProductFavoriteChanged', handleRealtimeProductFavoriteChanged)
   inventorySocket.off('ProductDeleted', handleRealtimeProductDeleted)
-})
-
-// Drag the header down to dismiss.
-const headerEl = ref<HTMLElement | null>(null)
-useDrawerDragToClose(headerEl, {
-  onClose: () => emit('update:open', false)
 })
 </script>
