@@ -14,6 +14,10 @@
  * splash would flash too briefly to read. `markReady()` therefore never hides
  * the splash before MIN_VISIBLE_MS has elapsed; a slow load still hides exactly
  * when it becomes ready (no extra artificial delay).
+ *
+ * Re-show on resume: `rearm()` reverses the dismissal (removes the attribute and
+ * restarts the minimum-visible baseline) so the splash can be shown again when
+ * the PWA is resumed after a long background gap — see plugins/splash-resume.
  */
 const MIN_VISIBLE_MS = 1800
 
@@ -29,6 +33,14 @@ export function useSplashScreen() {
     document.documentElement.setAttribute('data-splash-ready', 'true')
   }
 
+  const rearm = () => {
+    if (!import.meta.client) return
+    // Restart the MIN_VISIBLE_MS floor from now so a resumed splash is also
+    // readable, then drop the attribute so CSS shows .splash again (standalone).
+    shownAt = performance.now()
+    document.documentElement.removeAttribute('data-splash-ready')
+  }
+
   const markReady = () => {
     if (!import.meta.client) return
     const remaining = MIN_VISIBLE_MS - (performance.now() - (shownAt ?? performance.now()))
@@ -40,5 +52,5 @@ export function useSplashScreen() {
     }
   }
 
-  return { markReady }
+  return { markReady, rearm }
 }

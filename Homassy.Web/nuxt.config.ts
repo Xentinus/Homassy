@@ -75,8 +75,8 @@ export default defineNuxtConfig({
       short_name: 'Homassy',
       theme_color: '#c9b8a0',
       // Matches the in-app splash background so the OS-generated launch screen
-      // hands off seamlessly into it.
-      background_color: '#c9b8a0',
+      // hands off seamlessly into it (SplashScreen.vue uses the same espresso).
+      background_color: '#2b2620',
       display: 'standalone',
       start_url: '/',
       icons: [

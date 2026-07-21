@@ -3,10 +3,10 @@ import { useAuthStore } from '~/stores/auth'
 import type { VersionInfo } from '~/types/version'
 
 // Boot splash shown only when running as an installed PWA (standalone display
-// mode — enforced in CSS below). Logo + spinner render server-side so they
-// paint during the pre-hydration auth window; the name/version are client-only
-// (auth + version resolve after hydration) and are wrapped in <ClientOnly> to
-// avoid a hydration mismatch.
+// mode — enforced in CSS below). Logo + the loading ring around it render
+// server-side so they paint during the pre-hydration auth window; the
+// name/version are client-only (auth + version resolve after hydration) and are
+// wrapped in <ClientOnly> to avoid a hydration mismatch.
 
 const authStore = useAuthStore()
 
@@ -35,13 +35,16 @@ onMounted(async () => {
 <template>
   <div class="splash" aria-hidden="true">
     <div class="splash__inner">
-      <img
-        src="/favicon.svg"
-        alt="Homassy"
-        class="splash__logo"
-        width="88"
-        height="88"
-      >
+      <div class="splash__badge">
+        <div class="splash__ring" role="status" :aria-label="$t('common.loading')" />
+        <img
+          src="/favicon.svg"
+          alt="Homassy"
+          class="splash__logo"
+          width="88"
+          height="88"
+        >
+      </div>
 
       <ClientOnly>
         <p v-if="userName" class="splash__welcome">
@@ -49,8 +52,6 @@ onMounted(async () => {
           <span class="splash__name">{{ userName }}</span>
         </p>
       </ClientOnly>
-
-      <div class="splash__spinner" role="status" :aria-label="$t('common.loading')" />
     </div>
 
     <ClientOnly>
@@ -67,8 +68,8 @@ onMounted(async () => {
   position: fixed;
   inset: 0;
   z-index: 2147483000;
-  background-color: #c9b8a0;
-  color: #2b2620;
+  background-color: #2b2620;
+  color: #f5eee2;
   transition: opacity 0.3s ease;
 }
 
@@ -104,10 +105,31 @@ onMounted(async () => {
   padding: 2rem;
 }
 
+/* The loading ring is a rotating conic arc, masked into a thin band so the
+   espresso background shows through its centre; the static logo sits on top. */
+.splash__badge {
+  position: relative;
+  width: 128px;
+  height: 128px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.splash__ring {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  background: conic-gradient(from 0deg, #f0e6d6 0deg 250deg, #413a31 250deg 360deg);
+  -webkit-mask: radial-gradient(farthest-side, transparent calc(100% - 7px), #000 calc(100% - 7px));
+  mask: radial-gradient(farthest-side, transparent calc(100% - 7px), #000 calc(100% - 7px));
+  animation: splash-spin 0.9s linear infinite;
+}
+
 .splash__logo {
   width: 88px;
   height: 88px;
-  filter: drop-shadow(0 2px 6px rgba(0, 0, 0, 0.15));
+  filter: drop-shadow(0 2px 6px rgba(0, 0, 0, 0.25));
 }
 
 .splash__welcome {
@@ -118,22 +140,13 @@ onMounted(async () => {
 .splash__welcome-label {
   display: block;
   font-size: 0.8rem;
-  opacity: 0.7;
+  color: #a58e74;
 }
 
 .splash__name {
   display: block;
   font-size: 1.35rem;
   font-weight: 600;
-}
-
-.splash__spinner {
-  width: 34px;
-  height: 34px;
-  border-radius: 50%;
-  border: 3px solid rgba(43, 38, 32, 0.25);
-  border-top-color: #2b2620;
-  animation: splash-spin 0.8s linear infinite;
 }
 
 .splash__version {
@@ -153,8 +166,8 @@ onMounted(async () => {
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .splash__spinner {
-    animation-duration: 1.6s;
+  .splash__ring {
+    animation-duration: 2.4s;
   }
 }
 </style>
