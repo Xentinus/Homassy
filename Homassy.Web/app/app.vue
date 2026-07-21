@@ -32,9 +32,11 @@ useSeoMeta({
 
 <template>
   <div>
-    <NuxtLayout :toaster="toaster">
-      <NuxtPage />
-    </NuxtLayout>
+    <div class="app-shell">
+      <NuxtLayout :toaster="toaster">
+        <NuxtPage />
+      </NuxtLayout>
+    </div>
     <SplashScreen />
   </div>
 </template>

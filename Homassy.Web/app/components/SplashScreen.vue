@@ -70,7 +70,21 @@ onMounted(async () => {
   z-index: 2147483000;
   background-color: #2b2620;
   color: #f5eee2;
-  transition: opacity 0.3s ease;
+  transition:
+    opacity 0.45s cubic-bezier(0.7, 0, 0.2, 1),
+    transform 0.55s cubic-bezier(0.7, 0, 0.2, 1);
+}
+
+/* App content beneath the splash. It fades in as the curtain lifts; gated on
+   standalone so a normal browser tab never fades. No transform here — the auth
+   layout's bottom nav is position:fixed, and a transformed ancestor would
+   become its containing block and misposition it during the animation. */
+.app-shell {
+  transition: opacity 0.5s cubic-bezier(0.16, 1, 0.3, 1) 0.1s;
+}
+
+:root.pwa-standalone:not([data-splash-ready]) .app-shell {
+  opacity: 0;
 }
 
 /* Only ever visible when launched as an installed PWA. `pwa-standalone` is set
@@ -91,10 +105,13 @@ onMounted(async () => {
 }
 
 /* Dismissal: stamped on <html> by useSplashScreen().markReady(). */
+/* Dismissal: the splash slides up out of the frame (curtain), revealing the
+   app beneath. translateY is off-screen; opacity + pointer-events retire it.
+   visibility is intentionally NOT set — it snaps and would kill the slide. */
 :root[data-splash-ready] .splash {
   opacity: 0;
+  transform: translateY(-102%);
   pointer-events: none;
-  visibility: hidden;
 }
 
 .splash__inner {
@@ -168,6 +185,19 @@ onMounted(async () => {
 @media (prefers-reduced-motion: reduce) {
   .splash__ring {
     animation-duration: 2.4s;
+  }
+
+  /* No curtain slide — fall back to a plain fade for both layers. */
+  .splash {
+    transition: opacity 0.2s ease;
+  }
+
+  :root[data-splash-ready] .splash {
+    transform: none;
+  }
+
+  .app-shell {
+    transition: opacity 0.2s ease;
   }
 }
 </style>
