@@ -1,4 +1,7 @@
 {
+  "splash": {
+    "welcomeBack": "Willkommen zurück"
+  },
   "meta": {
     "default": {
       "title": "Homassy - Familienhaushalts-Verwaltung",
