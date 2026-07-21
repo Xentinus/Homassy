@@ -186,232 +186,213 @@
       </div>
     </div>
 
-  <!-- Edit Modal -->
-  <UModal :open="isEditModalOpen" @update:open="(val: boolean) => isEditModalOpen = val" :dismissible="false">
-    <template #title>
-      {{ $t('profile.automation.editAutomation') }}
-    </template>
+  <!-- Edit Drawer (bottom sheet) -->
+  <AppDrawer :open="isEditModalOpen" :title="$t('profile.automation.editAutomation')" icon="i-lucide-pencil" fit="full" @update:open="(val: boolean) => isEditModalOpen = val">
+    <div class="space-y-4">
+      <p class="text-sm text-muted">{{ $t('profile.automation.editDescription') }}</p>
+      <!-- Action Type -->
+      <div>
+        <label class="block text-sm font-medium mb-1">
+          {{ $t('profile.automation.actionType') }} <span class="text-red-500">*</span>
+        </label>
+        <USelect
+          v-model="form.actionType"
+          :items="actionTypeOptions"
+          value-key="value"
+          label-key="label"
+          class="w-full"
+        />
+      </div>
 
-    <template #description>
-      {{ $t('profile.automation.editDescription') }}
-    </template>
+      <!-- Shopping List Selector -->
+      <div v-if="form.actionType === AutomationActionType.AddToShoppingList || form.actionType === AutomationActionType.LowStockAddToShoppingList">
+        <label class="block text-sm font-medium mb-1">
+          {{ $t('profile.automation.shoppingList') }} <span class="text-red-500">*</span>
+        </label>
+        <USelect
+          v-model="form.shoppingListPublicId"
+          :items="shoppingListOptions"
+          value-key="value"
+          label-key="label"
+          :placeholder="$t('profile.automation.selectShoppingList')"
+          class="w-full"
+        />
+      </div>
 
-    <template #body>
-      <div class="space-y-4">
-        <!-- Action Type -->
-        <div>
-          <label class="block text-sm font-medium mb-1">
-            {{ $t('profile.automation.actionType') }} <span class="text-red-500">*</span>
-          </label>
-          <USelect
-            v-model="form.actionType"
-            :items="actionTypeOptions"
-            value-key="value"
-            label-key="label"
-            class="w-full"
-          />
-        </div>
+      <!-- Product Selector -->
+      <div v-if="form.actionType === AutomationActionType.AddToShoppingList || form.actionType === AutomationActionType.LowStockAddToShoppingList">
+        <label class="block text-sm font-medium mb-1">
+          {{ $t('profile.automation.product') }} <span class="text-red-500">*</span>
+        </label>
+        <USelect
+          v-model="form.productPublicId"
+          :items="productOptions"
+          value-key="value"
+          label-key="label"
+          :placeholder="$t('profile.automation.selectProduct')"
+          class="w-full"
+        />
+      </div>
 
-        <!-- Shopping List Selector -->
-        <div v-if="form.actionType === AutomationActionType.AddToShoppingList || form.actionType === AutomationActionType.LowStockAddToShoppingList">
-          <label class="block text-sm font-medium mb-1">
-            {{ $t('profile.automation.shoppingList') }} <span class="text-red-500">*</span>
-          </label>
-          <USelect
-            v-model="form.shoppingListPublicId"
-            :items="shoppingListOptions"
-            value-key="value"
-            label-key="label"
-            :placeholder="$t('profile.automation.selectShoppingList')"
-            class="w-full"
-          />
-        </div>
+      <!-- Threshold Quantity -->
+      <div v-if="form.actionType === AutomationActionType.LowStockAddToShoppingList">
+        <label class="block text-sm font-medium mb-1">
+          {{ $t('profile.automation.thresholdQuantity') }} <span class="text-red-500">*</span>
+        </label>
+        <UInput
+          v-model.number="form.thresholdQuantity"
+          type="number"
+          :min="0.001"
+          step="0.1"
+          class="w-full"
+        />
+      </div>
 
-        <!-- Product Selector -->
-        <div v-if="form.actionType === AutomationActionType.AddToShoppingList || form.actionType === AutomationActionType.LowStockAddToShoppingList">
-          <label class="block text-sm font-medium mb-1">
-            {{ $t('profile.automation.product') }} <span class="text-red-500">*</span>
-          </label>
-          <USelect
-            v-model="form.productPublicId"
-            :items="productOptions"
-            value-key="value"
-            label-key="label"
-            :placeholder="$t('profile.automation.selectProduct')"
-            class="w-full"
-          />
-        </div>
+      <!-- Schedule Type -->
+      <div v-if="form.actionType !== AutomationActionType.LowStockAddToShoppingList">
+        <label class="block text-sm font-medium mb-1">
+          {{ $t('profile.automation.scheduleType') }} <span class="text-red-500">*</span>
+        </label>
+        <USelect
+          v-model="form.scheduleType"
+          :items="scheduleTypeOptions"
+          value-key="value"
+          label-key="label"
+          class="w-full"
+        />
+      </div>
 
-        <!-- Threshold Quantity -->
-        <div v-if="form.actionType === AutomationActionType.LowStockAddToShoppingList">
-          <label class="block text-sm font-medium mb-1">
-            {{ $t('profile.automation.thresholdQuantity') }} <span class="text-red-500">*</span>
-          </label>
-          <UInput
-            v-model.number="form.thresholdQuantity"
-            type="number"
-            :min="0.001"
-            step="0.1"
-            class="w-full"
-          />
-        </div>
+      <!-- Interval Days -->
+      <div v-if="form.scheduleType === ScheduleType.Interval && form.actionType !== AutomationActionType.LowStockAddToShoppingList">
+        <label class="block text-sm font-medium mb-1">
+          {{ $t('profile.automation.intervalDays') }} <span class="text-red-500">*</span>
+        </label>
+        <UInput
+          v-model.number="form.intervalDays"
+          type="number"
+          :min="1"
+          :max="365"
+          class="w-full"
+        />
+      </div>
 
-        <!-- Schedule Type -->
-        <div v-if="form.actionType !== AutomationActionType.LowStockAddToShoppingList">
-          <label class="block text-sm font-medium mb-1">
-            {{ $t('profile.automation.scheduleType') }} <span class="text-red-500">*</span>
-          </label>
-          <USelect
-            v-model="form.scheduleType"
-            :items="scheduleTypeOptions"
-            value-key="value"
-            label-key="label"
-            class="w-full"
-          />
-        </div>
-
-        <!-- Interval Days -->
-        <div v-if="form.scheduleType === ScheduleType.Interval && form.actionType !== AutomationActionType.LowStockAddToShoppingList">
-          <label class="block text-sm font-medium mb-1">
-            {{ $t('profile.automation.intervalDays') }} <span class="text-red-500">*</span>
-          </label>
-          <UInput
-            v-model.number="form.intervalDays"
-            type="number"
-            :min="1"
-            :max="365"
-            class="w-full"
-          />
-        </div>
-
-        <!-- Days of Week -->
-        <div v-if="form.scheduleType === ScheduleType.FixedDate && form.actionType !== AutomationActionType.LowStockAddToShoppingList">
-          <label class="block text-sm font-medium mb-1">
-            {{ $t('profile.automation.scheduledDaysOfWeek') }}
-          </label>
-          <div class="flex flex-wrap gap-2">
-            <button
-              v-for="day in daysOfWeekOptions"
-              :key="day.value"
-              type="button"
-              class="px-3 py-1.5 text-sm rounded-full border transition-colors"
-              :class="isDaySelected(day.value) ? 'bg-primary-500 text-white border-primary-500' : 'bg-gray-100 dark:bg-gray-800 border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-300 hover:border-primary-300'"
-              @click="toggleDay(day.value)"
-            >
-              {{ day.label }}
-            </button>
-          </div>
-        </div>
-
-        <!-- Day of Month -->
-        <div v-if="form.scheduleType === ScheduleType.FixedDate && form.actionType !== AutomationActionType.LowStockAddToShoppingList">
-          <label class="block text-sm font-medium mb-1">
-            {{ $t('profile.automation.scheduledDayOfMonth') }}
-          </label>
-          <UInput
-            v-model.number="form.scheduledDayOfMonth"
-            type="number"
-            :min="1"
-            :max="31"
-            :placeholder="$t('profile.automation.dayOfMonthPlaceholder')"
-            class="w-full"
-          />
-        </div>
-
-        <!-- Scheduled Time -->
-        <div v-if="form.actionType !== AutomationActionType.LowStockAddToShoppingList">
-          <label class="block text-sm font-medium mb-1">
-            {{ $t('profile.automation.scheduledTime') }} <span class="text-red-500">*</span>
-          </label>
-          <UInput
-            v-model="form.scheduledTime"
-            type="time"
-            class="w-full"
-          />
-        </div>
-
-        <!-- Consume Quantity -->
-        <div v-if="form.actionType === AutomationActionType.AutoConsume">
-          <label class="block text-sm font-medium mb-1">
-            {{ $t('common.quantity') }}
-          </label>
-          <UInput
-            v-model.number="form.consumeQuantity"
-            type="number"
-            :min="0.001"
-            step="0.1"
-            class="w-full"
+      <!-- Days of Week -->
+      <div v-if="form.scheduleType === ScheduleType.FixedDate && form.actionType !== AutomationActionType.LowStockAddToShoppingList">
+        <label class="block text-sm font-medium mb-1">
+          {{ $t('profile.automation.scheduledDaysOfWeek') }}
+        </label>
+        <div class="flex flex-wrap gap-2">
+          <button
+            v-for="day in daysOfWeekOptions"
+            :key="day.value"
+            type="button"
+            class="px-3 py-1.5 text-sm rounded-full border transition-colors"
+            :class="isDaySelected(day.value) ? 'bg-primary-500 text-white border-primary-500' : 'bg-gray-100 dark:bg-gray-800 border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-300 hover:border-primary-300'"
+            @click="toggleDay(day.value)"
           >
-            <template v-if="unitLabel" #trailing>
-              <span class="text-sm text-gray-500 dark:text-gray-400">{{ unitLabel }}</span>
-            </template>
-          </UInput>
-        </div>
-
-        <!-- Add Quantity -->
-        <div v-if="form.actionType === AutomationActionType.AddToShoppingList || form.actionType === AutomationActionType.LowStockAddToShoppingList">
-          <label class="block text-sm font-medium mb-1">
-            {{ $t('profile.automation.addQuantity') }} <span class="text-red-500">*</span>
-          </label>
-          <UInput
-            v-model.number="form.addQuantity"
-            type="number"
-            :min="0.001"
-            step="0.1"
-            class="w-full"
-          >
-            <template v-if="unitLabel" #trailing>
-              <span class="text-sm text-gray-500 dark:text-gray-400">{{ unitLabel }}</span>
-            </template>
-          </UInput>
+            {{ day.label }}
+          </button>
         </div>
       </div>
-    </template>
+
+      <!-- Day of Month -->
+      <div v-if="form.scheduleType === ScheduleType.FixedDate && form.actionType !== AutomationActionType.LowStockAddToShoppingList">
+        <label class="block text-sm font-medium mb-1">
+          {{ $t('profile.automation.scheduledDayOfMonth') }}
+        </label>
+        <UInput
+          v-model.number="form.scheduledDayOfMonth"
+          type="number"
+          :min="1"
+          :max="31"
+          :placeholder="$t('profile.automation.dayOfMonthPlaceholder')"
+          class="w-full"
+        />
+      </div>
+
+      <!-- Scheduled Time -->
+      <div v-if="form.actionType !== AutomationActionType.LowStockAddToShoppingList">
+        <label class="block text-sm font-medium mb-1">
+          {{ $t('profile.automation.scheduledTime') }} <span class="text-red-500">*</span>
+        </label>
+        <UInput
+          v-model="form.scheduledTime"
+          type="time"
+          class="w-full"
+        />
+      </div>
+
+      <!-- Consume Quantity -->
+      <div v-if="form.actionType === AutomationActionType.AutoConsume">
+        <label class="block text-sm font-medium mb-1">
+          {{ $t('common.quantity') }}
+        </label>
+        <UInput
+          v-model.number="form.consumeQuantity"
+          type="number"
+          :min="0.001"
+          step="0.1"
+          class="w-full"
+        >
+          <template v-if="unitLabel" #trailing>
+            <span class="text-sm text-gray-500 dark:text-gray-400">{{ unitLabel }}</span>
+          </template>
+        </UInput>
+      </div>
+
+      <!-- Add Quantity -->
+      <div v-if="form.actionType === AutomationActionType.AddToShoppingList || form.actionType === AutomationActionType.LowStockAddToShoppingList">
+        <label class="block text-sm font-medium mb-1">
+          {{ $t('profile.automation.addQuantity') }} <span class="text-red-500">*</span>
+        </label>
+        <UInput
+          v-model.number="form.addQuantity"
+          type="number"
+          :min="0.001"
+          step="0.1"
+          class="w-full"
+        >
+          <template v-if="unitLabel" #trailing>
+            <span class="text-sm text-gray-500 dark:text-gray-400">{{ unitLabel }}</span>
+          </template>
+        </UInput>
+      </div>
+    </div>
 
     <template #footer>
-      <div class="flex justify-end gap-2">
-        <UButton
-          :label="$t('common.cancel')"
-          color="neutral"
-          variant="outline"
-          @click="isEditModalOpen = false"
-        />
-        <UButton
-          :label="$t('common.save')"
-          :loading="isSaving"
-          @click="handleSave"
-        />
-      </div>
+      <UButton
+        :label="$t('common.cancel')"
+        color="neutral"
+        variant="outline"
+        @click="isEditModalOpen = false"
+      />
+      <UButton
+        :label="$t('common.save')"
+        :loading="isSaving"
+        @click="handleSave"
+      />
     </template>
-  </UModal>
+  </AppDrawer>
 
-  <!-- Delete Confirmation Modal -->
-  <UModal :open="isDeleteModalOpen" @update:open="(val: boolean) => isDeleteModalOpen = val">
-    <template #title>
-      {{ $t('profile.automation.deleteAutomation') }}
-    </template>
-
-    <template #description>
-      {{ $t('profile.automation.deleteWarning') }}
-    </template>
+  <!-- Delete Confirmation Drawer (bottom sheet) -->
+  <AppDrawer :open="isDeleteModalOpen" :title="$t('profile.automation.deleteAutomation')" icon="i-lucide-trash-2" fit="content" @update:open="(val: boolean) => isDeleteModalOpen = val">
+    <p class="text-sm text-muted">{{ $t('profile.automation.deleteWarning') }}</p>
 
     <template #footer>
-      <div class="flex justify-end gap-2">
-        <UButton
-          :label="$t('common.cancel')"
-          color="neutral"
-          variant="outline"
-          @click="isDeleteModalOpen = false"
-        />
-        <UButton
-          :label="$t('common.delete')"
-          color="error"
-          :loading="isDeleting"
-          @click="handleDelete"
-        />
-      </div>
+      <UButton
+        :label="$t('common.cancel')"
+        color="neutral"
+        variant="outline"
+        @click="isDeleteModalOpen = false"
+      />
+      <UButton
+        :label="$t('common.delete')"
+        color="error"
+        :loading="isDeleting"
+        @click="handleDelete"
+      />
     </template>
-  </UModal>
+  </AppDrawer>
   </div>
 </template>
 

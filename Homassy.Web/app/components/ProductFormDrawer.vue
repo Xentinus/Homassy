@@ -73,65 +73,59 @@
   </AppDrawer>
 
   <!-- OpenFoodFacts import preview (name / brand) -->
-  <UModal
+  <AppDrawer
     :open="isOpenFoodFactsModalOpen"
-    :dismissible="false"
+    :title="t('pages.addProduct.openFoodFacts.modalTitle')"
+    icon="i-lucide-download"
+    fit="content"
     @update:open="(v) => { if (!v) handleCancelImport() }"
   >
-    <template #title>{{ t('pages.addProduct.openFoodFacts.modalTitle') }}</template>
-    <template #description>{{ t('pages.addProduct.openFoodFacts.modalDescription') }}</template>
-    <template #body>
-      <div class="space-y-4">
-        <div class="flex justify-center">
-          <div class="relative w-40 h-40">
-            <img
-              v-if="openFoodFactsProduct?.image_base64"
-              :src="openFoodFactsProduct.image_base64"
-              alt="Product image"
-              class="w-full h-full object-contain rounded-lg border border-gray-200 dark:border-gray-700"
-            >
-            <div v-else class="w-full h-full flex items-center justify-center bg-gray-100 dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700">
-              <UIcon name="i-lucide-package" class="h-16 w-16 text-gray-400" />
-            </div>
-          </div>
-        </div>
-        <div class="space-y-3">
-          <div v-if="openFoodFactsProduct?.product_name">
-            <span class="text-sm font-medium text-gray-700 dark:text-gray-300">{{ t('pages.addProduct.openFoodFacts.productName') }}:</span>
-            <p class="text-sm mt-1">{{ openFoodFactsProduct.product_name }}</p>
-          </div>
-          <div v-if="openFoodFactsProduct?.brands">
-            <span class="text-sm font-medium text-gray-700 dark:text-gray-300">{{ t('pages.addProduct.openFoodFacts.brands') }}:</span>
-            <p class="text-sm mt-1">{{ openFoodFactsProduct.brands }}</p>
+    <p class="text-sm text-muted">{{ t('pages.addProduct.openFoodFacts.modalDescription') }}</p>
+    <div class="space-y-4">
+      <div class="flex justify-center">
+        <div class="relative w-40 h-40">
+          <img
+            v-if="openFoodFactsProduct?.image_base64"
+            :src="openFoodFactsProduct.image_base64"
+            alt="Product image"
+            class="w-full h-full object-contain rounded-lg border border-gray-200 dark:border-gray-700"
+          >
+          <div v-else class="w-full h-full flex items-center justify-center bg-gray-100 dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700">
+            <UIcon name="i-lucide-package" class="h-16 w-16 text-gray-400" />
           </div>
         </div>
       </div>
-    </template>
-    <template #footer>
-      <div class="flex justify-end gap-2">
-        <UButton :label="t('pages.addProduct.openFoodFacts.cancel')" color="neutral" variant="outline" @click="handleCancelImport" />
-        <UButton :label="t('pages.addProduct.openFoodFacts.import')" color="primary" @click="handleImportProduct" />
+      <div class="space-y-3">
+        <div v-if="openFoodFactsProduct?.product_name">
+          <span class="text-sm font-medium text-gray-700 dark:text-gray-300">{{ t('pages.addProduct.openFoodFacts.productName') }}:</span>
+          <p class="text-sm mt-1">{{ openFoodFactsProduct.product_name }}</p>
+        </div>
+        <div v-if="openFoodFactsProduct?.brands">
+          <span class="text-sm font-medium text-gray-700 dark:text-gray-300">{{ t('pages.addProduct.openFoodFacts.brands') }}:</span>
+          <p class="text-sm mt-1">{{ openFoodFactsProduct.brands }}</p>
+        </div>
       </div>
-    </template>
-  </UModal>
+    </div>
 
-  <!-- Image cropper + upload progress (product photo) -->
+    <template #footer>
+      <UButton :label="t('pages.addProduct.openFoodFacts.cancel')" color="neutral" variant="outline" @click="handleCancelImport" />
+      <UButton :label="t('pages.addProduct.openFoodFacts.import')" color="primary" @click="handleImportProduct" />
+    </template>
+  </AppDrawer>
+
+  <!-- Image cropper + upload progress in one drawer (phase-switched) -->
   <ImageCropper
     :is-open="isCropperOpen"
     :image-src="cropperImageSrc"
     :default-aspect-ratio="1"
+    :upload-status="uploadStatus"
+    :upload-progress="uploadProgress"
+    :upload-stage="uploadStage"
+    :upload-error-message="uploadErrorMessage"
     @close="isCropperOpen = false"
     @cropped="handleCroppedProductImage"
-  />
-  <UploadProgressModal
-    :is-open="isUploadProgressOpen"
-    :progress="uploadProgress"
-    :stage="uploadStage"
-    :status="uploadStatus"
-    :error-message="uploadErrorMessage"
-    @update:is-open="(v) => { isUploadProgressOpen = v }"
-    @cancel="handleCancelUpload"
-    @close="handleCloseUploadModal"
+    @cancel-upload="handleCancelUpload"
+    @close-upload="handleCloseUpload"
   />
 </template>
 
@@ -145,7 +139,6 @@ import { useOpenFoodFactsApi } from '~/composables/api/useOpenFoodFactsApi'
 import { useSelectValueApi } from '~/composables/api/useSelectValueApi'
 import { useCameraAvailability } from '~/composables/useCameraAvailability'
 import ImageCropper from '~/components/ImageCropper.vue'
-import UploadProgressModal from '~/components/UploadProgressModal.vue'
 import imageCompression from 'browser-image-compression'
 import { extractBase64 } from '~/composables/useImageCrop'
 import { Unit, SelectValueType } from '~/types/enums'
@@ -242,11 +235,10 @@ const isDeletingImage = ref(false)
 const isImportingImageFromBarcode = ref(false)
 const isCropperOpen = ref(false)
 const cropperImageSrc = ref('')
-const isUploadProgressOpen = ref(false)
 const currentUploadJobId = ref<string | null>(null)
 const uploadProgress = ref(0)
 const uploadStage = ref('validating')
-const uploadStatus = ref<'inprogress' | 'completed' | 'failed' | 'cancelled'>('inprogress')
+const uploadStatus = ref<'idle' | 'inprogress' | 'completed' | 'failed' | 'cancelled'>('idle')
 const uploadErrorMessage = ref<string | undefined>(undefined)
 let stopPolling: (() => void) | null = null
 
@@ -278,6 +270,7 @@ function handleFileSelect(event: Event) {
   const reader = new FileReader()
   reader.onload = (e) => {
     cropperImageSrc.value = e.target?.result as string
+    uploadStatus.value = 'idle'
     isCropperOpen.value = true
   }
   reader.readAsDataURL(file)
@@ -285,8 +278,12 @@ function handleFileSelect(event: Event) {
 }
 
 async function handleCroppedProductImage(base64: string) {
-  isCropperOpen.value = false
-  if (!props.product) return
+  if (!props.product) { isCropperOpen.value = false; return }
+  // Keep the drawer open; switch it to the upload progress view.
+  uploadStatus.value = 'inprogress'
+  uploadProgress.value = 0
+  uploadStage.value = 'validating'
+  uploadErrorMessage.value = undefined
   isUploadingImage.value = true
   try {
     const blob = await fetch(base64).then(r => r.blob())
@@ -300,13 +297,13 @@ async function handleCroppedProductImage(base64: string) {
   } catch (error) {
     console.error('Failed to upload image:', error)
     isUploadingImage.value = false
+    uploadStatus.value = 'failed'
   }
 }
 
 async function uploadWithProgress(base64Data: string) {
   if (!props.product) return
   try {
-    isUploadProgressOpen.value = true
     uploadProgress.value = 0
     uploadStage.value = 'validating'
     uploadStatus.value = 'inprogress'
@@ -328,7 +325,7 @@ async function uploadWithProgress(base64Data: string) {
           isUploadingImage.value = false
           localImage.value = base64Data
           emit('updated')
-          setTimeout(() => handleCloseUploadModal(), 500)
+          setTimeout(() => handleCloseUpload(), 500)
         } else if (progress.status === 'failed' || progress.status === 'cancelled') {
           isUploadingImage.value = false
         }
@@ -337,7 +334,7 @@ async function uploadWithProgress(base64Data: string) {
   } catch (error) {
     console.error('Failed to start upload:', error)
     isUploadingImage.value = false
-    isUploadProgressOpen.value = false
+    uploadStatus.value = 'failed'
   }
 }
 
@@ -351,12 +348,14 @@ async function handleCancelUpload() {
       console.error('Failed to cancel upload:', error)
     }
   }
+  uploadStatus.value = 'cancelled'
 }
 
-function handleCloseUploadModal() {
+function handleCloseUpload() {
   if (stopPolling) { stopPolling(); stopPolling = null }
-  isUploadProgressOpen.value = false
+  isCropperOpen.value = false
   currentUploadJobId.value = null
+  uploadStatus.value = 'idle'
 }
 
 async function handleDeleteProductImage() {

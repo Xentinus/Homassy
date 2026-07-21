@@ -89,170 +89,139 @@
 
     </div>
 
-    <!-- Consume Modal -->
-    <UModal
+    <!-- Consume Drawer (bottom sheet) -->
+    <AppDrawer
       :open="isConsumeModalOpen"
-      :dismissible="false"
+      :title="$t('pages.products.details.consume.title')"
+      icon="i-lucide-minus-circle"
+      fit="content"
       @update:open="(val) => isConsumeModalOpen = val"
     >
-      <template #title>
-        {{ $t('pages.products.details.consume.title') }}
-      </template>
+      <div class="space-y-4">
+        <p class="text-sm text-muted">{{ $t('pages.products.details.consume.description') }}</p>
+        <div class="space-y-2">
+          <label for="consume-quantity" class="block text-sm font-medium">
+            {{ $t('pages.products.details.consume.quantityLabel') }}
+          </label>
+          <UInput
+            id="consume-quantity"
+            v-model="consumeQuantity"
+            type="number"
+            :min="0"
+            :max="item.currentQuantity"
+            :placeholder="$t('pages.products.details.consume.quantityLabel')"
+            class="w-full"
+          />
+          <p class="text-xs text-gray-500 dark:text-gray-400">
+            {{ $t('pages.products.details.consume.maxQuantity', { max: item.currentQuantity }) }}
+          </p>
 
-      <template #description>
-        {{ $t('pages.products.details.consume.description') }}
-      </template>
-
-      <template #body>
-        <div class="space-y-4">
-          <div class="space-y-2">
-            <label for="consume-quantity" class="block text-sm font-medium">
-              {{ $t('pages.products.details.consume.quantityLabel') }}
-            </label>
-            <UInput
-              id="consume-quantity"
-              v-model="consumeQuantity"
-              type="number"
-              :min="0"
-              :max="item.currentQuantity"
-              :placeholder="$t('pages.products.details.consume.quantityLabel')"
-              class="w-full"
-            />
-            <p class="text-xs text-gray-500 dark:text-gray-400">
-              {{ $t('pages.products.details.consume.maxQuantity', { max: item.currentQuantity }) }}
-            </p>
-
-            <div class="flex gap-2">
-              <div class="flex gap-1">
-                <UButton size="xs" color="primary" variant="soft" icon="i-lucide-minus" @click="adjustQuantity(-10)">10</UButton>
-                <UButton size="xs" color="primary" variant="soft" icon="i-lucide-minus" @click="adjustQuantity(-1)">1</UButton>
-                <UButton size="xs" color="primary" variant="soft" icon="i-lucide-minus" @click="adjustQuantity(-0.1)">0.1</UButton>
-              </div>
-              <div class="flex gap-1">
-                <UButton size="xs" color="primary" variant="soft" icon="i-lucide-plus" @click="adjustQuantity(0.1)">0.1</UButton>
-                <UButton size="xs" color="primary" variant="soft" icon="i-lucide-plus" @click="adjustQuantity(1)">1</UButton>
-                <UButton size="xs" color="primary" variant="soft" icon="i-lucide-plus" @click="adjustQuantity(10)">10</UButton>
-              </div>
+          <div class="flex gap-2">
+            <div class="flex gap-1">
+              <UButton size="xs" color="primary" variant="soft" icon="i-lucide-minus" @click="adjustQuantity(-10)">10</UButton>
+              <UButton size="xs" color="primary" variant="soft" icon="i-lucide-minus" @click="adjustQuantity(-1)">1</UButton>
+              <UButton size="xs" color="primary" variant="soft" icon="i-lucide-minus" @click="adjustQuantity(-0.1)">0.1</UButton>
+            </div>
+            <div class="flex gap-1">
+              <UButton size="xs" color="primary" variant="soft" icon="i-lucide-plus" @click="adjustQuantity(0.1)">0.1</UButton>
+              <UButton size="xs" color="primary" variant="soft" icon="i-lucide-plus" @click="adjustQuantity(1)">1</UButton>
+              <UButton size="xs" color="primary" variant="soft" icon="i-lucide-plus" @click="adjustQuantity(10)">10</UButton>
             </div>
           </div>
         </div>
-      </template>
+      </div>
 
       <template #footer>
-        <div class="flex justify-end gap-2">
-          <UButton :label="$t('pages.products.details.consume.cancel')" color="neutral" variant="outline" @click="closeConsumeModal" />
-          <UButton :label="$t('pages.products.details.consume.confirm')" :loading="isConsuming" @click="handleConsume" />
+        <UButton :label="$t('pages.products.details.consume.cancel')" color="neutral" variant="outline" @click="closeConsumeModal" />
+        <UButton :label="$t('pages.products.details.consume.confirm')" :loading="isConsuming" @click="handleConsume" />
+      </template>
+    </AppDrawer>
+
+    <!-- Edit Drawer (bottom sheet) -->
+    <AppDrawer :open="isEditModalOpen" :title="$t('pages.products.details.editModal.title')" icon="i-lucide-pencil" fit="full" @update:open="(val) => isEditModalOpen = val">
+      <div class="space-y-4">
+        <p class="text-sm text-muted">{{ $t('pages.products.details.editModal.description') }}</p>
+        <div>
+          <label class="block text-sm font-medium mb-1">
+            {{ $t('pages.products.details.editModal.quantityLabel') }}
+          </label>
+          <UInput v-model="editForm.quantity" type="number" :min="0" class="w-full">
+            <template #trailing>
+              <span class="text-sm text-gray-500 dark:text-gray-400">{{ $t(`enums.unit.${item.unit}`) }}</span>
+            </template>
+          </UInput>
         </div>
-      </template>
-    </UModal>
 
-    <!-- Edit Modal -->
-    <UModal :open="isEditModalOpen" :dismissible="false" @update:open="(val) => isEditModalOpen = val">
-      <template #title>
-        {{ $t('pages.products.details.editModal.title') }}
-      </template>
-
-      <template #description>
-        {{ $t('pages.products.details.editModal.description') }}
-      </template>
-
-      <template #body>
-        <div class="space-y-4">
-          <div>
-            <label class="block text-sm font-medium mb-1">
-              {{ $t('pages.products.details.editModal.quantityLabel') }}
-            </label>
-            <UInput v-model="editForm.quantity" type="number" :min="0" class="w-full">
-              <template #trailing>
-                <span class="text-sm text-gray-500 dark:text-gray-400">{{ $t(`enums.unit.${item.unit}`) }}</span>
-              </template>
-            </UInput>
-          </div>
-
-          <div>
-            <label class="block text-sm font-medium mb-1">
-              {{ $t('pages.products.details.editModal.expirationLabel') }}
-            </label>
-            <UInputDate
-              ref="expirationDateInput"
-              v-model="editForm.expirationAt"
-              :locale="inputDateLocale"
-              class="w-full"
-            >
-              <template #trailing>
-                <UPopover :reference="expirationDateInput?.inputsRef[0]?.$el">
-                  <UButton color="neutral" variant="link" size="sm" icon="i-lucide-calendar" aria-label="Select a date" class="px-0" />
-                  <template #content>
-                    <UCalendar v-model="editForm.expirationAt" :locale="inputDateLocale" class="p-2" />
-                  </template>
-                </UPopover>
-              </template>
-            </UInputDate>
-          </div>
-
-          <div>
-            <label class="block text-sm font-medium mb-1">
-              {{ $t('pages.products.details.editModal.priceLabel') }}
-            </label>
-            <UInput v-model="editForm.price" type="number" :min="0" step="0.01" />
-          </div>
-
-          <div>
-            <label class="block text-sm font-medium mb-1">
-              {{ $t('pages.products.details.editModal.currencyLabel') }}
-            </label>
-            <USelect
-              :model-value="editForm.currency ?? undefined"
-              :items="currencyOptions"
-              class="w-full"
-              @update:model-value="(val) => editForm.currency = val ?? null"
-            />
-          </div>
+        <div>
+          <label class="block text-sm font-medium mb-1">
+            {{ $t('pages.products.details.editModal.expirationLabel') }}
+          </label>
+          <UInputDate
+            ref="expirationDateInput"
+            v-model="editForm.expirationAt"
+            :locale="inputDateLocale"
+            class="w-full"
+          >
+            <template #trailing>
+              <UPopover :reference="expirationDateInput?.inputsRef[0]?.$el">
+                <UButton color="neutral" variant="link" size="sm" icon="i-lucide-calendar" aria-label="Select a date" class="px-0" />
+                <template #content>
+                  <UCalendar v-model="editForm.expirationAt" :locale="inputDateLocale" class="p-2" />
+                </template>
+              </UPopover>
+            </template>
+          </UInputDate>
         </div>
-      </template>
+
+        <div>
+          <label class="block text-sm font-medium mb-1">
+            {{ $t('pages.products.details.editModal.priceLabel') }}
+          </label>
+          <UInput v-model="editForm.price" type="number" :min="0" step="0.01" />
+        </div>
+
+        <div>
+          <label class="block text-sm font-medium mb-1">
+            {{ $t('pages.products.details.editModal.currencyLabel') }}
+          </label>
+          <USelect
+            :model-value="editForm.currency ?? undefined"
+            :items="currencyOptions"
+            class="w-full"
+            @update:model-value="(val) => editForm.currency = val ?? null"
+          />
+        </div>
+      </div>
 
       <template #footer>
-        <div class="flex justify-end gap-2">
-          <UButton :label="$t('pages.products.details.editModal.cancel')" color="neutral" variant="outline" @click="closeEditModal" />
-          <UButton :label="$t('pages.products.details.editModal.confirm')" :loading="isUpdating" @click="handleUpdate" />
+        <UButton :label="$t('pages.products.details.editModal.cancel')" color="neutral" variant="outline" @click="closeEditModal" />
+        <UButton :label="$t('pages.products.details.editModal.confirm')" :loading="isUpdating" @click="handleUpdate" />
+      </template>
+    </AppDrawer>
+
+    <!-- Delete Drawer (bottom sheet) -->
+    <AppDrawer :open="isDeleteModalOpen" :title="$t('pages.products.details.deleteModal.title')" icon="i-lucide-trash-2" fit="content" @update:open="(val) => isDeleteModalOpen = val">
+      <div class="space-y-3">
+        <p class="text-sm text-muted">{{ $t('pages.products.details.deleteModal.description') }}</p>
+        <div v-if="productName">
+          <span class="text-sm font-medium text-gray-700 dark:text-gray-300">{{ $t('pages.products.details.deleteModal.productName') }}:</span>
+          <span class="text-sm ml-2">{{ productName }}</span>
         </div>
-      </template>
-    </UModal>
-
-    <!-- Delete Modal -->
-    <UModal :open="isDeleteModalOpen" :dismissible="false" @update:open="(val) => isDeleteModalOpen = val">
-      <template #title>
-        {{ $t('pages.products.details.deleteModal.title') }}
-      </template>
-
-      <template #description>
-        {{ $t('pages.products.details.deleteModal.description') }}
-      </template>
-
-      <template #body>
-        <div class="space-y-3">
-          <div v-if="productName">
-            <span class="text-sm font-medium text-gray-700 dark:text-gray-300">{{ $t('pages.products.details.deleteModal.productName') }}:</span>
-            <span class="text-sm ml-2">{{ productName }}</span>
-          </div>
-          <div>
-            <span class="text-sm font-medium text-gray-700 dark:text-gray-300">{{ $t('pages.products.details.deleteModal.currentQuantity') }}:</span>
-            <span class="text-sm ml-2">{{ item.currentQuantity }} {{ $t(`enums.unit.${item.unit}`) }}</span>
-          </div>
-          <div v-if="item.expirationAt">
-            <span class="text-sm font-medium text-gray-700 dark:text-gray-300">{{ $t('pages.products.details.deleteModal.expirationDate') }}:</span>
-            <span class="text-sm ml-2">{{ formatDate(item.expirationAt) }}</span>
-          </div>
+        <div>
+          <span class="text-sm font-medium text-gray-700 dark:text-gray-300">{{ $t('pages.products.details.deleteModal.currentQuantity') }}:</span>
+          <span class="text-sm ml-2">{{ item.currentQuantity }} {{ $t(`enums.unit.${item.unit}`) }}</span>
         </div>
-      </template>
+        <div v-if="item.expirationAt">
+          <span class="text-sm font-medium text-gray-700 dark:text-gray-300">{{ $t('pages.products.details.deleteModal.expirationDate') }}:</span>
+          <span class="text-sm ml-2">{{ formatDate(item.expirationAt) }}</span>
+        </div>
+      </div>
 
       <template #footer>
-        <div class="flex justify-end gap-2">
-          <UButton :label="$t('pages.products.details.deleteModal.cancel')" color="neutral" variant="outline" @click="closeDeleteModal" />
-          <UButton :label="$t('pages.products.details.deleteModal.confirm')" color="error" :loading="isDeleting" @click="handleDelete" />
-        </div>
+        <UButton :label="$t('pages.products.details.deleteModal.cancel')" color="neutral" variant="outline" @click="closeDeleteModal" />
+        <UButton :label="$t('pages.products.details.deleteModal.confirm')" color="error" :loading="isDeleting" @click="handleDelete" />
       </template>
-    </UModal>
+    </AppDrawer>
   </div>
 </template>
 

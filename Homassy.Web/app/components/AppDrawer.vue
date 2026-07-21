@@ -1,7 +1,7 @@
 <template>
   <UDrawer
     :open="open"
-    :dismissible="dismissible"
+    :dismissible="dismissible && closable"
     :ui="ui"
     @update:open="(value) => emit('update:open', value)"
   >
@@ -12,6 +12,7 @@
           <DrawerTitle class="text-xl sm:text-2xl font-semibold">{{ title }}</DrawerTitle>
           <DrawerDescription class="sr-only">{{ description || title }}</DrawerDescription>
           <UButton
+            v-if="closable"
             class="ml-auto"
             icon="i-lucide-x"
             color="neutral"
@@ -72,6 +73,10 @@ const props = withDefaults(defineProps<{
   loading?: boolean
   /** Apply default body padding (default true). Set false for edge-to-edge content (sticky search, full-bleed lists). */
   padded?: boolean
+  /** Show the ✕ close button and allow drag/backdrop close (default true). Set false to lock the sheet (e.g. while processing). */
+  closable?: boolean
+  /** Force a high z-index so this drawer stacks above another drawer it opens over (nested/child overlays). */
+  elevated?: boolean
 }>(), {
   icon: undefined,
   description: undefined,
@@ -79,7 +84,9 @@ const props = withDefaults(defineProps<{
   fit: 'full',
   dragToClose: true,
   loading: false,
-  padded: true
+  padded: true,
+  closable: true,
+  elevated: false
 })
 
 const emit = defineEmits<{
@@ -89,14 +96,27 @@ const emit = defineEmits<{
 const { t } = useI18n()
 
 const ui = computed(() => {
-  const full = props.fit === 'full'
-  return {
-    content: `${full ? 'h-[94dvh]' : 'max-h-[90dvh]'} rounded-t-2xl overflow-hidden`,
-    container: `flex ${full ? 'flex-1 ' : ''}flex-col min-h-0 gap-0 p-0 overflow-hidden`,
+  const bodyPad = props.padded ? ' p-4 sm:p-6' : ''
+  // vaul drawers carry no explicit z-index — they stack purely by DOM order,
+  // which follows *declaration* order, not open order. So a drawer opened from
+  // inside another drawer can render *behind* its parent if it is declared
+  // earlier in the template. `elevated` forces this drawer above with an
+  // explicit z-index so nested/child drawers always paint on top.
+  const zContent = props.elevated ? ' z-[90]' : ''
+  const base = {
+    // NOTE: `fit` is accepted for API stability but always resolves to the fixed
+    // near-fullscreen height. Auto/content-height bottom drawers do not position
+    // correctly in this vaul-vue / Nuxt UI version — they render below the
+    // viewport (transform = translateY(fullHeight), `--snap-point-height: 0`),
+    // leaving only a click-blocking overlay. A fixed height is the reliable option.
+    content: `h-[94dvh] rounded-t-2xl overflow-hidden${zContent}`,
+    container: 'flex flex-1 flex-col min-h-0 gap-0 p-0 overflow-hidden',
     header: 'shrink-0 border-b border-default p-4 sm:px-6',
-    body: `${full ? 'flex-1 ' : ''}min-h-0 overflow-y-auto${props.padded ? ' p-4 sm:p-6' : ''}`,
+    body: `flex-1 min-h-0 overflow-y-auto${bodyPad}`,
     footer: 'shrink-0 flex flex-row items-center justify-between gap-2 border-t border-default p-4 sm:px-6'
   }
+  if (props.elevated) base.overlay = 'z-[80]'
+  return base
 })
 
 // Drag the header down to dismiss. Native vaul dismiss stays governed by
@@ -105,6 +125,6 @@ const ui = computed(() => {
 const headerEl = ref<HTMLElement | null>(null)
 useDrawerDragToClose(headerEl, {
   onClose: () => emit('update:open', false),
-  disabled: () => !props.dragToClose || props.loading
+  disabled: () => !props.dragToClose || !props.closable || props.loading
 })
 </script>

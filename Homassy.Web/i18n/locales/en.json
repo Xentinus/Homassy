@@ -21,6 +21,7 @@
     "searchPlaceholder": "Search by name, brand, or barcode...",
     "filter": "Filter",
     "previous": "Previous",
+    "backToSearch": "Back to search",
     "next": "Next",
     "finish": "Finish",
     "noData": "No data",
@@ -757,7 +758,6 @@
           "custom": "Custom Item"
         },
         "createNewProduct": "Create new product",
-        "backToSearch": "Back to search",
         "pick": {
           "createProduct": "Create product \"{name}\"",
           "createLocation": "Create location \"{name}\"",

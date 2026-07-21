@@ -17,7 +17,7 @@
     <!-- Inline create sub-forms replace the stepper footer with a Create action. -->
     <template #footer>
       <UButton
-        :label="t('common.previous')"
+        :label="t('common.backToSearch')"
         color="neutral"
         variant="ghost"
         icon="i-lucide-arrow-left"
@@ -505,80 +505,71 @@
       </div>
 
       <!-- OpenFoodFacts Modal -->
-      <UModal
+      <AppDrawer
         :open="isOpenFoodFactsModalOpen"
-        :dismissible="false"
+        :title="t('pages.addProduct.openFoodFacts.modalTitle')"
+        icon="i-lucide-download"
+        fit="content"
         @update:open="(val) => { if (!val) isOpenFoodFactsModalOpen = false }"
       >
-        <template #title>
-          {{ t('pages.addProduct.openFoodFacts.modalTitle') }}
-        </template>
-
-        <template #description>
-          {{ t('pages.addProduct.openFoodFacts.modalDescription') }}
-        </template>
-
-        <template #body>
-          <div class="space-y-4">
-            <!-- Product Image -->
-            <div class="flex justify-center">
-              <div class="relative w-40 h-40">
-                <USkeleton
-                  v-if="isImageLoading && openFoodFactsProduct?.image_base64"
-                  class="w-full h-full rounded-lg"
-                />
-                <img
-                  v-if="openFoodFactsProduct?.image_base64"
-                  :src="openFoodFactsProduct.image_base64"
-                  alt="Product image"
-                  class="w-full h-full object-contain rounded-lg border border-gray-200 dark:border-gray-700"
-                  :class="{ 'opacity-0': isImageLoading }"
-                  @load="isImageLoading = false"
-                >
-                <div
-                  v-else
-                  class="w-full h-full flex items-center justify-center bg-gray-100 dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700"
-                >
-                  <UIcon name="i-lucide-package" class="h-16 w-16 text-gray-400" />
-                </div>
-              </div>
-            </div>
-
-            <!-- Product Information -->
-            <div class="space-y-3">
-              <div v-if="openFoodFactsProduct?.product_name">
-                <span class="text-sm font-medium text-gray-700 dark:text-gray-300">
-                  {{ t('pages.addProduct.openFoodFacts.productName') }}:
-                </span>
-                <p class="text-sm mt-1">{{ openFoodFactsProduct.product_name }}</p>
-              </div>
-
-              <div v-if="openFoodFactsProduct?.brands">
-                <span class="text-sm font-medium text-gray-700 dark:text-gray-300">
-                  {{ t('pages.addProduct.openFoodFacts.brands') }}:
-                </span>
-                <p class="text-sm mt-1">{{ openFoodFactsProduct.brands }}</p>
+        <p class="text-sm text-muted">{{ t('pages.addProduct.openFoodFacts.modalDescription') }}</p>
+        <div class="space-y-4">
+          <!-- Product Image -->
+          <div class="flex justify-center">
+            <div class="relative w-40 h-40">
+              <USkeleton
+                v-if="isImageLoading && openFoodFactsProduct?.image_base64"
+                class="w-full h-full rounded-lg"
+              />
+              <img
+                v-if="openFoodFactsProduct?.image_base64"
+                :src="openFoodFactsProduct.image_base64"
+                alt="Product image"
+                class="w-full h-full object-contain rounded-lg border border-gray-200 dark:border-gray-700"
+                :class="{ 'opacity-0': isImageLoading }"
+                @load="isImageLoading = false"
+              >
+              <div
+                v-else
+                class="w-full h-full flex items-center justify-center bg-gray-100 dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700"
+              >
+                <UIcon name="i-lucide-package" class="h-16 w-16 text-gray-400" />
               </div>
             </div>
           </div>
-        </template>
+
+          <!-- Product Information -->
+          <div class="space-y-3">
+            <div v-if="openFoodFactsProduct?.product_name">
+              <span class="text-sm font-medium text-gray-700 dark:text-gray-300">
+                {{ t('pages.addProduct.openFoodFacts.productName') }}:
+              </span>
+              <p class="text-sm mt-1">{{ openFoodFactsProduct.product_name }}</p>
+            </div>
+
+            <div v-if="openFoodFactsProduct?.brands">
+              <span class="text-sm font-medium text-gray-700 dark:text-gray-300">
+                {{ t('pages.addProduct.openFoodFacts.brands') }}:
+              </span>
+              <p class="text-sm mt-1">{{ openFoodFactsProduct.brands }}</p>
+            </div>
+          </div>
+        </div>
 
         <template #footer>
-          <div class="flex justify-end gap-2">
-            <UButton
-              :label="t('pages.addProduct.openFoodFacts.cancel')"
-              color="neutral"
-              variant="outline"
-              @click="isOpenFoodFactsModalOpen = false"
-            />
-            <UButton
-              :label="t('pages.addProduct.openFoodFacts.import')"
-              color="primary"
-              @click="importOpenFoodFactsData"
-            />
-          </div>
+          <UButton
+            :label="t('pages.addProduct.openFoodFacts.cancel')"
+            color="neutral"
+            variant="outline"
+            @click="isOpenFoodFactsModalOpen = false"
+          />
+          <UButton
+            :label="t('pages.addProduct.openFoodFacts.import')"
+            color="primary"
+            @click="importOpenFoodFactsData"
+          />
         </template>
-      </UModal>
+      </AppDrawer>
 
       <!-- Barcode Scanner Modal -->
       <BarcodeScannerModal :on-barcode-detected="activeBarcodeHandler" />

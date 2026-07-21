@@ -285,227 +285,194 @@
       </template>
     </AppDrawer>
 
-    <!-- Create Shopping List Modal -->
-    <UModal :open="isCreateModalOpen" @update:open="(val) => isCreateModalOpen = val" :dismissible="false">
-      <template #title>
-        {{ $t('pages.shoppingLists.createModal.title') }}
-      </template>
+    <!-- Create Shopping List Drawer (bottom sheet) -->
+    <AppDrawer :open="isCreateModalOpen" :title="$t('pages.shoppingLists.createModal.title')" icon="i-lucide-plus" fit="content" @update:open="(val) => isCreateModalOpen = val">
+      <div class="space-y-4">
+        <p class="text-sm text-muted">{{ $t('pages.shoppingLists.createModal.description') }}</p>
+        <!-- Name -->
+        <div>
+          <label class="block text-sm font-medium mb-1">
+            {{ $t('pages.shoppingLists.createModal.nameLabel') }} <span class="text-red-500">*</span>
+          </label>
+          <UInput
+            v-model="createForm.name"
+            type="text"
+            :placeholder="$t('pages.shoppingLists.createModal.namePlaceholder')"
+            required
+            class="w-full"
+          />
+        </div>
 
-      <template #description>
-        {{ $t('pages.shoppingLists.createModal.description') }}
-      </template>
+        <!-- Description -->
+        <div>
+          <label class="block text-sm font-medium mb-1">
+            {{ $t('pages.shoppingLists.createModal.descriptionLabel') }}
+          </label>
+          <UTextarea
+            v-model="createForm.description"
+            :rows="3"
+            :placeholder="$t('pages.shoppingLists.createModal.descriptionPlaceholder')"
+            class="w-full"
+          />
+        </div>
 
-      <template #body>
-        <div class="space-y-4">
-          <!-- Name -->
+        <!-- Color -->
+        <div>
+          <label class="block text-sm font-medium mb-1">
+            {{ $t('pages.shoppingLists.createModal.colorLabel') }}
+          </label>
+          <UInput
+            v-model="createForm.color"
+            type="color"
+            class="w-full"
+          />
+        </div>
+
+        <!-- Shared with Family -->
+        <div class="flex items-center gap-2">
+          <UCheckbox
+            v-model="createForm.isSharedWithFamily"
+            :label="$t('pages.shoppingLists.createModal.isSharedWithFamilyLabel')"
+          />
+        </div>
+      </div>
+
+      <template #footer>
+        <UButton
+          :label="$t('pages.shoppingLists.createModal.cancel')"
+          color="neutral"
+          variant="outline"
+          @click="closeCreateModal"
+        />
+        <UButton
+          :label="$t('pages.shoppingLists.createModal.confirm')"
+          :loading="isCreating"
+          @click="handleCreateList"
+        />
+      </template>
+    </AppDrawer>
+
+    <!-- Edit Shopping List Drawer (bottom sheet) -->
+    <AppDrawer :open="isEditModalOpen" :title="$t('pages.shoppingLists.editModal.title')" icon="i-lucide-pencil" fit="content" @update:open="(val) => isEditModalOpen = val">
+      <div class="space-y-4">
+        <p class="text-sm text-muted">{{ $t('pages.shoppingLists.editModal.description') }}</p>
+        <!-- Name -->
+        <div>
+          <label class="block text-sm font-medium mb-1">
+            {{ $t('pages.shoppingLists.editModal.nameLabel') }} <span class="text-red-500">*</span>
+          </label>
+          <UInput
+            v-model="editForm.name"
+            type="text"
+            :placeholder="$t('pages.shoppingLists.editModal.namePlaceholder')"
+            required
+            class="w-full"
+          />
+        </div>
+
+        <!-- Description -->
+        <div>
+          <label class="block text-sm font-medium mb-1">
+            {{ $t('pages.shoppingLists.editModal.descriptionLabel') }}
+          </label>
+          <UTextarea
+            v-model="editForm.description"
+            :rows="3"
+            :placeholder="$t('pages.shoppingLists.editModal.descriptionPlaceholder')"
+            class="w-full"
+          />
+        </div>
+
+        <!-- Color -->
+        <div>
+          <label class="block text-sm font-medium mb-1">
+            {{ $t('pages.shoppingLists.editModal.colorLabel') }}
+          </label>
+          <UInput
+            v-model="editForm.color"
+            type="color"
+            class="w-full"
+          />
+        </div>
+
+        <!-- Shared with Family -->
+        <div class="flex items-center gap-2">
+          <UCheckbox
+            v-model="editForm.isSharedWithFamily"
+            :label="$t('pages.shoppingLists.editModal.isSharedWithFamilyLabel')"
+          />
+        </div>
+      </div>
+
+      <template #footer>
+        <UButton
+          :label="$t('pages.shoppingLists.editModal.cancel')"
+          color="neutral"
+          variant="outline"
+          @click="closeEditModal"
+        />
+        <UButton
+          :label="$t('pages.shoppingLists.editModal.confirm')"
+          :loading="isUpdating"
+          @click="handleUpdateList"
+        />
+      </template>
+    </AppDrawer>
+
+    <!-- Delete Shopping List Drawer (bottom sheet) -->
+    <AppDrawer :open="isDeleteModalOpen" :title="$t('pages.shoppingLists.deleteModal.title')" icon="i-lucide-trash-2" fit="content" @update:open="(val) => isDeleteModalOpen = val">
+      <div class="space-y-4">
+        <p class="text-sm text-muted">{{ $t('pages.shoppingLists.deleteModal.description') }}</p>
+        <!-- Warning -->
+        <div class="p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg">
+          <p class="text-sm font-medium text-red-600 dark:text-red-400">
+            {{ $t('pages.shoppingLists.deleteModal.warning') }}
+          </p>
+        </div>
+
+        <!-- List Details -->
+        <div class="space-y-3">
+          <!-- List Name -->
           <div>
-            <label class="block text-sm font-medium mb-1">
-              {{ $t('pages.shoppingLists.createModal.nameLabel') }} <span class="text-red-500">*</span>
-            </label>
-            <UInput
-              v-model="createForm.name"
-              type="text"
-              :placeholder="$t('pages.shoppingLists.createModal.namePlaceholder')"
-              required
-              class="w-full"
-            />
+            <span class="text-sm font-medium text-gray-700 dark:text-gray-300">
+              {{ $t('pages.shoppingLists.deleteModal.listName') }}:
+            </span>
+            <span class="text-sm ml-2">{{ currentListDetails?.name }}</span>
           </div>
 
           <!-- Description -->
-          <div>
-            <label class="block text-sm font-medium mb-1">
-              {{ $t('pages.shoppingLists.createModal.descriptionLabel') }}
-            </label>
-            <UTextarea
-              v-model="createForm.description"
-              :rows="3"
-              :placeholder="$t('pages.shoppingLists.createModal.descriptionPlaceholder')"
-              class="w-full"
-            />
+          <div v-if="currentListDetails?.description">
+            <span class="text-sm font-medium text-gray-700 dark:text-gray-300">
+              {{ $t('pages.shoppingLists.deleteModal.description') }}:
+            </span>
+            <span class="text-sm ml-2">{{ currentListDetails.description }}</span>
           </div>
 
-          <!-- Color -->
-          <div>
-            <label class="block text-sm font-medium mb-1">
-              {{ $t('pages.shoppingLists.createModal.colorLabel') }}
-            </label>
-            <UInput
-              v-model="createForm.color"
-              type="color"
-              class="w-full"
-            />
-          </div>
-
-          <!-- Shared with Family -->
-          <div class="flex items-center gap-2">
-            <UCheckbox
-              v-model="createForm.isSharedWithFamily"
-              :label="$t('pages.shoppingLists.createModal.isSharedWithFamilyLabel')"
-            />
+          <!-- Item Count -->
+          <div class="pt-2 border-t border-gray-200 dark:border-gray-700">
+            <span class="text-sm font-medium text-gray-700 dark:text-gray-300">
+              {{ $t('pages.shoppingLists.deleteModal.itemCount') }}:
+            </span>
+            <span class="text-sm ml-2">{{ currentListDetails?.items.length || 0 }}</span>
           </div>
         </div>
-      </template>
+      </div>
 
       <template #footer>
-        <div class="flex justify-end gap-2">
-          <UButton
-            :label="$t('pages.shoppingLists.createModal.cancel')"
-            color="neutral"
-            variant="outline"
-            @click="closeCreateModal"
-          />
-          <UButton
-            :label="$t('pages.shoppingLists.createModal.confirm')"
-            :loading="isCreating"
-            @click="handleCreateList"
-          />
-        </div>
+        <UButton
+          :label="$t('pages.shoppingLists.deleteModal.cancel')"
+          color="neutral"
+          variant="outline"
+          @click="closeDeleteModal"
+        />
+        <UButton
+          :label="$t('pages.shoppingLists.deleteModal.confirm')"
+          color="error"
+          :loading="isDeleting"
+          @click="handleDeleteList"
+        />
       </template>
-    </UModal>
-
-    <!-- Edit Shopping List Modal -->
-    <UModal :open="isEditModalOpen" @update:open="(val) => isEditModalOpen = val" :dismissible="false">
-      <template #title>
-        {{ $t('pages.shoppingLists.editModal.title') }}
-      </template>
-
-      <template #description>
-        {{ $t('pages.shoppingLists.editModal.description') }}
-      </template>
-
-      <template #body>
-        <div class="space-y-4">
-          <!-- Name -->
-          <div>
-            <label class="block text-sm font-medium mb-1">
-              {{ $t('pages.shoppingLists.editModal.nameLabel') }} <span class="text-red-500">*</span>
-            </label>
-            <UInput
-              v-model="editForm.name"
-              type="text"
-              :placeholder="$t('pages.shoppingLists.editModal.namePlaceholder')"
-              required
-              class="w-full"
-            />
-          </div>
-
-          <!-- Description -->
-          <div>
-            <label class="block text-sm font-medium mb-1">
-              {{ $t('pages.shoppingLists.editModal.descriptionLabel') }}
-            </label>
-            <UTextarea
-              v-model="editForm.description"
-              :rows="3"
-              :placeholder="$t('pages.shoppingLists.editModal.descriptionPlaceholder')"
-              class="w-full"
-            />
-          </div>
-
-          <!-- Color -->
-          <div>
-            <label class="block text-sm font-medium mb-1">
-              {{ $t('pages.shoppingLists.editModal.colorLabel') }}
-            </label>
-            <UInput
-              v-model="editForm.color"
-              type="color"
-              class="w-full"
-            />
-          </div>
-
-          <!-- Shared with Family -->
-          <div class="flex items-center gap-2">
-            <UCheckbox
-              v-model="editForm.isSharedWithFamily"
-              :label="$t('pages.shoppingLists.editModal.isSharedWithFamilyLabel')"
-            />
-          </div>
-        </div>
-      </template>
-
-      <template #footer>
-        <div class="flex justify-end gap-2">
-          <UButton
-            :label="$t('pages.shoppingLists.editModal.cancel')"
-            color="neutral"
-            variant="outline"
-            @click="closeEditModal"
-          />
-          <UButton
-            :label="$t('pages.shoppingLists.editModal.confirm')"
-            :loading="isUpdating"
-            @click="handleUpdateList"
-          />
-        </div>
-      </template>
-    </UModal>
-
-    <!-- Delete Shopping List Modal -->
-    <UModal :open="isDeleteModalOpen" @update:open="(val) => isDeleteModalOpen = val" :dismissible="false">
-      <template #title>
-        {{ $t('pages.shoppingLists.deleteModal.title') }}
-      </template>
-
-      <template #description>
-        {{ $t('pages.shoppingLists.deleteModal.description') }}
-      </template>
-
-      <template #body>
-        <div class="space-y-4">
-          <!-- Warning -->
-          <div class="p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg">
-            <p class="text-sm font-medium text-red-600 dark:text-red-400">
-              {{ $t('pages.shoppingLists.deleteModal.warning') }}
-            </p>
-          </div>
-
-          <!-- List Details -->
-          <div class="space-y-3">
-            <!-- List Name -->
-            <div>
-              <span class="text-sm font-medium text-gray-700 dark:text-gray-300">
-                {{ $t('pages.shoppingLists.deleteModal.listName') }}:
-              </span>
-              <span class="text-sm ml-2">{{ currentListDetails?.name }}</span>
-            </div>
-
-            <!-- Description -->
-            <div v-if="currentListDetails?.description">
-              <span class="text-sm font-medium text-gray-700 dark:text-gray-300">
-                {{ $t('pages.shoppingLists.deleteModal.description') }}:
-              </span>
-              <span class="text-sm ml-2">{{ currentListDetails.description }}</span>
-            </div>
-
-            <!-- Item Count -->
-            <div class="pt-2 border-t border-gray-200 dark:border-gray-700">
-              <span class="text-sm font-medium text-gray-700 dark:text-gray-300">
-                {{ $t('pages.shoppingLists.deleteModal.itemCount') }}:
-              </span>
-              <span class="text-sm ml-2">{{ currentListDetails?.items.length || 0 }}</span>
-            </div>
-          </div>
-        </div>
-      </template>
-
-      <template #footer>
-        <div class="flex justify-end gap-2">
-          <UButton
-            :label="$t('pages.shoppingLists.deleteModal.cancel')"
-            color="neutral"
-            variant="outline"
-            @click="closeDeleteModal"
-          />
-          <UButton
-            :label="$t('pages.shoppingLists.deleteModal.confirm')"
-            color="error"
-            :loading="isDeleting"
-            @click="handleDeleteList"
-          />
-        </div>
-      </template>
-    </UModal>
+    </AppDrawer>
 
     <!-- Add item wizard (fullscreen modal) -->
     <AddShoppingListItemModal

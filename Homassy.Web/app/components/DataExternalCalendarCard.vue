@@ -58,22 +58,17 @@
     </div>
 
     <!-- Delete confirmation -->
-    <UModal :open="isDeleteModalOpen" :dismissible="false" @update:open="(v) => { isDeleteModalOpen = v }">
-      <template #title>{{ $t('profile.family.externalCalendars.deleteTitle') }}</template>
-      <template #description>{{ $t('profile.family.externalCalendars.deleteWarning') }}</template>
-      <template #body>
-        <div>
-          <span class="text-sm font-medium text-gray-700 dark:text-gray-300">{{ $t('common.name') }}:</span>
-          <span class="text-sm ml-2">{{ calendar.name }}</span>
-        </div>
-      </template>
+    <AppDrawer :open="isDeleteModalOpen" :title="$t('profile.family.externalCalendars.deleteTitle')" icon="i-lucide-trash-2" fit="content" @update:open="(v) => { isDeleteModalOpen = v }">
+      <p class="text-sm text-muted">{{ $t('profile.family.externalCalendars.deleteWarning') }}</p>
+      <div>
+        <span class="text-sm font-medium text-gray-700 dark:text-gray-300">{{ $t('common.name') }}:</span>
+        <span class="text-sm ml-2">{{ calendar.name }}</span>
+      </div>
       <template #footer>
-        <div class="flex justify-end gap-2">
-          <UButton :label="$t('common.cancel')" color="neutral" variant="outline" @click="() => { isDeleteModalOpen = false }" />
-          <UButton :label="$t('common.delete')" color="error" @click="confirmDelete" />
-        </div>
+        <UButton :label="$t('common.cancel')" color="neutral" variant="outline" @click="() => { isDeleteModalOpen = false }" />
+        <UButton :label="$t('common.delete')" color="error" @click="confirmDelete" />
       </template>
-    </UModal>
+    </AppDrawer>
   </div>
 </template>
 

@@ -21,6 +21,7 @@
     "searchPlaceholder": "Nach Name, Marke oder Barcode suchen...",
     "filter": "Filtern",
     "previous": "Zurück",
+    "backToSearch": "Zurück zur Suche",
     "next": "Weiter",
     "finish": "Abschließen",
     "noData": "Keine Daten",
@@ -755,7 +756,6 @@
           "custom": "Benutzerdefiniert"
         },
         "createNewProduct": "Neues Produkt erstellen",
-        "backToSearch": "Zurück zur Suche",
         "pick": {
           "createProduct": "Produkt „{name}“ anlegen",
           "createLocation": "Ort „{name}“ anlegen",

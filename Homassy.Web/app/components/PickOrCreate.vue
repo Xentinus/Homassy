@@ -51,16 +51,6 @@
       </template>
 
       <div v-else>
-        <UButton
-          icon="i-lucide-arrow-left"
-          color="neutral"
-          variant="ghost"
-          size="sm"
-          class="mb-3"
-          @click="emit('update:showCreate', false)"
-        >
-          {{ t('pages.shoppingLists.addProduct.backToSearch') }}
-        </UButton>
         <slot name="create" />
       </div>
     </div>

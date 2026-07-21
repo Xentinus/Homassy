@@ -288,19 +288,17 @@
         </div>
 
       <template #footer>
-        <div class="flex justify-end gap-2 w-full">
-          <UButton
-            :label="$t('common.cancel')"
-            variant="subtle"
-            @click="isPurchaseModalOpen = false"
-          />
-          <UButton
-            :label="$t('common.confirm')"
-            color="success"
-            :loading="isQuickPurchasing"
-            @click="confirmPurchase"
-          />
-        </div>
+        <UButton
+          :label="$t('common.cancel')"
+          variant="subtle"
+          @click="isPurchaseModalOpen = false"
+        />
+        <UButton
+          :label="$t('common.confirm')"
+          color="success"
+          :loading="isQuickPurchasing"
+          @click="confirmPurchase"
+        />
       </template>
     </AppDrawer>
 
@@ -432,19 +430,17 @@
         </div>
 
       <template #footer>
-        <div class="flex justify-end gap-2">
-          <UButton
-            :label="$t('common.cancel')"
-            color="neutral"
-            variant="outline"
-            @click="closeEditModal"
-          />
-          <UButton
-            :label="$t('common.save')"
-            :loading="isUpdating"
-            @click="handleUpdate"
-          />
-        </div>
+        <UButton
+          :label="$t('common.cancel')"
+          color="neutral"
+          variant="outline"
+          @click="closeEditModal"
+        />
+        <UButton
+          :label="$t('common.save')"
+          :loading="isUpdating"
+          @click="handleUpdate"
+        />
       </template>
     </AppDrawer>
 
@@ -480,20 +476,18 @@
         </div>
 
       <template #footer>
-        <div class="flex justify-end gap-2">
-          <UButton
-            :label="$t('common.cancel')"
-            color="neutral"
-            variant="outline"
-            @click="closeDeleteModal"
-          />
-          <UButton
-            :label="$t('common.delete')"
-            color="error"
-            :loading="isDeleting"
-            @click="handleDelete"
-          />
-        </div>
+        <UButton
+          :label="$t('common.cancel')"
+          color="neutral"
+          variant="outline"
+          @click="closeDeleteModal"
+        />
+        <UButton
+          :label="$t('common.delete')"
+          color="error"
+          :loading="isDeleting"
+          @click="handleDelete"
+        />
       </template>
     </AppDrawer>
 
@@ -509,20 +503,18 @@
         </div>
 
       <template #footer>
-        <div class="flex justify-end gap-2">
-          <UButton
-            :label="$t('common.cancel')"
-            color="neutral"
-            variant="outline"
-            @click="closeRestoreModal"
-          />
-          <UButton
-            :label="$t('common.confirm')"
-            color="primary"
-            :loading="isRestoring"
-            @click="handleRestorePurchase"
-          />
-        </div>
+        <UButton
+          :label="$t('common.cancel')"
+          color="neutral"
+          variant="outline"
+          @click="closeRestoreModal"
+        />
+        <UButton
+          :label="$t('common.confirm')"
+          color="primary"
+          :loading="isRestoring"
+          @click="handleRestorePurchase"
+        />
       </template>
     </AppDrawer>
 
