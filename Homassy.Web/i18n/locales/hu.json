@@ -1,4 +1,7 @@
 {
+  "splash": {
+    "welcomeBack": "Üdv újra itt"
+  },
   "meta": {
     "default": {
       "title": "Homassy - Családi háztartáskezelés",

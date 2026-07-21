@@ -191,6 +191,7 @@ const { getCalendarEvents } = useCalendarApi()
 const { getActivities } = useUserApi()
 const { getExternalCalendars } = useExternalCalendarApi()
 const authStore = useAuthStore()
+const { markReady: markSplashReady } = useSplashScreen()
 
 const greetingName = computed(() => authStore.user?.displayName || authStore.user?.name || '')
 
@@ -474,6 +475,9 @@ const loadEvents = async () => {
       externalCalendars.value = calendarsRes.data.filter(c => c.isEnabled)
   } finally {
     isLoading.value = false
+    // Normal PWA relaunch lands here — dismiss the boot splash once the
+    // calendar's first data load has settled.
+    markSplashReady()
   }
 }
 

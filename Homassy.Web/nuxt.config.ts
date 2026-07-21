@@ -62,6 +62,9 @@ export default defineNuxtConfig({
       name: 'Homassy',
       short_name: 'Homassy',
       theme_color: '#c9b8a0',
+      // Matches the in-app splash background so the OS-generated launch screen
+      // hands off seamlessly into it.
+      background_color: '#c9b8a0',
       display: 'standalone',
       start_url: '/',
       icons: [
@@ -79,6 +82,25 @@ export default defineNuxtConfig({
           src: '/apple-touch-icon-180x180.png',
           sizes: '180x180',
           type: 'image/png'
+        },
+        // >=192px icons enable Android's branded generated splash screen.
+        {
+          src: '/android-chrome-192x192.png',
+          sizes: '192x192',
+          type: 'image/png',
+          purpose: 'any'
+        },
+        {
+          src: '/android-chrome-512x512.png',
+          sizes: '512x512',
+          type: 'image/png',
+          purpose: 'any'
+        },
+        {
+          src: '/android-chrome-512x512.png',
+          sizes: '512x512',
+          type: 'image/png',
+          purpose: 'maskable'
         }
       ]
     },

@@ -31,7 +31,10 @@ useSeoMeta({
 </script>
 
 <template>
-  <NuxtLayout :toaster="toaster">
-    <NuxtPage />
-  </NuxtLayout>
+  <div>
+    <NuxtLayout :toaster="toaster">
+      <NuxtPage />
+    </NuxtLayout>
+    <SplashScreen />
+  </div>
 </template>
