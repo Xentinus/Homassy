@@ -104,14 +104,24 @@ onMounted(async () => {
   justify-content: center;
 }
 
-/* Dismissal: stamped on <html> by useSplashScreen().markReady(). */
-/* Dismissal: the splash slides up out of the frame (curtain), revealing the
-   app beneath. translateY is off-screen; opacity + pointer-events retire it.
-   visibility is intentionally NOT set — it snaps and would kill the slide. */
+/* Dismissal (stamped on <html> by useSplashScreen().markReady()): the splash
+   slides up out of frame (curtain), revealing the app beneath.
+   visibility is restored in the END state — but only AFTER the slide (a 0s
+   change delayed to the transform's duration) so it doesn't snap and cut the
+   animation short. Restoring it matters on iOS standalone: a fixed inset:0
+   element's background-color still tints the status-bar area even at opacity:0
+   + off-screen transform, unless the element is actually hidden. The base
+   `.splash` above does not transition visibility, so re-showing on resume
+   (rearm removes the attribute) flips back to visible instantly. */
 :root[data-splash-ready] .splash {
   opacity: 0;
   transform: translateY(-102%);
   pointer-events: none;
+  visibility: hidden;
+  transition:
+    opacity 0.45s cubic-bezier(0.7, 0, 0.2, 1),
+    transform 0.55s cubic-bezier(0.7, 0, 0.2, 1),
+    visibility 0s linear 0.55s;
 }
 
 .splash__inner {
@@ -194,6 +204,7 @@ onMounted(async () => {
 
   :root[data-splash-ready] .splash {
     transform: none;
+    transition: opacity 0.2s ease, visibility 0s linear 0.2s;
   }
 
   .app-shell {
