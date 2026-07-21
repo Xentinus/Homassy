@@ -26,6 +26,18 @@ export default defineNuxtConfig({
         { rel: 'apple-touch-icon', sizes: '152x152', href: '/apple-touch-icon-152x152.png' },
         { rel: 'apple-touch-icon', href: '/apple-touch-icon.png' },
         { rel: 'mask-icon', href: '/safari-pinned-tab.svg', color: '#c9b8a0' }
+      ],
+      script: [
+        // Flag standalone/PWA launches before first paint so the boot splash
+        // (SplashScreen.vue) can show. iOS home-screen web apps do not reliably
+        // match `@media (display-mode: standalone)`, so we also check the
+        // iOS-only `navigator.standalone`. Runs synchronously in <head> — no flash.
+        {
+          innerHTML:
+            '(function(){try{if(window.navigator.standalone===true||window.matchMedia("(display-mode: standalone)").matches){document.documentElement.classList.add("pwa-standalone")}}catch(e){}})()',
+          tagPosition: 'head',
+          tagPriority: 1
+        }
       ]
     }
   },
