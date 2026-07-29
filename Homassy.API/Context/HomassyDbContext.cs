@@ -117,6 +117,33 @@ namespace Homassy.API.Context
                 entity.HasIndex(e => new { e.FamilyId, e.IsEnabled });
                 entity.Property(e => e.CachedEventsJson).HasColumnType("text");
             });
+
+            modelBuilder.Entity<ExternalCalendarReminderDispatch>(entity =>
+            {
+                entity.HasOne<FamilyExternalCalendar>()
+                    .WithMany()
+                    .HasForeignKey(d => d.ExternalCalendarId)
+                    .OnDelete(DeleteBehavior.Cascade);
+
+                entity.HasOne<User>()
+                    .WithMany()
+                    .HasForeignKey(d => d.UserId)
+                    .OnDelete(DeleteBehavior.Cascade);
+
+                // The occurrence key is an identifier, not an instant, so it must not be reinterpreted
+                // against a timezone the way a `timestamptz` column would be.
+                entity.Property(e => e.OccurrenceKey).HasColumnType("timestamp without time zone");
+
+                // Guarantees at-most-once delivery per (calendar, member, occurrence, lead time) even if
+                // two worker instances race. The explicit name keeps it under PostgreSQL's 63-char limit.
+                entity.HasIndex(e => new { e.ExternalCalendarId, e.UserId, e.EventUid, e.OccurrenceKey, e.LeadTimeMinutes })
+                    .HasDatabaseName("IX_ExtCalReminderDispatches_Occurrence")
+                    .IsUnique();
+
+                // Supports the worker's retention sweep.
+                entity.HasIndex(e => e.SentAt)
+                    .HasDatabaseName("IX_ExtCalReminderDispatches_SentAt");
+            });
             #endregion
 
             #region FamilyJoinRequest Relationships
@@ -280,6 +307,7 @@ namespace Homassy.API.Context
         public DbSet<Family> Families { get; set; }
         public DbSet<FamilyJoinRequest> FamilyJoinRequests { get; set; }
         public DbSet<FamilyExternalCalendar> FamilyExternalCalendars { get; set; }
+        public DbSet<ExternalCalendarReminderDispatch> ExternalCalendarReminderDispatches { get; set; }
         #endregion
 
         #region Product Related DbSets

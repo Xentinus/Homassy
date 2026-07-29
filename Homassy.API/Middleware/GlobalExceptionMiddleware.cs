@@ -95,6 +95,7 @@ namespace Homassy.API.Middleware
                 ExternalCalendarInvalidUrlException ex => (StatusCodes.Status400BadRequest, ex.ErrorCode),
                 ExternalCalendarFetchFailedException ex => (StatusCodes.Status400BadRequest, ex.ErrorCode),
                 ExternalCalendarRequiresFamilyException ex => (StatusCodes.Status400BadRequest, ex.ErrorCode),
+                ExternalCalendarInvalidReminderException ex => (StatusCodes.Status400BadRequest, ex.ErrorCode),
 
                 // Timeout exceptions
                 RequestTimeoutException ex => (StatusCodes.Status504GatewayTimeout, ex.ErrorCode),

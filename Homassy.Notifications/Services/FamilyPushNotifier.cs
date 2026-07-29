@@ -40,7 +40,8 @@ public sealed class FamilyPushNotifier
             .Where(u => context.UserPushSubscriptions.Any(s => s.UserId == u.Id && !s.IsDeleted))
             .Select(u => new RecipientInfo(
                 u.Id,
-                u.Profile != null ? u.Profile.DefaultLanguage : Language.Hungarian))
+                u.Profile != null ? u.Profile.DefaultLanguage : Language.Hungarian,
+                u.Profile != null ? u.Profile.DefaultTimeZone : UserTimeZone.CentralEuropeStandardTime))
             .ToListAsync(cancellationToken);
     }
 
@@ -63,11 +64,12 @@ public sealed class FamilyPushNotifier
             .Select(u => new
             {
                 u.Id,
-                Language = u.Profile != null ? u.Profile.DefaultLanguage : Language.Hungarian
+                Language = u.Profile != null ? u.Profile.DefaultLanguage : Language.Hungarian,
+                TimeZone = u.Profile != null ? u.Profile.DefaultTimeZone : UserTimeZone.CentralEuropeStandardTime
             })
             .FirstOrDefaultAsync(cancellationToken);
 
-        return user == null ? null : new RecipientInfo(user.Id, user.Language);
+        return user == null ? null : new RecipientInfo(user.Id, user.Language, user.TimeZone);
     }
 
     /// <summary>
@@ -129,4 +131,11 @@ public sealed class FamilyPushNotifier
     };
 }
 
-public readonly record struct RecipientInfo(int Id, Language Language);
+/// <summary>
+/// A member eligible for a push notification. <paramref name="TimeZone"/> defaults to the app-wide
+/// fallback so notifiers that do not schedule anything can keep constructing this with two arguments.
+/// </summary>
+public readonly record struct RecipientInfo(
+    int Id,
+    Language Language,
+    UserTimeZone TimeZone = UserTimeZone.CentralEuropeStandardTime);

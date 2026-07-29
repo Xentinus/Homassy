@@ -27,5 +27,19 @@ namespace Homassy.API.Entities.Family
         public string? LastSyncError { get; set; }
 
         public string? CachedEventsJson { get; set; }
+
+        /// <summary>
+        /// Reminder lead times in minutes before an event starts, as a JSON int array
+        /// (e.g. <c>[1440,15]</c> = one day and 15 minutes before). <c>0</c> means "at start".
+        /// Null or an empty array disables reminders for this calendar.
+        /// </summary>
+        [StringLength(256)]
+        public string? ReminderLeadTimesJson { get; set; }
+
+        /// <summary>
+        /// Time of day an all-day event's reminder is anchored to, instead of midnight. Interpreted in
+        /// each recipient's own timezone, so members in different zones are notified at their local 08:00.
+        /// </summary>
+        public TimeOnly AllDayNotifyTime { get; set; } = new(8, 0);
     }
 }

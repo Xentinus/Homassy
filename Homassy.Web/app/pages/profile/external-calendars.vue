@@ -54,6 +54,10 @@
             </template>
           </div>
         </div>
+        <ExternalCalendarReminderSettings
+          v-model:lead-times="newCalReminders"
+          v-model:all-day-notify-time="newCalAllDayTime"
+        />
         <div class="flex gap-2">
           <UButton color="primary" size="sm" icon="i-lucide-plus" :loading="isAddingCalendar" :disabled="!newCalName.trim() || !newCalUrl.trim()" @click="onAddCalendar">
             {{ $t('profile.family.externalCalendars.add') }}
@@ -105,6 +109,10 @@
                 <USwitch v-model="editCalEnabled" />
               </div>
             </div>
+            <ExternalCalendarReminderSettings
+              v-model:lead-times="editCalReminders"
+              v-model:all-day-notify-time="editCalAllDayTime"
+            />
             <div class="flex gap-2">
               <UButton color="primary" size="sm" icon="i-lucide-check" :loading="isSavingCalendar" @click="onSaveEditCalendar">
                 {{ $t('common.save') }}
@@ -159,6 +167,8 @@ const showAddCalendar = ref(false)
 const newCalName = ref('')
 const newCalUrl = ref('')
 const newCalColor = ref('#3B82F6')
+const newCalReminders = ref<number[]>([])
+const newCalAllDayTime = ref(DEFAULT_ALL_DAY_NOTIFY_TIME)
 const showNewColorPicker = ref(false)
 const isAddingCalendar = ref(false)
 const syncingId = ref<string | null>(null)
@@ -167,6 +177,8 @@ const editCalName = ref('')
 const editCalUrl = ref('')
 const editCalColor = ref('#3B82F6')
 const editCalEnabled = ref(true)
+const editCalReminders = ref<number[]>([])
+const editCalAllDayTime = ref(DEFAULT_ALL_DAY_NOTIFY_TIME)
 const showEditColorPicker = ref(false)
 const isSavingCalendar = ref(false)
 
@@ -225,13 +237,17 @@ async function onAddCalendar() {
     const res = await createExternalCalendar({
       name: newCalName.value.trim(),
       iCalUrl: newCalUrl.value.trim(),
-      color: newCalColor.value
+      color: newCalColor.value,
+      reminderLeadTimes: newCalReminders.value,
+      allDayNotifyTime: newCalAllDayTime.value
     })
     if (res.success && res.data) {
       externalCalendars.value.push(res.data)
       newCalName.value = ''
       newCalUrl.value = ''
       newCalColor.value = '#3B82F6'
+      newCalReminders.value = []
+      newCalAllDayTime.value = DEFAULT_ALL_DAY_NOTIFY_TIME
       showNewColorPicker.value = false
       showAddCalendar.value = false
       toast.add({ title: $t('profile.family.externalCalendars.added'), color: 'success', icon: 'i-lucide-check-circle' })
@@ -251,6 +267,8 @@ function startEditCalendar(cal: ExternalCalendarResponse) {
   editCalUrl.value = cal.iCalUrl
   editCalColor.value = cal.color
   editCalEnabled.value = cal.isEnabled
+  editCalReminders.value = [...cal.reminderLeadTimes]
+  editCalAllDayTime.value = cal.allDayNotifyTime || DEFAULT_ALL_DAY_NOTIFY_TIME
   showEditColorPicker.value = false
 }
 
@@ -262,7 +280,9 @@ async function onSaveEditCalendar() {
       name: editCalName.value.trim(),
       iCalUrl: editCalUrl.value.trim(),
       color: editCalColor.value,
-      isEnabled: editCalEnabled.value
+      isEnabled: editCalEnabled.value,
+      reminderLeadTimes: editCalReminders.value,
+      allDayNotifyTime: editCalAllDayTime.value
     })
     if (res.success && res.data) {
       const idx = externalCalendars.value.findIndex(c => c.publicId === editingCalId.value)

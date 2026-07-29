@@ -113,5 +113,6 @@ public static class ErrorCodes
     public const string ExternalCalendarInvalidUrl = "EXTCAL-0003";
     public const string ExternalCalendarFetchFailed = "EXTCAL-0004";
     public const string ExternalCalendarRequiresFamily = "EXTCAL-0005";
+    public const string ExternalCalendarInvalidReminder = "EXTCAL-0006";
     #endregion
 }

@@ -1011,7 +1011,15 @@
         "synced": "Calendar synced",
         "syncFailed": "Sync failed",
         "deleteTitle": "Delete calendar",
-        "deleteWarning": "Are you sure you want to delete this external calendar?"
+        "deleteWarning": "Are you sure you want to delete this external calendar?",
+        "reminders": "Reminders",
+        "remindersHint": "Pick when to be reminded before an event from this calendar starts. Reminders are pushed to family members who have push notifications enabled.",
+        "leadAtStart": "At start",
+        "leadMinutes": "{count} min before",
+        "leadHours": "{count} h before",
+        "leadDays": "{count} day before",
+        "allDayNotifyTime": "All-day event time",
+        "allDayNotifyTimeHint": "All-day events have no start time, so their reminder is anchored to this time in each member's own timezone."
       }
     },
     "settingsProfileSection": "Profile Information",

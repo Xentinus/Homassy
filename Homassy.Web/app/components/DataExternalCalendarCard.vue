@@ -38,6 +38,10 @@
           <span>·</span>
           <span>{{ $t('profile.family.externalCalendars.eventCount', { count: calendar.eventCount }) }}</span>
         </div>
+        <div v-if="reminderSummary" class="flex items-center gap-1.5 mt-1 text-xs text-toned">
+          <UIcon name="i-lucide-bell" class="h-3.5 w-3.5 text-amber-600 dark:text-amber-400 flex-shrink-0" />
+          <span class="truncate">{{ reminderSummary }}</span>
+        </div>
         <div v-if="calendar.lastSyncError" class="mt-1 text-xs text-red-500 flex items-center gap-1">
           <UIcon name="i-lucide-alert-circle" class="h-3.5 w-3.5 flex-shrink-0" />
           <span class="truncate">{{ calendar.lastSyncError }}</span>
@@ -73,7 +77,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue'
+import { computed, ref } from 'vue'
 import type { ExternalCalendarResponse } from '~/types/externalCalendar'
 
 const props = withDefaults(defineProps<{
@@ -92,6 +96,19 @@ const emit = defineEmits<{
 const { t } = useI18n()
 
 const isDeleteModalOpen = ref(false)
+
+// Null when reminders are off, so the row disappears rather than reading "No reminders" on every card.
+const reminderSummary = computed(() => {
+  const leadTimes = props.calendar.reminderLeadTimes
+  if (!leadTimes?.length) return null
+
+  return leadTimes
+    .map((minutes) => {
+      const { key, params } = reminderLeadTimeLabel(minutes)
+      return t(key, params)
+    })
+    .join(' · ')
+})
 
 const cardEl = ref<HTMLElement | null>(null)
 const swipe = useSwipeActions(cardEl, {

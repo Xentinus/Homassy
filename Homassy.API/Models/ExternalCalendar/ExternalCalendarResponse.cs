@@ -10,5 +10,11 @@ namespace Homassy.API.Models.ExternalCalendar
         public DateTime? LastSyncedAt { get; set; }
         public string? LastSyncError { get; set; }
         public int EventCount { get; set; }
+
+        /// <summary>Reminder lead times in minutes before the event starts; empty = reminders off.</summary>
+        public List<int> ReminderLeadTimes { get; set; } = [];
+
+        /// <summary>Time of day all-day reminders are anchored to, as <c>HH:mm</c>.</summary>
+        public string AllDayNotifyTime { get; set; } = "08:00";
     }
 }
