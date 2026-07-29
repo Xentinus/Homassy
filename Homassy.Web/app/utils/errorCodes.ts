@@ -33,6 +33,7 @@ export const errorCodeMessages: Record<string, string> = {
   'PRODUCT-0001': 'Product not found.',
   'PRODUCT-0002': 'Access to this product is denied.',
   'PRODUCT-0003': 'Inventory item not found.',
+  'PRODUCT-0004': 'Products are shared by every family, so they cannot be deleted. Remove your own inventory items instead.',
 
   // Location Errors (LOCATION-0xxx)
   'LOCATION-0001': 'Location not found.',

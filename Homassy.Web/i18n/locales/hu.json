@@ -334,6 +334,7 @@
         "backToProducts": "Vissza a termékekhez",
         "inventoryHeader": "Készlet elemek",
         "noInventoryItems": "Nincsenek készlet elemek",
+        "sharedProductHint": "A termékeket minden család közösen használja, ezért nem törölhetők. Ha egy terméket ki szeretnél venni a saját otthonodból, töröld a hozzá tartozó készlet elemeket (húzd az elemet balra).",
         "expiredStocksCount": "Lejárt: {count}",
         "expiringSoonStocksCount": "Hamarosan lejáró: {count}",
         "normalStocksCount": "Normális: {count}",
@@ -431,7 +432,6 @@
           "success": "A készlet sikeresen felosztva"
         },
         "editProduct": "Termék szerkesztése",
-        "deleteProduct": "Termék törlése",
         "editProductModal": {
           "title": "Termék szerkesztése",
           "description": "Módosítsa a termék adatait",
@@ -444,19 +444,6 @@
           "cancel": "Mégse",
           "confirm": "Mentés",
           "success": "Termék sikeresen frissítve"
-        },
-        "deleteProductModal": {
-          "title": "Termék törlése",
-          "description": "Biztosan törölni kívánja ezt a terméket? Ez törli az összes készlet elemet is!",
-          "warning": "Figyelmeztetés: Ez a művelet nem visszavonható!",
-          "productName": "Termék neve",
-          "brand": "Márka",
-          "category": "Kategória",
-          "barcode": "Vonalkód",
-          "inventoryCount": "Készlet elemek száma",
-          "cancel": "Mégse",
-          "confirm": "Törlés",
-          "success": "Termék sikeresen törölve"
         }
       }
     },

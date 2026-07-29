@@ -114,19 +114,6 @@ export const useProductsApi = () => {
   }
 
   /**
-   * Delete product
-   */
-  const deleteProduct = async (productPublicId: string) => {
-    const result = await client.delete(
-      `/api/v1/Product/${productPublicId}`
-    )
-    if (result.success) {
-      eventBus.emit('product:deleted')
-    }
-    return result
-  }
-
-  /**
    * Toggle product favorite status
    */
   const toggleFavorite = async (productPublicId: string) => {
@@ -342,7 +329,6 @@ export const useProductsApi = () => {
     getProductHistory,
     createProduct,
     updateProduct,
-    deleteProduct,
     toggleFavorite,
     createMultipleProducts,
     uploadProductImage,

@@ -119,6 +119,8 @@ export const useSwipeActions = (
       offset = Math.sign(dx) * (t + overshoot * 0.25)
     }
     offset = Math.max(-maxDrag, Math.min(maxDrag, offset))
+    // A direction without a handler does not drag at all — no action layer is revealed for it
+    if ((offset < 0 && !options.onSwipeLeft) || (offset > 0 && !options.onSwipeRight)) offset = 0
     translateX.value = offset
 
     if (Math.abs(dx) > CLICK_SUPPRESS_DISTANCE) {

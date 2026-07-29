@@ -1,16 +1,13 @@
 <template>
   <div class="relative rounded-2xl overflow-hidden" style="touch-action: pan-y" data-no-pull-refresh>
-    <!-- Swipe action layer -->
+    <!-- Swipe action layer (edit only — products are global and cannot be deleted) -->
     <div
-      v-show="swipe.isSwiping.value"
+      v-show="swipe.isSwiping.value && swipe.direction.value === 'right'"
       aria-hidden="true"
-      class="absolute inset-0 rounded-2xl flex items-center justify-between px-4"
-      :class="swipe.direction.value === 'left' ? 'bg-error-500 dark:bg-error-600' : 'bg-primary-500 dark:bg-primary-600'"
+      class="absolute inset-0 rounded-2xl flex items-center px-4 bg-primary-500 dark:bg-primary-600"
     >
       <UIcon name="i-lucide-pencil" class="h-5 w-5 text-white transition-transform duration-150"
         :class="[swipe.direction.value === 'right' ? 'opacity-100' : 'opacity-0', swipe.progress.value >= 1 ? 'scale-125' : '']" />
-      <UIcon name="i-lucide-trash-2" class="h-5 w-5 text-white transition-transform duration-150"
-        :class="[swipe.direction.value === 'left' ? 'opacity-100' : 'opacity-0', swipe.progress.value >= 1 ? 'scale-125' : '']" />
     </div>
 
     <!-- Card surface (no image — data opens on click, like the inventory card) -->
@@ -49,32 +46,12 @@
         </div>
       </div>
     </div>
-
-    <!-- Delete confirmation -->
-    <AppDrawer :open="isDeleteModalOpen" :title="$t('pages.products.details.deleteProduct')" icon="i-lucide-trash-2" fit="content" @update:open="(v) => { isDeleteModalOpen = v }">
-      <p class="text-sm text-muted">{{ $t('pages.products.details.deleteProductModal.warning') }}</p>
-      <div class="space-y-2">
-        <div>
-          <span class="text-sm font-medium text-gray-700 dark:text-gray-300">{{ $t('common.name') }}:</span>
-          <span class="text-sm ml-2">{{ product.name }}</span>
-        </div>
-        <div v-if="product.brand">
-          <span class="text-sm font-medium text-gray-700 dark:text-gray-300">{{ $t('pages.addProduct.form.brand') }}:</span>
-          <span class="text-sm ml-2">{{ product.brand }}</span>
-        </div>
-      </div>
-      <template #footer>
-        <UButton :label="$t('common.cancel')" color="neutral" variant="outline" @click="() => { isDeleteModalOpen = false }" />
-        <UButton :label="$t('common.delete')" color="error" :loading="isDeleting" @click="handleDelete" />
-      </template>
-    </AppDrawer>
   </div>
 </template>
 
 <script setup lang="ts">
 import { ref, computed } from 'vue'
 import type { ProductInfo } from '~/types/product'
-import { useProductsApi } from '~/composables/api/useProductsApi'
 import { useEnumLabel } from '~/composables/useEnumLabel'
 
 const props = withDefaults(defineProps<{
@@ -89,23 +66,16 @@ const props = withDefaults(defineProps<{
 const emit = defineEmits<{
   select: [publicId: string]
   edit: [product: ProductInfo]
-  deleted: [publicId: string]
 }>()
 
-const { t } = useI18n()
-const toast = useToast()
-const { deleteProduct } = useProductsApi()
 const { formatProductCategory } = useEnumLabel()
 const { highlightText } = useSearchHighlight()
 
-const isDeleteModalOpen = ref(false)
-const isDeleting = ref(false)
-
 const cardEl = ref<HTMLElement | null>(null)
+// Only edit (right). Products are global master data — deleting one would remove it for every
+// family, so removal happens per family through the inventory items instead.
 const swipe = useSwipeActions(cardEl, {
-  onSwipeLeft: () => { isDeleteModalOpen.value = true },
-  onSwipeRight: () => emit('edit', props.product),
-  disabled: () => isDeleteModalOpen.value || isDeleting.value
+  onSwipeRight: () => emit('edit', props.product)
 })
 
 const cardBorderClass = computed(() => {
@@ -119,19 +89,5 @@ function handleCardClick(event: MouseEvent) {
   const target = event.target as HTMLElement
   if (target.closest('a, button')) return
   emit('select', props.product.publicId)
-}
-
-async function handleDelete() {
-  isDeleting.value = true
-  try {
-    await deleteProduct(props.product.publicId)
-    isDeleteModalOpen.value = false
-    emit('deleted', props.product.publicId)
-  } catch (error) {
-    console.error('Failed to delete product:', error)
-    toast.add({ title: t('common.error'), description: t('pages.products.details.deleteProductModal.deleteFailed'), color: 'error' })
-  } finally {
-    isDeleting.value = false
-  }
 }
 </script>

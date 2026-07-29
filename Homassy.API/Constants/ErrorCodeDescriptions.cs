@@ -38,6 +38,7 @@ public static class ErrorCodeDescriptions
         [ErrorCodes.ProductNotFound] = "Product not found.",
         [ErrorCodes.ProductAccessDenied] = "Access denied to this product.",
         [ErrorCodes.ProductInventoryNotFound] = "Product inventory item not found.",
+        [ErrorCodes.ProductDeletionNotAllowed] = "Products are shared by every family, so they cannot be deleted. Remove your own inventory items instead.",
 
         // Location Errors
         [ErrorCodes.LocationNotFound] = "Location not found.",

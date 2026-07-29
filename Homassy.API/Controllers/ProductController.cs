@@ -81,18 +81,17 @@ namespace Homassy.API.Controllers
         }
 
         /// <summary>
-        /// Deletes a product and all its inventory items.
+        /// Always rejects: products live in a shared, global namespace, so deleting one would
+        /// remove it (and the matching inventory items) for every family using it. Users remove
+        /// their own inventory items or their product customization instead.
         /// </summary>
         [HttpDelete("{productPublicId}")]
         [MapToApiVersion(1.0)]
-        [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status200OK)]
-        [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status404NotFound)]
-        public async Task<IActionResult> DeleteProduct(Guid productPublicId, CancellationToken cancellationToken)
+        [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status403Forbidden)]
+        public IActionResult DeleteProduct(Guid productPublicId)
         {
-            await new ProductFunctions().DeleteProductAsync(productPublicId, cancellationToken);
-
-            Log.Information($"Product {productPublicId} deleted successfully");
-            return Ok(ApiResponse.SuccessResponse());
+            Log.Information($"Rejected delete request for shared product {productPublicId}");
+            return StatusCode(403, ApiResponse.ErrorResponse(ErrorCodes.ProductDeletionNotAllowed));
         }
 
         /// <summary>

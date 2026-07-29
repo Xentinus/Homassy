@@ -748,6 +748,11 @@ namespace Homassy.API.Functions
             }
         }
 
+        /// <summary>
+        /// Deletes a product for every family that uses it, disabling automations and detaching shopping
+        /// list items that reference it. Maintenance/administrative use only — products are global, so
+        /// this is deliberately not reachable through the public API surface (see ProductController.DeleteProduct).
+        /// </summary>
         public async Task DeleteProductAsync(Guid productPublicId, CancellationToken cancellationToken = default)
         {
             var userId = SessionInfo.GetUserId();

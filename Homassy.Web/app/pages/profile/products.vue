@@ -110,7 +110,6 @@
           :search-query="searchQuery"
           @select="openOverview"
           @edit="openEditDrawer"
-          @deleted="onDeleted"
         />
       </AnimatedList>
     </template>
@@ -337,10 +336,6 @@ function onSaved(product: ProductInfo) {
   const idx = products.value.findIndex(p => p.publicId === product.publicId)
   if (idx >= 0) products.value[idx] = product
   else products.value.push(product)
-}
-
-function onDeleted(publicId: string) {
-  removeProduct(publicId)
 }
 
 function handleUpserted(dto: ProductInfo) {

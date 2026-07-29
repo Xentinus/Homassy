@@ -35,6 +35,7 @@ public static class ErrorCodes
     public const string ProductNotFound = "PRODUCT-0001";
     public const string ProductAccessDenied = "PRODUCT-0002";
     public const string ProductInventoryNotFound = "PRODUCT-0003";
+    public const string ProductDeletionNotAllowed = "PRODUCT-0004";
     #endregion
 
     #region Location Errors (LOCATION-0xxx)
