@@ -14,8 +14,9 @@ services:
       - Jwt__AccessTokenExpirationMinutes=15
       - Jwt__RefreshTokenExpirationDays=7
       - Cors__AllowedOrigins__0=http://localhost:3000
-      - Logging__LogLevel__Default=Information
-      - Logging__LogLevel__Microsoft.AspNetCore=Warning
+      # Log levels come from UseHomassyMinimumLevels() in code; Logging__LogLevel__* has no effect.
+      # Uncomment to see EF Core SQL locally (ignored when ASPNETCORE_ENVIRONMENT=Production):
+      # - EFCORE_SQL_LOGGING=true
       - POSTGRES_DB=${POSTGRES_DB}
       - POSTGRES_USER=${POSTGRES_USER}
       - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
@@ -26,6 +27,8 @@ services:
   homassy.notifications:
     environment:
       - ConnectionStrings__DefaultConnection=${DB_CONNECTION_STRING_DOCKER}
+      # Uncomment to see EF Core SQL locally (ignored when ASPNETCORE_ENVIRONMENT=Production):
+      # - EFCORE_SQL_LOGGING=true
 
   homassy.web:
     environment:

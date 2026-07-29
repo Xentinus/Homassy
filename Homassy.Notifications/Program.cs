@@ -1,4 +1,5 @@
 ﻿using Homassy.API.Context;
+using Homassy.API.Extensions;
 using Homassy.Notifications.Endpoints;
 using Homassy.Notifications.HealthChecks;
 using Homassy.Notifications.Middleware;
@@ -7,11 +8,9 @@ using Homassy.Notifications.Workers;
 using Microsoft.AspNetCore.Diagnostics.HealthChecks;
 using Microsoft.EntityFrameworkCore;
 using Serilog;
-using Serilog.Events;
 
 Log.Logger = new LoggerConfiguration()
-    .MinimumLevel.Information()
-    .MinimumLevel.Override("Microsoft.AspNetCore", LogEventLevel.Warning)
+    .UseHomassyMinimumLevels()
     .Enrich.FromLogContext()
     .WriteTo.Console()
     .CreateBootstrapLogger();
@@ -22,8 +21,7 @@ try
 
     var builder = WebApplication.CreateBuilder(args);
     builder.Host.UseSerilog((ctx, cfg) => cfg
-        .MinimumLevel.Information()
-        .MinimumLevel.Override("Microsoft.AspNetCore", LogEventLevel.Warning)
+        .UseHomassyMinimumLevels(environmentName: ctx.HostingEnvironment.EnvironmentName)
         .Enrich.FromLogContext()
         .WriteTo.Console());
 

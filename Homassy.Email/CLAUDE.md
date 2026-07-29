@@ -455,15 +455,15 @@ Tests a live SMTP connection on every readiness probe call:
   },
   "InternalApi": {
     "ApiKey": "the-global-internal-api-key"
-  },
-  "Logging": {
-    "LogLevel": {
-      "Default": "Information",
-      "Microsoft.AspNetCore": "Warning"
-    }
   }
 }
 ```
+
+> **Logging is configured in code, not in config.** `Program.cs` calls
+> `UseHomassyMinimumLevels()` from `Homassy.API/Extensions/SerilogExtensions.cs`, which is
+> compiled into this project as a **link** (see the `Compile Include` in the `.csproj`) so the
+> service shares the level policy without taking a project reference on Homassy.API.
+> A `Logging:LogLevel` section in `appsettings.json` would have no effect — don't add one.
 
 ### Configuration Keys
 
