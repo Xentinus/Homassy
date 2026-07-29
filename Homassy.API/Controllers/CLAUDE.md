@@ -91,7 +91,7 @@ Manages product catalog and inventory (all endpoints require `[Authorize]`).
 | GET | `/` | Get all products |
 | POST | `/` | Create new product |
 | PUT | `/{productPublicId}` | Update product |
-| DELETE | `/{productPublicId}` | Delete product |
+| DELETE | `/{productPublicId}` | Always rejected with **403** `PRODUCT-0004` — products are global |
 | POST | `/{productPublicId}/favorite` | Toggle favorite status |
 | GET | `/{productPublicId}/detailed` | Get detailed product info with inventory |
 | GET | `/detailed` | Get all detailed products for user |
@@ -100,6 +100,7 @@ Manages product catalog and inventory (all endpoints require `[Authorize]`).
 - Product customization per user (favorites, notes)
 - Inventory tracking with purchase info and consumption logs
 - Family-shared products support
+- **Products are never deletable through the API**: a `Product` row is global (only `ProductCustomization` is family-scoped), so deleting one would remove it — and its inventory items — for every family. `DELETE /{productPublicId}` rejects with 403 `PRODUCT-0004`; `ProductFunctions.DeleteProductAsync` remains for maintenance use only. Users drop a product from their own view by deleting their inventory items or their customization.
 
 **Realtime (SignalR):**
 - Hub at `/hubs/inventory` (`InventoryHub`, `[Authorize]`) — same Kratos-cookie-on-handshake auth as the shopping-list hub

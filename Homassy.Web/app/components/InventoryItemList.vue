@@ -18,6 +18,12 @@
       />
     </div>
 
+    <!-- Products are global master data: the only family-scoped removal is the inventory item -->
+    <p v-if="items.length > 0" class="flex items-start gap-2 text-xs text-muted">
+      <UIcon name="i-lucide-info" class="h-3.5 w-3.5 shrink-0 mt-0.5 text-primary-500" />
+      <span>{{ $t('pages.products.details.sharedProductHint') }}</span>
+    </p>
+
     <!-- Empty state -->
     <div v-if="items.length === 0" class="text-center py-8 text-gray-500 dark:text-gray-400">
       {{ $t('pages.products.details.noInventoryItems') }}

@@ -230,12 +230,12 @@ public class ProductControllerTests : IClassFixture<HomassyWebApplicationFactory
     }
 
     [Fact]
-    public async Task DeleteProduct_NonExistent_ReturnsNotFound()
+    public async Task DeleteProduct_Authenticated_ReturnsForbidden()
     {
         string? testEmail = null;
         try
         {
-            var (email, auth) = await _authHelper.CreateAndAuthenticateUserAsync("prod-del-notfound");
+            var (email, auth) = await _authHelper.CreateAndAuthenticateUserAsync("prod-del-forbidden");
             testEmail = email;
             _authHelper.SetAuthToken(auth.AccessToken);
 
@@ -245,7 +245,9 @@ public class ProductControllerTests : IClassFixture<HomassyWebApplicationFactory
             _output.WriteLine($"Status: {response.StatusCode}");
             _output.WriteLine($"Response: {responseBody}");
 
-            Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
+            // Products are global: deletion is rejected outright, never attempted
+            Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
+            Assert.Contains(ErrorCodes.ProductDeletionNotAllowed, responseBody);
         }
         finally
         {

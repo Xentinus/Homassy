@@ -332,6 +332,7 @@
         "backToProducts": "Zurück zu Produkten",
         "inventoryHeader": "Inventarartikel",
         "noInventoryItems": "Keine Inventarartikel",
+        "sharedProductHint": "Produkte werden von allen Familien gemeinsam genutzt und können nicht gelöscht werden. Um ein Produkt aus dem eigenen Haushalt zu entfernen, lösche seine Inventarartikel (Artikel nach links wischen).",
         "expiredStocksCount": "Abgelaufen: {count}",
         "expiringSoonStocksCount": "Bald ablaufend: {count}",
         "normalStocksCount": "Normal: {count}",
@@ -428,7 +429,6 @@
           "success": "Bestand erfolgreich aufgeteilt"
         },
         "editProduct": "Produkt bearbeiten",
-        "deleteProduct": "Produkt löschen",
         "editProductModal": {
           "title": "Produkt bearbeiten",
           "description": "Produktdetails ändern",
@@ -441,19 +441,6 @@
           "cancel": "Abbrechen",
           "confirm": "Speichern",
           "success": "Produkt erfolgreich aktualisiert"
-        },
-        "deleteProductModal": {
-          "title": "Produkt löschen",
-          "description": "Möchten Sie dieses Produkt wirklich löschen? Dadurch werden auch alle Bestandselemente gelöscht!",
-          "warning": "Warnung: Diese Aktion kann nicht rückgängig gemacht werden!",
-          "productName": "Produktname",
-          "brand": "Marke",
-          "category": "Kategorie",
-          "barcode": "Barcode",
-          "inventoryCount": "Anzahl der Bestandselemente",
-          "cancel": "Abbrechen",
-          "confirm": "Löschen",
-          "success": "Produkt erfolgreich gelöscht"
         }
       }
     },
