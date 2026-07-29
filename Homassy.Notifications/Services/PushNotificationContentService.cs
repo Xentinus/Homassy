@@ -1,4 +1,5 @@
 ﻿using Homassy.API.Enums;
+using System.Globalization;
 
 namespace Homassy.Notifications.Services;
 
@@ -425,5 +426,59 @@ public static class PushNotificationContentService
                 $"Your request to join the \"{familyName}\" family was declined."
             )
         };
+    }
+
+    /// <summary>
+    /// Reminder for a family day note.
+    /// <para>
+    /// The note's date is stated absolutely rather than relatively ("tomorrow") because
+    /// <c>FamilyPushNotifier.DispatchAsync</c> hands the content factory only the recipient's language — not
+    /// their timezone — so a relative phrase could be wrong for a member in another zone. The date pattern is
+    /// explicit and invariant so the container's locale cannot change the output.
+    /// </para>
+    /// </summary>
+    public static (string Title, string Body) GetCalendarNoteReminderContent(
+        Language language, string noteTitle, string? noteContent, DateOnly noteDate)
+    {
+        var snippet = Snippet(noteContent);
+
+        return language switch
+        {
+            Language.Hungarian => (
+                "Napi jegyzet",
+                Compose(noteDate.ToString("yyyy. MM. dd.", CultureInfo.InvariantCulture), noteTitle, snippet)
+            ),
+            Language.German => (
+                "Tagesnotiz",
+                Compose(noteDate.ToString("dd.MM.yyyy", CultureInfo.InvariantCulture), noteTitle, snippet)
+            ),
+            _ => (
+                "Day note",
+                Compose(noteDate.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture), noteTitle, snippet)
+            )
+        };
+    }
+
+    private static string Compose(string dateText, string noteTitle, string? snippet) =>
+        snippet == null
+            ? $"{dateText} · {noteTitle}"
+            : $"{dateText} · {noteTitle} — {snippet}";
+
+    /// <summary>
+    /// Trims a note body down to something a notification can carry — payloads are size-limited and visually
+    /// truncated anyway, so a 2000-character body must not ride along in full.
+    /// </summary>
+    private static string? Snippet(string? content, int maxLength = 120)
+    {
+        if (string.IsNullOrWhiteSpace(content))
+            return null;
+
+        // Newlines would be rendered as spaces by the notification surface anyway; collapse them so the
+        // truncation length reflects what is actually shown.
+        var flattened = string.Join(' ', content.Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries));
+
+        return flattened.Length <= maxLength
+            ? flattened
+            : string.Concat(flattened.AsSpan(0, maxLength).TrimEnd(), "…");
     }
 }

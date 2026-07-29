@@ -114,4 +114,13 @@ public static class ErrorCodes
     public const string ExternalCalendarFetchFailed = "EXTCAL-0004";
     public const string ExternalCalendarRequiresFamily = "EXTCAL-0005";
     #endregion
+
+    #region Calendar Note Errors (CALNOTE-0xxx)
+    public const string CalendarNoteNotFound = "CALNOTE-0001";
+    public const string CalendarNoteAccessDenied = "CALNOTE-0002";
+    public const string CalendarNoteRequiresFamily = "CALNOTE-0003";
+    public const string CalendarNoteInvalidDate = "CALNOTE-0004";
+    public const string CalendarNoteInvalidReminder = "CALNOTE-0005";
+    public const string CalendarNoteConcurrencyConflict = "CALNOTE-0006";
+    #endregion
 }

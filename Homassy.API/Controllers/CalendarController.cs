@@ -1,4 +1,5 @@
 using Asp.Versioning;
+using Homassy.API.Constants;
 using Homassy.API.Enums;
 using Homassy.API.Functions;
 using Homassy.API.Models.Calendar;
@@ -17,7 +18,7 @@ namespace Homassy.API.Controllers
     [Authorize]
     public class CalendarController : ControllerBase
     {
-        private const int MaxDateRangeDays = 93;
+        private const int MaxDateRangeDays = CalendarConstants.MaxDateRangeDays;
 
         /// <summary>
         /// Gets all calendar events (inventory expirations, automation executions, shopping list deadlines)

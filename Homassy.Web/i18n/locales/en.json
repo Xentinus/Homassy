@@ -812,7 +812,32 @@
         "automationExecution": "Automation",
         "shoppingListDeadline": "Shopping deadline",
         "activity": "Activity",
-        "externalCalendar": "External calendar"
+        "externalCalendar": "External calendar",
+        "dayNote": "Day note"
+      },
+      "dayNotes": {
+        "add": "Add note",
+        "create": "New note",
+        "edit": "Edit note",
+        "date": "Day",
+        "noteTitle": "Title",
+        "titlePlaceholder": "School closed",
+        "content": "Note",
+        "contentPlaceholder": "What should the family know about this day?",
+        "titleRequired": "A title is required",
+        "dateRequired": "Pick a date",
+        "reminderEnabled": "Remind the family",
+        "reminderTime": "Reminder time",
+        "reminderHint": "A push notification is sent at this time on the note's day, in your own timezone.",
+        "invalidTime": "Enter a valid time (HH:mm)",
+        "editedBy": "edited by {name}",
+        "moreNotes": "+{count} more",
+        "created": "Note added",
+        "updated": "Note updated",
+        "deleted": "Note deleted",
+        "saveFailed": "Failed to save the note",
+        "deleteTitle": "Delete note",
+        "deleteWarning": "This note will be removed for everyone in the family. This cannot be undone."
       },
       "views": {
         "month": "Month",
@@ -884,7 +909,13 @@
     "SYSTEM-0001": "An unexpected error occurred.",
     "SYSTEM-0002": "The request timed out.",
     "SYSTEM-0003": "The request was aborted.",
-    "SYSTEM-0004": "Unauthorized access."
+    "SYSTEM-0004": "Unauthorized access.",
+    "CALNOTE-0001": "The note no longer exists.",
+    "CALNOTE-0002": "You do not have access to this note.",
+    "CALNOTE-0003": "Join or create a family to use day notes.",
+    "CALNOTE-0004": "The note date is missing or invalid.",
+    "CALNOTE-0005": "The reminder time is invalid.",
+    "CALNOTE-0006": "Someone else changed this note. It has been reloaded — please try again."
   },
   "shoppingList": {
     "purchase": {
@@ -1464,7 +1495,10 @@
       "26": "Automation Executed",
       "27": "Join Request Sent",
       "28": "Join Request Approved",
-      "29": "Join Request Declined"
+      "29": "Join Request Declined",
+      "30": "Note Added",
+      "31": "Note Updated",
+      "32": "Note Deleted"
     },
     "productCategory": {
       "0": "Other",

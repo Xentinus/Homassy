@@ -119,6 +119,48 @@ namespace Homassy.API.Context
             });
             #endregion
 
+            #region CalendarNote Relationships
+            modelBuilder.Entity<CalendarNote>(entity =>
+            {
+                entity.HasOne(n => n.Family)
+                    .WithMany()
+                    .HasForeignKey(n => n.FamilyId)
+                    .OnDelete(DeleteBehavior.Cascade);
+
+                // Restrict, and no navigation property: a note is family data, so losing a member must not
+                // delete the notes they wrote for everyone, and a required navigation to a soft-delete-filtered
+                // principal would make EF log a query-filter warning on every model build.
+                entity.HasOne<User>()
+                    .WithMany()
+                    .HasForeignKey(n => n.CreatedByUserId)
+                    .OnDelete(DeleteBehavior.Restrict);
+
+                entity.HasOne<User>()
+                    .WithMany()
+                    .HasForeignKey(n => n.LastEditedByUserId)
+                    .OnDelete(DeleteBehavior.Restrict);
+
+                // A note is attached to a calendar day, not an instant: `date` carries no timezone, so every
+                // member sees the same day no matter where they are.
+                entity.Property(e => e.Date).HasColumnType("date");
+
+                // The hot path: one family, one week-to-quarter range. Covers a FamilyId-only lookup too.
+                entity.HasIndex(e => new { e.FamilyId, e.Date });
+
+                // Supports the reminder worker's every-minute due scan. Partial, because almost every note
+                // either has no reminder or has already fired — the index holds only pending reminders and
+                // shrinks back as they are claimed. The filter mirrors the worker's WHERE clause exactly
+                // (`IsDeleted = false` comes from the global query filter) so PostgreSQL can actually use it.
+                entity.HasIndex(e => e.ReminderAt)
+                    .HasDatabaseName("IX_CalendarNotes_PendingReminder")
+                    .HasFilter("\"ReminderAt\" IS NOT NULL AND \"ReminderSentAt\" IS NULL AND \"IsDeleted\" = false");
+
+                // The token round-trips through the client (see CalendarNoteFunctions), which is what makes it
+                // catch a lost update across two requests rather than only within one.
+                entity.Property(e => e.RowVersion).IsConcurrencyToken();
+            });
+            #endregion
+
             #region FamilyJoinRequest Relationships
             modelBuilder.Entity<FamilyJoinRequest>(entity =>
             {
@@ -280,6 +322,7 @@ namespace Homassy.API.Context
         public DbSet<Family> Families { get; set; }
         public DbSet<FamilyJoinRequest> FamilyJoinRequests { get; set; }
         public DbSet<FamilyExternalCalendar> FamilyExternalCalendars { get; set; }
+        public DbSet<CalendarNote> CalendarNotes { get; set; }
         #endregion
 
         #region Product Related DbSets

@@ -79,6 +79,7 @@ Homassy.Notifications/
     ├── InventoryActivityMonitorService.cs     # 5 min → inventory (készlet) push
     ├── FamilyJoinRequestMonitorService.cs     # 1 min → family join request push
     ├── ItemAutomationWorkerService.cs         # 5 min → item automation execution
+    ├── CalendarNoteReminderService.cs         # 1 min → day note reminders
     └── EmailWeeklySummaryService.cs           # Hourly, Mon 07:00 → weekly email
 ```
 
@@ -164,6 +165,27 @@ builder.Services.AddDbContext<HomassyDbContext>(options =>
 - After an `AutoConsume` commit it relays the inventory change to `Homassy.API` via
   `InventoryBroadcastServiceClient` (→ `POST /api/v1/internal/inventory/broadcast`) so connected
   Készletek grids update live; this process hosts no SignalR hub, so it cannot broadcast directly
+
+### CalendarNoteReminderService
+- Runs every minute: a day-note reminder is a wall-clock promise ("08:00"), and a 5-minute loop would turn that
+  into "08:00–08:05"
+- Scans `CalendarNotes` for a due `ReminderAt` (derived API-side from the note's date and the **author's**
+  timezone, so every family member is notified at the same instant). The query matches the
+  `IX_CalendarNotes_PendingReminder` partial index, so it only ever touches pending reminders
+- Notifies every family member with push enabled via `FamilyPushNotifier`, **including the author** — they set
+  the reminder for themselves as much as for anyone. This differs from the activity monitors, which exclude the
+  actor because they report someone else's action
+- **Claim-then-push**: a single conditional `ExecuteUpdateAsync`
+  (`SET ReminderSentAt = now WHERE Id = @id AND ReminderSentAt IS NULL`) is committed *before* the push, so a
+  crash, a restart inside the catch-up window, or two replicas racing can only skip a send — never repeat one.
+  Never restructure this into read-then-push-then-save
+- `ExecuteUpdateAsync` also avoids `SaveChangesAsync`, which would stamp `RecordChange.LastModifiedBy = -1`
+  (this process has no `SessionInfoMiddleware`), and it respects the global soft-delete filter, so a deleted note
+  can never be pushed
+- 15-minute catch-up window (shared with `CalendarNoteFunctions.ReminderCatchUpWindow` so the write-time
+  staleness check cannot diverge); anything older is dropped as stale. A 6-hourly sweep retires reminders left
+  unclaimed past a day, which is what keeps the partial index bounded across an outage — there is no marker
+  table to prune, the dedup state lives on the note row
 
 ### EmailWeeklySummaryService
 - Runs every hour

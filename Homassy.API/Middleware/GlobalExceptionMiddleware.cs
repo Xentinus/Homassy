@@ -96,6 +96,14 @@ namespace Homassy.API.Middleware
                 ExternalCalendarFetchFailedException ex => (StatusCodes.Status400BadRequest, ex.ErrorCode),
                 ExternalCalendarRequiresFamilyException ex => (StatusCodes.Status400BadRequest, ex.ErrorCode),
 
+                // Calendar note exceptions
+                CalendarNoteNotFoundException ex => (StatusCodes.Status404NotFound, ex.ErrorCode),
+                CalendarNoteAccessDeniedException ex => (StatusCodes.Status403Forbidden, ex.ErrorCode),
+                CalendarNoteRequiresFamilyException ex => (StatusCodes.Status400BadRequest, ex.ErrorCode),
+                CalendarNoteInvalidDateException ex => (StatusCodes.Status400BadRequest, ex.ErrorCode),
+                CalendarNoteInvalidReminderException ex => (StatusCodes.Status400BadRequest, ex.ErrorCode),
+                CalendarNoteConcurrencyException ex => (StatusCodes.Status409Conflict, ex.ErrorCode),
+
                 // Timeout exceptions
                 RequestTimeoutException ex => (StatusCodes.Status504GatewayTimeout, ex.ErrorCode),
 

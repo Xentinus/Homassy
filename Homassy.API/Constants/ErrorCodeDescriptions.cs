@@ -102,7 +102,15 @@ public static class ErrorCodeDescriptions
         [ErrorCodes.ExternalCalendarAccessDenied] = "Access denied to this external calendar.",
         [ErrorCodes.ExternalCalendarInvalidUrl] = "The provided URL is not a valid iCal feed.",
         [ErrorCodes.ExternalCalendarFetchFailed] = "Failed to fetch the iCal feed from the provided URL.",
-        [ErrorCodes.ExternalCalendarRequiresFamily] = "You must be a member of a family to manage external calendars."
+        [ErrorCodes.ExternalCalendarRequiresFamily] = "You must be a member of a family to manage external calendars.",
+
+        // Calendar Note Errors
+        [ErrorCodes.CalendarNoteNotFound] = "Calendar note not found.",
+        [ErrorCodes.CalendarNoteAccessDenied] = "Access denied to this calendar note.",
+        [ErrorCodes.CalendarNoteRequiresFamily] = "You must be a member of a family to manage calendar notes.",
+        [ErrorCodes.CalendarNoteInvalidDate] = "The note date is missing or invalid.",
+        [ErrorCodes.CalendarNoteInvalidReminder] = "The reminder settings are invalid.",
+        [ErrorCodes.CalendarNoteConcurrencyConflict] = "The note was changed by someone else; reload it and try again."
     }.ToFrozenDictionary();
 
     public static IReadOnlyList<ErrorCodeInfo> GetAllErrorCodes()

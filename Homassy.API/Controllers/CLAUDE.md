@@ -392,6 +392,33 @@ Aggregates calendar events (inventory expirations, automation executions, shoppi
 - Dates are converted to UTC day boundaries before querying
 - Backed by `CalendarFunctions`; returns `List<CalendarEventInfo>`
 
+### CalendarNoteController
+
+Family-shared day notes on the calendar — free text attached to a single day, with an optional reminder (requires `[Authorize]`).
+
+**Endpoints:**
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/?startDate=&endDate=` | Get the family's notes for a date range |
+| POST | `/` | Create a note |
+| PUT | `/{publicId}` | Update a note (partial) |
+| DELETE | `/{publicId}` | Delete a note (soft delete) |
+
+**Key Patterns:**
+- Backed by `CalendarNoteFunctions`; persisted as `CalendarNote` (family-scoped only, like `FamilyExternalCalendar`, and likewise **not** cached in memory)
+- The range read is a **GET with query params**, unlike `CalendarController`'s POST-with-body: `POST /` is needed here for creating a note. Same 93-day cap, hoisted to `CalendarConstants.MaxDateRangeDays` so the two cannot drift
+- `Date` is a `DateOnly` → `date` column, so every member sees the same day regardless of timezone. The JSON contract is a bare `YYYY-MM-DD` — no `Z`, no time component
+- The read returns an **empty list** for a user with no family (their calendar still works); writes throw `CALNOTE-0003`
+- Author and last editor are explicit FK columns (`CreatedByUserId` / `LastEditedByUserId`, `DeleteBehavior.Restrict`, no navigation properties) rather than `RecordChange.LastModifiedBy`, which is unjoinable JSON, holds only the last modifier, and is overwritten by `DeleteRecord`. Display names resolve through `UserFunctions`' caches, so a whole range costs no extra queries
+- **Optimistic concurrency**: the response carries an opaque `version`; the update request must echo it. A mismatch is **409** `CALNOTE-0006`. The token is a `RowVersion` GUID re-rolled on each user edit — the reminder worker's claim deliberately does not bump it, so a fired reminder never invalidates an open form
+- Partial-patch conventions: `null` means "no change"; `Content: ""` **erases** the body; the reminder needs `ClearReminder: true` to be removed (a null `ReminderTime` means "no change", and `""` would reach the time parser as an accidental 400). Sending `ClearReminder` together with a `ReminderTime` is rejected
+- **Reminder**: the client sends a wall-clock `ReminderTime` (`HH:mm`); the server combines it with the note's date **in the author's timezone** to derive the absolute `ReminderAt`. The intent (`ReminderTimeOfDay` + a snapshot of `ReminderTimeZone`) is stored alongside so a later date change can be recomputed deterministically. Delivery is push-only, by `CalendarNoteReminderService` in `Homassy.Notifications`
+- Create/update/delete are logged to the activity feed (`ActivityType` 30–32). Note that the activity lands on *today*, while the note lands on its own date — the two markers legitimately sit on different calendar days
+
+**Realtime (SignalR):**
+- `CalendarNoteUpserted` / `CalendarNoteDeleted` on the master-data hub, family group only (the `ExternalCalendar*` pattern). Upsert carries the full DTO, delete carries `{ publicId }`; a no-op PUT broadcasts nothing
+
 ### StatisticsController
 
 Exposes nightly-cached, global (platform-wide) counts (no authentication — `[AllowAnonymous]`).

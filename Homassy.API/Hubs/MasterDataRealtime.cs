@@ -1,5 +1,6 @@
 using Homassy.API.Infrastructure;
 using Homassy.API.Models.Automation;
+using Homassy.API.Models.CalendarNote;
 using Homassy.API.Models.ExternalCalendar;
 using Homassy.API.Models.Location;
 using Homassy.API.Models.Product;
@@ -24,6 +25,7 @@ namespace Homassy.API.Hubs
     /// <item>Automations have mutually-exclusive <c>UserId</c>/<c>FamilyId</c> (plus a always-set
     /// <c>CreatedByUserId</c> fallback): family group when family-shared, else the owner's user group.</item>
     /// <item>External calendars are always family-scoped: family group only.</item>
+    /// <item>Calendar notes are always family-scoped: family group only.</item>
     /// </list>
     /// </summary>
     public static class MasterDataRealtime
@@ -38,6 +40,8 @@ namespace Homassy.API.Hubs
         public const string AutomationDeletedEvent = "AutomationDeleted";
         public const string ExternalCalendarUpsertedEvent = "ExternalCalendarUpserted";
         public const string ExternalCalendarDeletedEvent = "ExternalCalendarDeleted";
+        public const string CalendarNoteUpsertedEvent = "CalendarNoteUpserted";
+        public const string CalendarNoteDeletedEvent = "CalendarNoteDeleted";
 
         /// <summary>SignalR group for a family's shared master data. Shared with <see cref="MasterDataHub"/>.</summary>
         public static string FamilyGroup(int familyId) => $"masterdata:family:{familyId}";
@@ -91,6 +95,13 @@ namespace Homassy.API.Hubs
 
         public static Task ExternalCalendarDeletedAsync(int familyId, Guid publicId, CancellationToken cancellationToken = default)
             => SendAsync(FamilyGroup(familyId), ExternalCalendarDeletedEvent, new { publicId }, cancellationToken);
+
+        // --- Calendar notes (always family-scoped) ------------------------------
+        public static Task CalendarNoteUpsertedAsync(int familyId, CalendarNoteResponse note, CancellationToken cancellationToken = default)
+            => SendAsync(FamilyGroup(familyId), CalendarNoteUpsertedEvent, note, cancellationToken);
+
+        public static Task CalendarNoteDeletedAsync(int familyId, Guid publicId, CancellationToken cancellationToken = default)
+            => SendAsync(FamilyGroup(familyId), CalendarNoteDeletedEvent, new { publicId }, cancellationToken);
 
         private static async Task SendAsync(string group, string eventName, object payload, CancellationToken cancellationToken)
         {

@@ -810,7 +810,32 @@
         "automationExecution": "Automatisierung",
         "shoppingListDeadline": "Einkaufsfrist",
         "activity": "Aktivität",
-        "externalCalendar": "Externer Kalender"
+        "externalCalendar": "Externer Kalender",
+        "dayNote": "Tagesnotiz"
+      },
+      "dayNotes": {
+        "add": "Notiz hinzufügen",
+        "create": "Neue Notiz",
+        "edit": "Notiz bearbeiten",
+        "date": "Tag",
+        "noteTitle": "Titel",
+        "titlePlaceholder": "Schule geschlossen",
+        "content": "Notiz",
+        "contentPlaceholder": "Was sollte die Familie über diesen Tag wissen?",
+        "titleRequired": "Ein Titel ist erforderlich",
+        "dateRequired": "Datum wählen",
+        "reminderEnabled": "Familie erinnern",
+        "reminderTime": "Erinnerungszeit",
+        "reminderHint": "Am Tag der Notiz wird zu dieser Zeit eine Push-Benachrichtigung in deiner Zeitzone gesendet.",
+        "invalidTime": "Gültige Zeit eingeben (HH:mm)",
+        "editedBy": "bearbeitet von {name}",
+        "moreNotes": "+{count} weitere",
+        "created": "Notiz hinzugefügt",
+        "updated": "Notiz aktualisiert",
+        "deleted": "Notiz gelöscht",
+        "saveFailed": "Notiz konnte nicht gespeichert werden",
+        "deleteTitle": "Notiz löschen",
+        "deleteWarning": "Die Notiz wird für alle Familienmitglieder entfernt. Das kann nicht rückgängig gemacht werden."
       },
       "views": {
         "month": "Monat",
@@ -882,7 +907,13 @@
     "SYSTEM-0001": "Ein unerwarteter Fehler ist aufgetreten.",
     "SYSTEM-0002": "Die Anfrage hat das Zeitlimit überschritten.",
     "SYSTEM-0003": "Die Anfrage wurde abgebrochen.",
-    "SYSTEM-0004": "Unbefugter Zugriff."
+    "SYSTEM-0004": "Unbefugter Zugriff.",
+    "CALNOTE-0001": "Die Notiz existiert nicht mehr.",
+    "CALNOTE-0002": "Du hast keinen Zugriff auf diese Notiz.",
+    "CALNOTE-0003": "Für Tagesnotizen musst du zu einer Familie gehören.",
+    "CALNOTE-0004": "Das Datum der Notiz fehlt oder ist ungültig.",
+    "CALNOTE-0005": "Die Erinnerungszeit ist ungültig.",
+    "CALNOTE-0006": "Jemand anderes hat diese Notiz geändert. Sie wurde neu geladen — bitte erneut versuchen."
   },
   "shoppingList": {
     "purchase": {
@@ -1464,7 +1495,10 @@
       "26": "Automatisierung ausgeführt",
       "27": "Beitrittsanfrage gesendet",
       "28": "Beitrittsanfrage genehmigt",
-      "29": "Beitrittsanfrage abgelehnt"
+      "29": "Beitrittsanfrage abgelehnt",
+      "30": "Notiz erstellt",
+      "31": "Notiz aktualisiert",
+      "32": "Notiz gelöscht"
     },
     "productCategory": {
       "0": "Sonstiges",

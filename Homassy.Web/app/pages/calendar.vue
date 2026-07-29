@@ -80,8 +80,15 @@
                 </div>
               </div>
 
-              <!-- Mobile: colored dots -->
-              <div class="flex flex-wrap gap-0.5 sm:hidden">
+              <!-- Mobile: colored dots. The note marker leads the row as an icon rather than a fifth dot
+                   colour — the date row above is already full at this width, and an icon reads as "a note". -->
+              <div class="flex flex-wrap items-center gap-0.5 sm:hidden">
+                <UIcon
+                  v-if="cell.notes.length > 0"
+                  name="i-lucide-sticky-note"
+                  class="h-2.5 w-2.5 text-emerald-500 shrink-0"
+                  :title="cell.notes.map(n => n.title).join(' · ')"
+                />
                 <span
                   v-for="(ev, ei) in cell.events"
                   :key="ei"
@@ -92,8 +99,22 @@
                 />
               </div>
 
-              <!-- Desktop: text chips -->
+              <!-- Desktop: text chips. Notes lead — on a wide screen the note's own text is the value. -->
               <div class="hidden sm:block space-y-0.5">
+                <div
+                  v-for="note in cell.notes.slice(0, 2)"
+                  :key="note.publicId"
+                  class="text-xs rounded px-1 py-0.5 truncate leading-tight bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300"
+                  :title="note.title"
+                >
+                  {{ note.title }}
+                </div>
+                <div
+                  v-if="cell.notes.length > 2"
+                  class="text-xs rounded px-1 py-0.5 truncate leading-tight bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300"
+                >
+                  {{ t('pages.calendar.dayNotes.moreNotes', { count: cell.notes.length - 2 }) }}
+                </div>
                 <div
                   v-for="(ev, ei) in cell.events"
                   :key="ei"
@@ -163,6 +184,12 @@
                     :detail="item.data.detail"
                     :color="item.data.color"
                   />
+                  <CalendarNoteCard
+                    v-else-if="item.kind === 'note'"
+                    :note="item.data"
+                    @edit="openEditNote"
+                    @deleted="onNoteDeleted"
+                  />
                   <CalendarActivityCard
                     v-else
                     :activity-type="item.data.activityType"
@@ -184,6 +211,16 @@
         </div>
       </div>
     </div>
+
+    <!-- Declared last: vaul stacks drawers by declaration order, not open order. -->
+    <CalendarNoteFormDrawer
+      :open="noteDrawerOpen"
+      :note="editingNote"
+      :date="selectedDay ?? todayStr"
+      @update:open="(v) => { noteDrawerOpen = v }"
+      @saved="onNoteSaved"
+      @conflict="onNoteConflict"
+    />
   </div>
 </template>
 
@@ -192,14 +229,19 @@ import { CalendarEventType } from '~/types/calendar'
 import type { CalendarEventInfo } from '~/types/calendar'
 import type { ExternalCalendarResponse } from '~/types/externalCalendar'
 import type { ActivityType, ActivityInfo } from '~/types/activity'
+import type { CalendarNoteResponse } from '~/types/calendarNote'
+import type { MasterDataDeletedEvent } from '~/types/masterData'
 import { useAuthStore } from '~/stores/auth'
 
 definePageMeta({ layout: 'auth' })
 
 const { t, locale } = useI18n()
+const toast = useToast()
 const { getCalendarEvents } = useCalendarApi()
 const { getActivities } = useUserApi()
 const { getExternalCalendars } = useExternalCalendarApi()
+const { getCalendarNotes, deleteCalendarNote } = useCalendarNoteApi()
+const masterDataSocket = useMasterDataSocket()
 const authStore = useAuthStore()
 const { markReady: markSplashReady } = useSplashScreen()
 
@@ -237,6 +279,7 @@ interface CalActivity {
 type DayItem =
   | { kind: 'event'; uid: string; data: CalEvent }
   | { kind: 'activity'; uid: string; data: CalActivity }
+  | { kind: 'note'; uid: string; data: CalendarNoteResponse }
 
 const toLocalDate = (date: Date): string => {
   const y = date.getFullYear()
@@ -250,6 +293,10 @@ const isLoading = ref(false)
 const calendarEvents = ref<CalEvent[]>([])
 const calendarActivities = ref<CalActivity[]>([])
 const externalCalendars = ref<ExternalCalendarResponse[]>([])
+const calendarNotes = ref<CalendarNoteResponse[]>([])
+
+const noteDrawerOpen = ref(false)
+const editingNote = ref<CalendarNoteResponse | null>(null)
 
 const selectedDay = ref<string | null>(toLocalDate(new Date()))
 const visibleCount = ref(5)
@@ -359,6 +406,22 @@ const activitiesByDate = computed(() => {
   return map
 })
 
+const notesByDate = computed(() => {
+  const map: Record<string, CalendarNoteResponse[]> = {}
+  for (const n of calendarNotes.value) {
+    ;(map[noteDayKey(n.date)] ??= []).push(n)
+  }
+  return map
+})
+
+// The visible week, in the `YYYY-MM-DD` form the buckets are keyed by. Extracted so the loader, the
+// currentDate watcher and the socket's range check all read the same source.
+const weekRange = computed(() => {
+  const end = new Date(weekStart.value)
+  end.setDate(end.getDate() + 6)
+  return { startKey: toLocalDate(weekStart.value), endKey: toLocalDate(end) }
+})
+
 const calendarCells = computed(() => {
   const cells = []
   const cur = new Date(weekStart.value)
@@ -370,7 +433,8 @@ const calendarCells = computed(() => {
       isToday: key === todayStr.value,
       dateStr: key,
       events: eventsByDate.value[key] ?? [],
-      activityCount: (activitiesByDate.value[key] ?? []).length
+      activityCount: (activitiesByDate.value[key] ?? []).length,
+      notes: notesByDate.value[key] ?? []
     })
     cur.setDate(cur.getDate() + 1)
   }
@@ -386,13 +450,20 @@ const selectedDayItems = computed((): DayItem[] => {
   const activities: DayItem[] = (activitiesByDate.value[selectedDay.value] ?? [])
     .map(a => ({ kind: 'activity' as const, uid: `activity-${a.publicId}`, data: a }))
 
-  const merged = [...events, ...activities].sort((a, b) => {
-    const aAllDay = a.kind === 'event' && a.data.isAllDay
-    const bAllDay = b.kind === 'event' && b.data.isAllDay
-    if (aAllDay !== bAllDay) return aAllDay ? -1 : 1
-    const ta = a.kind === 'event' ? a.data.startAt : a.data.timestamp
-    const tb = b.kind === 'event' ? b.data.startAt : b.data.timestamp
-    return tb.localeCompare(ta)
+  const notes: DayItem[] = (notesByDate.value[selectedDay.value] ?? [])
+    .map(n => ({ kind: 'note' as const, uid: `note-${n.publicId}`, data: n }))
+
+  // Notes pin above everything, all-day events next, timed items last — a faithful extension of the previous
+  // all-day-first comparator. A note has no time of day, and it is the only item on this page the user can act
+  // on, so burying it under a stack of iCal all-day entries would defeat the feature.
+  const rank = (i: DayItem) => i.kind === 'note' ? 0 : (i.kind === 'event' && i.data.isAllDay ? 1 : 2)
+  const stamp = (i: DayItem) =>
+    i.kind === 'event' ? i.data.startAt : i.kind === 'activity' ? i.data.timestamp : i.data.createdAt
+
+  const merged = [...events, ...activities, ...notes].sort((a, b) => {
+    const byRank = rank(a) - rank(b)
+    if (byRank !== 0) return byRank
+    return stamp(b).localeCompare(stamp(a))
   })
 
   // Events synthesised from an iCal feed all carry their *calendar's* PublicId,
@@ -481,23 +552,25 @@ const mapActivities = (items: ActivityInfo[]): CalActivity[] =>
 const loadEvents = async () => {
   isLoading.value = true
   try {
-    const weekEnd = new Date(weekStart.value)
-    weekEnd.setDate(weekEnd.getDate() + 6)
-    const startStr = toLocalDate(weekStart.value)
-    const endStr = toLocalDate(weekEnd)
+    const { startKey: startStr, endKey: endStr } = weekRange.value
 
-    const [eventsRes, activitiesRes, calendarsRes] = await Promise.all([
+    // allSettled, not all: with four sources a single failure would otherwise discard the other three and
+    // blank the whole week. Each source is applied independently.
+    const [eventsRes, activitiesRes, calendarsRes, notesRes] = await Promise.allSettled([
       getCalendarEvents(startStr, endStr),
       getActivities({ startDate: startStr, endDate: endStr, returnAll: true }),
-      getExternalCalendars()
+      getExternalCalendars(),
+      getCalendarNotes(startStr, endStr)
     ])
 
-    if (eventsRes.success && eventsRes.data)
-      calendarEvents.value = mapEvents(eventsRes.data)
-    if (activitiesRes.success && activitiesRes.data)
-      calendarActivities.value = mapActivities(activitiesRes.data.items)
-    if (calendarsRes.success && calendarsRes.data)
-      externalCalendars.value = calendarsRes.data.filter(c => c.isEnabled)
+    if (eventsRes.status === 'fulfilled' && eventsRes.value.success && eventsRes.value.data)
+      calendarEvents.value = mapEvents(eventsRes.value.data)
+    if (activitiesRes.status === 'fulfilled' && activitiesRes.value.success && activitiesRes.value.data)
+      calendarActivities.value = mapActivities(activitiesRes.value.data.items)
+    if (calendarsRes.status === 'fulfilled' && calendarsRes.value.success && calendarsRes.value.data)
+      externalCalendars.value = calendarsRes.value.data.filter(c => c.isEnabled)
+    if (notesRes.status === 'fulfilled' && notesRes.value.success && notesRes.value.data)
+      calendarNotes.value = notesRes.value.data
   } finally {
     isLoading.value = false
     // Normal PWA relaunch lands here — dismiss the boot splash once the
@@ -507,15 +580,118 @@ const loadEvents = async () => {
 }
 
 watch(currentDate, () => {
-  const weekEnd = new Date(weekStart.value)
-  weekEnd.setDate(weekEnd.getDate() + 6)
-  const startKey = toLocalDate(weekStart.value)
-  const endKey = toLocalDate(weekEnd)
+  const { startKey, endKey } = weekRange.value
   const todayInWeek = todayStr.value >= startKey && todayStr.value <= endKey
   selectedDay.value = todayInWeek ? todayStr.value : startKey
   loadEvents()
 })
-onMounted(loadEvents)
+
+// --- Day notes ------------------------------------------------------------------
+
+const openCreateNote = () => {
+  editingNote.value = null
+  noteDrawerOpen.value = true
+}
+
+const openEditNote = (note: CalendarNoteResponse) => {
+  editingNote.value = note
+  noteDrawerOpen.value = true
+}
+
+/**
+ * Idempotent and range-aware. Used by both the optimistic local patch and the socket handler, so the acting
+ * client's own echoed event is a no-op. A note whose date moved out of the loaded week is dropped rather than
+ * left behind, where it would linger in `calendarNotes` and silently miss every later bucket lookup.
+ */
+const upsertNote = (dto: CalendarNoteResponse) => {
+  const key = noteDayKey(dto.date)
+  const inRange = key >= weekRange.value.startKey && key <= weekRange.value.endKey
+  const idx = calendarNotes.value.findIndex(n => n.publicId === dto.publicId)
+
+  if (!inRange) {
+    if (idx >= 0) calendarNotes.value.splice(idx, 1)
+    return
+  }
+
+  if (idx >= 0) calendarNotes.value[idx] = dto
+  else calendarNotes.value.push(dto)
+}
+
+const removeNote = (publicId: string) => {
+  calendarNotes.value = calendarNotes.value.filter(n => n.publicId !== publicId)
+}
+
+const onNoteSaved = (dto: CalendarNoteResponse) => {
+  const wasEdit = !!editingNote.value
+  upsertNote(dto)
+  editingNote.value = null
+
+  toast.add({
+    title: wasEdit ? t('pages.calendar.dayNotes.updated') : t('pages.calendar.dayNotes.created'),
+    color: 'success',
+    icon: 'i-lucide-check-circle'
+  })
+
+  // Follow the note to its day, so a saved note never appears to vanish.
+  const key = noteDayKey(dto.date)
+  if (key === selectedDay.value) return
+
+  if (key >= weekRange.value.startKey && key <= weekRange.value.endKey) {
+    selectDay(key)
+    return
+  }
+
+  const [y, m, d] = key.split('-').map(Number)
+  if (y && m && d) currentDate.value = new Date(y, m - 1, d)
+}
+
+const onNoteDeleted = async (publicId: string) => {
+  const res = await deleteCalendarNote(publicId)
+  if (!res.success) return
+
+  removeNote(publicId)
+  toast.add({
+    title: t('pages.calendar.dayNotes.deleted'),
+    color: 'success',
+    icon: 'i-lucide-check-circle'
+  })
+}
+
+// A stale form lost the race; the week reload brings every open card back in sync.
+const onNoteConflict = () => {
+  editingNote.value = null
+  loadEvents()
+}
+
+const handleNoteUpserted = (dto: CalendarNoteResponse) => upsertNote(dto)
+const handleNoteDeleted = (payload: MasterDataDeletedEvent) => removeNote(payload.publicId)
+
+useFabActions(() => [{
+  label: t('pages.calendar.dayNotes.add'),
+  icon: 'i-lucide-notebook-pen',
+  handler: openCreateNote
+}])
+
+onMounted(async () => {
+  await loadEvents()
+
+  // Guarded: this page owns the boot splash and the FAB, so an offline socket must not stop it mounting.
+  try {
+    await masterDataSocket.ensureConnected()
+  } catch {
+    return
+  }
+
+  masterDataSocket.on('CalendarNoteUpserted', handleNoteUpserted)
+  masterDataSocket.on('CalendarNoteDeleted', handleNoteDeleted)
+  masterDataSocket.onReconnected(loadEvents)
+})
+
+onBeforeUnmount(() => {
+  masterDataSocket.off('CalendarNoteUpserted', handleNoteUpserted)
+  masterDataSocket.off('CalendarNoteDeleted', handleNoteDeleted)
+  masterDataSocket.offReconnected(loadEvents)
+})
 
 const prevWeek = () => {
   const d = new Date(currentDate.value)
@@ -564,6 +740,7 @@ const legendTypes = [
   { key: 'inventoryExpiration', dot: 'bg-red-500' },
   { key: 'automationExecution', dot: 'bg-blue-500' },
   { key: 'shoppingListDeadline', dot: 'bg-amber-500' },
-  { key: 'activity', dot: 'bg-gray-400' }
+  { key: 'activity', dot: 'bg-gray-400' },
+  { key: 'dayNote', dot: 'bg-emerald-500' }
 ]
 </script>

@@ -49,7 +49,12 @@ export enum ActivityType {
   // Family Join Request Activities (27-29)
   FamilyJoinRequestCreate = 27,
   FamilyJoinRequestApprove = 28,
-  FamilyJoinRequestDecline = 29
+  FamilyJoinRequestDecline = 29,
+
+  // Calendar Note Activities (30-32)
+  CalendarNoteCreate = 30,
+  CalendarNoteUpdate = 31,
+  CalendarNoteDelete = 32
 }
 
 /**

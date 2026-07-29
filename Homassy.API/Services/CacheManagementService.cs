@@ -321,6 +321,11 @@ namespace Homassy.API.Services
                     Log.Debug("FamilyExternalCalendars change recorded (id: {RecordId})", change.RecordId);
                     break;
 
+                case TableNames.CalendarNotes:
+                    // No in-memory cache for calendar notes; data read directly from DB.
+                    Log.Debug("CalendarNotes change recorded (id: {RecordId})", change.RecordId);
+                    break;
+
                 default:
                     Log.Warning($"Unknown table name in TableRecordChanges: {change.TableName}");
                     break;

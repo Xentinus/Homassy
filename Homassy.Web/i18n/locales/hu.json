@@ -813,7 +813,32 @@
         "automationExecution": "Automatizálás",
         "shoppingListDeadline": "Bevásárlás határidő",
         "activity": "Tevékenység",
-        "externalCalendar": "Külső naptár"
+        "externalCalendar": "Külső naptár",
+        "dayNote": "Napi jegyzet"
+      },
+      "dayNotes": {
+        "add": "Jegyzet hozzáadása",
+        "create": "Új jegyzet",
+        "edit": "Jegyzet szerkesztése",
+        "date": "Nap",
+        "noteTitle": "Cím",
+        "titlePlaceholder": "Iskolai szünet",
+        "content": "Jegyzet",
+        "contentPlaceholder": "Mit érdemes tudni erről a napról?",
+        "titleRequired": "A cím megadása kötelező",
+        "dateRequired": "Válassz dátumot",
+        "reminderEnabled": "Emlékeztető a családnak",
+        "reminderTime": "Emlékeztető ideje",
+        "reminderHint": "A jegyzet napján, a saját időzónádban ebben az időpontban küldünk push értesítést.",
+        "invalidTime": "Érvényes időt adj meg (ÓÓ:PP)",
+        "editedBy": "szerkesztette: {name}",
+        "moreNotes": "+{count} további",
+        "created": "Jegyzet hozzáadva",
+        "updated": "Jegyzet frissítve",
+        "deleted": "Jegyzet törölve",
+        "saveFailed": "A jegyzet mentése nem sikerült",
+        "deleteTitle": "Jegyzet törlése",
+        "deleteWarning": "A jegyzet a család minden tagjánál törlődik. A művelet nem vonható vissza."
       },
       "views": {
         "month": "Hónap",
@@ -885,7 +910,13 @@
     "SYSTEM-0001": "Váratlan hiba történt.",
     "SYSTEM-0002": "A kérés túllépte az időkorlátot.",
     "SYSTEM-0003": "A kérést megszakították.",
-    "SYSTEM-0004": "Jogosulatlan hozzáférés."
+    "SYSTEM-0004": "Jogosulatlan hozzáférés.",
+    "CALNOTE-0001": "A jegyzet már nem létezik.",
+    "CALNOTE-0002": "Nincs hozzáférésed ehhez a jegyzethez.",
+    "CALNOTE-0003": "A napi jegyzetekhez családhoz kell tartoznod.",
+    "CALNOTE-0004": "A jegyzet dátuma hiányzik vagy érvénytelen.",
+    "CALNOTE-0005": "Az emlékeztető ideje érvénytelen.",
+    "CALNOTE-0006": "Valaki más módosította ezt a jegyzetet. Újratöltöttük — próbáld újra."
   },
   "shoppingList": {
     "purchase": {
@@ -1467,7 +1498,10 @@
       "26": "Automatizálás végrehajtva",
       "27": "Belépési kérelem elküldve",
       "28": "Belépési kérelem elfogadva",
-      "29": "Belépési kérelem elutasítva"
+      "29": "Belépési kérelem elutasítva",
+      "30": "Jegyzet létrehozva",
+      "31": "Jegyzet módosítva",
+      "32": "Jegyzet törölve"
     },
     "productCategory": {
       "0": "Egyéb",

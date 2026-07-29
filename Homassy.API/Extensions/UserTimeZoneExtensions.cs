@@ -1,9 +1,50 @@
 ﻿using Homassy.API.Enums;
+using Serilog;
 
 namespace Homassy.API.Extensions
 {
     public static class UserTimeZoneExtensions
     {
+        /// <summary>
+        /// Resolves the zone, falling back to UTC so an id the host cannot map takes down neither a request
+        /// nor a background worker.
+        /// </summary>
+        public static TimeZoneInfo ToTimeZoneInfo(this UserTimeZone timeZone)
+        {
+            try
+            {
+                return TimeZoneInfo.FindSystemTimeZoneById(timeZone.ToTimeZoneId());
+            }
+            catch (Exception ex)
+            {
+                Log.Warning(ex, "Unknown timezone {TimeZone}; falling back to UTC", timeZone);
+                return TimeZoneInfo.Utc;
+            }
+        }
+
+        /// <summary>
+        /// Converts a wall-clock local time to its absolute UTC instant.
+        /// <para>
+        /// A local time inside a DST spring-forward gap does not exist, and
+        /// <see cref="TimeZoneInfo.ConvertTimeToUtc(DateTime, TimeZoneInfo)"/> throws on it, so the value is
+        /// nudged forward onto the first instant that does exist (a 02:30 reminder on the gap day fires at
+        /// 03:00). An *ambiguous* local time — the fall-back hour, which happens twice — is left to
+        /// <c>ConvertTimeToUtc</c>, which silently picks the standard offset. That is deliberate: the reminder
+        /// fires once, at the later 02:30, which is the reasonable reading of "02:30 that day".
+        /// </para>
+        /// </summary>
+        public static DateTime LocalToUtc(this TimeZoneInfo timeZone, DateTime local)
+        {
+            local = DateTime.SpecifyKind(local, DateTimeKind.Unspecified);
+
+            while (timeZone.IsInvalidTime(local))
+            {
+                local = local.AddMinutes(1);
+            }
+
+            return TimeZoneInfo.ConvertTimeToUtc(local, timeZone);
+        }
+
         public static string ToTimeZoneId(this UserTimeZone timeZone)
         {
             return timeZone switch
