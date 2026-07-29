@@ -113,8 +113,11 @@
           {{ $t('pages.shoppingLists.nearby.searching') }}
         </p>
       </div>
-      <!-- Loading State -->
-      <div v-if="isLoadingDetails" class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+      <!-- Loading State — only while there is nothing to show yet. A refetch of
+           an already-open list (showPurchased toggle, socket reconnect,
+           pull-to-refresh) keeps the grid mounted, so the bubble animation is
+           not replayed for every card. -->
+      <div v-if="isLoadingDetails && !currentListDetails" class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
         <USkeleton class="h-48 w-full" />
         <USkeleton class="h-48 w-full" />
         <USkeleton class="h-48 w-full" />
@@ -143,36 +146,42 @@
         />
       </div>
 
-      <!-- Empty: No Items in List -->
-      <div v-else-if="currentListDetails && currentListDetails.items.length === 0" class="text-center py-12">
-        <UIcon name="i-lucide-package-open" class="h-16 w-16 mx-auto text-gray-400 mb-4" />
-        <p class="text-gray-500 dark:text-gray-400">
-          {{ $t('pages.shoppingLists.noItemsInList') }}
-        </p>
-      </div>
+      <!-- A list is open -->
+      <template v-else>
+        <!-- Both empty states render next to the (then empty) grid, never in
+             place of it: unmounting the grid replays the enter animation on the
+             way back and swallows the leave animation of the last item removed. -->
+        <!-- Empty: No Items in List -->
+        <div v-if="currentListDetails && currentListDetails.items.length === 0" class="text-center py-12">
+          <UIcon name="i-lucide-package-open" class="h-16 w-16 mx-auto text-gray-400 mb-4" />
+          <p class="text-gray-500 dark:text-gray-400">
+            {{ $t('pages.shoppingLists.noItemsInList') }}
+          </p>
+        </div>
 
-      <!-- Empty: No Search Results -->
-      <div v-else-if="filteredItems.length === 0" class="text-center py-12">
-        <p class="text-gray-500 dark:text-gray-400">
-          {{ $t('pages.shoppingLists.noSearchResults') }}
-        </p>
-      </div>
+        <!-- Empty: No Search Results -->
+        <div v-else-if="filteredItems.length === 0" class="text-center py-12">
+          <p class="text-gray-500 dark:text-gray-400">
+            {{ $t('pages.shoppingLists.noSearchResults') }}
+          </p>
+        </div>
 
-      <!-- Items Grid -->
-      <div v-else class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-        <ShoppingListItemCard
-          v-for="item in filteredItems"
-          :key="item.publicId"
-          :item="item"
-          :search-query="searchQuery"
-          :at-current-location="isItemAtCurrentLocation(item)"
-          :similar-type-at-current-location="isItemSimilarTypeHere(item)"
-          :shopping-locations="allShoppingLocations"
-          :current-store="currentStoreForItem(item)"
-          @refresh="handleItemRefresh"
-          @deleted="handleItemRefresh"
-        />
-      </div>
+        <!-- Items Grid -->
+        <AnimatedList class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+          <ShoppingListItemCard
+            v-for="item in filteredItems"
+            :key="item.publicId"
+            :item="item"
+            :search-query="searchQuery"
+            :at-current-location="isItemAtCurrentLocation(item)"
+            :similar-type-at-current-location="isItemSimilarTypeHere(item)"
+            :shopping-locations="allShoppingLocations"
+            :current-store="currentStoreForItem(item)"
+            @refresh="handleItemRefresh"
+            @deleted="handleItemRefresh"
+          />
+        </AnimatedList>
+      </template>
     </div>
 
     <!-- Filter drawer (bottom sheet) -->
@@ -1316,6 +1325,10 @@ watch(selectedListId, (newId, oldId) => {
   notifiedLocationIds.value = new Set()
 
   if (newId) {
+    // Drop the previous list so the skeleton (not the wrong list's items) shows
+    // while the new one loads, and so the new list gets a fresh staggered render
+    // instead of every old card bursting as every new one bubbles in.
+    currentListDetails.value = null
     loadListDetails(newId)
     // Save to localStorage
     localStorage.setItem(LAST_SELECTED_LIST_KEY, newId)

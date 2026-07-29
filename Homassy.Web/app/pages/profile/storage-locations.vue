@@ -36,36 +36,42 @@
       :is-ready="isReady"
     />
 
-    <!-- Loading State -->
-    <template v-if="loading">
+    <!-- Loading State — first load only. A pull-to-refresh keeps the grid
+         mounted (PullToRefreshIndicator gives the feedback); swapping it out
+         would remount every card and replay the bubble animation. -->
+    <template v-if="loading && !hasLoaded">
       <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
         <USkeleton v-for="i in 6" :key="i" class="h-32 w-full rounded-lg" />
       </div>
     </template>
 
-    <!-- Empty State -->
-    <div v-else-if="filteredLocations.length === 0" class="rounded-lg p-12 text-center">
-      <UIcon name="i-lucide-warehouse" class="h-16 w-16 text-gray-400 mx-auto mb-4" />
-      <p class="text-lg font-semibold text-gray-700 dark:text-gray-300 mb-2">
-        {{ hasActiveQuery ? $t('profile.storageLocations.noResults') : $t('profile.storageLocations.noLocations') }}
-      </p>
-      <p class="text-gray-600 dark:text-gray-400">
-        {{ hasActiveQuery ? $t('profile.storageLocations.tryDifferentSearch') : $t('profile.storageLocations.addFirstLocation') }}
-      </p>
-    </div>
+    <template v-else>
+      <!-- Empty State — rendered next to the (then empty) grid, never in place
+           of it: unmounting the grid replays the enter animation on the way back
+           and swallows the leave animation of the last card removed. -->
+      <div v-if="filteredLocations.length === 0" class="rounded-lg p-12 text-center">
+        <UIcon name="i-lucide-warehouse" class="h-16 w-16 text-gray-400 mx-auto mb-4" />
+        <p class="text-lg font-semibold text-gray-700 dark:text-gray-300 mb-2">
+          {{ hasActiveQuery ? $t('profile.storageLocations.noResults') : $t('profile.storageLocations.noLocations') }}
+        </p>
+        <p class="text-gray-600 dark:text-gray-400">
+          {{ hasActiveQuery ? $t('profile.storageLocations.tryDifferentSearch') : $t('profile.storageLocations.addFirstLocation') }}
+        </p>
+      </div>
 
-    <!-- Locations Grid -->
-    <div v-else class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-      <DataStorageLocationCard
-        v-for="location in filteredLocations"
-        :key="location.publicId"
-        :location="location"
-        :search-query="searchQuery"
-        @select="openOverview"
-        @edit="openEditDrawer"
-        @deleted="onDeleted"
-      />
-    </div>
+      <!-- Locations Grid -->
+      <AnimatedList class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        <DataStorageLocationCard
+          v-for="location in filteredLocations"
+          :key="location.publicId"
+          :location="location"
+          :search-query="searchQuery"
+          @select="openOverview"
+          @edit="openEditDrawer"
+          @deleted="onDeleted"
+        />
+      </AnimatedList>
+    </template>
     </div>
 
   <!-- Create / edit bottom sheet -->
@@ -105,6 +111,9 @@ useFabActions(() => [
 const { pullDistance, isPulling, isRefreshing, isReady } = usePullToRefresh(loadStorageLocations)
 
 const loading = ref(true)
+// Distinguishes the first load (skeletons) from a refetch (keep the grid mounted
+// so the bubble animation is not replayed for every card).
+const hasLoaded = ref(false)
 const locations = ref<StorageLocationInfo[]>([])
 const searchQuery = ref('')
 
@@ -196,6 +205,7 @@ async function loadStorageLocations() {
     console.error('Failed to load storage locations:', error)
   } finally {
     loading.value = false
+    hasLoaded.value = true
   }
 }
 

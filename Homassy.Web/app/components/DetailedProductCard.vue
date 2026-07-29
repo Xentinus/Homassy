@@ -2,7 +2,7 @@
   <div
     role="button"
     tabindex="0"
-    class="group relative bg-default rounded-2xl border-2 p-3 cursor-pointer shadow-sm hover:shadow-lg transition-shadow duration-200 flex flex-col overflow-hidden card-animate"
+    class="group relative bg-default rounded-2xl border-2 p-3 cursor-pointer shadow-sm hover:shadow-lg transition-shadow duration-200 flex flex-col overflow-hidden"
     :class="cardBorderClass"
     @click="selectProduct"
     @keydown.enter="selectProduct"
@@ -148,20 +148,3 @@ const selectProduct = () => {
   emit('select', props.product.publicId)
 }
 </script>
-
-<style scoped>
-@keyframes slideInUp {
-  from {
-    opacity: 0;
-    transform: translateY(20px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-
-.card-animate {
-  animation: slideInUp 0.4s ease-out;
-}
-</style>

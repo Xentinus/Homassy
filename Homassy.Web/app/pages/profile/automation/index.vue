@@ -53,41 +53,47 @@
     <!-- Content Section -->
     <div class="px-4 sm:px-8 lg:px-14 pb-6">
 
-      <!-- Loading State -->
-      <template v-if="loading">
+      <!-- Loading State — first load only. A refetch keeps the grid mounted;
+           swapping it out would remount every card and replay the bubble
+           animation. -->
+      <template v-if="loading && !hasLoaded">
         <div class="space-y-4">
           <USkeleton v-for="i in 4" :key="i" class="h-20 w-full rounded-lg" />
         </div>
       </template>
 
-      <!-- Empty State -->
-      <div v-else-if="automations.length === 0" class="rounded-lg p-12 text-center">
-        <UIcon name="i-lucide-timer" class="h-16 w-16 text-gray-400 mx-auto mb-4" />
-        <p class="text-lg font-semibold text-gray-700 dark:text-gray-300 mb-2">
-          {{ $t('profile.automation.noAutomations') }}
-        </p>
-        <p class="text-gray-600 dark:text-gray-400">
-          {{ $t('profile.automation.addFirstAutomation') }}
-        </p>
-      </div>
+      <template v-else>
+        <!-- Both empty states render next to the (then empty) grid, never in
+             place of it: unmounting the grid replays the enter animation on the
+             way back and swallows the leave animation of the last card. -->
+        <div v-if="automations.length === 0" class="rounded-lg p-12 text-center">
+          <UIcon name="i-lucide-timer" class="h-16 w-16 text-gray-400 mx-auto mb-4" />
+          <p class="text-lg font-semibold text-gray-700 dark:text-gray-300 mb-2">
+            {{ $t('profile.automation.noAutomations') }}
+          </p>
+          <p class="text-gray-600 dark:text-gray-400">
+            {{ $t('profile.automation.addFirstAutomation') }}
+          </p>
+        </div>
 
-      <!-- No filter results -->
-      <div v-else-if="filteredAutomations.length === 0" class="rounded-lg p-12 text-center">
-        <UIcon name="i-lucide-search-x" class="h-12 w-12 text-gray-400 mx-auto mb-4" />
-        <p class="text-gray-600 dark:text-gray-400">
-          {{ $t('profile.automation.noFilterResults') }}
-        </p>
-      </div>
+        <!-- No filter results -->
+        <div v-else-if="filteredAutomations.length === 0" class="rounded-lg p-12 text-center">
+          <UIcon name="i-lucide-search-x" class="h-12 w-12 text-gray-400 mx-auto mb-4" />
+          <p class="text-gray-600 dark:text-gray-400">
+            {{ $t('profile.automation.noFilterResults') }}
+          </p>
+        </div>
 
-      <!-- Automation Rules List -->
-      <div v-else class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-        <DataAutomationCard
-          v-for="automation in filteredAutomations"
-          :key="automation.publicId"
-          :automation="automation"
-          @deleted="handleCardDeleted"
-        />
-      </div>
+        <!-- Automation Rules List -->
+        <AnimatedList class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+          <DataAutomationCard
+            v-for="automation in filteredAutomations"
+            :key="automation.publicId"
+            :automation="automation"
+            @deleted="handleCardDeleted"
+          />
+        </AnimatedList>
+      </template>
     </div>
   </div>
 </template>
@@ -115,6 +121,9 @@ useFabActions(() => [
 
 // State
 const loading = ref(true)
+// Distinguishes the first load (skeletons) from a refetch (keep the grid mounted
+// so the bubble animation is not replayed for every card).
+const hasLoaded = ref(false)
 const automations = ref<AutomationResponse[]>([])
 
 // Filter state
@@ -225,6 +234,7 @@ async function loadAutomations() {
     console.error('Failed to load automations:', error)
   } finally {
     loading.value = false
+    hasLoaded.value = true
   }
 }
 

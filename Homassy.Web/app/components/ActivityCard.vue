@@ -1,6 +1,6 @@
 <template>
   <div
-    class="p-4 rounded-xl shadow-sm bg-gradient-to-br from-white to-gray-50 dark:from-gray-800 dark:to-gray-900 hover:shadow-lg hover:-translate-y-0.5 transition-all duration-200 slideInUp"
+    class="p-4 rounded-xl shadow-sm bg-gradient-to-br from-white to-gray-50 dark:from-gray-800 dark:to-gray-900 hover:shadow-lg hover:-translate-y-0.5 transition-all duration-200"
   >
     <!-- Header: User info and timestamp -->
     <div class="flex items-start gap-3 mb-3">

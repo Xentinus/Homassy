@@ -169,27 +169,33 @@
       :is-ready="isReady"
     />
 
-    <!-- Loading State -->
-    <div v-if="isLoading" class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+    <!-- Loading State — first load only. A pull-to-refresh, a socket reconnect
+         or a filter change keeps the grid mounted (PullToRefreshIndicator gives
+         the feedback); swapping it out would remount every card and replay the
+         bubble animation, and would swallow the leave animation of a card
+         removed in the same tick. -->
+    <div v-if="isLoading && !hasLoaded" class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
       <USkeleton v-for="i in 8" :key="i" class="h-36 w-full rounded-lg" />
     </div>
 
-    <!-- No Results -->
-    <div v-else-if="filteredProducts.length === 0 && !isLoading" class="text-center py-12">
-      <UIcon name="i-lucide-package-search" class="h-16 w-16 mx-auto text-gray-400 mb-4" />
-      <p class="text-gray-500 dark:text-gray-400">{{ $t('pages.products.noResults') }}</p>
-    </div>
+    <template v-else>
+      <!-- No Results — rendered next to the (then empty) grid, never in place of it. -->
+      <div v-if="filteredProducts.length === 0 && !isLoading" class="text-center py-12">
+        <UIcon name="i-lucide-package-search" class="h-16 w-16 mx-auto text-gray-400 mb-4" />
+        <p class="text-gray-500 dark:text-gray-400">{{ $t('pages.products.noResults') }}</p>
+      </div>
 
-    <!-- Products Grid -->
-    <div v-else class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-      <DetailedProductCard
-        v-for="product in displayedProducts"
-        :key="product.publicId"
-        :product="product"
-        :search-query="searchQuery"
-        @select="openOverview"
-      />
-    </div>
+      <!-- Products Grid -->
+      <AnimatedList class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+        <DetailedProductCard
+          v-for="product in displayedProducts"
+          :key="product.publicId"
+          :product="product"
+          :search-query="searchQuery"
+          @select="openOverview"
+        />
+      </AnimatedList>
+    </template>
 
     <!-- Sentinel for intersection observer -->
     <div v-if="hasMoreProducts" ref="sentinelRef" class="w-full min-h-[1px]">
@@ -274,6 +280,9 @@ const FILTERS_KEY = 'productsFilters'
 // State
 const allProducts = ref<InventoryGridProductInfo[]>([])
 const isLoading = ref(false)
+// Distinguishes the first load (skeletons) from a refetch (keep the grid mounted
+// so the bubble animation is not replayed for every card).
+const hasLoaded = ref(false)
 const searchQuery = ref('')
 const filtersOpen = ref(false)
 
@@ -569,6 +578,7 @@ const loadProducts = async () => {
     }
   } finally {
     isLoading.value = false
+    hasLoaded.value = true
   }
 }
 

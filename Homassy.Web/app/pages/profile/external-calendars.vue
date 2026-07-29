@@ -65,8 +65,12 @@
       </div>
 
       <!-- Calendar list -->
-      <div v-if="externalCalendars.length > 0" class="space-y-2">
-        <template v-for="cal in externalCalendars" :key="cal.publicId">
+      <AnimatedList v-if="externalCalendars.length > 0" class="space-y-2">
+        <!-- One stable wrapper element per calendar: the card and the inline edit
+             form swap *inside* it, so toggling edit mode is not read as this card
+             leaving and a different item entering (they are different vnode types
+             under the same key, which would otherwise unmount + mount). -->
+        <div v-for="cal in externalCalendars" :key="cal.publicId">
           <DataExternalCalendarCard
             v-if="editingCalId !== cal.publicId"
             :calendar="cal"
@@ -110,8 +114,8 @@
               </UButton>
             </div>
           </div>
-        </template>
-      </div>
+        </div>
+      </AnimatedList>
       <div v-else class="text-sm text-gray-400 dark:text-gray-500 py-2">
         {{ $t('profile.family.externalCalendars.empty') }}
       </div>

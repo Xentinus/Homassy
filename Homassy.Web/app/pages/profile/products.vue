@@ -78,36 +78,42 @@
       :is-ready="isReady"
     />
 
-    <!-- Loading State -->
-    <template v-if="loading">
+    <!-- Loading State — first load only. A pull-to-refresh keeps the grid
+         mounted (PullToRefreshIndicator gives the feedback); swapping it out
+         would remount every card and replay the bubble animation. -->
+    <template v-if="loading && !hasLoaded">
       <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
         <USkeleton v-for="i in 12" :key="i" class="h-48 w-full rounded-lg" />
       </div>
     </template>
 
-    <!-- Empty State -->
-    <div v-else-if="filteredProducts.length === 0" class="rounded-lg p-12 text-center">
-      <UIcon name="i-lucide-package" class="h-16 w-16 text-gray-400 mx-auto mb-4" />
-      <p class="text-lg font-semibold text-gray-700 dark:text-gray-300 mb-2">
-        {{ hasActiveQuery ? $t('pages.products.noResults') : 'Nincsenek termékek' }}
-      </p>
-      <p class="text-gray-600 dark:text-gray-400">
-        {{ hasActiveQuery ? 'Próbálj meg más keresési feltételt' : 'Adj hozzá termékeket a kezdéshez' }}
-      </p>
-    </div>
+    <template v-else>
+      <!-- Empty State — rendered next to the (then empty) grid, never in place
+           of it: unmounting the grid replays the enter animation on the way back
+           and swallows the leave animation of the last card removed. -->
+      <div v-if="filteredProducts.length === 0" class="rounded-lg p-12 text-center">
+        <UIcon name="i-lucide-package" class="h-16 w-16 text-gray-400 mx-auto mb-4" />
+        <p class="text-lg font-semibold text-gray-700 dark:text-gray-300 mb-2">
+          {{ hasActiveQuery ? $t('pages.products.noResults') : 'Nincsenek termékek' }}
+        </p>
+        <p class="text-gray-600 dark:text-gray-400">
+          {{ hasActiveQuery ? 'Próbálj meg más keresési feltételt' : 'Adj hozzá termékeket a kezdéshez' }}
+        </p>
+      </div>
 
-    <!-- Products Grid -->
-    <div v-else class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
-      <DataProductCard
-        v-for="product in filteredProducts"
-        :key="product.publicId"
-        :product="product"
-        :search-query="searchQuery"
-        @select="openOverview"
-        @edit="openEditDrawer"
-        @deleted="onDeleted"
-      />
-    </div>
+      <!-- Products Grid -->
+      <AnimatedList class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
+        <DataProductCard
+          v-for="product in filteredProducts"
+          :key="product.publicId"
+          :product="product"
+          :search-query="searchQuery"
+          @select="openOverview"
+          @edit="openEditDrawer"
+          @deleted="onDeleted"
+        />
+      </AnimatedList>
+    </template>
     </div>
 
   <!-- Create / edit bottom sheet -->
@@ -156,6 +162,9 @@ const { formatProductCategory } = useEnumLabel()
 const { pullDistance, isPulling, isRefreshing, isReady } = usePullToRefresh(() => loadProducts())
 
 const loading = ref(true)
+// Distinguishes the first load (skeletons) from a refetch (keep the grid mounted
+// so the bubble animation is not replayed for every card).
+const hasLoaded = ref(false)
 const products = ref<ProductInfo[]>([])
 const searchQuery = ref('')
 
@@ -188,6 +197,7 @@ async function loadProducts() {
     console.error('Failed to load products:', error)
   } finally {
     loading.value = false
+    hasLoaded.value = true
   }
 }
 

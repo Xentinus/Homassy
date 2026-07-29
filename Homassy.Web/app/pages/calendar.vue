@@ -146,22 +146,32 @@
               ref="scrollContainer"
               class="space-y-2 overflow-y-auto flex-1 min-h-0 lg:flex-none lg:max-h-[calc(100vh-8rem)]"
             >
-              <template v-for="(item, idx) in visibleItems" :key="item.kind + '-' + item.data.publicId + '-' + idx">
-                <CalendarEventCard
-                  v-if="item.kind === 'event'"
-                  :title="item.data.title"
-                  :event-type="item.data.eventType"
-                  :detail="item.data.detail"
-                  :color="item.data.color"
-                />
-                <CalendarActivityCard
-                  v-else-if="item.kind === 'activity'"
-                  :activity-type="item.data.activityType"
-                  :user-name="item.data.userName"
-                  :record-name="item.data.recordName"
-                  :timestamp="item.data.timestamp"
-                />
-              </template>
+              <!-- Only the cards belong in the AnimatedList: the load-more
+                   skeletons and the IntersectionObserver sentinel below must not
+                   be animated, and must not become keyed transition children.
+                   The scroll container itself stays a plain <div> because it owns
+                   ref="scrollContainer", which is passed to the observer as its
+                   root. Keying the list by the selected day makes a day switch a
+                   fresh staggered render instead of every old card bursting while
+                   every new one bubbles into the same space. -->
+              <AnimatedList :key="selectedDay ?? 'none'" class="space-y-2">
+                <template v-for="item in visibleItems" :key="item.uid">
+                  <CalendarEventCard
+                    v-if="item.kind === 'event'"
+                    :title="item.data.title"
+                    :event-type="item.data.eventType"
+                    :detail="item.data.detail"
+                    :color="item.data.color"
+                  />
+                  <CalendarActivityCard
+                    v-else
+                    :activity-type="item.data.activityType"
+                    :user-name="item.data.userName"
+                    :record-name="item.data.recordName"
+                    :timestamp="item.data.timestamp"
+                  />
+                </template>
+              </AnimatedList>
 
               <!-- Skeleton while loading more -->
               <template v-if="isLoadingMore">
@@ -225,8 +235,8 @@ interface CalActivity {
 }
 
 type DayItem =
-  | { kind: 'event'; data: CalEvent }
-  | { kind: 'activity'; data: CalActivity }
+  | { kind: 'event'; uid: string; data: CalEvent }
+  | { kind: 'activity'; uid: string; data: CalActivity }
 
 const toLocalDate = (date: Date): string => {
   const y = date.getFullYear()
@@ -371,12 +381,12 @@ const selectedDayItems = computed((): DayItem[] => {
   if (!selectedDay.value) return []
 
   const events: DayItem[] = (eventsByDate.value[selectedDay.value] ?? [])
-    .map(e => ({ kind: 'event' as const, data: e }))
+    .map(e => ({ kind: 'event' as const, uid: `event-${e.publicId}-${e.startAt}-${e.title}`, data: e }))
 
   const activities: DayItem[] = (activitiesByDate.value[selectedDay.value] ?? [])
-    .map(a => ({ kind: 'activity' as const, data: a }))
+    .map(a => ({ kind: 'activity' as const, uid: `activity-${a.publicId}`, data: a }))
 
-  return [...events, ...activities].sort((a, b) => {
+  const merged = [...events, ...activities].sort((a, b) => {
     const aAllDay = a.kind === 'event' && a.data.isAllDay
     const bAllDay = b.kind === 'event' && b.data.isAllDay
     if (aAllDay !== bAllDay) return aAllDay ? -1 : 1
@@ -384,6 +394,21 @@ const selectedDayItems = computed((): DayItem[] => {
     const tb = b.kind === 'event' ? b.data.startAt : b.data.timestamp
     return tb.localeCompare(ta)
   })
+
+  // Events synthesised from an iCal feed all carry their *calendar's* PublicId,
+  // so two feed entries on the same day can produce the same uid. Suffix the
+  // duplicates so the keys stay unique; byte-identical entries are visually
+  // interchangeable, so which one keeps the bare uid does not matter. Unlike the
+  // old index-based key this one does not churn nodes when the list is re-sorted
+  // or extended, which is what the list transition needs.
+  const seen = new Map<string, number>()
+  for (const item of merged) {
+    const n = seen.get(item.uid) ?? 0
+    seen.set(item.uid, n + 1)
+    if (n > 0) item.uid = `${item.uid}#${n}`
+  }
+
+  return merged
 })
 
 const visibleItems = computed(() =>
