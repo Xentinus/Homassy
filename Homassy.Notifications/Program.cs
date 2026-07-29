@@ -44,6 +44,7 @@ try
     builder.Services.AddHostedService<FamilyJoinRequestMonitorService>();
     builder.Services.AddHostedService<EmailWeeklySummaryService>();
     builder.Services.AddHostedService<ItemAutomationWorkerService>();
+    builder.Services.AddHostedService<ExternalCalendarReminderService>();
 
     // Health checks
     builder.Services.AddHealthChecks()

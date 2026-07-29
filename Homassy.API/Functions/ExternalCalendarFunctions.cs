@@ -6,10 +6,13 @@ using Homassy.API.Models.Calendar;
 using Homassy.API.Models.ExternalCalendar;
 using Ical.Net;
 using Ical.Net.CalendarComponents;
+using Ical.Net.DataTypes;
 using Microsoft.EntityFrameworkCore;
 using Serilog;
 using System.Text;
 using System.Text.Json;
+// Aliased rather than imported: `using System.Globalization` would make `Calendar` ambiguous with Ical.Net's.
+using CultureInfo = System.Globalization.CultureInfo;
 
 namespace Homassy.API.Functions
 {
@@ -19,6 +22,9 @@ namespace Homassy.API.Functions
         {
             PropertyNamingPolicy = JsonNamingPolicy.CamelCase
         };
+
+        private const int MaxReminderLeadTimes = 8;
+        private const int MaxReminderLeadTimeMinutes = 30 * 24 * 60;
 
         public async Task<List<ExternalCalendarResponse>> GetExternalCalendarsAsync(CancellationToken ct = default)
         {
@@ -51,8 +57,12 @@ namespace Homassy.API.Functions
                 FamilyId = familyId,
                 Name = request.Name,
                 ICalUrl = normalizedUrl,
-                Color = request.Color
+                Color = request.Color,
+                ReminderLeadTimesJson = NormalizeReminderLeadTimes(request.ReminderLeadTimes)
             };
+
+            if (request.AllDayNotifyTime != null)
+                calendar.AllDayNotifyTime = ParseAllDayNotifyTime(request.AllDayNotifyTime);
 
             context.FamilyExternalCalendars.Add(calendar);
             await context.SaveChangesAsync(ct);
@@ -82,6 +92,13 @@ namespace Homassy.API.Functions
             if (request.Name != null) calendar.Name = request.Name;
             if (request.Color != null) calendar.Color = request.Color;
             if (request.IsEnabled.HasValue) calendar.IsEnabled = request.IsEnabled.Value;
+
+            // A null list means "leave reminders as they are"; an empty one turns them off.
+            if (request.ReminderLeadTimes != null)
+                calendar.ReminderLeadTimesJson = NormalizeReminderLeadTimes(request.ReminderLeadTimes);
+
+            if (request.AllDayNotifyTime != null)
+                calendar.AllDayNotifyTime = ParseAllDayNotifyTime(request.AllDayNotifyTime);
 
             if (request.ICalUrl != null)
             {
@@ -360,7 +377,7 @@ namespace Homassy.API.Functions
                 foreach (var occ in cal.GetOccurrences(windowStart, windowEnd))
                 {
                     if (occ.Source is not CalendarEvent ev) continue;
-                    result.Add(MapEvent(ev, occ.Period.StartTime?.AsSystemLocal, occ.Period.EndTime?.AsSystemLocal));
+                    result.Add(MapEvent(ev, occ.Period.StartTime, occ.Period.EndTime));
                 }
             }
             catch (Exception ex)
@@ -368,7 +385,7 @@ namespace Homassy.API.Functions
                 Log.Warning(ex,
                     "External calendar {CalendarId}: occurrence expansion failed, storing master events only",
                     calendarId);
-                return cal.Events.Select(ev => MapEvent(ev, ev.DtStart?.AsSystemLocal, ev.DtEnd?.AsSystemLocal)).ToList();
+                return cal.Events.Select(ev => MapEvent(ev, ev.DtStart, ev.DtEnd)).ToList();
             }
 
             // Safety net: a non-recurring event that does not overlap the window is dropped by
@@ -384,20 +401,22 @@ namespace Homassy.API.Functions
                 var overlapsWindow = start.Value <= windowEnd && end >= windowStart;
                 if (overlapsWindow) continue;
 
-                result.Add(MapEvent(ev, start, ev.DtEnd?.AsSystemLocal));
+                result.Add(MapEvent(ev, ev.DtStart, ev.DtEnd));
             }
 
             return result;
         }
 
-        private static CachedICalEvent MapEvent(CalendarEvent ev, DateTime? start, DateTime? end) => new()
+        private static CachedICalEvent MapEvent(CalendarEvent ev, IDateTime? start, IDateTime? end) => new()
         {
             Uid = ev.Uid ?? Guid.NewGuid().ToString(),
             Title = ev.Summary ?? string.Empty,
-            Start = start ?? DateTime.UtcNow,
-            End = end,
+            Start = start?.AsSystemLocal ?? DateTime.UtcNow,
+            End = end?.AsSystemLocal,
             Description = ev.Description,
-            IsAllDay = ev.IsAllDay
+            IsAllDay = ev.IsAllDay,
+            // Server-local Start cannot be scheduled against; the reminder worker needs the absolute instant.
+            StartUtc = start?.AsUtc ?? DateTime.UtcNow
         };
 
         /// <summary>
@@ -431,6 +450,61 @@ namespace Homassy.API.Functions
             return blocks;
         }
 
+        /// <summary>
+        /// Validates and canonicalizes the configured lead times into the stored JSON array (deduplicated,
+        /// longest lead first). Returns null when reminders are off, so "no reminders" has a single
+        /// representation in the database.
+        /// </summary>
+        private static string? NormalizeReminderLeadTimes(List<int>? leadTimes)
+        {
+            if (leadTimes == null)
+                return null;
+
+            var normalized = leadTimes.Distinct().OrderByDescending(m => m).ToList();
+
+            if (normalized.Count == 0)
+                return null;
+
+            if (normalized.Count > MaxReminderLeadTimes)
+                throw new ExternalCalendarInvalidReminderException(
+                    $"At most {MaxReminderLeadTimes} reminder lead times can be configured per calendar.");
+
+            if (normalized.Any(m => m < 0 || m > MaxReminderLeadTimeMinutes))
+                throw new ExternalCalendarInvalidReminderException(
+                    "Reminder lead times must be between 0 minutes (at start) and 30 days.");
+
+            return JsonSerializer.Serialize(normalized, JsonOptions);
+        }
+
+        private static TimeOnly ParseAllDayNotifyTime(string value)
+        {
+            if (!TimeOnly.TryParse(value, CultureInfo.InvariantCulture, out var parsed))
+                throw new ExternalCalendarInvalidReminderException(
+                    "The all-day notification time must be given as HH:mm.");
+
+            return parsed;
+        }
+
+        /// <summary>
+        /// Reads the stored lead times back. Also used by the reminder worker in Homassy.Notifications,
+        /// so the storage format has exactly one reader. Unparseable JSON yields no reminders rather than
+        /// taking the worker down.
+        /// </summary>
+        public static List<int> ParseReminderLeadTimes(string? json)
+        {
+            if (string.IsNullOrWhiteSpace(json))
+                return [];
+
+            try
+            {
+                return JsonSerializer.Deserialize<List<int>>(json, JsonOptions) ?? [];
+            }
+            catch (JsonException)
+            {
+                return [];
+            }
+        }
+
         private static string NormalizeICalUrl(string url)
         {
             if (url.StartsWith("webcal://", StringComparison.OrdinalIgnoreCase))
@@ -462,7 +536,9 @@ namespace Homassy.API.Functions
                 IsEnabled = calendar.IsEnabled,
                 LastSyncedAt = calendar.LastSyncedAt,
                 LastSyncError = calendar.LastSyncError,
-                EventCount = eventCount
+                EventCount = eventCount,
+                ReminderLeadTimes = ParseReminderLeadTimes(calendar.ReminderLeadTimesJson),
+                AllDayNotifyTime = calendar.AllDayNotifyTime.ToString(@"HH\:mm", CultureInfo.InvariantCulture)
             };
         }
     }

@@ -30,6 +30,13 @@ namespace Homassy.API.Exceptions
         public ExternalCalendarFetchFailedException(string message = "Failed to fetch iCal feed") : base(message) { }
     }
 
+    public class ExternalCalendarInvalidReminderException : Exception
+    {
+        public string ErrorCode { get; } = ErrorCodes.ExternalCalendarInvalidReminder;
+
+        public ExternalCalendarInvalidReminderException(string message = "Invalid reminder settings") : base(message) { }
+    }
+
     public class ExternalCalendarRequiresFamilyException : Exception
     {
         public string ErrorCode { get; } = ErrorCodes.ExternalCalendarRequiresFamily;

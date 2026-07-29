@@ -79,6 +79,7 @@ Homassy.Notifications/
     ├── InventoryActivityMonitorService.cs     # 5 min → inventory (készlet) push
     ├── FamilyJoinRequestMonitorService.cs     # 1 min → family join request push
     ├── ItemAutomationWorkerService.cs         # 5 min → item automation execution
+    ├── ExternalCalendarReminderService.cs     # 1 min → synced iCal event reminders
     └── EmailWeeklySummaryService.cs           # Hourly, Mon 07:00 → weekly email
 ```
 
@@ -164,6 +165,23 @@ builder.Services.AddDbContext<HomassyDbContext>(options =>
 - After an `AutoConsume` commit it relays the inventory change to `Homassy.API` via
   `InventoryBroadcastServiceClient` (→ `POST /api/v1/internal/inventory/broadcast`) so connected
   Készletek grids update live; this process hosts no SignalR hub, so it cannot broadcast directly
+
+### ExternalCalendarReminderService
+- Runs every minute, so an "at start" reminder is not up to an hour late
+- Reads the events `Homassy.API`'s `ExternalCalendarSyncService` caches hourly in
+  `FamilyExternalCalendar.CachedEventsJson`; reminder lead times live on the same row
+  (`ReminderLeadTimesJson`, a JSON minute array — `0` = at start) together with `AllDayNotifyTime`
+- Trigger time for a timed event is `StartUtc - leadTime` (identical for everyone); an all-day event has
+  no time of day, so it is anchored to `AllDayNotifyTime` **in each recipient's own timezone**
+  (`UserProfile.DefaultTimeZone`) and then shifted back by the lead time
+- Recipients are the family members resolved by `FamilyPushNotifier` (push enabled + a live subscription)
+- Duplicate suppression is claim-then-push: an `ExternalCalendarReminderDispatch` row keyed by
+  (calendar, user, event UID, occurrence, lead time) is committed **before** the push, and the unique
+  index makes a lost race skip a send rather than repeat one. A moved occurrence gets a new key and
+  re-arms itself; a deleted event stops appearing in the cache and never fires. Markers older than
+  30 days are pruned every 6 hours
+- Reminders whose trigger already passed are still delivered within a 15-minute catch-up window, so a
+  deploy or restart does not swallow them; anything older is dropped as stale
 
 ### EmailWeeklySummaryService
 - Runs every hour

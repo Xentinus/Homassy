@@ -1,4 +1,4 @@
-﻿using Homassy.API.Enums;
+using Homassy.API.Enums;
 
 namespace Homassy.Notifications.Services;
 
@@ -424,6 +424,83 @@ public static class PushNotificationContentService
                 "Join request declined",
                 $"Your request to join the \"{familyName}\" family was declined."
             )
+        };
+    }
+
+    /// <summary>
+    /// Reminder for an event coming from a synced external (iCal) calendar. The lead time is phrased
+    /// relatively ("in 15 minutes"), which stays correct for every recipient because the trigger instant
+    /// is computed per recipient before this text is built.
+    /// </summary>
+    public static (string Title, string Body) GetCalendarEventReminderContent(
+        Language language, string eventTitle, int leadTimeMinutes, bool isAllDay)
+    {
+        var title = language switch
+        {
+            Language.Hungarian => "Naptár emlékeztető",
+            Language.German => "Kalendererinnerung",
+            _ => "Calendar reminder"
+        };
+
+        if (isAllDay)
+        {
+            var body = (language, leadTimeMinutes) switch
+            {
+                (Language.Hungarian, 0) => $"\"{eventTitle}\" ma van.",
+                (Language.Hungarian, 1440) => $"\"{eventTitle}\" holnap lesz.",
+                (Language.Hungarian, _) => $"\"{eventTitle}\" {DescribeLeadTime(language, leadTimeMinutes)} múlva lesz.",
+                (Language.German, 0) => $"\"{eventTitle}\" ist heute.",
+                (Language.German, 1440) => $"\"{eventTitle}\" ist morgen.",
+                (Language.German, _) => $"\"{eventTitle}\" ist in {DescribeLeadTime(language, leadTimeMinutes)}.",
+                (_, 0) => $"\"{eventTitle}\" is today.",
+                (_, 1440) => $"\"{eventTitle}\" is tomorrow.",
+                _ => $"\"{eventTitle}\" is in {DescribeLeadTime(language, leadTimeMinutes)}."
+            };
+
+            return (title, body);
+        }
+
+        return (title, (language, leadTimeMinutes) switch
+        {
+            (Language.Hungarian, 0) => $"\"{eventTitle}\" most kezdődik.",
+            (Language.Hungarian, _) => $"\"{eventTitle}\" {DescribeLeadTime(language, leadTimeMinutes)} múlva kezdődik.",
+            (Language.German, 0) => $"\"{eventTitle}\" beginnt jetzt.",
+            (Language.German, _) => $"\"{eventTitle}\" beginnt in {DescribeLeadTime(language, leadTimeMinutes)}.",
+            (_, 0) => $"\"{eventTitle}\" is starting now.",
+            _ => $"\"{eventTitle}\" starts in {DescribeLeadTime(language, leadTimeMinutes)}."
+        });
+    }
+
+    /// <summary>Renders a lead time in the largest whole unit it divides into (minutes → hours → days).</summary>
+    private static string DescribeLeadTime(Language language, int minutes)
+    {
+        if (minutes % 1440 == 0)
+        {
+            var days = minutes / 1440;
+            return language switch
+            {
+                Language.Hungarian => $"{days} nap",
+                Language.German => days == 1 ? "1 Tag" : $"{days} Tagen",
+                _ => days == 1 ? "1 day" : $"{days} days"
+            };
+        }
+
+        if (minutes % 60 == 0)
+        {
+            var hours = minutes / 60;
+            return language switch
+            {
+                Language.Hungarian => $"{hours} óra",
+                Language.German => hours == 1 ? "1 Stunde" : $"{hours} Stunden",
+                _ => hours == 1 ? "1 hour" : $"{hours} hours"
+            };
+        }
+
+        return language switch
+        {
+            Language.Hungarian => $"{minutes} perc",
+            Language.German => minutes == 1 ? "1 Minute" : $"{minutes} Minuten",
+            _ => minutes == 1 ? "1 minute" : $"{minutes} minutes"
         };
     }
 }

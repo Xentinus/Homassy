@@ -1011,7 +1011,15 @@
         "synced": "Kalender synchronisiert",
         "syncFailed": "Synchronisierung fehlgeschlagen",
         "deleteTitle": "Kalender löschen",
-        "deleteWarning": "Möchtest du diesen externen Kalender wirklich löschen?"
+        "deleteWarning": "Möchtest du diesen externen Kalender wirklich löschen?",
+        "reminders": "Erinnerungen",
+        "remindersHint": "Wähle, wie lange vor dem Beginn eines Termins aus diesem Kalender du erinnert werden möchtest. Erinnerungen gehen an alle Familienmitglieder, die Push-Benachrichtigungen aktiviert haben.",
+        "leadAtStart": "Bei Beginn",
+        "leadMinutes": "{count} Min. vorher",
+        "leadHours": "{count} Std. vorher",
+        "leadDays": "{count} Tag(e) vorher",
+        "allDayNotifyTime": "Uhrzeit für ganztägige Termine",
+        "allDayNotifyTimeHint": "Ganztägige Termine haben keine Startzeit, daher richtet sich ihre Erinnerung nach dieser Uhrzeit – jeweils in der Zeitzone des Mitglieds."
       }
     },
     "settingsProfileSection": "Profilinformationen",

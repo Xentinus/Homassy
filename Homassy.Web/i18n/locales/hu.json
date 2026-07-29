@@ -1014,7 +1014,15 @@
         "synced": "Naptár szinkronizálva",
         "syncFailed": "Szinkronizálás sikertelen",
         "deleteTitle": "Naptár törlése",
-        "deleteWarning": "Biztosan törölni szeretnéd ezt a külső naptárat?"
+        "deleteWarning": "Biztosan törölni szeretnéd ezt a külső naptárat?",
+        "reminders": "Emlékeztetők",
+        "remindersHint": "Válaszd ki, mennyivel korábban kapj emlékeztetőt a naptár eseményei előtt. Az emlékeztetőt azok a családtagok kapják meg, akiknél a push értesítés be van kapcsolva.",
+        "leadAtStart": "Kezdéskor",
+        "leadMinutes": "{count} perccel előbb",
+        "leadHours": "{count} órával előbb",
+        "leadDays": "{count} nappal előbb",
+        "allDayNotifyTime": "Egész napos esemény ideje",
+        "allDayNotifyTimeHint": "Az egész napos eseményeknek nincs kezdési idejük, ezért az emlékeztető ehhez az időponthoz igazodik, minden családtag saját időzónájában."
       }
     },
     "settingsProfileSection": "Profil adatok",
