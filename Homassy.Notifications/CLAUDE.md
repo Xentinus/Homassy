@@ -227,6 +227,23 @@ Email) validates and sends the same value.
 }
 ```
 
+The service ships **no `appsettings.json`** — every value above comes from environment
+variables via Docker Compose (double-underscore notation, e.g. `ConnectionStrings__DefaultConnection`).
+
+### Logging levels
+
+Serilog is configured in code via `UseHomassyMinimumLevels()`
+(`Homassy.API/Extensions/SerilogExtensions.cs`, shared with the API and Email). It pins
+`Microsoft.EntityFrameworkCore` to `Warning`, so the six background workers do **not** dump the
+SQL of every polling cycle into `docker logs homassy-notifications`. Never set `MinimumLevel`
+by hand here.
+
+To see SQL locally, set `EFCORE_SQL_LOGGING=true` — it is ignored in the `Production` environment:
+
+```bash
+docker compose run --rm -e EFCORE_SQL_LOGGING=true homassy.notifications
+```
+
 ---
 
 ## Development Guidelines

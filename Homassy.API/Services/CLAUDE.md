@@ -9,10 +9,8 @@ Structured logging with console and file sinks:
 **Configuration:**
 ```csharp
 Log.Logger = new LoggerConfiguration()
-    .MinimumLevel.Debug()
-    .MinimumLevel.Override("Microsoft", LogEventLevel.Information)
-    .MinimumLevel.Override("Microsoft.AspNetCore", LogEventLevel.Warning)
-    .MinimumLevel.Override("Microsoft.EntityFrameworkCore", LogEventLevel.Warning)
+    .UseHomassyMinimumLevels(LogEventLevel.Debug)   // Extensions/SerilogExtensions.cs
+    .Enrich.FromLogContext()
     .WriteTo.Console(outputTemplate: "[{Timestamp:yyyy-MM-dd HH:mm:ss} {Level:u3}] {Message:lj}{NewLine}{Exception}")
     .WriteTo.File(
         path: "Logs/Homassy-.log",
@@ -27,6 +25,36 @@ Log.Logger = new LoggerConfiguration()
 - 14-day retention
 - Reduced verbosity for framework logs
 - Structured logging context
+
+#### Shared minimum levels (`Extensions/SerilogExtensions.cs`)
+
+`UseHomassyMinimumLevels()` defines the level policy **once** for every service
+(Homassy.API, Homassy.Notifications, and Homassy.Email — the latter compiles the same file
+as a link because it must not reference Homassy.API). Never set `MinimumLevel` by hand in a
+service: doing so is how a service starts leaking SQL again.
+
+| Category | Level |
+|----------|-------|
+| _default_ | caller-supplied (`Debug` in the API, `Information` in the other services) |
+| `Microsoft` | Information |
+| `Microsoft.AspNetCore` | Warning |
+| `Microsoft.AspNetCore.Authentication` | Warning |
+| `Microsoft.EntityFrameworkCore` | Warning |
+| `System` | Warning |
+
+EF Core logs the full SQL text of every command to
+`Microsoft.EntityFrameworkCore.Database.Command` at Information, so the `Warning` override is
+what keeps SQL statements — and the schema they expose — out of console and file logs.
+
+**Debug escape hatch:** set `EFCORE_SQL_LOGGING=true` to raise EF Core back to Information.
+It is ignored when the host environment is `Production`, so SQL can never surface there.
+
+```bash
+docker compose run --rm -e EFCORE_SQL_LOGGING=true homassy.notifications
+```
+
+Serilog is configured entirely in code — the `Logging:LogLevel` section of `appsettings*.json`
+has no effect and must not be reintroduced.
 
 **Usage:**
 ```csharp

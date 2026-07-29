@@ -1,15 +1,14 @@
-﻿using Homassy.Email.Endpoints;
+﻿using Homassy.API.Extensions;
+using Homassy.Email.Endpoints;
 using Homassy.Email.HealthChecks;
 using Homassy.Email.Middleware;
 using Homassy.Email.Services;
 using Homassy.Email.Workers;
 using Microsoft.AspNetCore.Diagnostics.HealthChecks;
 using Serilog;
-using Serilog.Events;
 
 Log.Logger = new LoggerConfiguration()
-    .MinimumLevel.Information()
-    .MinimumLevel.Override("Microsoft.AspNetCore", LogEventLevel.Warning)
+    .UseHomassyMinimumLevels()
     .Enrich.FromLogContext()
     .WriteTo.Console()
     .CreateBootstrapLogger();
@@ -20,8 +19,7 @@ try
 
     var builder = WebApplication.CreateBuilder(args);
     builder.Host.UseSerilog((ctx, cfg) => cfg
-        .MinimumLevel.Information()
-        .MinimumLevel.Override("Microsoft.AspNetCore", LogEventLevel.Warning)
+        .UseHomassyMinimumLevels(environmentName: ctx.HostingEnvironment.EnvironmentName)
         .Enrich.FromLogContext()
         .WriteTo.Console());
 

@@ -38,7 +38,9 @@ try
     // Set configuration for HomassyDbContext
     HomassyDbContext.SetConfiguration(configuration);
 
-    // Create DbContext
+    // Create DbContext. No logger factory is attached on purpose: EF Core then emits nothing,
+    // so no SQL statement text ends up in the migrator output. Progress is reported by the
+    // Console.WriteLine calls below (migration names only, never the statements themselves).
     var optionsBuilder = new DbContextOptionsBuilder<HomassyDbContext>();
     optionsBuilder.UseNpgsql(connectionString);
     await using var context = new HomassyDbContext(optionsBuilder.Options);
