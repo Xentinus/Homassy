@@ -18,8 +18,10 @@
       timeout: 5s
       retries: 5
       start_period: 10s
-    ports:
-      - "5432:5432"
+    # No published port: every service reaches Postgres over homassy-network as
+    # host "postgres". Publishing 5432 writes an iptables NAT rule that bypasses
+    # UFW and exposes the DB to the internet. For external access use an SSH
+    # tunnel: ssh -L 5432:localhost:5432 user@server
 
   homassy.migrator:
     container_name: homassy-migrator
