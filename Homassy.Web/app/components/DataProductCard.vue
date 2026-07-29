@@ -1,5 +1,5 @@
 <template>
-  <div class="relative rounded-2xl overflow-hidden card-animate" style="touch-action: pan-y" data-no-pull-refresh>
+  <div class="relative rounded-2xl overflow-hidden" style="touch-action: pan-y" data-no-pull-refresh>
     <!-- Swipe action layer -->
     <div
       v-show="swipe.isSwiping.value"
@@ -135,13 +135,3 @@ async function handleDelete() {
   }
 }
 </script>
-
-<style scoped>
-@keyframes slideInUp {
-  from { opacity: 0; transform: translateY(20px); }
-  to { opacity: 1; transform: translateY(0); }
-}
-.card-animate {
-  animation: slideInUp 0.4s ease-out;
-}
-</style>

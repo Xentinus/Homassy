@@ -1,6 +1,6 @@
 <template>
   <div
-    class="relative rounded-xl overflow-hidden slideInUp"
+    class="relative rounded-xl overflow-hidden"
     style="touch-action: pan-y"
     data-no-pull-refresh
   >
@@ -484,20 +484,3 @@ const handleDelete = async () => {
   }
 }
 </script>
-
-<style scoped>
-@keyframes slideInUp {
-  from {
-    opacity: 0;
-    transform: translateY(20px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-
-.slideInUp {
-  animation: slideInUp 0.4s ease-out;
-}
-</style>

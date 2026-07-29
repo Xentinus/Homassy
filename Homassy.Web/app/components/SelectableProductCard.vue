@@ -1,6 +1,6 @@
 ﻿<template>
   <div
-    class="group relative bg-gradient-to-br from-white to-gray-50 dark:from-gray-800 dark:to-gray-900 rounded-xl border-2 p-3 cursor-pointer hover:shadow-lg hover:-translate-y-0.5 transition-all duration-200 flex flex-col overflow-hidden card-animate"
+    class="group relative bg-gradient-to-br from-white to-gray-50 dark:from-gray-800 dark:to-gray-900 rounded-xl border-2 p-3 cursor-pointer hover:shadow-lg hover:-translate-y-0.5 transition-all duration-200 flex flex-col overflow-hidden"
     :class="[cardBorderClass, isSelected && 'ring-2 ring-offset-2 ring-primary-500 dark:ring-offset-gray-900']"
     @click="handleCardClick"
   >
@@ -119,20 +119,3 @@ const handleCardClick = () => {
   emit('select', props.product)
 }
 </script>
-
-<style scoped>
-@keyframes slideInUp {
-  from {
-    opacity: 0;
-    transform: translateY(20px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-
-.card-animate {
-  animation: slideInUp 0.4s ease-out;
-}
-</style>

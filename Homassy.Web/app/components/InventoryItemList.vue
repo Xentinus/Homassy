@@ -24,7 +24,7 @@
     </div>
 
     <!-- Full-width rows -->
-    <div v-else class="space-y-2">
+    <AnimatedList v-else class="space-y-2">
       <InventoryItemRow
         v-for="item in items"
         :key="item.publicId"
@@ -34,7 +34,7 @@
         @updated="emit('refresh')"
         @deleted="emit('refresh')"
       />
-    </div>
+    </AnimatedList>
 
     <!-- Felosztás / Készlet mozgatás operations (⚙) -->
     <InventoryOperationsDrawer

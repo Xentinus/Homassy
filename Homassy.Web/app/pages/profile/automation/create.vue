@@ -76,7 +76,7 @@
         </div>
 
         <!-- Product Grid -->
-        <div
+        <AnimatedList
           v-else
           class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4"
         >
@@ -88,7 +88,7 @@
             :is-selected="form.productPublicId === product.publicId"
             @select="onProductSelected"
           />
-        </div>
+        </AnimatedList>
 
         <!-- Inventory Item Sub-selection (for AutoConsume / NotifyOnly) -->
         <template v-if="form.actionType !== AutomationActionType.AddToShoppingList && form.actionType !== AutomationActionType.LowStockAddToShoppingList && form.productPublicId">

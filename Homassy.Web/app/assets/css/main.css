@@ -23,6 +23,16 @@
    var(--app-header-height) safely. */
 :root {
   --app-header-height: 5.5rem;
+
+  /* Bubble list transition — always driven through <AnimatedList>. */
+  --bubble-in: 280ms;
+  --bubble-out: 180ms;
+  --bubble-move: 260ms;
+  --bubble-stagger: 28ms;
+  /* Overshoot curve — the same one the FAB and the swipe commit use. */
+  --bubble-ease-pop: cubic-bezier(0.34, 1.56, 0.64, 1);
+  /* Decelerating curve for movement/settling — the nav/snap easing. */
+  --bubble-ease-out: cubic-bezier(0.22, 1, 0.36, 1);
 }
 
 /* Page content cross-fade on navigation (the bottom nav + header stay fixed in the layout). */
@@ -43,5 +53,73 @@
   .page-enter-active,
   .page-leave-active {
     transition: none;
+  }
+}
+
+/* ---------------------------------------------------------------------------
+   Bubble list transition — see app/components/AnimatedList.vue.
+
+   Enter: the card pops from small to full size with a slight overshoot while
+   fading in. Leave: it bursts (scales up a touch) and fades out. The cards
+   around it glide into their new cell via the FLIP `-move` transition. Only
+   transform + opacity are animated, so it stays on the compositor.
+
+   Leaving cards are taken out of flow by AnimatedList, which writes inline
+   position/top/left/width/height — a bare `position: absolute` here would not
+   work, because an auto-placed abspos child of a CSS grid resolves against the
+   grid's padding box and would jump to its top-left corner at content width.
+
+   These rules are deliberately unlayered (like .page-* above), so they outrank
+   Tailwind's @layer utilities — otherwise a card's own `hover:-translate-y-0.5`
+   would fight the enter transform.
+
+   ORDER: `.bubble-move` must stay ABOVE `.bubble-leave-active`. A pinned card
+   can measure a fraction of a pixel off, which is enough for TransitionGroup to
+   treat it as "moved" and add `.bubble-move` alongside `.bubble-leave-active`;
+   at equal specificity the later `transition` wins, and it has to be the leave
+   one — otherwise the opacity fade is dropped and the card blinks out.
+--------------------------------------------------------------------------- */
+.bubble-move {
+  transition: transform var(--bubble-move) var(--bubble-ease-out);
+}
+
+.bubble-enter-active {
+  /* Only a list's first render is staggered: AnimatedList sets --bubble-index
+     during the appear pass and clears it afterwards, so cards arriving later
+     (SignalR, infinite scroll) start immediately. */
+  --bubble-delay: calc(var(--bubble-index, 0) * var(--bubble-stagger));
+  transition:
+    opacity var(--bubble-in) var(--bubble-ease-out) var(--bubble-delay),
+    transform var(--bubble-in) var(--bubble-ease-pop) var(--bubble-delay);
+}
+
+.bubble-enter-from {
+  opacity: 0;
+  transform: scale(0.82);
+}
+
+.bubble-leave-active {
+  transition:
+    opacity var(--bubble-out) ease-in,
+    transform var(--bubble-out) var(--bubble-ease-out);
+}
+
+.bubble-leave-to {
+  opacity: 0;
+  /* Deliberately small: a bigger burst on a 2-column mobile grid pushes the
+     card past the viewport edge and flashes a horizontal scrollbar. */
+  transform: scale(1.08);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .bubble-move,
+  .bubble-enter-active,
+  .bubble-leave-active {
+    transition: none;
+  }
+  /* Without this the card still paints one frame at scale(0.82). */
+  .bubble-enter-from,
+  .bubble-leave-to {
+    transform: none;
   }
 }
