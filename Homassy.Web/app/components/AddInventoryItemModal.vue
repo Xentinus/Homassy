@@ -127,7 +127,7 @@
               </UFormField>
 
               <UFormField :label="t('pages.addProduct.form.category')" name="category">
-                <USelectMenu v-model="productFormData.category" :items="categoryOptions" value-key="value" :placeholder="t('pages.addProduct.form.categoryPlaceholder')" :disabled="isCreating" class="w-full" />
+                <USelectMenu v-model="productFormData.category" :items="categoryOptions" value-key="value" virtualize :placeholder="t('pages.addProduct.form.categoryPlaceholder')" :disabled="isCreating" class="w-full" />
               </UFormField>
 
               <UFormField :label="t('pages.addProduct.form.unit')" name="unit" required>
@@ -774,12 +774,7 @@ const productFormData = ref<CreateProductRequest>({
   isFavorite: false
 })
 const categoryOptionsRaw = ref<SelectValue[]>([])
-const categoryOptions = computed(() =>
-  categoryOptionsRaw.value.map(cat => ({
-    label: t(`enums.productCategory.${cat.text}`),
-    value: parseInt(cat.text)
-  }))
-)
+const { categoryOptions } = useProductCategoryOptions(categoryOptionsRaw)
 
 // OpenFoodFacts / barcode
 const isQueryingBarcode = ref(false)
