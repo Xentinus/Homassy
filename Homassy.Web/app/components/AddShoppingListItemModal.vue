@@ -133,6 +133,7 @@
                   v-model="productFormData.category"
                   :items="categoryOptions"
                   value-key="value"
+                  virtualize
                   :placeholder="t('pages.addProduct.form.categoryPlaceholder')"
                   :disabled="isCreating"
                   class="w-full"
@@ -744,12 +745,7 @@ const productFormData = ref<CreateProductRequest>({
 })
 const isCreating = ref(false)
 const categoryOptionsRaw = ref<SelectValue[]>([])
-const categoryOptions = computed(() => {
-  return categoryOptionsRaw.value.map(cat => ({
-    label: t(`enums.productCategory.${cat.text}`),
-    value: parseInt(cat.text)
-  }))
-})
+const { categoryOptions } = useProductCategoryOptions(categoryOptionsRaw)
 const isQueryingBarcode = ref(false)
 const openFoodFactsProduct = ref<OpenFoodFactsProduct | null>(null)
 const isOpenFoodFactsModalOpen = ref(false)
