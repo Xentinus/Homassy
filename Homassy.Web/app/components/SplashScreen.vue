@@ -63,13 +63,21 @@ onMounted(async () => {
 <!-- Global (unscoped) so the `.splash` class stays literal for the
      `:root[data-splash-ready]` dismissal selector and the standalone media query. -->
 <style>
+/* Colours come from Nuxt UI's semantic tokens, never hardcoded hex: the splash
+   has to match whichever theme the app is in (light / dark / system). No
+   `:root.dark` selectors are needed — the `--ui-*` variables flip themselves via
+   the `light`/`dark` class, and @nuxtjs/color-mode puts that class on <html> from
+   a blocking inline head script, i.e. before the first paint. So the splash is
+   already the right theme on frame one, with no flash and no hydration diff. */
 .splash {
   display: none;
   position: fixed;
   inset: 0;
   z-index: 2147483000;
-  background-color: #2b2620;
-  color: #f5eee2;
+  /* Exactly the app's own background (`bg-default` on <body>), so the handoff
+     from splash to app is seamless in both themes. */
+  background-color: var(--ui-bg);
+  color: var(--ui-text-highlighted);
   transition:
     opacity 0.45s cubic-bezier(0.7, 0, 0.2, 1),
     transform 0.55s cubic-bezier(0.7, 0, 0.2, 1);
@@ -133,7 +141,7 @@ onMounted(async () => {
 }
 
 /* The loading ring is a rotating conic arc, masked into a thin band so the
-   espresso background shows through its centre; the static logo sits on top. */
+   page background shows through its centre; the static logo sits on top. */
 .splash__badge {
   position: relative;
   width: 128px;
@@ -147,7 +155,9 @@ onMounted(async () => {
   position: absolute;
   inset: 0;
   border-radius: 50%;
-  background: conic-gradient(from 0deg, #f0e6d6 0deg 250deg, #413a31 250deg 360deg);
+  /* Arc = the mocha primary, track = an accented surface — both readable on the
+     light and the dark background without a second rule. */
+  background: conic-gradient(from 0deg, var(--ui-primary) 0deg 250deg, var(--ui-bg-accented) 250deg 360deg);
   -webkit-mask: radial-gradient(farthest-side, transparent calc(100% - 7px), #000 calc(100% - 7px));
   mask: radial-gradient(farthest-side, transparent calc(100% - 7px), #000 calc(100% - 7px));
   animation: splash-spin 0.9s linear infinite;
@@ -167,7 +177,7 @@ onMounted(async () => {
 .splash__welcome-label {
   display: block;
   font-size: 0.8rem;
-  color: #a58e74;
+  color: var(--ui-text-muted);
 }
 
 .splash__name {

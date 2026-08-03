@@ -10,7 +10,13 @@ export default defineNuxtConfig({
     pageTransition: { name: 'page', mode: 'out-in' },
     head: {
       meta: [
-        { name: 'theme-color', content: '#c9b8a0' },
+        // Light-theme value only — SSR cannot know the preference (it lives in
+        // localStorage), so this matches @nuxtjs/color-mode's `fallback: 'light'`.
+        // plugins/theme-color.client.ts takes it over on the client and keeps it
+        // equal to the app's own background in whichever theme is active.
+        // `tagPriority: 'high'` so it wins the `meta[name]` dedupe against the
+        // manifest-derived tag @vite-pwa/nuxt injects (brand tan, theme-blind).
+        { name: 'theme-color', content: '#ffffff', tagPriority: 'high' },
         { name: 'mobile-web-app-capable', content: 'yes' },
         { name: 'apple-mobile-web-app-capable', content: 'yes' },
         { name: 'apple-mobile-web-app-status-bar-style', content: 'default' }
@@ -74,9 +80,11 @@ export default defineNuxtConfig({
       name: 'Homassy',
       short_name: 'Homassy',
       theme_color: '#c9b8a0',
-      // Matches the in-app splash background so the OS-generated launch screen
-      // hands off seamlessly into it (SplashScreen.vue uses the same espresso).
-      background_color: '#2b2620',
+      // The manifest takes a single value and cannot be theme-aware, while the
+      // in-app splash now follows the active theme (SplashScreen.vue uses
+      // `--ui-bg`). Tuned to the light background, so a dark-theme launch can
+      // show a brief light flash on Android's generated launch screen.
+      background_color: '#ffffff',
       display: 'standalone',
       start_url: '/',
       icons: [

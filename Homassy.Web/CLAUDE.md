@@ -335,11 +335,54 @@ Language setting from the user's profile (`UserInfo.language`) is synced to the 
 ## PWA
 
 - **Auto-update** on new deployments
-- **Manifest**: standalone display, `#c9b8a0` theme color
+- **Manifest**: standalone display, `#c9b8a0` theme color, `#ffffff` background color
 - **Service Worker**: `workbox`-powered
   - Pages: `NetworkFirst`, 1-day cache
   - Static assets: `CacheFirst`, 30-day cache
   - Push notifications: `/sw-push.js` (imported into SW)
+
+---
+
+## Theming (light / dark / system)
+
+There is **no hand-written theme provider**. `@nuxt/ui` registers `@nuxtjs/color-mode` internally with `classSuffix: ''`, so the mode is a `light` / `dark` class on `<html>` — the same class Tailwind's `dark:` variant matches. The preference (`'light' | 'dark' | 'system'`, default `system`) is **device-local**: `localStorage`, key `nuxt-color-mode`. There is no server-side user preference, so the theme does not follow a user across devices.
+
+The UI is a segmented control in `app/pages/profile/index.vue` (`themeOptions`) that assigns straight to `colorMode.preference`. It must stay inside `<ClientOnly>` — the preference is unknown during SSR, so branching on it there is a hydration mismatch. `system` reacts live: color-mode listens to `prefers-color-scheme` changes.
+
+Colours always come from Nuxt UI's semantic tokens (`--ui-bg`, `--ui-text*`, `--ui-primary`, …), which flip themselves via the class. Only the `mocha` primary palette is project-owned (`app/assets/css/main.css`). **Never hardcode a hex where a token exists** — a literal cannot follow the theme.
+
+### The two places the theme has to be pushed out by hand
+
+1. **`<html>` background + `color-scheme`** (`app/assets/css/main.css`). Nuxt UI only styles `<body>`; iOS standalone samples the *root* background for the status-bar strip, so without this the top strip stays light in dark mode.
+2. **The `theme-color` meta** (`app/plugins/theme-color.client.ts`). Client-only, driven by a `watch` on `colorMode.value`, and it reads the value back from the root element's computed background so it can never drift from `--ui-bg`. It goes through `useHead` with `tagPriority: 'high'`: both the static tag in `nuxt.config.ts` and the manifest-derived one `@vite-pwa/nuxt` injects are unhead-managed, so a plain `meta.content = …` write gets reverted on the next flush. Reads are **synchronous, never `requestAnimationFrame`** — a backgrounded or non-compositing webview does not run animation frames.
+
+`apple-mobile-web-app-status-bar-style` stays `default`, and there is deliberately **no `viewport-fit=cover`** (so `env(safe-area-inset-*)` resolves to `0px` on iOS). Switching to `black-translucent` + `viewport-fit=cover` would give pixel control of the strip but hands the status-bar glyph colour to iOS and requires a safe-area audit of every top-fixed element.
+
+---
+
+## Boot splash
+
+`app/components/SplashScreen.vue` — a CSS overlay, **standalone-PWA only**, that covers the pre-hydration auth window. Not documented in the structure tree above; the moving parts:
+
+| File | Role |
+|---|---|
+| `app/components/SplashScreen.vue` | the overlay (logo + loading ring SSR'd, name/version `<ClientOnly>`) |
+| `app/composables/useSplashScreen.ts` | `markReady()` / `rearm()`, `MIN_VISIBLE_MS` floor |
+| `app/plugins/auth.ts` | owns the primary dismissal after the Kratos session resolves (6 s safety net) |
+| `app/pages/calendar.vue` | dismisses on a normal relaunch, after its first data load |
+| `app/plugins/splash-resume.client.ts` | re-shows it on a warm resume after ≥10 min backgrounded |
+| `nuxt.config.ts` | inline head script adding `.pwa-standalone` (iOS `navigator.standalone`) |
+
+It is theme-aware purely through tokens — `--ui-bg` matches the app background exactly, so the handoff is seamless in both themes, and no `:root.dark` selector is needed because color-mode sets the class from a blocking head script before first paint.
+
+**Easy to regress, all deliberate:**
+- `visibility: hidden` on `:root[data-splash-ready] .splash`, delayed `visibility 0s linear 0.55s` — iOS keeps sampling a `fixed; inset: 0` element's background for the status bar even at `opacity: 0` and translated off-screen.
+- Dual standalone gate: `@media (display-mode: standalone)` **and** `:root.pwa-standalone` (iOS does not reliably match the media query).
+- The `<style>` is unscoped on purpose, so `.splash` stays a literal class name for those selectors.
+- No `transform` on `.app-shell` — a transformed ancestor would become the containing block for the auth layout's `position: fixed` bottom nav.
+- Dismissal toggles an attribute on `<html>`, not a reactive `v-if`, so it works even before Vue mounts.
+
+The manifest's `background_color` takes a single value and cannot be theme-aware; it is tuned to the light background, so a dark-theme launch can show a brief light flash on Android's generated launch screen. There are no `apple-touch-startup-image` tags, so iOS shows a blank frame until the SSR HTML paints.
 
 ---
 
