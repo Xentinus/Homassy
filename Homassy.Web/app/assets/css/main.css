@@ -17,6 +17,27 @@
   --color-mocha-950: #3F3027;
 }
 
+/* Nuxt UI only puts `bg-default` on <body>, leaving <html> transparent. iOS
+   standalone samples the root/page background for the status-bar strip (see
+   commit 18e821a, where the dismissed splash's background still tinted it), so a
+   transparent <html> is why the top strip stayed white after switching to the
+   dark theme. Painting the root with the same token fixes that — and the iOS
+   rubber-band overscroll colour with it. */
+html {
+  background-color: var(--ui-bg);
+}
+
+/* `color-scheme` also only lands on <body> (`scheme-light dark:scheme-dark`),
+   but browser-drawn surfaces — the canvas, scrollbars, the iOS status bar —
+   read it off the root element. */
+:root {
+  color-scheme: light;
+}
+
+:root.dark {
+  color-scheme: dark;
+}
+
 /* Persistent header height — measured at runtime by AppHeader.vue and published
    as this custom property. The default keeps layouts sane before/without a
    measurement (SSR, first paint) so pages can offset content with
