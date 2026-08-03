@@ -361,13 +361,15 @@ public class ProductControllerTests : IClassFixture<HomassyWebApplicationFactory
             _output.WriteLine($"Update Response: {updateBody}");
             Assert.Equal(HttpStatusCode.OK, updateResponse.StatusCode);
 
-            // Step 6: Delete
-            _output.WriteLine("\n=== Step 6: Delete Product ===");
+            // Step 6: Delete is always rejected — a Product row is global (only ProductCustomization
+            // is family-scoped), so deleting one would remove it, and its inventory, for every family.
+            _output.WriteLine("\n=== Step 6: Delete Product (rejected — products are global) ===");
             var deleteResponse = await _client.DeleteAsync($"/api/v1.0/product/{createdProductId}");
             var deleteBody = await deleteResponse.Content.ReadAsStringAsync();
             _output.WriteLine($"Delete Status: {deleteResponse.StatusCode}");
             _output.WriteLine($"Delete Response: {deleteBody}");
-            Assert.Equal(HttpStatusCode.OK, deleteResponse.StatusCode);
+            Assert.Equal(HttpStatusCode.Forbidden, deleteResponse.StatusCode);
+            Assert.Contains("PRODUCT-0004", deleteBody);
 
             _output.WriteLine("\n=== Product CRUD Flow Completed Successfully! ===");
         }

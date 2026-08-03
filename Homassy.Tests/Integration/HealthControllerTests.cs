@@ -75,8 +75,13 @@ public class HealthControllerTests : IClassFixture<HomassyWebApplicationFactory>
         Assert.True(content.Data.Dependencies.ContainsKey("openfoodfacts"));
     }
 
+    /// <summary>
+    /// The API registers exactly two health checks (Program.cs): "database" and "openfoodfacts".
+    /// Email delivery lives in the separate Homassy.Email service and has its own health endpoint,
+    /// so the API deliberately reports no "email" dependency.
+    /// </summary>
     [Fact]
-    public async Task GetHealth_ReturnsEmailDependency()
+    public async Task GetHealth_ReportsOnlyTheApisOwnDependencies()
     {
         var response = await _client.GetAsync("/api/v1.0/health");
         var content = await response.Content.ReadFromJsonAsync<ApiResponse<HealthCheckResponse>>();
@@ -85,7 +90,8 @@ public class HealthControllerTests : IClassFixture<HomassyWebApplicationFactory>
         _output.WriteLine($"Dependencies: {string.Join(", ", keys)}");
 
         Assert.NotNull(content?.Data?.Dependencies);
-        Assert.True(content.Data.Dependencies.ContainsKey("email"));
+        Assert.Equal(["database", "openfoodfacts"], keys.OrderBy(k => k).ToArray());
+        Assert.False(content.Data.Dependencies.ContainsKey("email"));
     }
 
     [Fact]
