@@ -294,194 +294,22 @@
       </template>
     </AppDrawer>
 
-    <!-- Create Shopping List Drawer (bottom sheet) -->
-    <AppDrawer :open="isCreateModalOpen" :title="$t('pages.shoppingLists.createModal.title')" icon="i-lucide-plus" fit="content" @update:open="(val) => isCreateModalOpen = val">
-      <div class="space-y-4">
-        <p class="text-sm text-muted">{{ $t('pages.shoppingLists.createModal.description') }}</p>
-        <!-- Name -->
-        <div>
-          <label class="block text-sm font-medium mb-1">
-            {{ $t('pages.shoppingLists.createModal.nameLabel') }} <span class="text-red-500">*</span>
-          </label>
-          <UInput
-            v-model="createForm.name"
-            type="text"
-            :placeholder="$t('pages.shoppingLists.createModal.namePlaceholder')"
-            required
-            class="w-full"
-          />
-        </div>
+    <!-- Create / edit bottom sheet (shared with /profile/shopping-lists) -->
+    <ShoppingListFormDrawer
+      :open="isListFormOpen"
+      :list="editingList"
+      @update:open="(val) => isListFormOpen = val"
+      @saved="onListSaved"
+    />
 
-        <!-- Description -->
-        <div>
-          <label class="block text-sm font-medium mb-1">
-            {{ $t('pages.shoppingLists.createModal.descriptionLabel') }}
-          </label>
-          <UTextarea
-            v-model="createForm.description"
-            :rows="3"
-            :placeholder="$t('pages.shoppingLists.createModal.descriptionPlaceholder')"
-            class="w-full"
-          />
-        </div>
-
-        <!-- Color -->
-        <div>
-          <label class="block text-sm font-medium mb-1">
-            {{ $t('pages.shoppingLists.createModal.colorLabel') }}
-          </label>
-          <UInput
-            v-model="createForm.color"
-            type="color"
-            class="w-full"
-          />
-        </div>
-
-        <!-- Shared with Family -->
-        <div class="flex items-center gap-2">
-          <UCheckbox
-            v-model="createForm.isSharedWithFamily"
-            :label="$t('pages.shoppingLists.createModal.isSharedWithFamilyLabel')"
-          />
-        </div>
-      </div>
-
-      <template #footer>
-        <UButton
-          :label="$t('pages.shoppingLists.createModal.cancel')"
-          color="neutral"
-          variant="outline"
-          @click="closeCreateModal"
-        />
-        <UButton
-          :label="$t('pages.shoppingLists.createModal.confirm')"
-          :loading="isCreating"
-          @click="handleCreateList"
-        />
-      </template>
-    </AppDrawer>
-
-    <!-- Edit Shopping List Drawer (bottom sheet) -->
-    <AppDrawer :open="isEditModalOpen" :title="$t('pages.shoppingLists.editModal.title')" icon="i-lucide-pencil" fit="content" @update:open="(val) => isEditModalOpen = val">
-      <div class="space-y-4">
-        <p class="text-sm text-muted">{{ $t('pages.shoppingLists.editModal.description') }}</p>
-        <!-- Name -->
-        <div>
-          <label class="block text-sm font-medium mb-1">
-            {{ $t('pages.shoppingLists.editModal.nameLabel') }} <span class="text-red-500">*</span>
-          </label>
-          <UInput
-            v-model="editForm.name"
-            type="text"
-            :placeholder="$t('pages.shoppingLists.editModal.namePlaceholder')"
-            required
-            class="w-full"
-          />
-        </div>
-
-        <!-- Description -->
-        <div>
-          <label class="block text-sm font-medium mb-1">
-            {{ $t('pages.shoppingLists.editModal.descriptionLabel') }}
-          </label>
-          <UTextarea
-            v-model="editForm.description"
-            :rows="3"
-            :placeholder="$t('pages.shoppingLists.editModal.descriptionPlaceholder')"
-            class="w-full"
-          />
-        </div>
-
-        <!-- Color -->
-        <div>
-          <label class="block text-sm font-medium mb-1">
-            {{ $t('pages.shoppingLists.editModal.colorLabel') }}
-          </label>
-          <UInput
-            v-model="editForm.color"
-            type="color"
-            class="w-full"
-          />
-        </div>
-
-        <!-- Shared with Family -->
-        <div class="flex items-center gap-2">
-          <UCheckbox
-            v-model="editForm.isSharedWithFamily"
-            :label="$t('pages.shoppingLists.editModal.isSharedWithFamilyLabel')"
-          />
-        </div>
-      </div>
-
-      <template #footer>
-        <UButton
-          :label="$t('pages.shoppingLists.editModal.cancel')"
-          color="neutral"
-          variant="outline"
-          @click="closeEditModal"
-        />
-        <UButton
-          :label="$t('pages.shoppingLists.editModal.confirm')"
-          :loading="isUpdating"
-          @click="handleUpdateList"
-        />
-      </template>
-    </AppDrawer>
-
-    <!-- Delete Shopping List Drawer (bottom sheet) -->
-    <AppDrawer :open="isDeleteModalOpen" :title="$t('pages.shoppingLists.deleteModal.title')" icon="i-lucide-trash-2" fit="content" @update:open="(val) => isDeleteModalOpen = val">
-      <div class="space-y-4">
-        <p class="text-sm text-muted">{{ $t('pages.shoppingLists.deleteModal.description') }}</p>
-        <!-- Warning -->
-        <div class="p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg">
-          <p class="text-sm font-medium text-red-600 dark:text-red-400">
-            {{ $t('pages.shoppingLists.deleteModal.warning') }}
-          </p>
-        </div>
-
-        <!-- List Details -->
-        <div class="space-y-3">
-          <!-- List Name -->
-          <div>
-            <span class="text-sm font-medium text-gray-700 dark:text-gray-300">
-              {{ $t('pages.shoppingLists.deleteModal.listName') }}:
-            </span>
-            <span class="text-sm ml-2">{{ currentListDetails?.name }}</span>
-          </div>
-
-          <!-- Description -->
-          <div v-if="currentListDetails?.description">
-            <span class="text-sm font-medium text-gray-700 dark:text-gray-300">
-              {{ $t('pages.shoppingLists.deleteModal.description') }}:
-            </span>
-            <span class="text-sm ml-2">{{ currentListDetails.description }}</span>
-          </div>
-
-          <!-- Item Count -->
-          <div class="pt-2 border-t border-gray-200 dark:border-gray-700">
-            <span class="text-sm font-medium text-gray-700 dark:text-gray-300">
-              {{ $t('pages.shoppingLists.deleteModal.itemCount') }}:
-            </span>
-            <span class="text-sm ml-2">{{ currentListDetails?.items.length || 0 }}</span>
-          </div>
-        </div>
-      </div>
-
-      <template #footer>
-        <UButton
-          :label="$t('pages.shoppingLists.deleteModal.cancel')"
-          color="neutral"
-          variant="outline"
-          @click="closeDeleteModal"
-        />
-        <UButton
-          :label="$t('pages.shoppingLists.deleteModal.confirm')"
-          color="error"
-          :loading="isDeleting"
-          @click="handleDeleteList"
-        />
-      </template>
-    </AppDrawer>
+    <!-- Delete confirmation (shared with /profile/shopping-lists) -->
+    <ShoppingListDeleteDrawer
+      :open="isDeleteModalOpen"
+      :list="currentListDetails"
+      :item-count="currentListDetails?.items.length ?? 0"
+      @update:open="(val) => isDeleteModalOpen = val"
+      @deleted="onListDeleted"
+    />
 
     <!-- Add item wizard (fullscreen modal) -->
     <AddShoppingListItemModal
@@ -498,7 +326,7 @@
 <script setup lang="ts">
 import { ref, computed, watch, onMounted, onBeforeUnmount } from 'vue'
 import type { SelectValue } from '../../types/selectValue'
-import type { DetailedShoppingListInfo, CreateShoppingListRequest, UpdateShoppingListRequest, ShoppingListItemInfo, ShoppingListInfo } from '../../types/shoppingList'
+import type { DetailedShoppingListInfo, ShoppingListItemInfo, ShoppingListInfo } from '../../types/shoppingList'
 import { SelectValueType, StoreType } from '../../types/enums'
 import { useSelectValueApi } from '../../composables/api/useSelectValueApi'
 import { useShoppingListApi } from '../../composables/api/useShoppingListApi'
@@ -515,7 +343,7 @@ definePageMeta({
 
 const { t: $t } = useI18n()
 const { getSelectValues } = useSelectValueApi()
-const { getShoppingListDetails, createShoppingList, updateShoppingList, deleteShoppingList } = useShoppingListApi()
+const { getShoppingListDetails } = useShoppingListApi()
 const { getShoppingLocations } = useLocationsApi()
 const { showCameraButton } = useCameraAvailability()
 const { isExpired: checkIsExpired, isExpiringWithinTwoWeeks: checkIsExpiringWithinTwoWeeks } = useExpirationCheck()
@@ -609,29 +437,12 @@ usePageHeader(() => ({
   hasSearch: true
 }))
 
-// Create modal state
-const isCreateModalOpen = ref(false)
-const createForm = ref<CreateShoppingListRequest>({
-  name: '',
-  description: undefined,
-  color: undefined,
-  isSharedWithFamily: undefined
-})
-const isCreating = ref(false)
+// Create / edit drawer state (ShoppingListFormDrawer owns the form and the API call).
+const isListFormOpen = ref(false)
+const editingList = ref<DetailedShoppingListInfo | null>(null)
 
-// Edit modal state
-const isEditModalOpen = ref(false)
-const editForm = ref<UpdateShoppingListRequest>({
-  name: undefined,
-  description: undefined,
-  color: undefined,
-  isSharedWithFamily: undefined
-})
-const isUpdating = ref(false)
-
-// Delete modal state
+// Delete modal state (ShoppingListDeleteDrawer owns the API call).
 const isDeleteModalOpen = ref(false)
-const isDeleting = ref(false)
 
 // Helper function to get target date for an item
 const getTargetDate = (item: ShoppingListItemInfo): Date | null => {
@@ -1137,126 +948,51 @@ const loadListDetails = async (publicId: string) => {
   }
 }
 
-// Create modal methods
+// List CRUD openers — the shared drawers own the forms and the API calls, so these only decide
+// which mode to open in. The names are referenced by listMenuItems.
 const openCreateModal = () => {
   filtersOpen.value = false
-  createForm.value = {
-    name: '',
-    description: undefined,
-    color: undefined,
-    isSharedWithFamily: undefined
-  }
-  isCreateModalOpen.value = true
+  editingList.value = null
+  isListFormOpen.value = true
 }
 
-const closeCreateModal = () => {
-  isCreateModalOpen.value = false
-  createForm.value = {
-    name: '',
-    description: undefined,
-    color: undefined,
-    isSharedWithFamily: undefined
-  }
-}
-
-const handleCreateList = async () => {
-  if (!createForm.value.name || createForm.value.name.trim() === '') {
-    return
-  }
-
-  isCreating.value = true
-
-  try {
-    const response = await createShoppingList(createForm.value)
-
-    if (response.success && response.data) {
-      closeCreateModal()
-      // Reload shopping lists and select the new one
-      await loadShoppingLists()
-      selectedListId.value = response.data.publicId
-    }
-  } catch (error) {
-    console.error('Failed to create shopping list:', error)
-  } finally {
-    isCreating.value = false
-  }
-}
-
-// Edit modal methods
 const openEditModal = () => {
   if (!currentListDetails.value) return
 
   filtersOpen.value = false
-  editForm.value = {
-    name: currentListDetails.value.name,
-    description: currentListDetails.value.description || undefined,
-    color: currentListDetails.value.color || undefined,
-    isSharedWithFamily: currentListDetails.value.isSharedWithFamily
-  }
-  isEditModalOpen.value = true
+  editingList.value = currentListDetails.value
+  isListFormOpen.value = true
 }
 
-const closeEditModal = () => {
-  isEditModalOpen.value = false
-  editForm.value = {
-    name: undefined,
-    description: undefined,
-    color: undefined,
-    isSharedWithFamily: undefined
-  }
-}
-
-const handleUpdateList = async () => {
-  if (!selectedListId.value) return
-
-  isUpdating.value = true
-
-  try {
-    const response = await updateShoppingList(selectedListId.value, editForm.value)
-
-    if (response.success) {
-      closeEditModal()
-      // Reload shopping lists and details
-      await loadShoppingLists()
-      await loadListDetails(selectedListId.value)
-    }
-  } catch (error) {
-    console.error('Failed to update shopping list:', error)
-  } finally {
-    isUpdating.value = false
-  }
-}
-
-// Delete modal methods
 const openDeleteModal = () => {
+  if (!currentListDetails.value) return
+
   filtersOpen.value = false
   isDeleteModalOpen.value = true
 }
 
-const closeDeleteModal = () => {
-  isDeleteModalOpen.value = false
+const onListSaved = async (list: ShoppingListInfo) => {
+  // Read the mode before anything resets editingList — the drawer emits `saved` first.
+  const wasCreate = !editingList.value
+
+  // The list selector is populated from select values ({ publicId, text } only), so the saved DTO
+  // cannot patch it — refetch. On create this also puts the new list in allShoppingLists before it
+  // is selected.
+  await loadShoppingLists()
+
+  if (wasCreate) {
+    // The selectedListId watcher loads the details and joins the socket group.
+    selectedListId.value = list.publicId
+  } else if (selectedListId.value) {
+    await loadListDetails(selectedListId.value)
+  }
 }
 
-const handleDeleteList = async () => {
-  if (!selectedListId.value) return
-
-  isDeleting.value = true
-
-  try {
-    const response = await deleteShoppingList(selectedListId.value)
-
-    if (response.success) {
-      closeDeleteModal()
-      selectedListId.value = null
-      currentListDetails.value = null
-      // Reload shopping lists
-      await loadShoppingLists()
-    }
-  } catch (error) {
-    console.error('Failed to delete shopping list:', error)
-  } finally {
-    isDeleting.value = false
-  }
+const onListDeleted = async () => {
+  selectedListId.value = null
+  currentListDetails.value = null
+  // Auto-selects the first remaining list.
+  await loadShoppingLists()
 }
 
 // Handle item refresh (when item is updated, deleted, purchased, or restored).

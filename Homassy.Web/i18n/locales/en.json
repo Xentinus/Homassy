@@ -664,6 +664,9 @@
       "noListsFound": "No shopping lists found.",
       "noItemsInList": "This list is empty.",
       "noSearchResults": "No items found.",
+      "nameRequired": "Name is required",
+      "saveFailed": "Failed to save the shopping list",
+      "deleteFailed": "Failed to delete shopping list",
       "nearby": {
         "toggle": "Show items near me",
         "availableHere": "Buy here",
@@ -950,7 +953,7 @@
     },
     "masterData": {
       "title": "Master Data",
-      "description": "Products, locations, automations and external calendars."
+      "description": "Products, locations, shopping lists, automations and external calendars."
     },
     "externalCalendars": {
       "emptyFamily": "External calendars are shared within a family. Join or create a family first."
@@ -1107,6 +1110,20 @@
       "purchases": "Purchases",
       "noPurchases": "No purchases from here yet",
       "mapTitle": "Map"
+    },
+    "shoppingLists": {
+      "title": "Shopping Lists",
+      "cardDescription": "Manage your shopping lists.",
+      "searchPlaceholder": "Search by name or description...",
+      "filterLabels": {
+        "shared": "Sharing"
+      },
+      "noLists": "No shopping lists yet",
+      "addFirstList": "Create your first shopping list",
+      "noResults": "No results found",
+      "tryDifferentSearch": "Try a different search term",
+      "pendingItemCount": "To buy",
+      "openList": "Open list"
     },
     "storageLocations": {
       "title": "Storage Locations",

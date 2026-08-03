@@ -11,6 +11,8 @@ export interface ShoppingListInfo {
   description?: string
   color?: string
   isSharedWithFamily: boolean
+  /** Items still to buy. Deliberately not a total — see ShoppingListInfo.PendingItemCount on the API side. */
+  pendingItemCount: number
 }
 
 export interface DetailedShoppingListInfo extends ShoppingListInfo {

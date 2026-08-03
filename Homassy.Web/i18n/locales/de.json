@@ -662,6 +662,9 @@
       "noListsFound": "Keine Einkaufslisten gefunden.",
       "noItemsInList": "Diese Liste ist leer.",
       "noSearchResults": "Keine Artikel gefunden.",
+      "nameRequired": "Name ist erforderlich",
+      "saveFailed": "Einkaufsliste konnte nicht gespeichert werden",
+      "deleteFailed": "Einkaufsliste konnte nicht gelöscht werden",
       "nearby": {
         "toggle": "Artikel in meiner Nähe anzeigen",
         "availableHere": "Hier kaufen",
@@ -948,7 +951,7 @@
     },
     "masterData": {
       "title": "Stammdaten",
-      "description": "Produkte, Orte, Automatisierungen und externe Kalender."
+      "description": "Produkte, Orte, Einkaufslisten, Automatisierungen und externe Kalender."
     },
     "externalCalendars": {
       "emptyFamily": "Externe Kalender werden innerhalb einer Familie geteilt. Tritt zuerst einer Familie bei oder erstelle eine."
@@ -1107,6 +1110,20 @@
       "purchases": "Einkäufe",
       "noPurchases": "Noch keine Einkäufe von hier",
       "mapTitle": "Karte"
+    },
+    "shoppingLists": {
+      "title": "Einkaufslisten",
+      "cardDescription": "Einkaufslisten verwalten.",
+      "searchPlaceholder": "Nach Name oder Beschreibung suchen...",
+      "filterLabels": {
+        "shared": "Freigabe"
+      },
+      "noLists": "Noch keine Einkaufslisten",
+      "addFirstList": "Erstellen Sie Ihre erste Einkaufsliste",
+      "noResults": "Keine Ergebnisse gefunden",
+      "tryDifferentSearch": "Versuchen Sie einen anderen Suchbegriff",
+      "pendingItemCount": "Zu kaufen",
+      "openList": "Liste öffnen"
     },
     "storageLocations": {
       "title": "Lagerorte",

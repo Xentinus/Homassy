@@ -20,6 +20,12 @@
         to="/profile/shopping-locations"
       />
       <SettingsRow
+        :label="$t('profile.shoppingLists.title')"
+        :description="$t('profile.shoppingLists.cardDescription')"
+        icon="i-lucide-list-checks"
+        to="/profile/shopping-lists"
+      />
+      <SettingsRow
         :label="$t('profile.automation.title')"
         :description="$t('profile.automation.cardDescription')"
         icon="i-lucide-timer"
