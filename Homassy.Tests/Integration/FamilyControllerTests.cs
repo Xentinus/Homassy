@@ -72,7 +72,7 @@ public class FamilyControllerTests : IClassFixture<HomassyWebApplicationFactory>
         var request = new JoinFamilyRequest { ShareCode = "ABCD1234" };
 
         // Act
-        var response = await _client.PostAsJsonAsync("/api/v1.0/family/join", request);
+        var response = await _client.PostAsJsonAsync("/api/v1.0/family/join-requests", request);
 
         _output.WriteLine($"Status: {response.StatusCode}");
 
@@ -171,7 +171,7 @@ public class FamilyControllerTests : IClassFixture<HomassyWebApplicationFactory>
             var request = new JoinFamilyRequest { ShareCode = "INVALID1" };
 
             // Act
-            var response = await _client.PostAsJsonAsync("/api/v1.0/family/join", request);
+            var response = await _client.PostAsJsonAsync("/api/v1.0/family/join-requests", request);
             var responseBody = await response.Content.ReadAsStringAsync();
 
             _output.WriteLine($"Status: {response.StatusCode}");
@@ -202,7 +202,7 @@ public class FamilyControllerTests : IClassFixture<HomassyWebApplicationFactory>
             var request = new JoinFamilyRequest { ShareCode = "ABC" }; // Too short, must be 8
 
             // Act
-            var response = await _client.PostAsJsonAsync("/api/v1.0/family/join", request);
+            var response = await _client.PostAsJsonAsync("/api/v1.0/family/join-requests", request);
             var responseBody = await response.Content.ReadAsStringAsync();
 
             _output.WriteLine($"Status: {response.StatusCode}");

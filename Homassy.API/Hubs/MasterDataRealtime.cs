@@ -3,6 +3,7 @@ using Homassy.API.Models.Automation;
 using Homassy.API.Models.ExternalCalendar;
 using Homassy.API.Models.Location;
 using Homassy.API.Models.Product;
+using Homassy.API.Models.ShoppingList;
 using Microsoft.AspNetCore.SignalR;
 using Serilog;
 
@@ -23,6 +24,8 @@ namespace Homassy.API.Hubs
     /// group when shared, else the owner's user group.</item>
     /// <item>Automations have mutually-exclusive <c>UserId</c>/<c>FamilyId</c> (plus a always-set
     /// <c>CreatedByUserId</c> fallback): family group when family-shared, else the owner's user group.</item>
+    /// <item>Shopping lists are scoped like locations: an owner <c>UserId</c> plus an optional
+    /// <c>FamilyId</c> (shared).</item>
     /// <item>External calendars are always family-scoped: family group only.</item>
     /// </list>
     /// </summary>
@@ -34,6 +37,8 @@ namespace Homassy.API.Hubs
         public const string StorageLocationDeletedEvent = "StorageLocationDeleted";
         public const string ShoppingLocationUpsertedEvent = "ShoppingLocationUpserted";
         public const string ShoppingLocationDeletedEvent = "ShoppingLocationDeleted";
+        public const string ShoppingListUpsertedEvent = "ShoppingListUpserted";
+        public const string ShoppingListDeletedEvent = "ShoppingListDeleted";
         public const string AutomationUpsertedEvent = "AutomationUpserted";
         public const string AutomationDeletedEvent = "AutomationDeleted";
         public const string ExternalCalendarUpsertedEvent = "ExternalCalendarUpserted";
@@ -77,6 +82,13 @@ namespace Homassy.API.Hubs
 
         public static Task ShoppingLocationDeletedAsync(int ownerUserId, int? familyId, Guid publicId, CancellationToken cancellationToken = default)
             => SendAsync(Scope(familyId, ownerUserId), ShoppingLocationDeletedEvent, new { publicId }, cancellationToken);
+
+        // --- Shopping lists -----------------------------------------------------
+        public static Task ShoppingListUpsertedAsync(int ownerUserId, int? familyId, ShoppingListInfo list, CancellationToken cancellationToken = default)
+            => SendAsync(Scope(familyId, ownerUserId), ShoppingListUpsertedEvent, list, cancellationToken);
+
+        public static Task ShoppingListDeletedAsync(int ownerUserId, int? familyId, Guid publicId, CancellationToken cancellationToken = default)
+            => SendAsync(Scope(familyId, ownerUserId), ShoppingListDeletedEvent, new { publicId }, cancellationToken);
 
         // --- Automation rules ---------------------------------------------------
         public static Task AutomationUpsertedAsync(int ownerUserId, int? familyId, AutomationResponse automation, CancellationToken cancellationToken = default)

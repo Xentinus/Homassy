@@ -201,6 +201,12 @@ namespace Homassy.API.Functions
 
                 Log.Information($"User {userId.Value} created family {family.Id} with share code {family.ShareCode}");
 
+                // Refresh both caches now instead of waiting for the trigger-driven poller: the very
+                // next request resolves the caller's family from the cached User row via SessionInfo,
+                // so without this the creator appears to have no family for up to one poll interval.
+                await RefreshCacheAsync(family.Id, cancellationToken);
+                await new UserFunctions().RefreshUserCacheAsync(user.Id, cancellationToken);
+
                 // Record activity
                 try
                 {

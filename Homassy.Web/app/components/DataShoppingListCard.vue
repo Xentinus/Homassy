@@ -1,0 +1,100 @@
+<template>
+  <div class="relative rounded-2xl overflow-hidden" style="touch-action: pan-y" data-no-pull-refresh>
+    <!-- Swipe action layer (revealed behind the card while dragging) -->
+    <div
+      v-show="swipe.isSwiping.value"
+      aria-hidden="true"
+      class="absolute inset-0 rounded-2xl flex items-center justify-between px-4"
+      :class="swipe.direction.value === 'left' ? 'bg-error-500 dark:bg-error-600' : 'bg-primary-500 dark:bg-primary-600'"
+    >
+      <UIcon name="i-lucide-pencil" class="h-5 w-5 text-white transition-transform duration-150"
+        :class="[swipe.direction.value === 'right' ? 'opacity-100' : 'opacity-0', swipe.progress.value >= 1 ? 'scale-125' : '']" />
+      <UIcon name="i-lucide-trash-2" class="h-5 w-5 text-white transition-transform duration-150"
+        :class="[swipe.direction.value === 'left' ? 'opacity-100' : 'opacity-0', swipe.progress.value >= 1 ? 'scale-125' : '']" />
+    </div>
+
+    <!-- Card surface (translates during swipe) -->
+    <div
+      ref="cardEl"
+      class="relative h-full bg-default rounded-2xl border-2 p-3 cursor-pointer shadow-sm hover:shadow-lg transition-shadow duration-200 flex flex-col overflow-hidden select-none"
+      :class="cardBorderClass"
+      :style="swipe.cardStyle.value"
+      @click="handleCardClick"
+    >
+      <!-- Header: color + name -->
+      <div class="min-w-0 space-y-1">
+        <div class="flex items-center gap-2">
+          <span v-if="list.color" class="h-2.5 w-2.5 rounded-full flex-shrink-0" :style="{ backgroundColor: list.color }" />
+          <h3 class="text-sm font-bold break-words text-highlighted flex-1" v-html="highlightText(list.name, searchQuery)" />
+        </div>
+        <p v-if="list.description" class="text-xs text-muted break-words line-clamp-2" v-html="highlightText(list.description, searchQuery)" />
+      </div>
+
+      <!-- Attributes (pinned bottom) -->
+      <div class="mt-auto pt-4 space-y-2">
+        <div v-if="list.pendingItemCount > 0" class="flex items-center gap-2 text-xs">
+          <UIcon name="i-lucide-shopping-basket" class="h-3.5 w-3.5 text-primary-500 flex-shrink-0" />
+          <span class="text-toned">{{ $t('profile.shoppingLists.pendingItemCount') }}: {{ list.pendingItemCount }}</span>
+        </div>
+        <div class="flex items-center gap-2 text-xs">
+          <UIcon
+            :name="list.isSharedWithFamily ? 'i-lucide-users' : 'i-lucide-user'"
+            class="h-3.5 w-3.5 flex-shrink-0"
+            :class="list.isSharedWithFamily ? 'text-primary-500' : 'text-gray-400 dark:text-gray-500'"
+          />
+          <span class="text-toned">{{ list.isSharedWithFamily ? $t('common.family') : $t('common.personal') }}</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Delete confirmation (shared with /shopping-lists) -->
+    <ShoppingListDeleteDrawer
+      :open="isDeleteModalOpen"
+      :list="list"
+      @update:open="(v) => { isDeleteModalOpen = v }"
+      @deleted="(publicId) => emit('deleted', publicId)"
+    />
+  </div>
+</template>
+
+<script setup lang="ts">
+import { ref, computed } from 'vue'
+import type { ShoppingListInfo } from '~/types/shoppingList'
+
+const props = withDefaults(defineProps<{
+  list: ShoppingListInfo
+  isActive?: boolean
+  searchQuery?: string
+}>(), {
+  isActive: false,
+  searchQuery: ''
+})
+
+const emit = defineEmits<{
+  select: [publicId: string]
+  edit: [list: ShoppingListInfo]
+  deleted: [publicId: string]
+}>()
+
+const { highlightText } = useSearchHighlight()
+
+const isDeleteModalOpen = ref(false)
+
+const cardEl = ref<HTMLElement | null>(null)
+const swipe = useSwipeActions(cardEl, {
+  onSwipeLeft: () => { isDeleteModalOpen.value = true },
+  onSwipeRight: () => emit('edit', props.list),
+  disabled: () => isDeleteModalOpen.value
+})
+
+const cardBorderClass = computed(() =>
+  props.isActive ? 'border-primary-400 dark:border-primary-500' : 'border-gray-200 dark:border-gray-700'
+)
+
+function handleCardClick(event: MouseEvent) {
+  if (swipe.suppressClick.value) return
+  const target = event.target as HTMLElement
+  if (target.closest('a, button')) return
+  emit('select', props.list.publicId)
+}
+</script>

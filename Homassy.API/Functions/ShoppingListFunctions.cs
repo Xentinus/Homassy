@@ -356,28 +356,6 @@ namespace Homassy.API.Functions
         #endregion
 
         #region ShoppingList CRUD Methods
-        public List<ShoppingListInfo> GetAllShoppingLists()
-        {
-            var userId = SessionInfo.GetUserId();
-            if (!userId.HasValue)
-            {
-                Log.Warning("Invalid session: User ID not found");
-                throw new UserNotFoundException("User not found");
-            }
-
-            var familyId = SessionInfo.GetFamilyId();
-            var shoppingLists = GetShoppingListsByUserAndFamily(userId.Value, familyId);
-
-            return shoppingLists.Select(sl => new ShoppingListInfo
-            {
-                PublicId = sl.PublicId,
-                Name = sl.Name,
-                Description = sl.Description,
-                Color = sl.Color,
-                IsSharedWithFamily = sl.FamilyId.HasValue
-            }).ToList();
-        }
-
         public DetailedShoppingListInfo? GetDetailedShoppingList(Guid publicId, bool showPurchased = false)
         {
             var userId = SessionInfo.GetUserId();
@@ -409,6 +387,8 @@ namespace Homassy.API.Functions
                 Description = shoppingList.Description,
                 Color = shoppingList.Color,
                 IsSharedWithFamily = shoppingList.FamilyId.HasValue,
+                // Counted from the already-materialized items, so this is correct for either showPurchased value.
+                PendingItemCount = items.Count(sli => !sli.PurchasedAt.HasValue),
                 Items = items.Select(sli => BuildItemInfo(sli, shoppingList)).ToList()
             };
         }
@@ -502,7 +482,8 @@ namespace Homassy.API.Functions
                     Log.Error(ex, $"Failed to record ShoppingListCreate activity for shopping list {shoppingList.Name}");
                 }
 
-                return new ShoppingListInfo
+                // A freshly created list has no items, so PendingItemCount is left at 0.
+                var info = new ShoppingListInfo
                 {
                     PublicId = shoppingList.PublicId,
                     Name = shoppingList.Name,
@@ -510,6 +491,11 @@ namespace Homassy.API.Functions
                     Color = shoppingList.Color,
                     IsSharedWithFamily = shoppingList.FamilyId.HasValue
                 };
+
+                // Notify everyone whose master-data list of shopping lists includes this one.
+                await MasterDataRealtime.ShoppingListUpsertedAsync(shoppingList.UserId ?? userId.Value, shoppingList.FamilyId, info, cancellationToken);
+
+                return info;
             }
             catch (Exception ex)
             {
@@ -596,6 +582,16 @@ namespace Homassy.API.Functions
 
                 await transaction.CommitAsync(cancellationToken);
 
+                var info = new ShoppingListInfo
+                {
+                    PublicId = trackedList.PublicId,
+                    Name = trackedList.Name,
+                    Description = trackedList.Description,
+                    Color = trackedList.Color,
+                    IsSharedWithFamily = trackedList.FamilyId.HasValue,
+                    PendingItemCount = CountPendingItems(trackedList.Id)
+                };
+
                 // Record activity only if changes were made
                 if (hasChanges)
                 {
@@ -616,24 +612,13 @@ namespace Homassy.API.Functions
                     }
 
                     // Notify everyone viewing this list of the metadata change.
-                    await ShoppingListRealtime.ListUpdatedAsync(new ShoppingListInfo
-                    {
-                        PublicId = trackedList.PublicId,
-                        Name = trackedList.Name,
-                        Description = trackedList.Description,
-                        Color = trackedList.Color,
-                        IsSharedWithFamily = trackedList.FamilyId.HasValue
-                    }, cancellationToken);
+                    await ShoppingListRealtime.ListUpdatedAsync(info, cancellationToken);
+
+                    // Notify everyone whose master-data list of shopping lists includes this one.
+                    await MasterDataRealtime.ShoppingListUpsertedAsync(trackedList.UserId ?? userId.Value, trackedList.FamilyId, info, cancellationToken);
                 }
 
-                return new ShoppingListInfo
-                {
-                    PublicId = trackedList.PublicId,
-                    Name = trackedList.Name,
-                    Description = trackedList.Description,
-                    Color = trackedList.Color,
-                    IsSharedWithFamily = trackedList.FamilyId.HasValue
-                };
+                return info;
             }
             catch (Exception ex)
             {
@@ -715,6 +700,9 @@ namespace Homassy.API.Functions
 
                 // Notify everyone viewing this list that it was deleted.
                 await ShoppingListRealtime.ListDeletedAsync(shoppingList.PublicId, cancellationToken);
+
+                // Notify everyone whose master-data list of shopping lists included this one.
+                await MasterDataRealtime.ShoppingListDeletedAsync(trackedList.UserId ?? userId.Value, trackedList.FamilyId, trackedList.PublicId, cancellationToken);
             }
             catch (Exception ex)
             {
@@ -2084,6 +2072,62 @@ namespace Homassy.API.Functions
         #endregion
 
         #region ShoppingList Methods
+        /// <summary>
+        /// Pending (unpurchased) item counts for a set of shopping lists, resolved in a single pass over the
+        /// item cache or one grouped query. Lists with no pending items are absent — callers default to 0.
+        /// <para>
+        /// Counting <c>PurchasedAt == null</c> is safe on both read paths: <see cref="InitializeCacheAsync"/>
+        /// windows the item cache to items purchased in the last 7 days, but every *unpurchased* item is
+        /// always present, so the cache and the database agree.
+        /// </para>
+        /// </summary>
+        private static Dictionary<int, int> CountPendingItemsByShoppingList(List<int> shoppingListIds)
+        {
+            var counts = new Dictionary<int, int>(shoppingListIds.Count);
+            if (shoppingListIds.Count == 0)
+            {
+                return counts;
+            }
+
+            if (Inited)
+            {
+                // One pass over the item cache keyed by ShoppingListId, rather than a per-list Where()
+                // (which would be O(lists x items)).
+                var idSet = shoppingListIds.ToHashSet();
+                foreach (var item in _shoppingListItemCache.Values)
+                {
+                    if (item.PurchasedAt.HasValue || !idSet.Contains(item.ShoppingListId))
+                    {
+                        continue;
+                    }
+
+                    counts.TryGetValue(item.ShoppingListId, out var current);
+                    counts[item.ShoppingListId] = current + 1;
+                }
+
+                return counts;
+            }
+
+            // Soft-deleted items are already excluded by the global query filter on SoftDeleteEntity.
+            var context = new HomassyDbContext();
+            var grouped = context.ShoppingListItems
+                .Where(sli => shoppingListIds.Contains(sli.ShoppingListId) && sli.PurchasedAt == null)
+                .GroupBy(sli => sli.ShoppingListId)
+                .Select(g => new { ShoppingListId = g.Key, PendingItemCount = g.Count() })
+                .ToList();
+
+            foreach (var row in grouped)
+            {
+                counts[row.ShoppingListId] = row.PendingItemCount;
+            }
+
+            return counts;
+        }
+
+        /// <summary>Single-list convenience over <see cref="CountPendingItemsByShoppingList"/>.</summary>
+        private static int CountPendingItems(int shoppingListId)
+            => CountPendingItemsByShoppingList([shoppingListId]).GetValueOrDefault(shoppingListId);
+
         public PagedResult<ShoppingListInfo> GetAllShoppingLists(PaginationRequest pagination)
         {
             var userId = SessionInfo.GetUserId();
@@ -2123,12 +2167,16 @@ namespace Homassy.API.Functions
                 ).ToList();
             }
 
+            var pendingCounts = CountPendingItemsByShoppingList(shoppingLists.Select(s => s.Id).ToList());
+
             var shoppingListInfos = shoppingLists.Select(s => new ShoppingListInfo
             {
                 PublicId = s.PublicId,
                 Name = s.Name,
                 Description = s.Description,
-                Color = s.Color
+                Color = s.Color,
+                IsSharedWithFamily = s.FamilyId.HasValue,
+                PendingItemCount = pendingCounts.GetValueOrDefault(s.Id)
             });
 
             return shoppingListInfos.ToPagedResult(pagination);

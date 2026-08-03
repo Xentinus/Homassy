@@ -1,6 +1,7 @@
 using Homassy.API.Context;
 using Homassy.API.Entities.User;
 using Homassy.API.Enums;
+using Homassy.API.Functions;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace Homassy.Tests.Infrastructure;
@@ -68,6 +69,15 @@ public class TestAuthHelper
         };
         context.UserProfiles.Add(profile);
         await context.SaveChangesAsync();
+
+        // The user and profile were inserted straight into the database, bypassing the API — so the
+        // Functions layer's static caches know nothing about them. SessionInfo resolves the caller
+        // from the cached User row, so without this the very next request 401s with USER-0002 until
+        // CacheManagementService's poller happens to run (every 5s). Push them into the caches now
+        // so tests do not race that poller.
+        var userFunctions = new UserFunctions();
+        await userFunctions.RefreshUserCacheAsync(user.Id);
+        await userFunctions.RefreshUserProfileCacheAsync(profile.Id);
 
         _currentTestUserId = kratosIdentityId;
 

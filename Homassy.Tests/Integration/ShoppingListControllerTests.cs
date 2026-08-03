@@ -510,6 +510,152 @@ public class ShoppingListControllerTests : IClassFixture<HomassyWebApplicationFa
                 await _authHelper.CleanupUserAsync(testEmail);
         }
     }
+
+    /// <summary>
+    /// GET /shoppinglist serves from a static in-memory cache that is refreshed by a background poller
+    /// (CacheManagementService, every 5s via TableRecordChanges) rather than on write, so a list is not
+    /// visible there the instant it is created. Poll for it instead of assuming read-your-own-write.
+    /// </summary>
+    private async Task<ShoppingListInfo> WaitForListInPagedResponseAsync(Guid publicId)
+    {
+        var deadline = DateTime.UtcNow.AddSeconds(20);
+        string? lastBody = null;
+
+        while (true)
+        {
+            var response = await _client.GetAsync("/api/v1.0/shoppinglist?ReturnAll=true");
+            Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+
+            lastBody = await response.Content.ReadAsStringAsync();
+            var paged = await response.Content.ReadFromJsonAsync<ApiResponse<PagedResult<ShoppingListInfo>>>();
+            var found = paged?.Data?.Items?.FirstOrDefault(l => l.PublicId == publicId);
+
+            if (found != null)
+            {
+                _output.WriteLine($"List {publicId} visible in paged response: {lastBody}");
+                return found;
+            }
+
+            if (DateTime.UtcNow >= deadline)
+            {
+                _output.WriteLine($"Last paged response: {lastBody}");
+                Assert.Fail($"Shopping list {publicId} did not appear in GET /shoppinglist within 20s");
+                throw new InvalidOperationException("unreachable");
+            }
+
+            await Task.Delay(500);
+        }
+    }
+
+    [Fact]
+    public async Task GetShoppingLists_EmptyList_ReturnsZeroPendingItemCount()
+    {
+        string? testEmail = null;
+        Guid? createdListId = null;
+        try
+        {
+            var (email, auth) = await _authHelper.CreateAndAuthenticateUserAsync("list-count-empty");
+            testEmail = email;
+            _authHelper.SetAuthToken(auth.AccessToken);
+
+            var createRequest = new CreateShoppingListRequest { Name = "Empty Count List" };
+            var createResponse = await _client.PostAsJsonAsync("/api/v1.0/shoppinglist", createRequest);
+            var createContent = await createResponse.Content.ReadFromJsonAsync<ApiResponse<ShoppingListInfo>>();
+            Assert.NotNull(createContent?.Data);
+            createdListId = createContent.Data.PublicId;
+
+            // A list created a moment ago has no items, so the create response reports 0 too.
+            Assert.Equal(0, createContent.Data.PendingItemCount);
+
+            var listed = await WaitForListInPagedResponseAsync(createdListId.Value);
+            Assert.Equal(0, listed.PendingItemCount);
+
+            await _client.DeleteAsync($"/api/v1.0/shoppinglist/{createdListId}");
+        }
+        finally
+        {
+            _authHelper.ClearAuthToken();
+            if (testEmail != null)
+                await _authHelper.CleanupUserAsync(testEmail);
+        }
+    }
+
+    [Fact]
+    public async Task GetShoppingLists_WithPurchasedAndUnpurchasedItems_ReturnsOnlyPendingItemCount()
+    {
+        string? testEmail = null;
+        Guid? createdListId = null;
+        try
+        {
+            var (email, auth) = await _authHelper.CreateAndAuthenticateUserAsync("list-count-pending");
+            testEmail = email;
+            _authHelper.SetAuthToken(auth.AccessToken);
+
+            var createRequest = new CreateShoppingListRequest { Name = "Pending Count List" };
+            var createResponse = await _client.PostAsJsonAsync("/api/v1.0/shoppinglist", createRequest);
+            var createContent = await createResponse.Content.ReadFromJsonAsync<ApiResponse<ShoppingListInfo>>();
+            Assert.NotNull(createContent?.Data);
+            createdListId = createContent.Data.PublicId;
+
+            // Two items, one of which gets marked purchased.
+            var firstItemResponse = await _client.PostAsJsonAsync("/api/v1.0/shoppinglist/item", new CreateShoppingListItemRequest
+            {
+                ShoppingListPublicId = createdListId.Value,
+                CustomName = "Milk",
+                Quantity = 2,
+                Unit = ProductUnit.Liter
+            });
+            Assert.Equal(HttpStatusCode.OK, firstItemResponse.StatusCode);
+            var firstItem = await firstItemResponse.Content.ReadFromJsonAsync<ApiResponse<ShoppingListItemInfo>>();
+            Assert.NotNull(firstItem?.Data);
+
+            var secondItemResponse = await _client.PostAsJsonAsync("/api/v1.0/shoppinglist/item", new CreateShoppingListItemRequest
+            {
+                ShoppingListPublicId = createdListId.Value,
+                CustomName = "Bread",
+                Quantity = 1,
+                Unit = ProductUnit.Piece
+            });
+            Assert.Equal(HttpStatusCode.OK, secondItemResponse.StatusCode);
+
+            // KeepRemainder=false marks the whole item purchased (and does not create inventory).
+            var purchaseResponse = await _client.PostAsJsonAsync("/api/v1.0/shoppinglist/item/purchase", new PurchaseShoppingListItemRequest
+            {
+                ShoppingListItemPublicId = firstItem.Data.PublicId,
+                PurchasedAt = DateTime.UtcNow,
+                KeepRemainder = false
+            });
+            var purchaseBody = await purchaseResponse.Content.ReadAsStringAsync();
+            _output.WriteLine($"Purchase Status: {purchaseResponse.StatusCode}");
+            _output.WriteLine($"Purchase Response: {purchaseBody}");
+            Assert.Equal(HttpStatusCode.OK, purchaseResponse.StatusCode);
+
+            // The detail endpoint is the guard: it derives the same count from the same source, so a
+            // stale item cache surfaces here rather than as a confusing count mismatch below.
+            var detailResponse = await _client.GetAsync($"/api/v1.0/shoppinglist/{createdListId}");
+            var detailBody = await detailResponse.Content.ReadAsStringAsync();
+            _output.WriteLine($"Detail Status: {detailResponse.StatusCode}");
+            _output.WriteLine($"Detail Response: {detailBody}");
+            Assert.Equal(HttpStatusCode.OK, detailResponse.StatusCode);
+
+            var detail = await detailResponse.Content.ReadFromJsonAsync<ApiResponse<DetailedShoppingListInfo>>();
+            Assert.NotNull(detail?.Data);
+            Assert.Equal(1, detail.Data.PendingItemCount);
+
+            // The detail read above already proved the item cache is current, and both caches are
+            // refreshed by the same poller pass — so once the list is visible the count is meaningful.
+            var listed = await WaitForListInPagedResponseAsync(createdListId.Value);
+            Assert.Equal(1, listed.PendingItemCount);
+
+            await _client.DeleteAsync($"/api/v1.0/shoppinglist/{createdListId}");
+        }
+        finally
+        {
+            _authHelper.ClearAuthToken();
+            if (testEmail != null)
+                await _authHelper.CleanupUserAsync(testEmail);
+        }
+    }
     #endregion
 
     #region QuickPurchaseFromShoppingListItem Tests
@@ -593,8 +739,13 @@ public class ShoppingListControllerTests : IClassFixture<HomassyWebApplicationFa
         }
     }
 
+    /// <summary>
+    /// A custom (free-text) item has no linked product, so there is nothing to stock. Quick-purchasing
+    /// one is accepted and simply marks it purchased — see the early return for items without a
+    /// ProductId in ShoppingListFunctions.QuickPurchaseFromShoppingListItemAsync.
+    /// </summary>
     [Fact]
-    public async Task QuickPurchaseFromShoppingListItem_CustomItem_ReturnsBadRequest()
+    public async Task QuickPurchaseFromShoppingListItem_CustomItem_MarksPurchasedWithoutInventory()
     {
         string? testEmail = null;
         Guid? listId = null;
@@ -625,7 +776,7 @@ public class ShoppingListControllerTests : IClassFixture<HomassyWebApplicationFa
             itemId = itemContent?.Data?.PublicId;
             _output.WriteLine($"Item created: {itemId}");
 
-            _output.WriteLine("\n=== Step 3: Try Quick Purchase (should fail) ===");
+            _output.WriteLine("\n=== Step 3: Quick Purchase (marks purchased, creates no inventory) ===");
             var purchaseRequest = new QuickPurchaseFromShoppingListItemRequest
             {
                 ShoppingListItemPublicId = itemId!.Value,
@@ -639,8 +790,13 @@ public class ShoppingListControllerTests : IClassFixture<HomassyWebApplicationFa
             _output.WriteLine($"Status: {response.StatusCode}");
             _output.WriteLine($"Response: {responseBody}");
 
-            Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
-            Assert.Contains("SHOPPINGLIST-0004", responseBody);
+            Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+
+            var purchased = await response.Content.ReadFromJsonAsync<ApiResponse<ShoppingListItemInfo>>();
+            Assert.NotNull(purchased?.Data);
+            Assert.NotNull(purchased.Data.PurchasedAt);
+            // No product to stock, so the item stays custom-only.
+            Assert.Null(purchased.Data.ProductPublicId);
 
             if (itemId.HasValue)
                 await _client.DeleteAsync($"/api/v1.0/shoppinglist/item/{itemId}");

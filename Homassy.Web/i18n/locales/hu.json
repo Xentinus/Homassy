@@ -665,6 +665,9 @@
       "noListsFound": "Nem található bevásárlólista.",
       "noItemsInList": "Ez a lista üres.",
       "noSearchResults": "Nem található tétel.",
+      "nameRequired": "A név megadása kötelező",
+      "saveFailed": "A bevásárlólista mentése sikertelen",
+      "deleteFailed": "Nem sikerült törölni a bevásárlólistát",
       "nearby": {
         "toggle": "Közeli tételek mutatása",
         "availableHere": "Itt megveheted",
@@ -951,7 +954,7 @@
     },
     "masterData": {
       "title": "Törzsadatok",
-      "description": "Termékek, helyek, automatizálások és külső naptárak."
+      "description": "Termékek, helyek, bevásárlólisták, automatizálások és külső naptárak."
     },
     "externalCalendars": {
       "emptyFamily": "A külső naptárak a családon belül közösek. Előbb csatlakozz egy családhoz vagy hozz létre egyet."
@@ -1110,6 +1113,20 @@
       "purchases": "Vásárlások",
       "noPurchases": "Még nincs innen rögzített vásárlás",
       "mapTitle": "Térkép"
+    },
+    "shoppingLists": {
+      "title": "Bevásárlólisták",
+      "cardDescription": "Bevásárlólisták kezelése.",
+      "searchPlaceholder": "Keresés név vagy leírás alapján...",
+      "filterLabels": {
+        "shared": "Megosztás"
+      },
+      "noLists": "Még nincsenek bevásárlólisták",
+      "addFirstList": "Hozd létre az első bevásárlólistád",
+      "noResults": "Nincs találat",
+      "tryDifferentSearch": "Próbálj meg más keresési feltételt",
+      "pendingItemCount": "Megvásárolandó",
+      "openList": "Lista megnyitása"
     },
     "storageLocations": {
       "title": "Tárolók",
