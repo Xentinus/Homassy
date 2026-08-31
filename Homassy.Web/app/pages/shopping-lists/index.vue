@@ -166,10 +166,46 @@
           </p>
         </div>
 
-        <!-- Items Grid -->
+        <!-- "Buy here" section — the items you can pick up in the store you're standing in
+             (exact store + same-type stores), pinned above the rest of the list. Rendered as
+             its own grid rather than a spanning header inside one: two TransitionGroups keep
+             their own FLIP geometry, a header child would join the animation. -->
+        <template v-if="hereItems.length">
+          <div class="flex items-center gap-2 mb-3">
+            <UIcon name="i-lucide-store" class="h-5 w-5 text-blue-600 dark:text-blue-400 shrink-0" />
+            <h2 class="text-sm font-semibold text-gray-800 dark:text-gray-200">
+              {{ $t('pages.shoppingLists.nearby.sectionHere', { location: currentLocationNames }) }}
+            </h2>
+            <UBadge color="primary" variant="soft" size="sm" class="shrink-0">
+              {{ $t('pages.shoppingLists.nearby.sectionPending', { count: herePendingCount }) }}
+            </UBadge>
+          </div>
+          <AnimatedList class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 mb-6">
+            <ShoppingListItemCard
+              v-for="item in hereItems"
+              :key="item.publicId"
+              :item="item"
+              :search-query="searchQuery"
+              :at-current-location="isItemAtCurrentLocation(item)"
+              :similar-type-at-current-location="isItemSimilarTypeHere(item)"
+              :shopping-locations="allShoppingLocations"
+              :current-store="currentStoreForItem(item)"
+              @refresh="handleItemRefresh"
+              @deleted="handleItemRefresh"
+            />
+          </AnimatedList>
+          <div v-if="restItems.length" class="flex items-center gap-2 mb-3">
+            <UIcon name="i-lucide-list" class="h-5 w-5 text-gray-500 dark:text-gray-400 shrink-0" />
+            <h2 class="text-sm font-semibold text-gray-800 dark:text-gray-200">
+              {{ $t('pages.shoppingLists.nearby.sectionRest') }}
+            </h2>
+          </div>
+        </template>
+
+        <!-- Items Grid (everything not buyable here; the whole list away from a store) -->
         <AnimatedList class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
           <ShoppingListItemCard
-            v-for="item in filteredItems"
+            v-for="item in restItems"
             :key="item.publicId"
             :item="item"
             :search-query="searchQuery"
@@ -232,16 +268,30 @@
             <p class="text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">
               {{ $t('pages.shoppingLists.filterLabels.properties') }}
             </p>
-            <UButton
-              :label="$t('pages.shoppingLists.filters.showPurchased')"
-              icon="i-lucide-check-check"
-              size="sm"
-              class="rounded-full"
-              :color="showPurchased ? 'primary' : 'neutral'"
-              :variant="showPurchased ? 'solid' : 'outline'"
-              :aria-pressed="showPurchased"
-              @click="showPurchased = !showPurchased"
-            />
+            <div class="flex flex-wrap gap-2">
+              <UButton
+                :label="$t('pages.shoppingLists.filters.showPurchased')"
+                icon="i-lucide-check-check"
+                size="sm"
+                class="rounded-full"
+                :color="showPurchased ? 'primary' : 'neutral'"
+                :variant="showPurchased ? 'solid' : 'outline'"
+                :aria-pressed="showPurchased"
+                @click="showPurchased = !showPurchased"
+              />
+              <!-- Not a filter: the auto-start preference for location tracking. -->
+              <UButton
+                v-if="isGeoSupported"
+                :label="$t('pages.shoppingLists.filters.autoLocate')"
+                icon="i-lucide-locate-fixed"
+                size="sm"
+                class="rounded-full"
+                :color="autoLocate ? 'primary' : 'neutral'"
+                :variant="autoLocate ? 'solid' : 'outline'"
+                :aria-pressed="autoLocate"
+                @click="toggleAutoLocate"
+              />
+            </div>
           </div>
 
           <!-- Quantity range -->
@@ -350,7 +400,7 @@ const { isExpired: checkIsExpired, isExpiringWithinTwoWeeks: checkIsExpiringWith
 const toast = useToast()
 
 // Geolocation-based "you are here" highlighting (foreground-only; see useGeolocation).
-const { isSupported: isGeoSupported, getCurrentPosition, startWatch, stopWatch } = useGeolocation()
+const { isSupported: isGeoSupported, getPermissionStatus, getCurrentPosition, startWatch, stopWatch } = useGeolocation()
 const { geocode } = useGeocoding()
 const { permissionStatus: notificationPermission } = usePushNotifications()
 
@@ -414,6 +464,11 @@ const maxQuantity = ref<number | null>(null)
 const myPosition = ref<GeoPosition | null>(null)
 const isLocating = ref(false)
 const locationTracking = ref(false)
+// User preference (persisted with the filters): start tracking on load when the browser has
+// already granted the geolocation permission. Never prompts — see maybeAutoStartLocation.
+const autoLocate = ref(true)
+// Guards the auto-start so it is attempted once per page visit, not on every list switch.
+const autoStartAttempted = ref(false)
 // Runtime-geocoded coordinates for locations that have an address but no stored
 // coordinates (older records). Keyed by location publicId; null means "couldn't resolve".
 const resolvedCoords = ref<Map<string, { lat: number, lon: number } | null>>(new Map())
@@ -501,11 +556,15 @@ const deadlineOptions = computed(() => [
   { label: $t('pages.shoppingLists.filters.dueSoon'), value: 'dueSoon' }
 ])
 
-// Built from the locations present in the active list's items (+ "no location").
+// Built from the locations present in the active list's items (+ "no location"), plus the
+// "buy here" pseudo-value while the user is actually standing in one of their stores.
 const locationOptions = computed(() => {
   const opts: { label: string, value: string }[] = [
     { label: $t('pages.shoppingLists.filters.all'), value: 'all' }
   ]
+  if (isAtAnyStore.value) {
+    opts.push({ label: $t('pages.shoppingLists.filters.buyHere'), value: 'here' })
+  }
   const seen = new Map<string, string>()
   let hasNone = false
   for (const item of currentListDetails.value?.items ?? []) {
@@ -625,7 +684,9 @@ const filteredItems = computed(() => {
   }
 
   // Shopping location
-  if (locationFilter.value === 'none') {
+  if (locationFilter.value === 'here') {
+    items = items.filter(isItemBuyableHere)
+  } else if (locationFilter.value === 'none') {
     items = items.filter(item => !item.shoppingLocation)
   } else if (locationFilter.value !== 'all') {
     items = items.filter(item => item.shoppingLocation?.publicId === locationFilter.value)
@@ -760,6 +821,19 @@ const nearbyLocationNames = computed(() =>
   nearbyLocations.value.map(l => l.location.name).join(', ')
 )
 
+// True while tracking is on AND the user is inside the radius of at least one saved store.
+// Gates both the "buy here" section and the "buy here" filter value.
+const isAtAnyStore = computed(() => locationTracking.value && nearbyLocationIds.value.size > 0)
+
+// Names of every saved store the user is currently standing in — including stores with no
+// items on the open list, which is what makes the same-type matches legible in the header.
+const currentLocationNames = computed(() =>
+  allShoppingLocations.value
+    .filter(l => nearbyLocationIds.value.has(l.publicId))
+    .map(l => l.name)
+    .join(', ')
+)
+
 const isItemAtCurrentLocation = (item: ShoppingListItemInfo): boolean =>
   !!item.shoppingLocation && nearbyLocationIds.value.has(item.shoppingLocation.publicId)
 
@@ -785,6 +859,24 @@ const isItemSimilarTypeHere = (item: ShoppingListItemInfo): boolean => {
   return (loc.storeTypes ?? []).some(t => t !== StoreType.Other && currentStoreTypes.value.has(t))
 }
 
+// Everything buyable at the store the user is standing in: the exact store as well as a
+// different store sharing a type with it. The cards keep their own colour distinction
+// (blue vs cyan dashed) — this only decides which section an item lands in.
+const isItemBuyableHere = (item: ShoppingListItemInfo): boolean =>
+  isItemAtCurrentLocation(item) || isItemSimilarTypeHere(item)
+
+// The "buy here" section pinned to the top of the list, and the rest below it. Both keep
+// the urgency ordering of filteredItems; away from any store everything stays in one group.
+const hereItems = computed(() =>
+  isAtAnyStore.value ? filteredItems.value.filter(isItemBuyableHere) : []
+)
+
+const restItems = computed(() =>
+  isAtAnyStore.value ? filteredItems.value.filter(item => !isItemBuyableHere(item)) : filteredItems.value
+)
+
+const herePendingCount = computed(() => hereItems.value.filter(item => !item.purchasedAt).length)
+
 // The store the user is currently standing at, used to pre-fill an item's purchase location.
 // Prefers the item's own store if the user is at it, otherwise the first nearby saved store.
 const currentStoreForItem = (item: ShoppingListItemInfo): ShoppingLocationInfo | undefined => {
@@ -799,14 +891,19 @@ const onPositionUpdate = (position: GeoPosition) => {
   ensureCoordsResolved().then(() => checkProximityNotification())
 }
 
-const enableLocation = async () => {
+// `silent` suppresses both toasts — used by the auto-start, where the user never asked for
+// location right now and a failure should just leave tracking off.
+const enableLocation = async (options?: { silent?: boolean }) => {
+  const silent = options?.silent === true
   if (!isGeoSupported.value) {
-    toast.add({
-      title: $t('pages.shoppingLists.nearby.unsupportedTitle'),
-      description: $t('pages.shoppingLists.nearby.unsupportedBody'),
-      color: 'warning',
-      icon: 'i-lucide-map-pin-off'
-    })
+    if (!silent) {
+      toast.add({
+        title: $t('pages.shoppingLists.nearby.unsupportedTitle'),
+        description: $t('pages.shoppingLists.nearby.unsupportedBody'),
+        color: 'warning',
+        icon: 'i-lucide-map-pin-off'
+      })
+    }
     return
   }
   isLocating.value = true
@@ -819,15 +916,30 @@ const enableLocation = async () => {
     startWatch(onPositionUpdate)
   } catch {
     // Permission denied, timeout, or position unavailable.
-    toast.add({
-      title: $t('pages.shoppingLists.nearby.deniedTitle'),
-      description: $t('pages.shoppingLists.nearby.deniedBody'),
-      color: 'error',
-      icon: 'i-lucide-map-pin-off'
-    })
+    if (!silent) {
+      toast.add({
+        title: $t('pages.shoppingLists.nearby.deniedTitle'),
+        description: $t('pages.shoppingLists.nearby.deniedBody'),
+        color: 'error',
+        icon: 'i-lucide-map-pin-off'
+      })
+    }
   } finally {
     isLocating.value = false
   }
+}
+
+/**
+ * Starts tracking without any user gesture, but ONLY when the browser reports the
+ * geolocation permission as already granted — a 'prompt' or 'denied' state is left alone, so
+ * the permission request itself stays tied to the locate button (see useGeolocation).
+ */
+const maybeAutoStartLocation = async () => {
+  if (autoStartAttempted.value || !autoLocate.value || locationTracking.value) return
+  if (!isGeoSupported.value) return
+  autoStartAttempted.value = true
+  if (await getPermissionStatus() !== 'granted') return
+  await enableLocation({ silent: true })
 }
 
 const disableLocation = () => {
@@ -840,6 +952,16 @@ const disableLocation = () => {
 const toggleLocation = () => {
   if (locationTracking.value) disableLocation()
   else enableLocation()
+}
+
+// Switching the preference back on starts tracking right away when it can (same
+// already-granted rule), so the toggle isn't a "takes effect next visit" setting.
+const toggleAutoLocate = () => {
+  autoLocate.value = !autoLocate.value
+  if (autoLocate.value && !locationTracking.value && listLocations.value.length > 0) {
+    autoStartAttempted.value = false
+    maybeAutoStartLocation()
+  }
 }
 
 // Fire a one-off local notification when arriving at a store with items to buy. Foreground
@@ -1075,9 +1197,26 @@ watch(selectedListId, (newId, oldId) => {
   }
 })
 
-// Persist the (list-independent) deadline filter.
-watch(deadlineFilter, (value) => {
-  localStorage.setItem(FILTERS_KEY, JSON.stringify({ deadline: value }))
+// Persist the (list-independent) filter settings.
+const persistFilters = () => {
+  localStorage.setItem(FILTERS_KEY, JSON.stringify({
+    deadline: deadlineFilter.value,
+    autoLocate: autoLocate.value
+  }))
+}
+
+watch([deadlineFilter, autoLocate], persistFilters)
+
+// Auto-start once the open list actually has location-bound items — the same condition that
+// shows the locate button, so tracking never runs behind a hidden toggle.
+watch(() => listLocations.value.length > 0, (hasLocationItems) => {
+  if (hasLocationItems) maybeAutoStartLocation()
+}, { immediate: true })
+
+// Walking out of every store's radius retires the "buy here" filter instead of leaving the
+// list filtered down to nothing.
+watch(isAtAnyStore, (atStore) => {
+  if (!atStore && locationFilter.value === 'here') locationFilter.value = 'all'
 })
 
 watch(showPurchased, (newValue) => {
@@ -1105,13 +1244,16 @@ onMounted(() => {
     showPurchased.value = savedShowPurchased === 'true'
   }
 
-  // Restore the persisted deadline filter (whitelist-validated)
+  // Restore the persisted filter settings (whitelist-validated)
   const savedFilters = localStorage.getItem(FILTERS_KEY)
   if (savedFilters) {
     try {
       const parsed = JSON.parse(savedFilters)
       if (['all', 'overdue', 'dueSoon'].includes(parsed.deadline)) {
         deadlineFilter.value = parsed.deadline
+      }
+      if (typeof parsed.autoLocate === 'boolean') {
+        autoLocate.value = parsed.autoLocate
       }
     } catch {
       // Ignore malformed stored filters
