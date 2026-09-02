@@ -294,12 +294,45 @@ CREATE SCHEMA IF NOT EXISTS kratos;
 
 Kratos stores all its data (identities, sessions, flows, courier messages) in an isolated `kratos` PostgreSQL schema, completely separated from the main `public` schema used by Homassy.API.
 
-**Connection:** Provided at runtime via the `DSN` environment variable:
+### Storage model: schema, not database
+
+Kratos lives in the **`kratos` schema of the main application database** (`POSTGRES_DB`) — not in
+a database of its own. Development and production use the identical model, so there is one
+database to back up and one thing to restore. There is deliberately no `POSTGRES_KRATOS_DB`
+variable: a separate database was documented at one point but nothing ever created it, because
+the `postgres:16` image only creates the single database named by `POSTGRES_DB`.
+
+**Connection:** provided at runtime via the `DSN` environment variable. The `search_path` is
+what puts Kratos in its own schema, so it is not optional:
+
 ```
-postgres://user:password@host:5432/homassy
+postgres://user:password@postgres:5432/${POSTGRES_DB}?sslmode=disable&search_path=kratos
 ```
 
-Kratos manages its own migrations automatically on startup via `kratos migrate sql`.
+### Migrations
+
+`kratos migrate sql -e --yes` creates and upgrades the Kratos tables. It runs as a **one-shot
+service** (`homassy.kratos-migrate` in `docker-compose.production.yml`, part of the serve
+command in development), and `homassy.kratos` depends on it with
+`condition: service_completed_successfully`. Keeping it separate from the serve command means a
+failed migration fails the deployment instead of leaving Kratos serving against a half-migrated
+schema. The command is idempotent, so a container restart re-running it is harmless.
+
+Without this, a rebuilt VPS or a Kratos version bump breaks authentication for the whole
+application: there would be no tables at all on a clean host, and no schema upgrade after an
+image bump.
+
+### Creating the schema
+
+`init-kratos-schema.sql` is mounted into `/docker-entrypoint-initdb.d/`, which the Postgres
+image runs **only when the data directory is empty** — a first-ever start, not a restart and
+not a restored volume. On a pre-existing volume the schema has to be created by hand before the
+migration can run:
+
+```bash
+docker exec -it homassy-postgres psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" \
+  -c 'CREATE SCHEMA IF NOT EXISTS kratos;'
+```
 
 ---
 
@@ -422,6 +455,8 @@ Kratos Courier
 
 | Setting | Development | Production |
 |---------|-------------|------------|
+| Storage | `kratos` schema of `POSTGRES_DB` | same |
+| Schema migration | part of the container's `command` | one-shot `homassy.kratos-migrate` service |
 | Public base URL | `http://localhost:4433` | `https://homassy.kellner.dev/kratos` |
 | Frontend URL | `http://localhost:3000` | `https://homassy.kellner.dev` |
 | WebAuthn RP ID | `localhost` | `kellner.dev` |
