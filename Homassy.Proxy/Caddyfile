@@ -1,10 +1,16 @@
 {
 	auto_https off
 	servers {
-		# cloudflared connects from the docker bridge (private range). Trusting it
-		# preserves Cloudflare's X-Forwarded-For, which the API uses for
-		# per-client rate limiting (first XFF entry = real client IP).
-		trusted_proxies static private_ranges
+		# cloudflared reaches Caddy over the published port, so from Caddy's side the
+		# peer is the docker bridge gateway. Trusting it makes Caddy append to the
+		# X-Forwarded-For chain Cloudflare started instead of resetting it.
+		#
+		# The API does NOT read the first XFF entry — a client can put anything there.
+		# It runs UseForwardedHeaders and unwinds the chain from the right, accepting a
+		# hop only while the address it came from is a configured known proxy
+		# (ForwardedHeaders:KnownNetworks). Narrow CADDY_TRUSTED_PROXIES to the
+		# cloudflared source range once it is pinned; private_ranges is the fallback.
+		trusted_proxies static {$CADDY_TRUSTED_PROXIES:private_ranges}
 	}
 }
 

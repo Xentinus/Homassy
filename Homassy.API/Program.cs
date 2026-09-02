@@ -11,12 +11,14 @@ using Homassy.API.Security;
 using Homassy.API.Services;
 using Homassy.API.Services.Background;
 using Homassy.API.Services.Sanitization;
+using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.AspNetCore.OpenApi;
 using Microsoft.AspNetCore.ResponseCompression;
 using Microsoft.EntityFrameworkCore;
 using Serilog;
 using Serilog.Events;
 using System.IO.Compression;
+using System.Net;
 using System.Net.Http.Headers;
 using System.Reflection;
 using System.Text;
@@ -72,6 +74,52 @@ try
 
     // Notifications service proxy client
     builder.Services.AddHttpClient<NotificationsServiceClient>();
+
+    var forwardedHeadersSettings = builder.Configuration.GetSection("ForwardedHeaders").Get<ForwardedHeadersSettings>() ?? new ForwardedHeadersSettings();
+
+    if (forwardedHeadersSettings.Enabled)
+    {
+        builder.Services.Configure<ForwardedHeadersOptions>(options =>
+        {
+            options.ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto;
+            options.ForwardLimit = forwardedHeadersSettings.ForwardLimit;
+
+            // The defaults trust loopback only, which is wrong for a container that is
+            // reached over the Docker bridge. The trusted set is configuration-driven,
+            // so an unconfigured deployment trusts nothing instead of trusting everything.
+            options.KnownIPNetworks.Clear();
+            options.KnownProxies.Clear();
+
+            foreach (var network in forwardedHeadersSettings.KnownNetworks)
+            {
+                if (System.Net.IPNetwork.TryParse(network, out var parsedNetwork))
+                {
+                    options.KnownIPNetworks.Add(parsedNetwork);
+                }
+                else
+                {
+                    Log.Warning($"Ignoring unparseable ForwardedHeaders:KnownNetworks entry '{network}'");
+                }
+            }
+
+            foreach (var proxy in forwardedHeadersSettings.KnownProxies)
+            {
+                if (IPAddress.TryParse(proxy, out var parsedProxy))
+                {
+                    options.KnownProxies.Add(parsedProxy);
+                }
+                else
+                {
+                    Log.Warning($"Ignoring unparseable ForwardedHeaders:KnownProxies entry '{proxy}'");
+                }
+            }
+
+            if (options.KnownIPNetworks.Count == 0 && options.KnownProxies.Count == 0)
+            {
+                Log.Warning("ForwardedHeaders is enabled but no known proxy or network is configured; forwarded headers will be ignored");
+            }
+        });
+    }
 
     builder.Services.Configure<HttpsSettings>(builder.Configuration.GetSection("Https"));
     builder.Services.Configure<RequestTimeoutSettings>(builder.Configuration.GetSection("RequestTimeout"));
@@ -255,6 +303,14 @@ try
 
     Log.Information($"Homassy API version {version}");
 
+    // Must be the first middleware: everything downstream (rate limiting, request
+    // logging, HTTPS redirection) reads Connection.RemoteIpAddress and Request.Scheme,
+    // and neither is trustworthy until the forwarded chain has been unwound.
+    if (forwardedHeadersSettings.Enabled)
+    {
+        app.UseForwardedHeaders();
+    }
+
     app.UseResponseCompression();
 
     app.Use(async (context, next) =>
@@ -292,6 +348,11 @@ try
     {
         app.UseHttpsRedirection();
     }
+
+    // Explicit, so that the middleware below runs with the matched endpoint available:
+    // rate limiting keys on the route template, and the Kratos middleware reads
+    // [AllowAnonymous] from the endpoint metadata.
+    app.UseRouting();
 
     app.UseCors("HomassyPolicy");
     app.UseMiddleware<RateLimitingMiddleware>();

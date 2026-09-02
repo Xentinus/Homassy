@@ -104,6 +104,11 @@
       - InternalApi__ApiKey=${INTERNAL_API_KEY}
       - Cors__AllowedOrigins__0=${KRATOS_BROWSER_RETURN_URL}
       - WebPush__VapidPublicKey=${VAPID_PUBLIC_KEY}
+      # Only Caddy reaches the API (no published port), and it does so over the
+      # homassy-network bridge. Docker allocates that subnet from 172.16.0.0/12, so
+      # that range is the trust boundary for X-Forwarded-For; override if the daemon
+      # is configured with a different default-address-pool.
+      - ForwardedHeaders__KnownNetworks__0=${FORWARDED_HEADERS_KNOWN_NETWORK:-172.16.0.0/12}
     networks:
       - homassy-network
     depends_on:
@@ -144,6 +149,9 @@
     container_name: homassy-caddy
     image: caddy:2-alpine
     restart: unless-stopped
+    environment:
+      # Source range Caddy accepts forwarding headers from (see Homassy.Proxy/Caddyfile).
+      - CADDY_TRUSTED_PROXIES=${CADDY_TRUSTED_PROXIES:-private_ranges}
     ports:
       - "3000:3000"
     volumes:

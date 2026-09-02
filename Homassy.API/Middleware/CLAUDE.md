@@ -145,6 +145,29 @@ public async Task<IActionResult> GetProduct(Guid id, CancellationToken cancellat
 }
 ```
 
+### Forwarded Headers
+
+`UseForwardedHeaders` runs as the **first** middleware, before response compression and rate
+limiting, so that `Connection.RemoteIpAddress` and `Request.Scheme` are correct everywhere
+downstream.
+
+The trust boundary is configuration, not convention — `ForwardedHeaders` in `appsettings*.json`:
+
+| Key | Meaning |
+|-----|---------|
+| `Enabled` | Off in development (no proxy in front of the API), on in production |
+| `KnownNetworks` | CIDR ranges a forwarded chain is accepted from — the Docker bridge Caddy runs on (`172.16.0.0/12`), wired from `FORWARDED_HEADERS_KNOWN_NETWORK` |
+| `KnownProxies` | Individual proxy addresses, for hosts no network entry covers |
+| `ForwardLimit` | Upper bound on hops consumed from the chain; unwinding stops at the first address that is not a known proxy |
+
+The framework defaults (loopback only) are cleared at startup, so an unconfigured deployment
+trusts nothing rather than trusting everything.
+
+`HttpContextExtensions.GetClientIpAddress()` reads **only** `Connection.RemoteIpAddress`. It
+must never fall back to parsing `X-Forwarded-For` or `X-Real-IP`: those are attacker-controlled,
+and trusting them lets a caller mint a fresh rate-limit bucket per request and choose the IP
+written to the security logs.
+
 ### Rate Limiting
 
 Two-tier rate limiting system via `RateLimitingMiddleware`:
@@ -155,9 +178,15 @@ Two-tier rate limiting system via `RateLimitingMiddleware`:
 - Configurable via `GlobalRateLimitRequests` and `GlobalRateLimitWindowMinutes`
 
 **2. Endpoint-Specific Rate Limiting**
-- Per IP per endpoint
+- Per IP per **route template** — not per request path
 - Default: 30 requests per minute
 - Configurable via `EndpointRateLimitRequests` and `EndpointRateLimitWindowMinutes`
+
+**Key shape:** `global:{ip}` and `endpoint:{routeTemplate}:{ip}`. The route template comes from
+the matched endpoint (hence the explicit `app.UseRouting()` before the middleware); everything
+that matched no route shares the single `unmatched` bucket. `RateLimitService` keeps its buckets
+in a process-wide dictionary, so keying on the raw path would let a caller grow it without bound
+by walking made-up URLs.
 
 **Response on Limit Exceeded:**
 ```json
