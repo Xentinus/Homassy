@@ -91,33 +91,64 @@ public class UserFunctionsTests : IClassFixture<HomassyWebApplicationFactory>
         }
     }
 
+    /// <summary>
+    /// Creates the user it looks up, rather than picking <c>Users.FirstOrDefault()</c>.
+    /// </summary>
+    /// <remarks>
+    /// The old version asserted on whatever row the database happened to return first, which
+    /// made it a coin flip: on an empty database it returned early and asserted nothing, and
+    /// once other tests had inserted users it could pick one whose email is not stored in the
+    /// normalised form <see cref="UserFunctions.GetUserByEmailAddress"/> looks for, and fail
+    /// for a reason that has nothing to do with the lookup. That normalisation gap is real and
+    /// tracked in Xentinus/Homassy#136; this test should not be the thing that reports it.
+    /// </remarks>
     [Fact]
-    public void GetUserByEmailAddress_ExistingUser_ReturnsUser()
+    public async Task GetUserByEmailAddress_ExistingUser_ReturnsUser()
     {
-        // Arrange
         var userFunctions = new UserFunctions();
-        var (scope, context) = _factory.CreateScopedDbContext();
+        var email = $"lookup-{Guid.NewGuid():N}@example.com";
+
+        var created = await userFunctions.CreateUserAsync(new CreateUserRequest
+        {
+            Email = email,
+            Name = "Lookup Target",
+            DisplayName = "Lookup"
+        });
 
         try
         {
-            var existingUser = context.Users.FirstOrDefault();
-            if (existingUser == null)
-            {
-                // Skip test if no users exist
-                return;
-            }
+            var user = userFunctions.GetUserByEmailAddress(email);
 
-            // Act
-            var user = userFunctions.GetUserByEmailAddress(existingUser.Email);
-
-            // Assert
             Assert.NotNull(user);
-            Assert.Equal(existingUser.Email, user.Email);
-            Assert.Equal(existingUser.Id, user.Id);
+            Assert.Equal(created.Email, user.Email);
+            Assert.Equal(email.ToLowerInvariant(), user.Email);
         }
         finally
         {
-            scope.Dispose();
+            await _factory.CleanupTestUserAsync(email);
+        }
+    }
+
+    [Fact]
+    public async Task GetUserByEmailAddress_IgnoresCasingOfTheArgument()
+    {
+        var userFunctions = new UserFunctions();
+        var email = $"casing-{Guid.NewGuid():N}@example.com";
+
+        await userFunctions.CreateUserAsync(new CreateUserRequest
+        {
+            Email = email,
+            Name = "Casing Target",
+            DisplayName = "Casing"
+        });
+
+        try
+        {
+            Assert.NotNull(userFunctions.GetUserByEmailAddress(email.ToUpperInvariant()));
+        }
+        finally
+        {
+            await _factory.CleanupTestUserAsync(email);
         }
     }
 
