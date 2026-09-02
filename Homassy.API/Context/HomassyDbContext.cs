@@ -16,8 +16,31 @@ namespace Homassy.API.Context
     {
         private static IConfiguration? _configuration;
 
+        private bool _readOnly;
+
         public HomassyDbContext()
         {
+        }
+
+        /// <summary>
+        /// A context for an operation that only reads.
+        /// </summary>
+        /// <remarks>
+        /// Queries on it do not populate the change tracker, so materialised rows are not kept
+        /// alive by an identity map they will never be saved through. That matters most on the
+        /// list endpoints and the bulk cache loads, which read whole tables and then map
+        /// everything to DTOs — tracking roughly doubles the allocation per row for nothing.
+        ///
+        /// Identity resolution is kept, so a row that appears more than once in a query (through
+        /// an <c>Include</c>, say) still materialises as one object, exactly as a tracking query
+        /// would return it. Saving through this context throws rather than silently writing
+        /// nothing.
+        /// </remarks>
+        public static HomassyDbContext ForReading()
+        {
+            var context = new HomassyDbContext { _readOnly = true };
+            context.ChangeTracker.QueryTrackingBehavior = QueryTrackingBehavior.NoTrackingWithIdentityResolution;
+            return context;
         }
 
         public HomassyDbContext(DbContextOptions<HomassyDbContext> options)
@@ -270,14 +293,28 @@ namespace Homassy.API.Context
 
         public override Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)
         {
+            ThrowIfReadOnly();
             UpdateRecordChanges();
             return base.SaveChangesAsync(cancellationToken);
         }
 
         public override int SaveChanges()
         {
+            ThrowIfReadOnly();
             UpdateRecordChanges();
             return base.SaveChanges();
+        }
+
+        private void ThrowIfReadOnly()
+        {
+            if (_readOnly)
+            {
+                // Without this the call would be a silent no-op: nothing is tracked, so nothing
+                // is written, and the caller sees a successful save that changed nothing.
+                throw new InvalidOperationException(
+                    "This context was created by HomassyDbContext.ForReading() and does not track entities. " +
+                    "Use `new HomassyDbContext()` for an operation that writes.");
+            }
         }
 
         private void UpdateRecordChanges()

@@ -32,7 +32,7 @@ namespace Homassy.API.Functions
             var familyId = SessionInfo.GetFamilyId()
                 ?? throw new ExternalCalendarRequiresFamilyException();
 
-            using var context = new HomassyDbContext();
+            using var context = HomassyDbContext.ForReading();
             var calendars = await context.FamilyExternalCalendars
                 .Where(c => c.FamilyId == familyId)
                 .OrderBy(c => c.Name)
@@ -167,7 +167,7 @@ namespace Homassy.API.Functions
             DateTime startDate,
             DateTime endDate)
         {
-            using var context = new HomassyDbContext();
+            using var context = HomassyDbContext.ForReading();
             var calendars = context.FamilyExternalCalendars
                 .Where(c => c.FamilyId == familyId && c.IsEnabled && c.CachedEventsJson != null)
                 .ToList();

@@ -30,7 +30,7 @@ namespace Homassy.API.Functions
         #region Cache Management
         public async Task InitializeCacheAsync(CancellationToken cancellationToken = default)
         {
-            var context = new HomassyDbContext();
+            using var context = HomassyDbContext.ForReading();
             var users =  await context.Users
                 .ToListAsync(cancellationToken);
 
@@ -71,7 +71,7 @@ namespace Homassy.API.Functions
         {
             try
             {
-                var context = new HomassyDbContext();
+                using var context = HomassyDbContext.ForReading();
                 var user = await context.Users
                     .FirstOrDefaultAsync(u => u.Id == userId, cancellationToken);
 
@@ -108,7 +108,7 @@ namespace Homassy.API.Functions
         {
             try
             {
-                var context = new HomassyDbContext();
+                using var context = HomassyDbContext.ForReading();
                 var userProfile = await context.UserProfiles
                     .FirstOrDefaultAsync(u => u.Id == recordId, cancellationToken);
 
@@ -152,7 +152,7 @@ namespace Homassy.API.Functions
         {
             try
             {
-                var context = new HomassyDbContext();
+                using var context = HomassyDbContext.ForReading();
                 var userPrefs = await context.UserNotificationPreferences
                     .FirstOrDefaultAsync(u => u.Id == recordId, cancellationToken);
 
@@ -204,7 +204,7 @@ namespace Homassy.API.Functions
 
             if (user == null)
             {
-                var context = new HomassyDbContext();
+                using var context = HomassyDbContext.ForReading();
                 user = context.Users
                     .FirstOrDefault(u => u.Id == userId);
             }
@@ -224,7 +224,7 @@ namespace Homassy.API.Functions
 
             if (profile == null)
             {
-                var context = new HomassyDbContext();
+                using var context = HomassyDbContext.ForReading();
                 profile = context.UserProfiles
                     .FirstOrDefault(p => p.UserId == userId);
             }
@@ -244,7 +244,7 @@ namespace Homassy.API.Functions
 
             if (prefs == null)
             {
-                var context = new HomassyDbContext();
+                using var context = HomassyDbContext.ForReading();
                 prefs = context.UserNotificationPreferences
                     .FirstOrDefault(n => n.UserId == userId);
             }
@@ -273,7 +273,7 @@ namespace Homassy.API.Functions
 
             if (user == null)
             {
-                var context = new HomassyDbContext();
+                using var context = HomassyDbContext.ForReading();
                 user = context.Users
                     .Include(i => i.Profile)
                     .Include(i => i.NotificationPreferences)
@@ -302,7 +302,7 @@ namespace Homassy.API.Functions
 
             if (user == null)
             {
-                var context = new HomassyDbContext();
+                using var context = HomassyDbContext.ForReading();
                 user = context.Users
                     .Include(i => i.Profile)
                     .Include(i => i.NotificationPreferences)
@@ -332,7 +332,7 @@ namespace Homassy.API.Functions
 
             if (user == null)
             {
-                var context = new HomassyDbContext();
+                using var context = HomassyDbContext.ForReading();
                 user = context.Users
                     .Include(i => i.Profile)
                     .Include(i => i.NotificationPreferences)
@@ -354,7 +354,7 @@ namespace Homassy.API.Functions
 
             if (user == null)
             {
-                var context = new HomassyDbContext();
+                using var context = HomassyDbContext.ForReading();
                 user = context.Users
                     .FirstOrDefault(u => u.PublicId == publicId);
             }
@@ -374,7 +374,7 @@ namespace Homassy.API.Functions
 
             if (user == null)
             {
-                var context = new HomassyDbContext();
+                using var context = HomassyDbContext.ForReading();
                 user = context.Users
                     .FirstOrDefault(u => u.KratosIdentityId == kratosIdentityId);
             }
@@ -396,7 +396,7 @@ namespace Homassy.API.Functions
 
             if (user == null)
             {
-                var context = new HomassyDbContext();
+                using var context = HomassyDbContext.ForReading();
                 user = context.Users
                     .FirstOrDefault(u => u.Email == normalizedEmail);
             }
@@ -435,7 +435,7 @@ namespace Homassy.API.Functions
 
             if (missingIds.Count > 0)
             {
-                var context = new HomassyDbContext();
+                using var context = HomassyDbContext.ForReading();
                 var dbUsers = context.Users
                     .Where(u => missingIds.Contains(u.Id))
                     .ToList();
@@ -483,7 +483,7 @@ namespace Homassy.API.Functions
 
             if (missingIds.Count > 0)
             {
-                var context = new HomassyDbContext();
+                using var context = HomassyDbContext.ForReading();
                 var dbUsers = context.Users
                     .Include(i => i.Profile)
                     .Include(i => i.NotificationPreferences)
@@ -522,7 +522,7 @@ namespace Homassy.API.Functions
             // Fetch missing users from DB
             if (missingIds.Count > 0)
             {
-                var context = new HomassyDbContext();
+                using var context = HomassyDbContext.ForReading();
                 var dbUsers = context.Users
                     .Where(u => missingIds.Contains(u.PublicId))
                     .ToList();
@@ -582,7 +582,7 @@ namespace Homassy.API.Functions
 
             if (missingIds.Count > 0)
             {
-                var context = new HomassyDbContext();
+                using var context = HomassyDbContext.ForReading();
                 var dbProfiles = context.UserProfiles
                     .Where(p => missingIds.Contains(p.UserId))
                     .ToList();
@@ -605,7 +605,7 @@ namespace Homassy.API.Functions
 
             if (prefs == null)
             {
-                var context = new HomassyDbContext();
+                using var context = HomassyDbContext.ForReading();
                 prefs = context.UserNotificationPreferences
                     .FirstOrDefault(n => n.UserId == userId);
             }
@@ -644,7 +644,7 @@ namespace Homassy.API.Functions
 
             if (missingIds.Count > 0)
             {
-                var context = new HomassyDbContext();
+                using var context = HomassyDbContext.ForReading();
                 var dbPrefs = context.UserNotificationPreferences
                     .Where(n => missingIds.Contains(n.UserId))
                     .ToList();
@@ -685,7 +685,7 @@ namespace Homassy.API.Functions
                 User = user
             };
 
-            var context = new HomassyDbContext();
+            using var context = new HomassyDbContext();
             await using var transaction = await context.Database.BeginTransactionAsync(cancellationToken);
             try
             {
@@ -729,7 +729,7 @@ namespace Homassy.API.Functions
                 throw new BadRequestException("You are not a member of a family.", ErrorCodes.FamilyAlreadyMember);
             }
 
-            var context = new HomassyDbContext();
+            using var context = new HomassyDbContext();
             await using var transaction = await context.Database.BeginTransactionAsync(cancellationToken);
             try
             {
@@ -858,7 +858,7 @@ namespace Homassy.API.Functions
                 }
             }
 
-            var context = new HomassyDbContext();
+            using var context = new HomassyDbContext();
             await using var transaction = await context.Database.BeginTransactionAsync(cancellationToken);
             try
             {
@@ -938,7 +938,7 @@ namespace Homassy.API.Functions
                 throw new BadRequestException("Profile picture data is required", ErrorCodes.ValidationProfilePictureRequired);
             }
 
-            var context = new HomassyDbContext();
+            using var context = new HomassyDbContext();
             await using var transaction = await context.Database.BeginTransactionAsync(cancellationToken);
             try
             {
@@ -974,7 +974,7 @@ namespace Homassy.API.Functions
                 throw new UserNotFoundException("User not found", ErrorCodes.UserNotFound);
             }
 
-            var context = new HomassyDbContext();
+            using var context = new HomassyDbContext();
             await using var transaction = await context.Database.BeginTransactionAsync(cancellationToken);
             try
             {
@@ -1074,7 +1074,7 @@ namespace Homassy.API.Functions
         {
             try
             {
-                var context = new HomassyDbContext();
+                using var context = new HomassyDbContext();
                 await using var transaction = await context.Database.BeginTransactionAsync(cancellationToken);
 
                 var user = new User
@@ -1198,7 +1198,7 @@ namespace Homassy.API.Functions
         {
             try
             {
-                var context = new HomassyDbContext();
+                using var context = new HomassyDbContext();
                 var user = await context.Users.FirstOrDefaultAsync(u => u.KratosIdentityId == identity.Id, cancellationToken);
 
                 if (user == null)
@@ -1257,7 +1257,7 @@ namespace Homassy.API.Functions
         {
             try
             {
-                var context = new HomassyDbContext();
+                using var context = new HomassyDbContext();
                 var user = await context.Users.FirstOrDefaultAsync(u => u.Id == userId, cancellationToken);
 
                 if (user == null)
@@ -1284,7 +1284,7 @@ namespace Homassy.API.Functions
         {
             try
             {
-                var context = new HomassyDbContext();
+                using var context = new HomassyDbContext();
                 var user = await context.Users.FirstOrDefaultAsync(u => u.Id == userId, cancellationToken);
 
                 if (user == null) return;
@@ -1374,7 +1374,7 @@ namespace Homassy.API.Functions
                 throw new UserNotFoundException("User not found", ErrorCodes.UserNotFound);
             }
 
-            var context = new HomassyDbContext();
+            using var context = new HomassyDbContext();
             await using var transaction = await context.Database.BeginTransactionAsync(cancellationToken);
             try
             {

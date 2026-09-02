@@ -18,7 +18,7 @@ namespace Homassy.API.Functions
         #region Cache Management
         public async Task InitializeCacheAsync(CancellationToken cancellationToken = default)
         {
-            var context = new HomassyDbContext();
+            using var context = HomassyDbContext.ForReading();
             var families = await context.Families
                 .ToListAsync(cancellationToken);
 
@@ -42,7 +42,7 @@ namespace Homassy.API.Functions
         {
             try
             {
-                var context = new HomassyDbContext();
+                using var context = HomassyDbContext.ForReading();
                 var family = await context.Families
                     .FirstOrDefaultAsync(f => f.Id == familyId, cancellationToken);
 
@@ -87,7 +87,7 @@ namespace Homassy.API.Functions
 
             if (family == null)
             {
-                var context = new HomassyDbContext();
+                using var context = HomassyDbContext.ForReading();
                 family = context.Families.FirstOrDefault(f => f.Id == familyId);
             }
 
@@ -106,7 +106,7 @@ namespace Homassy.API.Functions
 
             if (family == null)
             {
-                var context = new HomassyDbContext();
+                using var context = HomassyDbContext.ForReading();
                 family = context.Families
                     .FirstOrDefault(f => f.ShareCode == shareCode);
             }
@@ -145,7 +145,7 @@ namespace Homassy.API.Functions
 
             if (missingIds.Count > 0)
             {
-                var context = new HomassyDbContext();
+                using var context = HomassyDbContext.ForReading();
                 var dbFamilies = context.Families
                     .Where(f => missingIds.Contains(f.Id))
                     .ToList();
@@ -179,7 +179,7 @@ namespace Homassy.API.Functions
                 throw new BadRequestException("You are already a member of a family. Please leave your current family first.");
             }
 
-            var context = new HomassyDbContext();
+            using var context = new HomassyDbContext();
             await using var transaction = await context.Database.BeginTransactionAsync(cancellationToken);
             try
             {
@@ -291,7 +291,7 @@ namespace Homassy.API.Functions
             }
 
             var currentPublicId = SessionInfo.GetPublicId();
-            var context = new HomassyDbContext();
+            using var context = HomassyDbContext.ForReading();
 
             var members = context.Users
                 .Include(u => u.Profile)
@@ -326,7 +326,7 @@ namespace Homassy.API.Functions
                 throw new FamilyNotFoundException("You are not a member of any family");
             }
 
-            var context = new HomassyDbContext();
+            using var context = new HomassyDbContext();
             await using var transaction = await context.Database.BeginTransactionAsync(cancellationToken);
             try
             {
@@ -383,7 +383,7 @@ namespace Homassy.API.Functions
                 throw new FamilyNotFoundException("You are not a member of any family");
             }
 
-            var context = new HomassyDbContext();
+            using var context = new HomassyDbContext();
             await using var transaction = await context.Database.BeginTransactionAsync(cancellationToken);
             try
             {
@@ -425,7 +425,7 @@ namespace Homassy.API.Functions
                 throw new FamilyNotFoundException("You are not a member of any family");
             }
 
-            var context = new HomassyDbContext();
+            using var context = new HomassyDbContext();
             await using var transaction = await context.Database.BeginTransactionAsync(cancellationToken);
             try
             {

@@ -124,7 +124,7 @@ public sealed class ItemAutomationWorkerService : BackgroundService
             await ExecuteAddToShoppingListAsync(context, emailClient, automation, cancellationToken);
 
             automation.LastExecutedAt = DateTime.UtcNow;
-            RecalculateNextExecution(automation);
+            RecalculateNextExecution(context, automation);
             await context.SaveChangesAsync(cancellationToken);
 
             Log.Information("Automation {AutomationId} (AddToShoppingList) executed successfully. Next execution at: {NextExecution}",
@@ -191,7 +191,7 @@ public sealed class ItemAutomationWorkerService : BackgroundService
             context.ItemAutomationExecutions.Add(skippedExecution);
 
             // Still recalculate next execution
-            RecalculateNextExecution(automation);
+            RecalculateNextExecution(context, automation);
             await context.SaveChangesAsync(cancellationToken);
             return;
         }
@@ -207,7 +207,7 @@ public sealed class ItemAutomationWorkerService : BackgroundService
 
         // Recalculate next execution time
         automation.LastExecutedAt = DateTime.UtcNow;
-        RecalculateNextExecution(automation);
+        RecalculateNextExecution(context, automation);
         await context.SaveChangesAsync(cancellationToken);
 
         Log.Information("Automation {AutomationId} executed successfully. Next execution at: {NextExecution}",
@@ -606,7 +606,11 @@ public sealed class ItemAutomationWorkerService : BackgroundService
         }
     }
 
-    private void RecalculateNextExecution(ItemAutomation automation)
+    /// <remarks>
+    /// Takes the caller's context rather than opening one of its own: this service reaches the
+    /// database only through the scoped HomassyDbContext (see CLAUDE.md).
+    /// </remarks>
+    private static void RecalculateNextExecution(HomassyDbContext context, ItemAutomation automation)
     {
         // Get the user's timezone to calculate the next execution
         UserTimeZone userTimeZone;
@@ -619,7 +623,6 @@ public sealed class ItemAutomationWorkerService : BackgroundService
             // If family-owned, try to find the first family member's timezone
             if (userProfile == null && automation.FamilyId.HasValue)
             {
-                var context = new HomassyDbContext();
                 userProfile = context.UserProfiles
                     .FirstOrDefault(p => context.Users
                         .Any(u => u.Id == p.UserId && u.FamilyId == automation.FamilyId.Value && !u.IsDeleted));

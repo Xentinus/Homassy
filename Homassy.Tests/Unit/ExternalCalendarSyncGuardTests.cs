@@ -2,7 +2,7 @@ using Homassy.API.Context;
 using Homassy.API.Entities.Family;
 using Homassy.API.Functions;
 using Homassy.API.Security;
-using Microsoft.Extensions.Configuration;
+using Homassy.Tests.Infrastructure;
 
 namespace Homassy.Tests.Unit;
 
@@ -27,15 +27,7 @@ public class ExternalCalendarSyncGuardTests
 
     private static HomassyDbContext CreateContext()
     {
-        var configuration = new ConfigurationBuilder()
-            .AddInMemoryCollection(new Dictionary<string, string?>
-            {
-                ["ConnectionStrings:DefaultConnection"] =
-                    "Host=localhost;Port=5432;Database=homassy;Username=test;Password=test"
-            })
-            .Build();
-
-        HomassyDbContext.SetConfiguration(configuration);
+        TestConfiguration.EnsureDbContextConfigured();
 
         // Never connects: the guard rejects the URL before anything reaches the database.
         return new HomassyDbContext();

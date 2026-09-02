@@ -19,7 +19,7 @@ namespace Homassy.API.Functions
         #region Cache Management
         public async Task InitializeCacheAsync(CancellationToken cancellationToken = default)
         {
-            var context = new HomassyDbContext();
+            using var context = HomassyDbContext.ForReading();
 
             // Load recent activities (last 30 days)
             var cutoffDate = DateTime.UtcNow.AddDays(-30);
@@ -48,7 +48,7 @@ namespace Homassy.API.Functions
         {
             try
             {
-                var context = new HomassyDbContext();
+                using var context = HomassyDbContext.ForReading();
                 var activity = await context.Activities
                     .IgnoreQueryFilters()
                     .FirstOrDefaultAsync(a => a.Id == activityId, cancellationToken);
@@ -92,7 +92,7 @@ namespace Homassy.API.Functions
         {
             try
             {
-                var context = new HomassyDbContext();
+                using var context = new HomassyDbContext();
 
                 var activity = new Activity
                 {
@@ -128,7 +128,7 @@ namespace Homassy.API.Functions
             if (!userId.HasValue)
                 throw new UnauthorizedException("User not authenticated", ErrorCodes.AuthUnauthorized);
 
-            var context = new HomassyDbContext();
+            using var context = HomassyDbContext.ForReading();
 
             // Build query - Activities themselves should NOT be filtered by IsDeleted
             // (they inherit from RecordChangeEntity which has soft delete)

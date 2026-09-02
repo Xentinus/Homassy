@@ -49,7 +49,7 @@ namespace Homassy.API.Functions
                 throw new FamilyNotFoundException("Family not found with the provided share code", ErrorCodes.FamilyInvalidShareCode);
             }
 
-            var context = new HomassyDbContext();
+            using var context = new HomassyDbContext();
 
             var hasPending = await context.FamilyJoinRequests
                 .AnyAsync(r => r.UserId == userId.Value && r.Status == FamilyJoinRequestStatus.Pending, cancellationToken);
@@ -106,7 +106,7 @@ namespace Homassy.API.Functions
                 throw new UnauthorizedException("Invalid authentication", ErrorCodes.AuthUnauthorized);
             }
 
-            var context = new HomassyDbContext();
+            using var context = HomassyDbContext.ForReading();
             var request = context.FamilyJoinRequests
                 .Where(r => r.UserId == userId.Value && r.Status == FamilyJoinRequestStatus.Pending)
                 .OrderByDescending(r => r.RequestedAt)
@@ -139,7 +139,7 @@ namespace Homassy.API.Functions
                 throw new UnauthorizedException("Invalid authentication", ErrorCodes.AuthUnauthorized);
             }
 
-            var context = new HomassyDbContext();
+            using var context = new HomassyDbContext();
             var request = await context.FamilyJoinRequests
                 .FirstOrDefaultAsync(r => r.UserId == userId.Value && r.Status == FamilyJoinRequestStatus.Pending, cancellationToken);
 
@@ -183,7 +183,7 @@ namespace Homassy.API.Functions
                 throw new FamilyNotFoundException("You are not a member of any family", ErrorCodes.FamilyNotMember);
             }
 
-            var context = new HomassyDbContext();
+            using var context = HomassyDbContext.ForReading();
             return context.FamilyJoinRequests
                 .Include(r => r.User)
                     .ThenInclude(u => u!.Profile)
@@ -293,7 +293,7 @@ namespace Homassy.API.Functions
                 throw new FamilyNotFoundException("You are not a member of any family", ErrorCodes.FamilyNotMember);
             }
 
-            var context = new HomassyDbContext();
+            using var context = HomassyDbContext.ForReading();
             var request = await context.FamilyJoinRequests
                 .FirstOrDefaultAsync(r => r.PublicId == publicId, cancellationToken);
 

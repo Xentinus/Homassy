@@ -318,6 +318,30 @@ public class UserFunctions
 }
 ```
 
+#### DbContext lifetime — two rules, no exceptions
+
+```csharp
+// An operation that only reads
+using var context = HomassyDbContext.ForReading();
+
+// An operation that writes
+using var context = new HomassyDbContext();
+...
+await context.SaveChangesAsync(cancellationToken);
+```
+
+1. **Always `using`.** A context that is not disposed keeps its `NpgsqlConnection` leased from
+   the pool and keeps every entity it materialised alive until the finalizer runs. Under
+   sustained traffic that shows up as memory climbing with requests served and, once the
+   100-connection pool is exhausted, requests blocking on `Timeout` instead of failing fast.
+2. **`ForReading()` unless the method saves.** It sets
+   `NoTrackingWithIdentityResolution`, so rows are not entered into a change tracker nothing
+   will ever save through — roughly half the allocation per row on list endpoints, and it is
+   what keeps the bulk cache loads from pinning whole tables. Calling `SaveChanges` on such a
+   context throws rather than silently writing nothing.
+
+A context is method-local, so "does this method save?" is the whole decision.
+
 ### In-Memory Caching Strategy
 
 The Functions classes implement a sophisticated caching mechanism:

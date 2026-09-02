@@ -20,7 +20,7 @@ namespace Homassy.API.Functions
         #region Cache Management
         public async Task InitializeCacheAsync(CancellationToken cancellationToken = default)
         {
-            var context = new HomassyDbContext();
+            using var context = HomassyDbContext.ForReading();
             var shoppingLocations = await context.ShoppingLocations.ToListAsync(cancellationToken);
             var storageLocations = await context.StorageLocations.ToListAsync(cancellationToken);
 
@@ -50,7 +50,7 @@ namespace Homassy.API.Functions
         {
             try
             {
-                var context = new HomassyDbContext();
+                using var context = HomassyDbContext.ForReading();
                 var shoppingLocation = await context.ShoppingLocations.FirstOrDefaultAsync(sl => sl.Id == shoppingLocationId, cancellationToken);
                 var existsInCache = _shoppingLocationCache.ContainsKey(shoppingLocationId);
 
@@ -85,7 +85,7 @@ namespace Homassy.API.Functions
         {
             try
             {
-                var context = new HomassyDbContext();
+                using var context = HomassyDbContext.ForReading();
                 var storageLocation = await context.StorageLocations.FirstOrDefaultAsync(sl => sl.Id == storageLocationId, cancellationToken);
                 var existsInCache = _storageLocationCache.ContainsKey(storageLocationId);
 
@@ -127,7 +127,7 @@ namespace Homassy.API.Functions
                 return shoppingLocation;
             }
 
-            var context = new HomassyDbContext();
+            using var context = HomassyDbContext.ForReading();
             return context.ShoppingLocations.FirstOrDefault(sl => sl.Id == shoppingLocationId);
         }
 
@@ -140,7 +140,7 @@ namespace Homassy.API.Functions
                 return storageLocation;
             }
 
-            var context = new HomassyDbContext();
+            using var context = HomassyDbContext.ForReading();
             return context.StorageLocations.FirstOrDefault(sl => sl.Id == storageLocationId);
         }
         #endregion
@@ -154,7 +154,7 @@ namespace Homassy.API.Functions
                 if (shoppingLocation != null) return shoppingLocation;
             }
 
-            var context = new HomassyDbContext();
+            using var context = HomassyDbContext.ForReading();
             return context.ShoppingLocations.FirstOrDefault(sl => sl.PublicId == publicId);
         }
 
@@ -166,7 +166,7 @@ namespace Homassy.API.Functions
                 if (storageLocation != null) return storageLocation;
             }
 
-            var context = new HomassyDbContext();
+            using var context = HomassyDbContext.ForReading();
             return context.StorageLocations.FirstOrDefault(sl => sl.PublicId == publicId);
         }
         #endregion
@@ -203,7 +203,7 @@ namespace Homassy.API.Functions
 
             if (missingIds.Count > 0)
             {
-                var context = new HomassyDbContext();
+                using var context = HomassyDbContext.ForReading();
                 var dbShoppingLocations = context.ShoppingLocations
                     .Where(sl => missingIds.Contains(sl.Id))
                     .ToList();
@@ -245,7 +245,7 @@ namespace Homassy.API.Functions
 
             if (missingIds.Count > 0)
             {
-                var context = new HomassyDbContext();
+                using var context = HomassyDbContext.ForReading();
                 var dbStorageLocations = context.StorageLocations
                     .Where(sl => missingIds.Contains(sl.Id))
                     .ToList();
@@ -265,7 +265,7 @@ namespace Homassy.API.Functions
                     .ToList();
             }
 
-            var context = new HomassyDbContext();
+            using var context = HomassyDbContext.ForReading();
             return context.ShoppingLocations
                 .Where(sl => sl.UserId == userId || (familyId.HasValue && sl.FamilyId == familyId))
                 .ToList();
@@ -280,7 +280,7 @@ namespace Homassy.API.Functions
                     .ToList();
             }
 
-            var context = new HomassyDbContext();
+            using var context = HomassyDbContext.ForReading();
             return context.StorageLocations
                 .Where(sl => sl.UserId == userId || (familyId.HasValue && sl.FamilyId == familyId))
                 .ToList();
@@ -394,7 +394,7 @@ namespace Homassy.API.Functions
 
             var familyId = SessionInfo.GetFamilyId();
 
-            var context = new HomassyDbContext();
+            using var context = new HomassyDbContext();
             await using var transaction = await context.Database.BeginTransactionAsync(cancellationToken);
 
             try
@@ -476,7 +476,7 @@ namespace Homassy.API.Functions
                 throw new UnauthorizedException("You don't have permission to update this shopping location");
             }
 
-            var context = new HomassyDbContext();
+            using var context = new HomassyDbContext();
             await using var transaction = await context.Database.BeginTransactionAsync(cancellationToken);
 
             try
@@ -639,7 +639,7 @@ namespace Homassy.API.Functions
 
             var familyId = SessionInfo.GetFamilyId();
 
-            var context = new HomassyDbContext();
+            using var context = new HomassyDbContext();
             await using var transaction = await context.Database.BeginTransactionAsync(cancellationToken);
 
             try
@@ -705,7 +705,7 @@ namespace Homassy.API.Functions
                 throw new UnauthorizedException("You don't have permission to update this storage location");
             }
 
-            var context = new HomassyDbContext();
+            using var context = new HomassyDbContext();
             await using var transaction = await context.Database.BeginTransactionAsync(cancellationToken);
 
             try
@@ -810,7 +810,7 @@ namespace Homassy.API.Functions
                 throw new UnauthorizedException("You don't have permission to delete this shopping location");
             }
 
-            var context = new HomassyDbContext();
+            using var context = new HomassyDbContext();
             await using var transaction = await context.Database.BeginTransactionAsync(cancellationToken);
 
             try
@@ -862,7 +862,7 @@ namespace Homassy.API.Functions
                 throw new UnauthorizedException("You don't have permission to delete this storage location");
             }
 
-            var context = new HomassyDbContext();
+            using var context = new HomassyDbContext();
             await using var transaction = await context.Database.BeginTransactionAsync(cancellationToken);
 
             try
@@ -919,7 +919,7 @@ namespace Homassy.API.Functions
 
             var familyId = SessionInfo.GetFamilyId();
 
-            var context = new HomassyDbContext();
+            using var context = new HomassyDbContext();
             await using var transaction = await context.Database.BeginTransactionAsync(cancellationToken);
 
             try
@@ -1000,7 +1000,7 @@ namespace Homassy.API.Functions
 
             var familyId = SessionInfo.GetFamilyId();
 
-            var context = new HomassyDbContext();
+            using var context = new HomassyDbContext();
             await using var transaction = await context.Database.BeginTransactionAsync(cancellationToken);
 
             try
@@ -1089,7 +1089,7 @@ namespace Homassy.API.Functions
 
             var familyId = SessionInfo.GetFamilyId();
 
-            var context = new HomassyDbContext();
+            using var context = new HomassyDbContext();
             await using var transaction = await context.Database.BeginTransactionAsync(cancellationToken);
 
             try
@@ -1157,7 +1157,7 @@ namespace Homassy.API.Functions
 
             var familyId = SessionInfo.GetFamilyId();
 
-            var context = new HomassyDbContext();
+            using var context = new HomassyDbContext();
             await using var transaction = await context.Database.BeginTransactionAsync(cancellationToken);
 
             try
@@ -1233,7 +1233,7 @@ namespace Homassy.API.Functions
                 throw new StorageLocationNotFoundException("Storage location not found");
             }
 
-            var context = new HomassyDbContext();
+            using var context = HomassyDbContext.ForReading();
             var items = await context.ProductInventoryItems
                 .Include(i => i.Product)
                 .Where(i => i.StorageLocationId == storageLocation.Id
@@ -1280,7 +1280,7 @@ namespace Homassy.API.Functions
                 throw new ShoppingLocationNotFoundException("Shopping location not found");
             }
 
-            var context = new HomassyDbContext();
+            using var context = HomassyDbContext.ForReading();
             var purchases = await context.ProductPurchaseInfos
                 .IgnoreQueryFilters()
                 .Include(p => p.ProductInventoryItem)
