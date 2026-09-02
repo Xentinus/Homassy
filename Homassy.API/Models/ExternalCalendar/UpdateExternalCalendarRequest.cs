@@ -10,6 +10,7 @@ namespace Homassy.API.Models.ExternalCalendar
         public string? Name { get; set; }
 
         [StringLength(2048)]
+        [PublicFeedUrl]
         public string? ICalUrl { get; set; }
 
         [StringLength(7)]

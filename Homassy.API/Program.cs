@@ -65,8 +65,29 @@ try
     builder.Services.AddSingleton<StatisticsService>();
     builder.Services.AddHostedService<StatisticsRefreshWorker>();
 
-    // External calendar sync
-    builder.Services.AddHttpClient("ExternalCalendarSync");
+    // External calendar sync. The URL is user-supplied, so this client is deliberately the
+    // most restricted one in the application.
+    ExternalUrlGuard.AllowInsecureScheme = builder.Environment.IsDevelopment();
+
+    builder.Services.AddHttpClient("ExternalCalendarSync", client =>
+        {
+            // A slow feed must not tie up the sync worker: the other calendars still have to run.
+            client.Timeout = TimeSpan.FromSeconds(20);
+            // An ICS feed is text; a few MB is generous. Without this the whole body is
+            // buffered into memory, so one large response is an OOM lever.
+            client.MaxResponseContentBufferSize = 5 * 1024 * 1024;
+        })
+        .ConfigurePrimaryHttpMessageHandler(() => new SocketsHttpHandler
+        {
+            // A 302 to an internal address would otherwise walk straight past every check made
+            // on the URL the user actually supplied.
+            AllowAutoRedirect = false,
+            ConnectTimeout = TimeSpan.FromSeconds(10),
+            AutomaticDecompression = DecompressionMethods.All,
+            // The real SSRF gate: the host is re-resolved and screened here, immediately before
+            // the socket opens, so re-pointing DNS after the calendar was saved changes nothing.
+            ConnectCallback = ExternalUrlGuard.CreateConnectCallback()
+        });
     builder.Services.AddHostedService<ExternalCalendarSyncService>();
 
     // Kratos service registration

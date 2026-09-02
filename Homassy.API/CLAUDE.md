@@ -97,6 +97,7 @@ Homassy.API/
 │   └── SessionInfo.cs
 ├── Attributes/           Custom validation attributes
 │   └── Validation/
+│       ├── PublicFeedUrlAttribute.cs   Server-fetchable URL (https, public host) — anti-SSRF
 │       ├── SanitizedStringAttribute.cs
 │       └── ValidBarcodeAttribute.cs
 ├── Constants/              Application-wide constants
@@ -235,6 +236,8 @@ Homassy.API/
 │   ├── ShoppingList/
 │   └── User/
 ├── Security/            Security utilities
+│   ├── CorsOriginPolicy.cs    Origin allowlist matching for the CORS policy
+│   ├── ExternalUrlGuard.cs    Screens user-supplied fetch targets (anti-SSRF), incl. the connect-time DNS re-check
 │   └── SecureCompare.cs
 └── Services/            Application services
     ├── Background/      Background hosted services
