@@ -263,13 +263,25 @@ BaseEntity (Id, PublicId)
 
 Every entity inherits an internal integer ID, a public GUID (which keeps internal IDs out of the API and prevents enumeration), soft delete, and automatic change tracking.
 
+## Continuous integration
+
+`.github/workflows/deploy.yml` runs on every push to `master` and every pull request targeting it.
+
+The `test` job starts a `postgres:16` service container, applies the migrations with `Homassy.Migrator`, then runs `dotnet build -warnaserror` and the full suite — unit tests and the integration tests that exercise the controllers through a `WebApplicationFactory` against that database. Results are published as a check run naming each failing test, and uploaded as a `.trx` artifact. A separate step lists vulnerable NuGet packages into the run summary; it is advisory, so an advisory published overnight cannot turn an untouched commit red.
+
+The `web` job runs `npm run lint` and `npm run typecheck` for `Homassy.Web`. Both are advisory for now — the app carries a backlog of eslint and type errors that predates the workflow — so they report without failing the run.
+
+Image builds depend on `test`, so a failing test stops the pipeline before anything reaches GHCR or the VPS. Pull requests get the verification jobs only; nothing is built or pushed.
+
+> The gate is only advisory until `test` is added as a required status check in the branch protection rule for `master` (Settings, then Branches).
+
 ## Deployment
 
 Deployment runs through GitHub Actions into the GitHub Container Registry (GHCR) and then onto a VPS. There is no local deploy script.
 
 The flow (`.github/workflows/deploy.yml`):
 
-1. A push to `master`, or a manual `workflow_dispatch`, builds the five service images for `linux/amd64`.
+1. A push to `master`, or a manual `workflow_dispatch`, runs the verification jobs above, then builds the five service images for `linux/amd64`.
 2. The images go to `ghcr.io/xentinus/<service>`, tagged with a shared `YYYYMMDD-HHmmss` timestamp and with `latest`, as private packages linked to this repository.
 3. The `deploy` job waits for manual approval of the `production` environment.
 4. After approval it copies `docker-compose.production.yml`, the Kratos config, the Caddy config, and a generated `.env` to the VPS, then runs `docker compose pull` and `up -d --wait` with the timestamped images.

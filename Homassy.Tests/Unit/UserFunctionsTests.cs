@@ -23,17 +23,12 @@ public class UserFunctionsTests : IClassFixture<HomassyWebApplicationFactory>
         EnsureConfigurationInitialized();
     }
 
-    private void EnsureConfigurationInitialized()
+    private static void EnsureConfigurationInitialized()
     {
-        // Build configuration from the test settings
-        var projectDir = Directory.GetCurrentDirectory();
-        var configuration = new ConfigurationBuilder()
-            .AddJsonFile(Path.Combine(projectDir, "..", "Homassy.API", "appsettings.json"), optional: true)
-            .AddJsonFile(Path.Combine(projectDir, "appsettings.Testing.json"), optional: true)
-            .Build();
-
-        HomassyDbContext.SetConfiguration(configuration);
-        ConfigService.Initialize(configuration);
+        // Shared with the other unit tests that touch the static configuration hooks, so every
+        // one of them installs the same (real) configuration — see TestConfiguration.
+        HomassyDbContext.SetConfiguration(TestConfiguration.Configuration);
+        ConfigService.Initialize(TestConfiguration.Configuration);
     }
 
     [Fact]

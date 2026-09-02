@@ -83,11 +83,9 @@ public class GracefulShutdownTests : IClassFixture<HomassyWebApplicationFactory>
         using var scope = _factory.Services.CreateScope();
         var lifetime = scope.ServiceProvider.GetRequiredService<IHostApplicationLifetime>();
 
-        var stoppingTriggered = false;
-        lifetime.ApplicationStopping.Register(() =>
-        {
-            stoppingTriggered = true;
-        });
+        // Registering proves a callback can be attached; the token is not actually signalled
+        // here, since stopping the shared test host would break every other test in the class.
+        lifetime.ApplicationStopping.Register(() => { });
 
         _output.WriteLine($"Stopping token registered: {lifetime.ApplicationStopping.CanBeCanceled}");
 

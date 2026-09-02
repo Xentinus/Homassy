@@ -354,7 +354,17 @@ _output.WriteLine($"Response: {responseBody}");
 
 ### `appsettings.Testing.json`
 
-Not in source control. Required structure:
+Not in source control — copy `appsettings.Testing.example.json` and point the connection string
+at your local PostgreSQL 16. CI writes its own copy in the `test` job of
+`.github/workflows/deploy.yml`; keep the two in step when you add a key.
+
+Unit tests that need the static configuration hooks (`HomassyDbContext.SetConfiguration`,
+`ConfigService.Initialize`) must go through `Infrastructure/TestConfiguration`. Those hooks are
+process-wide and xUnit runs test classes in parallel, so a test that installs a placeholder
+connection string points another class's queries at a database that does not exist while it is
+running.
+
+Required structure:
 
 ```json
 {
@@ -404,6 +414,26 @@ Not in source control. Required structure:
 ---
 
 ## Running Tests
+
+### Prerequisites
+
+The integration tests talk to a real PostgreSQL 16 on `localhost:5432` with the schema already
+applied. From scratch:
+
+```bash
+docker run -d --name homassy-test-pg -p 5432:5432 \
+  -e POSTGRES_DB=homassy -e POSTGRES_USER=homassy_user -e POSTGRES_PASSWORD=... postgres:16
+dotnet run --project Homassy.Migrator
+```
+
+### In CI
+
+The `test` job in `.github/workflows/deploy.yml` runs on every push to `master` and every pull
+request targeting it, and gates the image build — a failing test stops the pipeline before
+anything reaches GHCR or the VPS. It does the same three things: start `postgres:16` as a
+service container, write `appsettings.Testing.json`, apply the migrations, then
+`dotnet build -warnaserror` and `dotnet test`. Results are published as a check run (test names,
+not just an exit code) and uploaded as a `.trx` artifact.
 
 ### Command Line
 

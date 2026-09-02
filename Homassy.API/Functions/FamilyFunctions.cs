@@ -301,9 +301,11 @@ namespace Homassy.API.Functions
                 {
                     PublicId = u.PublicId,
                     Name = u.Name,
-                    DisplayName = u.Profile.DisplayName,
+                    // Profile is optional on User, and the projection runs in SQL where a null
+                    // navigation yields NULL rather than throwing.
+                    DisplayName = u.Profile != null ? u.Profile.DisplayName : string.Empty,
                     LastLoginAt = u.LastLoginAt,
-                    ProfilePictureBase64 = u.Profile.ProfilePictureBase64,
+                    ProfilePictureBase64 = u.Profile != null ? u.Profile.ProfilePictureBase64 : null,
                     IsCurrentUser = u.PublicId == currentPublicId
                 })
                 .ToList();
