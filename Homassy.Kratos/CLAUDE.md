@@ -322,6 +322,49 @@ Without this, a rebuilt VPS or a Kratos version bump breaks authentication for t
 application: there would be no tables at all on a clean host, and no schema upgrade after an
 image bump.
 
+### Cutting an existing production instance over — do this before the first deploy
+
+> **The running production instance stores its data in a separate `kratos` database**, because
+> that is what the old `POSTGRES_KRATOS_DB` DSN pointed at and someone created it by hand. The
+> new DSN points at the `kratos` *schema* of `POSTGRES_DB`, which is **empty**. Deploying
+> without moving the data first runs `kratos migrate sql` against a fresh schema and every
+> identity, session and passkey becomes unreachable — everyone is logged out and nobody can log
+> back in, because their identity no longer exists.
+
+Check first, on the VPS:
+
+```bash
+docker exec homassy-postgres psql -U "$POSTGRES_USER" -d kratos -c '\dt' 2>&1 | head
+```
+
+If that lists Kratos tables, move them into the main database before deploying. Renaming the
+schema at the source keeps the dump honest, rather than rewriting `public.` prefixes by hand:
+
+```bash
+# 1. Stop Kratos so nothing writes during the move.
+docker compose -f docker-compose.production.yml stop homassy.kratos
+
+# 2. Take a backup you can go back to.
+docker exec homassy-postgres pg_dump -U "$POSTGRES_USER" -d kratos --no-owner --no-acl \
+  > kratos-backup-$(date +%Y%m%d-%H%M%S).sql
+
+# 3. Rename the source schema, dump it, load it into the main database.
+docker exec homassy-postgres psql -U "$POSTGRES_USER" -d kratos \
+  -c 'ALTER SCHEMA public RENAME TO kratos;'
+docker exec homassy-postgres pg_dump -U "$POSTGRES_USER" -d kratos -n kratos --no-owner --no-acl \
+  > kratos-schema.sql
+docker exec -i homassy-postgres psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" < kratos-schema.sql
+
+# 4. Confirm the identities arrived.
+docker exec homassy-postgres psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" \
+  -c 'select count(*) from kratos.identities;'
+```
+
+Then drop `POSTGRES_KRATOS_DB` from the production `.env` (the `PROD_ENV` GitHub secret) and
+deploy. `homassy.kratos-migrate` will find the schema already at the current version and exit
+without changing anything. Keep the old `kratos` database around until a login has been
+verified end to end.
+
 ### Creating the schema
 
 `init-kratos-schema.sql` is mounted into `/docker-entrypoint-initdb.d/`, which the Postgres
