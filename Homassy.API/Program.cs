@@ -194,19 +194,28 @@ try
 
     builder.Services.AddAuthorization();
 
-    var allowedOrigins = builder.Configuration.GetSection("Cors:AllowedOrigins").Get<string[]>() ?? [];
+    var allowedOrigins = CorsOriginPolicy.ParseAllowedOrigins(
+        builder.Configuration.GetSection("Cors:AllowedOrigins").Get<string[]>() ?? []);
+
+    if (allowedOrigins.Count == 0 && !builder.Environment.IsDevelopment())
+    {
+        // Production gets Cors__AllowedOrigins__0 from docker-compose.production.yml. An empty
+        // list is a broken deployment, not a stricter one: every cross-origin call fails.
+        Log.Warning($"No Cors:AllowedOrigins configured in the {builder.Environment.EnvironmentName} environment; every cross-origin request will be rejected");
+    }
+
+    var allowLoopbackOrigins = builder.Environment.IsDevelopment();
 
     builder.Services.AddCors(options =>
     {
         options.AddPolicy("HomassyPolicy", policy =>
         {
+            // The loopback shortcut exists so local dev does not have to enumerate every
+            // dev-server port. It is decided once, here, rather than inside the predicate:
+            // outside Development the allowlist is the only thing that grants an origin.
             policy.SetIsOriginAllowed(origin =>
-                {
-                    if (new Uri(origin).Host == "localhost")
-                        return true;
-                    
-                    return allowedOrigins.Contains(origin);
-                })
+                    (allowLoopbackOrigins && CorsOriginPolicy.IsLoopback(origin))
+                    || CorsOriginPolicy.IsAllowed(origin, allowedOrigins))
                 .AllowAnyHeader()
                 .AllowAnyMethod()
                 .AllowCredentials();

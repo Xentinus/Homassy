@@ -30,6 +30,23 @@ AllowedOrigins = ["https://example.com", "http://localhost:3000"]
 - Configured via `appsettings.json`
 - Enables web browser clients to access the API
 
+**Matching rules** (`Homassy.API/Security/CorsOriginPolicy.cs`, the single `HomassyPolicy`
+policy that the SignalR hubs also `RequireCors`):
+
+- Outside Development the allowlist is the **only** way to grant an origin. The loopback
+  shortcut — any scheme, any port on a loopback address, so dev servers need not be
+  enumerated — is decided once at registration from `IWebHostEnvironment`, not inside the
+  per-request predicate. It was previously ungated, which let any page on any loopback port
+  make credentialed calls to production and read the responses.
+- Scheme and host compare case-insensitively, the port compares **exactly**, and the path is
+  ignored, so `https://app.example.com` does not match `https://app.example.com.evil.tld`.
+- The `Origin` header is caller-controlled and need not be a URL. Every value goes through
+  `Uri.TryCreate` plus an http/https scheme check: a malformed origin is a plain denial. It
+  must never throw — CORS evaluation runs before `GlobalExceptionMiddleware`, so an exception
+  there surfaces as an unhandled 500.
+- Starting in a non-Development environment with an empty `Cors:AllowedOrigins` logs a
+  warning: that is a broken deployment (nothing cross-origin works), not a stricter one.
+
 ### Correlation ID Middleware
 
 Request tracing for distributed systems:
