@@ -19,6 +19,15 @@ namespace Homassy.Tests.Infrastructure;
 public class MockKratosService : IKratosService
 {
     private readonly ConcurrentDictionary<string, KratosSession> _testSessions = new();
+    private int _getSessionCallCount;
+
+    /// <summary>
+    /// How many times session validation has been attempted. Lets a test assert that a public
+    /// endpoint completes without a Kratos round trip.
+    /// </summary>
+    public int GetSessionCallCount => Volatile.Read(ref _getSessionCallCount);
+
+    public void ResetCallCounts() => Interlocked.Exchange(ref _getSessionCallCount, 0);
 
     public void RegisterSession(string sessionToken, KratosSession session)
     {
@@ -32,6 +41,8 @@ public class MockKratosService : IKratosService
 
     public Task<KratosSession?> GetSessionAsync(string? cookie, string? sessionToken, CancellationToken cancellationToken = default)
     {
+        Interlocked.Increment(ref _getSessionCallCount);
+
         // Try to find session by token first
         if (!string.IsNullOrEmpty(sessionToken) && _testSessions.TryGetValue(sessionToken, out var session))
         {

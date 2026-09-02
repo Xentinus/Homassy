@@ -345,7 +345,9 @@ try
 
     if (app.Environment.IsDevelopment())
     {
-        app.MapOpenApi();
+        // AllowAnonymous so KratosSessionMiddleware skips it the same way it skips the other
+        // public endpoints — the check reads endpoint metadata, not paths.
+        app.MapOpenApi().AllowAnonymous();
     }
 
     if (httpsSettings.Enabled && httpsSettings.Hsts.Enabled && !app.Environment.IsDevelopment())

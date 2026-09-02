@@ -1,6 +1,7 @@
 ﻿using Homassy.API.Context;
 using Homassy.API.Models.Kratos;
 using Homassy.API.Services;
+using Microsoft.AspNetCore.Authorization;
 using Serilog;
 using System.Security.Claims;
 
@@ -13,31 +14,36 @@ namespace Homassy.API.Middleware
     public class KratosSessionMiddleware
     {
         private readonly RequestDelegate _next;
-        private readonly IServiceProvider _serviceProvider;
 
-        public KratosSessionMiddleware(RequestDelegate next, IServiceProvider serviceProvider)
+        public KratosSessionMiddleware(RequestDelegate next)
         {
             _next = next;
-            _serviceProvider = serviceProvider;
         }
 
         public async Task InvokeAsync(HttpContext context)
         {
-            // Skip Kratos auth for health endpoints and other public paths
-            var path = context.Request.Path.Value?.ToLowerInvariant() ?? string.Empty;
-            if (ShouldSkipAuthentication(path))
+            if (ShouldSkipAuthentication(context))
             {
                 await _next(context);
                 return;
             }
 
-            using var scope = _serviceProvider.CreateScope();
-            var kratosService = scope.ServiceProvider.GetRequiredService<IKratosService>();
-
             // Get session token from X-Session-Token header or ory_kratos_session cookie
             var sessionToken = context.Request.Headers["X-Session-Token"].FirstOrDefault();
             var cookieHeader = context.Request.Headers["Cookie"].FirstOrDefault();
             var kratosSessionCookie = KratosService.ExtractSessionCookie(cookieHeader);
+
+            // Nothing to validate. whoami without a cookie or token can only answer 401, so
+            // the round trip would cost a Kratos call to learn what is already known.
+            if (string.IsNullOrEmpty(sessionToken) && string.IsNullOrEmpty(kratosSessionCookie))
+            {
+                await _next(context);
+                return;
+            }
+
+            // context.RequestServices is already the scope for this request; creating another
+            // one here built a second set of scoped services per request for nothing.
+            var kratosService = context.RequestServices.GetRequiredService<IKratosService>();
 
             var session = await kratosService.GetSessionAsync(kratosSessionCookie, sessionToken, context.RequestAborted);
 
@@ -58,29 +64,25 @@ namespace Homassy.API.Middleware
         }
 
         /// <summary>
-        /// Determines if authentication should be skipped for a given path.
+        /// Whether the matched endpoint opts out of session validation.
         /// </summary>
-        private static bool ShouldSkipAuthentication(string path)
+        /// <remarks>
+        /// Route-driven rather than string-driven. The previous version compared the request
+        /// path against a hard-coded list ("/api/v1/health", ...) that never matched anything
+        /// the application serves: controllers route as
+        /// <c>api/v{version:apiVersion}/[controller]</c> with <c>SubstituteApiVersionInUrl</c>,
+        /// so the real path is <c>/api/v1.0/health</c>. Every health probe therefore made a
+        /// full whoami round trip to Kratos, and nothing failed loudly enough to notice.
+        /// Reading <see cref="IAllowAnonymous"/> off the endpoint cannot drift out of sync with
+        /// the routes, and it cannot match a path by accident the way a StartsWith prefix
+        /// could ("/api/v1.0/healthy-secrets" starts with "/api/v1.0/health").
+        ///
+        /// Requires the middleware to run after <c>UseRouting</c>, which Program.cs calls
+        /// explicitly.
+        /// </remarks>
+        private static bool ShouldSkipAuthentication(HttpContext context)
         {
-            // Public endpoints that don't require authentication
-            var publicPaths = new[]
-            {
-                "/health",
-                "/openapi",
-                "/api/v1/health",
-                "/api/v1/version",
-                "/api/v1/errorcodes"
-            };
-
-            foreach (var publicPath in publicPaths)
-            {
-                if (path.StartsWith(publicPath, StringComparison.OrdinalIgnoreCase))
-                {
-                    return true;
-                }
-            }
-
-            return false;
+            return context.GetEndpoint()?.Metadata.GetMetadata<IAllowAnonymous>() is not null;
         }
 
         /// <summary>
