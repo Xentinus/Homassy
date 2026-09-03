@@ -17,6 +17,20 @@ namespace Homassy.API.Controllers
     [Authorize]
     public class FamilyController : ControllerBase
     {
+        private readonly FamilyFunctions _familyFunctions;
+        private readonly FamilyJoinRequestFunctions _familyJoinRequestFunctions;
+        private readonly UserFunctions _userFunctions;
+
+        public FamilyController(
+            FamilyFunctions familyFunctions,
+            FamilyJoinRequestFunctions familyJoinRequestFunctions,
+            UserFunctions userFunctions)
+        {
+            _familyFunctions = familyFunctions;
+            _familyJoinRequestFunctions = familyJoinRequestFunctions;
+            _userFunctions = userFunctions;
+        }
+
         /// <summary>
         /// Gets the current user's family information including members.
         /// </summary>
@@ -25,7 +39,7 @@ namespace Homassy.API.Controllers
         [ProducesResponseType(typeof(ApiResponse<FamilyDetailsResponse>), StatusCodes.Status200OK)]
         public IActionResult GetFamily()
         {
-            var response = new FamilyFunctions().GetFamilyAsync();
+            var response = _familyFunctions.GetFamilyAsync();
             return Ok(ApiResponse<FamilyDetailsResponse>.SuccessResponse(response));
         }
 
@@ -37,7 +51,7 @@ namespace Homassy.API.Controllers
         [ProducesResponseType(typeof(ApiResponse<List<FamilyMemberResponse>>), StatusCodes.Status200OK)]
         public IActionResult GetFamilyMembers()
         {
-            var response = new FamilyFunctions().GetFamilyMembersAsync();
+            var response = _familyFunctions.GetFamilyMembersAsync();
             return Ok(ApiResponse<List<FamilyMemberResponse>>.SuccessResponse(response));
         }
 
@@ -55,7 +69,7 @@ namespace Homassy.API.Controllers
                 return BadRequest(ApiResponse.ErrorResponse(ErrorCodes.ValidationInvalidRequest));
             }
 
-            await new FamilyFunctions().UpdateFamilyAsync(request, cancellationToken);
+            await _familyFunctions.UpdateFamilyAsync(request, cancellationToken);
             return Ok(ApiResponse.SuccessResponse());
         }
 
@@ -73,7 +87,7 @@ namespace Homassy.API.Controllers
                 return BadRequest(ApiResponse.ErrorResponse(ErrorCodes.ValidationInvalidRequest));
             }
 
-            var response = await new FamilyFunctions().CreateFamilyAsync(request, cancellationToken);
+            var response = await _familyFunctions.CreateFamilyAsync(request, cancellationToken);
             return Ok(ApiResponse<FamilyInfo>.SuccessResponse(response));
         }
 
@@ -92,7 +106,7 @@ namespace Homassy.API.Controllers
                 return BadRequest(ApiResponse.ErrorResponse(ErrorCodes.ValidationInvalidRequest));
             }
 
-            var response = await new FamilyJoinRequestFunctions().CreateJoinRequestAsync(request, cancellationToken);
+            var response = await _familyJoinRequestFunctions.CreateJoinRequestAsync(request, cancellationToken);
             return Ok(ApiResponse<MyJoinRequestResponse>.SuccessResponse(response));
         }
 
@@ -104,7 +118,7 @@ namespace Homassy.API.Controllers
         [ProducesResponseType(typeof(ApiResponse<MyJoinRequestResponse>), StatusCodes.Status200OK)]
         public IActionResult GetMyJoinRequest()
         {
-            var response = new FamilyJoinRequestFunctions().GetMyJoinRequest();
+            var response = _familyJoinRequestFunctions.GetMyJoinRequest();
             return Ok(ApiResponse<MyJoinRequestResponse?>.SuccessResponse(response));
         }
 
@@ -117,7 +131,7 @@ namespace Homassy.API.Controllers
         [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status400BadRequest)]
         public async Task<IActionResult> CancelMyJoinRequest(CancellationToken cancellationToken)
         {
-            await new FamilyJoinRequestFunctions().CancelMyJoinRequestAsync(cancellationToken);
+            await _familyJoinRequestFunctions.CancelMyJoinRequestAsync(cancellationToken);
             return Ok(ApiResponse.SuccessResponse());
         }
 
@@ -129,7 +143,7 @@ namespace Homassy.API.Controllers
         [ProducesResponseType(typeof(ApiResponse<List<FamilyJoinRequestResponse>>), StatusCodes.Status200OK)]
         public IActionResult GetFamilyJoinRequests()
         {
-            var response = new FamilyJoinRequestFunctions().GetFamilyJoinRequests();
+            var response = _familyJoinRequestFunctions.GetFamilyJoinRequests();
             return Ok(ApiResponse<List<FamilyJoinRequestResponse>>.SuccessResponse(response));
         }
 
@@ -142,7 +156,7 @@ namespace Homassy.API.Controllers
         [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status400BadRequest)]
         public async Task<IActionResult> ApproveJoinRequest(Guid publicId, CancellationToken cancellationToken)
         {
-            await new FamilyJoinRequestFunctions().ApproveJoinRequestAsync(publicId, cancellationToken);
+            await _familyJoinRequestFunctions.ApproveJoinRequestAsync(publicId, cancellationToken);
             return Ok(ApiResponse.SuccessResponse());
         }
 
@@ -155,7 +169,7 @@ namespace Homassy.API.Controllers
         [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status400BadRequest)]
         public async Task<IActionResult> RejectJoinRequest(Guid publicId, CancellationToken cancellationToken)
         {
-            await new FamilyJoinRequestFunctions().RejectJoinRequestAsync(publicId, cancellationToken);
+            await _familyJoinRequestFunctions.RejectJoinRequestAsync(publicId, cancellationToken);
             return Ok(ApiResponse.SuccessResponse());
         }
 
@@ -168,7 +182,7 @@ namespace Homassy.API.Controllers
         [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status400BadRequest)]
         public async Task<IActionResult> LeaveFamily(CancellationToken cancellationToken)
         {
-            await new UserFunctions().RemoveUserFromFamilyAsync(cancellationToken);
+            await _userFunctions.RemoveUserFromFamilyAsync(cancellationToken);
             return Ok(ApiResponse.SuccessResponse());
         }
 
@@ -186,7 +200,7 @@ namespace Homassy.API.Controllers
                 return BadRequest(ApiResponse.ErrorResponse(ErrorCodes.ValidationInvalidRequest));
             }
 
-            await new FamilyFunctions().UploadFamilyPictureAsync(request.FamilyPictureBase64, cancellationToken);
+            await _familyFunctions.UploadFamilyPictureAsync(request.FamilyPictureBase64, cancellationToken);
             return Ok(ApiResponse.SuccessResponse());
         }
 
@@ -198,7 +212,7 @@ namespace Homassy.API.Controllers
         [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status200OK)]
         public async Task<IActionResult> DeleteFamilyPicture(CancellationToken cancellationToken)
         {
-            await new FamilyFunctions().DeleteFamilyPictureAsync(cancellationToken);
+            await _familyFunctions.DeleteFamilyPictureAsync(cancellationToken);
             return Ok(ApiResponse.SuccessResponse());
         }
     }

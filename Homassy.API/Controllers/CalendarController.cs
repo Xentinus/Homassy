@@ -17,6 +17,13 @@ namespace Homassy.API.Controllers
     [Authorize]
     public class CalendarController : ControllerBase
     {
+        private readonly CalendarFunctions _calendarFunctions;
+
+        public CalendarController(CalendarFunctions calendarFunctions)
+        {
+            _calendarFunctions = calendarFunctions;
+        }
+
         private const int MaxDateRangeDays = 93;
 
         /// <summary>
@@ -35,7 +42,7 @@ namespace Homassy.API.Controllers
                 (request.EndDate.DayNumber - request.StartDate.DayNumber) > MaxDateRangeDays)
                 return BadRequest(ApiResponse.ErrorResponse(ErrorCodes.ValidationInvalidRequest));
 
-            var events = await new CalendarFunctions().GetCalendarEventsAsync(
+            var events = await _calendarFunctions.GetCalendarEventsAsync(
                 DateTime.SpecifyKind(request.StartDate.ToDateTime(TimeOnly.MinValue), DateTimeKind.Utc),
                 DateTime.SpecifyKind(request.EndDate.ToDateTime(TimeOnly.MaxValue), DateTimeKind.Utc),
                 cancellationToken);

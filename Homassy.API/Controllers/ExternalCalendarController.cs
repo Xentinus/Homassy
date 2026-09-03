@@ -14,17 +14,21 @@ namespace Homassy.API.Controllers
     public class ExternalCalendarController : ControllerBase
     {
         private readonly IHttpClientFactory _httpClientFactory;
+        private readonly ExternalCalendarFunctions _externalCalendarFunctions;
 
-        public ExternalCalendarController(IHttpClientFactory httpClientFactory)
+        public ExternalCalendarController(
+            IHttpClientFactory httpClientFactory,
+            ExternalCalendarFunctions externalCalendarFunctions)
         {
             _httpClientFactory = httpClientFactory;
+            _externalCalendarFunctions = externalCalendarFunctions;
         }
 
         [HttpGet]
         [MapToApiVersion(1.0)]
         public async Task<IActionResult> GetExternalCalendars(CancellationToken cancellationToken)
         {
-            var calendars = await new ExternalCalendarFunctions().GetExternalCalendarsAsync(cancellationToken);
+            var calendars = await _externalCalendarFunctions.GetExternalCalendarsAsync(cancellationToken);
             return Ok(ApiResponse<List<ExternalCalendarResponse>>.SuccessResponse(calendars));
         }
 
@@ -38,7 +42,7 @@ namespace Homassy.API.Controllers
                 return BadRequest(ApiResponse.ErrorResponse(Enums.ErrorCodes.ValidationInvalidRequest));
 
             var httpClient = _httpClientFactory.CreateClient("ExternalCalendarSync");
-            var calendar = await new ExternalCalendarFunctions()
+            var calendar = await _externalCalendarFunctions
                 .CreateExternalCalendarAsync(request, httpClient, cancellationToken);
 
             return Ok(ApiResponse<ExternalCalendarResponse>.SuccessResponse(calendar));
@@ -55,7 +59,7 @@ namespace Homassy.API.Controllers
                 return BadRequest(ApiResponse.ErrorResponse(Enums.ErrorCodes.ValidationInvalidRequest));
 
             var httpClient = _httpClientFactory.CreateClient("ExternalCalendarSync");
-            var calendar = await new ExternalCalendarFunctions()
+            var calendar = await _externalCalendarFunctions
                 .UpdateExternalCalendarAsync(publicId, request, httpClient, cancellationToken);
 
             return Ok(ApiResponse<ExternalCalendarResponse>.SuccessResponse(calendar));
@@ -65,7 +69,7 @@ namespace Homassy.API.Controllers
         [MapToApiVersion(1.0)]
         public async Task<IActionResult> DeleteExternalCalendar(Guid publicId, CancellationToken cancellationToken)
         {
-            await new ExternalCalendarFunctions().DeleteExternalCalendarAsync(publicId, cancellationToken);
+            await _externalCalendarFunctions.DeleteExternalCalendarAsync(publicId, cancellationToken);
             return Ok(ApiResponse.SuccessResponse("External calendar deleted"));
         }
 
@@ -74,7 +78,7 @@ namespace Homassy.API.Controllers
         public async Task<IActionResult> SyncExternalCalendar(Guid publicId, CancellationToken cancellationToken)
         {
             var httpClient = _httpClientFactory.CreateClient("ExternalCalendarSync");
-            var calendar = await new ExternalCalendarFunctions()
+            var calendar = await _externalCalendarFunctions
                 .TriggerSyncAsync(publicId, httpClient, cancellationToken);
 
             return Ok(ApiResponse<ExternalCalendarResponse>.SuccessResponse(calendar));

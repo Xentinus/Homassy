@@ -18,6 +18,13 @@ namespace Homassy.API.Controllers
     [Authorize]
     public class ShoppingListController : ControllerBase
     {
+        private readonly ShoppingListFunctions _shoppingListFunctions;
+
+        public ShoppingListController(ShoppingListFunctions shoppingListFunctions)
+        {
+            _shoppingListFunctions = shoppingListFunctions;
+        }
+
         #region ShoppingList
         /// <summary>
         /// Gets all shopping lists for the current user's family with pagination support.
@@ -27,7 +34,7 @@ namespace Homassy.API.Controllers
         [ProducesResponseType(typeof(ApiResponse<PagedResult<ShoppingListInfo>>), StatusCodes.Status200OK)]
         public IActionResult GetShoppingLists([FromQuery] PaginationRequest pagination)
         {
-            var shoppingLists = new ShoppingListFunctions().GetAllShoppingLists(pagination);
+            var shoppingLists = _shoppingListFunctions.GetAllShoppingLists(pagination);
             return Ok(ApiResponse<PagedResult<ShoppingListInfo>>.SuccessResponse(shoppingLists));
         }
 
@@ -40,7 +47,7 @@ namespace Homassy.API.Controllers
         [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status404NotFound)]
         public IActionResult GetShoppingList(Guid publicId, [FromQuery] bool showPurchased = false)
         {
-            var shoppingList = new ShoppingListFunctions().GetDetailedShoppingList(publicId, showPurchased);
+            var shoppingList = _shoppingListFunctions.GetDetailedShoppingList(publicId, showPurchased);
 
             if (shoppingList == null)
             {
@@ -64,7 +71,7 @@ namespace Homassy.API.Controllers
                 return BadRequest(ApiResponse.ErrorResponse(ErrorCodes.ValidationInvalidRequest));
             }
 
-            var shoppingListInfo = await new ShoppingListFunctions().CreateShoppingListAsync(request, cancellationToken);
+            var shoppingListInfo = await _shoppingListFunctions.CreateShoppingListAsync(request, cancellationToken);
             return Ok(ApiResponse<ShoppingListInfo>.SuccessResponse(shoppingListInfo));
         }
 
@@ -83,7 +90,7 @@ namespace Homassy.API.Controllers
                 return BadRequest(ApiResponse.ErrorResponse(ErrorCodes.ValidationInvalidRequest));
             }
 
-            var shoppingListInfo = await new ShoppingListFunctions().UpdateShoppingListAsync(publicId, request, cancellationToken);
+            var shoppingListInfo = await _shoppingListFunctions.UpdateShoppingListAsync(publicId, request, cancellationToken);
             return Ok(ApiResponse<ShoppingListInfo>.SuccessResponse(shoppingListInfo));
         }
 
@@ -96,7 +103,7 @@ namespace Homassy.API.Controllers
         [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status404NotFound)]
         public async Task<IActionResult> DeleteShoppingList(Guid publicId, CancellationToken cancellationToken)
         {
-            await new ShoppingListFunctions().DeleteShoppingListAsync(publicId, cancellationToken);
+            await _shoppingListFunctions.DeleteShoppingListAsync(publicId, cancellationToken);
 
             Log.Information($"Shopping list {publicId} deleted successfully");
             return Ok(ApiResponse.SuccessResponse());
@@ -118,7 +125,7 @@ namespace Homassy.API.Controllers
                 return BadRequest(ApiResponse.ErrorResponse(ErrorCodes.ValidationInvalidRequest));
             }
 
-            var shoppingListItemInfo = await new ShoppingListFunctions().CreateShoppingListItemAsync(request, cancellationToken);
+            var shoppingListItemInfo = await _shoppingListFunctions.CreateShoppingListItemAsync(request, cancellationToken);
             return Ok(ApiResponse<ShoppingListItemInfo>.SuccessResponse(shoppingListItemInfo));
         }
 
@@ -137,7 +144,7 @@ namespace Homassy.API.Controllers
                 return BadRequest(ApiResponse.ErrorResponse(ErrorCodes.ValidationInvalidRequest));
             }
 
-            var shoppingListItemInfo = await new ShoppingListFunctions().UpdateShoppingListItemAsync(publicId, request, cancellationToken);
+            var shoppingListItemInfo = await _shoppingListFunctions.UpdateShoppingListItemAsync(publicId, request, cancellationToken);
             return Ok(ApiResponse<ShoppingListItemInfo>.SuccessResponse(shoppingListItemInfo));
         }
 
@@ -150,7 +157,7 @@ namespace Homassy.API.Controllers
         [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status404NotFound)]
         public async Task<IActionResult> DeleteShoppingListItem(Guid publicId, CancellationToken cancellationToken)
         {
-            await new ShoppingListFunctions().DeleteShoppingListItemAsync(publicId, cancellationToken);
+            await _shoppingListFunctions.DeleteShoppingListItemAsync(publicId, cancellationToken);
 
             Log.Information($"Shopping list item {publicId} deleted successfully");
             return Ok(ApiResponse.SuccessResponse());
@@ -170,7 +177,7 @@ namespace Homassy.API.Controllers
                 return BadRequest(ApiResponse.ErrorResponse(ErrorCodes.ValidationInvalidRequest));
             }
 
-            var shoppingListItem = await new ShoppingListFunctions().QuickPurchaseFromShoppingListItemAsync(request, cancellationToken);
+            var shoppingListItem = await _shoppingListFunctions.QuickPurchaseFromShoppingListItemAsync(request, cancellationToken);
             return Ok(ApiResponse<ShoppingListItemInfo>.SuccessResponse(shoppingListItem));
         }
 
@@ -191,7 +198,7 @@ namespace Homassy.API.Controllers
                 return BadRequest(ApiResponse.ErrorResponse(ErrorCodes.ValidationInvalidRequest));
             }
 
-            var shoppingListItem = await new ShoppingListFunctions().PurchaseShoppingListItemAsync(request, cancellationToken);
+            var shoppingListItem = await _shoppingListFunctions.PurchaseShoppingListItemAsync(request, cancellationToken);
             return Ok(ApiResponse<ShoppingListItemInfo>.SuccessResponse(shoppingListItem));
         }
 
@@ -204,7 +211,7 @@ namespace Homassy.API.Controllers
         [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status404NotFound)]
         public async Task<IActionResult> SimpleQuickPurchase(Guid publicId, CancellationToken cancellationToken)
         {
-            var shoppingListItem = await new ShoppingListFunctions().SimpleQuickPurchaseAsync(publicId, cancellationToken);
+            var shoppingListItem = await _shoppingListFunctions.SimpleQuickPurchaseAsync(publicId, cancellationToken);
             return Ok(ApiResponse<ShoppingListItemInfo>.SuccessResponse(shoppingListItem));
         }
 
@@ -217,7 +224,7 @@ namespace Homassy.API.Controllers
         [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status404NotFound)]
         public async Task<IActionResult> RestorePurchase(Guid publicId, CancellationToken cancellationToken)
         {
-            var shoppingListItem = await new ShoppingListFunctions().RestorePurchaseAsync(publicId, cancellationToken);
+            var shoppingListItem = await _shoppingListFunctions.RestorePurchaseAsync(publicId, cancellationToken);
             return Ok(ApiResponse<ShoppingListItemInfo>.SuccessResponse(shoppingListItem));
         }
 
@@ -235,7 +242,7 @@ namespace Homassy.API.Controllers
                 return BadRequest(ApiResponse.ErrorResponse(ErrorCodes.ValidationInvalidRequest));
             }
 
-            var items = await new ShoppingListFunctions().CreateMultipleShoppingListItemsAsync(request, cancellationToken);
+            var items = await _shoppingListFunctions.CreateMultipleShoppingListItemsAsync(request, cancellationToken);
             return Ok(ApiResponse<List<ShoppingListItemInfo>>.SuccessResponse(items));
         }
 
@@ -253,7 +260,7 @@ namespace Homassy.API.Controllers
                 return BadRequest(ApiResponse.ErrorResponse(ErrorCodes.ValidationInvalidRequest));
             }
 
-            await new ShoppingListFunctions().DeleteMultipleShoppingListItemsAsync(request, cancellationToken);
+            await _shoppingListFunctions.DeleteMultipleShoppingListItemsAsync(request, cancellationToken);
             return Ok(ApiResponse.SuccessResponse());
         }
 
@@ -271,7 +278,7 @@ namespace Homassy.API.Controllers
                 return BadRequest(ApiResponse.ErrorResponse(ErrorCodes.ValidationInvalidRequest));
             }
 
-            var items = await new ShoppingListFunctions().QuickPurchaseMultipleShoppingListItemsAsync(request, cancellationToken);
+            var items = await _shoppingListFunctions.QuickPurchaseMultipleShoppingListItemsAsync(request, cancellationToken);
             return Ok(ApiResponse<List<ShoppingListItemInfo>>.SuccessResponse(items));
         }
 
@@ -283,7 +290,7 @@ namespace Homassy.API.Controllers
         [ProducesResponseType(typeof(ApiResponse<DeadlineCountResponse>), StatusCodes.Status200OK)]
         public IActionResult GetDeadlineCount()
         {
-            var count = new ShoppingListFunctions().GetOverdueAndDueSoonItemsCount();
+            var count = _shoppingListFunctions.GetOverdueAndDueSoonItemsCount();
             return Ok(ApiResponse<DeadlineCountResponse>.SuccessResponse(count));
         }
         #endregion

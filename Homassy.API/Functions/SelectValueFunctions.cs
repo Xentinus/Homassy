@@ -3,12 +3,20 @@ using Homassy.API.Enums;
 using Homassy.API.Exceptions;
 using Homassy.API.Extensions;
 using Homassy.API.Models.Common;
+using Microsoft.EntityFrameworkCore;
 using Serilog;
 
 namespace Homassy.API.Functions
 {
     public class SelectValueFunctions
     {
+        private readonly IDbContextFactory<HomassyDbContext> _contextFactory;
+
+        public SelectValueFunctions(IDbContextFactory<HomassyDbContext> contextFactory)
+        {
+            _contextFactory = contextFactory;
+        }
+
         public List<SelectValue> GetSelectValues(SelectValueType type)
         {
             var userId = SessionInfo.GetUserId();
@@ -35,9 +43,9 @@ namespace Homassy.API.Functions
             };
         }
 
-        private static List<SelectValue> GetShoppingLocationSelectValues(int userId, int? familyId)
+        private List<SelectValue> GetShoppingLocationSelectValues(int userId, int? familyId)
         {
-            var locationFunctions = new LocationFunctions();
+            var locationFunctions = new LocationFunctions(_contextFactory);
             var locations = locationFunctions.GetShoppingLocationsByUserAndFamily(userId, familyId);
 
             return locations
@@ -50,9 +58,9 @@ namespace Homassy.API.Functions
                 .ToList();
         }
 
-        private static List<SelectValue> GetStorageLocationSelectValues(int userId, int? familyId)
+        private List<SelectValue> GetStorageLocationSelectValues(int userId, int? familyId)
         {
-            var locationFunctions = new LocationFunctions();
+            var locationFunctions = new LocationFunctions(_contextFactory);
             var locations = locationFunctions.GetStorageLocationsByUserAndFamily(userId, familyId);
 
             return locations
@@ -65,9 +73,9 @@ namespace Homassy.API.Functions
                 .ToList();
         }
 
-        private static List<SelectValue> GetProductSelectValues(int userId, int? familyId)
+        private List<SelectValue> GetProductSelectValues(int userId, int? familyId)
         {
-            var productFunctions = new ProductFunctions();
+            var productFunctions = new ProductFunctions(_contextFactory);
             var products = productFunctions.GetProductsByUserAndFamily(userId, familyId);
 
             return products
@@ -80,9 +88,9 @@ namespace Homassy.API.Functions
                 .ToList();
         }
 
-        private static List<SelectValue> GetProductInventoryItemSelectValues(int userId, int? familyId)
+        private List<SelectValue> GetProductInventoryItemSelectValues(int userId, int? familyId)
         {
-            var productFunctions = new ProductFunctions();
+            var productFunctions = new ProductFunctions(_contextFactory);
             var inventoryItems = productFunctions.GetInventoryItemsByUserAndFamily(userId, familyId);
 
             return inventoryItems
@@ -103,9 +111,9 @@ namespace Homassy.API.Functions
                 .ToList();
         }
 
-        private static List<SelectValue> GetShoppingListSelectValues(int userId, int? familyId)
+        private List<SelectValue> GetShoppingListSelectValues(int userId, int? familyId)
         {
-            var shoppingListFunctions = new ShoppingListFunctions();
+            var shoppingListFunctions = new ShoppingListFunctions(_contextFactory);
             var shoppingLists = shoppingListFunctions.GetShoppingListsByUserAndFamily(userId, familyId);
 
             return shoppingLists

@@ -24,21 +24,30 @@ namespace Homassy.API.Controllers
     [Authorize]
     public class UserController : ControllerBase
     {
-        private readonly IImageProcessingService _imageProcessingService;
         private readonly IProgressTrackerService _progressTrackerService;
         private readonly NotificationsServiceClient _notificationsClient;
         private readonly IKratosService _kratosService;
+        private readonly UserFunctions _userFunctions;
+        private readonly ActivityFunctions _activityFunctions;
+        private readonly ImageFunctions _imageFunctions;
+        private readonly PushNotificationFunctions _pushNotificationFunctions;
 
         public UserController(
-            IImageProcessingService imageProcessingService, 
-            IProgressTrackerService progressTrackerService, 
+            IProgressTrackerService progressTrackerService,
             NotificationsServiceClient notificationsClient,
-            IKratosService kratosService)
+            IKratosService kratosService,
+            UserFunctions userFunctions,
+            ActivityFunctions activityFunctions,
+            ImageFunctions imageFunctions,
+            PushNotificationFunctions pushNotificationFunctions)
         {
-            _imageProcessingService = imageProcessingService;
             _progressTrackerService = progressTrackerService;
             _notificationsClient = notificationsClient;
             _kratosService = kratosService;
+            _userFunctions = userFunctions;
+            _activityFunctions = activityFunctions;
+            _imageFunctions = imageFunctions;
+            _pushNotificationFunctions = pushNotificationFunctions;
         }
 
         /// <summary>
@@ -49,7 +58,7 @@ namespace Homassy.API.Controllers
         [ProducesResponseType(typeof(ApiResponse<UserProfileResponse>), StatusCodes.Status200OK)]
         public IActionResult GetProfile()
         {
-            var profileResponse = new UserFunctions().GetProfileAsync();
+            var profileResponse = _userFunctions.GetProfileAsync();
             return Ok(ApiResponse<UserProfileResponse>.SuccessResponse(profileResponse));
         }
 
@@ -67,7 +76,7 @@ namespace Homassy.API.Controllers
                 return BadRequest(ApiResponse.ErrorResponse(ErrorCodes.ValidationInvalidRequest));
             }
 
-            await new UserFunctions().UpdateUserProfileAsync(request, _kratosService, cancellationToken);
+            await _userFunctions.UpdateUserProfileAsync(request, _kratosService, cancellationToken);
             return Ok(ApiResponse.SuccessResponse());
         }
 
@@ -85,7 +94,7 @@ namespace Homassy.API.Controllers
                 return BadRequest(ApiResponse.ErrorResponse(ErrorCodes.ValidationInvalidRequest));
             }
 
-            var imageInfo = await new ImageFunctions(_imageProcessingService, _kratosService).UploadUserProfileImageAsync(request, null, cancellationToken);
+            var imageInfo = await _imageFunctions.UploadUserProfileImageAsync(request, null, cancellationToken);
             return Ok(ApiResponse<UserProfileImageInfo>.SuccessResponse(imageInfo));
         }
 
@@ -117,7 +126,7 @@ namespace Homassy.API.Controllers
                         _progressTrackerService.UpdateProgress(jobId, info.Percentage, info.Stage, info.Status);
                     });
 
-                    await new ImageFunctions(_imageProcessingService, _kratosService).UploadUserProfileImageAsync(request, progress, cancellationToken);
+                    await _imageFunctions.UploadUserProfileImageAsync(request, progress, cancellationToken);
                     
                     _progressTrackerService.CompleteJob(jobId);
                 }
@@ -145,7 +154,7 @@ namespace Homassy.API.Controllers
         [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status400BadRequest)]
         public async Task<IActionResult> DeleteProfilePicture(CancellationToken cancellationToken)
         {
-            await new ImageFunctions(_imageProcessingService, _kratosService).DeleteUserProfileImageAsync(cancellationToken);
+            await _imageFunctions.DeleteUserProfileImageAsync(cancellationToken);
             return Ok(ApiResponse.SuccessResponse());
         }
 
@@ -158,7 +167,7 @@ namespace Homassy.API.Controllers
         [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status404NotFound)]
         public IActionResult GetNotificationPreferences()
         {
-            var preferencesResponse = new UserFunctions().GetNotificationPreferencesAsync();
+            var preferencesResponse = _userFunctions.GetNotificationPreferencesAsync();
             return Ok(ApiResponse<NotificationPreferencesResponse>.SuccessResponse(preferencesResponse));
         }
 
@@ -177,7 +186,7 @@ namespace Homassy.API.Controllers
                 return BadRequest(ApiResponse.ErrorResponse(ErrorCodes.ValidationInvalidRequest));
             }
 
-            await new UserFunctions().UpdateNotificationPreferencesAsync(request, cancellationToken);
+            await _userFunctions.UpdateNotificationPreferencesAsync(request, cancellationToken);
             return Ok(ApiResponse.SuccessResponse());
         }
 
@@ -213,7 +222,7 @@ namespace Homassy.API.Controllers
                 return BadRequest(ApiResponse.ErrorResponse(ErrorCodes.ValidationInvalidRequest, "Maximum 100 user IDs allowed per request"));
             }
 
-            var users = new UserFunctions().GetUsersByPublicIds(guidList);
+            var users = _userFunctions.GetUsersByPublicIds(guidList);
             return Ok(ApiResponse<List<UserInfo>>.SuccessResponse(users));
         }
 
@@ -250,7 +259,7 @@ namespace Homassy.API.Controllers
                 ReturnAll = returnAll
             };
 
-            var result = await new ActivityFunctions().GetActivitiesAsync(request, cancellationToken);
+            var result = await _activityFunctions.GetActivitiesAsync(request, cancellationToken);
             return Ok(ApiResponse<PagedResult<Models.Activity.ActivityInfo>>.SuccessResponse(result));
         }
 
@@ -281,7 +290,7 @@ namespace Homassy.API.Controllers
                 return BadRequest(ApiResponse.ErrorResponse(ErrorCodes.ValidationInvalidRequest));
             }
 
-            await new PushNotificationFunctions().SubscribeAsync(
+            await _pushNotificationFunctions.SubscribeAsync(
                 request.Endpoint, request.P256dh, request.Auth, request.UserAgent, cancellationToken);
             return Ok(ApiResponse.SuccessResponse());
         }
@@ -300,7 +309,7 @@ namespace Homassy.API.Controllers
                 return BadRequest(ApiResponse.ErrorResponse(ErrorCodes.ValidationInvalidRequest));
             }
 
-            await new PushNotificationFunctions().UnsubscribeAsync(request.Endpoint, cancellationToken);
+            await _pushNotificationFunctions.UnsubscribeAsync(request.Endpoint, cancellationToken);
             return Ok(ApiResponse.SuccessResponse());
         }
 

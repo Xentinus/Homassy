@@ -67,6 +67,24 @@ try
 
     builder.Services.AddHttpContextAccessor();
 
+    // The Functions layer is the business logic, and it is scoped because that is the lifetime
+    // of the work it does: a controller, hub, or worker scope resolves one and the contexts it
+    // creates die with the operation. Consumers outside a request scope (the cache manager, the
+    // automation worker) create their own scope and resolve from it.
+    builder.Services.AddScoped<ActivityFunctions>();
+    builder.Services.AddScoped<AutomationFunctions>();
+    builder.Services.AddScoped<CalendarFunctions>();
+    builder.Services.AddScoped<ExternalCalendarFunctions>();
+    builder.Services.AddScoped<FamilyFunctions>();
+    builder.Services.AddScoped<FamilyJoinRequestFunctions>();
+    builder.Services.AddScoped<ImageFunctions>();
+    builder.Services.AddScoped<LocationFunctions>();
+    builder.Services.AddScoped<ProductFunctions>();
+    builder.Services.AddScoped<PushNotificationFunctions>();
+    builder.Services.AddScoped<SelectValueFunctions>();
+    builder.Services.AddScoped<ShoppingListFunctions>();
+    builder.Services.AddScoped<UserFunctions>();
+
     builder.Services.AddHostedService<CacheManagementService>();
     builder.Services.AddHostedService<RateLimitCleanupService>();
 

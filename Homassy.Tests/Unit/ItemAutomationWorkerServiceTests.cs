@@ -1,8 +1,10 @@
 ﻿extern alias NotificationsProject;
+using Homassy.API.Context;
 using Homassy.API.Entities.User;
 using Homassy.API.Enums;
 using NotificationsProject::Homassy.Notifications.Services;
 using NotificationsProject::Homassy.Notifications.Workers;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace Homassy.Tests.Unit;
@@ -263,7 +265,8 @@ public class ItemAutomationWorkerServiceTests
         var exception = Record.Exception(() =>
             new ItemAutomationWorkerService(
                 new NoOpServiceScopeFactory(),
-                new NoOpWebPushService()));
+                new NoOpWebPushService(),
+                new NoOpDbContextFactory()));
 
         Assert.Null(exception);
     }
@@ -273,7 +276,8 @@ public class ItemAutomationWorkerServiceTests
     {
         var service = new ItemAutomationWorkerService(
             new NoOpServiceScopeFactory(),
-            new NoOpWebPushService());
+            new NoOpWebPushService(),
+            new NoOpDbContextFactory());
 
         using var cts = new CancellationTokenSource();
 
@@ -307,5 +311,11 @@ public class ItemAutomationWorkerServiceTests
     {
         public IServiceScope CreateScope() => throw new NotSupportedException(
             "Scope creation not supported in unit tests — the 5-minute delay prevents ProcessDueAutomationsAsync from being called.");
+    }
+
+    private sealed class NoOpDbContextFactory : IDbContextFactory<HomassyDbContext>
+    {
+        public HomassyDbContext CreateDbContext() => throw new NotSupportedException(
+            "Context creation not supported in unit tests — the 5-minute delay prevents any DB path from being reached.");
     }
 }

@@ -28,6 +28,15 @@ namespace Homassy.API.Hubs
     {
         private const string SessionItemKey = "KratosSession";
 
+        private readonly UserFunctions _userFunctions;
+        private readonly ProductFunctions _productFunctions;
+
+        public InventoryHub(UserFunctions userFunctions, ProductFunctions productFunctions)
+        {
+            _userFunctions = userFunctions;
+            _productFunctions = productFunctions;
+        }
+
         public override async Task OnConnectedAsync()
         {
             // KratosSessionMiddleware ran during the handshake and stashed the session on the
@@ -41,7 +50,7 @@ namespace Homassy.API.Hubs
                 // reconnect (a new connection), so group membership is re-established transparently.
                 try
                 {
-                    SessionInfo.SetFromKratosSession(session);
+                    SessionInfo.SetFromKratosSession(session, _userFunctions);
                     var userId = SessionInfo.GetUserId();
                     var familyId = SessionInfo.GetFamilyId();
 
@@ -79,8 +88,8 @@ namespace Homassy.API.Hubs
 
             try
             {
-                SessionInfo.SetFromKratosSession(session);
-                return new ProductFunctions().GetInventoryGridForUser();
+                SessionInfo.SetFromKratosSession(session, _userFunctions);
+                return _productFunctions.GetInventoryGridForUser();
             }
             finally
             {

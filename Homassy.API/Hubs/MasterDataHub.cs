@@ -1,4 +1,5 @@
 using Homassy.API.Context;
+using Homassy.API.Functions;
 using Homassy.API.Middleware;
 using Homassy.API.Models.Kratos;
 using Microsoft.AspNetCore.Authorization;
@@ -26,6 +27,13 @@ namespace Homassy.API.Hubs
     [Authorize]
     public class MasterDataHub : Hub
     {
+        private readonly UserFunctions _userFunctions;
+
+        public MasterDataHub(UserFunctions userFunctions)
+        {
+            _userFunctions = userFunctions;
+        }
+
         public override async Task OnConnectedAsync()
         {
             // KratosSessionMiddleware ran during the handshake and stashed the session on the
@@ -37,7 +45,7 @@ namespace Homassy.API.Hubs
                 // membership is re-established transparently.
                 try
                 {
-                    SessionInfo.SetFromKratosSession(session);
+                    SessionInfo.SetFromKratosSession(session, _userFunctions);
                     var userId = SessionInfo.GetUserId();
                     var familyId = SessionInfo.GetFamilyId();
 

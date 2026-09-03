@@ -1,8 +1,10 @@
 ﻿extern alias NotificationsProject;
+using Homassy.API.Context;
 using Homassy.API.Entities.User;
 using Homassy.API.Enums;
 using NotificationsProject::Homassy.Notifications.Services;
 using NotificationsProject::Homassy.Notifications.Workers;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace Homassy.Tests.Unit;
@@ -145,7 +147,8 @@ public class AutomationNotificationIntegrationTests
         var exception = Record.Exception(() =>
             new ItemAutomationWorkerService(
                 new TestServiceScopeFactory(),
-                new TestWebPushService()));
+                new TestWebPushService(),
+                new TestDbContextFactory()));
 
         Assert.Null(exception);
     }
@@ -155,7 +158,8 @@ public class AutomationNotificationIntegrationTests
     {
         var service = new ItemAutomationWorkerService(
             new TestServiceScopeFactory(),
-            new TestWebPushService());
+            new TestWebPushService(),
+            new TestDbContextFactory());
 
         using var cts = new CancellationTokenSource();
         var startTask = service.StartAsync(cts.Token);
@@ -374,5 +378,11 @@ public class AutomationNotificationIntegrationTests
     {
         public IServiceScope CreateScope() => throw new NotSupportedException(
             "Scope creation not supported in unit tests");
+    }
+
+    private sealed class TestDbContextFactory : IDbContextFactory<HomassyDbContext>
+    {
+        public HomassyDbContext CreateDbContext() => throw new NotSupportedException(
+            "Context creation not supported in unit tests");
     }
 }

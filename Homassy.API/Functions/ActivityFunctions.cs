@@ -16,10 +16,17 @@ namespace Homassy.API.Functions
         private static readonly ConcurrentDictionary<int, Activity> _activityCache = new();
         public static bool Inited = false;
 
+        private readonly IDbContextFactory<HomassyDbContext> _contextFactory;
+
+        public ActivityFunctions(IDbContextFactory<HomassyDbContext> contextFactory)
+        {
+            _contextFactory = contextFactory;
+        }
+
         #region Cache Management
         public async Task InitializeCacheAsync(CancellationToken cancellationToken = default)
         {
-            using var context = HomassyDbContext.ForReading();
+            using var context = _contextFactory.CreateForReading();
 
             // Load recent activities (last 30 days)
             var cutoffDate = DateTime.UtcNow.AddDays(-30);
@@ -48,7 +55,7 @@ namespace Homassy.API.Functions
         {
             try
             {
-                using var context = HomassyDbContext.ForReading();
+                using var context = _contextFactory.CreateForReading();
                 var activity = await context.Activities
                     .IgnoreQueryFilters()
                     .FirstOrDefaultAsync(a => a.Id == activityId, cancellationToken);
@@ -92,7 +99,7 @@ namespace Homassy.API.Functions
         {
             try
             {
-                using var context = new HomassyDbContext();
+                using var context = _contextFactory.CreateDbContext();
 
                 var activity = new Activity
                 {
@@ -128,7 +135,7 @@ namespace Homassy.API.Functions
             if (!userId.HasValue)
                 throw new UnauthorizedException("User not authenticated", ErrorCodes.AuthUnauthorized);
 
-            using var context = HomassyDbContext.ForReading();
+            using var context = _contextFactory.CreateForReading();
 
             // Build query - Activities themselves should NOT be filtered by IsDeleted
             // (they inherit from RecordChangeEntity which has soft delete)
@@ -149,7 +156,7 @@ namespace Homassy.API.Functions
             if (request.UserPublicId.HasValue)
             {
                 // Find user by publicId
-                var requestedUser = new UserFunctions().GetUserByPublicId(request.UserPublicId.Value);
+                var requestedUser = new UserFunctions(_contextFactory).GetUserByPublicId(request.UserPublicId.Value);
                 if (requestedUser != null)
                 {
                     query = query.Where(a => a.UserId == requestedUser.Id);
@@ -183,7 +190,7 @@ namespace Homassy.API.Functions
             var activities = await query.ToListAsync(cancellationToken);
 
             // Map to ActivityInfo
-            var userFunctions = new UserFunctions();
+            var userFunctions = new UserFunctions(_contextFactory);
             var activityInfos = activities.Select(a =>
             {
                 var user = userFunctions.GetUserById(a.UserId);

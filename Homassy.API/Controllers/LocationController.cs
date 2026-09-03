@@ -18,6 +18,13 @@ namespace Homassy.API.Controllers
     [Authorize]
     public class LocationController : ControllerBase
     {
+        private readonly LocationFunctions _locationFunctions;
+
+        public LocationController(LocationFunctions locationFunctions)
+        {
+            _locationFunctions = locationFunctions;
+        }
+
         #region Shopping Locations
         /// <summary>
         /// Gets all shopping locations for the current user's family with pagination support.
@@ -27,7 +34,7 @@ namespace Homassy.API.Controllers
         [ProducesResponseType(typeof(ApiResponse<PagedResult<ShoppingLocationInfo>>), StatusCodes.Status200OK)]
         public IActionResult GetShoppingLocations([FromQuery] PaginationRequest pagination)
         {
-            var shoppingLocations = new LocationFunctions().GetAllShoppingLocations(pagination);
+            var shoppingLocations = _locationFunctions.GetAllShoppingLocations(pagination);
             return Ok(ApiResponse<PagedResult<ShoppingLocationInfo>>.SuccessResponse(shoppingLocations));
         }
 
@@ -40,7 +47,7 @@ namespace Homassy.API.Controllers
         [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status404NotFound)]
         public async Task<IActionResult> GetShoppingLocationPurchases(Guid shoppingLocationPublicId, CancellationToken cancellationToken)
         {
-            var purchases = await new LocationFunctions().GetShoppingLocationPurchasesAsync(shoppingLocationPublicId, cancellationToken);
+            var purchases = await _locationFunctions.GetShoppingLocationPurchasesAsync(shoppingLocationPublicId, cancellationToken);
             return Ok(ApiResponse<List<ShoppingLocationPurchaseInfo>>.SuccessResponse(purchases));
         }
 
@@ -58,7 +65,7 @@ namespace Homassy.API.Controllers
                 return BadRequest(ApiResponse.ErrorResponse(ErrorCodes.ValidationInvalidRequest));
             }
 
-            var shoppingLocationInfo = await new LocationFunctions().CreateShoppingLocationAsync(request, cancellationToken);
+            var shoppingLocationInfo = await _locationFunctions.CreateShoppingLocationAsync(request, cancellationToken);
             return Ok(ApiResponse<ShoppingLocationInfo>.SuccessResponse(shoppingLocationInfo));
         }
 
@@ -77,7 +84,7 @@ namespace Homassy.API.Controllers
                 return BadRequest(ApiResponse.ErrorResponse(ErrorCodes.ValidationInvalidRequest));
             }
 
-            var shoppingLocationInfo = await new LocationFunctions().UpdateShoppingLocationAsync(shoppingLocationPublicId, request, cancellationToken);
+            var shoppingLocationInfo = await _locationFunctions.UpdateShoppingLocationAsync(shoppingLocationPublicId, request, cancellationToken);
             return Ok(ApiResponse<ShoppingLocationInfo>.SuccessResponse(shoppingLocationInfo));
         }
 
@@ -90,7 +97,7 @@ namespace Homassy.API.Controllers
         [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status404NotFound)]
         public async Task<IActionResult> DeleteShoppingLocation(Guid shoppingLocationPublicId, CancellationToken cancellationToken)
         {
-            await new LocationFunctions().DeleteShoppingLocationAsync(shoppingLocationPublicId, cancellationToken);
+            await _locationFunctions.DeleteShoppingLocationAsync(shoppingLocationPublicId, cancellationToken);
             Log.Information($"Shopping location {shoppingLocationPublicId} deleted successfully");
             return Ok(ApiResponse.SuccessResponse());
         }
@@ -109,7 +116,7 @@ namespace Homassy.API.Controllers
                 return BadRequest(ApiResponse.ErrorResponse(ErrorCodes.ValidationInvalidRequest));
             }
 
-            var shoppingLocationInfos = await new LocationFunctions().CreateMultipleShoppingLocationsAsync(request.Locations, cancellationToken);
+            var shoppingLocationInfos = await _locationFunctions.CreateMultipleShoppingLocationsAsync(request.Locations, cancellationToken);
             return Ok(ApiResponse<List<ShoppingLocationInfo>>.SuccessResponse(shoppingLocationInfos));
         }
 
@@ -127,7 +134,7 @@ namespace Homassy.API.Controllers
                 return BadRequest(ApiResponse.ErrorResponse(ErrorCodes.ValidationInvalidRequest));
             }
 
-            await new LocationFunctions().DeleteMultipleShoppingLocationsAsync(request, cancellationToken);
+            await _locationFunctions.DeleteMultipleShoppingLocationsAsync(request, cancellationToken);
             return Ok(ApiResponse.SuccessResponse());
         }
         #endregion
@@ -141,7 +148,7 @@ namespace Homassy.API.Controllers
         [ProducesResponseType(typeof(ApiResponse<PagedResult<StorageLocationInfo>>), StatusCodes.Status200OK)]
         public IActionResult GetStorageLocations([FromQuery] PaginationRequest pagination)
         {
-            var storageLocations = new LocationFunctions().GetAllStorageLocations(pagination);
+            var storageLocations = _locationFunctions.GetAllStorageLocations(pagination);
             return Ok(ApiResponse<PagedResult<StorageLocationInfo>>.SuccessResponse(storageLocations));
         }
 
@@ -154,7 +161,7 @@ namespace Homassy.API.Controllers
         [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status404NotFound)]
         public async Task<IActionResult> GetStorageLocationInventory(Guid storageLocationPublicId, CancellationToken cancellationToken)
         {
-            var inventory = await new LocationFunctions().GetStorageLocationInventoryAsync(storageLocationPublicId, cancellationToken);
+            var inventory = await _locationFunctions.GetStorageLocationInventoryAsync(storageLocationPublicId, cancellationToken);
             return Ok(ApiResponse<List<StorageLocationInventoryItemInfo>>.SuccessResponse(inventory));
         }
 
@@ -172,7 +179,7 @@ namespace Homassy.API.Controllers
                 return BadRequest(ApiResponse.ErrorResponse(ErrorCodes.ValidationInvalidRequest));
             }
 
-            var storageLocationInfo = await new LocationFunctions().CreateStorageLocationAsync(request, cancellationToken);
+            var storageLocationInfo = await _locationFunctions.CreateStorageLocationAsync(request, cancellationToken);
             return Ok(ApiResponse<StorageLocationInfo>.SuccessResponse(storageLocationInfo));
         }
 
@@ -191,7 +198,7 @@ namespace Homassy.API.Controllers
                 return BadRequest(ApiResponse.ErrorResponse(ErrorCodes.ValidationInvalidRequest));
             }
 
-            var storageLocationInfo = await new LocationFunctions().UpdateStorageLocationAsync(storageLocationPublicId, request, cancellationToken);
+            var storageLocationInfo = await _locationFunctions.UpdateStorageLocationAsync(storageLocationPublicId, request, cancellationToken);
             return Ok(ApiResponse<StorageLocationInfo>.SuccessResponse(storageLocationInfo));
         }
 
@@ -204,7 +211,7 @@ namespace Homassy.API.Controllers
         [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status404NotFound)]
         public async Task<IActionResult> DeleteStorageLocation(Guid storageLocationPublicId, CancellationToken cancellationToken)
         {
-            await new LocationFunctions().DeleteStorageLocationAsync(storageLocationPublicId, cancellationToken);
+            await _locationFunctions.DeleteStorageLocationAsync(storageLocationPublicId, cancellationToken);
             Log.Information($"Storage location {storageLocationPublicId} deleted successfully");
             return Ok(ApiResponse.SuccessResponse());
         }
@@ -223,7 +230,7 @@ namespace Homassy.API.Controllers
                 return BadRequest(ApiResponse.ErrorResponse(ErrorCodes.ValidationInvalidRequest));
             }
 
-            var storageLocationInfos = await new LocationFunctions().CreateMultipleStorageLocationsAsync(request.Locations, cancellationToken);
+            var storageLocationInfos = await _locationFunctions.CreateMultipleStorageLocationsAsync(request.Locations, cancellationToken);
             return Ok(ApiResponse<List<StorageLocationInfo>>.SuccessResponse(storageLocationInfos));
         }
 
@@ -241,7 +248,7 @@ namespace Homassy.API.Controllers
                 return BadRequest(ApiResponse.ErrorResponse(ErrorCodes.ValidationInvalidRequest));
             }
 
-            await new LocationFunctions().DeleteMultipleStorageLocationsAsync(request, cancellationToken);
+            await _locationFunctions.DeleteMultipleStorageLocationsAsync(request, cancellationToken);
             return Ok(ApiResponse.SuccessResponse());
         }
         #endregion

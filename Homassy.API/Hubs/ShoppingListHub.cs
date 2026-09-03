@@ -27,6 +27,15 @@ namespace Homassy.API.Hubs
     {
         private const string SessionItemKey = "KratosSession";
 
+        private readonly UserFunctions _userFunctions;
+        private readonly ShoppingListFunctions _shoppingListFunctions;
+
+        public ShoppingListHub(UserFunctions userFunctions, ShoppingListFunctions shoppingListFunctions)
+        {
+            _userFunctions = userFunctions;
+            _shoppingListFunctions = shoppingListFunctions;
+        }
+
         public override async Task OnConnectedAsync()
         {
             // KratosSessionMiddleware ran during the handshake and stashed the session on the
@@ -52,8 +61,8 @@ namespace Homassy.API.Hubs
             DetailedShoppingListInfo? snapshot;
             try
             {
-                SessionInfo.SetFromKratosSession(session);
-                snapshot = new ShoppingListFunctions().GetDetailedShoppingList(publicId, showPurchased);
+                SessionInfo.SetFromKratosSession(session, _userFunctions);
+                snapshot = _shoppingListFunctions.GetDetailedShoppingList(publicId, showPurchased);
             }
             catch (Exceptions.ShoppingListAccessDeniedException)
             {

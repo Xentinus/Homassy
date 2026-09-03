@@ -27,8 +27,14 @@ try
 
     HomassyDbContext.SetConfiguration(builder.Configuration);
 
-    builder.Services.AddDbContext<HomassyDbContext>(options =>
-        options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection")));
+    // Mirrors Homassy.API: the Functions layer this service borrows takes its contexts from
+    // the factory, one per operation. Registering the factory alongside the scoped context
+    // requires the options to be a singleton, which AddDbContextFactory installs.
+    Action<DbContextOptionsBuilder> configureDbContext = options =>
+        options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection"));
+
+    builder.Services.AddDbContextFactory<HomassyDbContext>(configureDbContext);
+    builder.Services.AddDbContext<HomassyDbContext>(configureDbContext, optionsLifetime: ServiceLifetime.Singleton);
 
     // Services
     builder.Services.AddSingleton<IWebPushService, WebPushService>();
