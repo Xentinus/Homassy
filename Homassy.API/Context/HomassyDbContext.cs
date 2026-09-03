@@ -38,14 +38,28 @@ namespace Homassy.API.Context
         /// </remarks>
         public static HomassyDbContext ForReading()
         {
-            var context = new HomassyDbContext { _readOnly = true };
-            context.ChangeTracker.QueryTrackingBehavior = QueryTrackingBehavior.NoTrackingWithIdentityResolution;
+            var context = new HomassyDbContext();
+            context.MarkReadOnly();
             return context;
         }
 
         public HomassyDbContext(DbContextOptions<HomassyDbContext> options)
             : base(options)
         {
+        }
+
+        /// <summary>
+        /// Turns this context into the read-only context described on <see cref="ForReading"/>.
+        /// </summary>
+        /// <remarks>
+        /// Exists so a context handed out by <see cref="IDbContextFactory{TContext}"/> — which
+        /// only knows the options constructor — can be put into the same mode; see
+        /// <c>HomassyDbContextFactoryExtensions.CreateForReading</c>.
+        /// </remarks>
+        internal void MarkReadOnly()
+        {
+            _readOnly = true;
+            ChangeTracker.QueryTrackingBehavior = QueryTrackingBehavior.NoTrackingWithIdentityResolution;
         }
 
         public static void SetConfiguration(IConfiguration configuration)

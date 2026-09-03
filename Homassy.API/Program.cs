@@ -50,8 +50,20 @@ try
 
     ConfigService.Initialize(builder.Configuration);
 
-    builder.Services.AddDbContext<HomassyDbContext>(options =>
-        options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection")));
+    // A context is scoped to the operation, not to the request: the Functions layer takes
+    // IDbContextFactory<HomassyDbContext> and disposes each context as the unit of work ends,
+    // which is what returns the pooled connection and stops a change tracker outliving the
+    // call that filled it. It also works unchanged in the background workers and cache
+    // refreshes, which have no request scope to borrow a context from.
+    //
+    // The scoped registration stays for the consumers that legitimately want the ambient
+    // context — startup trigger initialisation and the integration tests. Registering both
+    // requires the options to be a singleton, which is what AddDbContextFactory installs.
+    Action<DbContextOptionsBuilder> configureDbContext = options =>
+        options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection"));
+
+    builder.Services.AddDbContextFactory<HomassyDbContext>(configureDbContext);
+    builder.Services.AddDbContext<HomassyDbContext>(configureDbContext, optionsLifetime: ServiceLifetime.Singleton);
 
     builder.Services.AddHttpContextAccessor();
 
