@@ -35,9 +35,6 @@ try
     Console.WriteLine("Waiting for PostgreSQL to be ready...");
     await WaitForDatabaseAsync(connectionString, maxAttempts: 30, delaySeconds: 2);
 
-    // Set configuration for HomassyDbContext
-    HomassyDbContext.SetConfiguration(configuration);
-
     // Create DbContext. No logger factory is attached on purpose: EF Core then emits nothing,
     // so no SQL statement text ends up in the migrator output. Progress is reported by the
     // Console.WriteLine calls below (migration names only, never the statements themselves).

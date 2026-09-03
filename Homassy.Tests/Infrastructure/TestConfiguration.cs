@@ -1,29 +1,32 @@
 using Homassy.API.Context;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 
 namespace Homassy.Tests.Infrastructure;
 
 /// <summary>
-/// Loads the same configuration the test host uses and installs it on the static hooks
-/// (<see cref="HomassyDbContext.SetConfiguration"/>, <c>ConfigService</c>).
+/// Loads the same configuration the test host uses, for the unit tests that need a
+/// <see cref="HomassyDbContext"/> without standing up a host.
 /// </summary>
 /// <remarks>
-/// Those hooks are process-wide, and xUnit runs test classes in parallel. A unit test that only
-/// needs a context object must therefore install the <em>real</em> configuration rather than a
-/// placeholder connection string, or it will point another class's queries at a database that
-/// does not exist while they are running.
+/// <c>ConfigService</c> is still a process-wide static, and xUnit runs test classes in parallel,
+/// so a unit test that touches it must install the <em>real</em> configuration rather than a
+/// placeholder. The context itself no longer has a static hook: it is always built from options,
+/// which is what <see cref="DbContextFactory"/> supplies.
 /// </remarks>
 public static class TestConfiguration
 {
     private static readonly Lazy<IConfiguration> Instance = new(Build, isThreadSafe: true);
 
+    private static readonly Lazy<IDbContextFactory<HomassyDbContext>> FactoryInstance =
+        new(BuildDbContextFactory, isThreadSafe: true);
+
     public static IConfiguration Configuration => Instance.Value;
 
-    /// <summary>Installs the test configuration on <see cref="HomassyDbContext"/>.</summary>
-    public static void EnsureDbContextConfigured()
-    {
-        HomassyDbContext.SetConfiguration(Configuration);
-    }
+    /// <summary>
+    /// A context factory over the test configuration, equivalent to the one the host registers.
+    /// </summary>
+    public static IDbContextFactory<HomassyDbContext> DbContextFactory => FactoryInstance.Value;
 
     private static IConfiguration Build()
     {
@@ -34,5 +37,26 @@ public static class TestConfiguration
             .AddJsonFile(Path.Combine(projectDir, "appsettings.Testing.json"), optional: true)
             .AddEnvironmentVariables()
             .Build();
+    }
+
+    private static IDbContextFactory<HomassyDbContext> BuildDbContextFactory()
+    {
+        var options = new DbContextOptionsBuilder<HomassyDbContext>()
+            .UseNpgsql(Configuration.GetConnectionString("DefaultConnection"))
+            .Options;
+
+        return new OptionsDbContextFactory(options);
+    }
+
+    private sealed class OptionsDbContextFactory : IDbContextFactory<HomassyDbContext>
+    {
+        private readonly DbContextOptions<HomassyDbContext> _options;
+
+        public OptionsDbContextFactory(DbContextOptions<HomassyDbContext> options)
+        {
+            _options = options;
+        }
+
+        public HomassyDbContext CreateDbContext() => new(_options);
     }
 }

@@ -46,8 +46,6 @@ try
 
     builder.Host.UseSerilog();
 
-    HomassyDbContext.SetConfiguration(builder.Configuration);
-
     ConfigService.Initialize(builder.Configuration);
 
     // A context is scoped to the operation, not to the request: the Functions layer takes

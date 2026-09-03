@@ -22,20 +22,13 @@ public class UserFunctionsTests : IClassFixture<HomassyWebApplicationFactory>
         // Create a client to ensure the server is started
         _client = _factory.CreateClient();
 
-        // Ensure static services are configured for unit tests that bypass the factory
-        EnsureConfigurationInitialized();
+        // ConfigService is still a process-wide static; install the same (real) configuration
+        // every other unit test that touches it installs — see TestConfiguration.
+        ConfigService.Initialize(TestConfiguration.Configuration);
 
         // UserFunctions is scoped, so it cannot be resolved from the root provider; the context
         // factory it needs is a singleton, so the tests build the instance themselves.
         _contextFactory = _factory.Services.GetRequiredService<IDbContextFactory<HomassyDbContext>>();
-    }
-
-    private static void EnsureConfigurationInitialized()
-    {
-        // Shared with the other unit tests that touch the static configuration hooks, so every
-        // one of them installs the same (real) configuration — see TestConfiguration.
-        HomassyDbContext.SetConfiguration(TestConfiguration.Configuration);
-        ConfigService.Initialize(TestConfiguration.Configuration);
     }
 
     [Fact]

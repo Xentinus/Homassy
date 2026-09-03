@@ -101,11 +101,14 @@ Homassy.Notifications  →  POST /email/automation-notification →  Homassy.Ema
 
 The service takes a `ProjectReference` to `Homassy.API.csproj` and reuses `HomassyDbContext` and all entities directly. This avoids duplication and ensures schema parity.
 
-Setup in `Program.cs`:
+Setup in `Program.cs` mirrors the API — the factory for the `Functions` layer this service
+borrows, plus the scoped context the workers resolve per iteration:
 ```csharp
-HomassyDbContext.SetConfiguration(builder.Configuration);
-builder.Services.AddDbContext<HomassyDbContext>(options =>
-    options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection")));
+Action<DbContextOptionsBuilder> configureDbContext = options =>
+    options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection"));
+
+builder.Services.AddDbContextFactory<HomassyDbContext>(configureDbContext);
+builder.Services.AddDbContext<HomassyDbContext>(configureDbContext, optionsLifetime: ServiceLifetime.Singleton);
 ```
 
 ---
@@ -268,7 +271,7 @@ docker compose run --rm -e EFCORE_SQL_LOGGING=true homassy.notifications
 
 - **No controllers** — use Minimal API `app.MapPost(...)` pattern
 - **Namespace**: `Homassy.Notifications.*`
-- **DB access**: only via scoped `HomassyDbContext` — never use `new HomassyDbContext(...)` directly in services
+- **DB access**: only via the scoped `HomassyDbContext` or `IDbContextFactory<HomassyDbContext>` — never construct one directly in a service
 - **Logging**: always use `ILogger<T>` injection, never `Console.Write`
 - **API Key**: the Notifications service is internal-only — enforce auth on all non-health endpoints
 - **Background workers**: extend `BackgroundService`, use `IServiceScopeFactory` for scoped dependencies inside workers

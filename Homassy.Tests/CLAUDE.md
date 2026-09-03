@@ -177,7 +177,7 @@ Custom `WebApplicationFactory<Program>` that configures the test environment:
    - Environment variables
 2. Replaces `IKratosService` with `MockKratosService` (singleton)
 3. Sets `ASPNETCORE_ENVIRONMENT` to `"Testing"`
-4. Initializes `HomassyDbContext.SetConfiguration()` and `ConfigService.Initialize()` before host creation
+4. Initializes `ConfigService.Initialize()` before host creation
 
 **Helper methods:**
 
@@ -358,11 +358,14 @@ Not in source control — copy `appsettings.Testing.example.json` and point the 
 at your local PostgreSQL 16. CI writes its own copy in the `test` job of
 `.github/workflows/deploy.yml`; keep the two in step when you add a key.
 
-Unit tests that need the static configuration hooks (`HomassyDbContext.SetConfiguration`,
-`ConfigService.Initialize`) must go through `Infrastructure/TestConfiguration`. Those hooks are
-process-wide and xUnit runs test classes in parallel, so a test that installs a placeholder
-connection string points another class's queries at a database that does not exist while it is
-running.
+Unit tests that need `ConfigService.Initialize` — still a process-wide static — must go through
+`Infrastructure/TestConfiguration`. xUnit runs test classes in parallel, so a test that installs
+a placeholder connection string points another class's queries at a database that does not exist
+while it is running.
+
+A unit test that needs a bare `HomassyDbContext` takes it from
+`TestConfiguration.DbContextFactory` (`CreateDbContext()` / `CreateForReading()`), the same shape
+the host registers. There is no static configuration hook on the context to install.
 
 Required structure:
 

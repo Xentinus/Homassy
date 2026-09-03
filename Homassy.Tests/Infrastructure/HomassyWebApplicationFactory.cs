@@ -200,7 +200,6 @@ public class HomassyWebApplicationFactory : WebApplicationFactory<Program>
         builder.ConfigureServices((context, services) =>
         {
             var configuration = context.Configuration;
-            Homassy.API.Context.HomassyDbContext.SetConfiguration(configuration);
             Homassy.API.Services.ConfigService.Initialize(configuration);
         });
 

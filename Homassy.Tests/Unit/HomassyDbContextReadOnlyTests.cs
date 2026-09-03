@@ -6,18 +6,17 @@ namespace Homassy.Tests.Unit;
 
 /// <summary>
 /// The Functions layer opens a context per operation. Read-only operations take one from
-/// <see cref="HomassyDbContext.ForReading"/> so their rows are not held in a change tracker
-/// that will never be saved through.
+/// <see cref="HomassyDbContextFactoryExtensions.CreateForReading"/> so their rows are not held in
+/// a change tracker that will never be saved through.
 /// </summary>
 public class HomassyDbContextReadOnlyTests
 {
-    private static void EnsureConfigured() => TestConfiguration.EnsureDbContextConfigured();
+    private static IDbContextFactory<HomassyDbContext> Factory => TestConfiguration.DbContextFactory;
 
     [Fact]
-    public void ForReading_DoesNotTrackQueryResults()
+    public void CreateForReading_DoesNotTrackQueryResults()
     {
-        EnsureConfigured();
-        using var context = HomassyDbContext.ForReading();
+        using var context = Factory.CreateForReading();
 
         Assert.Equal(
             QueryTrackingBehavior.NoTrackingWithIdentityResolution,
@@ -25,10 +24,9 @@ public class HomassyDbContextReadOnlyTests
     }
 
     [Fact]
-    public void ForReading_KeepsIdentityResolution()
+    public void CreateForReading_KeepsIdentityResolution()
     {
-        EnsureConfigured();
-        using var context = HomassyDbContext.ForReading();
+        using var context = Factory.CreateForReading();
 
         // Plain NoTracking would materialise a row reached twice (through an Include, say) as two
         // objects. Identity resolution keeps one instance per key, so behaviour matches a
@@ -37,30 +35,27 @@ public class HomassyDbContextReadOnlyTests
     }
 
     [Fact]
-    public void ForReading_RefusesToSave()
+    public void CreateForReading_RefusesToSave()
     {
-        EnsureConfigured();
-        using var context = HomassyDbContext.ForReading();
+        using var context = Factory.CreateForReading();
 
         // Nothing is tracked, so a save would report success and write nothing. Better to fail.
         var exception = Assert.Throws<InvalidOperationException>(() => context.SaveChanges());
-        Assert.Contains("ForReading", exception.Message);
+        Assert.Contains("CreateForReading", exception.Message);
     }
 
     [Fact]
-    public async Task ForReading_RefusesToSaveAsynchronously()
+    public async Task CreateForReading_RefusesToSaveAsynchronously()
     {
-        EnsureConfigured();
-        using var context = HomassyDbContext.ForReading();
+        using var context = Factory.CreateForReading();
 
         await Assert.ThrowsAsync<InvalidOperationException>(() => context.SaveChangesAsync(CancellationToken.None));
     }
 
     [Fact]
-    public void DefaultConstructor_StillTracks()
+    public void CreateDbContext_StillTracks()
     {
-        EnsureConfigured();
-        using var context = new HomassyDbContext();
+        using var context = Factory.CreateDbContext();
 
         Assert.Equal(QueryTrackingBehavior.TrackAll, context.ChangeTracker.QueryTrackingBehavior);
     }

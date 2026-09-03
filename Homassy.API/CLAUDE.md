@@ -105,7 +105,8 @@ Homassy.API/
 │   └── TableNames.cs
 ├── Context/               Database context and session management
 │   ├── HomassyDbContext.cs
-│   ├── HomassyDbContextFactory.cs
+│   ├── HomassyDbContextFactory.cs             Design-time factory, for EF tooling only
+│   ├── HomassyDbContextFactoryExtensions.cs   CreateForReading() — the no-tracking context
 │   └── SessionInfo.cs
 ├── Controllers/           HTTP endpoint handlers (thin layer)
 │   ├── AuthController.cs
@@ -275,22 +276,32 @@ The project uses a unique **Controller → Functions** architecture instead of t
 Controllers are kept deliberately thin and focused on HTTP concerns:
 
 - Validate `ModelState`
-- Instantiate `Functions` classes
+- Take the `Functions` classes they need through the constructor
 - Handle exceptions with consistent error mapping
 - Return standardized `ApiResponse` objects
 
 **Example from UserController:**
 
 ```csharp
+private readonly UserFunctions _userFunctions;
+
+public UserController(UserFunctions userFunctions)
+{
+    _userFunctions = userFunctions;
+}
+
 [HttpGet("profile")]
 [MapToApiVersion(1.0)]
 public IActionResult GetProfile()
 {
-    var profileResponse = new UserFunctions().GetProfileAsync();
+    var profileResponse = _userFunctions.GetProfileAsync();
     return Ok(ApiResponse<UserProfileResponse>.SuccessResponse(profileResponse));
     // Exceptions bubble up to GlobalExceptionMiddleware
 }
 ```
+
+Never `new` a `Functions` class from a controller, hub or service: they are registered as scoped
+services in `Program.cs`, and that registration is what supplies the context factory below.
 
 #### Functions (Business Logic + Data Access)
 
@@ -306,6 +317,13 @@ Functions classes contain all domain logic and directly interact with the databa
 ```csharp
 public class UserFunctions
 {
+    private readonly IDbContextFactory<HomassyDbContext> _contextFactory;
+
+    public UserFunctions(IDbContextFactory<HomassyDbContext> contextFactory)
+    {
+        _contextFactory = contextFactory;
+    }
+
     public UserProfileResponse GetProfileAsync()
     {
         var userId = SessionInfo.GetUserId();
@@ -318,29 +336,38 @@ public class UserFunctions
 }
 ```
 
+Inside the layer the classes still instantiate each other, passing the factory along
+(`new ActivityFunctions(_contextFactory)`). That is deliberate: `UserFunctions` ↔
+`FamilyFunctions` and `ProductFunctions` ↔ `AutomationFunctions` are mutually dependent, so
+constructor injection between them would be an unresolvable cycle.
+
 #### DbContext lifetime — two rules, no exceptions
 
 ```csharp
 // An operation that only reads
-using var context = HomassyDbContext.ForReading();
+using var context = _contextFactory.CreateForReading();
 
 // An operation that writes
-using var context = new HomassyDbContext();
+using var context = _contextFactory.CreateDbContext();
 ...
 await context.SaveChangesAsync(cancellationToken);
 ```
 
-1. **Always `using`.** A context that is not disposed keeps its `NpgsqlConnection` leased from
-   the pool and keeps every entity it materialised alive until the finalizer runs. Under
-   sustained traffic that shows up as memory climbing with requests served and, once the
-   100-connection pool is exhausted, requests blocking on `Timeout` instead of failing fast.
-2. **`ForReading()` unless the method saves.** It sets
+1. **Always `using`, always from the factory.** A context that is not disposed keeps its
+   `NpgsqlConnection` leased from the pool and keeps every entity it materialised alive until
+   the finalizer runs. Under sustained traffic that shows up as memory climbing with requests
+   served and, once the 100-connection pool is exhausted, requests blocking on `Timeout`
+   instead of failing fast. `HomassyDbContext` has no parameterless constructor, so there is no
+   way to create one that the DI registration did not configure.
+2. **`CreateForReading()` unless the method saves.** It sets
    `NoTrackingWithIdentityResolution`, so rows are not entered into a change tracker nothing
    will ever save through — roughly half the allocation per row on list endpoints, and it is
    what keeps the bulk cache loads from pinning whole tables. Calling `SaveChanges` on such a
    context throws rather than silently writing nothing.
 
 A context is method-local, so "does this method save?" is the whole decision.
+
+A method that creates a context therefore cannot be `static` — it needs the instance field.
 
 ### In-Memory Caching Strategy
 
@@ -365,13 +392,20 @@ The Functions classes implement a sophisticated caching mechanism:
 
 The project uses Entity Framework Core as the ORM with PostgreSQL as the database backend.
 
-**Configuration in Program.cs:**
+**Configuration in Program.cs** — the only place a context is configured:
 ```csharp
-HomassyDbContext.SetConfiguration(builder.Configuration);
+Action<DbContextOptionsBuilder> configureDbContext = options =>
+    options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection"));
 
-builder.Services.AddDbContext<HomassyDbContext>(options =>
-    options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection")));
+// What the Functions layer uses: one context per operation, disposed with it.
+builder.Services.AddDbContextFactory<HomassyDbContext>(configureDbContext);
+// The ambient request context, for the few consumers that want one (startup trigger
+// initialisation, the integration tests). Registering both requires singleton options.
+builder.Services.AddDbContext<HomassyDbContext>(configureDbContext, optionsLifetime: ServiceLifetime.Singleton);
 ```
+
+EF tooling gets its context from `Context/HomassyDbContextFactory.cs`
+(`IDesignTimeDbContextFactory`), which builds the options itself.
 
 > The entity inheritance hierarchy, the PostgreSQL trigger-based cache invalidation, and the per-request session context are documented in [Entities/CLAUDE.md](Entities/CLAUDE.md).
 
@@ -482,7 +516,7 @@ Most controllers rely on `GlobalExceptionMiddleware` for exception handling (no 
 public async Task<IActionResult> GetProduct(Guid id, CancellationToken cancellationToken)
 {
     // No try-catch needed — GlobalExceptionMiddleware handles all exceptions
-    var product = await new ProductFunctions().GetProductAsync(id, cancellationToken);
+    var product = await _productFunctions.GetProductAsync(id, cancellationToken);
     return Ok(ApiResponse<ProductResponse>.SuccessResponse(product));
 }
 ```
