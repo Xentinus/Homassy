@@ -193,11 +193,12 @@ jobs:
         continue-on-error: true
 
   # ---------------------------------------------------------------------------------------
-  # Release. Skipped entirely on pull requests, which get verification only.
+  # Release. The images are built on pull requests too — a broken Dockerfile is a build
+  # failure nothing else catches, and finding it after the merge means finding it during a
+  # deploy. Only the push to GHCR and the deploy itself are limited to master.
   # ---------------------------------------------------------------------------------------
   prepare:
     name: Compute image tag
-    if: github.event_name != 'pull_request'
     runs-on: ubuntu-latest
     outputs:
       tag: ${{ steps.meta.outputs.tag }}
@@ -208,10 +209,9 @@ jobs:
 
   build:
     name: Build & push images
-    # `test` gates this, so a failing test stops the pipeline before any image is pushed.
+    # `test` gates this, so a failing test stops the pipeline before any image is built.
     # `prepare` has no dependency on `test`, so the two run in parallel.
     needs: [prepare, test]
-    if: github.event_name != 'pull_request'
     runs-on: ubuntu-latest
     strategy:
       fail-fast: true
@@ -228,6 +228,8 @@ jobs:
       - uses: docker/setup-buildx-action@v3
 
       - name: Log in to GHCR
+        # Nothing is pushed from a pull request, so no registry credentials are needed there.
+        if: github.event_name != 'pull_request'
         uses: docker/login-action@v3
         with:
           registry: ghcr.io
@@ -241,7 +243,9 @@ jobs:
           file: ${{ matrix.file }}
           target: ${{ matrix.target }}
           platforms: linux/amd64
-          push: true
+          # Built and thrown away on a pull request: the point there is proving the image
+          # still builds, not producing an artifact.
+          push: ${{ github.event_name != 'pull_request' }}
           tags: |
             ghcr.io/xentinus/${{ matrix.name }}:${{ needs.prepare.outputs.tag }}
             ghcr.io/xentinus/${{ matrix.name }}:latest
@@ -257,6 +261,8 @@ jobs:
   deploy:
     name: Deploy to VPS
     needs: [prepare, build]
+    # The only job that stays master-only. A pull request has no images in GHCR to pull, and
+    # putting unreviewed code on the production host is not a verification step.
     if: github.event_name != 'pull_request'
     runs-on: ubuntu-latest
     environment: production          # manual approval gate (required reviewers)

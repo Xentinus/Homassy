@@ -271,7 +271,7 @@ The `test` job starts a `postgres:16` service container, applies the migrations 
 
 The `web` job runs `npm run lint` and `npm run typecheck` for `Homassy.Web`. Both are advisory for now — the app carries a backlog of eslint and type errors that predates the workflow — so they report without failing the run.
 
-Image builds depend on `test`, so a failing test stops the pipeline before anything reaches GHCR or the VPS. Pull requests get the verification jobs only; nothing is built or pushed.
+The `build` job depends on `test`, so a failing test stops the pipeline before any image is built. It runs on pull requests too — a broken Dockerfile is a failure nothing else catches, and finding it after the merge means finding it during a deploy — but there the images are built and thrown away: nothing is pushed to GHCR and no registry login happens. `deploy` is the only master-only job.
 
 > The gate is only advisory until `test` is added as a required status check in the branch protection rule for `master` (Settings, then Branches).
 
@@ -281,7 +281,7 @@ Deployment runs through GitHub Actions into the GitHub Container Registry (GHCR)
 
 The flow (`.github/workflows/deploy.yml`):
 
-1. A push to `master`, or a manual `workflow_dispatch`, runs the verification jobs above, then builds the five service images for `linux/amd64`.
+1. A push to `master`, or a manual `workflow_dispatch`, runs the verification jobs above, then builds the five service images for `linux/amd64` and pushes them.
 2. The images go to `ghcr.io/xentinus/<service>`, tagged with a shared `YYYYMMDD-HHmmss` timestamp and with `latest`, as private packages linked to this repository.
 3. The `deploy` job waits for manual approval of the `production` environment.
 4. After approval it copies `docker-compose.production.yml`, the Kratos config, the Caddy config, and a generated `.env` to the VPS, then runs `docker compose pull` and `up -d --wait` with the timestamped images.
