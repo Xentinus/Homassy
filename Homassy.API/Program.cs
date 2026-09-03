@@ -65,6 +65,17 @@ try
 
     builder.Services.AddHttpContextAccessor();
 
+    // SignalR broadcast helpers. Singletons over IHubContext<T>, which is itself a singleton;
+    // the Functions layer reaches them through FunctionsRuntime, and InternalController injects
+    // the inventory one directly to relay out-of-process changes.
+    builder.Services.AddSingleton<InventoryRealtime>();
+    builder.Services.AddSingleton<MasterDataRealtime>();
+    builder.Services.AddSingleton<ShoppingListRealtime>();
+
+    // The cross-cutting services the Functions layer needs, as one typed parameter object.
+    // See FunctionsRuntime for why it is a bundle rather than separate constructor parameters.
+    builder.Services.AddSingleton<FunctionsRuntime>();
+
     // The Functions layer is the business logic, and it is scoped because that is the lifetime
     // of the work it does: a controller, hub, or worker scope resolves one and the contexts it
     // creates die with the operation. Consumers outside a request scope (the cache manager, the
@@ -349,8 +360,6 @@ try
         tags: ["external"]);
 
     var app = builder.Build();
-
-    Homassy.API.Infrastructure.ServiceLocator.Provider = app.Services;
 
     using (var scope = app.Services.CreateScope())
     {

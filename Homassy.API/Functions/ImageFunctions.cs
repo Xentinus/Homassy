@@ -12,16 +12,18 @@ namespace Homassy.API.Functions
 {
     public class ImageFunctions
     {
+        private readonly FunctionsRuntime _runtime;
         private readonly IDbContextFactory<HomassyDbContext> _contextFactory;
         private readonly IImageProcessingService _imageProcessingService;
         private readonly IKratosService? _kratosService;
 
         public ImageFunctions(
-            IDbContextFactory<HomassyDbContext> contextFactory,
+            FunctionsRuntime runtime,
             IImageProcessingService imageProcessingService,
             IKratosService? kratosService = null)
         {
-            _contextFactory = contextFactory;
+            _runtime = runtime;
+            _contextFactory = runtime.ContextFactory;
             _imageProcessingService = imageProcessingService;
             _kratosService = kratosService;
         }
@@ -35,7 +37,7 @@ namespace Homassy.API.Functions
                 throw new UserNotFoundException("User not found");
             }
 
-            var productFunctions = new ProductFunctions(_contextFactory);
+            var productFunctions = new ProductFunctions(_runtime);
             var product = productFunctions.GetProductByPublicId(request.ProductPublicId);
             if (product == null)
             {
@@ -145,7 +147,7 @@ namespace Homassy.API.Functions
                 throw new UserNotFoundException("User not found");
             }
 
-            var productFunctions = new ProductFunctions(_contextFactory);
+            var productFunctions = new ProductFunctions(_runtime);
             var product = productFunctions.GetProductByPublicId(productPublicId);
             if (product == null)
             {

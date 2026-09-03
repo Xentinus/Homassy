@@ -23,10 +23,12 @@ namespace Homassy.API.Controllers
     public class InternalController : ControllerBase
     {
         private readonly IConfiguration _configuration;
+        private readonly InventoryRealtime _inventoryRealtime;
 
-        public InternalController(IConfiguration configuration)
+        public InternalController(IConfiguration configuration, InventoryRealtime inventoryRealtime)
         {
             _configuration = configuration;
+            _inventoryRealtime = inventoryRealtime;
         }
 
         /// <summary>
@@ -54,7 +56,7 @@ namespace Homassy.API.Controllers
                     {
                         return BadRequest(ApiResponse.ErrorResponse("Product and Item are required for an upserted event"));
                     }
-                    await InventoryRealtime.InventoryUpsertedAsync(
+                    await _inventoryRealtime.InventoryUpsertedAsync(
                         request.UserId, request.FamilyId, request.Product, request.Item, cancellationToken);
                     break;
 
@@ -63,7 +65,7 @@ namespace Homassy.API.Controllers
                     {
                         return BadRequest(ApiResponse.ErrorResponse("ProductPublicId and ItemPublicId are required for a deleted event"));
                     }
-                    await InventoryRealtime.InventoryDeletedAsync(
+                    await _inventoryRealtime.InventoryDeletedAsync(
                         request.UserId, request.FamilyId, request.SharedWithFamily,
                         request.ProductPublicId.Value, request.ItemPublicId.Value, cancellationToken);
                     break;

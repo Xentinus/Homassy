@@ -10,11 +10,13 @@ namespace Homassy.API.Functions
 {
     public class SelectValueFunctions
     {
+        private readonly FunctionsRuntime _runtime;
         private readonly IDbContextFactory<HomassyDbContext> _contextFactory;
 
-        public SelectValueFunctions(IDbContextFactory<HomassyDbContext> contextFactory)
+        public SelectValueFunctions(FunctionsRuntime runtime)
         {
-            _contextFactory = contextFactory;
+            _runtime = runtime;
+            _contextFactory = runtime.ContextFactory;
         }
 
         public List<SelectValue> GetSelectValues(SelectValueType type)
@@ -45,7 +47,7 @@ namespace Homassy.API.Functions
 
         private List<SelectValue> GetShoppingLocationSelectValues(int userId, int? familyId)
         {
-            var locationFunctions = new LocationFunctions(_contextFactory);
+            var locationFunctions = new LocationFunctions(_runtime);
             var locations = locationFunctions.GetShoppingLocationsByUserAndFamily(userId, familyId);
 
             return locations
@@ -60,7 +62,7 @@ namespace Homassy.API.Functions
 
         private List<SelectValue> GetStorageLocationSelectValues(int userId, int? familyId)
         {
-            var locationFunctions = new LocationFunctions(_contextFactory);
+            var locationFunctions = new LocationFunctions(_runtime);
             var locations = locationFunctions.GetStorageLocationsByUserAndFamily(userId, familyId);
 
             return locations
@@ -75,7 +77,7 @@ namespace Homassy.API.Functions
 
         private List<SelectValue> GetProductSelectValues(int userId, int? familyId)
         {
-            var productFunctions = new ProductFunctions(_contextFactory);
+            var productFunctions = new ProductFunctions(_runtime);
             var products = productFunctions.GetProductsByUserAndFamily(userId, familyId);
 
             return products
@@ -90,7 +92,7 @@ namespace Homassy.API.Functions
 
         private List<SelectValue> GetProductInventoryItemSelectValues(int userId, int? familyId)
         {
-            var productFunctions = new ProductFunctions(_contextFactory);
+            var productFunctions = new ProductFunctions(_runtime);
             var inventoryItems = productFunctions.GetInventoryItemsByUserAndFamily(userId, familyId);
 
             return inventoryItems
@@ -113,7 +115,7 @@ namespace Homassy.API.Functions
 
         private List<SelectValue> GetShoppingListSelectValues(int userId, int? familyId)
         {
-            var shoppingListFunctions = new ShoppingListFunctions(_contextFactory);
+            var shoppingListFunctions = new ShoppingListFunctions(_runtime);
             var shoppingLists = shoppingListFunctions.GetShoppingListsByUserAndFamily(userId, familyId);
 
             return shoppingLists

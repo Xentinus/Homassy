@@ -1,4 +1,3 @@
-using Homassy.API.Infrastructure;
 using Homassy.API.Models.Automation;
 using Homassy.API.Models.ExternalCalendar;
 using Homassy.API.Models.Location;
@@ -12,9 +11,9 @@ namespace Homassy.API.Hubs
     /// <summary>
     /// Broadcast helper for pushing "Törzsadatok" (master-data) changes to connected clients over SignalR.
     /// Writes still flow through the REST endpoints / Functions layer; after a successful commit the caller
-    /// notifies everyone whose master-data lists the change is visible on. Resolves the hub context from the
-    /// application <see cref="ServiceLocator"/> (the Functions layer is instantiated with <c>new</c>, so
-    /// constructor injection isn't available), mirroring <see cref="InventoryRealtime"/>.
+    /// notifies everyone whose master-data lists the change is visible on. Takes its hub context
+    /// through the constructor and is registered as a singleton; the Functions layer reaches it
+    /// through <see cref="Functions.FunctionsRuntime"/>.
     ///
     /// Scope model differs per entity, so the group is resolved from the entity, not from a single rule:
     /// <list type="bullet">
@@ -29,7 +28,7 @@ namespace Homassy.API.Hubs
     /// <item>External calendars are always family-scoped: family group only.</item>
     /// </list>
     /// </summary>
-    public static class MasterDataRealtime
+    public sealed class MasterDataRealtime
     {
         public const string ProductUpsertedEvent = "ProductUpserted";
         public const string ProductDeletedEvent = "ProductDeleted";
@@ -50,8 +49,16 @@ namespace Homassy.API.Hubs
         /// <summary>SignalR group for a single user's personal master data. Shared with <see cref="MasterDataHub"/>.</summary>
         public static string UserGroup(int userId) => $"masterdata:user:{userId}";
 
-        private static IHubContext<MasterDataHub>? HubContext =>
-            ServiceLocator.Provider?.GetService<IHubContext<MasterDataHub>>();
+        private readonly IHubContext<MasterDataHub>? _hubContext;
+
+        /// <remarks>
+        /// The hub context is optional so a host that maps no hubs resolves the helper and skips
+        /// the broadcast, exactly as the previous service-locator lookup did when it returned null.
+        /// </remarks>
+        public MasterDataRealtime(IHubContext<MasterDataHub>? hubContext = null)
+        {
+            _hubContext = hubContext;
+        }
 
         /// <summary>
         /// Resolves the group an entity targets: the family group when it is family-scoped, otherwise the
@@ -63,50 +70,50 @@ namespace Homassy.API.Hubs
             familyId.HasValue ? FamilyGroup(familyId.Value) : UserGroup(ownerUserId);
 
         // --- Products (catalog) -------------------------------------------------
-        public static Task ProductUpsertedAsync(int userId, int? familyId, ProductInfo product, CancellationToken cancellationToken = default)
+        public Task ProductUpsertedAsync(int userId, int? familyId, ProductInfo product, CancellationToken cancellationToken = default)
             => SendAsync(Scope(familyId, userId), ProductUpsertedEvent, product, cancellationToken);
 
-        public static Task ProductDeletedAsync(int userId, int? familyId, Guid productPublicId, CancellationToken cancellationToken = default)
+        public Task ProductDeletedAsync(int userId, int? familyId, Guid productPublicId, CancellationToken cancellationToken = default)
             => SendAsync(Scope(familyId, userId), ProductDeletedEvent, new { publicId = productPublicId }, cancellationToken);
 
         // --- Storage locations --------------------------------------------------
-        public static Task StorageLocationUpsertedAsync(int ownerUserId, int? familyId, StorageLocationInfo location, CancellationToken cancellationToken = default)
+        public Task StorageLocationUpsertedAsync(int ownerUserId, int? familyId, StorageLocationInfo location, CancellationToken cancellationToken = default)
             => SendAsync(Scope(familyId, ownerUserId), StorageLocationUpsertedEvent, location, cancellationToken);
 
-        public static Task StorageLocationDeletedAsync(int ownerUserId, int? familyId, Guid publicId, CancellationToken cancellationToken = default)
+        public Task StorageLocationDeletedAsync(int ownerUserId, int? familyId, Guid publicId, CancellationToken cancellationToken = default)
             => SendAsync(Scope(familyId, ownerUserId), StorageLocationDeletedEvent, new { publicId }, cancellationToken);
 
         // --- Shopping locations -------------------------------------------------
-        public static Task ShoppingLocationUpsertedAsync(int ownerUserId, int? familyId, ShoppingLocationInfo location, CancellationToken cancellationToken = default)
+        public Task ShoppingLocationUpsertedAsync(int ownerUserId, int? familyId, ShoppingLocationInfo location, CancellationToken cancellationToken = default)
             => SendAsync(Scope(familyId, ownerUserId), ShoppingLocationUpsertedEvent, location, cancellationToken);
 
-        public static Task ShoppingLocationDeletedAsync(int ownerUserId, int? familyId, Guid publicId, CancellationToken cancellationToken = default)
+        public Task ShoppingLocationDeletedAsync(int ownerUserId, int? familyId, Guid publicId, CancellationToken cancellationToken = default)
             => SendAsync(Scope(familyId, ownerUserId), ShoppingLocationDeletedEvent, new { publicId }, cancellationToken);
 
         // --- Shopping lists -----------------------------------------------------
-        public static Task ShoppingListUpsertedAsync(int ownerUserId, int? familyId, ShoppingListInfo list, CancellationToken cancellationToken = default)
+        public Task ShoppingListUpsertedAsync(int ownerUserId, int? familyId, ShoppingListInfo list, CancellationToken cancellationToken = default)
             => SendAsync(Scope(familyId, ownerUserId), ShoppingListUpsertedEvent, list, cancellationToken);
 
-        public static Task ShoppingListDeletedAsync(int ownerUserId, int? familyId, Guid publicId, CancellationToken cancellationToken = default)
+        public Task ShoppingListDeletedAsync(int ownerUserId, int? familyId, Guid publicId, CancellationToken cancellationToken = default)
             => SendAsync(Scope(familyId, ownerUserId), ShoppingListDeletedEvent, new { publicId }, cancellationToken);
 
         // --- Automation rules ---------------------------------------------------
-        public static Task AutomationUpsertedAsync(int ownerUserId, int? familyId, AutomationResponse automation, CancellationToken cancellationToken = default)
+        public Task AutomationUpsertedAsync(int ownerUserId, int? familyId, AutomationResponse automation, CancellationToken cancellationToken = default)
             => SendAsync(Scope(familyId, ownerUserId), AutomationUpsertedEvent, automation, cancellationToken);
 
-        public static Task AutomationDeletedAsync(int ownerUserId, int? familyId, Guid publicId, CancellationToken cancellationToken = default)
+        public Task AutomationDeletedAsync(int ownerUserId, int? familyId, Guid publicId, CancellationToken cancellationToken = default)
             => SendAsync(Scope(familyId, ownerUserId), AutomationDeletedEvent, new { publicId }, cancellationToken);
 
         // --- External calendars (always family-scoped) --------------------------
-        public static Task ExternalCalendarUpsertedAsync(int familyId, ExternalCalendarResponse calendar, CancellationToken cancellationToken = default)
+        public Task ExternalCalendarUpsertedAsync(int familyId, ExternalCalendarResponse calendar, CancellationToken cancellationToken = default)
             => SendAsync(FamilyGroup(familyId), ExternalCalendarUpsertedEvent, calendar, cancellationToken);
 
-        public static Task ExternalCalendarDeletedAsync(int familyId, Guid publicId, CancellationToken cancellationToken = default)
+        public Task ExternalCalendarDeletedAsync(int familyId, Guid publicId, CancellationToken cancellationToken = default)
             => SendAsync(FamilyGroup(familyId), ExternalCalendarDeletedEvent, new { publicId }, cancellationToken);
 
-        private static async Task SendAsync(string group, string eventName, object payload, CancellationToken cancellationToken)
+        private async Task SendAsync(string group, string eventName, object payload, CancellationToken cancellationToken)
         {
-            var hub = HubContext;
+            var hub = _hubContext;
             if (hub == null)
             {
                 Log.Warning("MasterDataHub context unavailable; skipping {Event} broadcast to {Group}", eventName, group);

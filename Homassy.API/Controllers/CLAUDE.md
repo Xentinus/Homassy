@@ -105,7 +105,7 @@ Manages product catalog and inventory (all endpoints require `[Authorize]`).
 **Realtime (SignalR):**
 - Hub at `/hubs/inventory` (`InventoryHub`, `[Authorize]`) — same Kratos-cookie-on-handshake auth as the shopping-list hub
 - Groups are identity-derived (not per-resource): on connect each connection joins `inventory:user:{userId}` and, if the user has a family, `inventory:family:{familyId}` — matching the grid's visibility filter (`item.UserId == me || item.FamilyId == myFamily`). `JoinInventory()` returns the light `List<InventoryGridProductInfo>` snapshot (only the fields the grid cards render)
-- After a successful write, `ProductFunctions` (and the in-process automation consume path in `AutomationFunctions`) broadcasts via the static `InventoryRealtime` helper: `InventoryUpserted` (create/quick-add/update/partial-consume/split/move — carries a light product + item), `InventoryDeleted` (delete / consume-to-zero), `ProductUpdated` (catalog fields), `ProductFavoriteChanged` (per-user, user group only), `ProductDeleted`. Family-shared items route to the family group, personal items to the user group
+- After a successful write, `ProductFunctions` (and the in-process automation consume path in `AutomationFunctions`) broadcasts via the injected `InventoryRealtime` helper: `InventoryUpserted` (create/quick-add/update/partial-consume/split/move — carries a light product + item), `InventoryDeleted` (delete / consume-to-zero), `ProductUpdated` (catalog fields), `ProductFavoriteChanged` (per-user, user group only), `ProductDeleted`. Family-shared items route to the family group, personal items to the user group
 - Out-of-process mutations (the `Homassy.Notifications` automation worker) relay through `POST /api/v1/internal/inventory/broadcast` (see InternalController), since they can't reach the hub in-process
 - Broadcast failures are logged but never break the write
 
@@ -164,7 +164,7 @@ Manages shopping lists and items (all endpoints require `[Authorize]`).
 **Realtime (SignalR):**
 - Hub at `/hubs/shopping-list` (`ShoppingListHub`, `[Authorize]`) — the Kratos session cookie rides the WebSocket handshake, so the existing auth pipeline works unchanged
 - `JoinList(publicId, showPurchased)` joins the list's group (`shopping-list:{publicId}`) and returns the current `DetailedShoppingListInfo` snapshot via the same access-checked path as the REST endpoint; `LeaveList(publicId)` leaves the group
-- After a successful REST write, `ShoppingListFunctions` broadcasts through the static `ShoppingListRealtime` helper: `ItemUpserted` (create/update/purchase/restore, hydrated item), `ItemDeleted`, `ListUpdated`, `ListDeleted`
+- After a successful REST write, `ShoppingListFunctions` broadcasts through the injected `ShoppingListRealtime` helper: `ItemUpserted` (create/update/purchase/restore, hydrated item), `ItemDeleted`, `ListUpdated`, `ListDeleted`
 - Broadcast failures are logged but never break the HTTP write that triggered them
 
 ### HealthController

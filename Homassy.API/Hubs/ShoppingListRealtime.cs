@@ -1,4 +1,3 @@
-using Homassy.API.Infrastructure;
 using Homassy.API.Models.ShoppingList;
 using Microsoft.AspNetCore.SignalR;
 using Serilog;
@@ -9,11 +8,10 @@ namespace Homassy.API.Hubs
     /// Broadcast helper for pushing shopping list changes to connected clients over SignalR.
     /// Writes still flow through the REST endpoints / <see cref="Functions.ShoppingListFunctions"/>;
     /// after a successful commit the Functions layer calls into here to notify everyone viewing
-    /// the affected list. Resolves the hub context from the application <see cref="ServiceLocator"/>
-    /// (the Functions layer is instantiated with <c>new</c>, so constructor injection isn't available),
-    /// mirroring the existing static cross-cutting pattern used elsewhere in the codebase.
+    /// the affected list. Takes its hub context through the constructor and is registered as a singleton; the
+    /// Functions layer reaches it through <see cref="Functions.FunctionsRuntime"/>.
     /// </summary>
-    public static class ShoppingListRealtime
+    public sealed class ShoppingListRealtime
     {
         public const string ItemUpsertedEvent = "ItemUpserted";
         public const string ItemDeletedEvent = "ItemDeleted";
@@ -25,28 +23,36 @@ namespace Homassy.API.Hubs
         /// </summary>
         public static string GroupName(Guid listPublicId) => $"shopping-list:{listPublicId}";
 
-        private static IHubContext<ShoppingListHub>? HubContext =>
-            ServiceLocator.Provider?.GetService<IHubContext<ShoppingListHub>>();
+        private readonly IHubContext<ShoppingListHub>? _hubContext;
+
+        /// <remarks>
+        /// The hub context is optional so a host that maps no hubs resolves the helper and skips
+        /// the broadcast, exactly as the previous service-locator lookup did when it returned null.
+        /// </remarks>
+        public ShoppingListRealtime(IHubContext<ShoppingListHub>? hubContext = null)
+        {
+            _hubContext = hubContext;
+        }
 
         /// <summary>Pushes the current (hydrated) state of an item to the list's group (covers create/update/purchase/restore).</summary>
-        public static Task ItemUpsertedAsync(Guid listPublicId, ShoppingListItemInfo item, CancellationToken cancellationToken = default)
+        public Task ItemUpsertedAsync(Guid listPublicId, ShoppingListItemInfo item, CancellationToken cancellationToken = default)
             => SendAsync(listPublicId, ItemUpsertedEvent, item, cancellationToken);
 
         /// <summary>Notifies the list's group that an item was removed.</summary>
-        public static Task ItemDeletedAsync(Guid listPublicId, Guid itemPublicId, CancellationToken cancellationToken = default)
+        public Task ItemDeletedAsync(Guid listPublicId, Guid itemPublicId, CancellationToken cancellationToken = default)
             => SendAsync(listPublicId, ItemDeletedEvent, new { publicId = itemPublicId, shoppingListPublicId = listPublicId }, cancellationToken);
 
         /// <summary>Notifies the list's group that list metadata (name, color, sharing) changed.</summary>
-        public static Task ListUpdatedAsync(ShoppingListInfo list, CancellationToken cancellationToken = default)
+        public Task ListUpdatedAsync(ShoppingListInfo list, CancellationToken cancellationToken = default)
             => SendAsync(list.PublicId, ListUpdatedEvent, list, cancellationToken);
 
         /// <summary>Notifies the list's group that the list itself was deleted.</summary>
-        public static Task ListDeletedAsync(Guid listPublicId, CancellationToken cancellationToken = default)
+        public Task ListDeletedAsync(Guid listPublicId, CancellationToken cancellationToken = default)
             => SendAsync(listPublicId, ListDeletedEvent, new { publicId = listPublicId }, cancellationToken);
 
-        private static async Task SendAsync(Guid listPublicId, string eventName, object payload, CancellationToken cancellationToken)
+        private async Task SendAsync(Guid listPublicId, string eventName, object payload, CancellationToken cancellationToken)
         {
-            var hub = HubContext;
+            var hub = _hubContext;
             if (hub == null)
             {
                 Log.Warning("ShoppingListHub context unavailable; skipping {Event} broadcast for list {ListPublicId}", eventName, listPublicId);

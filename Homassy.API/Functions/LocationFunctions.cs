@@ -17,11 +17,13 @@ namespace Homassy.API.Functions
         private static readonly ConcurrentDictionary<int, StorageLocation> _storageLocationCache = new();
         public static bool Inited = false;
 
+        private readonly FunctionsRuntime _runtime;
         private readonly IDbContextFactory<HomassyDbContext> _contextFactory;
 
-        public LocationFunctions(IDbContextFactory<HomassyDbContext> contextFactory)
+        public LocationFunctions(FunctionsRuntime runtime)
         {
-            _contextFactory = contextFactory;
+            _runtime = runtime;
+            _contextFactory = runtime.ContextFactory;
         }
 
         #region Cache Management
@@ -449,7 +451,7 @@ namespace Homassy.API.Functions
                     IsSharedWithFamily = shoppingLocation.FamilyId.HasValue
                 };
 
-                await MasterDataRealtime.ShoppingLocationUpsertedAsync(shoppingLocation.UserId ?? userId.Value, shoppingLocation.FamilyId, info, cancellationToken);
+                await _runtime.MasterData.ShoppingLocationUpsertedAsync(shoppingLocation.UserId ?? userId.Value, shoppingLocation.FamilyId, info, cancellationToken);
 
                 return info;
             }
@@ -618,7 +620,7 @@ namespace Homassy.API.Functions
                     IsSharedWithFamily = trackedLocation.FamilyId.HasValue
                 };
 
-                await MasterDataRealtime.ShoppingLocationUpsertedAsync(trackedLocation.UserId ?? userId.Value, trackedLocation.FamilyId, info, cancellationToken);
+                await _runtime.MasterData.ShoppingLocationUpsertedAsync(trackedLocation.UserId ?? userId.Value, trackedLocation.FamilyId, info, cancellationToken);
 
                 return info;
             }
@@ -678,7 +680,7 @@ namespace Homassy.API.Functions
                     IsSharedWithFamily = storageLocation.FamilyId.HasValue
                 };
 
-                await MasterDataRealtime.StorageLocationUpsertedAsync(storageLocation.UserId ?? userId.Value, storageLocation.FamilyId, info, cancellationToken);
+                await _runtime.MasterData.StorageLocationUpsertedAsync(storageLocation.UserId ?? userId.Value, storageLocation.FamilyId, info, cancellationToken);
 
                 return info;
             }
@@ -783,7 +785,7 @@ namespace Homassy.API.Functions
                     IsSharedWithFamily = trackedLocation.FamilyId.HasValue
                 };
 
-                await MasterDataRealtime.StorageLocationUpsertedAsync(trackedLocation.UserId ?? userId.Value, trackedLocation.FamilyId, info, cancellationToken);
+                await _runtime.MasterData.StorageLocationUpsertedAsync(trackedLocation.UserId ?? userId.Value, trackedLocation.FamilyId, info, cancellationToken);
 
                 return info;
             }
@@ -835,7 +837,7 @@ namespace Homassy.API.Functions
 
                 await transaction.CommitAsync(cancellationToken);
 
-                await MasterDataRealtime.ShoppingLocationDeletedAsync(trackedLocation.UserId ?? userId.Value, trackedLocation.FamilyId, trackedLocation.PublicId, cancellationToken);
+                await _runtime.MasterData.ShoppingLocationDeletedAsync(trackedLocation.UserId ?? userId.Value, trackedLocation.FamilyId, trackedLocation.PublicId, cancellationToken);
 
                 Log.Information($"User {userId.Value} deleted shopping location {shoppingLocation.Id} (PublicId: {shoppingLocation.PublicId})");
             }
@@ -890,7 +892,7 @@ namespace Homassy.API.Functions
                 // Refresh cache
                 await RefreshStorageLocationCacheAsync(trackedLocation.Id, cancellationToken);
 
-                await MasterDataRealtime.StorageLocationDeletedAsync(trackedLocation.UserId ?? userId.Value, trackedLocation.FamilyId, trackedLocation.PublicId, cancellationToken);
+                await _runtime.MasterData.StorageLocationDeletedAsync(trackedLocation.UserId ?? userId.Value, trackedLocation.FamilyId, trackedLocation.PublicId, cancellationToken);
 
                 Log.Information($"User {userId.Value} deleted storage location {storageLocation.Id} (PublicId: {storageLocation.PublicId})");
             }
@@ -970,7 +972,7 @@ namespace Homassy.API.Functions
                         IsSharedWithFamily = sl.FamilyId.HasValue
                     };
                     infos.Add(info);
-                    await MasterDataRealtime.StorageLocationUpsertedAsync(sl.UserId ?? userId.Value, sl.FamilyId, info, cancellationToken);
+                    await _runtime.MasterData.StorageLocationUpsertedAsync(sl.UserId ?? userId.Value, sl.FamilyId, info, cancellationToken);
                 }
 
                 return infos;
@@ -1067,7 +1069,7 @@ namespace Homassy.API.Functions
                         IsSharedWithFamily = sl.FamilyId.HasValue
                     };
                     infos.Add(info);
-                    await MasterDataRealtime.ShoppingLocationUpsertedAsync(sl.UserId ?? userId.Value, sl.FamilyId, info, cancellationToken);
+                    await _runtime.MasterData.ShoppingLocationUpsertedAsync(sl.UserId ?? userId.Value, sl.FamilyId, info, cancellationToken);
                 }
 
                 return infos;
@@ -1135,7 +1137,7 @@ namespace Homassy.API.Functions
 
                 foreach (var d in deleted)
                 {
-                    await MasterDataRealtime.StorageLocationDeletedAsync(d.ownerUserId, d.familyId, d.publicId, cancellationToken);
+                    await _runtime.MasterData.StorageLocationDeletedAsync(d.ownerUserId, d.familyId, d.publicId, cancellationToken);
                 }
 
                 Log.Information($"User {userId.Value} deleted {request.LocationPublicIds.Count} storage locations");
@@ -1203,7 +1205,7 @@ namespace Homassy.API.Functions
 
                 foreach (var d in deleted)
                 {
-                    await MasterDataRealtime.ShoppingLocationDeletedAsync(d.ownerUserId, d.familyId, d.publicId, cancellationToken);
+                    await _runtime.MasterData.ShoppingLocationDeletedAsync(d.ownerUserId, d.familyId, d.publicId, cancellationToken);
                 }
 
                 Log.Information($"User {userId.Value} deleted {request.LocationPublicIds.Count} shopping locations");

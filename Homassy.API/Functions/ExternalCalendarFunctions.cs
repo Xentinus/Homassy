@@ -19,11 +19,13 @@ namespace Homassy.API.Functions
 {
     public class ExternalCalendarFunctions
     {
+        private readonly FunctionsRuntime _runtime;
         private readonly IDbContextFactory<HomassyDbContext> _contextFactory;
 
-        public ExternalCalendarFunctions(IDbContextFactory<HomassyDbContext> contextFactory)
+        public ExternalCalendarFunctions(FunctionsRuntime runtime)
         {
-            _contextFactory = contextFactory;
+            _runtime = runtime;
+            _contextFactory = runtime.ContextFactory;
         }
 
         private static readonly JsonSerializerOptions JsonOptions = new()
@@ -76,7 +78,7 @@ namespace Homassy.API.Functions
             await context.SaveChangesAsync(ct);
 
             var response = MapToResponse(calendar);
-            await MasterDataRealtime.ExternalCalendarUpsertedAsync(familyId, response, ct);
+            await _runtime.MasterData.ExternalCalendarUpsertedAsync(familyId, response, ct);
             return response;
         }
 
@@ -122,7 +124,7 @@ namespace Homassy.API.Functions
             await context.SaveChangesAsync(ct);
 
             var response = MapToResponse(calendar);
-            await MasterDataRealtime.ExternalCalendarUpsertedAsync(familyId, response, ct);
+            await _runtime.MasterData.ExternalCalendarUpsertedAsync(familyId, response, ct);
             return response;
         }
 
@@ -142,7 +144,7 @@ namespace Homassy.API.Functions
             calendar.DeleteRecord(SessionInfo.GetUserId());
             await context.SaveChangesAsync(ct);
 
-            await MasterDataRealtime.ExternalCalendarDeletedAsync(familyId, calendar.PublicId, ct);
+            await _runtime.MasterData.ExternalCalendarDeletedAsync(familyId, calendar.PublicId, ct);
         }
 
         public async Task<ExternalCalendarResponse> TriggerSyncAsync(
@@ -165,7 +167,7 @@ namespace Homassy.API.Functions
             await context.SaveChangesAsync(ct);
 
             var response = MapToResponse(calendar);
-            await MasterDataRealtime.ExternalCalendarUpsertedAsync(familyId, response, ct);
+            await _runtime.MasterData.ExternalCalendarUpsertedAsync(familyId, response, ct);
             return response;
         }
 

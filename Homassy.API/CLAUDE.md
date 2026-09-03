@@ -49,8 +49,8 @@ Homassy.API is a home storage management system built with ASP.NET Core. The pro
 - **Graceful Shutdown**: Configurable drain period before process exit, ensuring in-flight requests complete
 - **CORS Support**: Configurable cross-origin resource sharing for web clients
 - **Response Compression**: Brotli and Gzip for improved performance
-- **SignalR Realtime (Shopping Lists)**: Each shopping list is a SignalR group; clients join the list they are viewing and receive live item/list events. Writes stay on the REST endpoints — after a successful commit the Functions layer broadcasts via the static `ShoppingListRealtime` helper
-- **SignalR Realtime (Inventory / Készletek)**: Identity-derived groups (per-family + per-user, joined on connect) push live inventory/product events to every grid that can see the change; the Functions layer broadcasts light card-only payloads via the static `InventoryRealtime` helper after each commit, and out-of-process automation relays through the internal broadcast endpoint
+- **SignalR Realtime (Shopping Lists)**: Each shopping list is a SignalR group; clients join the list they are viewing and receive live item/list events. Writes stay on the REST endpoints — after a successful commit the Functions layer broadcasts via the injected `ShoppingListRealtime` helper
+- **SignalR Realtime (Inventory / Készletek)**: Identity-derived groups (per-family + per-user, joined on connect) push live inventory/product events to every grid that can see the change; the Functions layer broadcasts light card-only payloads via the injected `InventoryRealtime` helper after each commit, and out-of-process automation relays through the internal broadcast endpoint
 
 ---
 
@@ -191,6 +191,7 @@ Homassy.API/
 │   ├── CalendarFunctions.cs       Calendar event aggregation
 │   ├── FamilyFunctions.cs
 │   ├── FamilyJoinRequestFunctions.cs  Approval-gated family join requests
+│   ├── FunctionsRuntime.cs        The layer's cross-cutting deps as one typed parameter object
 │   ├── ImageFunctions.cs          Image upload/delete for products & profiles
 │   ├── LocationFunctions.cs
 │   ├── ProductFunctions.cs
@@ -204,9 +205,9 @@ Homassy.API/
 │   └── OpenFoodFactsHealthCheck.cs
 ├── Hubs/                 SignalR realtime hubs
 │   ├── ShoppingListHub.cs         Per-list groups; JoinList returns the current snapshot
-│   ├── ShoppingListRealtime.cs    Static broadcast helper (ItemUpserted/ItemDeleted/ListUpdated/ListDeleted)
+│   ├── ShoppingListRealtime.cs    Broadcast helper, singleton (ItemUpserted/ItemDeleted/ListUpdated/ListDeleted)
 │   ├── InventoryHub.cs            Per-family + per-user groups joined on connect; JoinInventory returns the light grid snapshot
-│   └── InventoryRealtime.cs       Static broadcast helper (InventoryUpserted/InventoryDeleted/ProductUpdated/ProductFavoriteChanged/ProductDeleted)
+│   └── InventoryRealtime.cs       Broadcast helper, singleton (InventoryUpserted/InventoryDeleted/ProductUpdated/ProductFavoriteChanged/ProductDeleted)
 ├── Infrastructure/       Infrastructure components
 │   └── DatabaseTriggerInitializer.cs
 ├── Middleware/           Custom middleware
@@ -336,10 +337,22 @@ public class UserFunctions
 }
 ```
 
-Inside the layer the classes still instantiate each other, passing the factory along
-(`new ActivityFunctions(_contextFactory)`). That is deliberate: `UserFunctions` ↔
-`FamilyFunctions` and `ProductFunctions` ↔ `AutomationFunctions` are mutually dependent, so
-constructor injection between them would be an unresolvable cycle.
+Inside the layer the classes still instantiate each other, passing their dependency along
+(`new ActivityFunctions(_contextFactory)`, `new ProductFunctions(_runtime)`). That is
+deliberate: `UserFunctions` ↔ `FamilyFunctions` and `ProductFunctions` ↔ `AutomationFunctions`
+are mutually dependent, so constructor injection between them would be an unresolvable cycle.
+
+Which of the two constructors a class takes follows from what it needs:
+
+| Constructor | Classes | Why |
+|---|---|---|
+| `IDbContextFactory<HomassyDbContext>` | Activity, Family, FamilyJoinRequest, PushNotification, User | They need nothing but a context, and only ever construct each other — a closed set, so they also work in a host with no SignalR hubs (`Homassy.Notifications` borrows two of them) |
+| `FunctionsRuntime` | Automation, Calendar, ExternalCalendar, Image, Location, Product, SelectValue, ShoppingList | They broadcast over SignalR, need a scope of their own, or construct a class that does |
+
+`FunctionsRuntime` is a parameter object, not a service locator: every member is a declared,
+typed dependency (`ContextFactory`, `ScopeFactory`, `Inventory`, `MasterData`, `ShoppingList`).
+It exists so adding one more broadcast to one class does not re-cascade a constructor parameter
+through every class that constructs it. Read its XML docs before changing its shape.
 
 #### DbContext lifetime — two rules, no exceptions
 
