@@ -15,7 +15,7 @@ namespace Homassy.API.Functions
                 throw new UnauthorizedAccessException("User not authenticated");
             }
 
-            var context = new HomassyDbContext();
+            using var context = new HomassyDbContext();
 
             // Check if subscription already exists (upsert)
             var existing = await context.UserPushSubscriptions
@@ -57,7 +57,7 @@ namespace Homassy.API.Functions
                 throw new UnauthorizedAccessException("User not authenticated");
             }
 
-            var context = new HomassyDbContext();
+            using var context = new HomassyDbContext();
             var subscription = await context.UserPushSubscriptions
                 .FirstOrDefaultAsync(s => s.Endpoint == endpoint && s.UserId == userId.Value, cancellationToken);
 

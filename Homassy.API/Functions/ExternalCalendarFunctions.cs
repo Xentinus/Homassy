@@ -4,6 +4,7 @@ using Homassy.API.Exceptions;
 using Homassy.API.Hubs;
 using Homassy.API.Models.Calendar;
 using Homassy.API.Models.ExternalCalendar;
+using Homassy.API.Security;
 using Ical.Net;
 using Ical.Net.CalendarComponents;
 using Ical.Net.DataTypes;
@@ -31,7 +32,7 @@ namespace Homassy.API.Functions
             var familyId = SessionInfo.GetFamilyId()
                 ?? throw new ExternalCalendarRequiresFamilyException();
 
-            using var context = new HomassyDbContext();
+            using var context = HomassyDbContext.ForReading();
             var calendars = await context.FamilyExternalCalendars
                 .Where(c => c.FamilyId == familyId)
                 .OrderBy(c => c.Name)
@@ -166,7 +167,7 @@ namespace Homassy.API.Functions
             DateTime startDate,
             DateTime endDate)
         {
-            using var context = new HomassyDbContext();
+            using var context = HomassyDbContext.ForReading();
             var calendars = context.FamilyExternalCalendars
                 .Where(c => c.FamilyId == familyId && c.IsEnabled && c.CachedEventsJson != null)
                 .ToList();
@@ -224,7 +225,13 @@ namespace Homassy.API.Functions
             {
                 Log.Information("Syncing external calendar {CalendarId} ({Name})", calendar.PublicId, calendar.Name);
 
-                var icsContent = await httpClient.GetStringAsync(calendar.ICalUrl, ct);
+                // Re-screened on every sync, not just when the row was created: a URL stored
+                // before the check existed, or one whose host has since been re-pointed at an
+                // internal address, must stop being fetched rather than be trusted because it
+                // is already in the table.
+                var target = await EnsureFetchableAsync(calendar.ICalUrl, ct);
+
+                var icsContent = await httpClient.GetStringAsync(target, ct);
                 icsContent = SanitizeICalContent(icsContent);
 
                 var events = LoadAndExpandEvents(icsContent, calendar.PublicId);
@@ -247,14 +254,42 @@ namespace Homassy.API.Functions
             }
         }
 
+        /// <summary>
+        /// Screens a stored URL before it is fetched, and returns the URI to request.
+        /// </summary>
+        /// <remarks>
+        /// The connect callback on the ExternalCalendarSync client is the hard gate; this exists
+        /// so a rejected feed produces a readable <c>LastSyncError</c> the user can act on
+        /// instead of a raw socket failure, and so no connection is attempted at all.
+        /// </remarks>
+        private static async Task<Uri> EnsureFetchableAsync(string url, CancellationToken ct)
+        {
+            if (!ExternalUrlGuard.TryValidate(url, ExternalUrlGuard.AllowInsecureScheme, out var uri, out var error))
+            {
+                throw new ExternalCalendarInvalidUrlException(error ?? "Invalid iCal URL.");
+            }
+
+            var addresses = await ExternalUrlGuard.ResolveAllowedAddressesAsync(uri!.Host, ct);
+
+            if (addresses.Count == 0)
+            {
+                throw new ExternalCalendarInvalidUrlException(
+                    "The calendar host does not resolve to a public address.");
+            }
+
+            return uri;
+        }
+
         private static async Task ValidateICalUrlAsync(string url, HttpClient httpClient, CancellationToken ct)
         {
             try
             {
+                var target = await EnsureFetchableAsync(url, ct);
+
                 using var timeoutCts = CancellationTokenSource.CreateLinkedTokenSource(ct);
                 timeoutCts.CancelAfter(TimeSpan.FromSeconds(15));
 
-                var content = await httpClient.GetStringAsync(url, timeoutCts.Token);
+                var content = await httpClient.GetStringAsync(target, timeoutCts.Token);
 
                 if (!content.Contains("BEGIN:VCALENDAR", StringComparison.OrdinalIgnoreCase))
                     throw new ExternalCalendarInvalidUrlException("URL does not point to a valid iCal feed.");
@@ -505,13 +540,7 @@ namespace Homassy.API.Functions
             }
         }
 
-        private static string NormalizeICalUrl(string url)
-        {
-            if (url.StartsWith("webcal://", StringComparison.OrdinalIgnoreCase))
-                return "https://" + url[9..];
-
-            return url;
-        }
+        private static string NormalizeICalUrl(string url) => ExternalUrlGuard.Normalize(url);
 
         private static ExternalCalendarResponse MapToResponse(FamilyExternalCalendar calendar)
         {

@@ -204,7 +204,7 @@ namespace Homassy.API.Functions
 
             var familyId = SessionInfo.GetFamilyId();
 
-            var context = new HomassyDbContext();
+            using var context = HomassyDbContext.ForReading();
             var automations = await context.ItemAutomations
                 .Where(a => a.UserId == userId.Value || (familyId.HasValue && a.FamilyId == familyId.Value))
                 .OrderByDescending(a => a.IsEnabled)
@@ -242,7 +242,7 @@ namespace Homassy.API.Functions
 
             var familyId = SessionInfo.GetFamilyId();
 
-            var context = new HomassyDbContext();
+            using var context = HomassyDbContext.ForReading();
             var automation = await context.ItemAutomations
                 .FirstOrDefaultAsync(a => a.PublicId == publicId, cancellationToken);
 
@@ -284,7 +284,7 @@ namespace Homassy.API.Functions
                 request.ThresholdQuantity);
 
             var productFunctions = new ProductFunctions();
-            var context = new HomassyDbContext();
+            using var context = new HomassyDbContext();
             ProductInventoryItem? inventoryItem = null;
             Entities.Product.Product? productEntity = null;
             int? shoppingListId = null;
@@ -416,7 +416,7 @@ namespace Homassy.API.Functions
 
             var familyId = SessionInfo.GetFamilyId();
 
-            var context = new HomassyDbContext();
+            using var context = new HomassyDbContext();
             var automation = await context.ItemAutomations
                 .FirstOrDefaultAsync(a => a.PublicId == publicId, cancellationToken);
 
@@ -558,7 +558,7 @@ namespace Homassy.API.Functions
 
             var familyId = SessionInfo.GetFamilyId();
 
-            var context = new HomassyDbContext();
+            using var context = new HomassyDbContext();
             var automation = await context.ItemAutomations
                 .FirstOrDefaultAsync(a => a.PublicId == publicId, cancellationToken);
 
@@ -617,7 +617,7 @@ namespace Homassy.API.Functions
 
             var familyId = SessionInfo.GetFamilyId();
 
-            var context = new HomassyDbContext();
+            using var context = new HomassyDbContext();
             var automation = await context.ItemAutomations
                 .FirstOrDefaultAsync(a => a.PublicId == publicId, cancellationToken);
 
@@ -793,7 +793,7 @@ namespace Homassy.API.Functions
 
             var familyId = SessionInfo.GetFamilyId();
 
-            var context = new HomassyDbContext();
+            using var context = HomassyDbContext.ForReading();
             var automation = await context.ItemAutomations
                 .FirstOrDefaultAsync(a => a.PublicId == publicId, cancellationToken);
 

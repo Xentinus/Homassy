@@ -19,5 +19,16 @@
     
     <!-- Disable source revision ID (git commit hash) being appended -->
     <IncludeSourceRevisionInInformationalVersion>false</IncludeSourceRevisionInInformationalVersion>
+
+    <!-- CI builds with -warnaserror so a new compiler warning fails the pipeline. NuGet's
+         vulnerability audit (NU1901-NU1904) has to be exempt from that: it reports advisories
+         published after the fact, so it turns an untouched commit red without anyone changing
+         a line, and -warnaserror promotes restore warnings too. WarningsNotAsErrors does not
+         cover restore, hence NoWarn.
+
+         The audit is NOT dropped: the CI workflow runs `dotnet list package` in vulnerable +
+         transitive mode as its own step, which reports the same advisories somewhere a person
+         will actually read them instead of buried in a build log. -->
+    <NoWarn>$(NoWarn);NU1901;NU1902;NU1903;NU1904</NoWarn>
   </PropertyGroup>
 </Project>

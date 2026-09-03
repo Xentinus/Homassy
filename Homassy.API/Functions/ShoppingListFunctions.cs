@@ -20,7 +20,7 @@ namespace Homassy.API.Functions
         #region Cache Management
         public async Task InitializeCacheAsync(CancellationToken cancellationToken = default)
         {
-            var context = new HomassyDbContext();
+            using var context = HomassyDbContext.ForReading();
             var shoppingLists = await context.ShoppingLists
                 .ToListAsync(cancellationToken);
 
@@ -54,7 +54,7 @@ namespace Homassy.API.Functions
         {
             try
             {
-                var context = new HomassyDbContext();
+                using var context = HomassyDbContext.ForReading();
                 var shoppingList = await context.ShoppingLists.FirstOrDefaultAsync(sl => sl.Id == shoppingListId, cancellationToken);
                 var existsInCache = _shoppingListCache.ContainsKey(shoppingListId);
 
@@ -89,7 +89,7 @@ namespace Homassy.API.Functions
         {
             try
             {
-                var context = new HomassyDbContext();
+                using var context = HomassyDbContext.ForReading();
                 var shoppingListItem = await context.ShoppingListItems.FirstOrDefaultAsync(sli => sli.Id == shoppingListItemId, cancellationToken);
                 var existsInCache = _shoppingListItemCache.ContainsKey(shoppingListItemId);
 
@@ -134,7 +134,7 @@ namespace Homassy.API.Functions
 
             if (shoppingList == null)
             {
-                var context = new HomassyDbContext();
+                using var context = HomassyDbContext.ForReading();
                 shoppingList = context.ShoppingLists.AsNoTracking().FirstOrDefault(sl => sl.Id == shoppingListId);
             }
 
@@ -149,7 +149,7 @@ namespace Homassy.API.Functions
                 if (shoppingList != null) return shoppingList;
             }
 
-            var context = new HomassyDbContext();
+            using var context = HomassyDbContext.ForReading();
             return context.ShoppingLists.AsNoTracking().FirstOrDefault(sl => sl.PublicId == publicId);
         }
 
@@ -184,7 +184,7 @@ namespace Homassy.API.Functions
 
             if (missingIds.Count > 0)
             {
-                var context = new HomassyDbContext();
+                using var context = HomassyDbContext.ForReading();
                 var dbShoppingLists = context.ShoppingLists
                     .Where(sl => missingIds.Contains(sl.Id))
                     .ToList();
@@ -204,7 +204,7 @@ namespace Homassy.API.Functions
                     .ToList();
             }
 
-            var context = new HomassyDbContext();
+            using var context = HomassyDbContext.ForReading();
             return context.ShoppingLists
                 .Where(sl => sl.UserId == userId || (familyId.HasValue && sl.FamilyId == familyId))
                 .ToList();
@@ -224,7 +224,7 @@ namespace Homassy.API.Functions
 
             if (shoppingListItem == null)
             {
-                var context = new HomassyDbContext();
+                using var context = HomassyDbContext.ForReading();
                 shoppingListItem = context.ShoppingListItems.FirstOrDefault(sli => sli.Id == shoppingListItemId);
             }
 
@@ -239,7 +239,7 @@ namespace Homassy.API.Functions
                 if (shoppingListItem != null) return shoppingListItem;
             }
 
-            var context = new HomassyDbContext();
+            using var context = HomassyDbContext.ForReading();
             return context.ShoppingListItems.FirstOrDefault(sli => sli.PublicId == publicId);
         }
 
@@ -274,7 +274,7 @@ namespace Homassy.API.Functions
 
             if (missingIds.Count > 0)
             {
-                var context = new HomassyDbContext();
+                using var context = HomassyDbContext.ForReading();
                 var dbShoppingListItems = context.ShoppingListItems
                     .Where(sli => missingIds.Contains(sli.Id))
                     .ToList();
@@ -297,7 +297,7 @@ namespace Homassy.API.Functions
                     .ToList();
             }
 
-            var context = new HomassyDbContext();
+            using var context = HomassyDbContext.ForReading();
             return context.ShoppingListItems
                 .Where(sli => sli.ShoppingListId == shoppingListId &&
                               (includePurchased || !sli.PurchasedAt.HasValue || sli.PurchasedAt >= oneWeekAgo))
@@ -322,7 +322,7 @@ namespace Homassy.API.Functions
                     .ToList();
             }
 
-            var context = new HomassyDbContext();
+            using var context = HomassyDbContext.ForReading();
             return context.ShoppingListItems
                 .Where(sli => shoppingListIds.Contains(sli.ShoppingListId) &&
                               (!sli.PurchasedAt.HasValue || sli.PurchasedAt >= oneWeekAgo))
@@ -347,7 +347,7 @@ namespace Homassy.API.Functions
                     .ToList();
             }
 
-            var context = new HomassyDbContext();
+            using var context = HomassyDbContext.ForReading();
             return context.ShoppingListItems
                 .Where(sli => shoppingListIds.Contains(sli.ShoppingListId) &&
                               (!sli.PurchasedAt.HasValue || sli.PurchasedAt >= oneWeekAgo))
@@ -442,7 +442,7 @@ namespace Homassy.API.Functions
 
             var familyId = SessionInfo.GetFamilyId();
 
-            var context = new HomassyDbContext();
+            using var context = new HomassyDbContext();
             await using var transaction = await context.Database.BeginTransactionAsync(cancellationToken);
 
             try
@@ -527,7 +527,7 @@ namespace Homassy.API.Functions
                 throw new ShoppingListAccessDeniedException();
             }
 
-            var context = new HomassyDbContext();
+            using var context = new HomassyDbContext();
             await using var transaction = await context.Database.BeginTransactionAsync(cancellationToken);
 
             try
@@ -650,7 +650,7 @@ namespace Homassy.API.Functions
                 throw new ShoppingListAccessDeniedException();
             }
 
-            var context = new HomassyDbContext();
+            using var context = new HomassyDbContext();
             await using var transaction = await context.Database.BeginTransactionAsync(cancellationToken);
 
             try
@@ -772,7 +772,7 @@ namespace Homassy.API.Functions
                 shoppingLocationId = shoppingLocation.Id;
             }
 
-            var context = new HomassyDbContext();
+            using var context = new HomassyDbContext();
             await using var transaction = await context.Database.BeginTransactionAsync(cancellationToken);
 
             try
@@ -875,7 +875,7 @@ namespace Homassy.API.Functions
             var locationFunctions = new LocationFunctions();
             var productFunctions = new ProductFunctions();
 
-            var context = new HomassyDbContext();
+            using var context = new HomassyDbContext();
             await using var transaction = await context.Database.BeginTransactionAsync(cancellationToken);
 
             try
@@ -1054,7 +1054,7 @@ namespace Homassy.API.Functions
                 throw new ShoppingListAccessDeniedException();
             }
 
-            var context = new HomassyDbContext();
+            using var context = new HomassyDbContext();
             await using var transaction = await context.Database.BeginTransactionAsync(cancellationToken);
 
             try
@@ -1137,7 +1137,7 @@ namespace Homassy.API.Functions
                 throw new ShoppingListAccessDeniedException();
             }
 
-            var context = new HomassyDbContext();
+            using var context = new HomassyDbContext();
             await using var transaction = await context.Database.BeginTransactionAsync(cancellationToken);
 
             try
@@ -1338,7 +1338,7 @@ namespace Homassy.API.Functions
                 throw new ShoppingListAccessDeniedException();
             }
 
-            var context = new HomassyDbContext();
+            using var context = new HomassyDbContext();
             await using var transaction = await context.Database.BeginTransactionAsync(cancellationToken);
 
             try
@@ -1443,7 +1443,7 @@ namespace Homassy.API.Functions
             var locationFunctions = new LocationFunctions();
             var productFunctions = new ProductFunctions();
 
-            var context = new HomassyDbContext();
+            using var context = new HomassyDbContext();
             await using var transaction = await context.Database.BeginTransactionAsync(cancellationToken);
 
             try
@@ -1573,7 +1573,7 @@ namespace Homassy.API.Functions
                 throw new ShoppingListAccessDeniedException();
             }
 
-            var context = new HomassyDbContext();
+            using var context = new HomassyDbContext();
             await using var transaction = await context.Database.BeginTransactionAsync(cancellationToken);
 
             try
@@ -1685,7 +1685,7 @@ namespace Homassy.API.Functions
             var locationFunctions = new LocationFunctions();
             var productFunctions = new ProductFunctions();
 
-            var context = new HomassyDbContext();
+            using var context = new HomassyDbContext();
             await using var transaction = await context.Database.BeginTransactionAsync(cancellationToken);
 
             try
@@ -1818,7 +1818,7 @@ namespace Homassy.API.Functions
             var productFunctions = new ProductFunctions();
             var deletedItems = new List<(Guid listPublicId, Guid itemPublicId)>();
 
-            var context = new HomassyDbContext();
+            using var context = new HomassyDbContext();
             await using var transaction = await context.Database.BeginTransactionAsync(cancellationToken);
 
             try
@@ -1915,7 +1915,7 @@ namespace Homassy.API.Functions
             var productFunctions = new ProductFunctions();
             var userProfile = new UserFunctions().GetUserProfileByUserId(userId.Value);
 
-            var context = new HomassyDbContext();
+            using var context = new HomassyDbContext();
             await using var transaction = await context.Database.BeginTransactionAsync(cancellationToken);
 
             try
@@ -2109,7 +2109,7 @@ namespace Homassy.API.Functions
             }
 
             // Soft-deleted items are already excluded by the global query filter on SoftDeleteEntity.
-            var context = new HomassyDbContext();
+            using var context = HomassyDbContext.ForReading();
             var grouped = context.ShoppingListItems
                 .Where(sli => shoppingListIds.Contains(sli.ShoppingListId) && sli.PurchasedAt == null)
                 .GroupBy(sli => sli.ShoppingListId)
@@ -2150,7 +2150,7 @@ namespace Homassy.API.Functions
             }
             else
             {
-                var context = new HomassyDbContext();
+                using var context = HomassyDbContext.ForReading();
                 shoppingLists = context.ShoppingLists
                     .Where(s => s.UserId == userId.Value ||
                                (familyId.HasValue && s.FamilyId == familyId.Value))
@@ -2216,7 +2216,7 @@ namespace Homassy.API.Functions
             }
             else
             {
-                var context = new HomassyDbContext();
+                using var context = HomassyDbContext.ForReading();
                 count = (from sli in context.ShoppingListItems
                          join p in context.Products on sli.ProductId equals p.Id into products
                          from p in products.DefaultIfEmpty()

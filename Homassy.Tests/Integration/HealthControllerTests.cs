@@ -9,11 +9,13 @@ namespace Homassy.Tests.Integration;
 
 public class HealthControllerTests : IClassFixture<HomassyWebApplicationFactory>
 {
+    private readonly HomassyWebApplicationFactory _factory;
     private readonly HttpClient _client;
     private readonly ITestOutputHelper _output;
 
     public HealthControllerTests(HomassyWebApplicationFactory factory, ITestOutputHelper output)
     {
+        _factory = factory;
         _client = factory.CreateClient();
         _output = output;
     }
@@ -235,4 +237,54 @@ public class HealthControllerTests : IClassFixture<HomassyWebApplicationFactory>
 
         Assert.Equal("application/json", contentType);
     }
+
+    #region Public Endpoints Do Not Touch Kratos
+
+    /// <summary>
+    /// The Docker healthcheck hits /api/v1.0/health/ready every 30s. It used to make a full
+    /// whoami round trip first, because the middleware's skip list held paths
+    /// ("/api/v1/health") that the versioned routes never produce — so a slow or unreachable
+    /// Kratos made readiness probing slow for a reason unrelated to readiness, and `--wait` on
+    /// deploy could time out on it. A session token is sent deliberately: without one the
+    /// middleware short-circuits anyway, and the test would pass without proving anything.
+    /// </summary>
+    [Theory]
+    [InlineData("/api/v1.0/health")]
+    [InlineData("/api/v1.0/health/ready")]
+    [InlineData("/api/v1.0/health/live")]
+    [InlineData("/api/version")]
+    [InlineData("/api/v1.0/errorcodes")]
+    public async Task PublicEndpoints_EvenWithASessionToken_DoNotCallKratos(string path)
+    {
+        _factory.MockKratos.ResetCallCounts();
+
+        var request = new HttpRequestMessage(HttpMethod.Get, path);
+        request.Headers.Add("X-Session-Token", "mock-session-that-does-not-exist");
+
+        var response = await _client.SendAsync(request);
+
+        _output.WriteLine($"{path} -> {response.StatusCode}, Kratos calls: {_factory.MockKratos.GetSessionCallCount}");
+
+        Assert.NotEqual(HttpStatusCode.NotFound, response.StatusCode);
+        Assert.Equal(0, _factory.MockKratos.GetSessionCallCount);
+    }
+
+    /// <summary>
+    /// The counterpart: an authenticated route must still be validated, so the skip above is
+    /// narrow rather than a blanket opt-out.
+    /// </summary>
+    [Fact]
+    public async Task AuthenticatedEndpoint_WithASessionToken_StillCallsKratos()
+    {
+        _factory.MockKratos.ResetCallCounts();
+
+        var request = new HttpRequestMessage(HttpMethod.Get, "/api/v1.0/auth/me");
+        request.Headers.Add("X-Session-Token", "mock-session-that-does-not-exist");
+
+        await _client.SendAsync(request);
+
+        Assert.Equal(1, _factory.MockKratos.GetSessionCallCount);
+    }
+
+    #endregion
 }

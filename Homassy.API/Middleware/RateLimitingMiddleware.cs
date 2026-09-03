@@ -15,6 +15,9 @@ namespace Homassy.API.Middleware
         public const string RateLimitResetHeader = "X-RateLimit-Reset";
         public const string RetryAfterHeader = "Retry-After";
 
+        /// <summary>Shared bucket for requests that matched no route (404s, probes, scans).</summary>
+        public const string UnmatchedEndpointKey = "unmatched";
+
         private readonly RequestDelegate _next;
         private static readonly JsonSerializerOptions JsonOptions = new()
         {
@@ -30,6 +33,7 @@ namespace Homassy.API.Middleware
         {
             var clientIp = context.GetClientIpAddress();
             var endpoint = context.Request.Path.Value?.ToLowerInvariant() ?? string.Empty;
+            var endpointKey = GetEndpointKey(context);
             var method = context.Request.Method;
 
             var globalMaxAttempts = int.Parse(ConfigService.GetValue("RateLimiting:GlobalMaxAttempts") ?? "100");
@@ -55,7 +59,7 @@ namespace Homassy.API.Middleware
             var endpointMaxAttempts = int.Parse(ConfigService.GetValue("RateLimiting:EndpointMaxAttempts") ?? "30");
             var endpointWindowMinutes = int.Parse(ConfigService.GetValue("RateLimiting:EndpointWindowMinutes") ?? "1");
             var endpointWindow = TimeSpan.FromMinutes(endpointWindowMinutes);
-            var endpointRateLimitKey = $"endpoint:{endpoint}:{clientIp}";
+            var endpointRateLimitKey = $"endpoint:{endpointKey}:{clientIp}";
 
             if (RateLimitService.IsRateLimited(endpointRateLimitKey, endpointMaxAttempts, endpointWindow))
             {
@@ -86,6 +90,25 @@ namespace Homassy.API.Middleware
             });
 
             await _next(context);
+        }
+
+        /// <summary>
+        /// The endpoint part of the rate-limit key. Uses the matched route template rather
+        /// than the request path, because <see cref="RateLimitService"/> holds its buckets in
+        /// a process-wide dictionary: keying on the raw path lets a caller grow that
+        /// dictionary without bound by walking made-up URLs. The number of route templates is
+        /// fixed, and everything that matched no route shares a single bucket.
+        /// </summary>
+        public static string GetEndpointKey(HttpContext context)
+        {
+            var endpoint = context.GetEndpoint();
+
+            if (endpoint is RouteEndpoint routeEndpoint && !string.IsNullOrEmpty(routeEndpoint.RoutePattern.RawText))
+            {
+                return routeEndpoint.RoutePattern.RawText.ToLowerInvariant();
+            }
+
+            return endpoint?.DisplayName?.ToLowerInvariant() ?? UnmatchedEndpointKey;
         }
 
         private static void AddRateLimitHeaders(HttpContext context, RateLimitStatus status)

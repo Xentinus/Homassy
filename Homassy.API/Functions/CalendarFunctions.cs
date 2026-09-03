@@ -14,9 +14,16 @@ namespace Homassy.API.Functions
             var userId = SessionInfo.GetUserId();
             var familyId = SessionInfo.GetFamilyId();
 
-            var inventoryTask = GetInventoryExpirationEventsAsync(new HomassyDbContext(), userId, familyId, startDate, endDate, cancellationToken);
-            var automationTask = GetAutomationEventsAsync(new HomassyDbContext(), userId, familyId, startDate, endDate, cancellationToken);
-            var shoppingTask = GetShoppingListDeadlineEventsAsync(new HomassyDbContext(), userId, familyId, startDate, endDate, cancellationToken);
+            // One context per concurrent query: DbContext is not thread-safe. They are disposed
+            // when this method returns, which is after Task.WhenAll, so no query outlives its
+            // context.
+            using var inventoryContext = HomassyDbContext.ForReading();
+            using var automationContext = HomassyDbContext.ForReading();
+            using var shoppingContext = HomassyDbContext.ForReading();
+
+            var inventoryTask = GetInventoryExpirationEventsAsync(inventoryContext, userId, familyId, startDate, endDate, cancellationToken);
+            var automationTask = GetAutomationEventsAsync(automationContext, userId, familyId, startDate, endDate, cancellationToken);
+            var shoppingTask = GetShoppingListDeadlineEventsAsync(shoppingContext, userId, familyId, startDate, endDate, cancellationToken);
             var externalTask = GetExternalCalendarEventsAsync(familyId, startDate, endDate);
 
             await Task.WhenAll(inventoryTask, automationTask, shoppingTask, externalTask);

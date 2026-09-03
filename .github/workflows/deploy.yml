@@ -1,15 +1,202 @@
-name: Build & Deploy
+name: CI & Deploy
 
 on:
   push:
+    branches: [master]
+  pull_request:
     branches: [master]
   workflow_dispatch:
 
 permissions:
   contents: read
   packages: write          # GITHUB_TOKEN pushes images to GHCR
+  checks: write            # test-reporter publishes the test results as a check run
+
+env:
+  # Matches the postgres:16 image the compose files run, so tests exercise the same server.
+  TEST_POSTGRES_DB: homassy
+  TEST_POSTGRES_USER: homassy_user
+  TEST_POSTGRES_PASSWORD: homassy_ci_password
 
 jobs:
+  # ---------------------------------------------------------------------------------------
+  # Verification. Runs on pull requests and on master; nothing reaches GHCR or the VPS until
+  # it passes.
+  # ---------------------------------------------------------------------------------------
+  test:
+    name: Build & test (.NET)
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_DB: homassy
+          POSTGRES_USER: homassy_user
+          POSTGRES_PASSWORD: homassy_ci_password
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U homassy_user -d homassy"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 10
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+
+      - name: Cache NuGet packages
+        uses: actions/cache@v4
+        with:
+          path: ~/.nuget/packages
+          key: nuget-${{ runner.os }}-${{ hashFiles('**/*.csproj', 'Directory.Build.props') }}
+          restore-keys: nuget-${{ runner.os }}-
+
+      - name: Write API configuration
+        # Homassy.API/appsettings.json is gitignored, and the integration tests need it: the
+        # test host's content root is the API project, so WebApplication.CreateBuilder reads
+        # this file, and Program.cs registers the "database" health check and the CORS
+        # allowlist from builder-time configuration — before the factory's own sources are
+        # applied. Without it those two come out empty and the health and CORS tests fail
+        # while everything that only needs a DbContext still passes.
+        run: |
+          cp Homassy.API/appsettings.example.json Homassy.API/appsettings.json
+          jq --arg cs "Host=localhost;Port=5432;Database=${TEST_POSTGRES_DB};Username=${TEST_POSTGRES_USER};Password=${TEST_POSTGRES_PASSWORD}" \
+             '.ConnectionStrings.DefaultConnection = $cs | .Cors.AllowedOrigins = ["http://localhost:3000"]' \
+             Homassy.API/appsettings.json > Homassy.API/appsettings.ci.json
+          mv Homassy.API/appsettings.ci.json Homassy.API/appsettings.json
+
+      - name: Write test configuration
+        # Homassy.Tests/appsettings.Testing.json is gitignored (it holds a local connection
+        # string), and HomassyWebApplicationFactory reads it when present. Writing it here is
+        # what turns "you need a hand-made config file and a Postgres on 5432" from tribal
+        # knowledge into a step anyone can read.
+        run: |
+          cat > Homassy.Tests/appsettings.Testing.json <<JSON
+          {
+            "Logging": {
+              "LogLevel": {
+                "Default": "Warning",
+                "Microsoft.AspNetCore": "Warning",
+                "Microsoft.EntityFrameworkCore": "Warning"
+              }
+            },
+            "ConnectionStrings": {
+              "DefaultConnection": "Host=localhost;Port=5432;Database=${TEST_POSTGRES_DB};Username=${TEST_POSTGRES_USER};Password=${TEST_POSTGRES_PASSWORD}"
+            },
+            "Kratos": {
+              "PublicUrl": "http://localhost:4433",
+              "AdminUrl": "http://localhost:4434",
+              "SessionCookieName": "ory_kratos_session",
+              "WebhookSecret": "test-secret"
+            },
+            "ProductSettings": { "ExpiringSoonThresholdDays": 7 },
+            "RateLimiting": {
+              "GlobalMaxAttempts": "1000",
+              "GlobalWindowMinutes": "1",
+              "EndpointMaxAttempts": "500",
+              "EndpointWindowMinutes": "1"
+            },
+            "Cors": { "AllowedOrigins": [ "http://localhost:3000" ] },
+            "Security": {
+              "AccountLockout": { "MaxFailedAttempts": 5, "LockoutDurationMinutes": 15 }
+            },
+            "InternalApi": { "ApiKey": "ci-internal-api-key" },
+            "RegistrationEnabled": true
+          }
+          JSON
+
+      - name: Restore
+        run: dotnet restore Homassy.slnx
+
+      - name: Build
+        # -warnaserror: a new compiler warning fails here rather than being noticed later.
+        # The NuGet vulnerability audit is exempted in Directory.Build.props and reported by
+        # its own step below.
+        run: dotnet build Homassy.slnx --no-restore -warnaserror
+
+      - name: Apply database migrations
+        # The integration tests run against a real schema, exactly as they do locally.
+        run: dotnet run --project Homassy.Migrator --no-build
+        env:
+          ConnectionStrings__DefaultConnection: Host=localhost;Port=5432;Database=${{ env.TEST_POSTGRES_DB }};Username=${{ env.TEST_POSTGRES_USER }};Password=${{ env.TEST_POSTGRES_PASSWORD }}
+
+      - name: Test
+        run: >-
+          dotnet test Homassy.slnx --no-build
+          --logger "trx;LogFileName=test-results.trx"
+          --results-directory TestResults
+
+      - name: Publish test report
+        uses: dorny/test-reporter@v1
+        if: always()
+        continue-on-error: true    # never let report publishing decide whether the build passed
+        with:
+          name: .NET test results
+          path: TestResults/*.trx
+          reporter: dotnet-trx
+          fail-on-error: false
+
+      - name: Upload test results
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: dotnet-test-results
+          path: TestResults/*.trx
+          if-no-files-found: warn
+
+      - name: Report vulnerable packages
+        # Advisory, not a gate: an advisory published overnight must not turn an untouched
+        # commit red. See the NoWarn note in Directory.Build.props.
+        if: always()
+        continue-on-error: true
+        run: |
+          echo '### Vulnerable NuGet packages' >> "$GITHUB_STEP_SUMMARY"
+          echo '```' >> "$GITHUB_STEP_SUMMARY"
+          dotnet list Homassy.slnx package --vulnerable --include-transitive >> "$GITHUB_STEP_SUMMARY" 2>&1 || true
+          echo '```' >> "$GITHUB_STEP_SUMMARY"
+
+  web:
+    name: Lint & typecheck (web)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'          # matches the runtime in Homassy.Web/Dockerfile
+          cache: npm
+          cache-dependency-path: Homassy.Web/package-lock.json
+
+      - name: Install
+        # postinstall runs `nuxt prepare`, which generates .nuxt/eslint.config.mjs and the
+        # types both steps below need.
+        run: npm ci
+        working-directory: Homassy.Web
+
+      - name: Lint
+        # NOT a gate yet: the app currently has a backlog of eslint errors that predate this
+        # workflow. The step runs so the count is visible on every PR; flip continue-on-error
+        # off once the backlog is cleared.
+        run: npm run lint
+        working-directory: Homassy.Web
+        continue-on-error: true
+
+      - name: Typecheck
+        # Same: a pre-existing backlog of type errors. Advisory until it is cleared.
+        run: npm run typecheck
+        working-directory: Homassy.Web
+        continue-on-error: true
+
+  # ---------------------------------------------------------------------------------------
+  # Release. The images are built on pull requests too — a broken Dockerfile is a build
+  # failure nothing else catches, and finding it after the merge means finding it during a
+  # deploy. Only the push to GHCR and the deploy itself are limited to master.
+  # ---------------------------------------------------------------------------------------
   prepare:
     name: Compute image tag
     runs-on: ubuntu-latest
@@ -22,7 +209,9 @@ jobs:
 
   build:
     name: Build & push images
-    needs: prepare
+    # `test` gates this, so a failing test stops the pipeline before any image is built.
+    # `prepare` has no dependency on `test`, so the two run in parallel.
+    needs: [prepare, test]
     runs-on: ubuntu-latest
     strategy:
       fail-fast: true
@@ -39,6 +228,8 @@ jobs:
       - uses: docker/setup-buildx-action@v3
 
       - name: Log in to GHCR
+        # Nothing is pushed from a pull request, so no registry credentials are needed there.
+        if: github.event_name != 'pull_request'
         uses: docker/login-action@v3
         with:
           registry: ghcr.io
@@ -52,7 +243,9 @@ jobs:
           file: ${{ matrix.file }}
           target: ${{ matrix.target }}
           platforms: linux/amd64
-          push: true
+          # Built and thrown away on a pull request: the point there is proving the image
+          # still builds, not producing an artifact.
+          push: ${{ github.event_name != 'pull_request' }}
           tags: |
             ghcr.io/xentinus/${{ matrix.name }}:${{ needs.prepare.outputs.tag }}
             ghcr.io/xentinus/${{ matrix.name }}:latest
@@ -68,6 +261,9 @@ jobs:
   deploy:
     name: Deploy to VPS
     needs: [prepare, build]
+    # The only job that stays master-only. A pull request has no images in GHCR to pull, and
+    # putting unreviewed code on the production host is not a verification step.
+    if: github.event_name != 'pull_request'
     runs-on: ubuntu-latest
     environment: production          # manual approval gate (required reviewers)
     steps:

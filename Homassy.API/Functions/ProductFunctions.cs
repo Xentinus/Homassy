@@ -29,7 +29,7 @@ namespace Homassy.API.Functions
         #region Cache Initialization
         public async Task InitializeCacheAsync(CancellationToken cancellationToken = default)
         {
-            var context = new HomassyDbContext();
+            using var context = HomassyDbContext.ForReading();
 
             try
             {
@@ -83,7 +83,7 @@ namespace Homassy.API.Functions
         {
             try
             {
-                var context = new HomassyDbContext();
+                using var context = HomassyDbContext.ForReading();
                 var product = await context.Products.FirstOrDefaultAsync(p => p.Id == productId, cancellationToken);
                 var existsInCache = _productCache.ContainsKey(productId);
 
@@ -114,7 +114,7 @@ namespace Homassy.API.Functions
         {
             try
             {
-                var context = new HomassyDbContext();
+                using var context = HomassyDbContext.ForReading();
                 var customization = await context.ProductCustomizations.FirstOrDefaultAsync(c => c.Id == customizationId, cancellationToken);
                 var existsInCache = _customizationCache.ContainsKey(customizationId);
 
@@ -145,7 +145,7 @@ namespace Homassy.API.Functions
         {
             try
             {
-                var context = new HomassyDbContext();
+                using var context = HomassyDbContext.ForReading();
                 var item = await context.ProductInventoryItems.FirstOrDefaultAsync(i => i.Id == inventoryItemId, cancellationToken);
                 var existsInCache = _inventoryItemCache.ContainsKey(inventoryItemId);
 
@@ -176,7 +176,7 @@ namespace Homassy.API.Functions
         {
             try
             {
-                var context = new HomassyDbContext();
+                using var context = HomassyDbContext.ForReading();
                 var purchase = await context.ProductPurchaseInfos.FirstOrDefaultAsync(p => p.Id == purchaseInfoId, cancellationToken);
                 var existsInCache = _purchaseInfoCache.ContainsKey(purchaseInfoId);
 
@@ -207,7 +207,7 @@ namespace Homassy.API.Functions
         {
             try
             {
-                var context = new HomassyDbContext();
+                using var context = HomassyDbContext.ForReading();
                 var logs = await context.ProductConsumptionLogs
                     .Where(log => log.ProductInventoryItemId == inventoryItemId)
                     .ToListAsync(cancellationToken);
@@ -241,7 +241,7 @@ namespace Homassy.API.Functions
                 return product;
             }
 
-            var context = new HomassyDbContext();
+            using var context = HomassyDbContext.ForReading();
             return context.Products.FirstOrDefault(p => p.Id == productId);
         }
 
@@ -254,7 +254,7 @@ namespace Homassy.API.Functions
                 return item;
             }
 
-            var context = new HomassyDbContext();
+            using var context = HomassyDbContext.ForReading();
             return context.ProductInventoryItems.FirstOrDefault(i => i.Id == inventoryItemId);
         }
 
@@ -267,7 +267,7 @@ namespace Homassy.API.Functions
                 return customization;
             }
 
-            var context = new HomassyDbContext();
+            using var context = HomassyDbContext.ForReading();
             return context.ProductCustomizations.FirstOrDefault(c => c.Id == customizationId);
         }
         #endregion
@@ -281,7 +281,7 @@ namespace Homassy.API.Functions
                 if (product != null) return product;
             }
 
-            var context = new HomassyDbContext();
+            using var context = HomassyDbContext.ForReading();
             return context.Products.FirstOrDefault(p => p.PublicId == publicId);
         }
 
@@ -293,7 +293,7 @@ namespace Homassy.API.Functions
                 if (item != null) return item;
             }
 
-            var context = new HomassyDbContext();
+            using var context = HomassyDbContext.ForReading();
             return context.ProductInventoryItems.FirstOrDefault(i => i.PublicId == publicId);
         }
 
@@ -305,7 +305,7 @@ namespace Homassy.API.Functions
                 if (customization != null) return customization;
             }
 
-            var context = new HomassyDbContext();
+            using var context = HomassyDbContext.ForReading();
             return context.ProductCustomizations.FirstOrDefault(c => c.PublicId == publicId);
         }
 
@@ -317,7 +317,7 @@ namespace Homassy.API.Functions
                 if (purchase != null) return purchase;
             }
 
-            var context = new HomassyDbContext();
+            using var context = HomassyDbContext.ForReading();
             return context.ProductPurchaseInfos.FirstOrDefault(p => p.PublicId == publicId);
         }
 
@@ -332,7 +332,7 @@ namespace Homassy.API.Functions
                 }
             }
 
-            var context = new HomassyDbContext();
+            using var context = HomassyDbContext.ForReading();
             return context.ProductConsumptionLogs.FirstOrDefault(l => l.PublicId == publicId);
         }
         #endregion
@@ -347,7 +347,7 @@ namespace Homassy.API.Functions
                                         (c.UserId == userId));
             }
 
-            var context = new HomassyDbContext();
+            using var context = HomassyDbContext.ForReading();
             return context.ProductCustomizations
                 .FirstOrDefault(c => c.ProductId == productId &&
                                     (c.UserId == userId));
@@ -361,7 +361,7 @@ namespace Homassy.API.Functions
                     .FirstOrDefault(p => p.ProductInventoryItemId == inventoryItemId);
             }
 
-            var context = new HomassyDbContext();
+            using var context = HomassyDbContext.ForReading();
             return context.ProductPurchaseInfos
                 .FirstOrDefault(p => p.ProductInventoryItemId == inventoryItemId);
         }
@@ -373,7 +373,7 @@ namespace Homassy.API.Functions
                 return logs;
             }
 
-            var context = new HomassyDbContext();
+            using var context = HomassyDbContext.ForReading();
             return context.ProductConsumptionLogs
                 .Where(log => log.ProductInventoryItemId == inventoryItemId)
                 .OrderBy(log => log.ConsumedAt)
@@ -397,7 +397,7 @@ namespace Homassy.API.Functions
                 return items.ToList();
             }
 
-            var context = new HomassyDbContext();
+            using var context = HomassyDbContext.ForReading();
             var query = context.ProductInventoryItems
                 .Where(i => i.ProductId == productId);
 
@@ -419,7 +419,7 @@ namespace Homassy.API.Functions
                     .ToList();
             }
 
-            var context = new HomassyDbContext();
+            using var context = HomassyDbContext.ForReading();
             return context.ProductInventoryItems
                 .Where(i => !i.IsFullyConsumed &&
                            (i.UserId == userId || (familyId.HasValue && i.FamilyId == familyId)))
@@ -438,7 +438,7 @@ namespace Homassy.API.Functions
                     .ToList();
             }
 
-            var context = new HomassyDbContext();
+            using var context = HomassyDbContext.ForReading();
             return context.Products
                 .Where(p => !p.IsDeleted && productIds.Contains(p.Id))
                 .ToList();
@@ -453,7 +453,7 @@ namespace Homassy.API.Functions
                     .ToList();
             }
 
-            var context = new HomassyDbContext();
+            using var context = HomassyDbContext.ForReading();
             return context.ProductCustomizations
                 .Where(c => c.UserId == userId)
                 .ToList();
@@ -474,7 +474,7 @@ namespace Homassy.API.Functions
             }
             else
             {
-                var context = new HomassyDbContext();
+                using var context = HomassyDbContext.ForReading();
                 products = context.Products
                     .ToList();
             }
@@ -520,7 +520,7 @@ namespace Homassy.API.Functions
                 throw new UserNotFoundException("User not found");
             }
 
-            var context = new HomassyDbContext();
+            using var context = new HomassyDbContext();
             await using var transaction = await context.Database.BeginTransactionAsync(cancellationToken);
 
             try
@@ -627,7 +627,7 @@ namespace Homassy.API.Functions
                 throw new ProductNotFoundException();
             }
 
-            var context = new HomassyDbContext();
+            using var context = new HomassyDbContext();
             await using var transaction = await context.Database.BeginTransactionAsync(cancellationToken);
 
             try
@@ -768,7 +768,7 @@ namespace Homassy.API.Functions
                 throw new ProductNotFoundException();
             }
 
-            var context = new HomassyDbContext();
+            using var context = new HomassyDbContext();
             await using var transaction = await context.Database.BeginTransactionAsync(cancellationToken);
 
             try
@@ -857,7 +857,7 @@ namespace Homassy.API.Functions
                 throw new ProductNotFoundException();
             }
 
-            var context = new HomassyDbContext();
+            using var context = new HomassyDbContext();
             await using var transaction = await context.Database.BeginTransactionAsync(cancellationToken);
 
             try
@@ -1029,7 +1029,7 @@ namespace Homassy.API.Functions
                 return null;
             }
 
-            var context = new HomassyDbContext();
+            using var context = HomassyDbContext.ForReading();
 
             // All inventory items for this product — include fully-consumed AND soft-deleted rows.
             var items = await context.ProductInventoryItems
@@ -1357,7 +1357,7 @@ namespace Homassy.API.Functions
             else
             {
                 // Use database
-                var context = new HomassyDbContext();
+                using var context = HomassyDbContext.ForReading();
                 var query = context.ProductInventoryItems
                     .AsNoTracking()
                     .Include(i => i.Product)
@@ -1423,7 +1423,7 @@ namespace Homassy.API.Functions
             var userProfile = new UserFunctions().GetUserProfileByUserId(userId.Value);
             var currency = request.Currency ?? userProfile?.DefaultCurrency;
 
-            var context = new HomassyDbContext();
+            using var context = new HomassyDbContext();
             await using var transaction = await context.Database.BeginTransactionAsync(cancellationToken);
 
             try
@@ -1551,7 +1551,7 @@ namespace Homassy.API.Functions
                 throw new ProductNotFoundException();
             }
 
-            var context = new HomassyDbContext();
+            using var context = new HomassyDbContext();
             await using var transaction = await context.Database.BeginTransactionAsync(cancellationToken);
 
             try
@@ -1644,7 +1644,7 @@ namespace Homassy.API.Functions
             var wasSharedWithFamily = inventoryItem.FamilyId.HasValue;
 
             var locationFunctions = new LocationFunctions();
-            var context = new HomassyDbContext();
+            using var context = new HomassyDbContext();
             await using var transaction = await context.Database.BeginTransactionAsync(cancellationToken);
 
             try
@@ -1887,7 +1887,7 @@ namespace Homassy.API.Functions
                 throw new UnauthorizedException("You don't have permission to delete this inventory item");
             }
 
-            var context = new HomassyDbContext();
+            using var context = new HomassyDbContext();
             await using var transaction = await context.Database.BeginTransactionAsync(cancellationToken);
 
             try
@@ -1978,7 +1978,7 @@ namespace Homassy.API.Functions
                 throw new BadRequestException($"Cannot consume more than available quantity ({inventoryItem.CurrentQuantity})");
             }
 
-            var context = new HomassyDbContext();
+            using var context = new HomassyDbContext();
             await using var transaction = await context.Database.BeginTransactionAsync(cancellationToken);
 
             try
@@ -2137,7 +2137,7 @@ namespace Homassy.API.Functions
                 storageLocationId = storageLocation.Id;
             }
 
-            var context = new HomassyDbContext();
+            using var context = new HomassyDbContext();
             await using var transaction = await context.Database.BeginTransactionAsync(cancellationToken);
 
             try
@@ -2228,7 +2228,7 @@ namespace Homassy.API.Functions
                 throw new StorageLocationNotFoundException("Storage location not found");
             }
 
-            var context = new HomassyDbContext();
+            using var context = new HomassyDbContext();
             await using var transaction = await context.Database.BeginTransactionAsync(cancellationToken);
 
             try
@@ -2356,7 +2356,7 @@ namespace Homassy.API.Functions
 
             var familyId = SessionInfo.GetFamilyId();
 
-            var context = new HomassyDbContext();
+            using var context = new HomassyDbContext();
             await using var transaction = await context.Database.BeginTransactionAsync(cancellationToken);
 
             try
@@ -2458,7 +2458,7 @@ namespace Homassy.API.Functions
             var familyId = SessionInfo.GetFamilyId();
             var locationFunctions = new LocationFunctions();
 
-            var context = new HomassyDbContext();
+            using var context = new HomassyDbContext();
             await using var transaction = await context.Database.BeginTransactionAsync(cancellationToken);
 
             try
@@ -2660,7 +2660,7 @@ namespace Homassy.API.Functions
                 throw new BadRequestException("Remaining quantity must be at least 0.1");
             }
 
-            var context = new HomassyDbContext();
+            using var context = new HomassyDbContext();
             await using var transaction = await context.Database.BeginTransactionAsync(cancellationToken);
 
             try
@@ -2893,7 +2893,7 @@ namespace Homassy.API.Functions
                 throw new BadRequestException("At least one product is required");
             }
 
-            var context = new HomassyDbContext();
+            using var context = new HomassyDbContext();
             await using var transaction = await context.Database.BeginTransactionAsync(cancellationToken);
 
             try

@@ -34,13 +34,36 @@
       postgres:
         condition: service_healthy
 
+  # One-shot schema migration, mirroring how homassy.migrator gates the API. Kept separate
+  # from the serve command so a failed migration fails the deployment instead of leaving
+  # Kratos serving against a half-migrated schema. `kratos migrate sql` is idempotent, so a
+  # container restart re-runs it harmlessly.
+  homassy.kratos-migrate:
+    container_name: homassy-kratos-migrate
+    image: oryd/kratos:v1.2.0
+    restart: "no"
+    environment:
+      - DSN=postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@${DATABASE_HOST}:${DATABASE_PORT:-5432}/${POSTGRES_DB}?sslmode=disable&search_path=kratos
+    volumes:
+      - ./Homassy.Kratos/kratos.yml:/etc/config/kratos/kratos.yml:ro
+      - ./Homassy.Kratos/identity.schema.json:/etc/config/kratos/identity.schema.json:ro
+      - ./Homassy.Kratos/webhook_body.jsonnet:/etc/config/kratos/webhook_body.jsonnet:ro
+    entrypoint: /bin/sh
+    command: ["-c", "sed \"s|REPLACE_INTERNAL_API_KEY|${INTERNAL_API_KEY}|g\" /etc/config/kratos/kratos.yml > /tmp/kratos.yml && kratos migrate sql -e --yes -c /tmp/kratos.yml"]
+    networks:
+      - homassy-network
+    depends_on:
+      postgres:
+        condition: service_healthy
+
   homassy.kratos:
     container_name: homassy-kratos
     image: oryd/kratos:v1.2.0
     restart: unless-stopped
     environment:
-      # Database - Kratos DSN (this is the correct env var name)
-      - DSN=postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@${DATABASE_HOST}:${DATABASE_PORT:-5432}/${POSTGRES_KRATOS_DB:-kratos}?sslmode=disable
+      # Kratos lives in the `kratos` schema of the main database, the same model development
+      # uses, so there is one database to back up and the init script actually applies.
+      - DSN=postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@${DATABASE_HOST}:${DATABASE_PORT:-5432}/${POSTGRES_DB}?sslmode=disable&search_path=kratos
       # Secrets (Kratos env var format)
       - SECRETS_COOKIE=${KRATOS_COOKIE_SECRET}
       - SECRETS_CIPHER=${KRATOS_CIPHER_SECRET}
@@ -80,6 +103,8 @@
     depends_on:
       postgres:
         condition: service_healthy
+      homassy.kratos-migrate:
+        condition: service_completed_successfully
       homassy.email:
         condition: service_healthy
     healthcheck:
@@ -87,7 +112,10 @@
       interval: 30s
       timeout: 10s
       retries: 3
-      start_period: 20s
+      # Generous: on a first deployment the schema has just been created and Kratos has more
+      # start-up work to do than on a warm restart. `docker compose up -d --wait` fails the
+      # deploy if this never goes healthy.
+      start_period: 45s
 
   homassy.api:
     container_name: homassy-api
@@ -104,6 +132,11 @@
       - InternalApi__ApiKey=${INTERNAL_API_KEY}
       - Cors__AllowedOrigins__0=${KRATOS_BROWSER_RETURN_URL}
       - WebPush__VapidPublicKey=${VAPID_PUBLIC_KEY}
+      # Only Caddy reaches the API (no published port), and it does so over the
+      # homassy-network bridge. Docker allocates that subnet from 172.16.0.0/12, so
+      # that range is the trust boundary for X-Forwarded-For; override if the daemon
+      # is configured with a different default-address-pool.
+      - ForwardedHeaders__KnownNetworks__0=${FORWARDED_HEADERS_KNOWN_NETWORK:-172.16.0.0/12}
     networks:
       - homassy-network
     depends_on:
@@ -144,6 +177,9 @@
     container_name: homassy-caddy
     image: caddy:2-alpine
     restart: unless-stopped
+    environment:
+      # Source range Caddy accepts forwarding headers from (see Homassy.Proxy/Caddyfile).
+      - CADDY_TRUSTED_PROXIES=${CADDY_TRUSTED_PROXIES:-private_ranges}
     ports:
       - "3000:3000"
     volumes:

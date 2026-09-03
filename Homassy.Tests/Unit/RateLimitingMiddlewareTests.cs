@@ -1,6 +1,8 @@
 using Homassy.API.Middleware;
 using Homassy.API.Services;
 using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Routing;
+using Microsoft.AspNetCore.Routing.Patterns;
 using Microsoft.Extensions.Configuration;
 using System.Net;
 using System.Text.Json;
@@ -9,7 +11,9 @@ namespace Homassy.Tests.Unit;
 
 public class RateLimitingMiddlewareTests : IDisposable
 {
-    private int _testCounter;
+    // Static: the rate-limit store is process-wide, and xUnit builds a new instance per
+    // test — a per-instance counter would hand several tests the same "unique" IP.
+    private static int _testCounter;
 
     public RateLimitingMiddlewareTests()
     {
@@ -47,7 +51,7 @@ public class RateLimitingMiddlewareTests : IDisposable
         return context;
     }
 
-    private string GetUniqueIp()
+    private static string GetUniqueIp()
     {
         var counter = Interlocked.Increment(ref _testCounter);
         var b1 = (counter / 65536) % 256;
@@ -327,6 +331,147 @@ public class RateLimitingMiddlewareTests : IDisposable
         await middleware.InvokeAsync(rateLimitedContext);
 
         Assert.Equal(429, rateLimitedContext.Response.StatusCode);
+    }
+
+    #endregion
+
+    #region Forwarded Header Trust Tests
+
+    [Fact]
+    public async Task InvokeAsync_ForgedXForwardedFor_IsCountedAgainstTheConnectionAddress()
+    {
+        var config = new ConfigurationBuilder()
+            .AddInMemoryCollection(new Dictionary<string, string?>
+            {
+                ["RateLimiting:GlobalMaxAttempts"] = "100",
+                ["RateLimiting:GlobalWindowMinutes"] = "1",
+                ["RateLimiting:EndpointMaxAttempts"] = "2",
+                ["RateLimiting:EndpointWindowMinutes"] = "1"
+            })
+            .Build();
+        ConfigService.Initialize(config);
+
+        // One caller, a different fabricated X-Forwarded-For on every request. The
+        // connection address is untrusted (no UseForwardedHeaders rewrote it), so the
+        // header must not buy a fresh bucket.
+        var connectionIp = GetUniqueIp();
+        var middleware = CreateMiddleware(_ => Task.CompletedTask);
+
+        for (int i = 0; i < 2; i++)
+        {
+            var context = CreateHttpContext(path: "/api/forged-xff", ip: connectionIp);
+            context.Request.Headers["X-Forwarded-For"] = $"203.0.113.{i}";
+            await middleware.InvokeAsync(context);
+        }
+
+        var thirdContext = CreateHttpContext(path: "/api/forged-xff", ip: connectionIp);
+        thirdContext.Request.Headers["X-Forwarded-For"] = "203.0.113.99";
+        await middleware.InvokeAsync(thirdContext);
+
+        Assert.Equal(429, thirdContext.Response.StatusCode);
+    }
+
+    [Fact]
+    public async Task InvokeAsync_ForgedXRealIp_IsCountedAgainstTheConnectionAddress()
+    {
+        var config = new ConfigurationBuilder()
+            .AddInMemoryCollection(new Dictionary<string, string?>
+            {
+                ["RateLimiting:GlobalMaxAttempts"] = "2",
+                ["RateLimiting:GlobalWindowMinutes"] = "1",
+                ["RateLimiting:EndpointMaxAttempts"] = "100",
+                ["RateLimiting:EndpointWindowMinutes"] = "1"
+            })
+            .Build();
+        ConfigService.Initialize(config);
+
+        var connectionIp = GetUniqueIp();
+        var middleware = CreateMiddleware(_ => Task.CompletedTask);
+
+        for (int i = 0; i < 2; i++)
+        {
+            var context = CreateHttpContext(path: "/api/forged-realip", ip: connectionIp);
+            context.Request.Headers["X-Real-IP"] = $"198.51.100.{i}";
+            await middleware.InvokeAsync(context);
+        }
+
+        var thirdContext = CreateHttpContext(path: "/api/forged-realip", ip: connectionIp);
+        thirdContext.Request.Headers["X-Real-IP"] = "198.51.100.99";
+        await middleware.InvokeAsync(thirdContext);
+
+        Assert.Equal(429, thirdContext.Response.StatusCode);
+    }
+
+    #endregion
+
+    #region Endpoint Key Bounding Tests
+
+    [Fact]
+    public void GetEndpointKey_WithoutAMatchedRoute_CollapsesEveryPathIntoOneBucket()
+    {
+        var keys = new HashSet<string>();
+
+        for (int i = 0; i < 500; i++)
+        {
+            var context = new DefaultHttpContext();
+            context.Request.Path = $"/api/scan-{Guid.NewGuid()}";
+            keys.Add(RateLimitingMiddleware.GetEndpointKey(context));
+        }
+
+        Assert.Single(keys);
+        Assert.Equal(RateLimitingMiddleware.UnmatchedEndpointKey, keys.Single());
+    }
+
+    [Fact]
+    public void GetEndpointKey_WithAMatchedRoute_UsesTheRouteTemplateNotTheConcretePath()
+    {
+        var keys = new HashSet<string>();
+
+        for (int i = 0; i < 100; i++)
+        {
+            var context = new DefaultHttpContext();
+            context.Request.Path = $"/api/v1.0/product/{Guid.NewGuid()}";
+            context.SetEndpoint(new RouteEndpoint(
+                _ => Task.CompletedTask,
+                RoutePatternFactory.Parse("api/v{version:apiVersion}/Product/{publicId}"),
+                0,
+                EndpointMetadataCollection.Empty,
+                "Product_Get"));
+
+            keys.Add(RateLimitingMiddleware.GetEndpointKey(context));
+        }
+
+        Assert.Single(keys);
+        Assert.Equal("api/v{version:apiversion}/product/{publicid}", keys.Single());
+    }
+
+    [Fact]
+    public async Task InvokeAsync_ManyDistinctUnroutedPaths_ShareOneEndpointBucket()
+    {
+        var config = new ConfigurationBuilder()
+            .AddInMemoryCollection(new Dictionary<string, string?>
+            {
+                ["RateLimiting:GlobalMaxAttempts"] = "100",
+                ["RateLimiting:GlobalWindowMinutes"] = "1",
+                ["RateLimiting:EndpointMaxAttempts"] = "2",
+                ["RateLimiting:EndpointWindowMinutes"] = "1"
+            })
+            .Build();
+        ConfigService.Initialize(config);
+
+        var connectionIp = GetUniqueIp();
+        var middleware = CreateMiddleware(_ => Task.CompletedTask);
+
+        for (int i = 0; i < 2; i++)
+        {
+            var context = CreateHttpContext(path: $"/api/unrouted-{Guid.NewGuid()}", ip: connectionIp);
+            await middleware.InvokeAsync(context);
+        }
+
+        var thirdContext = CreateHttpContext(path: $"/api/unrouted-{Guid.NewGuid()}", ip: connectionIp);
+        await middleware.InvokeAsync(thirdContext);
+
+        Assert.Equal(429, thirdContext.Response.StatusCode);
     }
 
     #endregion

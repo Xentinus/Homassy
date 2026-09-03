@@ -97,6 +97,7 @@ Homassy.API/
 │   └── SessionInfo.cs
 ├── Attributes/           Custom validation attributes
 │   └── Validation/
+│       ├── PublicFeedUrlAttribute.cs   Server-fetchable URL (https, public host) — anti-SSRF
 │       ├── SanitizedStringAttribute.cs
 │       └── ValidBarcodeAttribute.cs
 ├── Constants/              Application-wide constants
@@ -235,6 +236,8 @@ Homassy.API/
 │   ├── ShoppingList/
 │   └── User/
 ├── Security/            Security utilities
+│   ├── CorsOriginPolicy.cs    Origin allowlist matching for the CORS policy
+│   ├── ExternalUrlGuard.cs    Screens user-supplied fetch targets (anti-SSRF), incl. the connect-time DNS re-check
 │   └── SecureCompare.cs
 └── Services/            Application services
     ├── Background/      Background hosted services
@@ -314,6 +317,30 @@ public class UserFunctions
     }
 }
 ```
+
+#### DbContext lifetime — two rules, no exceptions
+
+```csharp
+// An operation that only reads
+using var context = HomassyDbContext.ForReading();
+
+// An operation that writes
+using var context = new HomassyDbContext();
+...
+await context.SaveChangesAsync(cancellationToken);
+```
+
+1. **Always `using`.** A context that is not disposed keeps its `NpgsqlConnection` leased from
+   the pool and keeps every entity it materialised alive until the finalizer runs. Under
+   sustained traffic that shows up as memory climbing with requests served and, once the
+   100-connection pool is exhausted, requests blocking on `Timeout` instead of failing fast.
+2. **`ForReading()` unless the method saves.** It sets
+   `NoTrackingWithIdentityResolution`, so rows are not entered into a change tracker nothing
+   will ever save through — roughly half the allocation per row on list endpoints, and it is
+   what keeps the bulk cache loads from pinning whole tables. Calling `SaveChanges` on such a
+   context throws rather than silently writing nothing.
+
+A context is method-local, so "does this method save?" is the whole decision.
 
 ### In-Memory Caching Strategy
 
@@ -543,8 +570,10 @@ public class KratosSessionMiddleware
 {
     public async Task InvokeAsync(HttpContext context)
     {
-        // Skip public paths: /health, /openapi, /api/v1/version, /api/v1/errorcodes
-        if (ShouldSkipAuthentication(context.Request.Path)) { ... }
+        // Route-driven skip: the endpoint carries [AllowAnonymous] (Health, Version,
+        // ErrorCodes, Statistics, Internal, and MapOpenApi). Never a path list — the
+        // versioned routes are /api/v1.0/..., so literal paths silently stop matching.
+        if (ShouldSkipAuthentication(context)) { ... }
 
         // Extract from cookie (ory_kratos_session) or X-Session-Token header
         var session = await kratosService.GetSessionAsync(cookie, token, ct);
@@ -561,6 +590,19 @@ public class KratosSessionMiddleware
     }
 }
 ```
+
+Two short-circuits keep Kratos out of the hot path:
+
+- **`[AllowAnonymous]` on the matched endpoint.** Requires the middleware to run after
+  `UseRouting` (Program.cs calls it explicitly). Marking a controller `[AllowAnonymous]` is
+  therefore what makes it public — there is no path list to keep in sync, and no prefix match
+  that can classify `/api/v1.0/healthy-secrets` as public because `/api/v1.0/health` is public.
+- **No credentials on the request.** `whoami` without a cookie or `X-Session-Token` can only
+  answer 401, so the round trip is skipped.
+
+The middleware resolves `IKratosService` from `context.RequestServices` — that *is* the
+request's scope. Creating another scope per request builds a second set of scoped services for
+nothing.
 
 Controllers access the session via an extension method:
 ```csharp
@@ -665,6 +707,7 @@ Registration is handled entirely by Kratos:
 The middleware pipeline is configured in a specific order in `Program.cs`:
 
 ```csharp
+if (forwardedHeadersSettings.Enabled) app.UseForwardedHeaders(); // must be first
 app.UseResponseCompression();
 app.Use(async (context, next) => { /* Security + App Headers */ });
 app.UseMiddleware<CorrelationIdMiddleware>();
@@ -673,12 +716,13 @@ app.UseRequestLogging(builder.Configuration); // extension method
 app.UseMiddleware<GlobalExceptionMiddleware>();
 
 // OpenAPI only in Development
-if (app.Environment.IsDevelopment()) app.MapOpenApi();
+if (app.Environment.IsDevelopment()) app.MapOpenApi().AllowAnonymous();
 
 // HSTS + HTTPS only if enabled and not Development
 if (httpsSettings.Enabled && httpsSettings.Hsts.Enabled && !app.Environment.IsDevelopment()) app.UseHsts();
 if (httpsSettings.Enabled && !app.Environment.IsDevelopment()) app.UseHttpsRedirection();
 
+app.UseRouting();                            // explicit: the two middleware below read endpoint metadata
 app.UseCors("HomassyPolicy");
 app.UseMiddleware<RateLimitingMiddleware>();
 app.UseMiddleware<KratosSessionMiddleware>(); // validates Kratos session first
@@ -689,22 +733,24 @@ app.MapControllers();
 ```
 
 **Order matters:**
-1. **Response Compression** - Brotli and Gzip compression for responses
-2. **Response Headers** - Adds security headers (CSP, X-Frame-Options, HSTS, etc.) and app metadata; removes `Server` / `X-Powered-By`
-3. **Correlation ID** - Generates/propagates `X-Correlation-ID` for request tracing
-4. **Request Timeout** - Enforces per-endpoint timeout limits
-5. **Request Logging** - Logs HTTP requests/responses (sanitized) via extension method `UseRequestLogging`
-6. **Global Exception Handler** - Catches and maps all unhandled exceptions
-7. **OpenAPI** - Swagger UI (development only)
-8. **HSTS** - HTTP Strict Transport Security (non-dev, if enabled)
-9. **HTTPS Redirection** - Forces HTTPS (non-dev, if enabled)
-10. **CORS** - Cross-Origin Resource Sharing (configurable origins, allows localhost always)
-11. **Rate Limiting** - Global and per-endpoint request throttling
-12. **Kratos Session** - Calls Kratos `/sessions/whoami`, sets `context.User` and `HttpContext.Items["KratosSession"]`
-13. **Authentication** - Reads the `ClaimsPrincipal` already set by KratosSessionMiddleware
-14. **Authorization** - Enforces `[Authorize]` attributes
-15. **Session Info** - Extracts user/family IDs from claims into `AsyncLocal` (`SessionInfo`)
-16. **Controllers** - Route to endpoints
+1. **Forwarded Headers** - Unwinds `X-Forwarded-For`/`-Proto` from configured proxies only. Must be first: everything below reads `RemoteIpAddress` and `Request.Scheme`
+2. **Response Compression** - Brotli and Gzip compression for responses
+3. **Response Headers** - Adds security headers (CSP, X-Frame-Options, HSTS, etc.) and app metadata; removes `Server` / `X-Powered-By`
+4. **Correlation ID** - Generates/propagates `X-Correlation-ID` for request tracing
+5. **Request Timeout** - Enforces per-endpoint timeout limits
+6. **Request Logging** - Logs HTTP requests/responses (sanitized) via extension method `UseRequestLogging`
+7. **Global Exception Handler** - Catches and maps all unhandled exceptions
+8. **OpenAPI** - Swagger UI (development only)
+9. **HSTS** - HTTP Strict Transport Security (non-dev, if enabled)
+10. **HTTPS Redirection** - Forces HTTPS (non-dev, if enabled)
+11. **Routing** - Matches the endpoint. Explicit, because rate limiting keys on the route template and the Kratos middleware reads `[AllowAnonymous]` from endpoint metadata
+12. **CORS** - Cross-Origin Resource Sharing; allowlist only, plus a loopback shortcut in Development
+13. **Rate Limiting** - Global and per-route-template request throttling
+14. **Kratos Session** - Calls Kratos `/sessions/whoami`, sets `context.User` and `HttpContext.Items["KratosSession"]`; skipped for `[AllowAnonymous]` endpoints and for requests with no session credentials
+15. **Authentication** - Reads the `ClaimsPrincipal` already set by KratosSessionMiddleware
+16. **Authorization** - Enforces `[Authorize]` attributes
+17. **Session Info** - Extracts user/family IDs from claims into `AsyncLocal` (`SessionInfo`)
+18. **Controllers** - Route to endpoints
 
 > Each middleware is documented in depth in [Middleware/CLAUDE.md](Middleware/CLAUDE.md). The remaining cross-cutting concerns (error codes, push, activity feed, automation, family join, lockout, graceful shutdown) live in [docs/features.md](docs/features.md); input sanitization, barcode, and image validation in [docs/security-and-validation.md](docs/security-and-validation.md); application/background services and health checks in [Services/CLAUDE.md](Services/CLAUDE.md).
 

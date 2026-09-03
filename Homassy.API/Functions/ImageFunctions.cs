@@ -69,7 +69,7 @@ namespace Homassy.API.Functions
             cancellationToken.ThrowIfCancellationRequested();
             progress?.Report(new ProgressInfo { Percentage = 60, Stage = ProgressStage.Uploading, Status = ProgressStatus.InProgress, UpdatedAt = DateTime.UtcNow });
 
-            var context = new HomassyDbContext();
+            using var context = new HomassyDbContext();
             await using var transaction = await context.Database.BeginTransactionAsync(cancellationToken);
 
             try
@@ -147,7 +147,7 @@ namespace Homassy.API.Functions
                 throw new ProductNotFoundException();
             }
 
-            var context = new HomassyDbContext();
+            using var context = new HomassyDbContext();
             await using var transaction = await context.Database.BeginTransactionAsync(cancellationToken);
 
             try
@@ -233,7 +233,7 @@ namespace Homassy.API.Functions
             cancellationToken.ThrowIfCancellationRequested();
             progress?.Report(new ProgressInfo { Percentage = 60, Stage = ProgressStage.Uploading, Status = ProgressStatus.InProgress, UpdatedAt = DateTime.UtcNow });
 
-            var context = new HomassyDbContext();
+            using var context = new HomassyDbContext();
             await using var transaction = await context.Database.BeginTransactionAsync(cancellationToken);
 
             try
@@ -289,7 +289,7 @@ namespace Homassy.API.Functions
                 throw new UserNotFoundException("User not found");
             }
 
-            var context = new HomassyDbContext();
+            using var context = new HomassyDbContext();
             await using var transaction = await context.Database.BeginTransactionAsync(cancellationToken);
 
             try
@@ -333,7 +333,7 @@ namespace Homassy.API.Functions
         {
             try
             {
-                var context = new HomassyDbContext();
+                using var context = HomassyDbContext.ForReading();
                 var user = await context.Users.FirstOrDefaultAsync(u => u.Id == userId, cancellationToken);
                 
                 if (user == null || string.IsNullOrEmpty(user.KratosIdentityId))

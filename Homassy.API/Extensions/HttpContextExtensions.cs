@@ -1,29 +1,37 @@
-﻿namespace Homassy.API.Extensions
+using System.Net.Sockets;
+
+namespace Homassy.API.Extensions
 {
     public static class HttpContextExtensions
     {
+        /// <summary>
+        /// The address of the caller, as used for rate limiting and security logging.
+        /// </summary>
+        /// <remarks>
+        /// Deliberately does not read <c>X-Forwarded-For</c> or <c>X-Real-IP</c>: any client
+        /// can send those, and trusting them lets a caller mint a fresh rate-limit bucket per
+        /// request and choose the address that shows up in the logs. Forwarded headers are
+        /// unwound by <c>UseForwardedHeaders</c>, which rewrites the remote address only when
+        /// the request came from a proxy listed in <c>ForwardedHeaders:KnownNetworks</c> /
+        /// <c>KnownProxies</c>; everything else keeps the real connection address.
+        /// </remarks>
         public static string GetClientIpAddress(this HttpContext context)
         {
-            // Check for X-Forwarded-For header (proxy/load balancer)
-            var forwardedFor = context.Request.Headers["X-Forwarded-For"].FirstOrDefault();
-            if (!string.IsNullOrEmpty(forwardedFor))
+            var remoteIp = context.Connection.RemoteIpAddress;
+
+            if (remoteIp is null)
             {
-                var ips = forwardedFor.Split(',', StringSplitOptions.RemoveEmptyEntries);
-                if (ips.Length > 0)
-                {
-                    return ips[0].Trim();
-                }
+                return "unknown";
             }
 
-            // Check for X-Real-IP header (nginx)
-            var realIp = context.Request.Headers["X-Real-IP"].FirstOrDefault();
-            if (!string.IsNullOrEmpty(realIp))
+            // Kestrel reports IPv4 callers as ::ffff:a.b.c.d when listening dual-stack.
+            // Normalising keeps one bucket per client instead of one per representation.
+            if (remoteIp.AddressFamily == AddressFamily.InterNetworkV6 && remoteIp.IsIPv4MappedToIPv6)
             {
-                return realIp;
+                remoteIp = remoteIp.MapToIPv4();
             }
 
-            // Fallback to remote IP
-            return context.Connection.RemoteIpAddress?.ToString() ?? "unknown";
+            return remoteIp.ToString();
         }
     }
 }

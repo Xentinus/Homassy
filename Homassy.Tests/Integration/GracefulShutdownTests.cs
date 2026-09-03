@@ -21,22 +21,23 @@ public class GracefulShutdownTests : IClassFixture<HomassyWebApplicationFactory>
     public async Task WhenShutdownTriggered_ActiveRequestsComplete()
     {
         var client = _factory.CreateClient();
-        var requestStarted = false;
-        var requestCompleted = false;
+
+        // Signalled by the worker rather than waited out with a fixed delay: a 100ms sleep
+        // assumes the thread pool schedules the Task.Run body within 100ms, which it does not
+        // when the rest of the suite is running in parallel.
+        var requestStarted = new TaskCompletionSource();
 
         var longRunningTask = Task.Run(async () =>
         {
-            requestStarted = true;
+            requestStarted.SetResult();
             var response = await client.GetAsync("/api/v1.0/health/live");
-            requestCompleted = response.StatusCode == HttpStatusCode.OK;
+            return response.StatusCode == HttpStatusCode.OK;
         });
 
-        await Task.Delay(100);
-        Assert.True(requestStarted);
+        await requestStarted.Task.WaitAsync(TimeSpan.FromSeconds(30));
 
-        await longRunningTask;
+        var requestCompleted = await longRunningTask;
 
-        _output.WriteLine($"Request started: {requestStarted}");
         _output.WriteLine($"Request completed: {requestCompleted}");
 
         Assert.True(requestCompleted);
@@ -82,11 +83,9 @@ public class GracefulShutdownTests : IClassFixture<HomassyWebApplicationFactory>
         using var scope = _factory.Services.CreateScope();
         var lifetime = scope.ServiceProvider.GetRequiredService<IHostApplicationLifetime>();
 
-        var stoppingTriggered = false;
-        lifetime.ApplicationStopping.Register(() =>
-        {
-            stoppingTriggered = true;
-        });
+        // Registering proves a callback can be attached; the token is not actually signalled
+        // here, since stopping the shared test host would break every other test in the class.
+        lifetime.ApplicationStopping.Register(() => { });
 
         _output.WriteLine($"Stopping token registered: {lifetime.ApplicationStopping.CanBeCanceled}");
 
