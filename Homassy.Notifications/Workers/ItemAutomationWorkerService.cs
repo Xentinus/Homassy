@@ -18,12 +18,17 @@ public sealed class ItemAutomationWorkerService : BackgroundService
 {
     private readonly IServiceScopeFactory _scopeFactory;
     private readonly IWebPushService _webPushService;
+    private readonly IDbContextFactory<HomassyDbContext> _contextFactory;
     private readonly TimeSpan _interval = TimeSpan.FromMinutes(5);
 
-    public ItemAutomationWorkerService(IServiceScopeFactory scopeFactory, IWebPushService webPushService)
+    public ItemAutomationWorkerService(
+        IServiceScopeFactory scopeFactory,
+        IWebPushService webPushService,
+        IDbContextFactory<HomassyDbContext> contextFactory)
     {
         _scopeFactory = scopeFactory;
         _webPushService = webPushService;
+        _contextFactory = contextFactory;
     }
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
@@ -319,7 +324,7 @@ public sealed class ItemAutomationWorkerService : BackgroundService
         {
             var userId = automation.CreatedByUserId;
             var familyId = automation.FamilyId;
-            await new ActivityFunctions().RecordActivityAsync(
+            await new ActivityFunctions(_contextFactory).RecordActivityAsync(
                 userId, familyId,
                 ActivityType.AutomationExecute,
                 automation.Id,
@@ -415,7 +420,7 @@ public sealed class ItemAutomationWorkerService : BackgroundService
             // Visibility follows the target list's privacy, not the automation's:
             // a personal list (FamilyId == null) must stay hidden from the family.
             var familyId = shoppingList.FamilyId;
-            await new ActivityFunctions().RecordActivityAsync(
+            await new ActivityFunctions(_contextFactory).RecordActivityAsync(
                 userId, familyId,
                 ActivityType.AutomationExecute,
                 automation.Id,
@@ -610,14 +615,14 @@ public sealed class ItemAutomationWorkerService : BackgroundService
     /// Takes the caller's context rather than opening one of its own: this service reaches the
     /// database only through the scoped HomassyDbContext (see CLAUDE.md).
     /// </remarks>
-    private static void RecalculateNextExecution(HomassyDbContext context, ItemAutomation automation)
+    private void RecalculateNextExecution(HomassyDbContext context, ItemAutomation automation)
     {
         // Get the user's timezone to calculate the next execution
         UserTimeZone userTimeZone;
         try
         {
             var userProfile = automation.UserId.HasValue
-                ? new UserFunctions().GetUserProfileByUserId(automation.UserId.Value)
+                ? new UserFunctions(_contextFactory).GetUserProfileByUserId(automation.UserId.Value)
                 : null;
 
             // If family-owned, try to find the first family member's timezone
@@ -790,7 +795,7 @@ public sealed class ItemAutomationWorkerService : BackgroundService
                 {
                     var userId = automation.CreatedByUserId;
                     var familyId = automation.FamilyId;
-                    await new ActivityFunctions().RecordActivityAsync(
+                    await new ActivityFunctions(_contextFactory).RecordActivityAsync(
                         userId, familyId,
                         ActivityType.AutomationExecute,
                         automation.Id,

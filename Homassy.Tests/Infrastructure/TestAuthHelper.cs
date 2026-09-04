@@ -75,7 +75,7 @@ public class TestAuthHelper
         // from the cached User row, so without this the very next request 401s with USER-0002 until
         // CacheManagementService's poller happens to run (every 5s). Push them into the caches now
         // so tests do not race that poller.
-        var userFunctions = new UserFunctions();
+        var userFunctions = scope.ServiceProvider.GetRequiredService<UserFunctions>();
         await userFunctions.RefreshUserCacheAsync(user.Id);
         await userFunctions.RefreshUserProfileCacheAsync(profile.Id);
 

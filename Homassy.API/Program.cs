@@ -46,14 +46,53 @@ try
 
     builder.Host.UseSerilog();
 
-    HomassyDbContext.SetConfiguration(builder.Configuration);
-
     ConfigService.Initialize(builder.Configuration);
 
-    builder.Services.AddDbContext<HomassyDbContext>(options =>
-        options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection")));
+    // A context is scoped to the operation, not to the request: the Functions layer takes
+    // IDbContextFactory<HomassyDbContext> and disposes each context as the unit of work ends,
+    // which is what returns the pooled connection and stops a change tracker outliving the
+    // call that filled it. It also works unchanged in the background workers and cache
+    // refreshes, which have no request scope to borrow a context from.
+    //
+    // The scoped registration stays for the consumers that legitimately want the ambient
+    // context — startup trigger initialisation and the integration tests. Registering both
+    // requires the options to be a singleton, which is what AddDbContextFactory installs.
+    Action<DbContextOptionsBuilder> configureDbContext = options =>
+        options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection"));
+
+    builder.Services.AddDbContextFactory<HomassyDbContext>(configureDbContext);
+    builder.Services.AddDbContext<HomassyDbContext>(configureDbContext, optionsLifetime: ServiceLifetime.Singleton);
 
     builder.Services.AddHttpContextAccessor();
+
+    // SignalR broadcast helpers. Singletons over IHubContext<T>, which is itself a singleton;
+    // the Functions layer reaches them through FunctionsRuntime, and InternalController injects
+    // the inventory one directly to relay out-of-process changes.
+    builder.Services.AddSingleton<InventoryRealtime>();
+    builder.Services.AddSingleton<MasterDataRealtime>();
+    builder.Services.AddSingleton<ShoppingListRealtime>();
+
+    // The cross-cutting services the Functions layer needs, as one typed parameter object.
+    // See FunctionsRuntime for why it is a bundle rather than separate constructor parameters.
+    builder.Services.AddSingleton<FunctionsRuntime>();
+
+    // The Functions layer is the business logic, and it is scoped because that is the lifetime
+    // of the work it does: a controller, hub, or worker scope resolves one and the contexts it
+    // creates die with the operation. Consumers outside a request scope (the cache manager, the
+    // automation worker) create their own scope and resolve from it.
+    builder.Services.AddScoped<ActivityFunctions>();
+    builder.Services.AddScoped<AutomationFunctions>();
+    builder.Services.AddScoped<CalendarFunctions>();
+    builder.Services.AddScoped<ExternalCalendarFunctions>();
+    builder.Services.AddScoped<FamilyFunctions>();
+    builder.Services.AddScoped<FamilyJoinRequestFunctions>();
+    builder.Services.AddScoped<ImageFunctions>();
+    builder.Services.AddScoped<LocationFunctions>();
+    builder.Services.AddScoped<ProductFunctions>();
+    builder.Services.AddScoped<PushNotificationFunctions>();
+    builder.Services.AddScoped<SelectValueFunctions>();
+    builder.Services.AddScoped<ShoppingListFunctions>();
+    builder.Services.AddScoped<UserFunctions>();
 
     builder.Services.AddHostedService<CacheManagementService>();
     builder.Services.AddHostedService<RateLimitCleanupService>();
@@ -321,8 +360,6 @@ try
         tags: ["external"]);
 
     var app = builder.Build();
-
-    Homassy.API.Infrastructure.ServiceLocator.Provider = app.Services;
 
     using (var scope = app.Services.CreateScope())
     {

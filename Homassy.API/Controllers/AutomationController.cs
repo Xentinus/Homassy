@@ -18,6 +18,13 @@ namespace Homassy.API.Controllers
     [Authorize]
     public class AutomationController : ControllerBase
     {
+        private readonly AutomationFunctions _automationFunctions;
+
+        public AutomationController(AutomationFunctions automationFunctions)
+        {
+            _automationFunctions = automationFunctions;
+        }
+
         /// <summary>
         /// Gets all automation rules for the current user and family.
         /// </summary>
@@ -26,7 +33,7 @@ namespace Homassy.API.Controllers
         [ProducesResponseType(typeof(ApiResponse<List<AutomationResponse>>), StatusCodes.Status200OK)]
         public async Task<IActionResult> GetAutomations(CancellationToken cancellationToken)
         {
-            var automations = await new AutomationFunctions().GetAutomationsAsync(cancellationToken);
+            var automations = await _automationFunctions.GetAutomationsAsync(cancellationToken);
             return Ok(ApiResponse<List<AutomationResponse>>.SuccessResponse(automations));
         }
 
@@ -39,7 +46,7 @@ namespace Homassy.API.Controllers
         [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status404NotFound)]
         public async Task<IActionResult> GetAutomation(Guid publicId, CancellationToken cancellationToken)
         {
-            var automation = await new AutomationFunctions().GetAutomationAsync(publicId, cancellationToken);
+            var automation = await _automationFunctions.GetAutomationAsync(publicId, cancellationToken);
             return Ok(ApiResponse<AutomationResponse>.SuccessResponse(automation));
         }
 
@@ -57,7 +64,7 @@ namespace Homassy.API.Controllers
                 return BadRequest(ApiResponse.ErrorResponse(ErrorCodes.ValidationInvalidRequest));
             }
 
-            var automation = await new AutomationFunctions().CreateAutomationAsync(request, cancellationToken);
+            var automation = await _automationFunctions.CreateAutomationAsync(request, cancellationToken);
             return Ok(ApiResponse<AutomationResponse>.SuccessResponse(automation));
         }
 
@@ -76,7 +83,7 @@ namespace Homassy.API.Controllers
                 return BadRequest(ApiResponse.ErrorResponse(ErrorCodes.ValidationInvalidRequest));
             }
 
-            var automation = await new AutomationFunctions().UpdateAutomationAsync(publicId, request, cancellationToken);
+            var automation = await _automationFunctions.UpdateAutomationAsync(publicId, request, cancellationToken);
             return Ok(ApiResponse<AutomationResponse>.SuccessResponse(automation));
         }
 
@@ -89,7 +96,7 @@ namespace Homassy.API.Controllers
         [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status404NotFound)]
         public async Task<IActionResult> DeleteAutomation(Guid publicId, CancellationToken cancellationToken)
         {
-            await new AutomationFunctions().DeleteAutomationAsync(publicId, cancellationToken);
+            await _automationFunctions.DeleteAutomationAsync(publicId, cancellationToken);
 
             Log.Information($"Automation {publicId} deleted successfully");
             return Ok(ApiResponse.SuccessResponse());
@@ -110,7 +117,7 @@ namespace Homassy.API.Controllers
                 return BadRequest(ApiResponse.ErrorResponse(ErrorCodes.ValidationInvalidRequest));
             }
 
-            var execution = await new AutomationFunctions().ExecuteAutomationAsync(publicId, request, cancellationToken);
+            var execution = await _automationFunctions.ExecuteAutomationAsync(publicId, request, cancellationToken);
             return Ok(ApiResponse<AutomationExecutionResponse>.SuccessResponse(execution));
         }
 
@@ -123,7 +130,7 @@ namespace Homassy.API.Controllers
         [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status404NotFound)]
         public async Task<IActionResult> GetExecutionHistory(Guid publicId, [FromQuery] int skip = 0, [FromQuery] int take = 5, CancellationToken cancellationToken = default)
         {
-            var history = await new AutomationFunctions().GetExecutionHistoryAsync(publicId, skip, take, cancellationToken);
+            var history = await _automationFunctions.GetExecutionHistoryAsync(publicId, skip, take, cancellationToken);
             return Ok(ApiResponse<List<AutomationExecutionResponse>>.SuccessResponse(history));
         }
     }

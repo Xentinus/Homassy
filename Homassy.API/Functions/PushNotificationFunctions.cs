@@ -7,6 +7,13 @@ namespace Homassy.API.Functions
 {
     public class PushNotificationFunctions
     {
+        private readonly IDbContextFactory<HomassyDbContext> _contextFactory;
+
+        public PushNotificationFunctions(IDbContextFactory<HomassyDbContext> contextFactory)
+        {
+            _contextFactory = contextFactory;
+        }
+
         public async Task<UserPushSubscription> SubscribeAsync(string endpoint, string p256dh, string auth, string? userAgent, CancellationToken cancellationToken = default)
         {
             var userId = SessionInfo.GetUserId();
@@ -15,7 +22,7 @@ namespace Homassy.API.Functions
                 throw new UnauthorizedAccessException("User not authenticated");
             }
 
-            using var context = new HomassyDbContext();
+            using var context = _contextFactory.CreateDbContext();
 
             // Check if subscription already exists (upsert)
             var existing = await context.UserPushSubscriptions
@@ -57,7 +64,7 @@ namespace Homassy.API.Functions
                 throw new UnauthorizedAccessException("User not authenticated");
             }
 
-            using var context = new HomassyDbContext();
+            using var context = _contextFactory.CreateDbContext();
             var subscription = await context.UserPushSubscriptions
                 .FirstOrDefaultAsync(s => s.Endpoint == endpoint && s.UserId == userId.Value, cancellationToken);
 

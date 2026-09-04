@@ -16,6 +16,13 @@ namespace Homassy.API.Controllers
     [Authorize]
     public class SelectValueController : ControllerBase
     {
+        private readonly SelectValueFunctions _selectValueFunctions;
+
+        public SelectValueController(SelectValueFunctions selectValueFunctions)
+        {
+            _selectValueFunctions = selectValueFunctions;
+        }
+
         /// <summary>
         /// Gets select values for a specific type (units, currencies, time zones, etc.).
         /// </summary>
@@ -24,7 +31,7 @@ namespace Homassy.API.Controllers
         [ProducesResponseType(typeof(ApiResponse<List<SelectValue>>), StatusCodes.Status200OK)]
         public IActionResult GetSelectValues(SelectValueType type)
         {
-            var selectValues = new SelectValueFunctions().GetSelectValues(type);
+            var selectValues = _selectValueFunctions.GetSelectValues(type);
             return Ok(ApiResponse<List<SelectValue>>.SuccessResponse(selectValues));
         }
     }

@@ -12,11 +12,18 @@ namespace Homassy.API.Functions
 {
     public class ImageFunctions
     {
+        private readonly FunctionsRuntime _runtime;
+        private readonly IDbContextFactory<HomassyDbContext> _contextFactory;
         private readonly IImageProcessingService _imageProcessingService;
         private readonly IKratosService? _kratosService;
 
-        public ImageFunctions(IImageProcessingService imageProcessingService, IKratosService? kratosService = null)
+        public ImageFunctions(
+            FunctionsRuntime runtime,
+            IImageProcessingService imageProcessingService,
+            IKratosService? kratosService = null)
         {
+            _runtime = runtime;
+            _contextFactory = runtime.ContextFactory;
             _imageProcessingService = imageProcessingService;
             _kratosService = kratosService;
         }
@@ -30,7 +37,7 @@ namespace Homassy.API.Functions
                 throw new UserNotFoundException("User not found");
             }
 
-            var productFunctions = new ProductFunctions();
+            var productFunctions = new ProductFunctions(_runtime);
             var product = productFunctions.GetProductByPublicId(request.ProductPublicId);
             if (product == null)
             {
@@ -69,7 +76,7 @@ namespace Homassy.API.Functions
             cancellationToken.ThrowIfCancellationRequested();
             progress?.Report(new ProgressInfo { Percentage = 60, Stage = ProgressStage.Uploading, Status = ProgressStatus.InProgress, UpdatedAt = DateTime.UtcNow });
 
-            using var context = new HomassyDbContext();
+            using var context = _contextFactory.CreateDbContext();
             await using var transaction = await context.Database.BeginTransactionAsync(cancellationToken);
 
             try
@@ -97,7 +104,7 @@ namespace Homassy.API.Functions
                 try
                 {
                     var familyId = SessionInfo.GetFamilyId();
-                    await new ActivityFunctions().RecordActivityAsync(
+                    await new ActivityFunctions(_contextFactory).RecordActivityAsync(
                         userId.Value,
                         familyId,
                         Enums.ActivityType.ProductPhotoUpload,
@@ -140,14 +147,14 @@ namespace Homassy.API.Functions
                 throw new UserNotFoundException("User not found");
             }
 
-            var productFunctions = new ProductFunctions();
+            var productFunctions = new ProductFunctions(_runtime);
             var product = productFunctions.GetProductByPublicId(productPublicId);
             if (product == null)
             {
                 throw new ProductNotFoundException();
             }
 
-            using var context = new HomassyDbContext();
+            using var context = _contextFactory.CreateDbContext();
             await using var transaction = await context.Database.BeginTransactionAsync(cancellationToken);
 
             try
@@ -168,7 +175,7 @@ namespace Homassy.API.Functions
                 try
                 {
                     var familyId = SessionInfo.GetFamilyId();
-                    await new ActivityFunctions().RecordActivityAsync(
+                    await new ActivityFunctions(_contextFactory).RecordActivityAsync(
                         userId.Value,
                         familyId,
                         Enums.ActivityType.ProductPhotoDelete,
@@ -233,7 +240,7 @@ namespace Homassy.API.Functions
             cancellationToken.ThrowIfCancellationRequested();
             progress?.Report(new ProgressInfo { Percentage = 60, Stage = ProgressStage.Uploading, Status = ProgressStatus.InProgress, UpdatedAt = DateTime.UtcNow });
 
-            using var context = new HomassyDbContext();
+            using var context = _contextFactory.CreateDbContext();
             await using var transaction = await context.Database.BeginTransactionAsync(cancellationToken);
 
             try
@@ -289,7 +296,7 @@ namespace Homassy.API.Functions
                 throw new UserNotFoundException("User not found");
             }
 
-            using var context = new HomassyDbContext();
+            using var context = _contextFactory.CreateDbContext();
             await using var transaction = await context.Database.BeginTransactionAsync(cancellationToken);
 
             try
@@ -333,7 +340,7 @@ namespace Homassy.API.Functions
         {
             try
             {
-                using var context = HomassyDbContext.ForReading();
+                using var context = _contextFactory.CreateForReading();
                 var user = await context.Users.FirstOrDefaultAsync(u => u.Id == userId, cancellationToken);
                 
                 if (user == null || string.IsNullOrEmpty(user.KratosIdentityId))

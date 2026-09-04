@@ -17,6 +17,13 @@ namespace Homassy.API.Functions
         /// <summary>
         /// Creates a pending request for the current user to join the family identified by the share code.
         /// </summary>
+        private readonly IDbContextFactory<HomassyDbContext> _contextFactory;
+
+        public FamilyJoinRequestFunctions(IDbContextFactory<HomassyDbContext> contextFactory)
+        {
+            _contextFactory = contextFactory;
+        }
+
         public async Task<MyJoinRequestResponse> CreateJoinRequestAsync(JoinFamilyRequest request, CancellationToken cancellationToken = default)
         {
             var userId = SessionInfo.GetUserId();
@@ -26,7 +33,7 @@ namespace Homassy.API.Functions
                 throw new UnauthorizedException("Invalid authentication", ErrorCodes.AuthUnauthorized);
             }
 
-            var user = new UserFunctions().GetUserById(userId.Value);
+            var user = new UserFunctions(_contextFactory).GetUserById(userId.Value);
             if (user == null)
             {
                 Log.Warning($"User not found for userId {userId.Value}");
@@ -43,13 +50,13 @@ namespace Homassy.API.Functions
                 throw new BadRequestException("Share code is required", ErrorCodes.ValidationShareCodeRequired);
             }
 
-            var family = new FamilyFunctions().GetFamilyByShareCode(request.ShareCode);
+            var family = new FamilyFunctions(_contextFactory).GetFamilyByShareCode(request.ShareCode);
             if (family == null)
             {
                 throw new FamilyNotFoundException("Family not found with the provided share code", ErrorCodes.FamilyInvalidShareCode);
             }
 
-            using var context = new HomassyDbContext();
+            using var context = _contextFactory.CreateDbContext();
 
             var hasPending = await context.FamilyJoinRequests
                 .AnyAsync(r => r.UserId == userId.Value && r.Status == FamilyJoinRequestStatus.Pending, cancellationToken);
@@ -106,7 +113,7 @@ namespace Homassy.API.Functions
                 throw new UnauthorizedException("Invalid authentication", ErrorCodes.AuthUnauthorized);
             }
 
-            using var context = HomassyDbContext.ForReading();
+            using var context = _contextFactory.CreateForReading();
             var request = context.FamilyJoinRequests
                 .Where(r => r.UserId == userId.Value && r.Status == FamilyJoinRequestStatus.Pending)
                 .OrderByDescending(r => r.RequestedAt)
@@ -117,7 +124,7 @@ namespace Homassy.API.Functions
                 return null;
             }
 
-            var family = new FamilyFunctions().GetFamilyById(request.FamilyId);
+            var family = new FamilyFunctions(_contextFactory).GetFamilyById(request.FamilyId);
 
             return new MyJoinRequestResponse
             {
@@ -139,7 +146,7 @@ namespace Homassy.API.Functions
                 throw new UnauthorizedException("Invalid authentication", ErrorCodes.AuthUnauthorized);
             }
 
-            using var context = new HomassyDbContext();
+            using var context = _contextFactory.CreateDbContext();
             var request = await context.FamilyJoinRequests
                 .FirstOrDefaultAsync(r => r.UserId == userId.Value && r.Status == FamilyJoinRequestStatus.Pending, cancellationToken);
 
@@ -177,13 +184,13 @@ namespace Homassy.API.Functions
                 throw new UnauthorizedException("Invalid authentication", ErrorCodes.AuthUnauthorized);
             }
 
-            var user = new UserFunctions().GetUserById(userId.Value);
+            var user = new UserFunctions(_contextFactory).GetUserById(userId.Value);
             if (user == null || !user.FamilyId.HasValue)
             {
                 throw new FamilyNotFoundException("You are not a member of any family", ErrorCodes.FamilyNotMember);
             }
 
-            using var context = HomassyDbContext.ForReading();
+            using var context = _contextFactory.CreateForReading();
             return context.FamilyJoinRequests
                 .Include(r => r.User)
                     .ThenInclude(u => u!.Profile)
@@ -287,13 +294,13 @@ namespace Homassy.API.Functions
                 throw new UnauthorizedException("Invalid authentication", ErrorCodes.AuthUnauthorized);
             }
 
-            var approver = new UserFunctions().GetUserById(userId.Value);
+            var approver = new UserFunctions(_contextFactory).GetUserById(userId.Value);
             if (approver == null || !approver.FamilyId.HasValue)
             {
                 throw new FamilyNotFoundException("You are not a member of any family", ErrorCodes.FamilyNotMember);
             }
 
-            using var context = HomassyDbContext.ForReading();
+            using var context = _contextFactory.CreateForReading();
             var request = await context.FamilyJoinRequests
                 .FirstOrDefaultAsync(r => r.PublicId == publicId, cancellationToken);
 
@@ -325,12 +332,12 @@ namespace Homassy.API.Functions
             return !string.IsNullOrWhiteSpace(displayName) ? displayName : (fallback ?? string.Empty);
         }
 
-        private static async Task RecordActivitySafelyAsync(
+        private async Task RecordActivitySafelyAsync(
             int userId, int familyId, ActivityType activityType, int recordId, string recordName, CancellationToken cancellationToken)
         {
             try
             {
-                await new ActivityFunctions().RecordActivityAsync(
+                await new ActivityFunctions(_contextFactory).RecordActivityAsync(
                     userId, familyId, activityType, recordId, recordName, null, null, cancellationToken);
             }
             catch (Exception ex)

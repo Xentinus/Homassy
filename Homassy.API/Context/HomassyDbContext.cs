@@ -14,63 +14,39 @@ namespace Homassy.API.Context
 {
     public class HomassyDbContext : DbContext
     {
-        private static IConfiguration? _configuration;
-
         private bool _readOnly;
 
-        public HomassyDbContext()
-        {
-        }
-
         /// <summary>
-        /// A context for an operation that only reads.
+        /// The only constructor: a context is always configured by whoever creates it, which in
+        /// this application is the DI registration in <c>Program.cs</c> (through
+        /// <see cref="IDbContextFactory{TContext}"/> or the scoped registration) and the
+        /// design-time <see cref="HomassyDbContextFactory"/> for EF tooling.
         /// </summary>
         /// <remarks>
-        /// Queries on it do not populate the change tracker, so materialised rows are not kept
-        /// alive by an identity map they will never be saved through. That matters most on the
-        /// list endpoints and the bulk cache loads, which read whole tables and then map
-        /// everything to DTOs — tracking roughly doubles the allocation per row for nothing.
-        ///
-        /// Identity resolution is kept, so a row that appears more than once in a query (through
-        /// an <c>Include</c>, say) still materialises as one object, exactly as a tracking query
-        /// would return it. Saving through this context throws rather than silently writing
-        /// nothing.
+        /// There is deliberately no parameterless constructor. One used to exist, backed by a
+        /// static configuration hook and an <c>OnConfiguring</c> fallback, so that the Functions
+        /// layer could write <c>new HomassyDbContext()</c>. That made the connection string
+        /// process-wide mutable state, and it is what let a context be created from anywhere —
+        /// including places with no scope to dispose it.
         /// </remarks>
-        public static HomassyDbContext ForReading()
-        {
-            var context = new HomassyDbContext { _readOnly = true };
-            context.ChangeTracker.QueryTrackingBehavior = QueryTrackingBehavior.NoTrackingWithIdentityResolution;
-            return context;
-        }
-
         public HomassyDbContext(DbContextOptions<HomassyDbContext> options)
             : base(options)
         {
         }
 
-        public static void SetConfiguration(IConfiguration configuration)
+        /// <summary>
+        /// Turns this context into the read-only context described on
+        /// <see cref="HomassyDbContextFactoryExtensions.CreateForReading"/>.
+        /// </summary>
+        /// <remarks>
+        /// Separate from the constructor because a context handed out by
+        /// <see cref="IDbContextFactory{TContext}"/> is already built by the time the caller can
+        /// say which mode it wants.
+        /// </remarks>
+        internal void MarkReadOnly()
         {
-            _configuration = configuration;
-        }
-
-        protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
-        {
-            if (!optionsBuilder.IsConfigured)
-            {
-                if (_configuration == null)
-                {
-                    throw new InvalidOperationException(
-                        "Configuration not set. Call HomassyDbContext.SetConfiguration() during application startup.");
-                }
-
-                var connectionString = _configuration.GetConnectionString("DefaultConnection");
-                if (string.IsNullOrEmpty(connectionString))
-                {
-                    throw new InvalidOperationException("DefaultConnection string not found in configuration.");
-                }
-
-                optionsBuilder.UseNpgsql(connectionString);
-            }
+            _readOnly = true;
+            ChangeTracker.QueryTrackingBehavior = QueryTrackingBehavior.NoTrackingWithIdentityResolution;
         }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
@@ -312,8 +288,8 @@ namespace Homassy.API.Context
                 // Without this the call would be a silent no-op: nothing is tracked, so nothing
                 // is written, and the caller sees a successful save that changed nothing.
                 throw new InvalidOperationException(
-                    "This context was created by HomassyDbContext.ForReading() and does not track entities. " +
-                    "Use `new HomassyDbContext()` for an operation that writes.");
+                    "This context came from CreateForReading() and does not track entities. " +
+                    "Use CreateDbContext() for an operation that writes.");
             }
         }
 

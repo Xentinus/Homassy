@@ -96,7 +96,6 @@ public class HttpsRedirectTests : IClassFixture<HttpsRedirectTests.HttpsEnabledW
             builder.ConfigureServices((context, services) =>
             {
                 var configuration = context.Configuration;
-                Homassy.API.Context.HomassyDbContext.SetConfiguration(configuration);
                 Homassy.API.Services.ConfigService.Initialize(configuration);
             });
 
@@ -165,7 +164,6 @@ public class HttpsDisabledTests : IClassFixture<HttpsDisabledTests.HttpsDisabled
             builder.ConfigureServices((context, services) =>
             {
                 var configuration = context.Configuration;
-                Homassy.API.Context.HomassyDbContext.SetConfiguration(configuration);
                 Homassy.API.Services.ConfigService.Initialize(configuration);
             });
 

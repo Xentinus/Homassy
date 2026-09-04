@@ -169,12 +169,17 @@ namespace Homassy.API.Services
             {
                 Log.Information("Initializing caches...");
 
-                await new UserFunctions().InitializeCacheAsync();
-                await new FamilyFunctions().InitializeCacheAsync();
-                await new ProductFunctions().InitializeCacheAsync();
-                await new LocationFunctions().InitializeCacheAsync();
-                await new ShoppingListFunctions().InitializeCacheAsync();
-                await new ActivityFunctions().InitializeCacheAsync();
+                // This service is a singleton, so it has no ambient scope to resolve the scoped
+                // Functions layer from; it makes one for the duration of the load.
+                using var scope = _scopeFactory.CreateScope();
+                var services = scope.ServiceProvider;
+
+                await services.GetRequiredService<UserFunctions>().InitializeCacheAsync();
+                await services.GetRequiredService<FamilyFunctions>().InitializeCacheAsync();
+                await services.GetRequiredService<ProductFunctions>().InitializeCacheAsync();
+                await services.GetRequiredService<LocationFunctions>().InitializeCacheAsync();
+                await services.GetRequiredService<ShoppingListFunctions>().InitializeCacheAsync();
+                await services.GetRequiredService<ActivityFunctions>().InitializeCacheAsync();
 
                 Log.Information("All caches initialized successfully");
             }
@@ -237,7 +242,7 @@ namespace Homassy.API.Services
                 {
                     try
                     {
-                        await ProcessSingleChangeAsync(change);
+                        await ProcessSingleChangeAsync(change, scope.ServiceProvider);
                         _lastProcessedId = change.Id;
                     }
                     catch (Exception ex)
@@ -256,64 +261,64 @@ namespace Homassy.API.Services
             }
         }
 
-        private static async Task ProcessSingleChangeAsync(TableRecordChange change)
+        private static async Task ProcessSingleChangeAsync(TableRecordChange change, IServiceProvider services)
         {
             switch (change.TableName)
             {
                 case TableNames.Users:
-                    await new UserFunctions().RefreshUserCacheAsync(change.RecordId);
+                    await services.GetRequiredService<UserFunctions>().RefreshUserCacheAsync(change.RecordId);
                     break;
 
                 case TableNames.UserNotificationPreferences:
-                    await new UserFunctions().RefreshUserNotificationCacheAsync(change.RecordId);
+                    await services.GetRequiredService<UserFunctions>().RefreshUserNotificationCacheAsync(change.RecordId);
                     break;
 
                 case TableNames.UserProfiles:
-                    await new UserFunctions().RefreshUserProfileCacheAsync(change.RecordId);
+                    await services.GetRequiredService<UserFunctions>().RefreshUserProfileCacheAsync(change.RecordId);
                     break;
 
                 case TableNames.Families:
-                    await new FamilyFunctions().RefreshCacheAsync(change.RecordId);
+                    await services.GetRequiredService<FamilyFunctions>().RefreshCacheAsync(change.RecordId);
                     break;
 
                 case TableNames.Products:
-                    await new ProductFunctions().RefreshProductCacheAsync(change.RecordId);
+                    await services.GetRequiredService<ProductFunctions>().RefreshProductCacheAsync(change.RecordId);
                     break;
 
                 case TableNames.ProductInventoryItems:
-                    await new ProductFunctions().RefreshInventoryItemCacheAsync(change.RecordId);
+                    await services.GetRequiredService<ProductFunctions>().RefreshInventoryItemCacheAsync(change.RecordId);
                     break;
 
                 case TableNames.ProductPurchaseInfos:
-                    await new ProductFunctions().RefreshPurchaseInfoCacheAsync(change.RecordId);
+                    await services.GetRequiredService<ProductFunctions>().RefreshPurchaseInfoCacheAsync(change.RecordId);
                     break;
 
                 case TableNames.ProductConsumptionLogs:
-                    await new ProductFunctions().RefreshConsumptionLogsCacheAsync(change.RecordId);
+                    await services.GetRequiredService<ProductFunctions>().RefreshConsumptionLogsCacheAsync(change.RecordId);
                     break;
 
                 case TableNames.ProductCustomizations:
-                    await new ProductFunctions().RefreshProductCustomizationCacheAsync(change.RecordId);
+                    await services.GetRequiredService<ProductFunctions>().RefreshProductCustomizationCacheAsync(change.RecordId);
                     break;
 
                 case TableNames.StorageLocations:
-                    await new LocationFunctions().RefreshStorageLocationCacheAsync(change.RecordId);
+                    await services.GetRequiredService<LocationFunctions>().RefreshStorageLocationCacheAsync(change.RecordId);
                     break;
 
                 case TableNames.ShoppingLocations:
-                    await new LocationFunctions().RefreshShoppingLocationCacheAsync(change.RecordId);
+                    await services.GetRequiredService<LocationFunctions>().RefreshShoppingLocationCacheAsync(change.RecordId);
                     break;
 
                 case TableNames.ShoppingLists:
-                    await new ShoppingListFunctions().RefreshShoppingListCacheAsync(change.RecordId);
+                    await services.GetRequiredService<ShoppingListFunctions>().RefreshShoppingListCacheAsync(change.RecordId);
                     break;
 
                 case TableNames.ShoppingListItems:
-                    await new ShoppingListFunctions().RefreshShoppingListItemCacheAsync(change.RecordId);
+                    await services.GetRequiredService<ShoppingListFunctions>().RefreshShoppingListItemCacheAsync(change.RecordId);
                     break;
 
                 case TableNames.Activities:
-                    await new ActivityFunctions().RefreshActivityCacheAsync(change.RecordId);
+                    await services.GetRequiredService<ActivityFunctions>().RefreshActivityCacheAsync(change.RecordId);
                     break;
 
                 case TableNames.FamilyExternalCalendars:

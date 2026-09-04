@@ -25,11 +25,20 @@ namespace Homassy.API.Functions
         private static readonly ConcurrentDictionary<int, List<ProductConsumptionLog>> _consumptionLogCache = new();
         public static bool Inited = false;
 
+        private readonly FunctionsRuntime _runtime;
+        private readonly IDbContextFactory<HomassyDbContext> _contextFactory;
+
+        public ProductFunctions(FunctionsRuntime runtime)
+        {
+            _runtime = runtime;
+            _contextFactory = runtime.ContextFactory;
+        }
+
         #region Cache Management
         #region Cache Initialization
         public async Task InitializeCacheAsync(CancellationToken cancellationToken = default)
         {
-            using var context = HomassyDbContext.ForReading();
+            using var context = _contextFactory.CreateForReading();
 
             try
             {
@@ -83,7 +92,7 @@ namespace Homassy.API.Functions
         {
             try
             {
-                using var context = HomassyDbContext.ForReading();
+                using var context = _contextFactory.CreateForReading();
                 var product = await context.Products.FirstOrDefaultAsync(p => p.Id == productId, cancellationToken);
                 var existsInCache = _productCache.ContainsKey(productId);
 
@@ -114,7 +123,7 @@ namespace Homassy.API.Functions
         {
             try
             {
-                using var context = HomassyDbContext.ForReading();
+                using var context = _contextFactory.CreateForReading();
                 var customization = await context.ProductCustomizations.FirstOrDefaultAsync(c => c.Id == customizationId, cancellationToken);
                 var existsInCache = _customizationCache.ContainsKey(customizationId);
 
@@ -145,7 +154,7 @@ namespace Homassy.API.Functions
         {
             try
             {
-                using var context = HomassyDbContext.ForReading();
+                using var context = _contextFactory.CreateForReading();
                 var item = await context.ProductInventoryItems.FirstOrDefaultAsync(i => i.Id == inventoryItemId, cancellationToken);
                 var existsInCache = _inventoryItemCache.ContainsKey(inventoryItemId);
 
@@ -176,7 +185,7 @@ namespace Homassy.API.Functions
         {
             try
             {
-                using var context = HomassyDbContext.ForReading();
+                using var context = _contextFactory.CreateForReading();
                 var purchase = await context.ProductPurchaseInfos.FirstOrDefaultAsync(p => p.Id == purchaseInfoId, cancellationToken);
                 var existsInCache = _purchaseInfoCache.ContainsKey(purchaseInfoId);
 
@@ -207,7 +216,7 @@ namespace Homassy.API.Functions
         {
             try
             {
-                using var context = HomassyDbContext.ForReading();
+                using var context = _contextFactory.CreateForReading();
                 var logs = await context.ProductConsumptionLogs
                     .Where(log => log.ProductInventoryItemId == inventoryItemId)
                     .ToListAsync(cancellationToken);
@@ -241,7 +250,7 @@ namespace Homassy.API.Functions
                 return product;
             }
 
-            using var context = HomassyDbContext.ForReading();
+            using var context = _contextFactory.CreateForReading();
             return context.Products.FirstOrDefault(p => p.Id == productId);
         }
 
@@ -254,7 +263,7 @@ namespace Homassy.API.Functions
                 return item;
             }
 
-            using var context = HomassyDbContext.ForReading();
+            using var context = _contextFactory.CreateForReading();
             return context.ProductInventoryItems.FirstOrDefault(i => i.Id == inventoryItemId);
         }
 
@@ -267,7 +276,7 @@ namespace Homassy.API.Functions
                 return customization;
             }
 
-            using var context = HomassyDbContext.ForReading();
+            using var context = _contextFactory.CreateForReading();
             return context.ProductCustomizations.FirstOrDefault(c => c.Id == customizationId);
         }
         #endregion
@@ -281,7 +290,7 @@ namespace Homassy.API.Functions
                 if (product != null) return product;
             }
 
-            using var context = HomassyDbContext.ForReading();
+            using var context = _contextFactory.CreateForReading();
             return context.Products.FirstOrDefault(p => p.PublicId == publicId);
         }
 
@@ -293,7 +302,7 @@ namespace Homassy.API.Functions
                 if (item != null) return item;
             }
 
-            using var context = HomassyDbContext.ForReading();
+            using var context = _contextFactory.CreateForReading();
             return context.ProductInventoryItems.FirstOrDefault(i => i.PublicId == publicId);
         }
 
@@ -305,7 +314,7 @@ namespace Homassy.API.Functions
                 if (customization != null) return customization;
             }
 
-            using var context = HomassyDbContext.ForReading();
+            using var context = _contextFactory.CreateForReading();
             return context.ProductCustomizations.FirstOrDefault(c => c.PublicId == publicId);
         }
 
@@ -317,7 +326,7 @@ namespace Homassy.API.Functions
                 if (purchase != null) return purchase;
             }
 
-            using var context = HomassyDbContext.ForReading();
+            using var context = _contextFactory.CreateForReading();
             return context.ProductPurchaseInfos.FirstOrDefault(p => p.PublicId == publicId);
         }
 
@@ -332,7 +341,7 @@ namespace Homassy.API.Functions
                 }
             }
 
-            using var context = HomassyDbContext.ForReading();
+            using var context = _contextFactory.CreateForReading();
             return context.ProductConsumptionLogs.FirstOrDefault(l => l.PublicId == publicId);
         }
         #endregion
@@ -347,7 +356,7 @@ namespace Homassy.API.Functions
                                         (c.UserId == userId));
             }
 
-            using var context = HomassyDbContext.ForReading();
+            using var context = _contextFactory.CreateForReading();
             return context.ProductCustomizations
                 .FirstOrDefault(c => c.ProductId == productId &&
                                     (c.UserId == userId));
@@ -361,7 +370,7 @@ namespace Homassy.API.Functions
                     .FirstOrDefault(p => p.ProductInventoryItemId == inventoryItemId);
             }
 
-            using var context = HomassyDbContext.ForReading();
+            using var context = _contextFactory.CreateForReading();
             return context.ProductPurchaseInfos
                 .FirstOrDefault(p => p.ProductInventoryItemId == inventoryItemId);
         }
@@ -373,7 +382,7 @@ namespace Homassy.API.Functions
                 return logs;
             }
 
-            using var context = HomassyDbContext.ForReading();
+            using var context = _contextFactory.CreateForReading();
             return context.ProductConsumptionLogs
                 .Where(log => log.ProductInventoryItemId == inventoryItemId)
                 .OrderBy(log => log.ConsumedAt)
@@ -397,7 +406,7 @@ namespace Homassy.API.Functions
                 return items.ToList();
             }
 
-            using var context = HomassyDbContext.ForReading();
+            using var context = _contextFactory.CreateForReading();
             var query = context.ProductInventoryItems
                 .Where(i => i.ProductId == productId);
 
@@ -419,7 +428,7 @@ namespace Homassy.API.Functions
                     .ToList();
             }
 
-            using var context = HomassyDbContext.ForReading();
+            using var context = _contextFactory.CreateForReading();
             return context.ProductInventoryItems
                 .Where(i => !i.IsFullyConsumed &&
                            (i.UserId == userId || (familyId.HasValue && i.FamilyId == familyId)))
@@ -438,7 +447,7 @@ namespace Homassy.API.Functions
                     .ToList();
             }
 
-            using var context = HomassyDbContext.ForReading();
+            using var context = _contextFactory.CreateForReading();
             return context.Products
                 .Where(p => !p.IsDeleted && productIds.Contains(p.Id))
                 .ToList();
@@ -453,7 +462,7 @@ namespace Homassy.API.Functions
                     .ToList();
             }
 
-            using var context = HomassyDbContext.ForReading();
+            using var context = _contextFactory.CreateForReading();
             return context.ProductCustomizations
                 .Where(c => c.UserId == userId)
                 .ToList();
@@ -474,7 +483,7 @@ namespace Homassy.API.Functions
             }
             else
             {
-                using var context = HomassyDbContext.ForReading();
+                using var context = _contextFactory.CreateForReading();
                 products = context.Products
                     .ToList();
             }
@@ -520,7 +529,7 @@ namespace Homassy.API.Functions
                 throw new UserNotFoundException("User not found");
             }
 
-            using var context = new HomassyDbContext();
+            using var context = _contextFactory.CreateDbContext();
             await using var transaction = await context.Database.BeginTransactionAsync(cancellationToken);
 
             try
@@ -569,7 +578,7 @@ namespace Homassy.API.Functions
                 try
                 {
                     var familyId = SessionInfo.GetFamilyId();
-                    await new ActivityFunctions().RecordActivityAsync(
+                    await new ActivityFunctions(_contextFactory).RecordActivityAsync(
                         userId.Value,
                         familyId,
                         Enums.ActivityType.ProductCreate,
@@ -600,7 +609,7 @@ namespace Homassy.API.Functions
 
                 // Realtime: add the new product to the master-data (catalog) list. Favorite is per-user,
                 // so viewers merge catalog fields and keep their own favorite state.
-                await MasterDataRealtime.ProductUpsertedAsync(userId.Value, SessionInfo.GetFamilyId(), info, cancellationToken);
+                await _runtime.MasterData.ProductUpsertedAsync(userId.Value, SessionInfo.GetFamilyId(), info, cancellationToken);
 
                 return info;
             }
@@ -627,7 +636,7 @@ namespace Homassy.API.Functions
                 throw new ProductNotFoundException();
             }
 
-            using var context = new HomassyDbContext();
+            using var context = _contextFactory.CreateDbContext();
             await using var transaction = await context.Database.BeginTransactionAsync(cancellationToken);
 
             try
@@ -688,7 +697,7 @@ namespace Homassy.API.Functions
                 // Realtime: push catalog-field changes to viewers (client preserves its own favorite state).
                 if (hasChanges)
                 {
-                    await InventoryRealtime.ProductUpdatedAsync(
+                    await _runtime.Inventory.ProductUpdatedAsync(
                         userId.Value, SessionInfo.GetFamilyId(),
                         BuildGridProductCarrier(product),
                         cancellationToken);
@@ -700,7 +709,7 @@ namespace Homassy.API.Functions
                     try
                     {
                         var familyId = SessionInfo.GetFamilyId();
-                        await new ActivityFunctions().RecordActivityAsync(
+                        await new ActivityFunctions(_contextFactory).RecordActivityAsync(
                             userId.Value,
                             familyId,
                             Enums.ActivityType.ProductUpdate,
@@ -735,7 +744,7 @@ namespace Homassy.API.Functions
                 // Realtime: push the full catalog record (incl. category/unit) to the master-data list.
                 if (hasChanges)
                 {
-                    await MasterDataRealtime.ProductUpsertedAsync(userId.Value, SessionInfo.GetFamilyId(), info, cancellationToken);
+                    await _runtime.MasterData.ProductUpsertedAsync(userId.Value, SessionInfo.GetFamilyId(), info, cancellationToken);
                 }
 
                 return info;
@@ -768,7 +777,7 @@ namespace Homassy.API.Functions
                 throw new ProductNotFoundException();
             }
 
-            using var context = new HomassyDbContext();
+            using var context = _contextFactory.CreateDbContext();
             await using var transaction = await context.Database.BeginTransactionAsync(cancellationToken);
 
             try
@@ -807,18 +816,18 @@ namespace Homassy.API.Functions
                 await transaction.CommitAsync(cancellationToken);
 
                 // Realtime: remove the product card from everyone's grid.
-                await InventoryRealtime.ProductDeletedAsync(
+                await _runtime.Inventory.ProductDeletedAsync(
                     userId.Value, SessionInfo.GetFamilyId(), product.PublicId, cancellationToken);
 
                 // Realtime: remove the product from everyone's master-data (catalog) list.
-                await MasterDataRealtime.ProductDeletedAsync(
+                await _runtime.MasterData.ProductDeletedAsync(
                     userId.Value, SessionInfo.GetFamilyId(), product.PublicId, cancellationToken);
 
                 // Record activity
                 try
                 {
                     var familyId = SessionInfo.GetFamilyId();
-                    await new ActivityFunctions().RecordActivityAsync(
+                    await new ActivityFunctions(_contextFactory).RecordActivityAsync(
                         userId.Value,
                         familyId,
                         Enums.ActivityType.ProductDelete,
@@ -857,7 +866,7 @@ namespace Homassy.API.Functions
                 throw new ProductNotFoundException();
             }
 
-            using var context = new HomassyDbContext();
+            using var context = _contextFactory.CreateDbContext();
             await using var transaction = await context.Database.BeginTransactionAsync(cancellationToken);
 
             try
@@ -893,7 +902,7 @@ namespace Homassy.API.Functions
                 await transaction.CommitAsync(cancellationToken);
 
                 // Realtime: favorite is per-user, so notify only the acting user's own connections.
-                await InventoryRealtime.ProductFavoriteChangedAsync(
+                await _runtime.Inventory.ProductFavoriteChangedAsync(
                     userId.Value, product.PublicId, newFavoriteStatus, cancellationToken);
 
                 return new ProductInfo
@@ -934,7 +943,7 @@ namespace Homassy.API.Functions
 
             var customization = GetCustomizationByProductAndUser(product.Id, userId.Value);
             var inventoryItems = GetInventoryItemsByProductId(product.Id, includeConsumed: false);
-            var locationFunctions = new LocationFunctions();
+            var locationFunctions = new LocationFunctions(_runtime);
 
             var inventoryItemInfos = inventoryItems.Select(item =>
             {
@@ -976,7 +985,7 @@ namespace Homassy.API.Functions
                     } : null,
                     ConsumptionLogs = consumptionLogs.Select(log =>
                     {
-                        var user = log.UserId.HasValue ? new UserFunctions().GetUserById(log.UserId.Value) : null;
+                        var user = log.UserId.HasValue ? new UserFunctions(_contextFactory).GetUserById(log.UserId.Value) : null;
 
                         return new ConsumptionLogInfo
                         {
@@ -1029,7 +1038,7 @@ namespace Homassy.API.Functions
                 return null;
             }
 
-            using var context = HomassyDbContext.ForReading();
+            using var context = _contextFactory.CreateForReading();
 
             // All inventory items for this product — include fully-consumed AND soft-deleted rows.
             var items = await context.ProductInventoryItems
@@ -1046,8 +1055,8 @@ namespace Homassy.API.Functions
             var itemIds = items.Select(i => i.Id).ToList();
             var itemById = items.ToDictionary(i => i.Id);
 
-            var locationFunctions = new LocationFunctions();
-            var userFunctions = new UserFunctions();
+            var locationFunctions = new LocationFunctions(_runtime);
+            var userFunctions = new UserFunctions(_contextFactory);
             var events = new List<ProductHistoryEventInfo>();
 
             // Purchases (retained even after the item is gone)
@@ -1187,7 +1196,7 @@ namespace Homassy.API.Functions
                                   (familyId.HasValue && item.FamilyId == familyId.Value))
                     .ToList();
 
-                var locationFunctions = new LocationFunctions();
+                var locationFunctions = new LocationFunctions(_runtime);
 
                 var inventoryItemInfos = userInventoryItems.Select(item =>
                 {
@@ -1229,7 +1238,7 @@ namespace Homassy.API.Functions
                         } : null,
                         ConsumptionLogs = consumptionLogs.Select(log =>
                         {
-                            var user = log.UserId.HasValue ? new UserFunctions().GetUserById(log.UserId.Value) : null;
+                            var user = log.UserId.HasValue ? new UserFunctions(_contextFactory).GetUserById(log.UserId.Value) : null;
 
                             return new ConsumptionLogInfo
                             {
@@ -1357,7 +1366,7 @@ namespace Homassy.API.Functions
             else
             {
                 // Use database
-                using var context = HomassyDbContext.ForReading();
+                using var context = _contextFactory.CreateForReading();
                 var query = context.ProductInventoryItems
                     .AsNoTracking()
                     .Include(i => i.Product)
@@ -1396,7 +1405,7 @@ namespace Homassy.API.Functions
                 throw new ProductNotFoundException();
             }
 
-            var locationFunctions = new LocationFunctions();
+            var locationFunctions = new LocationFunctions(_runtime);
             int? storageLocationId = null;
             int? shoppingLocationId = null;
 
@@ -1420,10 +1429,10 @@ namespace Homassy.API.Functions
                 shoppingLocationId = shoppingLocation.Id;
             }
 
-            var userProfile = new UserFunctions().GetUserProfileByUserId(userId.Value);
+            var userProfile = new UserFunctions(_contextFactory).GetUserProfileByUserId(userId.Value);
             var currency = request.Currency ?? userProfile?.DefaultCurrency;
 
-            using var context = new HomassyDbContext();
+            using var context = _contextFactory.CreateDbContext();
             await using var transaction = await context.Database.BeginTransactionAsync(cancellationToken);
 
             try
@@ -1464,19 +1473,19 @@ namespace Homassy.API.Functions
                 Log.Information($"User {userId} created inventory item {inventoryItem.Id} (PublicId: {inventoryItem.PublicId}) for product {product.Id}");
 
                 // Realtime: push the new item to everyone whose grid shows it.
-                await InventoryRealtime.InventoryUpsertedAsync(
+                await _runtime.Inventory.InventoryUpsertedAsync(
                     userId.Value, familyId,
                     BuildGridProductCarrier(product),
                     BuildGridItem(inventoryItem, product.PublicId),
                     cancellationToken);
 
                 // Check low-stock automations
-                await AutomationFunctions.CheckLowStockForProductAsync(product.Id, cancellationToken);
+                await new AutomationFunctions(_runtime).CheckLowStockForProductAsync(product.Id, cancellationToken);
 
                 // Record activity
                 try
                 {
-                    await new ActivityFunctions().RecordActivityAsync(
+                    await new ActivityFunctions(_contextFactory).RecordActivityAsync(
                         userId.Value,
                         familyId,
                         Enums.ActivityType.ProductInventoryCreate,
@@ -1551,7 +1560,7 @@ namespace Homassy.API.Functions
                 throw new ProductNotFoundException();
             }
 
-            using var context = new HomassyDbContext();
+            using var context = _contextFactory.CreateDbContext();
             await using var transaction = await context.Database.BeginTransactionAsync(cancellationToken);
 
             try
@@ -1570,21 +1579,21 @@ namespace Homassy.API.Functions
                 await transaction.CommitAsync(cancellationToken);
 
                 // Realtime: push the new item to everyone whose grid shows it.
-                await InventoryRealtime.InventoryUpsertedAsync(
+                await _runtime.Inventory.InventoryUpsertedAsync(
                     userId.Value, familyId,
                     BuildGridProductCarrier(product),
                     BuildGridItem(inventoryItem, product.PublicId),
                     cancellationToken);
 
                 // Check low-stock automations
-                await AutomationFunctions.CheckLowStockForProductAsync(product.Id, cancellationToken);
+                await new AutomationFunctions(_runtime).CheckLowStockForProductAsync(product.Id, cancellationToken);
 
                 Log.Information($"User {userId} quick-added inventory item {inventoryItem.Id} (PublicId: {inventoryItem.PublicId}) for product {product.Id}");
 
                 // Record activity
                 try
                 {
-                    await new ActivityFunctions().RecordActivityAsync(
+                    await new ActivityFunctions(_contextFactory).RecordActivityAsync(
                         userId.Value,
                         familyId,
                         Enums.ActivityType.ProductInventoryCreate,
@@ -1643,8 +1652,8 @@ namespace Homassy.API.Functions
             // Capture the pre-update scope so we can move the item between groups if IsSharedWithFamily flips.
             var wasSharedWithFamily = inventoryItem.FamilyId.HasValue;
 
-            var locationFunctions = new LocationFunctions();
-            using var context = new HomassyDbContext();
+            var locationFunctions = new LocationFunctions(_runtime);
+            using var context = _contextFactory.CreateDbContext();
             await using var transaction = await context.Database.BeginTransactionAsync(cancellationToken);
 
             try
@@ -1703,7 +1712,7 @@ namespace Homassy.API.Functions
                 {
                     if (purchaseInfo == null)
                     {
-                        var userProfile = new UserFunctions().GetUserProfileByUserId(userId.Value);
+                        var userProfile = new UserFunctions(_contextFactory).GetUserProfileByUserId(userId.Value);
                         purchaseInfo = new ProductPurchaseInfo
                         {
                             ProductInventoryItemId = inventoryItem.Id,
@@ -1769,12 +1778,12 @@ namespace Homassy.API.Functions
                         var nowSharedWithFamily = trackedItem.FamilyId.HasValue;
                         if (wasSharedWithFamily != nowSharedWithFamily)
                         {
-                            await InventoryRealtime.InventoryDeletedAsync(
+                            await _runtime.Inventory.InventoryDeletedAsync(
                                 userId.Value, familyId, wasSharedWithFamily,
                                 broadcastProduct.PublicId, trackedItem.PublicId, cancellationToken);
                         }
 
-                        await InventoryRealtime.InventoryUpsertedAsync(
+                        await _runtime.Inventory.InventoryUpsertedAsync(
                             userId.Value, familyId,
                             BuildGridProductCarrier(broadcastProduct),
                             BuildGridItem(trackedItem, broadcastProduct.PublicId),
@@ -1784,7 +1793,7 @@ namespace Homassy.API.Functions
 
                 // Check low-stock automations
                 if (hasChanges)
-                    await AutomationFunctions.CheckLowStockForProductAsync(trackedItem.ProductId, cancellationToken);
+                    await new AutomationFunctions(_runtime).CheckLowStockForProductAsync(trackedItem.ProductId, cancellationToken);
 
                 // Record activity only if changes were made
                 if (hasChanges)
@@ -1792,7 +1801,7 @@ namespace Homassy.API.Functions
                     try
                     {
                         var product = GetProductById(trackedItem.ProductId);
-                        await new ActivityFunctions().RecordActivityAsync(
+                        await new ActivityFunctions(_contextFactory).RecordActivityAsync(
                             userId.Value,
                             familyId,
                             Enums.ActivityType.ProductInventoryUpdate,
@@ -1845,7 +1854,7 @@ namespace Homassy.API.Functions
                     } : null,
                     ConsumptionLogs = consumptionLogs.Select(log =>
                     {
-                        var user = log.UserId.HasValue ? new UserFunctions().GetUserById(log.UserId.Value) : null;
+                        var user = log.UserId.HasValue ? new UserFunctions(_contextFactory).GetUserById(log.UserId.Value) : null;
                         return new ConsumptionLogInfo
                         {
                             PublicId = log.PublicId,
@@ -1887,7 +1896,7 @@ namespace Homassy.API.Functions
                 throw new UnauthorizedException("You don't have permission to delete this inventory item");
             }
 
-            using var context = new HomassyDbContext();
+            using var context = _contextFactory.CreateDbContext();
             await using var transaction = await context.Database.BeginTransactionAsync(cancellationToken);
 
             try
@@ -1908,13 +1917,13 @@ namespace Homassy.API.Functions
                 var deletedProduct = GetProductById(inventoryItem.ProductId);
                 if (deletedProduct != null)
                 {
-                    await InventoryRealtime.InventoryDeletedAsync(
+                    await _runtime.Inventory.InventoryDeletedAsync(
                         userId.Value, familyId, inventoryItem.FamilyId.HasValue,
                         deletedProduct.PublicId, inventoryItem.PublicId, cancellationToken);
                 }
 
                 // Check low-stock automations
-                await AutomationFunctions.CheckLowStockForProductAsync(inventoryItem.ProductId, cancellationToken);
+                await new AutomationFunctions(_runtime).CheckLowStockForProductAsync(inventoryItem.ProductId, cancellationToken);
 
                 Log.Information($"User {userId} deleted inventory item {inventoryItem.Id} (PublicId: {inventoryItem.PublicId})");
 
@@ -1922,7 +1931,7 @@ namespace Homassy.API.Functions
                 try
                 {
                     var product = GetProductById(inventoryItem.ProductId);
-                    await new ActivityFunctions().RecordActivityAsync(
+                    await new ActivityFunctions(_contextFactory).RecordActivityAsync(
                         userId.Value,
                         familyId,
                         Enums.ActivityType.ProductInventoryDelete,
@@ -1978,7 +1987,7 @@ namespace Homassy.API.Functions
                 throw new BadRequestException($"Cannot consume more than available quantity ({inventoryItem.CurrentQuantity})");
             }
 
-            using var context = new HomassyDbContext();
+            using var context = _contextFactory.CreateDbContext();
             await using var transaction = await context.Database.BeginTransactionAsync(cancellationToken);
 
             try
@@ -2017,13 +2026,13 @@ namespace Homassy.API.Functions
                 {
                     if (trackedItem.IsFullyConsumed)
                     {
-                        await InventoryRealtime.InventoryDeletedAsync(
+                        await _runtime.Inventory.InventoryDeletedAsync(
                             userId.Value, familyId, trackedItem.FamilyId.HasValue,
                             consumedProduct.PublicId, trackedItem.PublicId, cancellationToken);
                     }
                     else
                     {
-                        await InventoryRealtime.InventoryUpsertedAsync(
+                        await _runtime.Inventory.InventoryUpsertedAsync(
                             userId.Value, familyId,
                             BuildGridProductCarrier(consumedProduct),
                             BuildGridItem(trackedItem, consumedProduct.PublicId),
@@ -2032,7 +2041,7 @@ namespace Homassy.API.Functions
                 }
 
                 // Check low-stock automations
-                await AutomationFunctions.CheckLowStockForProductAsync(trackedItem.ProductId, cancellationToken);
+                await new AutomationFunctions(_runtime).CheckLowStockForProductAsync(trackedItem.ProductId, cancellationToken);
 
                 Log.Information($"User {userId} consumed {request.Quantity} from inventory item {trackedItem.Id} (PublicId: {trackedItem.PublicId}), remaining: {remainingQuantity}");
 
@@ -2040,7 +2049,7 @@ namespace Homassy.API.Functions
                 try
                 {
                     var product = GetProductById(trackedItem.ProductId);
-                    await new ActivityFunctions().RecordActivityAsync(
+                    await new ActivityFunctions(_contextFactory).RecordActivityAsync(
                         userId.Value,
                         familyId,
                         Enums.ActivityType.ProductInventoryDecrease,
@@ -2058,7 +2067,7 @@ namespace Homassy.API.Functions
 
                 var purchaseInfo = GetPurchaseInfoByInventoryItemId(trackedItem.Id);
                 var consumptionLogs = GetConsumptionLogsByInventoryItemId(trackedItem.Id);
-                var locationFunctions = new LocationFunctions();
+                var locationFunctions = new LocationFunctions(_runtime);
 
                 return new InventoryItemInfo
                 {
@@ -2094,7 +2103,7 @@ namespace Homassy.API.Functions
                     } : null,
                     ConsumptionLogs = consumptionLogs.Select(log =>
                     {
-                        var user = log.UserId.HasValue ? new UserFunctions().GetUserById(log.UserId.Value) : null;
+                        var user = log.UserId.HasValue ? new UserFunctions(_contextFactory).GetUserById(log.UserId.Value) : null;
                         return new ConsumptionLogInfo
                         {
                             PublicId = log.PublicId,
@@ -2124,7 +2133,7 @@ namespace Homassy.API.Functions
             }
 
             var familyId = SessionInfo.GetFamilyId();
-            var locationFunctions = new LocationFunctions();
+            var locationFunctions = new LocationFunctions(_runtime);
 
             int? storageLocationId = null;
             if (request.StorageLocationPublicId.HasValue)
@@ -2137,7 +2146,7 @@ namespace Homassy.API.Functions
                 storageLocationId = storageLocation.Id;
             }
 
-            using var context = new HomassyDbContext();
+            using var context = _contextFactory.CreateDbContext();
             await using var transaction = await context.Database.BeginTransactionAsync(cancellationToken);
 
             try
@@ -2187,7 +2196,7 @@ namespace Homassy.API.Functions
 
                 // Realtime: push each new item to everyone whose grid shows it.
                 foreach (var (bp, bi) in createdForBroadcast)
-                    await InventoryRealtime.InventoryUpsertedAsync(
+                    await _runtime.Inventory.InventoryUpsertedAsync(
                         userId.Value, familyId,
                         BuildGridProductCarrier(bp),
                         BuildGridItem(bi, bp.PublicId),
@@ -2195,7 +2204,7 @@ namespace Homassy.API.Functions
 
                 // Check low-stock automations for all affected products
                 foreach (var pid in affectedProductIds)
-                    await AutomationFunctions.CheckLowStockForProductAsync(pid, cancellationToken);
+                    await new AutomationFunctions(_runtime).CheckLowStockForProductAsync(pid, cancellationToken);
 
                 Log.Information($"User {userId} quick-added {request.Items.Count} inventory items" +
                     (storageLocationId.HasValue ? $" to storage location {storageLocationId}" : ""));
@@ -2220,7 +2229,7 @@ namespace Homassy.API.Functions
             }
 
             var familyId = SessionInfo.GetFamilyId();
-            var locationFunctions = new LocationFunctions();
+            var locationFunctions = new LocationFunctions(_runtime);
 
             var storageLocation = locationFunctions.GetStorageLocationByPublicId(request.StorageLocationPublicId);
             if (storageLocation == null)
@@ -2228,7 +2237,7 @@ namespace Homassy.API.Functions
                 throw new StorageLocationNotFoundException("Storage location not found");
             }
 
-            using var context = new HomassyDbContext();
+            using var context = _contextFactory.CreateDbContext();
             await using var transaction = await context.Database.BeginTransactionAsync(cancellationToken);
 
             try
@@ -2303,7 +2312,7 @@ namespace Homassy.API.Functions
                         } : null,
                         ConsumptionLogs = consumptionLogs.Select(log =>
                         {
-                            var user = log.UserId.HasValue ? new UserFunctions().GetUserById(log.UserId.Value) : null;
+                            var user = log.UserId.HasValue ? new UserFunctions(_contextFactory).GetUserById(log.UserId.Value) : null;
                             return new ConsumptionLogInfo
                             {
                                 PublicId = log.PublicId,
@@ -2322,7 +2331,7 @@ namespace Homassy.API.Functions
                 // Realtime: the grid payload is unchanged (it ignores storage), but the event lets the
                 // product detail page refetch the moved item's new location.
                 foreach (var (bp, bi) in movedForBroadcast)
-                    await InventoryRealtime.InventoryUpsertedAsync(
+                    await _runtime.Inventory.InventoryUpsertedAsync(
                         userId.Value, familyId,
                         BuildGridProductCarrier(bp),
                         BuildGridItem(bi, bp.PublicId),
@@ -2356,7 +2365,7 @@ namespace Homassy.API.Functions
 
             var familyId = SessionInfo.GetFamilyId();
 
-            using var context = new HomassyDbContext();
+            using var context = _contextFactory.CreateDbContext();
             await using var transaction = await context.Database.BeginTransactionAsync(cancellationToken);
 
             try
@@ -2401,7 +2410,7 @@ namespace Homassy.API.Functions
                     try
                     {
                         var product = GetProductById(inventoryItem.ProductId);
-                        await new ActivityFunctions().RecordActivityAsync(
+                        await new ActivityFunctions(_contextFactory).RecordActivityAsync(
                             userId.Value,
                             familyId,
                             Enums.ActivityType.ProductInventoryDelete,
@@ -2423,13 +2432,13 @@ namespace Homassy.API.Functions
 
                 // Realtime: remove each item from everyone's grid.
                 foreach (var (bp, itemPublicId, shared) in deletedForBroadcast)
-                    await InventoryRealtime.InventoryDeletedAsync(
+                    await _runtime.Inventory.InventoryDeletedAsync(
                         userId.Value, familyId, shared,
                         bp.PublicId, itemPublicId, cancellationToken);
 
                 // Check low-stock automations for all affected products
                 foreach (var pid in affectedProductIds)
-                    await AutomationFunctions.CheckLowStockForProductAsync(pid, cancellationToken);
+                    await new AutomationFunctions(_runtime).CheckLowStockForProductAsync(pid, cancellationToken);
 
                 Log.Information($"User {userId.Value} deleted {request.ItemPublicIds.Count} inventory items");
             }
@@ -2456,9 +2465,9 @@ namespace Homassy.API.Functions
             }
 
             var familyId = SessionInfo.GetFamilyId();
-            var locationFunctions = new LocationFunctions();
+            var locationFunctions = new LocationFunctions(_runtime);
 
-            using var context = new HomassyDbContext();
+            using var context = _contextFactory.CreateDbContext();
             await using var transaction = await context.Database.BeginTransactionAsync(cancellationToken);
 
             try
@@ -2530,7 +2539,7 @@ namespace Homassy.API.Functions
                     try
                     {
                         var product = GetProductById(trackedItem.ProductId);
-                        await new ActivityFunctions().RecordActivityAsync(
+                        await new ActivityFunctions(_contextFactory).RecordActivityAsync(
                             userId.Value,
                             familyId,
                             Enums.ActivityType.ProductInventoryDecrease,
@@ -2591,11 +2600,11 @@ namespace Homassy.API.Functions
                 foreach (var (bp, bi) in consumedForBroadcast)
                 {
                     if (bi.IsFullyConsumed)
-                        await InventoryRealtime.InventoryDeletedAsync(
+                        await _runtime.Inventory.InventoryDeletedAsync(
                             userId.Value, familyId, bi.FamilyId.HasValue,
                             bp.PublicId, bi.PublicId, cancellationToken);
                     else
-                        await InventoryRealtime.InventoryUpsertedAsync(
+                        await _runtime.Inventory.InventoryUpsertedAsync(
                             userId.Value, familyId,
                             BuildGridProductCarrier(bp),
                             BuildGridItem(bi, bp.PublicId),
@@ -2604,7 +2613,7 @@ namespace Homassy.API.Functions
 
                 // Check low-stock automations for all affected products
                 foreach (var pid in affectedProductIds)
-                    await AutomationFunctions.CheckLowStockForProductAsync(pid, cancellationToken);
+                    await new AutomationFunctions(_runtime).CheckLowStockForProductAsync(pid, cancellationToken);
 
                 Log.Information($"User {userId.Value} consumed {request.Items.Count} inventory items");
 
@@ -2660,7 +2669,7 @@ namespace Homassy.API.Functions
                 throw new BadRequestException("Remaining quantity must be at least 0.1");
             }
 
-            using var context = new HomassyDbContext();
+            using var context = _contextFactory.CreateDbContext();
             await using var transaction = await context.Database.BeginTransactionAsync(cancellationToken);
 
             try
@@ -2734,12 +2743,12 @@ namespace Homassy.API.Functions
                 var splitProduct = GetProductById(trackedItem.ProductId);
                 if (splitProduct != null)
                 {
-                    await InventoryRealtime.InventoryUpsertedAsync(
+                    await _runtime.Inventory.InventoryUpsertedAsync(
                         userId.Value, familyId,
                         BuildGridProductCarrier(splitProduct),
                         BuildGridItem(trackedItem, splitProduct.PublicId),
                         cancellationToken);
-                    await InventoryRealtime.InventoryUpsertedAsync(
+                    await _runtime.Inventory.InventoryUpsertedAsync(
                         userId.Value, familyId,
                         BuildGridProductCarrier(splitProduct),
                         BuildGridItem(newItem, splitProduct.PublicId),
@@ -2747,7 +2756,7 @@ namespace Homassy.API.Functions
                 }
 
                 // Check low-stock automations
-                await AutomationFunctions.CheckLowStockForProductAsync(trackedItem.ProductId, cancellationToken);
+                await new AutomationFunctions(_runtime).CheckLowStockForProductAsync(trackedItem.ProductId, cancellationToken);
 
                 // Refresh cache for both items
                 await RefreshInventoryItemCacheAsync(trackedItem.Id, cancellationToken);
@@ -2757,7 +2766,7 @@ namespace Homassy.API.Functions
                 try
                 {
                     var product = GetProductById(trackedItem.ProductId);
-                    await new ActivityFunctions().RecordActivityAsync(
+                    await new ActivityFunctions(_contextFactory).RecordActivityAsync(
                         userId.Value,
                         familyId,
                         Enums.ActivityType.ProductInventoryDecrease,
@@ -2774,7 +2783,7 @@ namespace Homassy.API.Functions
                 }
 
                 // Load full details for response
-                var locationFunctions = new LocationFunctions();
+                var locationFunctions = new LocationFunctions(_runtime);
 
                 var originalItemPurchaseInfo = GetPurchaseInfoByInventoryItemId(trackedItem.Id);
                 var originalConsumptionLogs = GetConsumptionLogsByInventoryItemId(trackedItem.Id);
@@ -2812,7 +2821,7 @@ namespace Homassy.API.Functions
                     } : null,
                     ConsumptionLogs = originalConsumptionLogs.Select(log =>
                     {
-                        var user = log.UserId.HasValue ? new UserFunctions().GetUserById(log.UserId.Value) : null;
+                        var user = log.UserId.HasValue ? new UserFunctions(_contextFactory).GetUserById(log.UserId.Value) : null;
 
                         return new ConsumptionLogInfo
                         {
@@ -2893,7 +2902,7 @@ namespace Homassy.API.Functions
                 throw new BadRequestException("At least one product is required");
             }
 
-            using var context = new HomassyDbContext();
+            using var context = _contextFactory.CreateDbContext();
             await using var transaction = await context.Database.BeginTransactionAsync(cancellationToken);
 
             try
@@ -2956,7 +2965,7 @@ namespace Homassy.API.Functions
                 var familyId = SessionInfo.GetFamilyId();
                 foreach (var info in results)
                 {
-                    await MasterDataRealtime.ProductUpsertedAsync(userId.Value, familyId, info, cancellationToken);
+                    await _runtime.MasterData.ProductUpsertedAsync(userId.Value, familyId, info, cancellationToken);
                 }
 
                 return results;

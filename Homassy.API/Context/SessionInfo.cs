@@ -24,13 +24,17 @@ namespace Homassy.API.Context
         /// Sets the session info from a Kratos session.
         /// Looks up the local User by KratosIdentityId.
         /// </summary>
-        public static void SetFromKratosSession(KratosSession session)
+        /// <remarks>
+        /// The lookup needs the Functions layer, which is scoped, so the caller passes its own
+        /// instance in rather than this static holder reaching for a service locator.
+        /// </remarks>
+        public static void SetFromKratosSession(KratosSession session, UserFunctions userFunctions)
         {
             _kratosSession.Value = session;
             _kratosIdentityId.Value = session.Identity.Id;
 
             // Try to find local User by KratosIdentityId
-            var user = new UserFunctions().GetUserByKratosIdentityId(session.Identity.Id);
+            var user = userFunctions.GetUserByKratosIdentityId(session.Identity.Id);
 
             if (user != null)
             {
@@ -56,9 +60,9 @@ namespace Homassy.API.Context
         /// Legacy method for setting user from PublicId (kept for backwards compatibility).
         /// </summary>
         [Obsolete("Use SetFromKratosSession instead")]
-        public static void SetUser(Guid? publicId, int? familyId = null)
+        public static void SetUser(Guid? publicId, UserFunctions userFunctions, int? familyId = null)
         {
-            var user = new UserFunctions().GetUserByPublicId(publicId);
+            var user = userFunctions.GetUserByPublicId(publicId);
             _userId.Value = user?.Id;
             _publicId.Value = publicId ?? user?.PublicId;
             _familyId.Value = familyId ?? user?.FamilyId;
@@ -66,7 +70,7 @@ namespace Homassy.API.Context
             // Get language from UserProfile cache
             if (user?.Id != null)
             {
-                var profile = new UserFunctions().GetUserProfileByUserId(user.Id);
+                var profile = userFunctions.GetUserProfileByUserId(user.Id);
                 _language.Value = profile?.DefaultLanguage ?? Language.English;
             }
             else

@@ -27,10 +27,8 @@ public class ExternalCalendarSyncGuardTests
 
     private static HomassyDbContext CreateContext()
     {
-        TestConfiguration.EnsureDbContextConfigured();
-
         // Never connects: the guard rejects the URL before anything reaches the database.
-        return new HomassyDbContext();
+        return TestConfiguration.DbContextFactory.CreateDbContext();
     }
 
     private static FamilyExternalCalendar CalendarWith(string url) => new()

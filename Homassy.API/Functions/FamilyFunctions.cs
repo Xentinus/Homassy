@@ -15,10 +15,17 @@ namespace Homassy.API.Functions
         private static readonly ConcurrentDictionary<int, Family> _familyCache = new();
         public static bool Inited = false;
 
+        private readonly IDbContextFactory<HomassyDbContext> _contextFactory;
+
+        public FamilyFunctions(IDbContextFactory<HomassyDbContext> contextFactory)
+        {
+            _contextFactory = contextFactory;
+        }
+
         #region Cache Management
         public async Task InitializeCacheAsync(CancellationToken cancellationToken = default)
         {
-            using var context = HomassyDbContext.ForReading();
+            using var context = _contextFactory.CreateForReading();
             var families = await context.Families
                 .ToListAsync(cancellationToken);
 
@@ -42,7 +49,7 @@ namespace Homassy.API.Functions
         {
             try
             {
-                using var context = HomassyDbContext.ForReading();
+                using var context = _contextFactory.CreateForReading();
                 var family = await context.Families
                     .FirstOrDefaultAsync(f => f.Id == familyId, cancellationToken);
 
@@ -87,7 +94,7 @@ namespace Homassy.API.Functions
 
             if (family == null)
             {
-                using var context = HomassyDbContext.ForReading();
+                using var context = _contextFactory.CreateForReading();
                 family = context.Families.FirstOrDefault(f => f.Id == familyId);
             }
 
@@ -106,7 +113,7 @@ namespace Homassy.API.Functions
 
             if (family == null)
             {
-                using var context = HomassyDbContext.ForReading();
+                using var context = _contextFactory.CreateForReading();
                 family = context.Families
                     .FirstOrDefault(f => f.ShareCode == shareCode);
             }
@@ -145,7 +152,7 @@ namespace Homassy.API.Functions
 
             if (missingIds.Count > 0)
             {
-                using var context = HomassyDbContext.ForReading();
+                using var context = _contextFactory.CreateForReading();
                 var dbFamilies = context.Families
                     .Where(f => missingIds.Contains(f.Id))
                     .ToList();
@@ -167,7 +174,7 @@ namespace Homassy.API.Functions
                 throw new UnauthorizedException("Invalid authentication");
             }
 
-            var user = new UserFunctions().GetUserById(userId.Value);
+            var user = new UserFunctions(_contextFactory).GetUserById(userId.Value);
             if (user == null)
             {
                 Log.Warning($"User not found for userId {userId.Value}");
@@ -179,7 +186,7 @@ namespace Homassy.API.Functions
                 throw new BadRequestException("You are already a member of a family. Please leave your current family first.");
             }
 
-            using var context = new HomassyDbContext();
+            using var context = _contextFactory.CreateDbContext();
             await using var transaction = await context.Database.BeginTransactionAsync(cancellationToken);
             try
             {
@@ -205,12 +212,12 @@ namespace Homassy.API.Functions
                 // next request resolves the caller's family from the cached User row via SessionInfo,
                 // so without this the creator appears to have no family for up to one poll interval.
                 await RefreshCacheAsync(family.Id, cancellationToken);
-                await new UserFunctions().RefreshUserCacheAsync(user.Id, cancellationToken);
+                await new UserFunctions(_contextFactory).RefreshUserCacheAsync(user.Id, cancellationToken);
 
                 // Record activity
                 try
                 {
-                    await new ActivityFunctions().RecordActivityAsync(
+                    await new ActivityFunctions(_contextFactory).RecordActivityAsync(
                         userId.Value,
                         family.Id,
                         Enums.ActivityType.FamilyCreate,
@@ -251,7 +258,7 @@ namespace Homassy.API.Functions
                 throw new UserNotFoundException("User not found");
             }
 
-            var user = new UserFunctions().GetUserById(userId.Value);
+            var user = new UserFunctions(_contextFactory).GetUserById(userId.Value);
             if (user == null || !user.FamilyId.HasValue)
             {
                 throw new InvalidOperationException("You are not a member of any family");
@@ -284,14 +291,14 @@ namespace Homassy.API.Functions
                 throw new UserNotFoundException("User not found");
             }
 
-            var user = new UserFunctions().GetUserById(userId.Value);
+            var user = new UserFunctions(_contextFactory).GetUserById(userId.Value);
             if (user == null || !user.FamilyId.HasValue)
             {
                 throw new InvalidOperationException("You are not a member of any family");
             }
 
             var currentPublicId = SessionInfo.GetPublicId();
-            using var context = HomassyDbContext.ForReading();
+            using var context = _contextFactory.CreateForReading();
 
             var members = context.Users
                 .Include(u => u.Profile)
@@ -322,13 +329,13 @@ namespace Homassy.API.Functions
                 throw new UserNotFoundException("User not found");
             }
 
-            var user = new UserFunctions().GetUserById(userId.Value);
+            var user = new UserFunctions(_contextFactory).GetUserById(userId.Value);
             if (user == null || !user.FamilyId.HasValue)
             {
                 throw new FamilyNotFoundException("You are not a member of any family");
             }
 
-            using var context = new HomassyDbContext();
+            using var context = _contextFactory.CreateDbContext();
             await using var transaction = await context.Database.BeginTransactionAsync(cancellationToken);
             try
             {
@@ -379,13 +386,13 @@ namespace Homassy.API.Functions
                 throw new UserNotFoundException("User not found");
             }
 
-            var user = new UserFunctions().GetUserById(userId.Value);
+            var user = new UserFunctions(_contextFactory).GetUserById(userId.Value);
             if (user == null || !user.FamilyId.HasValue)
             {
                 throw new FamilyNotFoundException("You are not a member of any family");
             }
 
-            using var context = new HomassyDbContext();
+            using var context = _contextFactory.CreateDbContext();
             await using var transaction = await context.Database.BeginTransactionAsync(cancellationToken);
             try
             {
@@ -421,13 +428,13 @@ namespace Homassy.API.Functions
                 throw new UserNotFoundException("User not found");
             }
 
-            var user = new UserFunctions().GetUserById(userId.Value);
+            var user = new UserFunctions(_contextFactory).GetUserById(userId.Value);
             if (user == null || !user.FamilyId.HasValue)
             {
                 throw new FamilyNotFoundException("You are not a member of any family");
             }
 
-            using var context = new HomassyDbContext();
+            using var context = _contextFactory.CreateDbContext();
             await using var transaction = await context.Database.BeginTransactionAsync(cancellationToken);
             try
             {

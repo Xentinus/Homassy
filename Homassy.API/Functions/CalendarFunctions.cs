@@ -6,6 +6,15 @@ namespace Homassy.API.Functions
 {
     public class CalendarFunctions
     {
+        private readonly FunctionsRuntime _runtime;
+        private readonly IDbContextFactory<HomassyDbContext> _contextFactory;
+
+        public CalendarFunctions(FunctionsRuntime runtime)
+        {
+            _runtime = runtime;
+            _contextFactory = runtime.ContextFactory;
+        }
+
         public async Task<List<CalendarEventInfo>> GetCalendarEventsAsync(
             DateTime startDate,
             DateTime endDate,
@@ -17,9 +26,9 @@ namespace Homassy.API.Functions
             // One context per concurrent query: DbContext is not thread-safe. They are disposed
             // when this method returns, which is after Task.WhenAll, so no query outlives its
             // context.
-            using var inventoryContext = HomassyDbContext.ForReading();
-            using var automationContext = HomassyDbContext.ForReading();
-            using var shoppingContext = HomassyDbContext.ForReading();
+            using var inventoryContext = _contextFactory.CreateForReading();
+            using var automationContext = _contextFactory.CreateForReading();
+            using var shoppingContext = _contextFactory.CreateForReading();
 
             var inventoryTask = GetInventoryExpirationEventsAsync(inventoryContext, userId, familyId, startDate, endDate, cancellationToken);
             var automationTask = GetAutomationEventsAsync(automationContext, userId, familyId, startDate, endDate, cancellationToken);
@@ -37,7 +46,7 @@ namespace Homassy.API.Functions
             return result.OrderBy(e => e.Start).ToList();
         }
 
-        private static Task<List<CalendarEventInfo>> GetExternalCalendarEventsAsync(
+        private Task<List<CalendarEventInfo>> GetExternalCalendarEventsAsync(
             int? familyId,
             DateTime startDate,
             DateTime endDate)
@@ -45,7 +54,7 @@ namespace Homassy.API.Functions
             if (!familyId.HasValue)
                 return Task.FromResult(new List<CalendarEventInfo>());
 
-            var events = new ExternalCalendarFunctions()
+            var events = new ExternalCalendarFunctions(_runtime)
                 .GetCachedEventsForDateRange(familyId.Value, startDate, endDate);
 
             return Task.FromResult(events);

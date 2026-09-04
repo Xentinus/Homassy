@@ -16,9 +16,6 @@ public class HomassyDbContextFactory : IDesignTimeDbContextFactory<HomassyDbCont
             .AddEnvironmentVariables()
             .Build();
 
-        // Set configuration for HomassyDbContext
-        HomassyDbContext.SetConfiguration(configuration);
-
         // Configure DbContext options
         var optionsBuilder = new DbContextOptionsBuilder<HomassyDbContext>();
         optionsBuilder.UseNpgsql(configuration.GetConnectionString("DefaultConnection"));

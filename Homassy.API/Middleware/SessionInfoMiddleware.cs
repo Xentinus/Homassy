@@ -1,4 +1,5 @@
 ﻿using Homassy.API.Context;
+using Homassy.API.Functions;
 using Homassy.API.Models.Kratos;
 using System.Security.Claims;
 
@@ -19,11 +20,13 @@ namespace Homassy.API.Middleware
             {
                 // Check if we have a Kratos session from KratosSessionMiddleware
                 var kratosSession = context.GetKratosSession();
-                
+
                 if (kratosSession != null)
                 {
-                    // New Kratos-based authentication
-                    SessionInfo.SetFromKratosSession(kratosSession);
+                    // New Kratos-based authentication. Resolved from the request's own scope —
+                    // the Functions layer is scoped, and this is that scope.
+                    var userFunctions = context.RequestServices.GetRequiredService<UserFunctions>();
+                    SessionInfo.SetFromKratosSession(kratosSession, userFunctions);
                 }
                 else
                 {
@@ -34,8 +37,9 @@ namespace Homassy.API.Middleware
                     if (publicIdClaim != null && Guid.TryParse(publicIdClaim, out var publicId))
                     {
                         var familyId = familyIdClaim != null && int.TryParse(familyIdClaim, out var fId) ? fId : (int?)null;
+                        var userFunctions = context.RequestServices.GetRequiredService<UserFunctions>();
 #pragma warning disable CS0618 // Type or member is obsolete
-                        SessionInfo.SetUser(publicId, familyId);
+                        SessionInfo.SetUser(publicId, userFunctions, familyId);
 #pragma warning restore CS0618
                     }
                 }

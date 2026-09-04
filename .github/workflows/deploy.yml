@@ -75,6 +75,15 @@ jobs:
         # string), and HomassyWebApplicationFactory reads it when present. Writing it here is
         # what turns "you need a hand-made config file and a Postgres on 5432" from tribal
         # knowledge into a step anyone can read.
+        #
+        # RateLimiting is deliberately set out of reach rather than to a production-shaped
+        # number. The whole suite runs in one process from one loopback address against
+        # RateLimitService's process-wide buckets, so every request in a run shares a single
+        # counter — thousands of them against a per-minute limit. Whether that trips depends on
+        # how many land inside the same fixed 60s window, which moves with runner speed, so a
+        # realistic ceiling makes 429s appear in unrelated assertions on a fast run. The
+        # limiter's own behaviour is covered by RateLimitServiceTests and
+        # RateLimitingMiddlewareTests, which set their own limits.
         run: |
           cat > Homassy.Tests/appsettings.Testing.json <<JSON
           {
@@ -96,9 +105,9 @@ jobs:
             },
             "ProductSettings": { "ExpiringSoonThresholdDays": 7 },
             "RateLimiting": {
-              "GlobalMaxAttempts": "1000",
+              "GlobalMaxAttempts": "1000000",
               "GlobalWindowMinutes": "1",
-              "EndpointMaxAttempts": "500",
+              "EndpointMaxAttempts": "1000000",
               "EndpointWindowMinutes": "1"
             },
             "Cors": { "AllowedOrigins": [ "http://localhost:3000" ] },

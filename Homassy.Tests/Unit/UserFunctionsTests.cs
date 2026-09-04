@@ -4,6 +4,8 @@ using Homassy.API.Functions;
 using Homassy.API.Models.User;
 using Homassy.API.Services;
 using Homassy.Tests.Infrastructure;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Configuration;
 
 namespace Homassy.Tests.Unit;
@@ -12,30 +14,28 @@ public class UserFunctionsTests : IClassFixture<HomassyWebApplicationFactory>
 {
     private readonly HomassyWebApplicationFactory _factory;
     private readonly HttpClient _client;
+    private readonly IDbContextFactory<HomassyDbContext> _contextFactory;
 
     public UserFunctionsTests(HomassyWebApplicationFactory factory)
     {
         _factory = factory;
         // Create a client to ensure the server is started
         _client = _factory.CreateClient();
-        
-        // Ensure static services are configured for unit tests that bypass the factory
-        EnsureConfigurationInitialized();
-    }
 
-    private static void EnsureConfigurationInitialized()
-    {
-        // Shared with the other unit tests that touch the static configuration hooks, so every
-        // one of them installs the same (real) configuration — see TestConfiguration.
-        HomassyDbContext.SetConfiguration(TestConfiguration.Configuration);
+        // ConfigService is still a process-wide static; install the same (real) configuration
+        // every other unit test that touches it installs — see TestConfiguration.
         ConfigService.Initialize(TestConfiguration.Configuration);
+
+        // UserFunctions is scoped, so it cannot be resolved from the root provider; the context
+        // factory it needs is a singleton, so the tests build the instance themselves.
+        _contextFactory = _factory.Services.GetRequiredService<IDbContextFactory<HomassyDbContext>>();
     }
 
     [Fact]
     public async Task CreateUserAsync_ValidRequest_CreatesUser()
     {
         // Arrange
-        var userFunctions = new UserFunctions();
+        var userFunctions = new UserFunctions(_contextFactory);
         var uniqueEmail = $"test-create-{Guid.NewGuid()}@example.com";
 
         var request = new CreateUserRequest
@@ -67,7 +67,7 @@ public class UserFunctionsTests : IClassFixture<HomassyWebApplicationFactory>
     public async Task CreateUserAsync_EmailIsNormalized_ToLowerCase()
     {
         // Arrange
-        var userFunctions = new UserFunctions();
+        var userFunctions = new UserFunctions(_contextFactory);
         var uniqueEmail = $"TEST-UPPER-{Guid.NewGuid()}@EXAMPLE.COM";
 
         var request = new CreateUserRequest
@@ -105,7 +105,7 @@ public class UserFunctionsTests : IClassFixture<HomassyWebApplicationFactory>
     [Fact]
     public async Task GetUserByEmailAddress_ExistingUser_ReturnsUser()
     {
-        var userFunctions = new UserFunctions();
+        var userFunctions = new UserFunctions(_contextFactory);
         var email = $"lookup-{Guid.NewGuid():N}@example.com";
 
         var created = await userFunctions.CreateUserAsync(new CreateUserRequest
@@ -132,7 +132,7 @@ public class UserFunctionsTests : IClassFixture<HomassyWebApplicationFactory>
     [Fact]
     public async Task GetUserByEmailAddress_IgnoresCasingOfTheArgument()
     {
-        var userFunctions = new UserFunctions();
+        var userFunctions = new UserFunctions(_contextFactory);
         var email = $"casing-{Guid.NewGuid():N}@example.com";
 
         await userFunctions.CreateUserAsync(new CreateUserRequest
@@ -156,7 +156,7 @@ public class UserFunctionsTests : IClassFixture<HomassyWebApplicationFactory>
     public void GetUserByEmailAddress_NonExistingUser_ReturnsNull()
     {
         // Arrange
-        var userFunctions = new UserFunctions();
+        var userFunctions = new UserFunctions(_contextFactory);
         var nonExistentEmail = $"nonexistent-{Guid.NewGuid()}@example.com";
 
         // Act
@@ -170,7 +170,7 @@ public class UserFunctionsTests : IClassFixture<HomassyWebApplicationFactory>
     public void GetUserByEmailAddress_NullOrEmpty_ReturnsNull()
     {
         // Arrange
-        var userFunctions = new UserFunctions();
+        var userFunctions = new UserFunctions(_contextFactory);
 
         // Act & Assert
         Assert.Null(userFunctions.GetUserByEmailAddress(null));
@@ -182,7 +182,7 @@ public class UserFunctionsTests : IClassFixture<HomassyWebApplicationFactory>
     public void GetUserByPublicId_NonExistingId_ReturnsNull()
     {
         // Arrange
-        var userFunctions = new UserFunctions();
+        var userFunctions = new UserFunctions(_contextFactory);
         var nonExistentGuid = Guid.NewGuid();
 
         // Act
@@ -196,7 +196,7 @@ public class UserFunctionsTests : IClassFixture<HomassyWebApplicationFactory>
     public void GetUserByPublicId_NullGuid_ReturnsNull()
     {
         // Arrange
-        var userFunctions = new UserFunctions();
+        var userFunctions = new UserFunctions(_contextFactory);
 
         // Act
         var user = userFunctions.GetUserByPublicId(null);
@@ -209,7 +209,7 @@ public class UserFunctionsTests : IClassFixture<HomassyWebApplicationFactory>
     public void GetUserById_NullId_ReturnsNull()
     {
         // Arrange
-        var userFunctions = new UserFunctions();
+        var userFunctions = new UserFunctions(_contextFactory);
 
         // Act
         var user = userFunctions.GetUserById(null);
@@ -222,7 +222,7 @@ public class UserFunctionsTests : IClassFixture<HomassyWebApplicationFactory>
     public void GetUsersByIds_EmptyList_ReturnsEmptyList()
     {
         // Arrange
-        var userFunctions = new UserFunctions();
+        var userFunctions = new UserFunctions(_contextFactory);
 
         // Act
         var users = userFunctions.GetUsersByIds([]);
@@ -236,7 +236,7 @@ public class UserFunctionsTests : IClassFixture<HomassyWebApplicationFactory>
     public void GetUsersByIds_NullList_ReturnsEmptyList()
     {
         // Arrange
-        var userFunctions = new UserFunctions();
+        var userFunctions = new UserFunctions(_contextFactory);
 
         // Act
         var users = userFunctions.GetUsersByIds(null!);
@@ -250,7 +250,7 @@ public class UserFunctionsTests : IClassFixture<HomassyWebApplicationFactory>
     public void GetAllUserDataByEmail_NullOrEmpty_ReturnsNull()
     {
         // Arrange
-        var userFunctions = new UserFunctions();
+        var userFunctions = new UserFunctions(_contextFactory);
 
         // Act & Assert
         Assert.Null(userFunctions.GetAllUserDataByEmail(null));

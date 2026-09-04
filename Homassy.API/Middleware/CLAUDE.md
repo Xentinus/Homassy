@@ -157,7 +157,7 @@ Centralized exception handling for consistent error responses:
 public async Task<IActionResult> GetProduct(Guid id, CancellationToken cancellationToken)
 {
     // No try-catch needed - GlobalExceptionMiddleware handles it
-    var product = await new ProductFunctions().GetProductAsync(id, cancellationToken);
+    var product = await _productFunctions.GetProductAsync(id, cancellationToken);
     return Ok(ApiResponse<ProductResponse>.SuccessResponse(product));
 }
 ```

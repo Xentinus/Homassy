@@ -27,11 +27,16 @@ namespace Homassy.API.Controllers
     {
         private readonly IKratosService _kratosService;
         private readonly IConfiguration _configuration;
+        private readonly UserFunctions _userFunctions;
 
-        public AuthController(IKratosService kratosService, IConfiguration configuration)
+        public AuthController(
+            IKratosService kratosService,
+            IConfiguration configuration,
+            UserFunctions userFunctions)
         {
             _kratosService = kratosService;
             _configuration = configuration;
+            _userFunctions = userFunctions;
         }
 
         /// <summary>
@@ -56,8 +61,8 @@ namespace Homassy.API.Controllers
             var registrationEnabled = _configuration.GetValue<bool>("RegistrationEnabled", true);
             if (!registrationEnabled)
             {
-                var existingUser = new UserFunctions().GetUserByKratosIdentityId(kratosSession.Identity.Id)
-                    ?? new UserFunctions().GetUserByEmailAddress(kratosSession.Identity.Traits.Email);
+                var existingUser = _userFunctions.GetUserByKratosIdentityId(kratosSession.Identity.Id)
+                    ?? _userFunctions.GetUserByEmailAddress(kratosSession.Identity.Traits.Email);
 
                 if (existingUser == null)
                 {
@@ -75,7 +80,7 @@ namespace Homassy.API.Controllers
                 return StatusCode(500, ApiResponse.ErrorResponse(ErrorCodes.SystemUnexpectedError));
             }
 
-            var userInfo = new UserFunctions().GetUserInfoFromKratosSession(kratosSession, user);
+            var userInfo = _userFunctions.GetUserInfoFromKratosSession(kratosSession, user);
             return Ok(ApiResponse<UserInfo>.SuccessResponse(userInfo));
         }
 
@@ -137,7 +142,7 @@ namespace Homassy.API.Controllers
             }
 
             // Update local user with latest Kratos data
-            var user = await new UserFunctions().SyncUserFromKratosAsync(identity, cancellationToken);
+            var user = await _userFunctions.SyncUserFromKratosAsync(identity, cancellationToken);
             
             if (user == null)
             {
@@ -145,9 +150,9 @@ namespace Homassy.API.Controllers
             }
 
             // Update last login time
-            await new UserFunctions().UpdateLastLoginAsync(user.Id, cancellationToken);
+            await _userFunctions.UpdateLastLoginAsync(user.Id, cancellationToken);
 
-            var userInfo = new UserFunctions().GetUserInfoFromKratosSession(kratosSession, user);
+            var userInfo = _userFunctions.GetUserInfoFromKratosSession(kratosSession, user);
             return Ok(ApiResponse<UserInfo>.SuccessResponse(userInfo));
         }
 
@@ -181,28 +186,28 @@ namespace Homassy.API.Controllers
         /// </summary>
         private async Task<User?> EnsureLocalUserAsync(KratosSession session, CancellationToken cancellationToken)
         {
-            var user = new UserFunctions().GetUserByKratosIdentityId(session.Identity.Id);
+            var user = _userFunctions.GetUserByKratosIdentityId(session.Identity.Id);
 
             if (user != null)
             {
                 // Update last login time
-                await new UserFunctions().UpdateLastLoginAsync(user.Id, cancellationToken);
+                await _userFunctions.UpdateLastLoginAsync(user.Id, cancellationToken);
                 return user;
             }
 
             // Check if user exists by email (migration case)
-            user = new UserFunctions().GetUserByEmailAddress(session.Identity.Traits.Email);
+            user = _userFunctions.GetUserByEmailAddress(session.Identity.Traits.Email);
 
             if (user != null)
             {
                 // Link existing user to Kratos identity
-                await new UserFunctions().LinkUserToKratosAsync(user.Id, session.Identity.Id, cancellationToken);
-                await new UserFunctions().UpdateLastLoginAsync(user.Id, cancellationToken);
+                await _userFunctions.LinkUserToKratosAsync(user.Id, session.Identity.Id, cancellationToken);
+                await _userFunctions.UpdateLastLoginAsync(user.Id, cancellationToken);
                 return user;
             }
 
             // Create new local user record
-            return await new UserFunctions().CreateUserFromKratosAsync(session.Identity, cancellationToken);
+            return await _userFunctions.CreateUserFromKratosAsync(session.Identity, cancellationToken);
         }
     }
 

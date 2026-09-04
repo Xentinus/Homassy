@@ -19,6 +19,15 @@ namespace Homassy.API.Functions
 {
     public class ExternalCalendarFunctions
     {
+        private readonly FunctionsRuntime _runtime;
+        private readonly IDbContextFactory<HomassyDbContext> _contextFactory;
+
+        public ExternalCalendarFunctions(FunctionsRuntime runtime)
+        {
+            _runtime = runtime;
+            _contextFactory = runtime.ContextFactory;
+        }
+
         private static readonly JsonSerializerOptions JsonOptions = new()
         {
             PropertyNamingPolicy = JsonNamingPolicy.CamelCase
@@ -32,7 +41,7 @@ namespace Homassy.API.Functions
             var familyId = SessionInfo.GetFamilyId()
                 ?? throw new ExternalCalendarRequiresFamilyException();
 
-            using var context = HomassyDbContext.ForReading();
+            using var context = _contextFactory.CreateForReading();
             var calendars = await context.FamilyExternalCalendars
                 .Where(c => c.FamilyId == familyId)
                 .OrderBy(c => c.Name)
@@ -52,7 +61,7 @@ namespace Homassy.API.Functions
             var normalizedUrl = NormalizeICalUrl(request.ICalUrl);
             await ValidateICalUrlAsync(normalizedUrl, httpClient, ct);
 
-            using var context = new HomassyDbContext();
+            using var context = _contextFactory.CreateDbContext();
             var calendar = new FamilyExternalCalendar
             {
                 FamilyId = familyId,
@@ -69,7 +78,7 @@ namespace Homassy.API.Functions
             await context.SaveChangesAsync(ct);
 
             var response = MapToResponse(calendar);
-            await MasterDataRealtime.ExternalCalendarUpsertedAsync(familyId, response, ct);
+            await _runtime.MasterData.ExternalCalendarUpsertedAsync(familyId, response, ct);
             return response;
         }
 
@@ -82,7 +91,7 @@ namespace Homassy.API.Functions
             var familyId = SessionInfo.GetFamilyId()
                 ?? throw new ExternalCalendarRequiresFamilyException();
 
-            using var context = new HomassyDbContext();
+            using var context = _contextFactory.CreateDbContext();
             var calendar = await context.FamilyExternalCalendars
                 .FirstOrDefaultAsync(c => c.PublicId == publicId, ct)
                 ?? throw new ExternalCalendarNotFoundException();
@@ -115,7 +124,7 @@ namespace Homassy.API.Functions
             await context.SaveChangesAsync(ct);
 
             var response = MapToResponse(calendar);
-            await MasterDataRealtime.ExternalCalendarUpsertedAsync(familyId, response, ct);
+            await _runtime.MasterData.ExternalCalendarUpsertedAsync(familyId, response, ct);
             return response;
         }
 
@@ -124,7 +133,7 @@ namespace Homassy.API.Functions
             var familyId = SessionInfo.GetFamilyId()
                 ?? throw new ExternalCalendarRequiresFamilyException();
 
-            using var context = new HomassyDbContext();
+            using var context = _contextFactory.CreateDbContext();
             var calendar = await context.FamilyExternalCalendars
                 .FirstOrDefaultAsync(c => c.PublicId == publicId, ct)
                 ?? throw new ExternalCalendarNotFoundException();
@@ -135,7 +144,7 @@ namespace Homassy.API.Functions
             calendar.DeleteRecord(SessionInfo.GetUserId());
             await context.SaveChangesAsync(ct);
 
-            await MasterDataRealtime.ExternalCalendarDeletedAsync(familyId, calendar.PublicId, ct);
+            await _runtime.MasterData.ExternalCalendarDeletedAsync(familyId, calendar.PublicId, ct);
         }
 
         public async Task<ExternalCalendarResponse> TriggerSyncAsync(
@@ -146,7 +155,7 @@ namespace Homassy.API.Functions
             var familyId = SessionInfo.GetFamilyId()
                 ?? throw new ExternalCalendarRequiresFamilyException();
 
-            using var context = new HomassyDbContext();
+            using var context = _contextFactory.CreateDbContext();
             var calendar = await context.FamilyExternalCalendars
                 .FirstOrDefaultAsync(c => c.PublicId == publicId, ct)
                 ?? throw new ExternalCalendarNotFoundException();
@@ -158,7 +167,7 @@ namespace Homassy.API.Functions
             await context.SaveChangesAsync(ct);
 
             var response = MapToResponse(calendar);
-            await MasterDataRealtime.ExternalCalendarUpsertedAsync(familyId, response, ct);
+            await _runtime.MasterData.ExternalCalendarUpsertedAsync(familyId, response, ct);
             return response;
         }
 
@@ -167,7 +176,7 @@ namespace Homassy.API.Functions
             DateTime startDate,
             DateTime endDate)
         {
-            using var context = HomassyDbContext.ForReading();
+            using var context = _contextFactory.CreateForReading();
             var calendars = context.FamilyExternalCalendars
                 .Where(c => c.FamilyId == familyId && c.IsEnabled && c.CachedEventsJson != null)
                 .ToList();
