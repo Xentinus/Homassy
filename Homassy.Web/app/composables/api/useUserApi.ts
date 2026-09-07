@@ -11,14 +11,12 @@ import type {
   UserInfo
 } from '~/types/user'
 import type {
-  ActivityInfo,
   GetActivitiesRequest,
   PagedActivitiesResponse
 } from '~/types/activity'
 
 export const useUserApi = () => {
   const client = useApiClient()
-  const { $i18n } = useNuxtApp()
 
   /**
    * Get current user profile
@@ -81,7 +79,9 @@ export const useUserApi = () => {
    * Update notification preferences
    */
   const updateNotificationPreferences = async (preferences: UpdateNotificationPreferencesRequest) => {
-    return await client.put<void>(
+    // No generic: the endpoint answers with an envelope carrying no data, and
+    // `void` is not valid as a value type here.
+    return await client.put(
       '/api/v1/User/notification',
       preferences
     )

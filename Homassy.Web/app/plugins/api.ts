@@ -4,6 +4,9 @@
  * Authentication: Kratos session cookie is sent automatically via credentials: 'include'
  * Behavior: on 401 -> redirect to /auth/login
  */
+import type { ApiFetch } from '~/types/api'
+import { responseStatus } from '~/utils/httpErrors'
+
 export default defineNuxtPlugin(() => {
   const config = useRuntimeConfig()
   const baseURL = config.public.apiBase || 'http://localhost:5226'
@@ -15,12 +18,11 @@ export default defineNuxtPlugin(() => {
   })
 
   // Wrapper to handle 401 errors
-  const $api = async <T>(request: string, options: any = {}): Promise<T> => {
+  const $api: ApiFetch = async <T>(request: string, options = {}): Promise<T> => {
     try {
       return await rawApi<T>(request, options)
-    } catch (error: any) {
-      const status = error?.response?.status || error?.statusCode
-      const isUnauthorized = status === 401
+    } catch (error) {
+      const isUnauthorized = responseStatus(error) === 401
 
       // Handle 401 errors
       if (isUnauthorized) {

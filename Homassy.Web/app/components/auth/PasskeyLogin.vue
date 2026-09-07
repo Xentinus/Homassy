@@ -11,6 +11,7 @@
  * 3. For re-authentication flows
  */
 import type { LoginFlow } from '@ory/client'
+import type { PublicKeyCredentialRequestOptionsJSON } from '@simplewebauthn/browser'
 import { useKratos } from '~/composables/useKratos'
 import { useWebAuthn } from '~/composables/useWebAuthn'
 import { useAuthStore } from '~/stores/auth'
@@ -22,9 +23,9 @@ const props = defineProps<{
 }>()
 
 const emit = defineEmits<{
-  (e: 'success'): void
-  (e: 'error', error: string): void
-  (e: 'fallback'): void
+  success: []
+  error: [error: string]
+  fallback: []
 }>()
 
 const { t } = useI18n()
@@ -76,7 +77,9 @@ async function authenticate() {
     }
 
     // Start WebAuthn authentication ceremony
-    const result = await webauthn.authenticate(options as any)
+    // `isRegistration: false` above is what makes this the request variant of
+    // the union the parser returns.
+    const result = await webauthn.authenticate(options as PublicKeyCredentialRequestOptionsJSON)
 
     if (!result.success) {
       throw new Error(result.error || 'Passkey authentication failed')
@@ -97,9 +100,9 @@ async function authenticate() {
     await authStore.refreshSession()
 
     emit('success')
-  } catch (error: any) {
+  } catch (error) {
     console.error('[PasskeyLogin] Authentication failed:', error)
-    const errMsg = error.message || t('auth.passkeyError')
+    const errMsg = (error instanceof Error ? error.message : '') || t('auth.passkeyError')
     errorMessage.value = errMsg
     emit('error', errMsg)
   } finally {

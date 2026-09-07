@@ -15,7 +15,6 @@ import type {
 
 export const useFamilyApi = () => {
   const client = useApiClient()
-  const $i18n = useI18n()
 
   /**
    * Get current family information

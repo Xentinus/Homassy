@@ -4,20 +4,29 @@
  */
 import mitt from 'mitt'
 
-// Define all event types for inventory and product mutations
+/**
+ * All event types for inventory and product mutations. Every one of them is a
+ * bare signal with no payload — subscribers refetch or invalidate rather than
+ * reading anything off the event.
+ *
+ * `undefined` rather than `void` for the payload: mitt has an `emit` overload
+ * keyed on `undefined extends Events[Key]`, so `emit('inventory:created')` with
+ * no second argument stays legal, and `undefined` is a value type where `void`
+ * is only valid as a return type.
+ */
 type EventBusEvents = {
-  'inventory:created': void
-  'inventory:updated': void
-  'inventory:deleted': void
-  'inventory:consumed': void
-  'inventory:split': void
-  'inventory:moved': void
-  'product:deleted': void
-  'shopping-list-item:created': void
-  'shopping-list-item:updated': void
-  'shopping-list-item:deleted': void
-  'shopping-list-item:purchased': void
-  'shopping-list-item:restored': void
+  'inventory:created': undefined
+  'inventory:updated': undefined
+  'inventory:deleted': undefined
+  'inventory:consumed': undefined
+  'inventory:split': undefined
+  'inventory:moved': undefined
+  'product:deleted': undefined
+  'shopping-list-item:created': undefined
+  'shopping-list-item:updated': undefined
+  'shopping-list-item:deleted': undefined
+  'shopping-list-item:purchased': undefined
+  'shopping-list-item:restored': undefined
 }
 
 // Create a singleton event bus instance

@@ -99,13 +99,16 @@
 </template>
 
 <script setup lang="ts">
+import type { DateValue } from '@internationalized/date'
+import type { Currency, Unit } from '~/types/enums'
+
 interface PreviewItem {
   id: string
   quantity: number
-  unit: any
-  expirationAt: any | null
+  unit: Unit
+  expirationAt: DateValue | null
   price?: number
-  currency?: any
+  currency?: Currency
   receiptNumber?: string
 }
 
@@ -122,9 +125,7 @@ defineEmits<{
   'confirm': []
 }>()
 
-const { t } = useI18n()
-
-const formatDate = (date: any): string => {
+const formatDate = (date: DateValue | null | undefined): string => {
   if (!date) return ''
   return `${date.year}-${String(date.month).padStart(2, '0')}-${String(date.day).padStart(2, '0')}`
 }

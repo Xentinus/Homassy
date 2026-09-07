@@ -670,6 +670,8 @@ import type { StorageLocationInfo, StorageLocationRequest, ShoppingLocationInfo,
 import type { OpenFoodFactsProduct } from '~/types/openFoodFacts'
 import type { SelectValue } from '~/types/selectValue'
 import { Unit, Currency, SelectValueType } from '~/types/enums'
+import type { Ref } from 'vue'
+import type { DateValue } from '@internationalized/date'
 import type { FormSubmitEvent } from '#ui/types'
 import { emptyProductForm, type ProductFormState, type ProductSchema } from '~/composables/useProductFormSchema'
 
@@ -697,7 +699,7 @@ const { showCameraButton } = useCameraAvailability()
 interface InventoryFormData {
   quantity: number
   unit?: Unit
-  expirationAt?: any | null
+  expirationAt?: DateValue | null
   price?: number
   currency?: Currency
   receiptNumber?: string
@@ -708,7 +710,7 @@ interface IndividualInventoryItem {
   id: string
   quantity: number
   unit: Unit
-  expirationAt: any | null
+  expirationAt: DateValue | null
   price: number | undefined
   currency: Currency | undefined
   receiptNumber: string | undefined
@@ -877,6 +879,10 @@ const paginatedShoppingLocations = computed(() =>
 // =========================
 const isCreatingInventory = ref(false)
 const expirationDateInput = ref()
+// Cast back to the declared shape: `ref()` runs the value through `UnwrapRef`,
+// which recurses into `DateValue` and strips the private brands off its class
+// members, so the v-model no longer matches what UInputDate/UCalendar accept.
+// Runtime reactivity is unchanged — this is only the type.
 const inventoryFormData = ref<InventoryFormData>({
   quantity: 1,
   unit: undefined,
@@ -885,9 +891,9 @@ const inventoryFormData = ref<InventoryFormData>({
   currency: undefined,
   receiptNumber: undefined,
   isSharedWithFamily: true
-})
+}) as Ref<InventoryFormData>
 const inventoryHandlingMode = ref<'bulk' | 'individual' | null>(null)
-const individualItems = ref<IndividualInventoryItem[]>([])
+const individualItems = ref<IndividualInventoryItem[]>([]) as Ref<IndividualInventoryItem[]>
 const isPreviewModalOpen = ref(false)
 const isProgressModalOpen = ref(false)
 const progressItems = ref<ProgressItem[]>([])
@@ -1353,7 +1359,7 @@ const getShoppingLocationName = (): string => {
     || t('pages.addProduct.inventory.sharedContext.none')
 }
 
-const formatCalendarDate = (date: any): string =>
+const formatCalendarDate = (date: DateValue): string =>
   `${date.year}-${String(date.month).padStart(2, '0')}-${String(date.day).padStart(2, '0')}`
 
 const resetInventoryForm = () => {
@@ -1397,7 +1403,7 @@ const removeIndividualItem = (itemId: string) => {
   individualItems.value = individualItems.value.filter(item => item.id !== itemId)
 }
 
-const convertCalendarDateToISO = (date: any): string | undefined => {
+const convertCalendarDateToISO = (date: DateValue | null | undefined): string | undefined => {
   if (!date) return undefined
   return new Date(date.year, date.month - 1, date.day, 12, 0, 0).toISOString()
 }

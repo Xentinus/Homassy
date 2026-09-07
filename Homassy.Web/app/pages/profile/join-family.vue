@@ -1,7 +1,7 @@
 ﻿<template>
   <div class="px-4 sm:px-6 lg:px-8 py-6 space-y-6">
     <!-- Join Family Form -->
-    <UForm @submit.prevent="onSubmit" class="space-y-4">
+    <UForm class="space-y-4" @submit.prevent="onSubmit">
       <div>
         <label class="block text-sm font-medium mb-1.5">{{ $t('profile.family.codeLabel') }}</label>
         <UInput v-model="shareCode" :placeholder="$t('profile.family.codeLabel')" required class="w-full" />

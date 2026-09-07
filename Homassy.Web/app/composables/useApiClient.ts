@@ -1,7 +1,9 @@
 ﻿/**
  * API Client wrapper with toast/error handling
  */
+import type { FetchOptions } from 'ofetch'
 import type { ApiResponse } from '~/types/common'
+import { responseData, responseDataProperty, responseStatus } from '~/utils/httpErrors'
 
 export interface RequestOptions {
   method?: 'GET' | 'POST' | 'PUT' | 'DELETE'
@@ -28,7 +30,7 @@ export type ApiCallOptions = Pick<RequestOptions, 'errorMessage' | 'showErrorToa
 export const useApiClient = () => {
   const toast = useToast()
   const nuxtApp = useNuxtApp()
-  const $api = nuxtApp.$api as any
+  const $api = nuxtApp.$api
   const { $i18n } = nuxtApp
 
   /** Falls back to the raw code when a code has no translation. */
@@ -79,11 +81,13 @@ export const useApiClient = () => {
       }
 
       // Make the API request
-      const response = await ($api as any)(endpoint, {
+      const response = await $api<ApiResponse<T>>(endpoint, {
         method,
-        body,
+        // `RequestOptions.body` is `unknown` so callers can pass a plain object
+        // or a FormData; ofetch serializes both, but its own type is narrower.
+        body: body as FetchOptions['body'],
         headers: requestHeaders
-      }) as ApiResponse<T>
+      })
 
       // Show success toast if enabled
       if (showSuccessToast && successMessage) {
@@ -96,14 +100,14 @@ export const useApiClient = () => {
       }
 
       return response
-    } catch (error: any) {
-      const status = error?.response?.status ?? error?.statusCode
+    } catch (error) {
+      const status = responseStatus(error)
 
       // No status means no response: a network or transport failure. Rethrow it silently so
       // the caller's catch is the single report.
       if (!status) throw error
 
-      const responseBody = error.data
+      const responseBody = responseData(error)
       const envelope = responseBody && typeof responseBody === 'object' && 'success' in responseBody
         ? responseBody as ApiResponse<T>
         : undefined
@@ -114,12 +118,13 @@ export const useApiClient = () => {
         : undefined
 
       // MVC's own model-validation answer, which has no codes at all.
-      const validationErrors = normalizeValidationErrors(responseBody?.errors)
+      const modelErrors = responseDataProperty(error, 'errors')
+      const validationErrors = normalizeValidationErrors(modelErrors)
 
       if (validationErrors) {
         // The server's English message never reaches the UI, so leave it here — a form the
         // client validates being rejected anyway is a bug, and this is the only trail to it.
-        console.warn(`[API] ${method} ${endpoint} rejected by model validation:`, responseBody.errors)
+        console.warn(`[API] ${method} ${endpoint} rejected by model validation:`, modelErrors)
       }
 
       // A 401 is already handled by the $api plugin, which clears the auth state and

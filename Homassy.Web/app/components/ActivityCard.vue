@@ -68,7 +68,7 @@ import type { ActivityInfo } from '~/types/activity'
 import type { UserInfo } from '~/types/user'
 import { ActivityType } from '~/types/activity'
 
-const props = defineProps<{
+defineProps<{
   activity: ActivityInfo
   userInfo?: UserInfo
 }>()

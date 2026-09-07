@@ -33,9 +33,12 @@ const MIN_CHECK_GAP_MS = 5 * 60 * 1000
 export default defineNuxtPlugin((nuxtApp) => {
   if (import.meta.server) return
 
-  // Called at setup so the composable captures `$api` while the Nuxt context is
-  // active — a timer callback has no context of its own.
+  // Both are read at setup, while the Nuxt context is active — a timer callback
+  // has none of its own. `getVersion` closes over `$api`, and vue-i18n's `t`
+  // stays bound to the composer, so it still follows a later locale change.
   const { getVersion } = useVersionApi()
+  // @nuxtjs/i18n types `$i18n` loosely on NuxtApp; `t` is all this needs.
+  const { t } = nuxtApp.$i18n as { t: (key: string) => string }
 
   /** The version this document booted on; set by the first successful poll. */
   let bootVersion: string | null = null
@@ -62,7 +65,6 @@ export default defineNuxtPlugin((nuxtApp) => {
     // `useToast` reads Nuxt state and injects from the Vue app, so it needs the
     // context restored — this runs from a timer, outside any component.
     nuxtApp.runWithContext(() => {
-      const { t } = nuxtApp.$i18n
       useToast().add({
         title: t('toast.newVersion.title'),
         description: t('toast.newVersion.description'),

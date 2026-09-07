@@ -33,13 +33,6 @@ export interface KratosConfig {
   publicUrl: string
 }
 
-export interface KratosError {
-  code: string
-  message: string
-  details?: Record<string, unknown>
-  response?: any  // Preserve original axios response for flow state updates
-}
-
 export interface FlowError {
   id: string
   error: {
@@ -49,6 +42,44 @@ export interface FlowError {
     message: string
   }
 }
+
+/**
+ * The body Kratos answers a failed flow call with. It is one of several things —
+ * the flow itself (so the caller can re-render the UI it came back with), a
+ * `FlowError`, or a 422 telling the browser where to go next — and callers probe
+ * for the field they care about, so every field is optional.
+ */
+export type KratosErrorBody = Partial<
+  LoginFlow & RegistrationFlow & RecoveryFlow & VerificationFlow & SettingsFlow & FlowError
+> & {
+  /** Present on the 422 that hands a flow off to another provider or step. */
+  redirect_browser_to?: string
+}
+
+/** The axios response on a Kratos rejection, as far as this app reads it. */
+export interface KratosErrorResponse {
+  status?: number
+  data?: KratosErrorBody
+}
+
+export interface KratosError {
+  code: string
+  message: string
+  details?: Record<string, unknown>
+  /** Kept so the caller can re-render the flow Kratos sent back with the error. */
+  response?: KratosErrorResponse
+}
+
+/**
+ * @ory/client rejects with an axios error, but a call that never reached Kratos
+ * rejects with a bare `TypeError`, so a caught value is only ever `unknown`.
+ * This reads the fields the app needs off it without claiming the rest is there.
+ */
+const asKratosRejection = (error: unknown): { response?: KratosErrorResponse, message?: string } =>
+  (error ?? {}) as { response?: KratosErrorResponse, message?: string }
+
+/** Status Kratos answered with, or `undefined` when nothing answered. */
+const kratosStatus = (error: unknown): number | undefined => asKratosRejection(error).response?.status
 
 /**
  * Kratos composable for managing authentication flows
@@ -74,9 +105,9 @@ export const useKratos = () => {
     try {
       const response = await kratos.toSession()
       return response.data
-    } catch (error: any) {
+    } catch (error) {
       // 401 means not authenticated - this is expected
-      if (error.response?.status === 401) {
+      if (kratosStatus(error) === 401) {
         return null
       }
       console.error('[Kratos] Error getting session:', error)
@@ -102,7 +133,7 @@ export const useKratos = () => {
         aal: aal
       })
       return response.data
-    } catch (error: any) {
+    } catch (error) {
       console.error('[Kratos] Error creating login flow:', error)
       throw parseKratosError(error)
     }
@@ -115,7 +146,7 @@ export const useKratos = () => {
     try {
       const response = await kratos.getLoginFlow({ id: flowId })
       return response.data
-    } catch (error: any) {
+    } catch (error) {
       console.error('[Kratos] Error getting login flow:', error)
       throw parseKratosError(error)
     }
@@ -131,7 +162,7 @@ export const useKratos = () => {
         updateLoginFlowBody: body
       })
       return { session: response.data.session! }
-    } catch (error: any) {
+    } catch (error) {
       console.error('[Kratos] Error submitting login flow:', error)
       throw parseKratosError(error)
     }
@@ -144,7 +175,7 @@ export const useKratos = () => {
     try {
       const response = await kratos.createBrowserRegistrationFlow()
       return response.data
-    } catch (error: any) {
+    } catch (error) {
       console.error('[Kratos] Error creating registration flow:', error)
       throw parseKratosError(error)
     }
@@ -157,7 +188,7 @@ export const useKratos = () => {
     try {
       const response = await kratos.getRegistrationFlow({ id: flowId })
       return response.data
-    } catch (error: any) {
+    } catch (error) {
       console.error('[Kratos] Error getting registration flow:', error)
       throw parseKratosError(error)
     }
@@ -166,14 +197,14 @@ export const useKratos = () => {
   /**
    * Submit a registration flow
    */
-  const submitRegistrationFlow = async (flowId: string, body: UpdateRegistrationFlowBody): Promise<{ identity: any }> => {
+  const submitRegistrationFlow = async (flowId: string, body: UpdateRegistrationFlowBody): Promise<{ identity?: Identity }> => {
     try {
       const response = await kratos.updateRegistrationFlow({
         flow: flowId,
         updateRegistrationFlowBody: body
       })
       return { identity: response.data.identity }
-    } catch (error: any) {
+    } catch (error) {
       console.error('[Kratos] Error submitting registration flow:', error)
       throw parseKratosError(error)
     }
@@ -186,7 +217,7 @@ export const useKratos = () => {
     try {
       const response = await kratos.createBrowserRecoveryFlow()
       return response.data
-    } catch (error: any) {
+    } catch (error) {
       console.error('[Kratos] Error creating recovery flow:', error)
       throw parseKratosError(error)
     }
@@ -199,7 +230,7 @@ export const useKratos = () => {
     try {
       const response = await kratos.getRecoveryFlow({ id: flowId })
       return response.data
-    } catch (error: any) {
+    } catch (error) {
       console.error('[Kratos] Error getting recovery flow:', error)
       throw parseKratosError(error)
     }
@@ -214,7 +245,7 @@ export const useKratos = () => {
         flow: flowId,
         updateRecoveryFlowBody: body
       })
-    } catch (error: any) {
+    } catch (error) {
       console.error('[Kratos] Error submitting recovery flow:', error)
       throw parseKratosError(error)
     }
@@ -227,7 +258,7 @@ export const useKratos = () => {
     try {
       const response = await kratos.createBrowserVerificationFlow()
       return response.data
-    } catch (error: any) {
+    } catch (error) {
       console.error('[Kratos] Error creating verification flow:', error)
       throw parseKratosError(error)
     }
@@ -240,7 +271,7 @@ export const useKratos = () => {
     try {
       const response = await kratos.getVerificationFlow({ id: flowId })
       return response.data
-    } catch (error: any) {
+    } catch (error) {
       console.error('[Kratos] Error getting verification flow:', error)
       throw parseKratosError(error)
     }
@@ -255,7 +286,7 @@ export const useKratos = () => {
         flow: flowId,
         updateVerificationFlowBody: body
       })
-    } catch (error: any) {
+    } catch (error) {
       console.error('[Kratos] Error submitting verification flow:', error)
       throw parseKratosError(error)
     }
@@ -268,7 +299,7 @@ export const useKratos = () => {
     try {
       const response = await kratos.createBrowserSettingsFlow()
       return response.data
-    } catch (error: any) {
+    } catch (error) {
       console.error('[Kratos] Error creating settings flow:', error)
       throw parseKratosError(error)
     }
@@ -281,7 +312,7 @@ export const useKratos = () => {
     try {
       const response = await kratos.getSettingsFlow({ id: flowId })
       return response.data
-    } catch (error: any) {
+    } catch (error) {
       console.error('[Kratos] Error getting settings flow:', error)
       throw parseKratosError(error)
     }
@@ -297,7 +328,7 @@ export const useKratos = () => {
         updateSettingsFlowBody: body
       })
       return response.data
-    } catch (error: any) {
+    } catch (error) {
       console.error('[Kratos] Error submitting settings flow:', error)
       throw parseKratosError(error)
     }
@@ -405,9 +436,9 @@ export const useKratos = () => {
         returnTo: returnTo
       })
       return response.data.logout_url || null
-    } catch (error: any) {
+    } catch (error) {
       // 401 means already logged out
-      if (error.response?.status === 401) {
+      if (kratosStatus(error) === 401) {
         return null
       }
       console.error('[Kratos] Error creating logout flow:', error)
@@ -427,9 +458,9 @@ export const useKratos = () => {
         // Use browser navigation to properly clear session cookies
         window.location.href = logoutUrl
       }
-    } catch (error: any) {
+    } catch (error) {
       // 401 means already logged out - just redirect
-      if (error.response?.status === 401) {
+      if (kratosStatus(error) === 401) {
         if (typeof window !== 'undefined') {
           window.location.href = returnTo || '/'
         }
@@ -476,7 +507,7 @@ export const useKratos = () => {
         console.debug('[Kratos] Creating fresh registration flow')
         return await createRegistrationFlow()
       }
-    } catch (error: any) {
+    } catch (error) {
       console.error(`[Kratos] Failed to logout and create ${flowType} flow:`, error)
       throw parseKratosError(error)
     }
@@ -493,6 +524,22 @@ export const useKratos = () => {
     )
     return csrfNode
       ? (csrfNode.attributes as UiNodeInputAttributes).value as string
+      : undefined
+  }
+
+  /**
+   * Value of a named input node — how Kratos hands back the trait values a
+   * half-finished flow already holds (a registration resumed at the code step,
+   * say). Same shape as getCsrfToken above, which is one of these.
+   */
+  const getNodeValue = (nodes: UiNode[], name: string): string | undefined => {
+    const node = nodes.find(
+      (candidate) =>
+        candidate.attributes.node_type === 'input' &&
+        (candidate.attributes as UiNodeInputAttributes).name === name
+    )
+    return node
+      ? (node.attributes as UiNodeInputAttributes).value as string | undefined
       : undefined
   }
 
@@ -538,13 +585,15 @@ export const useKratos = () => {
   /**
    * Parse Kratos error response into a more usable format
    */
-  const parseKratosError = (error: any): KratosError => {
+  const parseKratosError = (error: unknown): KratosError => {
+    const rejection = asKratosRejection(error)
     // Preserve the original response for flow state updates
-    const response = error.response
-    
+    const response = rejection.response
+    const data = response?.data
+
     // Handle flow errors (e.g., expired flow)
-    if (error.response?.data?.error) {
-      const flowError = error.response.data as FlowError
+    if (data?.error) {
+      const flowError = data as FlowError
       return {
         code: flowError.error.code.toString(),
         message: flowError.error.message || flowError.error.reason,
@@ -554,9 +603,9 @@ export const useKratos = () => {
     }
 
     // Handle validation errors from flow UI
-    if (error.response?.data?.ui?.messages) {
-      const messages = error.response.data.ui.messages
-      const firstError = messages.find((m: any) => m.type === 'error')
+    const messages = data?.ui?.messages
+    if (messages) {
+      const firstError = messages.find(message => message.type === 'error')
       if (firstError) {
         return {
           code: firstError.id?.toString() || 'validation_error',
@@ -568,18 +617,17 @@ export const useKratos = () => {
     }
 
     // Handle node-level errors
-    if (error.response?.data?.ui?.nodes) {
-      const nodes = error.response.data.ui.nodes
+    const nodes = data?.ui?.nodes
+    if (nodes) {
       for (const node of nodes) {
-        if (node.messages?.length > 0) {
-          const errorMsg = node.messages.find((m: any) => m.type === 'error')
-          if (errorMsg) {
-            return {
-              code: errorMsg.id?.toString() || 'field_error',
-              message: errorMsg.text,
-              details: { field: (node.attributes as any)?.name },
-              response
-            }
+        const errorMsg = node.messages?.find(message => message.type === 'error')
+        if (errorMsg) {
+          return {
+            code: errorMsg.id?.toString() || 'field_error',
+            message: errorMsg.text,
+            // `name` only exists on input nodes; the others carry no field.
+            details: { field: 'name' in node.attributes ? node.attributes.name : undefined },
+            response
           }
         }
       }
@@ -587,8 +635,8 @@ export const useKratos = () => {
 
     // Generic error
     return {
-      code: error.response?.status?.toString() || 'unknown',
-      message: error.message || 'An unexpected error occurred',
+      code: response?.status?.toString() || 'unknown',
+      message: rejection.message || 'An unexpected error occurred',
       response
     }
   }
@@ -680,6 +728,7 @@ export const useKratos = () => {
     
     // Helpers
     getCsrfToken,
+    getNodeValue,
     hasWebAuthn,
     hasCode,
     getAvailableMethods,

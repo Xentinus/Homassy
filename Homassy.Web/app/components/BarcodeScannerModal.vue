@@ -53,7 +53,7 @@
                 :src="frozenImage"
                 alt="Captured frame"
                 class="w-full h-full object-cover"
-              />
+              >
             </div>
 
             <!-- Multi-detection candidate selection overlay -->
@@ -250,7 +250,7 @@ const handleUpdateOpen = async (value: boolean) => {
   }
 }
 
-const handleCameraOn = async (capabilities: any) => {
+const handleCameraOn = async (capabilities: MediaTrackCapabilities) => {
   scanError.value = null
   await initTorchAndZoom(capabilities, streamWrapperRef.value)
 }
@@ -260,7 +260,7 @@ const handleDismissCandidates = () => {
   dismissCandidates()
 }
 
-const trackFunction = (detectedCodes: any[], ctx: CanvasRenderingContext2D) => {
+const trackFunction = (detectedCodes: DetectedBarcode[], ctx: CanvasRenderingContext2D) => {
   if (detectedCodes.length === 0) return
 
   detectedCodes.forEach((code) => {
@@ -282,7 +282,7 @@ const trackFunction = (detectedCodes: any[], ctx: CanvasRenderingContext2D) => {
     // Draw corner points
     if (cornerPoints && cornerPoints.length === 4) {
       ctx.fillStyle = 'rgb(var(--color-primary-500))'
-      cornerPoints.forEach((point: any) => {
+      cornerPoints.forEach((point) => {
         ctx.beginPath()
         ctx.arc(point.x, point.y, 5, 0, 2 * Math.PI)
         ctx.fill()
