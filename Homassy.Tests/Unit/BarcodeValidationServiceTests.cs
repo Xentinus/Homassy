@@ -98,6 +98,31 @@ namespace Homassy.Tests.Unit
         #endregion
 
         #region Validate - UPC-A
+        /// <summary>
+        /// UPC-E always validates. ExpandUpceToUpca computes the expanded code's own check digit
+        /// and appends it, and ValidateUpcaChecksum then recomputes the same digit from the same
+        /// eleven, so the comparison cannot fail. This pins the behaviour rather than endorsing
+        /// it: the web client mirrors the checksum rules so a mistyped barcode is reported in the
+        /// user's own language, and it has to agree with this, or it would reject codes the API
+        /// accepts.
+        /// </summary>
+        /// <remarks>
+        /// Only an 8-digit code starting "00" reaches UPC-E — IsEan8Pattern claims every other
+        /// 8-digit code, so "01234567" is an EAN-8 with a bad check digit, not a UPC-E.
+        /// </remarks>
+        [Theory]
+        [InlineData("123456")]
+        [InlineData("00123456")]
+        [InlineData("00123457")]
+        [InlineData("00999999")]
+        public void Validate_WhenUpce_AlwaysReturnsSuccess(string barcode)
+        {
+            var result = _service.Validate(barcode);
+
+            Assert.True(result.IsValid);
+            Assert.Equal(BarcodeFormat.UPCE, result.Format);
+        }
+
         [Theory]
         [InlineData("012345678905")]
         [InlineData("042100005264")]

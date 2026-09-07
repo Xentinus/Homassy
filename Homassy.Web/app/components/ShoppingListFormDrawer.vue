@@ -117,6 +117,8 @@ const emptyForm = () => ({
   isSharedWithFamily: false
 })
 
+const { toFormErrors } = useApiFormErrors()
+
 const form = ref(emptyForm())
 const saving = ref(false)
 const formRef = ref()
@@ -152,17 +154,22 @@ async function onSubmit(event: FormSubmitEvent<Schema>) {
       isSharedWithFamily: data.isSharedWithFamily
     }
 
+    const failureMessage = { errorMessage: t('pages.shoppingLists.saveFailed') }
     const res = props.list
-      ? await updateShoppingList(props.list.publicId, payload)
-      : await createShoppingList(payload)
+      ? await updateShoppingList(props.list.publicId, payload, failureMessage)
+      : await createShoppingList(payload, failureMessage)
 
     if (res.success && res.data) {
       emit('saved', res.data)
       emit('update:open', false)
     } else {
-      toast.add({ title: t('common.error'), description: t('pages.shoppingLists.saveFailed'), color: 'error', icon: 'i-lucide-alert-circle' })
+      // The API answered, so useApiClient has already shown the one toast. All that is left
+      // is to put whatever it could pin on a field next to that field.
+      formRef.value?.setErrors(toFormErrors(res.validationErrors, Object.keys(form.value)))
     }
   } catch (error) {
+    // Only a request that never reached the API lands here, and useApiClient stays silent
+    // for those, so this is the single report.
     console.error('Failed to save shopping list:', error)
     toast.add({ title: t('common.error'), description: t('pages.shoppingLists.saveFailed'), color: 'error', icon: 'i-lucide-alert-circle' })
   } finally {

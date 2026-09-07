@@ -4,6 +4,7 @@
  */
 import { isExpiringWithinTwoWeeks } from '../useExpirationCheck'
 import type { PagedResult } from '~/types/common'
+import type { ApiCallOptions } from '../useApiClient'
 import type {
   ProductInfo,
   DetailedProductInfo,
@@ -96,20 +97,22 @@ export const useProductsApi = () => {
   /**
    * Create new product
    */
-  const createProduct = async (product: CreateProductRequest) => {
+  const createProduct = async (product: CreateProductRequest, options?: ApiCallOptions) => {
     return await client.post<ProductInfo>(
       '/api/v1/Product',
-      product
+      product,
+      options
     )
   }
 
   /**
    * Update existing product
    */
-  const updateProduct = async (productPublicId: string, product: UpdateProductRequest) => {
+  const updateProduct = async (productPublicId: string, product: UpdateProductRequest, options?: ApiCallOptions) => {
     return await client.put<ProductInfo>(
       `/api/v1/Product/${productPublicId}`,
-      product
+      product,
+      options
     )
   }
 

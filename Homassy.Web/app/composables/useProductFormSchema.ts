@@ -16,6 +16,40 @@ import type { CreateProductRequest, UpdateProductRequest } from '~/types/product
 /** Lengths `BarcodeValidationService` accepts: UPC-E, EAN-8, UPC-A, EAN-13. */
 const BARCODE_LENGTHS = [6, 8, 12, 13]
 
+/**
+ * Mirrors `BarcodeValidationService.ValidateChecksum`. The check digit is the one product rule
+ * that only existed on the server, so a mistyped barcode came back as an untyped 400 and the
+ * user was told nothing they could act on. Checking it here means they get the reason in their
+ * own language and the server rule is left to catch bugs.
+ *
+ * Which format a barcode is depends only on its length, exactly as `DetectFormat` decides it.
+ * The one oddity is UPC-E, and it is the server's: `ExpandUpceToUpca` computes the expanded
+ * code's check digit itself and then validates that, so every UPC-E passes. Mirroring the
+ * quirk keeps the two sides in agreement — rejecting one here that the server accepts would
+ * only move the problem.
+ */
+export const hasValidBarcodeChecksum = (barcode: string): boolean => {
+  const digits = [...barcode].map(Number)
+
+  // A weighted sum over every digit but the last, compared against the last.
+  const isValid = (weightFirst: number) => {
+    const sum = digits
+      .slice(0, -1)
+      .reduce((total, digit, index) => total + digit * (index % 2 === 0 ? weightFirst : 4 - weightFirst), 0)
+
+    return (10 - (sum % 10)) % 10 === digits[digits.length - 1]
+  }
+
+  switch (barcode.length) {
+    case 13: return isValid(1) // EAN-13 weights the first digit by 1
+    case 12: return isValid(3) // UPC-A weights it by 3
+    // An 8-digit code is EAN-8 unless it starts "00", which makes it UPC-E.
+    case 8: return barcode.startsWith('00') ? true : isValid(3)
+    case 6: return true // UPC-E
+    default: return false
+  }
+}
+
 type Translate = (key: string, named?: Record<string, unknown>) => string
 
 export const buildProductSchema = (t: Translate) => z.object({
@@ -36,6 +70,8 @@ export const buildProductSchema = (t: Translate) => z.object({
     .trim()
     .refine(value => value === '' || /^\d+$/.test(value), t('pages.addProduct.form.barcodeInvalid'))
     .refine(value => value === '' || BARCODE_LENGTHS.includes(value.length), t('pages.addProduct.form.barcodeInvalid'))
+    .refine(value => value === '' || !BARCODE_LENGTHS.includes(value.length) || hasValidBarcodeChecksum(value),
+      t('pages.addProduct.form.barcodeChecksum'))
     .optional(),
   isEatable: z.boolean().optional().default(false),
   isFavorite: z.boolean().optional().default(false),

@@ -281,6 +281,39 @@ One composable per API controller. All use `useApiClient` internally:
 | `useErrorCodesApi` | Error code descriptions |
 | `useVersionApi` | API version info |
 
+### Who reports a failed request
+
+A failure is reported **once**, and which side does it depends on whether the API answered at all:
+
+| Case | `useApiClient.request` | Client toast | Caller |
+|---|---|---|---|
+| HTTP error status | returns a failure-shaped `ApiResponse` | shows the only toast | handles it on `else`, **does not toast** |
+| Request never reached the API | rethrows | silent | its `catch` shows the only toast |
+
+So do not toast from an `else` branch after an API call. Pass the message you would have shown as `errorMessage` instead, and the client puts it in the single toast:
+
+```ts
+const res = await createProduct(payload, { errorMessage: t('pages.addProduct.form.saveFailed') })
+if (res.success && res.data) { ... }
+else formRef.value?.setErrors(toFormErrors(res.validationErrors, Object.keys(form.value)))
+```
+
+Toast description precedence: the response's localized `errorCodes` → `errorMessage` → a generic message. `showErrorToast: false` opts out entirely, for callers that own their own reporting (`useFamilyApi`, `useProgressApi`, the push and test-notification calls). A 401 never toasts — the `$api` plugin is already redirecting to the login page.
+
+### Two error body shapes
+
+The API answers its own errors with the `ApiResponse` envelope and a localized `errorCodes` array. **Model validation is different:** `[Required]`, `[StringLength]`, `[RegularExpression]` and JSON deserialization failures never reach `GlobalExceptionMiddleware`, so MVC answers them itself with `ValidationProblemDetails` — no `errorCodes`, only an `errors` map whose keys come in two spellings:
+
+```
+"Name"        a DataAnnotations failure, keyed by the PascalCase CLR property
+"$.category"  a JSON deserialization failure, keyed by a JSON path
+"request"     emitted alongside the latter, and not a form field at all
+```
+
+`useApiClient` normalizes those onto camelCase field names in `ApiResponse.validationErrors` (a client-side field, not something the server sends) and logs the server's raw English text with `console.warn`. `useApiFormErrors().toFormErrors` maps them onto `UForm.setErrors`, keeping only the keys the form has a field for and using the localized `common.invalidValue` — the server's own prose is English and the UI runs in three languages.
+
+The spellings are pinned by `ProductControllerTests.CreateProduct_InvalidRequest_ReturnsValidationProblemDetailsKeyedByField`; the normalization depends on them, so change that test if the API's behaviour ever moves.
+
 ### Realtime (SignalR)
 
 `useShoppingListSocket` maintains a single app-wide SignalR connection to `${apiBase}/hubs/shopping-list` (`withCredentials: true`, automatic reconnect, client-only).

@@ -12,6 +12,7 @@
   },
   "common": {
     "welcome": "Üdvözöljük",
+    "invalidValue": "Érvénytelen érték",
     "or": "vagy",
     "cancel": "Mégse",
     "confirm": "Megerősítés",
@@ -505,6 +506,7 @@
         "brandLength": "A márka 2 és 128 karakter között lehet",
         "unitRequired": "A mértékegység megadása kötelező",
         "barcodeInvalid": "A vonalkód 6, 8, 12 vagy 13 számjegy lehet",
+        "barcodeChecksum": "A vonalkód ellenőrzőszáma hibás",
         "notesLength": "A megjegyzés legfeljebb 128 karakter lehet",
         "saveFailed": "A termék mentése sikertelen",
         "imageFromBarcode": "Kép importálása vonalkódból"
@@ -1365,6 +1367,7 @@
     "signedOut": "Kijelentkeztél.",
     "unknownError": "Ismeretlen hiba történt",
     "requestError": "Hiba történt a kérés feldolgozása közben",
+    "validationError": "A megadott adatok érvénytelenek",
     "codeSent": "Kód elküldve",
     "checkEmailForCode": "Kérjük, ellenőrizd az e-mail fiókodat az ellenőrző kódért.",
     "registrationSuccess": "Sikeres regisztráció",

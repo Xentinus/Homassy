@@ -12,6 +12,7 @@
   },
   "common": {
     "welcome": "Willkommen",
+    "invalidValue": "Ungültiger Wert",
     "or": "oder",
     "cancel": "Abbrechen",
     "save": "Speichern",
@@ -502,6 +503,7 @@
         "brandLength": "Die Marke muss zwischen 2 und 128 Zeichen lang sein",
         "unitRequired": "Maßeinheit ist erforderlich",
         "barcodeInvalid": "Der Barcode muss 6, 8, 12 oder 13 Ziffern haben",
+        "barcodeChecksum": "Die Prüfziffer des Barcodes ist falsch",
         "notesLength": "Notizen dürfen maximal 128 Zeichen lang sein",
         "saveFailed": "Produkt konnte nicht gespeichert werden",
         "imageFromBarcode": "Bild vom Barcode importieren"
@@ -1362,6 +1364,7 @@
     "signedOut": "Sie wurden abgemeldet.",
     "unknownError": "Ein unbekannter Fehler ist aufgetreten",
     "requestError": "Bei der Verarbeitung der Anfrage ist ein Fehler aufgetreten",
+    "validationError": "Die übermittelten Daten sind ungültig",
     "codeSent": "Code gesendet",
     "checkEmailForCode": "Bitte überprüfen Sie Ihren E-Mail-Posteingang für den Bestätigungscode.",
     "registrationSuccess": "Registrierung erfolgreich",

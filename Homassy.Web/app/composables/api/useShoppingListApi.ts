@@ -3,6 +3,7 @@
  * Provides shopping list-related API calls
  */
 import type { PagedResult } from '~/types/common'
+import type { ApiCallOptions } from '../useApiClient'
 import type {
   ShoppingListInfo,
   DetailedShoppingListInfo,
@@ -63,20 +64,22 @@ export const useShoppingListApi = () => {
   /**
    * Create new shopping list
    */
-  const createShoppingList = async (list: CreateShoppingListRequest) => {
+  const createShoppingList = async (list: CreateShoppingListRequest, options?: ApiCallOptions) => {
     return await client.post<ShoppingListInfo>(
       '/api/v1/ShoppingList',
-      list
+      list,
+      options
     )
   }
 
   /**
    * Update shopping list
    */
-  const updateShoppingList = async (publicId: string, list: UpdateShoppingListRequest) => {
+  const updateShoppingList = async (publicId: string, list: UpdateShoppingListRequest, options?: ApiCallOptions) => {
     return await client.put<ShoppingListInfo>(
       `/api/v1/ShoppingList/${publicId}`,
-      list
+      list,
+      options
     )
   }
 

@@ -3,14 +3,27 @@
  */
 import type { ApiResponse } from '~/types/common'
 
-interface RequestOptions {
+export interface RequestOptions {
   method?: 'GET' | 'POST' | 'PUT' | 'DELETE'
   body?: unknown
   headers?: Record<string, string>
   showErrorToast?: boolean
   showSuccessToast?: boolean
   successMessage?: string
+  /**
+   * The caller's contextual message ("saving the product failed"), shown when the response
+   * carries no `errorCodes` of its own. Pass this instead of toasting from the caller: a
+   * failure is reported once, by whichever side owns that path (see `request`).
+   */
+  errorMessage?: string
 }
+
+/**
+ * What an API composable method forwards on behalf of its caller. A form passes the message
+ * it used to toast itself; `showErrorToast: false` is the opt-out for callers that own their
+ * own reporting entirely.
+ */
+export type ApiCallOptions = Pick<RequestOptions, 'errorMessage' | 'showErrorToast'>
 
 export const useApiClient = () => {
   const toast = useToast()
@@ -18,8 +31,26 @@ export const useApiClient = () => {
   const $api = nuxtApp.$api as any
   const { $i18n } = nuxtApp
 
+  /** Falls back to the raw code when a code has no translation. */
+  const localizeErrorCode = (code: string) => {
+    const key = `errorCodes.${code}`
+    const translated = $i18n.t(key)
+    return translated === key ? code : translated
+  }
+
   /**
-   * Make API request with automatic error handling and toast notifications
+   * Make an API request, reporting a failure exactly once.
+   *
+   * Which side reports it depends on whether the API answered at all:
+   *
+   * - **The API answered with an error status.** `request` returns a failure-shaped
+   *   `ApiResponse` and shows the only toast. Callers handle it on their `else` branch and
+   *   must not toast; they pass their context as `errorMessage` instead.
+   * - **The request never reached the API.** `request` rethrows and stays silent, leaving the
+   *   caller's own `catch` to report it.
+   *
+   * Doing both on one path — toasting *and* rethrowing — is what used to give every failed
+   * request two toasts.
    */
   const request = async <T>(
     endpoint: string,
@@ -31,7 +62,8 @@ export const useApiClient = () => {
       headers = {},
       showErrorToast = true,
       showSuccessToast = false,
-      successMessage
+      successMessage,
+      errorMessage
     } = options
 
     try {
@@ -65,41 +97,51 @@ export const useApiClient = () => {
 
       return response
     } catch (error: any) {
-      // Surface the API's specific, localized error code(s) so failures are diagnosable
-      // instead of a generic message (falls back to the raw code if a code is unmapped).
-      const codes = error?.data?.errorCodes
-      if (Array.isArray(codes) && codes.length) {
-        if (showErrorToast) {
-          const description = codes
-            .map((code: string) => {
-              const key = `errorCodes.${code}`
-              const translated = $i18n.t(key)
-              return translated === key ? code : translated
-            })
-            .join('\n')
+      const status = error?.response?.status ?? error?.statusCode
 
-          toast.add({
-            title: $i18n.t('toast.error'),
-            description,
-            color: 'error',
-            icon: 'i-heroicons-x-circle'
-          })
-        }
+      // No status means no response: a network or transport failure. Rethrow it silently so
+      // the caller's catch is the single report.
+      if (!status) throw error
 
-        return error.data as ApiResponse<T>
+      const responseBody = error.data
+      const envelope = responseBody && typeof responseBody === 'object' && 'success' in responseBody
+        ? responseBody as ApiResponse<T>
+        : undefined
+
+      // The API's own envelope carries specific, localized codes.
+      const codes = Array.isArray(envelope?.errorCodes) && envelope.errorCodes.length
+        ? envelope.errorCodes
+        : undefined
+
+      // MVC's own model-validation answer, which has no codes at all.
+      const validationErrors = normalizeValidationErrors(responseBody?.errors)
+
+      if (validationErrors) {
+        // The server's English message never reaches the UI, so leave it here — a form the
+        // client validates being rejected anyway is a bug, and this is the only trail to it.
+        console.warn(`[API] ${method} ${endpoint} rejected by model validation:`, responseBody.errors)
       }
 
-      // Network or other errors without a structured error body
-      if (showErrorToast) {
+      // A 401 is already handled by the $api plugin, which clears the auth state and
+      // redirects to the login page. A toast on the way out is noise.
+      if (showErrorToast && status !== 401) {
         toast.add({
           title: $i18n.t('toast.error'),
-          description: $i18n.t('toast.requestError'),
+          description: codes
+            ? codes.map(localizeErrorCode).join('\n')
+            : errorMessage || $i18n.t(validationErrors ? 'toast.validationError' : 'toast.requestError'),
           color: 'error',
           icon: 'i-heroicons-x-circle'
         })
       }
 
-      throw error
+      return {
+        ...envelope,
+        success: false,
+        errorCodes: codes,
+        validationErrors,
+        timestamp: envelope?.timestamp ?? new Date().toISOString()
+      }
     }
   }
 

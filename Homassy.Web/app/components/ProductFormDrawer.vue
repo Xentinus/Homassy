@@ -183,6 +183,7 @@ const title = computed(() => isEdit.value
 
 // Schema and payload mapping are shared with the inventory / shopping-list product forms.
 const { productSchema: schema, toCreateProductRequest, toUpdateProductRequest } = useProductFormSchema()
+const { toFormErrors } = useApiFormErrors()
 
 const form = ref(emptyProductForm())
 const saving = ref(false)
@@ -426,18 +427,24 @@ defineExpose({ applyScannedBarcode })
 async function onSubmit(event: FormSubmitEvent<ProductSchema>) {
   const data = event.data
   saving.value = true
+  const failureMessage = { errorMessage: t('pages.addProduct.form.saveFailed') }
+
   try {
     const res = props.product
-      ? await updateProduct(props.product.publicId, toUpdateProductRequest(data))
-      : await createProduct(toCreateProductRequest(data))
+      ? await updateProduct(props.product.publicId, toUpdateProductRequest(data), failureMessage)
+      : await createProduct(toCreateProductRequest(data), failureMessage)
 
     if (res.success && res.data) {
       emit('saved', res.data)
       emit('update:open', false)
     } else {
-      toast.add({ title: t('common.error'), description: t('pages.addProduct.form.saveFailed'), color: 'error', icon: 'i-lucide-alert-circle' })
+      // The API answered, so useApiClient has already shown the one toast. All that is left
+      // is to put whatever it could pin on a field next to that field.
+      formRef.value?.setErrors(toFormErrors(res.validationErrors, Object.keys(form.value)))
     }
   } catch (error) {
+    // Only a request that never reached the API lands here, and useApiClient stays silent
+    // for those, so this is the single report.
     console.error('Failed to save product:', error)
     toast.add({ title: t('common.error'), description: t('pages.addProduct.form.saveFailed'), color: 'error', icon: 'i-lucide-alert-circle' })
   } finally {

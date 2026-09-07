@@ -1,5 +1,6 @@
 using System.Net;
 using System.Net.Http.Json;
+using System.Text.Json;
 using Homassy.API.Enums;
 using Homassy.API.Models.Common;
 using Homassy.API.Models.Product;
@@ -292,6 +293,71 @@ public class ProductControllerTests : IClassFixture<HomassyWebApplicationFactory
             var content = await response.Content.ReadFromJsonAsync<ApiResponse<ProductInfo>>();
             Assert.NotNull(content?.Data);
             Assert.Equal(ProductCategory.Other, content.Data.Category);
+        }
+        finally
+        {
+            _authHelper.ClearAuthToken();
+            if (testEmail != null)
+                await _authHelper.CleanupUserAsync(testEmail);
+        }
+    }
+
+    /// <summary>
+    /// Model-validation failures never reach GlobalExceptionMiddleware - MVC answers them itself
+    /// with a ValidationProblemDetails body that carries no errorCodes. The web client normalizes
+    /// the keys of that body onto form fields, so the exact spellings the API produces are part of
+    /// the contract: a DataAnnotations failure is keyed by the PascalCase CLR property name, and a
+    /// JSON deserialization failure by a "$."-prefixed JSON path.
+    /// </summary>
+    [Fact]
+    public async Task CreateProduct_InvalidRequest_ReturnsValidationProblemDetailsKeyedByField()
+    {
+        string? testEmail = null;
+        try
+        {
+            var (email, auth) = await _authHelper.CreateAndAuthenticateUserAsync("prod-vpd-shape");
+            testEmail = email;
+            _authHelper.SetAuthToken(auth.AccessToken);
+
+            // A DataAnnotations failure: too-short Name, too-long Notes.
+            var annotationJson = $"{{\"name\":\"A\",\"brand\":\"Test Brand\",\"unit\":0,\"notes\":\"{new string('x', 200)}\"}}";
+            var annotationResponse = await _client.PostAsync("/api/v1.0/product",
+                new StringContent(annotationJson, System.Text.Encoding.UTF8, "application/json"));
+            var annotationBody = await annotationResponse.Content.ReadAsStringAsync();
+
+            _output.WriteLine($"[DataAnnotations] Status: {annotationResponse.StatusCode}");
+            _output.WriteLine($"[DataAnnotations] Response: {annotationBody}");
+
+            Assert.Equal(HttpStatusCode.BadRequest, annotationResponse.StatusCode);
+
+            using var annotationJsonDoc = JsonDocument.Parse(annotationBody);
+            var annotationRoot = annotationJsonDoc.RootElement;
+
+            // No errorCodes array: this is why the web client needs a second shape at all.
+            Assert.False(annotationRoot.TryGetProperty("errorCodes", out _));
+            var annotationErrors = annotationRoot.GetProperty("errors");
+
+            // PascalCase CLR property names, not the camelCase wire names.
+            Assert.True(annotationErrors.TryGetProperty("Name", out _));
+            Assert.True(annotationErrors.TryGetProperty("Notes", out _));
+
+            // A deserialization failure: category is an enum, so a string cannot bind.
+            var jsonPathJson = "{\"name\":\"Bad Category\",\"brand\":\"Test Brand\",\"unit\":0,\"category\":\"11\"}";
+            var jsonPathResponse = await _client.PostAsync("/api/v1.0/product",
+                new StringContent(jsonPathJson, System.Text.Encoding.UTF8, "application/json"));
+            var jsonPathBody = await jsonPathResponse.Content.ReadAsStringAsync();
+
+            _output.WriteLine($"[JSON path] Status: {jsonPathResponse.StatusCode}");
+            _output.WriteLine($"[JSON path] Response: {jsonPathBody}");
+
+            Assert.Equal(HttpStatusCode.BadRequest, jsonPathResponse.StatusCode);
+
+            using var jsonPathDoc = JsonDocument.Parse(jsonPathBody);
+            var jsonPathErrors = jsonPathDoc.RootElement.GetProperty("errors");
+
+            // A JSON path, and a "request" key that is not a form field at all.
+            Assert.True(jsonPathErrors.TryGetProperty("$.category", out _));
+            Assert.True(jsonPathErrors.TryGetProperty("request", out _));
         }
         finally
         {
