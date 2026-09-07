@@ -1,4 +1,7 @@
 ﻿<template>
+  <!-- eslint-disable vue/no-v-html -- highlightText escapes the text it is given and
+       emits only its own highlight span, so nothing a user typed reaches the DOM as
+       markup. See app/composables/useSearchHighlight.ts. -->
   <div
     class="group relative bg-gradient-to-br from-white to-gray-50 dark:from-gray-800 dark:to-gray-900 rounded-xl border-2 p-3 cursor-pointer hover:shadow-lg hover:-translate-y-0.5 transition-all duration-200 flex flex-col overflow-hidden"
     :class="[cardBorderClass, isSelected && 'ring-2 ring-offset-2 ring-primary-500 dark:ring-offset-gray-900']"
@@ -21,7 +24,7 @@
         :src="`data:image/jpeg;base64,${product.productPictureBase64}`"
         :alt="product.name"
         class="w-full h-full object-contain transition-opacity"
-      />
+      >
       <UIcon v-else name="i-lucide-package" class="h-12 w-12 text-gray-400" />
     </div>
     

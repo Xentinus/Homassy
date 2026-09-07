@@ -56,7 +56,7 @@
 
         <!-- Loading State -->
         <div v-if="isSearchingProducts" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
-          <USkeleton v-for="i in 6" :key="i" class="h-32 w-full rounded-lg" />
+          <SkeletonCard v-for="i in 6" :key="i" />
         </div>
 
         <!-- Empty / Start typing -->
@@ -130,7 +130,7 @@
 
         <!-- Loading State -->
         <div v-if="loadingShoppingLists" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-          <USkeleton v-for="i in 3" :key="i" class="h-24 w-full rounded-lg" />
+          <SkeletonCard v-for="i in 3" :key="i" :footer-lines="1" />
         </div>
 
         <!-- Empty State -->

@@ -188,15 +188,17 @@ jobs:
         working-directory: Homassy.Web
 
       - name: Lint
-        # NOT a gate yet: the app currently has a backlog of eslint errors that predate this
-        # workflow. The step runs so the count is visible on every PR; flip continue-on-error
-        # off once the backlog is cleared.
+        # A real gate now: the backlog this step was created to measure is cleared, so a new
+        # eslint *error* fails the build instead of being counted. Warnings still only print
+        # (`eslint .` exits 0 on warnings); they are at zero too, and `--max-warnings=0` is
+        # what it would take to keep them there.
         run: npm run lint
         working-directory: Homassy.Web
-        continue-on-error: true
 
       - name: Typecheck
-        # Same: a pre-existing backlog of type errors. Advisory until it is cleared.
+        # Still advisory: unlike lint, this one has a backlog left (a little over a hundred,
+        # mostly Nuxt UI event-handler return types and the reactive-unwrap of
+        # @internationalized/date values). The step runs so the count stays visible.
         run: npm run typecheck
         working-directory: Homassy.Web
         continue-on-error: true

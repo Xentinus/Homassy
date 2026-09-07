@@ -37,7 +37,10 @@ export const usePushNotifications = () => {
       const vapidResponse = await client.get<{ publicKey: string }>('/api/v1/User/push/vapid-key', { showErrorToast: false })
       console.log('[Push] subscribe: vapidResponse =', vapidResponse)
       // Support both camelCase and PascalCase API responses
-      const vapidKey = vapidResponse?.data?.publicKey ?? (vapidResponse?.data as any)?.PublicKey
+      // The endpoint has answered in both spellings; accept either rather than
+      // depending on which serializer casing is configured server-side.
+      const vapidKey = vapidResponse?.data?.publicKey
+        ?? (vapidResponse?.data as { PublicKey?: string } | undefined)?.PublicKey
       console.log('[Push] subscribe: vapidKey =', vapidKey ? `${vapidKey.substring(0, 10)}...` : 'MISSING')
       if (!vapidKey) {
         console.error('[Push] subscribe: VAPID key missing from response')
@@ -117,7 +120,7 @@ export const usePushNotifications = () => {
       const registration = await navigator.serviceWorker.ready
       const subscription = await registration.pushManager.getSubscription()
       return subscription !== null
-    } catch (error) {
+    } catch {
       return false
     }
   }

@@ -15,7 +15,7 @@ import type {
   RegistrationResponseJSON,
   AuthenticationResponseJSON
 } from '@simplewebauthn/browser'
-import type { UiNode, UiNodeInputAttributes } from '@ory/client'
+import type { UiNode, UiNodeInputAttributes, UiNodeScriptAttributes } from '@ory/client'
 
 export interface WebAuthnOptions {
   publicKey: PublicKeyCredentialCreationOptionsJSON | PublicKeyCredentialRequestOptionsJSON
@@ -129,24 +129,6 @@ export const useWebAuthn = () => {
   }
 
   /**
-   * Get the WebAuthn script from Kratos flow nodes
-   * This script contains the __ory_webauthn functions
-   */
-  const getWebAuthnScript = (nodes: UiNode[]): string | null => {
-    const scriptNode = nodes.find(
-      (node) =>
-        node.group === 'webauthn' &&
-        node.attributes.node_type === 'script'
-    )
-
-    if (scriptNode && 'text' in scriptNode.attributes) {
-      return (scriptNode.attributes as any).text
-    }
-
-    return null
-  }
-
-  /**
    * Start WebAuthn registration ceremony
    * Call this when the user wants to register a new passkey
    */
@@ -164,23 +146,25 @@ export const useWebAuthn = () => {
         success: true,
         response
       }
-    } catch (error: any) {
+    } catch (error) {
       console.error('[WebAuthn] Registration failed:', error)
+      // The ceremony rejects with a DOMException whose `name` is the outcome.
+      const errorName = error instanceof Error ? error.name : undefined
       
       // Handle specific error types
-      if (error.name === 'InvalidStateError') {
+      if (errorName === 'InvalidStateError') {
         return {
           success: false,
           error: 'A passkey for this account already exists on this device'
         }
       }
-      if (error.name === 'NotAllowedError') {
+      if (errorName === 'NotAllowedError') {
         return {
           success: false,
           error: 'Passkey registration was cancelled or timed out'
         }
       }
-      if (error.name === 'AbortError') {
+      if (errorName === 'AbortError') {
         return {
           success: false,
           error: 'Passkey registration was cancelled'
@@ -189,7 +173,7 @@ export const useWebAuthn = () => {
       
       return {
         success: false,
-        error: error.message || 'Passkey registration failed'
+        error: (error instanceof Error ? error.message : '') || 'Passkey registration failed'
       }
     }
   }
@@ -218,23 +202,24 @@ export const useWebAuthn = () => {
         success: true,
         response
       }
-    } catch (error: any) {
+    } catch (error) {
       console.error('[WebAuthn] Authentication failed:', error)
+      const errorName = error instanceof Error ? error.name : undefined
       
       // Handle specific error types
-      if (error.name === 'NotAllowedError') {
+      if (errorName === 'NotAllowedError') {
         return {
           success: false,
           error: 'Passkey authentication was cancelled or timed out'
         }
       }
-      if (error.name === 'AbortError') {
+      if (errorName === 'AbortError') {
         return {
           success: false,
           error: 'Passkey authentication was cancelled'
         }
       }
-      if (error.name === 'SecurityError') {
+      if (errorName === 'SecurityError') {
         return {
           success: false,
           error: 'Security error during authentication. Please check your browser settings.'
@@ -243,7 +228,7 @@ export const useWebAuthn = () => {
       
       return {
         success: false,
-        error: error.message || 'Passkey authentication failed'
+        error: (error instanceof Error ? error.message : '') || 'Passkey authentication failed'
       }
     }
   }
@@ -283,7 +268,8 @@ export const useWebAuthn = () => {
       console.debug('[WebAuthn] No trigger node found. Looking for options in script...')
       
       // Fallback: try to extract options from script node text
-      const scriptText = (scriptNode.attributes as any).text || (scriptNode.attributes as any).src
+      // Script nodes only carry a `src`; the published type has no text field.
+      const scriptText: string | undefined = (scriptNode.attributes as UiNodeScriptAttributes).src
       if (scriptText && typeof scriptText === 'string') {
         // Look for embedded publicKey options in script
         const pkMatch = scriptText.match(/publicKey\s*[=:]\s*({[\s\S]*?})\s*[,;}\n]/m)
@@ -304,7 +290,7 @@ export const useWebAuthn = () => {
       
       console.debug('[WebAuthn] Available nodes:', 
         nodes.filter(n => n.group === 'webauthn' || n.group === 'passkey')
-          .map(n => ({ group: n.group, type: n.attributes.node_type, name: (n.attributes as any).name }))
+          .map(n => ({ group: n.group, type: n.attributes.node_type, name: 'name' in n.attributes ? n.attributes.name : undefined }))
       )
       return null
     }
@@ -328,10 +314,12 @@ export const useWebAuthn = () => {
       }
     }
 
-    // Fallback: try to extract from onclickTrigger if onclick is not present
-    if ((attrs as any).onclickTrigger) {
+    // Fallback: try to extract from onclickTrigger if onclick is not present.
+    // Newer Kratos versions put the ceremony call here, and @ory/client's
+    // published UiNodeInputAttributes does not describe the field yet.
+    const trigger = (attrs as { onclickTrigger?: string }).onclickTrigger
+    if (trigger) {
       try {
-        const trigger = (attrs as any).onclickTrigger
         const match = trigger.match(/(?:__ory_webauthn_\w+|__oryWebAuthn\w+)\(([\s\S]*)\)/m)
         if (match && match[1]) {
           const options = JSON.parse(match[1])
@@ -410,9 +398,11 @@ export const useWebAuthn = () => {
         success: true,
         response
       }
-    } catch (error: any) {
+    } catch (error) {
+      const errorName = error instanceof Error ? error.name : undefined
+
       // AbortError is expected when the user cancels or we abort programmatically
-      if (error.name === 'AbortError' || abortSignal?.aborted) {
+      if (errorName === 'AbortError' || abortSignal?.aborted) {
         console.debug('[WebAuthn] Conditional authentication was cancelled')
         return {
           success: false,
@@ -422,7 +412,7 @@ export const useWebAuthn = () => {
       
       console.error('[WebAuthn] Conditional authentication failed:', error)
       
-      if (error.name === 'NotAllowedError') {
+      if (errorName === 'NotAllowedError') {
         return {
           success: false,
           error: 'Passkey authentication was cancelled or timed out'
@@ -431,7 +421,7 @@ export const useWebAuthn = () => {
       
       return {
         success: false,
-        error: error.message || 'Passkey authentication failed'
+        error: (error instanceof Error ? error.message : '') || 'Passkey authentication failed'
       }
     }
   }
@@ -460,7 +450,6 @@ export const useWebAuthn = () => {
     // Kratos integration
     extractWebAuthnOptions,
     extractWebAuthnChallenge,
-    getWebAuthnScript,
     parseKratosWebAuthnOptions,
     createKratosWebAuthnBody,
     

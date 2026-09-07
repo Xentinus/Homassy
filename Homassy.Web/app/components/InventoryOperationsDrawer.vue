@@ -87,7 +87,8 @@
         <div class="text-sm text-blue-600 dark:text-blue-400">
           {{ $t('pages.products.details.splitModal.remainingPreview') }}
         </div>
-        <div class="text-lg font-semibold text-blue-700 dark:text-blue-300">
+        <!-- tabular-nums: this preview is recomputed on every keystroke. -->
+        <div class="text-lg font-semibold text-blue-700 dark:text-blue-300 tabular-nums">
           {{ splitQuantity ? (splitTarget.currentQuantity - splitQuantity).toFixed(1) : splitTarget.currentQuantity }}
           {{ $t(`enums.unit.${splitTarget.unit}`) }}
         </div>

@@ -55,10 +55,12 @@
 
       <!-- Loading State — first load only. A refetch keeps the grid mounted;
            swapping it out would remount every card and replay the bubble
-           animation. -->
+           animation. The container repeats the real list's grid classes
+           verbatim (it used to be a `space-y-4` stack against a grid), so the
+           placeholders occupy the cells the cards will land in. -->
       <template v-if="loading && !hasLoaded">
-        <div class="space-y-4">
-          <USkeleton v-for="i in 4" :key="i" class="h-20 w-full rounded-lg" />
+        <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+          <SkeletonCard v-for="i in 8" :key="i" />
         </div>
       </template>
 
@@ -66,23 +68,26 @@
         <!-- Both empty states render next to the (then empty) grid, never in
              place of it: unmounting the grid replays the enter animation on the
              way back and swallows the leave animation of the last card. -->
-        <div v-if="automations.length === 0" class="rounded-lg p-12 text-center">
-          <UIcon name="i-lucide-timer" class="h-16 w-16 text-gray-400 mx-auto mb-4" />
-          <p class="text-lg font-semibold text-gray-700 dark:text-gray-300 mb-2">
-            {{ $t('profile.automation.noAutomations') }}
-          </p>
-          <p class="text-gray-600 dark:text-gray-400">
-            {{ $t('profile.automation.addFirstAutomation') }}
-          </p>
-        </div>
+        <EmptyState
+          v-if="automations.length === 0"
+          illustration="automation"
+          :title="$t('profile.automation.noAutomations')"
+          :description="$t('profile.automation.addFirstAutomation')"
+          :action-label="$t('profile.automation.createAutomation')"
+          action-icon="i-lucide-plus"
+          @action="navigateTo('/profile/automation/create')"
+        />
 
         <!-- No filter results -->
-        <div v-else-if="filteredAutomations.length === 0" class="rounded-lg p-12 text-center">
-          <UIcon name="i-lucide-search-x" class="h-12 w-12 text-gray-400 mx-auto mb-4" />
-          <p class="text-gray-600 dark:text-gray-400">
-            {{ $t('profile.automation.noFilterResults') }}
-          </p>
-        </div>
+        <EmptyState
+          v-else-if="filteredAutomations.length === 0"
+          illustration="search"
+          :title="$t('profile.automation.noFilterResults')"
+          :description="$t('profile.automation.tryDifferentSearch')"
+          :action-label="$t('common.filters.clear')"
+          action-icon="i-lucide-filter-x"
+          @action="clearAllFilters"
+        />
 
         <!-- Automation Rules List -->
         <AnimatedList class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">

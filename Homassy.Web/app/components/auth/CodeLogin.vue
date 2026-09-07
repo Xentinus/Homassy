@@ -6,7 +6,7 @@
 import * as z from 'zod'
 import type { FormSubmitEvent } from '@nuxt/ui'
 import type { LoginFlow } from '@ory/client'
-import { useKratos } from '~/composables/useKratos'
+import { useKratos, type KratosError } from '~/composables/useKratos'
 import { useAuthStore } from '~/stores/auth'
 
 const props = defineProps<{
@@ -15,11 +15,11 @@ const props = defineProps<{
 }>()
 
 const emit = defineEmits<{
-  (e: 'success'): void
-  (e: 'error', error: string): void
-  (e: 'emailSubmitted', email: string): void
-  (e: 'flowUpdate', flow: LoginFlow): void
-  (e: 'back'): void
+  success: []
+  error: [error: string]
+  emailSubmitted: [email: string]
+  flowUpdate: [flow: LoginFlow]
+  back: []
 }>()
 
 const { t } = useI18n()
@@ -56,13 +56,7 @@ const codeSchema = z.object({
   code: z.array(z.string().min(1, t('validation.codeIncomplete'))).length(6, t('validation.codeMustBe6'))
 })
 
-type EmailSchema = z.output<typeof emailSchema>
 type CodeSchema = z.output<typeof codeSchema>
-
-// Check if code method is available in the flow
-const hasCodeOption = computed(() => {
-  return kratos.hasCode(props.flow)
-})
 
 // Start cooldown timer
 function startCooldown() {
@@ -125,18 +119,20 @@ async function requestCode() {
       color: 'success',
       icon: 'i-heroicons-envelope'
     })
-  } catch (error: any) {
+  } catch (error) {
     console.error('[CodeLogin] Failed to request code:', error)
-    
+
     // Check if the flow returned a new state with code input
     // This happens when Kratos responds with the code input UI
-    if (error.response?.data?.ui?.nodes) {
-      const hasCodeInput = error.response.data.ui.nodes.some(
-        (node: any) => node.attributes?.name === 'code'
+    const kratosError = error as KratosError
+    const errorFlow = kratosError.response?.data
+    if (errorFlow?.ui?.nodes) {
+      const hasCodeInput = errorFlow.ui.nodes.some(
+        node => 'name' in node.attributes && node.attributes.name === 'code'
       )
       if (hasCodeInput) {
         // Emit flow update to parent
-        emit('flowUpdate', error.response.data as LoginFlow)
+        emit('flowUpdate', errorFlow as LoginFlow)
         codeSent.value = true
         startCooldown()
         emit('emailSubmitted', emailValue.value)
@@ -144,7 +140,7 @@ async function requestCode() {
       }
     }
 
-    const errorMsg = error.message || t('auth.failedToSendCode')
+    const errorMsg = kratosError.message || t('auth.failedToSendCode')
     toast.add({
       title: t('auth.error'),
       description: errorMsg,
@@ -188,15 +184,17 @@ async function verifyCode(event: FormSubmitEvent<CodeSchema>) {
     })
 
     emit('success')
-  } catch (error: any) {
+  } catch (error) {
     console.error('[CodeLogin] Code verification failed:', error)
-    
+
     // Update flow if Kratos returned new state
-    if (error.response?.data?.ui) {
-      emit('flowUpdate', error.response.data as LoginFlow)
+    const kratosError = error as KratosError
+    const errorFlow = kratosError.response?.data
+    if (errorFlow?.ui) {
+      emit('flowUpdate', errorFlow as LoginFlow)
     }
-    
-    const errorMsg = error.message || t('auth.invalidCode')
+
+    const errorMsg = kratosError.message || t('auth.invalidCode')
     toast.add({
       title: t('auth.error'),
       description: errorMsg,

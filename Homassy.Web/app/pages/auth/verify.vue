@@ -6,12 +6,12 @@
 import * as z from 'zod'
 import type { FormSubmitEvent } from '@nuxt/ui'
 import type { VerificationFlow } from '@ory/client'
+import type { KratosError } from '~/composables/useKratos'
 
 definePageMeta({
   layout: 'public'
 })
 
-const router = useRouter()
 const route = useRoute()
 const kratos = useKratos()
 const toast = useToast()
@@ -83,7 +83,8 @@ onMounted(async () => {
     if (messages.length > 0 && flow.value.state === 'passed_challenge') {
       success.value = true
     }
-  } catch (e: any) {
+  } catch (caught) {
+    const e = caught as KratosError
     console.error('[Verify] Failed to initialize verification flow:', e)
     error.value = e.message || t('auth.verificationFlowError')
     
@@ -147,9 +148,10 @@ async function requestCode(event: FormSubmitEvent<EmailSchema>) {
       color: 'success',
       icon: 'i-heroicons-envelope'
     })
-  } catch (e: any) {
+  } catch (caught) {
+    const e = caught as KratosError
     // Check if code was sent (some errors still mean code was sent)
-    if (e.response?.data?.ui?.nodes?.some((node: any) => node.attributes?.name === 'code')) {
+    if (e.response?.data?.ui?.nodes?.some(node => 'name' in node.attributes && node.attributes.name === 'code')) {
       // Update flow with new state from Kratos
       flow.value = e.response.data as VerificationFlow
       email.value = event.data.email
@@ -197,7 +199,8 @@ async function verifyCode(event: FormSubmitEvent<CodeSchema>) {
       color: 'success',
       icon: 'i-heroicons-check-circle'
     })
-  } catch (e: any) {
+  } catch (caught) {
+    const e = caught as KratosError
     // Check if verification succeeded
     if (e.response?.data?.state === 'passed_challenge') {
       success.value = true
@@ -257,8 +260,9 @@ async function resendCode() {
       color: 'success',
       icon: 'i-heroicons-envelope'
     })
-  } catch (e: any) {
-    if (e.response?.data?.ui?.nodes?.some((node: any) => node.attributes?.name === 'code')) {
+  } catch (caught) {
+    const e = caught as KratosError
+    if (e.response?.data?.ui?.nodes?.some(node => 'name' in node.attributes && node.attributes.name === 'code')) {
       // Update flow with new state from Kratos
       flow.value = e.response.data as VerificationFlow
       startCooldown()

@@ -1,4 +1,7 @@
 <template>
+  <!-- eslint-disable vue/no-v-html -- highlightText escapes the text it is given and
+       emits only its own highlight span, so nothing a user typed reaches the DOM as
+       markup. See app/composables/useSearchHighlight.ts. -->
   <div class="relative rounded-2xl overflow-hidden" style="touch-action: pan-y" data-no-pull-refresh>
     <!-- Swipe action layer (revealed behind the card while dragging) -->
     <div
@@ -7,9 +10,11 @@
       class="absolute inset-0 rounded-2xl flex items-center justify-between px-4"
       :class="swipe.direction.value === 'left' ? 'bg-error-500 dark:bg-error-600' : 'bg-primary-500 dark:bg-primary-600'"
     >
-      <UIcon name="i-lucide-pencil" class="h-5 w-5 text-white transition-transform duration-150"
+      <UIcon
+name="i-lucide-pencil" class="h-5 w-5 text-white transition-transform duration-150"
         :class="[swipe.direction.value === 'right' ? 'opacity-100' : 'opacity-0', swipe.progress.value >= 1 ? 'scale-125' : '']" />
-      <UIcon name="i-lucide-trash-2" class="h-5 w-5 text-white transition-transform duration-150"
+      <UIcon
+name="i-lucide-trash-2" class="h-5 w-5 text-white transition-transform duration-150"
         :class="[swipe.direction.value === 'left' ? 'opacity-100' : 'opacity-0', swipe.progress.value >= 1 ? 'scale-125' : '']" />
     </div>
 
@@ -34,7 +39,7 @@
       <div class="mt-auto pt-4 space-y-2">
         <div v-if="list.pendingItemCount > 0" class="flex items-center gap-2 text-xs">
           <UIcon name="i-lucide-shopping-basket" class="h-3.5 w-3.5 text-primary-500 flex-shrink-0" />
-          <span class="text-toned">{{ $t('profile.shoppingLists.pendingItemCount') }}: {{ list.pendingItemCount }}</span>
+          <span class="text-toned tabular-nums">{{ $t('profile.shoppingLists.pendingItemCount') }}: {{ list.pendingItemCount }}</span>
         </div>
         <div class="flex items-center gap-2 text-xs">
           <UIcon

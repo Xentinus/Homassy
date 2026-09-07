@@ -70,7 +70,8 @@
       "clearAll": "Alle löschen",
       "removeFilter": "Filter entfernen",
       "showResults": "{count} anzeigen",
-      "all": "Alle"
+      "all": "Alle",
+      "clear": "Filter zurücksetzen"
     }
   },
   "imageCropper": {
@@ -83,7 +84,8 @@
       "landscape": "16:9",
       "free": "Frei"
     }
-  },  "imageUpload": {
+  },
+  "imageUpload": {
     "progress": {
       "title": "Bild wird hochgeladen",
       "validating": "Bild wird überprüft...",
@@ -96,7 +98,8 @@
       "cancelled": "Upload abgebrochen",
       "cancelButton": "Upload abbrechen"
     }
-  },  "auth": {
+  },
+  "auth": {
     "login": "Anmelden",
     "logout": "Abmelden",
     "register": "Registrieren",
@@ -391,7 +394,8 @@
           "cancel": "Abbrechen",
           "confirm": "Löschen",
           "success": "Bestand erfolgreich gelöscht"
-        },        "moveModal": {
+        },
+        "moveModal": {
           "title": "Bestand verschieben",
           "description": "Wählen Sie einen neuen Lagerort für diesen Bestand",
           "currentLocation": "Aktueller Standort",
@@ -443,7 +447,11 @@
           "confirm": "Speichern",
           "success": "Produkt erfolgreich aktualisiert"
         }
-      }
+      },
+      "noInventory": "Ihr Bestand ist leer",
+      "noInventoryHint": "Fügen Sie einen Artikel hinzu, um zu verfolgen, was Sie zu Hause haben.",
+      "noResultsTitle": "Keine Ergebnisse gefunden",
+      "tryDifferentSearch": "Versuchen Sie einen anderen Suchbegriff oder setzen Sie die Filter zurück"
     },
     "addProduct": {
       "title": "Bestand hinzufügen",
@@ -803,7 +811,10 @@
       "itemUpdated": "Artikel erfolgreich aktualisiert",
       "itemDeleted": "Artikel erfolgreich gelöscht",
       "restorePurchaseWarning": "Möchten Sie diesen Kauf wirklich wiederherstellen?",
-      "restorePurchaseInventoryWarning": "Hinweis: Dies markiert nur den Artikel als nicht gekauft. Es entfernt den Artikel NICHT aus dem Inventar, wenn er bereits hinzugefügt wurde."
+      "restorePurchaseInventoryWarning": "Hinweis: Dies markiert nur den Artikel als nicht gekauft. Es entfernt den Artikel NICHT aus dem Inventar, wenn er bereits hinzugefügt wurde.",
+      "noListsHint": "Erstellen Sie eine Liste und sammeln Sie, was Sie brauchen.",
+      "noItemsInListHint": "Fügen Sie den ersten Artikel zu dieser Liste hinzu.",
+      "noSearchResultsHint": "Versuchen Sie einen anderen Suchbegriff oder setzen Sie die Filter zurück"
     },
     "activity": {
       "title": "Aktivität",
@@ -1034,7 +1045,8 @@
         "leadHours": "{count} Std. vorher",
         "leadDays": "{count} Tag(e) vorher",
         "allDayNotifyTime": "Uhrzeit für ganztägige Termine",
-        "allDayNotifyTimeHint": "Ganztägige Termine haben keine Startzeit, daher richtet sich ihre Erinnerung nach dieser Uhrzeit – jeweils in der Zeitzone des Mitglieds."
+        "allDayNotifyTimeHint": "Ganztägige Termine haben keine Startzeit, daher richtet sich ihre Erinnerung nach dieser Uhrzeit – jeweils in der Zeitzone des Mitglieds.",
+        "emptyHint": "Abonnieren Sie einen Kalender, dann erscheinen seine Termine neben denen Ihres Haushalts."
       }
     },
     "settingsProfileSection": "Profilinformationen",
@@ -1135,7 +1147,8 @@
       "noResults": "Keine Ergebnisse gefunden",
       "tryDifferentSearch": "Versuchen Sie einen anderen Suchbegriff",
       "pendingItemCount": "Zu kaufen",
-      "openList": "Liste öffnen"
+      "openList": "Liste öffnen",
+      "addList": "Liste hinzufügen"
     },
     "storageLocations": {
       "title": "Lagerorte",
@@ -1311,7 +1324,8 @@
         "createButton": "Automatisierung erstellen",
         "createSuccess": "Automatisierung erfolgreich erstellt.",
         "loadFailed": "Daten konnten nicht geladen werden."
-      }
+      },
+      "tryDifferentSearch": "Versuchen Sie einen anderen Suchbegriff oder setzen Sie die Filter zurück"
     },
     "security": {
       "title": "Sicherheit",
@@ -1342,6 +1356,13 @@
       "webauthnNotAvailable": "WebAuthn ist im aktuellen Einstellungsablauf nicht verfügbar.",
       "webauthnOptionsError": "WebAuthn-Optionen konnten nicht vom Server abgerufen werden.",
       "passkeyNotSupportedDescription": "Ihr Browser oder Gerät unterstützt keine Passkeys. Versuchen Sie, einen modernen Browser wie Chrome, Safari oder Edge zu verwenden."
+    },
+    "products": {
+      "noProducts": "Noch keine Produkte",
+      "addFirstProduct": "Fügen Sie Ihr erstes Produkt hinzu, um Ihre Stammdaten aufzubauen.",
+      "noResults": "Keine Ergebnisse gefunden",
+      "tryDifferentSearch": "Versuchen Sie einen anderen Suchbegriff",
+      "addProduct": "Produkt hinzufügen"
     }
   },
   "settings": {
@@ -1374,7 +1395,12 @@
     "emailVerified": "E-Mail bestätigt",
     "emailVerifiedDescription": "Ihre E-Mail-Adresse wurde erfolgreich bestätigt.",
     "loginSuccess": "Anmeldung erfolgreich",
-    "welcomeBack": "Willkommen zurück!"
+    "welcomeBack": "Willkommen zurück!",
+    "newVersion": {
+      "title": "Neue Version verfügbar",
+      "description": "Laden Sie neu, um die neueste Homassy-Version zu erhalten.",
+      "reload": "Neu laden"
+    }
   },
   "enums": {
     "storeType": {
@@ -1469,8 +1495,8 @@
       "55": "Beutel"
     },
     "currency": {
-      "135": "HUF",
       "105": "EUR",
+      "135": "HUF",
       "279": "USD"
     },
     "activityType": {
@@ -2506,5 +2532,21 @@
       "invalidFormat": "Ungültiges Barcode-Format. Nur numerische Barcodes werden unterstützt.",
       "unusualLength": "Ungewöhnliche Barcode-Länge. Bitte überprüfen Sie, ob er korrekt gescannt wurde."
     }
+  },
+  "errorPage": {
+    "notFound": {
+      "title": "Diese Seite finden wir nicht",
+      "description": "Vielleicht ist die Adresse falsch geschrieben, oder die Seite ist umgezogen."
+    },
+    "serverError": {
+      "title": "Etwas ist schiefgelaufen",
+      "description": "Das liegt an uns. Versuchen Sie es erneut — wenn es bleibt, warten Sie einen Moment."
+    },
+    "offline": {
+      "title": "Sie sind offline",
+      "description": "Homassy erreicht das Netzwerk gerade nicht. Prüfen Sie Ihre Verbindung und versuchen Sie es erneut."
+    },
+    "tryAgain": "Erneut versuchen",
+    "goToCalendar": "Zum Kalender"
   }
 }

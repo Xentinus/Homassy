@@ -41,7 +41,7 @@
          would remount every card and replay the bubble animation. -->
     <template v-if="loading && !hasLoaded">
       <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-        <USkeleton v-for="i in 6" :key="i" class="h-32 w-full rounded-lg" />
+        <SkeletonCard v-for="i in 6" :key="i" />
       </div>
     </template>
 
@@ -49,15 +49,15 @@
       <!-- Empty State — rendered next to the (then empty) grid, never in place
            of it: unmounting the grid replays the enter animation on the way back
            and swallows the leave animation of the last card removed. -->
-      <div v-if="filteredLocations.length === 0" class="rounded-lg p-12 text-center">
-        <UIcon name="i-lucide-warehouse" class="h-16 w-16 text-gray-400 mx-auto mb-4" />
-        <p class="text-lg font-semibold text-gray-700 dark:text-gray-300 mb-2">
-          {{ hasActiveQuery ? $t('profile.storageLocations.noResults') : $t('profile.storageLocations.noLocations') }}
-        </p>
-        <p class="text-gray-600 dark:text-gray-400">
-          {{ hasActiveQuery ? $t('profile.storageLocations.tryDifferentSearch') : $t('profile.storageLocations.addFirstLocation') }}
-        </p>
-      </div>
+      <EmptyState
+        v-if="filteredLocations.length === 0"
+        :illustration="hasActiveQuery ? 'search' : 'storageLocation'"
+        :title="hasActiveQuery ? $t('profile.storageLocations.noResults') : $t('profile.storageLocations.noLocations')"
+        :description="hasActiveQuery ? $t('profile.storageLocations.tryDifferentSearch') : $t('profile.storageLocations.addFirstLocation')"
+        :action-label="hasActiveQuery ? $t('common.filters.clear') : $t('profile.storageLocations.addLocation')"
+        :action-icon="hasActiveQuery ? 'i-lucide-filter-x' : 'i-lucide-plus'"
+        @action="hasActiveQuery ? clearAllFilters() : openCreateDrawer()"
+      />
 
       <!-- Locations Grid -->
       <AnimatedList class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">

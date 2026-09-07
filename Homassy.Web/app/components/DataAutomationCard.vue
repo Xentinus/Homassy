@@ -7,9 +7,11 @@
       class="absolute inset-0 rounded-2xl flex items-center justify-between px-4"
       :class="swipe.direction.value === 'left' ? 'bg-error-500 dark:bg-error-600' : 'bg-primary-500 dark:bg-primary-600'"
     >
-      <UIcon name="i-lucide-pencil" class="h-5 w-5 text-white transition-transform duration-150"
+      <UIcon
+name="i-lucide-pencil" class="h-5 w-5 text-white transition-transform duration-150"
         :class="[swipe.direction.value === 'right' ? 'opacity-100' : 'opacity-0', swipe.progress.value >= 1 ? 'scale-125' : '']" />
-      <UIcon name="i-lucide-trash-2" class="h-5 w-5 text-white transition-transform duration-150"
+      <UIcon
+name="i-lucide-trash-2" class="h-5 w-5 text-white transition-transform duration-150"
         :class="[swipe.direction.value === 'left' ? 'opacity-100' : 'opacity-0', swipe.progress.value >= 1 ? 'scale-125' : '']" />
     </div>
 

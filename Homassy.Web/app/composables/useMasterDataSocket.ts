@@ -19,6 +19,7 @@
  * Everything is guarded by `isSupported` (client-only); on the server the methods are no-ops.
  */
 import * as signalR from '@microsoft/signalr'
+import type { HubEventHandler, SignalRHandler } from '~/types/realtime'
 import { ref } from 'vue'
 
 // Module-level singletons: one connection shared across the whole app.
@@ -76,15 +77,13 @@ export const useMasterDataSocket = () => {
   }
 
   /** Subscribe to a hub event. */
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const on = (event: string, handler: (...args: any[]) => void): void => {
-    getConnection()?.on(event, handler)
+  const on = (event: string, handler: HubEventHandler): void => {
+    getConnection()?.on(event, handler as SignalRHandler)
   }
 
   /** Unsubscribe a previously registered handler. */
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const off = (event: string, handler: (...args: any[]) => void): void => {
-    connection?.off(event, handler)
+  const off = (event: string, handler: HubEventHandler): void => {
+    connection?.off(event, handler as SignalRHandler)
   }
 
   /** Register a callback to run after an automatic reconnect (to re-sync the list). */

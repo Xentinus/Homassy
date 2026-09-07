@@ -46,7 +46,10 @@
                 v-if="item.badge"
                 class="absolute -top-1.5 -right-1.5 z-10 flex items-center justify-center min-w-[18px] h-[18px] px-1 rounded-full bg-red-500 dark:bg-red-600 shadow-md"
               >
-                <span class="text-[10px] font-bold text-white leading-none">
+                <!-- tabular-nums: the count changes under the mounted badge (a
+                     product expires, an item goes overdue), and proportional
+                     digits would resize the pill on every change. -->
+                <span class="text-[10px] font-bold text-white leading-none tabular-nums">
                   {{ item.badge }}
                 </span>
               </div>

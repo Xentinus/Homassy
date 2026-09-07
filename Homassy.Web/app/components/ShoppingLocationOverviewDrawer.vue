@@ -58,8 +58,7 @@
         </div>
 
         <div v-if="isLoading" class="space-y-2">
-          <USkeleton class="h-16 w-full" />
-          <USkeleton class="h-16 w-full" />
+          <SkeletonRow v-for="i in 3" :key="i" />
         </div>
         <div v-else-if="purchases.length === 0" class="text-center py-8 text-sm text-muted">
           {{ $t('profile.shoppingLocations.noPurchases') }}

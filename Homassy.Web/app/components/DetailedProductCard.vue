@@ -1,4 +1,7 @@
 ﻿<template>
+  <!-- eslint-disable vue/no-v-html -- highlightText escapes the text it is given and
+       emits only its own highlight span, so nothing a user typed reaches the DOM as
+       markup. See app/composables/useSearchHighlight.ts. -->
   <div
     role="button"
     tabindex="0"
@@ -50,7 +53,7 @@
       <div v-else class="flex flex-col gap-1">
         <div v-for="entry in stockByUnit" :key="entry.unit" class="flex items-center gap-2 text-xs">
           <UIcon name="i-lucide-package-2" class="h-3.5 w-3.5 text-amber-600 dark:text-amber-400 flex-shrink-0" />
-          <span class="font-bold text-highlighted">{{ entry.quantity }}</span>
+          <span class="font-bold text-highlighted tabular-nums">{{ entry.quantity }}</span>
           <span class="text-toned">{{ entry.unitLabel }}</span>
         </div>
       </div>

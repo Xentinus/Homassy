@@ -51,6 +51,18 @@ export default defineNuxtConfig({
   modules: [
     '@nuxt/content',
     '@nuxt/eslint',
+    // Listed explicitly even though @nuxt/ui registers it internally: this pins
+    // the version the font config below is written against, and makes Nuxt UI's
+    // `hasNuxtModule` check short-circuit its own registration (its defaults are
+    // still merged into `fonts`).
+    //
+    // The version matters. @nuxt/ui depends on ^0.12.1, and on 0.12.1 this exact
+    // config resolves Public Sans through a different provider: nine static
+    // `.woff` faces, one per weight, unsubsetted, alongside the variable pair.
+    // package.json therefore asks for ^0.14.0 and carries an `overrides` entry
+    // pinning @nuxt/ui to the same copy — without it npm installs both, and the
+    // duplicate's own dependency subtree is what desynchronised the lockfile.
+    '@nuxt/fonts',
     '@nuxt/image',
     '@nuxt/scripts',
     '@nuxt/ui',
@@ -59,6 +71,58 @@ export default defineNuxtConfig({
     '@nuxtjs/i18n',
     '@vite-pwa/nuxt'
   ],
+
+  // `--font-sans` in app/assets/css/main.css declares 'Public Sans' for every
+  // Tailwind/Nuxt UI text token, so the face has to actually be delivered —
+  // before this it was not, and the whole app fell through to the platform
+  // default (a different typeface on every OS).
+  //
+  // @nuxt/fonts downloads the face at build time and serves it from our own
+  // origin: no third-party request, and it lands inside the service worker's
+  // `static-assets` runtime cache, whose pattern already matches `woff2?`.
+  //
+  // The family name is picked up from the `--font-*` custom property by
+  // @nuxt/fonts' default `processCSSVariables: 'font-prefixed-only'` — Tailwind 4
+  // resolves the token to `var(--font-sans)` and never emits a literal
+  // `font-family: 'Public Sans'` for the CSS scan to find.
+  fonts: {
+    defaults: {
+      // No italic face on purpose. The four `italic` usages are muted notes and
+      // hints, where the browser's synthetic oblique is worth the bytes saved.
+      styles: ['normal'],
+      // latin covers en/de (umlauts), latin-ext the Hungarian ő/ű.
+      subsets: ['latin', 'latin-ext'],
+      // Named explicitly so fontaine can emit the metric overrides
+      // (size-adjust / ascent-override) for the fallback faces. That is what
+      // keeps `font-display: swap` from reflowing the page when the real font
+      // arrives.
+      fallbacks: {
+        'sans-serif': ['Segoe UI', 'Roboto', 'Helvetica Neue', 'Arial']
+      }
+    },
+    families: [
+      {
+        name: 'Public Sans',
+        // No `provider` on purpose. Pinning one takes fontless down the
+        // "override provider" branch, which prefers the provider's own
+        // `fallbacks` (Google reports the bare generic `sans-serif`) over
+        // `defaults.fallbacks` below — and a `local('sans-serif')` fallback face
+        // carries no metrics, so the size-adjust overrides come out as no-ops.
+        // Letting the provider be auto-detected keeps our fallback list.
+        //
+        // A weight *range* asks unifont for the variable face, so the app gets
+        // one file per subset covering 400/500/600/700 (the four weights the
+        // markup uses) instead of four static files per subset. That is both
+        // fewer bytes and — the point of it — few enough files that preloading
+        // them is honest: two requests, both of which every hu/de page needs.
+        // Four static weights × two subsets would have been eight preloads.
+        weights: ['100 900'],
+        // Preload is off by default for subsetted faces (they carry a
+        // unicode-range), so it has to be asked for.
+        preload: true
+      }
+    ]
+  },
 
   imports: {
     presets: [
@@ -126,13 +190,50 @@ export default defineNuxtConfig({
     },
     workbox: {
       importScripts: ['/sw-push.js'],
-      // Let @vite-pwa/nuxt handle navigation routes via its built-in allowlist.
-      // A custom 'navigate' mode handler here conflicts with the PWA navigation
-      // route allowlist and causes the "not being used" warning.
+      // @vite-pwa/nuxt sets `globPatterns` itself (it pushes the payload and
+      // app-manifest JSON onto it), which means vite-plugin-pwa's own default
+      // never applies and nothing HTML is precached. The offline document has to
+      // be, or `precacheFallback` below has nothing to answer with. Just that
+      // one file: the rest of the app is runtime-cached by the routes below, and
+      // precaching `_nuxt/**` would make every install download the bundle.
+      globPatterns: ['offline/index.html'],
+      // @vite-pwa/nuxt fills `navigateFallback` in with '/' when the key is
+      // absent, which registers a NavigationRoute answering EVERY navigation
+      // from the precache — the SPA-shell model. This app is server-rendered, so
+      // that trades the SSR document for a cached shell on every page load, and
+      // it is also what made a custom `request.mode === 'navigate'` runtime
+      // route dead code (the old "not being used" warning). Declaring the key
+      // as undefined opts out: the module only defaults it when it is missing.
+      navigateFallback: undefined,
       // Server-handled paths behind the same-origin reverse proxy (Kratos flows,
-      // REST API, SignalR) must never get the cached app shell.
+      // REST API, SignalR) must never be answered from the cache. Kept in step
+      // with the exclusion in the navigation route below.
       navigateFallbackDenylist: [/^\/kratos\//, /^\/api\//, /^\/hubs\//],
       runtimeCaching: [
+        {
+          // Documents. Fresh when the network is there, the last copy we saw
+          // when it is not, and the branded /offline page when neither is
+          // available — that last case is the one the browser would otherwise
+          // answer with its own error screen, which in an installed PWA (no
+          // address bar) is a dead end. app/error.vue can only cover failures
+          // that happen once the app is already running.
+          urlPattern: ({ request, url }) =>
+            request.mode === 'navigate' && !/^\/(kratos|api|hubs)\//.test(url.pathname),
+          handler: 'NetworkFirst',
+          options: {
+            cacheName: 'pages',
+            expiration: {
+              maxEntries: 50,
+              maxAgeSeconds: 86400 // 1 day
+            },
+            // `PrecacheFallbackPlugin` looks this up in the precache by exact
+            // key. workbox-build strips the `/index.html` off the globbed
+            // `offline/index.html`, so `/offline` is the key it lands under.
+            precacheFallback: {
+              fallbackURL: '/offline'
+            }
+          }
+        },
         {
           urlPattern: /^https:\/\/.*\.(js|css|woff2?|png|jpg|jpeg|svg|gif|webp|ico)$/,
           handler: 'CacheFirst',
@@ -161,6 +262,12 @@ export default defineNuxtConfig({
   },
 
   nitro: {
+    // /offline is the service worker's fallback document, so it has to exist as
+    // a static file for the SW to precache (pwa.workbox.runtimeCaching above).
+    prerender: {
+      routes: ['/offline']
+    },
+
     // Reduce Nitro build memory
     minify: true,
     sourceMap: false,

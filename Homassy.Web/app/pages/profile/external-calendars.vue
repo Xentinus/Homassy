@@ -2,8 +2,11 @@
   <div class="px-4 sm:px-6 lg:px-8 py-6 space-y-6 max-w-2xl mx-auto">
     <template v-if="loading">
       <USkeleton class="h-4 w-2/3 rounded mb-4" />
-      <USkeleton class="h-20 w-full rounded-lg mb-3" />
-      <USkeleton class="h-20 w-full rounded-lg" />
+      <!-- Same `space-y-2` stack the real list uses, so the rows land where the
+           placeholders were. -->
+      <div class="space-y-2">
+        <SkeletonRow v-for="i in 3" :key="i" />
+      </div>
     </template>
 
     <!-- Not part of a family: external calendars are family-scoped -->
@@ -124,9 +127,15 @@
           </div>
         </div>
       </AnimatedList>
-      <div v-else class="text-sm text-gray-400 dark:text-gray-500 py-2">
-        {{ $t('profile.family.externalCalendars.empty') }}
-      </div>
+      <EmptyState
+        v-else
+        illustration="calendar"
+        :title="$t('profile.family.externalCalendars.empty')"
+        :description="$t('profile.family.externalCalendars.emptyHint')"
+        :action-label="$t('profile.family.externalCalendars.add')"
+        action-icon="i-lucide-plus"
+        @action="showAddCalendar = true"
+      />
     </div>
   </div>
 </template>

@@ -11,7 +11,7 @@ const detectedCandidates = ref<string[]>([])
 
 // Buffer for stable detection: tracks how many frames each barcode appeared in
 let bufferTimer: ReturnType<typeof setTimeout> | null = null
-let candidateFrameCount = new Map<string, number>() // barcode → frames seen
+const candidateFrameCount = new Map<string, number>() // barcode → frames seen
 let totalFrameCount = 0
 const BUFFER_MS = 1000          // accumulation window (ms)
 const STABILITY_THRESHOLD = 0.5 // barcode must appear in ≥50% of frames
@@ -44,7 +44,9 @@ export const useBarcodeScanner = () => {
   const playBeep = () => {
     try {
       // Use Web Audio API for better sound quality
-      const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)()
+      const AudioContextCtor = window.AudioContext ?? window.webkitAudioContext
+      if (!AudioContextCtor) return
+      const audioContext = new AudioContextCtor()
 
       // First tone (higher pitch)
       const oscillator1 = audioContext.createOscillator()
@@ -116,15 +118,14 @@ export const useBarcodeScanner = () => {
    * @param capabilities - MediaTrackCapabilities emitted by @camera-on
    * @param containerEl  - The wrapper element containing the <video> tag (for zoom track lookup)
    */
-  const initTorchAndZoom = async (capabilities: any, containerEl?: HTMLElement | null) => {
+  const initTorchAndZoom = async (capabilities: MediaTrackCapabilities | null | undefined, containerEl?: HTMLElement | null) => {
     if (!capabilities) return
 
     // Torch support: library controls it via :torch prop — we only need the flag
     torchSupported.value = capabilities.torch === true
 
     // Zoom support: read range from capabilities
-    if (capabilities.zoom?.min !== undefined && capabilities.zoom?.max !== undefined
-        && capabilities.zoom.max > capabilities.zoom.min) {
+    if (capabilities.zoom !== undefined && capabilities.zoom.max > capabilities.zoom.min) {
       zoomMin.value = capabilities.zoom.min
       zoomMax.value = capabilities.zoom.max
       zoomStep.value = capabilities.zoom.step ?? 0.5
@@ -141,7 +142,7 @@ export const useBarcodeScanner = () => {
       // Apply default 2x zoom immediately
       if (videoTrack) {
         try {
-          await videoTrack.applyConstraints({ advanced: [{ zoom: defaultZoom } as any] })
+          await videoTrack.applyConstraints({ advanced: [{ zoom: defaultZoom }] })
         } catch (err) {
           console.error('Default zoom failed:', err)
         }
@@ -167,7 +168,7 @@ export const useBarcodeScanner = () => {
     const clamped = Math.min(zoomMax.value, Math.max(zoomMin.value, value))
     zoomLevel.value = clamped
     try {
-      await videoTrack.applyConstraints({ advanced: [{ zoom: clamped } as any] })
+      await videoTrack.applyConstraints({ advanced: [{ zoom: clamped }] })
     } catch (err) {
       console.error('Zoom failed:', err)
     }
@@ -191,7 +192,7 @@ export const useBarcodeScanner = () => {
     if (stableCandidates.length === 0) return
 
     if (stableCandidates.length === 1) {
-      const barcode = stableCandidates[0]
+      const barcode = stableCandidates[0]!
       playBeep()
       vibrateOnDetect()
       detectedBarcode.value = barcode
@@ -210,7 +211,7 @@ export const useBarcodeScanner = () => {
    * Handle barcode detection from live camera feed
    * @param {Array} detectedCodes - Array of detected barcodes
    */
-  const handleDetect = (detectedCodes: any[]) => {
+  const handleDetect = (detectedCodes: DetectedBarcode[]) => {
     if (isPaused.value || !isScanning.value || detectedCodes.length === 0) return
 
     // Count how many frames each barcode value appears in
@@ -305,8 +306,12 @@ export const useBarcodeScanner = () => {
         }
 
         try {
-          // Use BarcodeDetector API (polyfilled by vue-qrcode-reader)
-          const barcodeDetector = new (window as any).BarcodeDetector({
+          // Use BarcodeDetector API (polyfilled by vue-qrcode-reader, so the
+          // optional global is present by the time the scanner is open)
+          const BarcodeDetectorCtor = window.BarcodeDetector
+          if (!BarcodeDetectorCtor) throw new Error('BarcodeDetector is unavailable')
+
+          const barcodeDetector = new BarcodeDetectorCtor({
             formats: ['linear_codes', 'matrix_codes']
           })
 
@@ -315,7 +320,7 @@ export const useBarcodeScanner = () => {
           if (detectedCodes.length > 0) {
             if (detectedCodes.length === 1) {
               // Single result – auto-confirm
-              const barcode = detectedCodes[0].rawValue
+              const barcode = detectedCodes[0]!.rawValue
               playBeep()
               vibrateOnDetect()
               detectedBarcode.value = barcode
@@ -330,7 +335,7 @@ export const useBarcodeScanner = () => {
               }
             } else {
               // Multiple results – let user choose
-              detectedCandidates.value = [...new Set(detectedCodes.map((c: any) => c.rawValue as string))]
+              detectedCandidates.value = [...new Set(detectedCodes.map(code => code.rawValue))]
               // Keep isPaused = true; frozen image stays visible until user picks
             }
           } else {

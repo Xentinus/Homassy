@@ -6,6 +6,7 @@
 import * as z from 'zod'
 import type { FormSubmitEvent } from '@nuxt/ui'
 import type { RegistrationFlow } from '@ory/client'
+import type { KratosError } from '~/composables/useKratos'
 import { getBrowserKratosTimezone } from '~/utils/enumMappers'
 
 definePageMeta({
@@ -15,7 +16,6 @@ definePageMeta({
 const router = useRouter()
 const route = useRoute()
 const kratos = useKratos()
-const webauthn = useWebAuthn()
 const authStore = useAuthStore()
 const toast = useToast()
 const { t } = useI18n()
@@ -75,9 +75,8 @@ onMounted(async () => {
 
   // Check if registration is enabled before initializing Kratos flow
   try {
-    const nuxtApp = useNuxtApp()
-    const $api = nuxtApp.$api as any
-    const configResponse = await $api('/api/v1.0/auth/config') as any
+    const { $api } = useNuxtApp()
+    const configResponse = await $api<{ data?: { registrationEnabled?: boolean } }>('/api/v1.0/auth/config')
     registrationEnabled.value = configResponse?.data?.registrationEnabled ?? true
   } catch {
     // If config fetch fails, default to enabled so we don't block registration unnecessarily
@@ -117,27 +116,13 @@ onMounted(async () => {
       flow.value = await kratos.getRegistrationFlow(flowId)
       
       // Check if flow is already in sent_email state (code was sent)
-      if ((flow.value as any).state === 'sent_email') {
-        // Flow already had code sent, show code input
-        // Extract all stored trait values from flow
-        const emailNode = flow.value.ui.nodes.find(
-          (node: any) => node.attributes?.name === 'traits.email'
-        )
-        const nameNode = flow.value.ui.nodes.find(
-          (node: any) => node.attributes?.name === 'traits.name'
-        )
-        const displayNameNode = flow.value.ui.nodes.find(
-          (node: any) => node.attributes?.name === 'traits.display_name'
-        )
-        if (emailNode) {
-          email.value = (emailNode.attributes as any)?.value || ''
-        }
-        if (nameNode) {
-          name.value = (nameNode.attributes as any)?.value || ''
-        }
-        if (displayNameNode) {
-          displayName.value = (displayNameNode.attributes as any)?.value || ''
-        }
+      if (flow.value.state === 'sent_email') {
+        // The code was already sent, so resume at the code input — and take the
+        // trait values the flow is carrying rather than asking for them again.
+        const nodes = flow.value.ui.nodes
+        email.value = kratos.getNodeValue(nodes, 'traits.email') ?? ''
+        name.value = kratos.getNodeValue(nodes, 'traits.name') ?? ''
+        displayName.value = kratos.getNodeValue(nodes, 'traits.display_name') ?? ''
         step.value = 'code'
       }
     } else {
@@ -150,7 +135,8 @@ onMounted(async () => {
     if (errors.length > 0) {
       error.value = errors[0]
     }
-  } catch (e: any) {
+  } catch (caught) {
+    const e = caught as KratosError
     console.error('[Register] Failed to initialize registration flow:', e)
     
     // Check if error is "already logged in"
@@ -242,13 +228,14 @@ async function submitDetails(event: FormSubmitEvent<Schema>) {
       color: 'success',
       icon: 'i-heroicons-envelope'
     })
-  } catch (e: any) {
+  } catch (caught) {
+    const e = caught as KratosError
     console.error('[Register] Registration failed:', e)
     
     // Check if the error response contains a code input - this means code was sent
     if (e.response?.data?.ui?.nodes) {
       const hasCodeInput = e.response.data.ui.nodes.some(
-        (node: any) => node.attributes?.name === 'code'
+        node => 'name' in node.attributes && node.attributes.name === 'code'
       )
       if (hasCodeInput) {
         // Update the flow with the new state (important for CSRF token!)
@@ -312,7 +299,8 @@ async function verifyCode(event: FormSubmitEvent<CodeSchema>) {
     })
 
     await router.push('/calendar')
-  } catch (e: any) {
+  } catch (caught) {
+    const e = caught as KratosError
     console.error('[Register] Code verification failed:', e)
     
     // Update flow if Kratos returned new state
@@ -361,9 +349,10 @@ async function resendCode() {
       color: 'success',
       icon: 'i-heroicons-envelope'
     })
-  } catch (e: any) {
+  } catch (caught) {
+    const e = caught as KratosError
     // Code sent even on "error" response - update flow with new state
-    if (e.response?.data?.ui?.nodes?.some((node: any) => node.attributes?.name === 'code')) {
+    if (e.response?.data?.ui?.nodes?.some(node => 'name' in node.attributes && node.attributes.name === 'code')) {
       flow.value = e.response.data as RegistrationFlow
       startCooldown()
       toast.add({

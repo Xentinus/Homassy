@@ -15,6 +15,7 @@
  * `joinInventory` returns `null` so callers can fall back to a plain REST fetch.
  */
 import * as signalR from '@microsoft/signalr'
+import type { HubEventHandler, SignalRHandler } from '~/types/realtime'
 import { ref } from 'vue'
 import type { InventoryGridProductInfo } from '~/types/product'
 
@@ -86,13 +87,13 @@ export const useInventorySocket = () => {
   }
 
   /** Subscribe to a hub event. */
-  const on = (event: string, handler: (...args: any[]) => void): void => {
-    getConnection()?.on(event, handler)
+  const on = (event: string, handler: HubEventHandler): void => {
+    getConnection()?.on(event, handler as SignalRHandler)
   }
 
   /** Unsubscribe a previously registered handler. */
-  const off = (event: string, handler: (...args: any[]) => void): void => {
-    connection?.off(event, handler)
+  const off = (event: string, handler: HubEventHandler): void => {
+    connection?.off(event, handler as SignalRHandler)
   }
 
   /** Register a callback to run after an automatic reconnect (to re-sync the grid snapshot). */

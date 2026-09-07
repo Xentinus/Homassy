@@ -5,6 +5,8 @@
  * Supports passkey autofill and code-based login
  */
 import type { LoginFlow } from '@ory/client'
+import type { PublicKeyCredentialRequestOptionsJSON } from '@simplewebauthn/browser'
+import type { KratosError } from '~/composables/useKratos'
 import * as z from 'zod'
 
 definePageMeta({
@@ -61,9 +63,8 @@ onMounted(async () => {
 
   // Fetch auth config to check if registration is enabled
   try {
-    const nuxtApp = useNuxtApp()
-    const $api = nuxtApp.$api as any
-    const configResponse = await $api('/api/v1.0/auth/config') as any
+    const { $api } = useNuxtApp()
+    const configResponse = await $api<{ data?: { registrationEnabled?: boolean } }>('/api/v1.0/auth/config')
     registrationEnabled.value = configResponse?.data?.registrationEnabled ?? true
   } catch {
     registrationEnabled.value = true
@@ -105,7 +106,8 @@ onMounted(async () => {
     if (flow.value && webauthn.isSupported()) {
       passkeyAvailable.value = true
     }
-  } catch (e: any) {
+  } catch (caught) {
+    const e = caught as KratosError
     console.error('[Login] Failed to initialize login flow:', e)
     
     // Check if error is "already logged in"
@@ -133,47 +135,6 @@ onMounted(async () => {
     loading.value = false
   }
 })
-
-/**
- * Complete passkey/webauthn login after user selects a passkey
- * Kratos requires identifier (email) for webauthn login
- */
-async function completePasskeyLogin(credential: any) {
-  if (!flow.value || !email.value) return
-  
-  loading.value = true
-  error.value = null
-  
-  try {
-    // Get CSRF token from flow
-    const csrfToken = kratos.getCsrfToken(flow.value.ui.nodes) || ''
-    
-    // Submit to Kratos using 'webauthn' method with identifier
-    await kratos.submitLoginFlow(flow.value.id, {
-      method: 'webauthn',
-      identifier: email.value,
-      csrf_token: csrfToken,
-      webauthn_login: JSON.stringify(credential)
-    })
-    
-    // Refresh auth state
-    await authStore.refreshSession()
-    
-    toast.add({
-      title: t('toast.loginSuccess'),
-      description: t('toast.welcomeBack'),
-      color: 'success',
-      icon: 'i-heroicons-check-circle'
-    })
-    
-    await handleLoginSuccess()
-  } catch (e: any) {
-    console.error('[Login] Passkey login failed:', e)
-    error.value = e.message || t('auth.passkeyError')
-  } finally {
-    loading.value = false
-  }
-}
 
 /**
  * Trigger passkey login manually (when user clicks the button)
@@ -215,7 +176,8 @@ async function triggerPasskeyLogin() {
       })
       // Unexpected success - shouldn't happen without webauthn_login
       console.warn('[Login] Unexpected success without WebAuthn credential')
-    } catch (e: any) {
+    } catch (caught) {
+      const e = caught as KratosError
       // Handle 422 browser_location_change_required - Kratos redirects to a new flow
       if (e.response?.status === 422 && e.response?.data?.redirect_browser_to) {
         const redirectUrl = e.response.data.redirect_browser_to as string
@@ -259,7 +221,9 @@ async function triggerPasskeyLogin() {
     console.debug('[Login] Got WebAuthn challenge, starting authentication...')
     
     // Step 4: Perform WebAuthn authentication with browser
-    const result = await webauthn.authenticate(options as any)
+    // `isRegistration: false` is what makes this the request half of the union
+    // the challenge parser returns.
+    const result = await webauthn.authenticate(options as PublicKeyCredentialRequestOptionsJSON)
     
     if (!result.success || !result.response) {
       throw new Error(result.error || t('auth.passkeyError'))
@@ -288,7 +252,8 @@ async function triggerPasskeyLogin() {
     
     await handleLoginSuccess()
     
-  } catch (e: any) {
+  } catch (caught) {
+    const e = caught as KratosError
     console.error('[Login] Passkey login failed:', e)
     error.value = e.message || t('auth.passkeyError')
   } finally {
@@ -339,13 +304,14 @@ async function requestCode() {
       color: 'success',
       icon: 'i-heroicons-envelope'
     })
-  } catch (e: any) {
+  } catch (caught) {
+    const e = caught as KratosError
     console.error('[Login] Failed to request code:', e)
     
     // Check if the flow returned a new state with code input
     if (e.response?.data?.ui?.nodes) {
       const hasCodeInput = e.response.data.ui.nodes.some(
-        (node: any) => node.attributes?.name === 'code'
+        node => 'name' in node.attributes && node.attributes.name === 'code'
       )
       if (hasCodeInput) {
         flow.value = e.response.data as LoginFlow
@@ -392,7 +358,8 @@ async function verifyCode() {
     })
     
     await handleLoginSuccess()
-  } catch (e: any) {
+  } catch (caught) {
+    const e = caught as KratosError
     console.error('[Login] Code verification failed:', e)
     
     // Update flow if Kratos returned new state
@@ -452,13 +419,6 @@ function startCooldown() {
 const canRequestCode = computed(() => {
   return email.value.length > 0 && cooldownSeconds.value === 0 && !loading.value
 })
-
-const requestButtonText = computed(() => {
-  if (cooldownSeconds.value > 0) {
-    return `${t('auth.wait')} ${cooldownSeconds.value}s`
-  }
-  return loading.value ? t('auth.sending') : t('auth.sendCode')
-})
 </script>
 
 <template>
@@ -472,7 +432,7 @@ const requestButtonText = computed(() => {
           </div>
           <h2 class="text-xl text-pretty font-semibold text-highlighted">{{ $t('auth.signIn') }}</h2>
           <p class="mt-1 text-base text-pretty text-muted">{{ $t('auth.welcomeBack') }}</p>
-          <p class="mt-1 text-sm text-pretty text-muted" v-if="registrationEnabled">
+          <p v-if="registrationEnabled" class="mt-1 text-sm text-pretty text-muted">
             {{ $t('auth.dontHaveAccount') }}
             <ULink to="/auth/register" class="text-primary font-medium">{{ $t('auth.signUp') }}</ULink>.
           </p>
@@ -533,9 +493,9 @@ const requestButtonText = computed(() => {
                 
                 <!-- Divider -->
                 <div v-if="passkeyAvailable" class="flex items-center gap-4">
-                  <div class="flex-1 h-px bg-gray-200 dark:bg-gray-700"></div>
+                  <div class="flex-1 h-px bg-gray-200 dark:bg-gray-700"/>
                   <span class="text-xs text-muted">{{ $t('common.or') }}</span>
-                  <div class="flex-1 h-px bg-gray-200 dark:bg-gray-700"></div>
+                  <div class="flex-1 h-px bg-gray-200 dark:bg-gray-700"/>
                 </div>
 
                 <!-- Send code button -->

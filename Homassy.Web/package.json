@@ -20,6 +20,7 @@
     "@microsoft/signalr": "^10.0.0",
     "@nuxt/content": "^3.9.0",
     "@nuxt/eslint": "^1.12.1",
+    "@nuxt/fonts": "^0.14.0",
     "@nuxt/hints": "^1.0.0-alpha.4",
     "@nuxt/image": "^2.0.0",
     "@nuxt/scripts": "^0.13.2",
@@ -44,5 +45,8 @@
     "@vite-pwa/nuxt": "^1.1.0",
     "typescript": "^5.9.3",
     "vue-tsc": "^3.3.11"
+  },
+  "overrides": {
+    "@nuxt/fonts": "$@nuxt/fonts"
   }
 }

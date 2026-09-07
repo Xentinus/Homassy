@@ -140,7 +140,7 @@
 
           <!-- History Loading -->
           <div v-if="isLoadingHistory" class="space-y-3">
-            <USkeleton v-for="i in 3" :key="i" class="h-16 w-full rounded-lg" />
+            <SkeletonRow v-for="i in 3" :key="i" />
           </div>
 
           <!-- No history -->
@@ -174,8 +174,11 @@
 
             <!-- Infinite Scroll Sentinel -->
             <div ref="sentinelRef" class="h-10">
-              <div v-if="isLoadingMore" class="flex items-center justify-center py-3">
-                <USkeleton v-for="i in 2" :key="i" class="h-16 w-full rounded-lg mb-3" />
+              <!-- Same `space-y-3` stack as the history list above, not a
+                   centered flex row: two placeholders side by side in a flex
+                   container were half-width and stacked wrong. -->
+              <div v-if="isLoadingMore" class="space-y-3 py-3">
+                <SkeletonRow v-for="i in 2" :key="i" />
               </div>
               <p v-else-if="!hasMoreHistory" class="text-center text-xs text-gray-400 py-2">
                 {{ t('profile.automation.noMoreHistory') }}

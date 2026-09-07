@@ -175,15 +175,23 @@
          bubble animation, and would swallow the leave animation of a card
          removed in the same tick. -->
     <div v-if="isLoading && !hasLoaded" class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-      <USkeleton v-for="i in 8" :key="i" class="h-36 w-full rounded-lg" />
+      <SkeletonCard v-for="i in 8" :key="i" :lines="2" />
     </div>
 
     <template v-else>
-      <!-- No Results — rendered next to the (then empty) grid, never in place of it. -->
-      <div v-if="filteredProducts.length === 0 && !isLoading" class="text-center py-12">
-        <UIcon name="i-lucide-package-search" class="h-16 w-16 mx-auto text-gray-400 mb-4" />
-        <p class="text-gray-500 dark:text-gray-400">{{ $t('pages.products.noResults') }}</p>
-      </div>
+      <!-- Empty state — rendered next to the (then empty) grid, never in place
+           of it. `allProducts` decides which of the two it is: an inventory that
+           has never had anything in it gets the call to action, one that is only
+           filtered down to nothing gets "clear filters". -->
+      <EmptyState
+        v-if="filteredProducts.length === 0 && !isLoading"
+        :illustration="hasNoInventory ? 'products' : 'search'"
+        :title="hasNoInventory ? $t('pages.products.noInventory') : $t('pages.products.noResultsTitle')"
+        :description="hasNoInventory ? $t('pages.products.noInventoryHint') : $t('pages.products.tryDifferentSearch')"
+        :action-label="hasNoInventory ? $t('pages.products.addProductButton') : $t('common.filters.clear')"
+        :action-icon="hasNoInventory ? 'i-lucide-plus' : 'i-lucide-filter-x'"
+        @action="onEmptyStateAction"
+      />
 
       <!-- Products Grid -->
       <AnimatedList class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
@@ -201,7 +209,7 @@
     <div v-if="hasMoreProducts" ref="sentinelRef" class="w-full min-h-[1px]">
       <!-- Loading skeletons while loading more -->
       <div v-if="loadingMore" class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 mt-4">
-        <USkeleton v-for="i in 8" :key="i" class="h-36 w-full rounded-lg" />
+        <SkeletonCard v-for="i in 8" :key="i" :lines="2" />
       </div>
     </div>
     </div>
@@ -394,6 +402,19 @@ const clearAllFilters = () => {
   scopeFilter.value = 'all'
   minQuantity.value = null
   maxQuantity.value = null
+}
+
+/**
+ * True when the inventory itself is empty, as opposed to filtered down to
+ * nothing — the two empty states say different things and offer different
+ * actions. The search box is part of the filter set here, so a search that
+ * matches nothing still counts as "filtered", not "empty".
+ */
+const hasNoInventory = computed(() => allProducts.value.length === 0)
+
+const onEmptyStateAction = () => {
+  if (hasNoInventory.value) isAddInventoryOpen.value = true
+  else clearAllFilters()
 }
 
 // All filter values as one object — drives persistence and pagination reset

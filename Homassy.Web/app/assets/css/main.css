@@ -2,6 +2,11 @@
 @import "@nuxt/ui";
 
 @theme static {
+  /* Delivered by @nuxt/fonts — see the `fonts` block in nuxt.config.ts. The
+     module rewrites this value at build time, appending the metric-adjusted
+     fallback family it generates from `fonts.defaults.fallbacks`, so the swap
+     from the system font does not reflow. Keep the generic `sans-serif` last:
+     it is what fontaine keys the fallback metrics off. */
   --font-sans: 'Public Sans', sans-serif;
 
   --color-mocha-50: #F5F0EB;
@@ -15,6 +20,37 @@
   --color-mocha-800: #6F5A44;
   --color-mocha-900: #5A4536;
   --color-mocha-950: #3F3027;
+}
+
+/* Typographic defaults that belong to the font, not to any one component.
+   Deliberately inside `@layer base` (unlike the transition rules further down,
+   which are unlayered on purpose) so a Tailwind `text-nowrap` / `text-pretty` /
+   `slashed-zero` utility at a call site still wins. */
+@layer base {
+  /* Headings are short and unbalanced by default — the last line often drops a
+     single word. `balance` evens them out; the spec caps it at a few lines, so
+     it cannot hurt a long heading. */
+  h1, h2, h3, h4, h5, h6 {
+    text-wrap: balance;
+  }
+
+  /* Body copy is too long for `balance` (quadratic), but `pretty` still kills
+     the orphan on the last line. */
+  p, dd, blockquote {
+    text-wrap: pretty;
+  }
+}
+
+/* The app has exactly one shimmer: the `animate-pulse` USkeleton renders (and
+   SkeletonCard / SkeletonRow are built from). It animates opacity only, so it
+   stays on the compositor — but Tailwind's keyframes have no reduced-motion
+   guard of their own, and a grid full of pulsing placeholders is precisely the
+   kind of thing the preference is asking us to stop. Unlayered so it beats the
+   utility that declares the animation. */
+@media (prefers-reduced-motion: reduce) {
+  .animate-pulse {
+    animation: none;
+  }
 }
 
 /* Nuxt UI only puts `bg-default` on <body>, leaving <html> transparent. iOS

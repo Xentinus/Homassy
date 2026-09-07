@@ -19,7 +19,7 @@
 </template>
 
 <script setup lang="ts">
-import { ActivityType } from '~/types/activity'
+import type { ActivityType } from '~/types/activity'
 
 const props = defineProps<{
   activityType: ActivityType
