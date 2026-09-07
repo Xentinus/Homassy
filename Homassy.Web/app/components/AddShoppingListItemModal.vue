@@ -582,14 +582,15 @@
 import { z } from 'zod'
 import { watchDebounced } from '@vueuse/core'
 import { computed, nextTick, ref, watch, onMounted, onUnmounted } from 'vue'
-import type { ProductInfo, CreateProductRequest } from '~/types/product'
+import type { ProductInfo } from '~/types/product'
 import type { ShoppingLocationInfo, ShoppingLocationRequest } from '~/types/location'
 import type { CreateShoppingListItemRequest } from '~/types/shoppingList'
 import type { OpenFoodFactsProduct } from '~/types/openFoodFacts'
 import type { SelectValue } from '~/types/selectValue'
-import { Unit, ProductCategory, SelectValueType, StoreType } from '~/types/enums'
+import { Unit, SelectValueType, StoreType } from '~/types/enums'
 import type { DateValue } from '@internationalized/date'
 import type { FormSubmitEvent } from '#ui/types'
+import { emptyProductForm, type ProductFormState, type ProductSchema } from '~/composables/useProductFormSchema'
 
 // Props & Emits
 const props = defineProps<{
@@ -733,16 +734,7 @@ const filteredProductResults = computed(() =>
 )
 
 // Create Product
-const productFormData = ref<CreateProductRequest>({
-  name: '',
-  brand: '',
-  category: undefined,
-  unit: Unit.Piece,
-  barcode: '',
-  isEatable: false,
-  notes: '',
-  isFavorite: false
-})
+const productFormData = ref<ProductFormState>(emptyProductForm())
 const isCreating = ref(false)
 const categoryOptionsRaw = ref<SelectValue[]>([])
 const { categoryOptions } = useProductCategoryOptions(categoryOptionsRaw)
@@ -799,16 +791,8 @@ const isCreatingItem = ref(false)
 // =========================
 // Zod Schemas
 // =========================
-const createProductSchema = z.object({
-  name: z.string().min(2, 'Name must be at least 2 characters').max(128, 'Name must not exceed 128 characters'),
-  brand: z.string().min(2, 'Brand must be at least 2 characters').max(128, 'Brand must not exceed 128 characters'),
-  category: z.nativeEnum(ProductCategory).optional(),
-  unit: z.nativeEnum(Unit, { required_error: 'Unit is required' }),
-  barcode: z.string().max(50, 'Barcode must not exceed 50 characters').optional().or(z.literal('')),
-  isEatable: z.boolean().optional().default(false),
-  notes: z.string().max(500, 'Notes must not exceed 500 characters').optional().or(z.literal('')),
-  isFavorite: z.boolean().optional().default(false)
-})
+// Shared with ProductFormDrawer (Törzsadatok) and AddInventoryItemModal.
+const { productSchema: createProductSchema, toCreateProductRequest } = useProductFormSchema()
 
 const customNameSchema = z.object({
   customName: z.string().min(2, 'Name must be at least 2 characters').max(128, 'Name must not exceed 128 characters')
@@ -818,12 +802,12 @@ const createShoppingLocationSchema = z.object({
   name: z.string().min(2, 'Name must be at least 2 characters').max(128, 'Name must not exceed 128 characters'),
   description: z.string().max(500, 'Description must not exceed 500 characters').optional().or(z.literal('')),
   color: z.string().regex(/^#[0-9A-Fa-f]{6}$/, 'Color must be a valid hex color').optional().or(z.literal('')),
-  address: z.string().max(256, 'Address must not exceed 256 characters').optional().or(z.literal('')),
-  city: z.string().max(128, 'City must not exceed 128 characters').optional().or(z.literal('')),
+  address: z.string().max(128, 'Address must not exceed 128 characters').optional().or(z.literal('')),
+  city: z.string().max(64, 'City must not exceed 64 characters').optional().or(z.literal('')),
   postalCode: z.string().max(20, 'Postal code must not exceed 20 characters').optional().or(z.literal('')),
-  country: z.string().max(128, 'Country must not exceed 128 characters').optional().or(z.literal('')),
-  website: z.string().url('Must be a valid URL').optional().or(z.literal('')),
-  googleMaps: z.string().url('Must be a valid URL').optional().or(z.literal('')),
+  country: z.string().max(64, 'Country must not exceed 64 characters').optional().or(z.literal('')),
+  website: z.string().url('Must be a valid URL').max(255, 'URL must not exceed 255 characters').optional().or(z.literal('')),
+  googleMaps: z.string().url('Must be a valid URL').max(255, 'URL must not exceed 255 characters').optional().or(z.literal('')),
   storeTypes: z.array(z.nativeEnum(StoreType)).optional().default([]),
   isSharedWithFamily: z.boolean().optional().default(true)
 })
@@ -929,16 +913,7 @@ const resetState = () => {
   searchResults.value = []
   isSearching.value = false
 
-  productFormData.value = {
-    name: '',
-    brand: '',
-    category: undefined,
-    unit: Unit.Piece,
-    barcode: '',
-    isEatable: false,
-    notes: '',
-    isFavorite: false
-  }
+  productFormData.value = emptyProductForm()
   isQueryingBarcode.value = false
   openFoodFactsProduct.value = null
   isOpenFoodFactsModalOpen.value = false
@@ -1114,21 +1089,10 @@ const onProductCardClick = (product: ProductInfo) => {
 }
 
 // Create Product
-const onCreateProduct = async (event: FormSubmitEvent<typeof createProductSchema>) => {
+const onCreateProduct = async (event: FormSubmitEvent<ProductSchema>) => {
   isCreating.value = true
   try {
-    const productData: CreateProductRequest = {
-      name: event.data.name,
-      brand: event.data.brand,
-      category: event.data.category || undefined,
-      unit: event.data.unit,
-      barcode: event.data.barcode || undefined,
-      isEatable: event.data.isEatable || false,
-      notes: event.data.notes || undefined,
-      isFavorite: event.data.isFavorite || false
-    }
-
-    const response = await createProduct(productData)
+    const response = await createProduct(toCreateProductRequest(event.data))
     if (response.success && response.data) {
       selectedProductId.value = response.data.publicId
       selectedProductUnit.value = response.data.unit

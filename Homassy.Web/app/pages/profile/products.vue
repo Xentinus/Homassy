@@ -138,6 +138,7 @@ import { ref, computed, onMounted, onBeforeUnmount } from 'vue'
 import { useProductsApi } from '~/composables/api/useProductsApi'
 import { useCameraAvailability } from '~/composables/useCameraAvailability'
 import type { ProductInfo } from '~/types/product'
+import type { ProductCategory } from '~/types/enums'
 import type { MasterDataDeletedEvent } from '~/types/masterData'
 
 definePageMeta({ layout: 'auth', middleware: 'auth' })
@@ -168,7 +169,7 @@ const products = ref<ProductInfo[]>([])
 const searchQuery = ref('')
 
 // Filter state
-const categoryFilter = ref('all')
+const categoryFilter = ref<ProductCategory | 'all'>('all')
 const eatableFilter = ref('all')
 const favoritesFilter = ref(false)
 const barcodeFilter = ref(false)
@@ -209,14 +210,14 @@ const eatableOptions = computed(() => [
 
 // Category options built from the categories actually present on the products
 const categoryFilterOptions = computed(() => {
-  const seen = new Set<string>()
+  const seen = new Set<ProductCategory>()
   for (const product of products.value) {
-    if (product.category) seen.add(product.category)
+    if (product.category != null) seen.add(product.category)
   }
   const options = [...seen]
     .map(value => ({ label: formatProductCategory(value), value }))
     .sort((a, b) => a.label.localeCompare(b.label))
-  return [{ label: t('common.filters.all'), value: 'all' }, ...options]
+  return [{ label: t('common.filters.all'), value: 'all' as const }, ...options]
 })
 
 // Client-side filtered products

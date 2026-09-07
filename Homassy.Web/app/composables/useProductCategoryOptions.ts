@@ -1,10 +1,11 @@
 import type { Ref } from 'vue'
 import type { SelectValue } from '~/types/selectValue'
+import type { ProductCategory } from '~/types/enums'
 import { PRODUCT_CATEGORY_GROUP_ORDER, getProductCategoryGroup } from '~/utils/productCategoryGroups'
 
 export interface ProductCategoryOption {
   label: string
-  value?: number | string
+  value?: ProductCategory
   type?: 'label'
 }
 
@@ -15,13 +16,10 @@ export interface ProductCategoryOption {
  * select's built-in search is what makes it navigable. Empty groups are dropped
  * by the select itself while filtering.
  *
- * Pass `numeric: false` when the consuming form field holds the category as a
- * string (`ProductFormDrawer`); the default emits numbers.
+ * The option values are the enum's numbers, which is what the API deserializes:
+ * `Product.Category` is a C# enum and a stringified value comes back as a 400.
  */
-export const useProductCategoryOptions = (
-  raw: Ref<SelectValue[]>,
-  { numeric = true }: { numeric?: boolean } = {}
-) => {
+export const useProductCategoryOptions = (raw: Ref<SelectValue[]>) => {
   const { t, locale } = useI18n()
 
   const categoryOptions = computed<ProductCategoryOption[][]>(() => {
@@ -37,7 +35,7 @@ export const useProductCategoryOptions = (
       if (!byGroup.has(group)) byGroup.set(group, [])
       byGroup.get(group)!.push({
         label: t(`enums.productCategory.${numericValue}`),
-        value: numeric ? numericValue : selectValue.text
+        value: numericValue as ProductCategory
       })
     }
 

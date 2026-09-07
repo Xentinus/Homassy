@@ -1,7 +1,7 @@
 ﻿/**
  * Product and Inventory related types
  */
-import type { Unit, Currency, ImageFormat } from './enums'
+import type { Unit, Currency, ImageFormat, ProductCategory } from './enums'
 
 // ===================
 // Products
@@ -11,7 +11,7 @@ export interface ProductInfo {
   publicId: string
   name: string
   brand: string
-  category?: string
+  category?: ProductCategory
   unit: Unit
   barcode?: string
   productPictureBase64?: string
@@ -74,7 +74,7 @@ export interface ProductFavoriteChangedEvent {
 export interface CreateProductRequest {
   name: string
   brand: string
-  category?: string | null
+  category?: ProductCategory | null
   unit: Unit
   barcode?: string | null
   isEatable?: boolean
@@ -85,7 +85,7 @@ export interface CreateProductRequest {
 export interface UpdateProductRequest {
   name?: string
   brand?: string
-  category?: string
+  category?: ProductCategory
   unit?: Unit
   barcode?: string
   isEatable?: boolean

@@ -37,11 +37,11 @@
         <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <div>
             <label class="block text-sm font-medium mb-1.5">{{ $t('common.name') }}</label>
-            <UInput v-model="newCalName" :placeholder="$t('profile.family.externalCalendars.namePlaceholder')" class="w-full" />
+            <UInput v-model="newCalName" :placeholder="$t('profile.family.externalCalendars.namePlaceholder')" maxlength="64" class="w-full" />
           </div>
           <div>
             <label class="block text-sm font-medium mb-1.5">{{ $t('profile.family.externalCalendars.urlLabel') }}</label>
-            <UInput v-model="newCalUrl" placeholder="webcal://..." class="w-full" />
+            <UInput v-model="newCalUrl" placeholder="webcal://..." maxlength="2048" class="w-full" />
           </div>
         </div>
         <div class="flex items-center gap-3">
@@ -59,7 +59,7 @@
           v-model:all-day-notify-time="newCalAllDayTime"
         />
         <div class="flex gap-2">
-          <UButton color="primary" size="sm" icon="i-lucide-plus" :loading="isAddingCalendar" :disabled="!newCalName.trim() || !newCalUrl.trim()" @click="onAddCalendar">
+          <UButton color="primary" size="sm" icon="i-lucide-plus" :loading="isAddingCalendar" :disabled="newCalName.trim().length < 2 || !newCalUrl.trim()" @click="onAddCalendar">
             {{ $t('profile.family.externalCalendars.add') }}
           </UButton>
           <UButton color="neutral" variant="soft" size="sm" icon="i-lucide-x" @click="() => { showAddCalendar = false }">
@@ -88,11 +88,11 @@
             <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div>
                 <label class="block text-sm font-medium mb-1.5">{{ $t('common.name') }}</label>
-                <UInput v-model="editCalName" class="w-full" />
+                <UInput v-model="editCalName" maxlength="64" class="w-full" />
               </div>
               <div>
                 <label class="block text-sm font-medium mb-1.5">{{ $t('profile.family.externalCalendars.urlLabel') }}</label>
-                <UInput v-model="editCalUrl" class="w-full" />
+                <UInput v-model="editCalUrl" maxlength="2048" class="w-full" />
               </div>
             </div>
             <div class="flex items-center gap-3 flex-wrap">
@@ -114,7 +114,7 @@
               v-model:all-day-notify-time="editCalAllDayTime"
             />
             <div class="flex gap-2">
-              <UButton color="primary" size="sm" icon="i-lucide-check" :loading="isSavingCalendar" @click="onSaveEditCalendar">
+              <UButton color="primary" size="sm" icon="i-lucide-check" :loading="isSavingCalendar" :disabled="editCalName.trim().length < 2 || !editCalUrl.trim()" @click="onSaveEditCalendar">
                 {{ $t('common.save') }}
               </UButton>
               <UButton color="neutral" variant="soft" size="sm" icon="i-lucide-x" @click="() => { editingCalId = null }">
@@ -231,7 +231,8 @@ onBeforeUnmount(() => {
 })
 
 async function onAddCalendar() {
-  if (!newCalName.value.trim() || !newCalUrl.value.trim()) return
+  // Name has a minimum length of 2 on the API side.
+  if (newCalName.value.trim().length < 2 || !newCalUrl.value.trim()) return
   isAddingCalendar.value = true
   try {
     const res = await createExternalCalendar({
@@ -274,6 +275,7 @@ function startEditCalendar(cal: ExternalCalendarResponse) {
 
 async function onSaveEditCalendar() {
   if (!editingCalId.value) return
+  if (editCalName.value.trim().length < 2 || !editCalUrl.value.trim()) return
   isSavingCalendar.value = true
   try {
     const res = await updateExternalCalendar(editingCalId.value, {

@@ -501,6 +501,11 @@
         "createButton": "Termék létrehozása",
         "nameRequired": "A név megadása kötelező",
         "brandRequired": "A márka megadása kötelező",
+        "nameLength": "A név 2 és 128 karakter között lehet",
+        "brandLength": "A márka 2 és 128 karakter között lehet",
+        "unitRequired": "A mértékegység megadása kötelező",
+        "barcodeInvalid": "A vonalkód 6, 8, 12 vagy 13 számjegy lehet",
+        "notesLength": "A megjegyzés legfeljebb 128 karakter lehet",
         "saveFailed": "A termék mentése sikertelen",
         "imageFromBarcode": "Kép importálása vonalkódból"
       },

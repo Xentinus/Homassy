@@ -533,11 +533,26 @@ With ~950 categories a flat `USelectMenu` is unusable, so all three pickers (`Ad
 ```ts
 const categoryOptionsRaw = ref<SelectValue[]>([])
 const { categoryOptions } = useProductCategoryOptions(categoryOptionsRaw)
-// ProductFormDrawer keeps the category as a string:
-// useProductCategoryOptions(categoryOptionsRaw, { numeric: false })
 ```
 
+The option values are the enum's **numbers**. `Product.Category` is a C# enum and the API registers no string enum converter, so a stringified category comes back as `400 The JSON value could not be converted to ProductCategory` — which is exactly what the master-data drawer used to do.
+
 The composable returns an array of arrays (Nuxt UI's grouped-items shape), each headed by a `type: 'label'` entry, with the categories sorted by localized label inside each group. `virtualize` on the `USelectMenu` keeps the option list from mounting ~950 DOM nodes.
+
+### One product form contract
+
+A product can be created from three places — `ProductFormDrawer` (the Törzsadatok screen), `AddInventoryItemModal` and `AddShoppingListItemModal` — and they all take their Zod schema and their request payloads from `useProductFormSchema`:
+
+```ts
+const { productSchema, toCreateProductRequest, toUpdateProductRequest } = useProductFormSchema()
+const form = ref(emptyProductForm())
+```
+
+Do not re-declare the schema in a form. The three used to carry their own copy and had drifted: different name/brand minimums, three different barcode and notes limits, and a category typed as a string in the master-data drawer, which the API rejected outright.
+
+The limits mirror `CreateProductRequest` / `UpdateProductRequest` in Homassy.API (name and brand 2–128, barcode 6/8/12/13 digits, notes ≤ 128), so a form that validates locally is not turned away by the server. When those annotations change, change the schema with them.
+
+A category of `ProductCategory.Other` is **0**, so the payload builders use `?? null` and the cards render on `category != null` — a truthiness check silently drops the category.
 
 ### Adding a New Type
 

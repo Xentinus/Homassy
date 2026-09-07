@@ -500,6 +500,11 @@
         "createButton": "Create Product",
         "nameRequired": "Name is required",
         "brandRequired": "Brand is required",
+        "nameLength": "Name must be between 2 and 128 characters",
+        "brandLength": "Brand must be between 2 and 128 characters",
+        "unitRequired": "Unit is required",
+        "barcodeInvalid": "A barcode must be 6, 8, 12 or 13 digits",
+        "notesLength": "Notes must not exceed 128 characters",
         "saveFailed": "Failed to save the product",
         "imageFromBarcode": "Import image from barcode"
       },

@@ -54,7 +54,7 @@
         v-html="highlightText(product.brand, searchQuery)"
       />
       
-      <p v-if="product.category" class="text-xs text-gray-500 dark:text-gray-500 line-clamp-1 mb-1">
+      <p v-if="product.category != null" class="text-xs text-gray-500 dark:text-gray-500 line-clamp-1 mb-1">
         {{ formatProductCategory(product.category) }}
       </p>
       
