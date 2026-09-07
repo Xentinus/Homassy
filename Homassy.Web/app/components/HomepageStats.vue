@@ -16,7 +16,7 @@
               <div>
                 <dd class="text-2xl font-bold text-highlighted leading-tight mb-0.5">
                   <USkeleton v-if="isLoading" class="h-7 w-24" />
-                  <template v-else>{{ formatNumber(item.value) }}</template>
+                  <StatNumber v-else :value="item.value" />
                 </dd>
                 <dt class="text-sm text-muted">{{ item.label }}</dt>
               </div>
@@ -93,10 +93,6 @@ const groups = computed(() => [
     ]
   }
 ])
-
-function formatNumber(value: number): string {
-  return value.toLocaleString()
-}
 
 onMounted(async () => {
   try {
