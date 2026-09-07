@@ -241,7 +241,7 @@ async function onAddCalendar() {
       color: newCalColor.value,
       reminderLeadTimes: newCalReminders.value,
       allDayNotifyTime: newCalAllDayTime.value
-    })
+    }, { errorMessage: $t('profile.family.externalCalendars.addFailed') })
     if (res.success && res.data) {
       externalCalendars.value.push(res.data)
       newCalName.value = ''
@@ -252,8 +252,6 @@ async function onAddCalendar() {
       showNewColorPicker.value = false
       showAddCalendar.value = false
       toast.add({ title: $t('profile.family.externalCalendars.added'), color: 'success', icon: 'i-lucide-check-circle' })
-    } else {
-      toast.add({ title: $t('profile.family.externalCalendars.addFailed'), color: 'error', icon: 'i-lucide-alert-circle' })
     }
   } catch {
     toast.add({ title: $t('profile.family.externalCalendars.addFailed'), color: 'error', icon: 'i-lucide-alert-circle' })
@@ -285,7 +283,7 @@ async function onSaveEditCalendar() {
       isEnabled: editCalEnabled.value,
       reminderLeadTimes: editCalReminders.value,
       allDayNotifyTime: editCalAllDayTime.value
-    })
+    }, { errorMessage: $t('profile.family.externalCalendars.updateFailed') })
     if (res.success && res.data) {
       const idx = externalCalendars.value.findIndex(c => c.publicId === editingCalId.value)
       if (idx >= 0) externalCalendars.value[idx] = res.data
@@ -310,13 +308,11 @@ async function onDeleteCalendar(publicId: string) {
 async function onSyncCalendar(cal: ExternalCalendarResponse) {
   syncingId.value = cal.publicId
   try {
-    const res = await syncExternalCalendar(cal.publicId)
+    const res = await syncExternalCalendar(cal.publicId, { errorMessage: $t('profile.family.externalCalendars.syncFailed') })
     if (res.success && res.data) {
       const idx = externalCalendars.value.findIndex(c => c.publicId === cal.publicId)
       if (idx >= 0) externalCalendars.value[idx] = res.data
       toast.add({ title: $t('profile.family.externalCalendars.synced'), color: 'success', icon: 'i-lucide-check-circle' })
-    } else {
-      toast.add({ title: $t('profile.family.externalCalendars.syncFailed'), color: 'error', icon: 'i-lucide-alert-circle' })
     }
   } catch {
     toast.add({ title: $t('profile.family.externalCalendars.syncFailed'), color: 'error', icon: 'i-lucide-alert-circle' })

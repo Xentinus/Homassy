@@ -791,6 +791,8 @@ const isCreatingItem = ref(false)
 // =========================
 // Zod Schemas
 // =========================
+const { toFormErrors } = useApiFormErrors()
+
 // Shared with ProductFormDrawer (Törzsadatok) and AddInventoryItemModal.
 const { productSchema: createProductSchema, toCreateProductRequest } = useProductFormSchema()
 
@@ -1092,7 +1094,9 @@ const onProductCardClick = (product: ProductInfo) => {
 const onCreateProduct = async (event: FormSubmitEvent<ProductSchema>) => {
   isCreating.value = true
   try {
-    const response = await createProduct(toCreateProductRequest(event.data))
+    const response = await createProduct(toCreateProductRequest(event.data), {
+      errorMessage: t('pages.addProduct.form.saveFailed')
+    })
     if (response.success && response.data) {
       selectedProductId.value = response.data.publicId
       selectedProductUnit.value = response.data.unit
@@ -1100,8 +1104,13 @@ const onCreateProduct = async (event: FormSubmitEvent<ProductSchema>) => {
       productSelectionMode.value = 'product'
       showCreateProduct.value = false
       currentStep.value = 1
+    } else {
+      // The API answered, so useApiClient has already shown the one toast. All that is left
+      // is to put whatever it could pin on a field next to that field.
+      createProductFormRef.value?.setErrors(toFormErrors(response.validationErrors, Object.keys(productFormData.value)))
     }
   } catch (error) {
+    // Only a request that never reached the API lands here.
     console.error('Product creation failed:', error)
   } finally {
     isCreating.value = false

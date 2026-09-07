@@ -3,6 +3,7 @@
  * Provides storage and shopping location-related API calls
  */
 import type { PagedResult } from '~/types/common'
+import type { ApiCallOptions } from '../useApiClient'
 import type {
   StorageLocationInfo,
   ShoppingLocationInfo,
@@ -48,7 +49,7 @@ export const useLocationsApi = () => {
   /**
    * Create new storage location
    */
-  const createStorageLocation = async (location: StorageLocationRequest) => {
+  const createStorageLocation = async (location: StorageLocationRequest, options?: ApiCallOptions) => {
     return await client.post<StorageLocationInfo>(
       '/api/v1/Location/storage',
       {
@@ -57,7 +58,8 @@ export const useLocationsApi = () => {
         Color: location.color,
         IsFreezer: location.isFreezer,
         IsSharedWithFamily: location.isSharedWithFamily
-      }
+      },
+      options
     )
   }
 
@@ -66,7 +68,8 @@ export const useLocationsApi = () => {
    */
   const updateStorageLocation = async (
     storageLocationPublicId: string,
-    location: StorageLocationRequest
+    location: StorageLocationRequest,
+    options?: ApiCallOptions
   ) => {
     return await client.put<StorageLocationInfo>(
       `/api/v1/Location/storage/${storageLocationPublicId}`,
@@ -76,7 +79,8 @@ export const useLocationsApi = () => {
         Color: location.color,
         IsFreezer: location.isFreezer,
         IsSharedWithFamily: location.isSharedWithFamily
-      }
+      },
+      options
     )
   }
 
@@ -138,10 +142,11 @@ export const useLocationsApi = () => {
   /**
    * Create new shopping location
    */
-  const createShoppingLocation = async (location: ShoppingLocationRequest) => {
+  const createShoppingLocation = async (location: ShoppingLocationRequest, options?: ApiCallOptions) => {
     return await client.post<ShoppingLocationInfo>(
       '/api/v1/Location/shopping',
-      location
+      location,
+      options
     )
   }
 
@@ -150,11 +155,13 @@ export const useLocationsApi = () => {
    */
   const updateShoppingLocation = async (
     shoppingLocationPublicId: string,
-    location: ShoppingLocationRequest
+    location: ShoppingLocationRequest,
+    options?: ApiCallOptions
   ) => {
     return await client.put<ShoppingLocationInfo>(
       `/api/v1/Location/shopping/${shoppingLocationPublicId}`,
-      location
+      location,
+      options
     )
   }
 

@@ -12,6 +12,7 @@
   },
   "common": {
     "welcome": "Welcome",
+    "invalidValue": "Invalid value",
     "or": "or",
     "cancel": "Cancel",
     "save": "Save",
@@ -504,6 +505,7 @@
         "brandLength": "Brand must be between 2 and 128 characters",
         "unitRequired": "Unit is required",
         "barcodeInvalid": "A barcode must be 6, 8, 12 or 13 digits",
+        "barcodeChecksum": "The barcode check digit is wrong",
         "notesLength": "Notes must not exceed 128 characters",
         "saveFailed": "Failed to save the product",
         "imageFromBarcode": "Import image from barcode"
@@ -1362,6 +1364,7 @@
     "signedOut": "You have been signed out.",
     "unknownError": "An unknown error occurred",
     "requestError": "An error occurred while processing the request",
+    "validationError": "The submitted data is invalid",
     "codeSent": "Code sent",
     "checkEmailForCode": "Please check your email for the verification code.",
     "registrationSuccess": "Registration successful",
