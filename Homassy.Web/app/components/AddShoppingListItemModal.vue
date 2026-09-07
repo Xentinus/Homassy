@@ -76,9 +76,7 @@
 
             <template #results>
               <div v-if="isSearching" class="space-y-2">
-                <USkeleton class="h-14 w-full" />
-                <USkeleton class="h-14 w-full" />
-                <USkeleton class="h-14 w-full" />
+                <SkeletonRow v-for="i in 3" :key="i" />
               </div>
               <div v-else-if="searchQuery.trim() === ''" class="text-center py-10 text-sm text-gray-500">
                 {{ t('pages.addProduct.search.startTyping') }}
@@ -257,9 +255,7 @@
 
           <template #results>
             <div v-if="isLoadingShoppingLocations" class="space-y-2">
-              <USkeleton class="h-14 w-full" />
-              <USkeleton class="h-14 w-full" />
-              <USkeleton class="h-14 w-full" />
+              <SkeletonRow v-for="i in 3" :key="i" />
             </div>
             <div v-else-if="filteredShoppingLocations.length === 0" class="text-center py-8 text-sm text-gray-500">
               {{ t('pages.addProduct.shoppingLocation.search.noResults') }}

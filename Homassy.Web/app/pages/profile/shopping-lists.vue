@@ -36,7 +36,7 @@
          would remount every card and replay the bubble animation. -->
     <template v-if="loading && !hasLoaded">
       <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-        <USkeleton v-for="i in 6" :key="i" class="h-32 w-full rounded-lg" />
+        <SkeletonCard v-for="i in 6" :key="i" />
       </div>
     </template>
 

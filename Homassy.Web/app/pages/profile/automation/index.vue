@@ -55,10 +55,12 @@
 
       <!-- Loading State — first load only. A refetch keeps the grid mounted;
            swapping it out would remount every card and replay the bubble
-           animation. -->
+           animation. The container repeats the real list's grid classes
+           verbatim (it used to be a `space-y-4` stack against a grid), so the
+           placeholders occupy the cells the cards will land in. -->
       <template v-if="loading && !hasLoaded">
-        <div class="space-y-4">
-          <USkeleton v-for="i in 4" :key="i" class="h-20 w-full rounded-lg" />
+        <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+          <SkeletonCard v-for="i in 8" :key="i" />
         </div>
       </template>
 

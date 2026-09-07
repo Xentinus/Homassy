@@ -118,10 +118,7 @@
            pull-to-refresh) keeps the grid mounted, so the bubble animation is
            not replayed for every card. -->
       <div v-if="isLoadingDetails && !currentListDetails" class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-        <USkeleton class="h-48 w-full" />
-        <USkeleton class="h-48 w-full" />
-        <USkeleton class="h-48 w-full" />
-        <USkeleton class="h-48 w-full" />
+        <SkeletonCard v-for="i in 8" :key="i" :lines="1" :footer-lines="3" />
       </div>
 
       <!-- Empty: No Lists -->

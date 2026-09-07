@@ -175,7 +175,7 @@
          bubble animation, and would swallow the leave animation of a card
          removed in the same tick. -->
     <div v-if="isLoading && !hasLoaded" class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-      <USkeleton v-for="i in 8" :key="i" class="h-36 w-full rounded-lg" />
+      <SkeletonCard v-for="i in 8" :key="i" :lines="2" />
     </div>
 
     <template v-else>
@@ -209,7 +209,7 @@
     <div v-if="hasMoreProducts" ref="sentinelRef" class="w-full min-h-[1px]">
       <!-- Loading skeletons while loading more -->
       <div v-if="loadingMore" class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 mt-4">
-        <USkeleton v-for="i in 8" :key="i" class="h-36 w-full rounded-lg" />
+        <SkeletonCard v-for="i in 8" :key="i" :lines="2" />
       </div>
     </div>
     </div>

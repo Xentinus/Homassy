@@ -41,6 +41,18 @@
   }
 }
 
+/* The app has exactly one shimmer: the `animate-pulse` USkeleton renders (and
+   SkeletonCard / SkeletonRow are built from). It animates opacity only, so it
+   stays on the compositor — but Tailwind's keyframes have no reduced-motion
+   guard of their own, and a grid full of pulsing placeholders is precisely the
+   kind of thing the preference is asking us to stop. Unlayered so it beats the
+   utility that declares the animation. */
+@media (prefers-reduced-motion: reduce) {
+  .animate-pulse {
+    animation: none;
+  }
+}
+
 /* Nuxt UI only puts `bg-default` on <body>, leaving <html> transparent. iOS
    standalone samples the root/page background for the status-bar strip (see
    commit 18e821a, where the dismissed splash's background still tinted it), so a

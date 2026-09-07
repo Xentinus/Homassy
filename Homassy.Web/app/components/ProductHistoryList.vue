@@ -11,7 +11,7 @@
 
     <!-- Loading -->
     <div v-if="loading" class="space-y-2">
-      <USkeleton v-for="i in 3" :key="i" class="h-16 w-full rounded-xl" />
+      <SkeletonRow v-for="i in 3" :key="i" icon />
     </div>
 
     <!-- Empty -->

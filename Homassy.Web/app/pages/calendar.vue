@@ -175,7 +175,7 @@
 
               <!-- Skeleton while loading more -->
               <template v-if="isLoadingMore">
-                <USkeleton v-for="i in 2" :key="i" class="h-[60px] w-full rounded-xl" />
+                <SkeletonRow v-for="i in 2" :key="i" icon />
               </template>
 
               <!-- Sentinel for IntersectionObserver -->
