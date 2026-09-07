@@ -73,7 +73,7 @@
                 </div>
                 <div
                   v-if="cell.activityCount > 0"
-                  class="w-4 h-4 rounded-full bg-gray-400 dark:bg-gray-500 text-white text-[9px] font-bold flex items-center justify-center leading-none cursor-pointer"
+                  class="w-4 h-4 rounded-full bg-gray-400 dark:bg-gray-500 text-white text-[9px] font-bold flex items-center justify-center leading-none cursor-pointer tabular-nums"
                   @click.stop="selectDay(cell.dateStr)"
                 >
                   {{ cell.activityCount > 9 ? '9+' : cell.activityCount }}

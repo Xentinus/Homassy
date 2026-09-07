@@ -40,7 +40,9 @@
       <!-- Header: quantity -->
       <div class="flex items-center gap-3 mb-3">
         <UIcon :name="quantityIcon" class="h-6 w-6 shrink-0" :class="quantityIconColor" />
-        <span class="text-lg font-semibold text-highlighted">
+        <!-- tabular-nums: consume/add operations rewrite the quantity while the
+             row stays mounted. -->
+        <span class="text-lg font-semibold text-highlighted tabular-nums">
           {{ item.currentQuantity }} {{ $t(`enums.unit.${item.unit}`) }}
         </span>
       </div>

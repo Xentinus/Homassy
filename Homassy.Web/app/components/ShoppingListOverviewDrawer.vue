@@ -44,7 +44,7 @@
                 <p v-if="item.note" class="text-xs text-muted truncate">{{ item.note }}</p>
               </div>
               <div class="flex items-center gap-1.5 text-xs shrink-0">
-                <span class="font-bold text-highlighted">{{ item.quantity }}</span>
+                <span class="font-bold text-highlighted tabular-nums">{{ item.quantity }}</span>
                 <span class="text-toned">{{ $t(`enums.unit.${item.unit}`) }}</span>
               </div>
             </div>

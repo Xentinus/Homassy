@@ -51,6 +51,11 @@ export default defineNuxtConfig({
   modules: [
     '@nuxt/content',
     '@nuxt/eslint',
+    // Listed explicitly even though @nuxt/ui registers it internally: this pins
+    // the version the font config below is written against, and makes Nuxt UI's
+    // `hasNuxtModule` check short-circuit its own registration (its defaults are
+    // still merged into `fonts`).
+    '@nuxt/fonts',
     '@nuxt/image',
     '@nuxt/scripts',
     '@nuxt/ui',
@@ -59,6 +64,58 @@ export default defineNuxtConfig({
     '@nuxtjs/i18n',
     '@vite-pwa/nuxt'
   ],
+
+  // `--font-sans` in app/assets/css/main.css declares 'Public Sans' for every
+  // Tailwind/Nuxt UI text token, so the face has to actually be delivered —
+  // before this it was not, and the whole app fell through to the platform
+  // default (a different typeface on every OS).
+  //
+  // @nuxt/fonts downloads the face at build time and serves it from our own
+  // origin: no third-party request, and it lands inside the service worker's
+  // `static-assets` runtime cache, whose pattern already matches `woff2?`.
+  //
+  // The family name is picked up from the `--font-*` custom property by
+  // @nuxt/fonts' default `processCSSVariables: 'font-prefixed-only'` — Tailwind 4
+  // resolves the token to `var(--font-sans)` and never emits a literal
+  // `font-family: 'Public Sans'` for the CSS scan to find.
+  fonts: {
+    defaults: {
+      // No italic face on purpose. The four `italic` usages are muted notes and
+      // hints, where the browser's synthetic oblique is worth the bytes saved.
+      styles: ['normal'],
+      // latin covers en/de (umlauts), latin-ext the Hungarian ő/ű.
+      subsets: ['latin', 'latin-ext'],
+      // Named explicitly so fontaine can emit the metric overrides
+      // (size-adjust / ascent-override) for the fallback faces. That is what
+      // keeps `font-display: swap` from reflowing the page when the real font
+      // arrives.
+      fallbacks: {
+        'sans-serif': ['Segoe UI', 'Roboto', 'Helvetica Neue', 'Arial']
+      }
+    },
+    families: [
+      {
+        name: 'Public Sans',
+        // No `provider` on purpose. Pinning one takes fontless down the
+        // "override provider" branch, which prefers the provider's own
+        // `fallbacks` (Google reports the bare generic `sans-serif`) over
+        // `defaults.fallbacks` below — and a `local('sans-serif')` fallback face
+        // carries no metrics, so the size-adjust overrides come out as no-ops.
+        // Letting the provider be auto-detected keeps our fallback list.
+        //
+        // A weight *range* asks unifont for the variable face, so the app gets
+        // one file per subset covering 400/500/600/700 (the four weights the
+        // markup uses) instead of four static files per subset. That is both
+        // fewer bytes and — the point of it — few enough files that preloading
+        // them is honest: two requests, both of which every hu/de page needs.
+        // Four static weights × two subsets would have been eight preloads.
+        weights: ['100 900'],
+        // Preload is off by default for subsetted faces (they carry a
+        // unicode-range), so it has to be asked for.
+        preload: true
+      }
+    ]
+  },
 
   imports: {
     presets: [

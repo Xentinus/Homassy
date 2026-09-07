@@ -34,7 +34,7 @@
       <div class="mt-auto pt-4 space-y-2">
         <div v-if="list.pendingItemCount > 0" class="flex items-center gap-2 text-xs">
           <UIcon name="i-lucide-shopping-basket" class="h-3.5 w-3.5 text-primary-500 flex-shrink-0" />
-          <span class="text-toned">{{ $t('profile.shoppingLists.pendingItemCount') }}: {{ list.pendingItemCount }}</span>
+          <span class="text-toned tabular-nums">{{ $t('profile.shoppingLists.pendingItemCount') }}: {{ list.pendingItemCount }}</span>
         </div>
         <div class="flex items-center gap-2 text-xs">
           <UIcon

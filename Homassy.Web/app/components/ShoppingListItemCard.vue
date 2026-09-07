@@ -80,7 +80,9 @@
       <!-- Quantity and Unit -->
       <div class="flex items-center gap-2 text-xs">
         <UIcon name="i-lucide-package-2" class="h-3.5 w-3.5 text-amber-600 dark:text-amber-400 flex-shrink-0" />
-        <span class="font-bold text-highlighted">{{ item.quantity }}</span>
+        <!-- tabular-nums: the socket patches the quantity in place, so the unit
+             label next to it must not shift when the digits change. -->
+        <span class="font-bold text-highlighted tabular-nums">{{ item.quantity }}</span>
         <span class="text-toned">{{ unitLabel }}</span>
       </div>
 
@@ -137,7 +139,7 @@
               <!-- Quantity -->
               <div class="flex items-center gap-2 text-sm">
                 <UIcon name="i-lucide-package-2" class="h-3.5 w-3.5 text-amber-600 dark:text-amber-400 flex-shrink-0" />
-                <span class="font-bold text-gray-900 dark:text-gray-100">{{ item.quantity }}</span>
+                <span class="font-bold text-gray-900 dark:text-gray-100 tabular-nums">{{ item.quantity }}</span>
                 <span class="text-gray-700 dark:text-gray-300">{{ unitLabel }}</span>
               </div>
 

@@ -49,7 +49,7 @@
               </div>
               <div class="flex items-center gap-1.5 text-xs shrink-0">
                 <UIcon name="i-lucide-package-2" class="h-3.5 w-3.5 text-amber-600 dark:text-amber-400" />
-                <span class="font-bold text-highlighted">{{ item.currentQuantity }}</span>
+                <span class="font-bold text-highlighted tabular-nums">{{ item.currentQuantity }}</span>
                 <span class="text-toned">{{ $t(`enums.unit.${item.unit}`) }}</span>
               </div>
             </div>

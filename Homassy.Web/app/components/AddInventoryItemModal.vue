@@ -470,7 +470,8 @@
             <div class="space-y-2 text-sm">
               <div class="flex justify-between">
                 <span class="text-gray-600 dark:text-gray-400">{{ t('common.quantity') }}:</span>
-                <span class="font-medium">{{ inventoryFormData.quantity }} {{ inventoryFormData.unit ? t(`enums.unit.${inventoryFormData.unit}`) : '' }}</span>
+                <!-- tabular-nums: the preview follows the quantity input keystroke by keystroke. -->
+                <span class="font-medium tabular-nums">{{ inventoryFormData.quantity }} {{ inventoryFormData.unit ? t(`enums.unit.${inventoryFormData.unit}`) : '' }}</span>
               </div>
               <div v-if="inventoryFormData.expirationAt" class="flex justify-between">
                 <span class="text-gray-600 dark:text-gray-400">{{ t('common.expirationDate') }}:</span>
