@@ -70,7 +70,8 @@
       "clearAll": "Összes törlése",
       "removeFilter": "Szűrő eltávolítása",
       "showResults": "{count} megjelenítése",
-      "all": "Összes"
+      "all": "Összes",
+      "clear": "Szűrők törlése"
     }
   },
   "imageCropper": {
@@ -446,7 +447,11 @@
           "confirm": "Mentés",
           "success": "Termék sikeresen frissítve"
         }
-      }
+      },
+      "noInventory": "A készlet üres",
+      "noInventoryHint": "Adj hozzá egy tételt, hogy nyomon követhesd, mi van otthon.",
+      "noResultsTitle": "Nincs találat",
+      "tryDifferentSearch": "Próbálj meg más keresési feltételt, vagy töröld a szűrőket"
     },
     "addProduct": {
       "title": "Készlet hozzáadása",
@@ -806,7 +811,10 @@
       "itemUpdated": "Elem sikeresen frissítve",
       "itemDeleted": "Elem sikeresen törölve",
       "restorePurchaseWarning": "Biztosan vissza szeretnéd állítani ezt a vásárlást?",
-      "restorePurchaseInventoryWarning": "Megjegyzés: Ez csak megjelöli az elemet nem vásároltként. NEM távolítja el az elemet a készletből, ha már hozzá lett adva."
+      "restorePurchaseInventoryWarning": "Megjegyzés: Ez csak megjelöli az elemet nem vásároltként. NEM távolítja el az elemet a készletből, ha már hozzá lett adva.",
+      "noListsHint": "Hozz létre egy listát, és kezdd el összegyűjteni, mire van szükséged.",
+      "noItemsInListHint": "Add hozzá az első tételt ehhez a listához.",
+      "noSearchResultsHint": "Próbálj meg más keresési feltételt, vagy töröld a szűrőket"
     },
     "activity": {
       "title": "Tevékenység",
@@ -1037,7 +1045,8 @@
         "leadHours": "{count} órával előbb",
         "leadDays": "{count} nappal előbb",
         "allDayNotifyTime": "Egész napos esemény ideje",
-        "allDayNotifyTimeHint": "Az egész napos eseményeknek nincs kezdési idejük, ezért az emlékeztető ehhez az időponthoz igazodik, minden családtag saját időzónájában."
+        "allDayNotifyTimeHint": "Az egész napos eseményeknek nincs kezdési idejük, ezért az emlékeztető ehhez az időponthoz igazodik, minden családtag saját időzónájában.",
+        "emptyHint": "Iratkozz fel egy naptárra, és az események megjelennek a háztartás eseményei mellett."
       }
     },
     "settingsProfileSection": "Profil adatok",
@@ -1138,7 +1147,8 @@
       "noResults": "Nincs találat",
       "tryDifferentSearch": "Próbálj meg más keresési feltételt",
       "pendingItemCount": "Megvásárolandó",
-      "openList": "Lista megnyitása"
+      "openList": "Lista megnyitása",
+      "addList": "Lista hozzáadása"
     },
     "storageLocations": {
       "title": "Tárolók",
@@ -1314,7 +1324,8 @@
         "createButton": "Automatizálás létrehozása",
         "createSuccess": "Automatizálás sikeresen létrehozva.",
         "loadFailed": "Nem sikerült betölteni az adatokat."
-      }
+      },
+      "tryDifferentSearch": "Próbálj meg más keresési feltételt, vagy töröld a szűrőket"
     },
     "security": {
       "title": "Biztonság",
@@ -1345,6 +1356,13 @@
       "webauthnNotAvailable": "A WebAuthn nem érhető el a jelenlegi beállítási folyamatban.",
       "webauthnOptionsError": "Nem sikerült lekérni a WebAuthn beállításokat a szerverről.",
       "passkeyNotSupportedDescription": "A böngésződ vagy az eszközöd nem támogatja a jelszókulcsokat. Próbálj meg egy modern böngészőt használni, mint a Chrome, Safari vagy Edge."
+    },
+    "products": {
+      "noProducts": "Még nincsenek termékek",
+      "addFirstProduct": "Add hozzá az első termékedet a törzsadatok feltöltéséhez.",
+      "noResults": "Nincs találat",
+      "tryDifferentSearch": "Próbálj meg más keresési feltételt",
+      "addProduct": "Termék hozzáadása"
     }
   },
   "settings": {
@@ -1472,8 +1490,8 @@
       "55": "tasak"
     },
     "currency": {
-      "135": "Ft",
       "105": "€",
+      "135": "Ft",
       "279": "$"
     },
     "activityType": {

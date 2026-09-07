@@ -124,9 +124,15 @@
           </div>
         </div>
       </AnimatedList>
-      <div v-else class="text-sm text-gray-400 dark:text-gray-500 py-2">
-        {{ $t('profile.family.externalCalendars.empty') }}
-      </div>
+      <EmptyState
+        v-else
+        illustration="calendar"
+        :title="$t('profile.family.externalCalendars.empty')"
+        :description="$t('profile.family.externalCalendars.emptyHint')"
+        :action-label="$t('profile.family.externalCalendars.add')"
+        action-icon="i-lucide-plus"
+        @action="showAddCalendar = true"
+      />
     </div>
   </div>
 </template>

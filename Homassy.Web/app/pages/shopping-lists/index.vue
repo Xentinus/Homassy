@@ -125,26 +125,25 @@
       </div>
 
       <!-- Empty: No Lists -->
-      <div v-else-if="!isLoadingLists && allShoppingLists.length === 0" class="text-center py-12">
-        <UIcon name="i-lucide-shopping-cart" class="h-16 w-16 mx-auto text-gray-400 mb-4" />
-        <p class="text-gray-500 dark:text-gray-400">
-          {{ $t('pages.shoppingLists.noListsFound') }}
-        </p>
-      </div>
+      <EmptyState
+        v-else-if="!isLoadingLists && allShoppingLists.length === 0"
+        illustration="shoppingList"
+        :title="$t('pages.shoppingLists.noListsFound')"
+        :description="$t('pages.shoppingLists.noListsHint')"
+        :action-label="$t('pages.shoppingLists.menu.add')"
+        action-icon="i-lucide-plus"
+        @action="openCreateModal"
+      />
 
       <!-- Empty: Lists exist but none selected -->
-      <div v-else-if="!isLoadingLists && !selectedListId" class="text-center py-12">
-        <UIcon name="i-lucide-list-checks" class="h-16 w-16 mx-auto text-gray-400 mb-4" />
-        <p class="text-gray-500 dark:text-gray-400 mb-4">
-          {{ $t('pages.shoppingLists.filters.selectListPrompt') }}
-        </p>
-        <UButton
-          icon="i-lucide-sliders-horizontal"
-          color="primary"
-          :label="$t('pages.shoppingLists.filters.toggle')"
-          @click="filtersOpen = true"
-        />
-      </div>
+      <EmptyState
+        v-else-if="!isLoadingLists && !selectedListId"
+        illustration="shoppingList"
+        :title="$t('pages.shoppingLists.filters.selectListPrompt')"
+        :action-label="$t('pages.shoppingLists.filters.toggle')"
+        action-icon="i-lucide-sliders-horizontal"
+        @action="filtersOpen = true"
+      />
 
       <!-- A list is open -->
       <template v-else>
@@ -152,19 +151,26 @@
              place of it: unmounting the grid replays the enter animation on the
              way back and swallows the leave animation of the last item removed. -->
         <!-- Empty: No Items in List -->
-        <div v-if="currentListDetails && currentListDetails.items.length === 0" class="text-center py-12">
-          <UIcon name="i-lucide-package-open" class="h-16 w-16 mx-auto text-gray-400 mb-4" />
-          <p class="text-gray-500 dark:text-gray-400">
-            {{ $t('pages.shoppingLists.noItemsInList') }}
-          </p>
-        </div>
+        <EmptyState
+          v-if="currentListDetails && currentListDetails.items.length === 0"
+          illustration="shoppingList"
+          :title="$t('pages.shoppingLists.noItemsInList')"
+          :description="$t('pages.shoppingLists.noItemsInListHint')"
+          :action-label="$t('pages.shoppingLists.addProductButton')"
+          action-icon="i-lucide-plus"
+          @action="openAddItemModal('product')"
+        />
 
         <!-- Empty: No Search Results -->
-        <div v-else-if="filteredItems.length === 0" class="text-center py-12">
-          <p class="text-gray-500 dark:text-gray-400">
-            {{ $t('pages.shoppingLists.noSearchResults') }}
-          </p>
-        </div>
+        <EmptyState
+          v-else-if="filteredItems.length === 0"
+          illustration="search"
+          :title="$t('pages.shoppingLists.noSearchResults')"
+          :description="$t('pages.shoppingLists.noSearchResultsHint')"
+          :action-label="$t('common.filters.clear')"
+          action-icon="i-lucide-filter-x"
+          @action="clearAllFilters"
+        />
 
         <!-- "Buy here" section — the items you can pick up in the store you're standing in
              (exact store + same-type stores), pinned above the rest of the list. Rendered as

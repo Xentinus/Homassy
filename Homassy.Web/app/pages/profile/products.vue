@@ -91,15 +91,15 @@
       <!-- Empty State — rendered next to the (then empty) grid, never in place
            of it: unmounting the grid replays the enter animation on the way back
            and swallows the leave animation of the last card removed. -->
-      <div v-if="filteredProducts.length === 0" class="rounded-lg p-12 text-center">
-        <UIcon name="i-lucide-package" class="h-16 w-16 text-gray-400 mx-auto mb-4" />
-        <p class="text-lg font-semibold text-gray-700 dark:text-gray-300 mb-2">
-          {{ hasActiveQuery ? $t('pages.products.noResults') : 'Nincsenek termékek' }}
-        </p>
-        <p class="text-gray-600 dark:text-gray-400">
-          {{ hasActiveQuery ? 'Próbálj meg más keresési feltételt' : 'Adj hozzá termékeket a kezdéshez' }}
-        </p>
-      </div>
+      <EmptyState
+        v-if="filteredProducts.length === 0"
+        :illustration="hasActiveQuery ? 'search' : 'products'"
+        :title="hasActiveQuery ? $t('profile.products.noResults') : $t('profile.products.noProducts')"
+        :description="hasActiveQuery ? $t('profile.products.tryDifferentSearch') : $t('profile.products.addFirstProduct')"
+        :action-label="hasActiveQuery ? $t('common.filters.clear') : $t('profile.products.addProduct')"
+        :action-icon="hasActiveQuery ? 'i-lucide-filter-x' : 'i-lucide-plus'"
+        @action="hasActiveQuery ? clearAllFilters() : openCreateDrawer()"
+      />
 
       <!-- Products Grid -->
       <AnimatedList class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">

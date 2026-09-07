@@ -70,7 +70,8 @@
       "clearAll": "Clear all",
       "removeFilter": "Remove filter",
       "showResults": "Show {count}",
-      "all": "All"
+      "all": "All",
+      "clear": "Clear filters"
     }
   },
   "imageCropper": {
@@ -393,7 +394,8 @@
           "cancel": "Cancel",
           "confirm": "Delete",
           "success": "Inventory deleted successfully"
-        },        "moveModal": {
+        },
+        "moveModal": {
           "title": "Move Inventory Item",
           "description": "Select a new storage location for this inventory item",
           "currentLocation": "Current location",
@@ -445,7 +447,11 @@
           "confirm": "Save",
           "success": "Product updated successfully"
         }
-      }
+      },
+      "noInventory": "Your inventory is empty",
+      "noInventoryHint": "Add an item to start tracking what you have at home.",
+      "noResultsTitle": "No results found",
+      "tryDifferentSearch": "Try a different search term or clear the filters"
     },
     "addProduct": {
       "title": "Add Inventory",
@@ -805,7 +811,10 @@
       "itemUpdated": "Item updated successfully",
       "itemDeleted": "Item deleted successfully",
       "restorePurchaseWarning": "Are you sure you want to restore this purchase?",
-      "restorePurchaseInventoryWarning": "Note: This will only unmark the item as purchased. It will NOT remove the item from inventory if it was already added."
+      "restorePurchaseInventoryWarning": "Note: This will only unmark the item as purchased. It will NOT remove the item from inventory if it was already added.",
+      "noListsHint": "Create a list and start collecting what you need.",
+      "noItemsInListHint": "Add the first item to this list.",
+      "noSearchResultsHint": "Try a different search term or clear the filters"
     },
     "activity": {
       "title": "Activity",
@@ -975,7 +984,9 @@
       "cardDescription": "View your family details, invite code, and manage membership.",
       "create": "Create Family",
       "join": "Join Family",
-      "leave": "Leave Family",      "leaveFailed": "Failed to leave family",      "code": "Invite code: {code}",
+      "leave": "Leave Family",
+      "leaveFailed": "Failed to leave family",
+      "code": "Invite code: {code}",
       "codeLabel": "Invite code",
       "nameLabel": "Family name",
       "descriptionLabel": "Description",
@@ -1034,7 +1045,8 @@
         "leadHours": "{count} h before",
         "leadDays": "{count} day before",
         "allDayNotifyTime": "All-day event time",
-        "allDayNotifyTimeHint": "All-day events have no start time, so their reminder is anchored to this time in each member's own timezone."
+        "allDayNotifyTimeHint": "All-day events have no start time, so their reminder is anchored to this time in each member's own timezone.",
+        "emptyHint": "Subscribe to a calendar and its events show up alongside your household's."
       }
     },
     "settingsProfileSection": "Profile Information",
@@ -1135,7 +1147,8 @@
       "noResults": "No results found",
       "tryDifferentSearch": "Try a different search term",
       "pendingItemCount": "To buy",
-      "openList": "Open list"
+      "openList": "Open list",
+      "addList": "Add list"
     },
     "storageLocations": {
       "title": "Storage Locations",
@@ -1311,7 +1324,8 @@
         "createButton": "Create Automation",
         "createSuccess": "Automation created successfully.",
         "loadFailed": "Failed to load data."
-      }
+      },
+      "tryDifferentSearch": "Try a different search term or clear the filters"
     },
     "security": {
       "title": "Security",
@@ -1342,6 +1356,13 @@
       "webauthnNotAvailable": "WebAuthn is not available in the current settings flow.",
       "webauthnOptionsError": "Failed to get WebAuthn options from server.",
       "passkeyNotSupportedDescription": "Your browser or device does not support passkeys. Try using a modern browser like Chrome, Safari, or Edge."
+    },
+    "products": {
+      "noProducts": "No products yet",
+      "addFirstProduct": "Add your first product to build up your master data.",
+      "noResults": "No results found",
+      "tryDifferentSearch": "Try a different search term",
+      "addProduct": "Add product"
     }
   },
   "settings": {
@@ -1469,8 +1490,8 @@
       "55": "bag"
     },
     "currency": {
-      "135": "HUF",
       "105": "EUR",
+      "135": "HUF",
       "279": "USD"
     },
     "activityType": {

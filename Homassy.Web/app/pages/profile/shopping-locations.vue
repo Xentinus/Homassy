@@ -56,15 +56,15 @@
       <!-- Empty State — rendered next to the (then empty) grid, never in place
            of it: unmounting the grid replays the enter animation on the way back
            and swallows the leave animation of the last card removed. -->
-      <div v-if="filteredLocations.length === 0" class="rounded-lg p-12 text-center">
-        <UIcon name="i-lucide-shopping-cart" class="h-16 w-16 text-gray-400 mx-auto mb-4" />
-        <p class="text-lg font-semibold text-gray-700 dark:text-gray-300 mb-2">
-          {{ hasActiveQuery ? $t('profile.shoppingLocations.noResults') : $t('profile.shoppingLocations.noLocations') }}
-        </p>
-        <p class="text-gray-600 dark:text-gray-400">
-          {{ hasActiveQuery ? $t('profile.shoppingLocations.tryDifferentSearch') : $t('profile.shoppingLocations.addFirstLocation') }}
-        </p>
-      </div>
+      <EmptyState
+        v-if="filteredLocations.length === 0"
+        :illustration="hasActiveQuery ? 'search' : 'shoppingLocation'"
+        :title="hasActiveQuery ? $t('profile.shoppingLocations.noResults') : $t('profile.shoppingLocations.noLocations')"
+        :description="hasActiveQuery ? $t('profile.shoppingLocations.tryDifferentSearch') : $t('profile.shoppingLocations.addFirstLocation')"
+        :action-label="hasActiveQuery ? $t('common.filters.clear') : $t('profile.shoppingLocations.createLocation')"
+        :action-icon="hasActiveQuery ? 'i-lucide-filter-x' : 'i-lucide-plus'"
+        @action="hasActiveQuery ? clearAllFilters() : openCreateDrawer()"
+      />
 
       <!-- Locations Grid -->
       <AnimatedList class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
