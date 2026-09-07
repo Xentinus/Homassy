@@ -55,6 +55,13 @@ export default defineNuxtConfig({
     // the version the font config below is written against, and makes Nuxt UI's
     // `hasNuxtModule` check short-circuit its own registration (its defaults are
     // still merged into `fonts`).
+    //
+    // The version matters. @nuxt/ui depends on ^0.12.1, and on 0.12.1 this exact
+    // config resolves Public Sans through a different provider: nine static
+    // `.woff` faces, one per weight, unsubsetted, alongside the variable pair.
+    // package.json therefore asks for ^0.14.0 and carries an `overrides` entry
+    // pinning @nuxt/ui to the same copy — without it npm installs both, and the
+    // duplicate's own dependency subtree is what desynchronised the lockfile.
     '@nuxt/fonts',
     '@nuxt/image',
     '@nuxt/scripts',

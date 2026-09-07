@@ -45,5 +45,8 @@
     "@vite-pwa/nuxt": "^1.1.0",
     "typescript": "^5.9.3",
     "vue-tsc": "^3.3.11"
+  },
+  "overrides": {
+    "@nuxt/fonts": "$@nuxt/fonts"
   }
 }
