@@ -183,6 +183,13 @@ export default defineNuxtConfig({
     },
     workbox: {
       importScripts: ['/sw-push.js'],
+      // @vite-pwa/nuxt sets `globPatterns` itself (it pushes the payload and
+      // app-manifest JSON onto it), which means vite-plugin-pwa's own default
+      // never applies and nothing HTML is precached. The offline document has to
+      // be, or `precacheFallback` below has nothing to answer with. Just that
+      // one file: the rest of the app is runtime-cached by the routes below, and
+      // precaching `_nuxt/**` would make every install download the bundle.
+      globPatterns: ['offline/index.html'],
       // @vite-pwa/nuxt fills `navigateFallback` in with '/' when the key is
       // absent, which registers a NavigationRoute answering EVERY navigation
       // from the precache — the SPA-shell model. This app is server-rendered, so
@@ -212,7 +219,9 @@ export default defineNuxtConfig({
               maxEntries: 50,
               maxAgeSeconds: 86400 // 1 day
             },
-            // Precached because /offline is prerendered — see nitro.prerender.
+            // `PrecacheFallbackPlugin` looks this up in the precache by exact
+            // key. workbox-build strips the `/index.html` off the globbed
+            // `offline/index.html`, so `/offline` is the key it lands under.
             precacheFallback: {
               fallbackURL: '/offline'
             }
