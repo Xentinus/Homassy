@@ -131,7 +131,6 @@
 
 <script setup lang="ts">
 import { ref, watch, nextTick } from 'vue'
-import { z } from 'zod'
 import type { FormSubmitEvent } from '@nuxt/ui'
 import { useProductsApi } from '~/composables/api/useProductsApi'
 import { useProgressApi } from '~/composables/api/useProgressApi'
@@ -145,12 +144,16 @@ import { Unit, SelectValueType } from '~/types/enums'
 import type { ProductInfo } from '~/types/product'
 import type { OpenFoodFactsProduct } from '~/types/openFoodFacts'
 import type { SelectValue } from '~/types/selectValue'
+import { emptyProductForm, type ProductSchema } from '~/composables/useProductFormSchema'
 
 /**
  * Create/edit a product (catalog) in a modern bottom-sheet drawer (UForm + Zod). The product card is
  * image-free — the photo and its management (upload / crop / OpenFoodFacts import / remove) live here,
  * shown when the card is opened. Adds the `unit` field, keeps barcode scan + OFF name/brand import,
  * and never sends notes empty (so existing notes are not clobbered). Owns the API calls.
+ *
+ * Validation and the request payloads come from `useProductFormSchema`, so this form submits
+ * exactly what the inventory and shopping-list product forms submit.
  */
 const props = withDefaults(defineProps<{
   open: boolean
@@ -178,37 +181,16 @@ const title = computed(() => isEdit.value
   ? t('pages.products.details.editProduct')
   : t('pages.addProduct.form.createProduct'))
 
-const schema = z.object({
-  name: z.string({ required_error: t('pages.addProduct.form.nameRequired') }).min(1, t('pages.addProduct.form.nameRequired')),
-  brand: z.string({ required_error: t('pages.addProduct.form.brandRequired') }).min(1, t('pages.addProduct.form.brandRequired')),
-  category: z.string().optional(),
-  unit: z.nativeEnum(Unit),
-  barcode: z.string().optional(),
-  isEatable: z.boolean().optional().default(false),
-  isFavorite: z.boolean().optional().default(false),
-  notes: z.string().optional()
-})
-type Schema = z.output<typeof schema>
+// Schema and payload mapping are shared with the inventory / shopping-list product forms.
+const { productSchema: schema, toCreateProductRequest, toUpdateProductRequest } = useProductFormSchema()
 
-const emptyForm = () => ({
-  name: '',
-  brand: '',
-  category: undefined as string | undefined,
-  unit: Unit.Piece,
-  barcode: '',
-  isEatable: false,
-  isFavorite: false,
-  notes: ''
-})
-
-const form = ref(emptyForm())
+const form = ref(emptyProductForm())
 const saving = ref(false)
 const formRef = ref()
 
 // Category options (from the shared select-value endpoint), loaded once.
 const categoryOptionsRaw = ref<SelectValue[]>([])
-// This form keeps the category as a string, unlike the inventory/shopping modals.
-const { categoryOptions } = useProductCategoryOptions(categoryOptionsRaw, { numeric: false })
+const { categoryOptions } = useProductCategoryOptions(categoryOptionsRaw)
 
 const unitOptions = computed(() =>
   Object.entries(Unit)
@@ -257,7 +239,7 @@ watch(() => props.open, (isOpen) => {
     }
     localImage.value = props.product.productPictureBase64 || undefined
   } else {
-    form.value = emptyForm()
+    form.value = emptyProductForm()
     localImage.value = undefined
   }
 })
@@ -441,35 +423,13 @@ function applyScannedBarcode(barcode: string) {
 defineExpose({ applyScannedBarcode })
 
 // --- Submit ------------------------------------------------------------------
-async function onSubmit(event: FormSubmitEvent<Schema>) {
+async function onSubmit(event: FormSubmitEvent<ProductSchema>) {
   const data = event.data
   saving.value = true
   try {
-    let res
-    if (props.product) {
-      // Never send notes empty — the product DTO can't read existing notes, so an empty value would
-      // silently clobber them. Only send when the user actually typed something.
-      res = await updateProduct(props.product.publicId, {
-        name: data.name.trim(),
-        brand: data.brand.trim(),
-        category: data.category || undefined,
-        unit: data.unit,
-        barcode: data.barcode?.trim() || undefined,
-        isEatable: data.isEatable,
-        notes: data.notes?.trim() || undefined
-      })
-    } else {
-      res = await createProduct({
-        name: data.name.trim(),
-        brand: data.brand.trim(),
-        category: data.category || null,
-        unit: data.unit,
-        barcode: data.barcode?.trim() || null,
-        isEatable: data.isEatable,
-        isFavorite: data.isFavorite,
-        notes: data.notes?.trim() || null
-      })
-    }
+    const res = props.product
+      ? await updateProduct(props.product.publicId, toUpdateProductRequest(data))
+      : await createProduct(toCreateProductRequest(data))
 
     if (res.success && res.data) {
       emit('saved', res.data)

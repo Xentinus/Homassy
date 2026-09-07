@@ -32,7 +32,7 @@
 
       <!-- Attributes (pinned bottom) -->
       <div class="mt-auto pt-4 space-y-2">
-        <div v-if="product.category" class="flex items-center gap-2 text-xs">
+        <div v-if="product.category != null" class="flex items-center gap-2 text-xs">
           <UIcon name="i-lucide-tag" class="h-3.5 w-3.5 text-primary-500 flex-shrink-0" />
           <span class="text-toned truncate">{{ formatProductCategory(product.category) }}</span>
         </div>

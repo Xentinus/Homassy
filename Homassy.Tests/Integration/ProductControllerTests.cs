@@ -199,6 +199,107 @@ public class ProductControllerTests : IClassFixture<HomassyWebApplicationFactory
                 await _authHelper.CleanupUserAsync(testEmail);
         }
     }
+
+    [Fact]
+    public async Task CreateProduct_WithSingleCharacterName_ReturnsBadRequest()
+    {
+        string? testEmail = null;
+        try
+        {
+            var (email, auth) = await _authHelper.CreateAndAuthenticateUserAsync("prod-short-name");
+            testEmail = email;
+            _authHelper.SetAuthToken(auth.AccessToken);
+
+            // Name has a minimum length of 2; the web forms must not let a single character through.
+            var content = new StringContent("{\"name\":\"A\",\"brand\":\"Test Brand\",\"unit\":0}", System.Text.Encoding.UTF8, "application/json");
+            var response = await _client.PostAsync("/api/v1.0/product", content);
+            var responseBody = await response.Content.ReadAsStringAsync();
+
+            _output.WriteLine($"Status: {response.StatusCode}");
+            _output.WriteLine($"Response: {responseBody}");
+
+            Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        }
+        finally
+        {
+            _authHelper.ClearAuthToken();
+            if (testEmail != null)
+                await _authHelper.CleanupUserAsync(testEmail);
+        }
+    }
+
+    [Fact]
+    public async Task CreateProduct_WithCategoryAsString_ReturnsBadRequest()
+    {
+        string? testEmail = null;
+        try
+        {
+            var (email, auth) = await _authHelper.CreateAndAuthenticateUserAsync("prod-cat-string");
+            testEmail = email;
+            _authHelper.SetAuthToken(auth.AccessToken);
+
+            // ProductCategory is a plain enum and no string enum converter is registered, so a
+            // stringified category is not deserializable. The web pickers therefore have to emit
+            // the enum's numbers - a form that sent "11" instead of 11 got this 400.
+            var content = new StringContent(
+                "{\"name\":\"Category As String\",\"brand\":\"Test Brand\",\"unit\":0,\"category\":\"11\"}",
+                System.Text.Encoding.UTF8,
+                "application/json");
+            var response = await _client.PostAsync("/api/v1.0/product", content);
+            var responseBody = await response.Content.ReadAsStringAsync();
+
+            _output.WriteLine($"Status: {response.StatusCode}");
+            _output.WriteLine($"Response: {responseBody}");
+
+            Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+            Assert.Contains("category", responseBody, StringComparison.OrdinalIgnoreCase);
+        }
+        finally
+        {
+            _authHelper.ClearAuthToken();
+            if (testEmail != null)
+                await _authHelper.CleanupUserAsync(testEmail);
+        }
+    }
+
+    [Fact]
+    public async Task CreateProduct_WithCategoryOther_KeepsTheZeroValue()
+    {
+        string? testEmail = null;
+        try
+        {
+            var (email, auth) = await _authHelper.CreateAndAuthenticateUserAsync("prod-cat-other");
+            testEmail = email;
+            _authHelper.SetAuthToken(auth.AccessToken);
+
+            // ProductCategory.Other is 0, a legitimate category. A client that drops it with a
+            // truthiness check (`category || null`) silently files the product under no category.
+            var request = new CreateProductRequest
+            {
+                Unit = ProductUnit.Piece,
+                Name = "Category Other",
+                Brand = "Test Brand",
+                Category = ProductCategory.Other
+            };
+            var response = await _client.PostAsJsonAsync("/api/v1.0/product", request);
+            var responseBody = await response.Content.ReadAsStringAsync();
+
+            _output.WriteLine($"Status: {response.StatusCode}");
+            _output.WriteLine($"Response: {responseBody}");
+
+            Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+
+            var content = await response.Content.ReadFromJsonAsync<ApiResponse<ProductInfo>>();
+            Assert.NotNull(content?.Data);
+            Assert.Equal(ProductCategory.Other, content.Data.Category);
+        }
+        finally
+        {
+            _authHelper.ClearAuthToken();
+            if (testEmail != null)
+                await _authHelper.CleanupUserAsync(testEmail);
+        }
+    }
     #endregion
 
     #region Not Found Tests

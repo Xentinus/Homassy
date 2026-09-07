@@ -498,6 +498,11 @@
         "createButton": "Produkt erstellen",
         "nameRequired": "Name ist erforderlich",
         "brandRequired": "Marke ist erforderlich",
+        "nameLength": "Der Name muss zwischen 2 und 128 Zeichen lang sein",
+        "brandLength": "Die Marke muss zwischen 2 und 128 Zeichen lang sein",
+        "unitRequired": "Maßeinheit ist erforderlich",
+        "barcodeInvalid": "Der Barcode muss 6, 8, 12 oder 13 Ziffern haben",
+        "notesLength": "Notizen dürfen maximal 128 Zeichen lang sein",
         "saveFailed": "Produkt konnte nicht gespeichert werden",
         "imageFromBarcode": "Bild vom Barcode importieren"
       },

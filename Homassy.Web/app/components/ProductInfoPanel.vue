@@ -58,7 +58,7 @@
         <span>{{ $t('pages.products.details.editProductModal.isEatableLabel') }}</span>
       </div>
       <div
-        v-if="product.category"
+        v-if="product.category != null"
         class="flex items-center gap-2 px-2.5 py-1 rounded-md border border-gray-200 dark:border-gray-700 bg-white/70 dark:bg-gray-900/40"
       >
         <UIcon name="i-lucide-tag" class="h-4 w-4 text-gray-500" />

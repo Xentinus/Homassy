@@ -670,12 +670,13 @@
 import { z } from 'zod'
 import { watchDebounced } from '@vueuse/core'
 import { computed, nextTick, ref, watch, onMounted, onUnmounted } from 'vue'
-import type { ProductInfo, CreateProductRequest, CreateInventoryItemRequest } from '~/types/product'
+import type { ProductInfo, CreateInventoryItemRequest } from '~/types/product'
 import type { StorageLocationInfo, StorageLocationRequest, ShoppingLocationInfo, ShoppingLocationRequest } from '~/types/location'
 import type { OpenFoodFactsProduct } from '~/types/openFoodFacts'
 import type { SelectValue } from '~/types/selectValue'
-import { Unit, Currency, ProductCategory, SelectValueType } from '~/types/enums'
+import { Unit, Currency, SelectValueType } from '~/types/enums'
 import type { FormSubmitEvent } from '#ui/types'
+import { emptyProductForm, type ProductFormState, type ProductSchema } from '~/composables/useProductFormSchema'
 
 // Props & Emits
 const props = defineProps<{
@@ -763,16 +764,7 @@ const filteredProductResults = computed(() =>
 )
 
 const isCreating = ref(false)
-const productFormData = ref<CreateProductRequest>({
-  name: '',
-  brand: '',
-  category: undefined,
-  unit: Unit.Piece,
-  barcode: '',
-  isEatable: false,
-  notes: '',
-  isFavorite: false
-})
+const productFormData = ref<ProductFormState>(emptyProductForm())
 const categoryOptionsRaw = ref<SelectValue[]>([])
 const { categoryOptions } = useProductCategoryOptions(categoryOptionsRaw)
 
@@ -946,17 +938,8 @@ const currencyOptions = computed(() => [
   { label: t('enums.currency.279'), value: Currency.Usd }
 ])
 
-const createProductSchema = z.object({
-  name: z.string({ required_error: 'A termék neve kötelező' }).min(1, 'A termék neve kötelező'),
-  brand: z.string({ required_error: 'A márka kötelező' }).min(1, 'A márka kötelező'),
-  category: z.nativeEnum(ProductCategory).optional(),
-  unit: z.nativeEnum(Unit, { required_error: 'Unit is required' }),
-  barcode: z.string().optional(),
-  isEatable: z.boolean().optional().default(false),
-  notes: z.string().optional(),
-  isFavorite: z.boolean().optional().default(false)
-})
-type CreateProductSchema = z.output<typeof createProductSchema>
+// Shared with ProductFormDrawer (Törzsadatok) and AddShoppingListItemModal.
+const { productSchema: createProductSchema, toCreateProductRequest } = useProductFormSchema()
 
 const createLocationSchema = z.object({
   name: z.string({ required_error: 'Storage location name is required' }).min(2, 'Name must be at least 2 characters').max(128, 'Name must not exceed 128 characters'),
@@ -1068,7 +1051,7 @@ const resetState = () => {
   selectedProductUnit.value = undefined
   productFavoriteFilter.value = false
   productEatableFilter.value = false
-  productFormData.value = { name: '', brand: '', category: undefined, unit: Unit.Piece, barcode: '', isEatable: false, notes: '', isFavorite: false }
+  productFormData.value = emptyProductForm()
   isQueryingBarcode.value = false
   openFoodFactsProduct.value = null
   isOpenFoodFactsModalOpen.value = false
@@ -1210,20 +1193,10 @@ const onProductCardClick = (product: ProductInfo) => {
   selectedProductUnit.value = alreadySelected ? undefined : product.unit
 }
 
-const onCreateProduct = async (event: FormSubmitEvent<CreateProductSchema>) => {
+const onCreateProduct = async (event: FormSubmitEvent<ProductSchema>) => {
   isCreating.value = true
   try {
-    const productData: CreateProductRequest = {
-      name: event.data.name,
-      brand: event.data.brand,
-      category: event.data.category || null,
-      unit: event.data.unit,
-      barcode: event.data.barcode?.trim() || null,
-      notes: event.data.notes?.trim() || null,
-      isEatable: event.data.isEatable,
-      isFavorite: event.data.isFavorite
-    }
-    const response = await createProduct(productData)
+    const response = await createProduct(toCreateProductRequest(event.data))
     if (response.success && response.data) {
       selectedProductId.value = response.data.publicId
       selectedProductUnit.value = response.data.unit
