@@ -2527,5 +2527,21 @@
       "invalidFormat": "Érvénytelen vonalkód formátum. Csak számokat tartalmazó vonalkódok támogatottak.",
       "unusualLength": "Szokatlan vonalkód hossz. Ellenőrizd, hogy helyesen lett-e beolvasva."
     }
+  },
+  "errorPage": {
+    "notFound": {
+      "title": "Ez az oldal nem található",
+      "description": "Lehet, hogy elírtad a címet, vagy az oldal átkerült máshova."
+    },
+    "serverError": {
+      "title": "Valami hiba történt",
+      "description": "Ez a mi hibánk. Próbáld újra — ha nem múlik el, várj egy percet."
+    },
+    "offline": {
+      "title": "Nincs internetkapcsolat",
+      "description": "A Homassy most nem éri el a hálózatot. Ellenőrizd a kapcsolatot, és próbáld újra."
+    },
+    "tryAgain": "Újrapróbálás",
+    "goToCalendar": "Ugrás a naptárhoz"
   }
 }

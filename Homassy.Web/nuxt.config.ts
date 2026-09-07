@@ -183,13 +183,41 @@ export default defineNuxtConfig({
     },
     workbox: {
       importScripts: ['/sw-push.js'],
-      // Let @vite-pwa/nuxt handle navigation routes via its built-in allowlist.
-      // A custom 'navigate' mode handler here conflicts with the PWA navigation
-      // route allowlist and causes the "not being used" warning.
+      // @vite-pwa/nuxt fills `navigateFallback` in with '/' when the key is
+      // absent, which registers a NavigationRoute answering EVERY navigation
+      // from the precache — the SPA-shell model. This app is server-rendered, so
+      // that trades the SSR document for a cached shell on every page load, and
+      // it is also what made a custom `request.mode === 'navigate'` runtime
+      // route dead code (the old "not being used" warning). Declaring the key
+      // as undefined opts out: the module only defaults it when it is missing.
+      navigateFallback: undefined,
       // Server-handled paths behind the same-origin reverse proxy (Kratos flows,
-      // REST API, SignalR) must never get the cached app shell.
+      // REST API, SignalR) must never be answered from the cache. Kept in step
+      // with the exclusion in the navigation route below.
       navigateFallbackDenylist: [/^\/kratos\//, /^\/api\//, /^\/hubs\//],
       runtimeCaching: [
+        {
+          // Documents. Fresh when the network is there, the last copy we saw
+          // when it is not, and the branded /offline page when neither is
+          // available — that last case is the one the browser would otherwise
+          // answer with its own error screen, which in an installed PWA (no
+          // address bar) is a dead end. app/error.vue can only cover failures
+          // that happen once the app is already running.
+          urlPattern: ({ request, url }) =>
+            request.mode === 'navigate' && !/^\/(kratos|api|hubs)\//.test(url.pathname),
+          handler: 'NetworkFirst',
+          options: {
+            cacheName: 'pages',
+            expiration: {
+              maxEntries: 50,
+              maxAgeSeconds: 86400 // 1 day
+            },
+            // Precached because /offline is prerendered — see nitro.prerender.
+            precacheFallback: {
+              fallbackURL: '/offline'
+            }
+          }
+        },
         {
           urlPattern: /^https:\/\/.*\.(js|css|woff2?|png|jpg|jpeg|svg|gif|webp|ico)$/,
           handler: 'CacheFirst',
@@ -218,6 +246,12 @@ export default defineNuxtConfig({
   },
 
   nitro: {
+    // /offline is the service worker's fallback document, so it has to exist as
+    // a static file for the SW to precache (pwa.workbox.runtimeCaching above).
+    prerender: {
+      routes: ['/offline']
+    },
+
     // Reduce Nitro build memory
     minify: true,
     sourceMap: false,

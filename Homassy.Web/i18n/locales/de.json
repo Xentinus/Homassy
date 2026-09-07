@@ -2527,5 +2527,21 @@
       "invalidFormat": "Ungültiges Barcode-Format. Nur numerische Barcodes werden unterstützt.",
       "unusualLength": "Ungewöhnliche Barcode-Länge. Bitte überprüfen Sie, ob er korrekt gescannt wurde."
     }
+  },
+  "errorPage": {
+    "notFound": {
+      "title": "Diese Seite finden wir nicht",
+      "description": "Vielleicht ist die Adresse falsch geschrieben, oder die Seite ist umgezogen."
+    },
+    "serverError": {
+      "title": "Etwas ist schiefgelaufen",
+      "description": "Das liegt an uns. Versuchen Sie es erneut — wenn es bleibt, warten Sie einen Moment."
+    },
+    "offline": {
+      "title": "Sie sind offline",
+      "description": "Homassy erreicht das Netzwerk gerade nicht. Prüfen Sie Ihre Verbindung und versuchen Sie es erneut."
+    },
+    "tryAgain": "Erneut versuchen",
+    "goToCalendar": "Zum Kalender"
   }
 }
