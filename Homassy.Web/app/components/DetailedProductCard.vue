@@ -1,4 +1,7 @@
 ﻿<template>
+  <!-- eslint-disable vue/no-v-html -- highlightText escapes the text it is given and
+       emits only its own highlight span, so nothing a user typed reaches the DOM as
+       markup. See app/composables/useSearchHighlight.ts. -->
   <div
     role="button"
     tabindex="0"
