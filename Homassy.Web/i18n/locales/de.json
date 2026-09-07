@@ -1395,7 +1395,12 @@
     "emailVerified": "E-Mail bestätigt",
     "emailVerifiedDescription": "Ihre E-Mail-Adresse wurde erfolgreich bestätigt.",
     "loginSuccess": "Anmeldung erfolgreich",
-    "welcomeBack": "Willkommen zurück!"
+    "welcomeBack": "Willkommen zurück!",
+    "newVersion": {
+      "title": "Neue Version verfügbar",
+      "description": "Laden Sie neu, um die neueste Homassy-Version zu erhalten.",
+      "reload": "Neu laden"
+    }
   },
   "enums": {
     "storeType": {

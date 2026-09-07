@@ -1395,7 +1395,12 @@
     "emailVerified": "E-mail megerősítve",
     "emailVerifiedDescription": "Az e-mail címed sikeresen megerősítve.",
     "loginSuccess": "Sikeres bejelentkezés",
-    "welcomeBack": "Üdv újra!"
+    "welcomeBack": "Üdv újra!",
+    "newVersion": {
+      "title": "Új verzió érhető el",
+      "description": "Töltsd újra az oldalt a legfrissebb Homassy-hoz.",
+      "reload": "Újratöltés"
+    }
   },
   "enums": {
     "storeType": {

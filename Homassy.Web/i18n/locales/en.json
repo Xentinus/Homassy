@@ -1395,7 +1395,12 @@
     "emailVerified": "Email verified",
     "emailVerifiedDescription": "Your email has been verified successfully.",
     "loginSuccess": "Login successful",
-    "welcomeBack": "Welcome back!"
+    "welcomeBack": "Welcome back!",
+    "newVersion": {
+      "title": "New version available",
+      "description": "Reload to pick up the latest Homassy.",
+      "reload": "Reload"
+    }
   },
   "enums": {
     "storeType": {
