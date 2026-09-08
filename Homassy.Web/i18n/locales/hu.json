@@ -203,7 +203,8 @@
     "products": "Készletek",
     "shoppingLists": "Bevásárlólisták",
     "calendar": "Naptár",
-    "profile": "Profil"
+    "profile": "Profil",
+    "activity": "Tevékenység"
   },
   "fab": {
     "open": "Hozzáadás megnyitása",
@@ -954,6 +955,23 @@
     "presence": {
       "othersHere": "Még {count} másik itt van",
       "overflow": "+{count} további"
+    }
+  },
+  "activity": {
+    "title": "Családi tevékenység",
+    "today": "Ma",
+    "yesterday": "Tegnap",
+    "aggregated": "{count} tevékenység ({type}), legutóbb: {name}",
+    "expand": "Összes mutatása",
+    "collapse": "Összecsukás",
+    "filters": {
+      "type": "Típus",
+      "member": "Családtag",
+      "all": "Összes"
+    },
+    "empty": {
+      "title": "Még nincs tevékenység",
+      "description": "Amint valaki a családodban hozzáad, módosít vagy töröl valamit, itt fog megjelenni."
     }
   },
   "realtime": {

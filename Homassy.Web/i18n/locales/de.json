@@ -203,7 +203,8 @@
     "products": "Lagerbestand",
     "shoppingLists": "Einkaufslisten",
     "calendar": "Kalender",
-    "profile": "Profil"
+    "profile": "Profil",
+    "activity": "Aktivität"
   },
   "fab": {
     "open": "Hinzufügen-Menü öffnen",
@@ -954,6 +955,23 @@
     "presence": {
       "othersHere": "{count} weitere Person(en) hier",
       "overflow": "+{count} weitere"
+    }
+  },
+  "activity": {
+    "title": "Familienaktivität",
+    "today": "Heute",
+    "yesterday": "Gestern",
+    "aggregated": "1 Aktivität ({type}): {name} | {count} Aktivitäten ({type}), zuletzt: {name}",
+    "expand": "Alle anzeigen",
+    "collapse": "Einklappen",
+    "filters": {
+      "type": "Typ",
+      "member": "Mitglied",
+      "all": "Alle"
+    },
+    "empty": {
+      "title": "Noch keine Aktivität",
+      "description": "Sobald jemand in deiner Familie etwas hinzufügt, ändert oder entfernt, erscheint es hier."
     }
   },
   "realtime": {

@@ -94,3 +94,43 @@ export interface PagedActivitiesResponse {
   hasNextPage: boolean
   isUnpaginated: boolean
 }
+
+/**
+ * One row of the cursor-paged, server-aggregated activity timeline: either a single activity
+ * (`count === 1`, `items` absent) or a collapsed run of same-actor, same-activity-type activities
+ * recorded within 5 minutes of each other (`count > 1`) — e.g. a bulk import that would otherwise
+ * produce dozens of near-identical cards. Mirrors `Homassy.API.Models.Activity.ActivityTimelineEntry`
+ * (see commit e55e6d1).
+ */
+export interface ActivityTimelineEntry {
+  /** Identity for the entry: the run's newest activity's own publicId. */
+  publicId: string
+  userPublicId: string
+  userName: string
+  userProfilePictureUrl?: string | null
+  /** The actor's chosen identity-colour key, or null/absent for the deterministic pick. */
+  userIdentityColor?: string | null
+  /** The run's newest activity's timestamp (its only timestamp when count === 1). */
+  timestamp: string
+  /** The run's oldest activity's timestamp. Absent when count === 1. */
+  lastTimestamp?: string
+  activityType: ActivityType
+  /** The run's newest activity's record name. */
+  recordName: string
+  unit?: number
+  quantity?: number
+  /** 1 for a single activity; greater than 1 for a collapsed run. */
+  count: number
+  /** The run's individual activities, newest first, for the expand-on-tap. Absent when count === 1. */
+  items?: ActivityInfo[]
+}
+
+/**
+ * One page of the activity timeline, newest first. Mirrors
+ * `Homassy.API.Models.Activity.ActivityTimelineResult`.
+ */
+export interface ActivityTimelineResult {
+  entries: ActivityTimelineEntry[]
+  /** Opaque cursor for the next page, or absent/null when this page reached the end. */
+  nextCursor?: string | null
+}

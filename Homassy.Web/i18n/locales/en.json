@@ -203,7 +203,8 @@
     "products": "Inventory",
     "shoppingLists": "Shopping Lists",
     "calendar": "Calendar",
-    "profile": "Profile"
+    "profile": "Profile",
+    "activity": "Activity"
   },
   "fab": {
     "open": "Open add menu",
@@ -954,6 +955,23 @@
     "presence": {
       "othersHere": "{count} other(s) here",
       "overflow": "+{count} more"
+    }
+  },
+  "activity": {
+    "title": "Family Activity",
+    "today": "Today",
+    "yesterday": "Yesterday",
+    "aggregated": "1 activity ({type}): {name} | {count} activities ({type}), most recently: {name}",
+    "expand": "Show all",
+    "collapse": "Collapse",
+    "filters": {
+      "type": "Type",
+      "member": "Member",
+      "all": "All"
+    },
+    "empty": {
+      "title": "No activity yet",
+      "description": "Once someone in your family adds, updates, or removes something, it will show up here."
     }
   },
   "realtime": {
