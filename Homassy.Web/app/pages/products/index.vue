@@ -88,6 +88,11 @@
             :label="$t('pages.products.filterLabels.eatable')"
             :options="eatableOptions"
           />
+          <FilterChipGroup
+            v-model="groupBy"
+            :label="$t('pages.products.filterLabels.groupBy')"
+            :options="groupByOptions"
+          />
 
           <!-- Boolean property toggles -->
           <div role="group" :aria-label="$t('pages.products.filterLabels.properties')">
@@ -159,8 +164,9 @@
       </template>
     </AppDrawer>
 
-    <!-- Content Section -->
-    <div class="px-4 sm:px-8 lg:px-14 pb-6">
+    <!-- Content Section. Extra right padding while the index rail is up, so it overlays the
+         gutter rather than the cards. -->
+    <div class="px-4 sm:px-8 lg:px-14 pb-6" :class="showIndexRail ? 'pr-9 sm:pr-12 lg:pr-16' : ''">
 
     <PullToRefreshIndicator
       :pull-distance="pullDistance"
@@ -193,8 +199,10 @@
         @action="onEmptyStateAction"
       />
 
-      <!-- Products Grid -->
-      <AnimatedList class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+      <!-- Products grid. Ungrouped it is one flat AnimatedList, as before; grouped it is one
+           list per section under a sticky header. Separate lists on purpose — a header inside a
+           TransitionGroup would join the cards' FLIP animation. -->
+      <AnimatedList v-if="sections.length === 0" class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
         <DetailedProductCard
           v-for="product in displayedProducts"
           :key="product.publicId"
@@ -203,6 +211,31 @@
           @select="openOverview"
         />
       </AnimatedList>
+
+      <template v-else>
+        <section v-for="section in displayedSections" :key="section.key" :aria-labelledby="`section-${section.key}`">
+          <!-- Sticky under the app header, whose measured height is published as
+               --app-header-height. -->
+          <h2
+            :id="`section-${section.key}`"
+            class="sticky z-20 -mx-1 mb-2 flex items-baseline gap-2 bg-default/95 px-1 py-2 backdrop-blur"
+            :style="{ top: 'calc(var(--app-header-height, 5.5rem) - 0.25rem)' }"
+          >
+            <span class="text-sm font-bold uppercase tracking-wide text-highlighted">{{ section.label }}</span>
+            <span class="text-xs text-muted tabular-nums">{{ section.count }}</span>
+          </h2>
+
+          <AnimatedList class="mb-4 grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+            <DetailedProductCard
+              v-for="product in section.items"
+              :key="product.publicId"
+              :product="product"
+              :search-query="searchQuery"
+              @select="openOverview"
+            />
+          </AnimatedList>
+        </section>
+      </template>
     </template>
 
     <!-- Sentinel for intersection observer -->
@@ -213,6 +246,17 @@
       </div>
     </div>
     </div>
+
+    <!-- Fast-scroll index. Built from every section, not the rendered ones, so it can reach a
+         group the incremental renderer has not got to yet. -->
+    <SectionIndexRail
+      :sections="railSections"
+      :min-sections="MIN_INDEX_SECTIONS"
+      :aria-label="$t('pages.products.sectionIndex')"
+      top="calc(var(--app-header-height, 5.5rem) + 1rem)"
+      bottom="7rem"
+      @select="jumpToSection"
+    />
 
     <!-- Barcode Scanner Modal -->
     <BarcodeScannerModal :on-barcode-detected="handleBarcodeScanned" />
@@ -226,7 +270,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, watch, onBeforeUnmount } from 'vue'
+import { ref, computed, nextTick, onMounted, watch, onBeforeUnmount } from 'vue'
 import { useProductsApi } from '../../composables/api/useProductsApi'
 import type {
   InventoryGridProductInfo,
@@ -235,7 +279,9 @@ import type {
   ProductDeletedEvent,
   ProductFavoriteChangedEvent
 } from '../../types/product'
+import { ProductCategoryGroup } from '../../types/enums'
 import { normalizeForSearch } from '../../utils/stringUtils'
+import { getProductCategoryGroup, PRODUCT_CATEGORY_GROUP_ORDER } from '../../utils/productCategoryGroups'
 import { useCameraAvailability } from '../../composables/useCameraAvailability'
 import { useInventorySocket } from '../../composables/useInventorySocket'
 import { useEventBus } from '../../composables/useEventBus'
@@ -245,9 +291,35 @@ definePageMeta({
   middleware: 'auth'
 })
 
+/**
+ * How the grid is grouped. `none` keeps the flat, urgency-ordered list this page has always had.
+ *
+ * Storage location is deliberately not offered, though the issue that asked for this listed it: it
+ * is not in the grid's payload (`InventoryGridItemInfo` omits it on purpose) and a product with
+ * items in several locations has no single one to group under.
+ */
+type GroupBy = 'none' | 'name' | 'category'
+
+const GROUP_BY_VALUES: string[] = ['none', 'name', 'category']
+
+/** Fewer sections than this and the index rail is more chrome than help. */
+const MIN_INDEX_SECTIONS = 5
+
+interface ProductSection {
+  /** Stable across re-renders — it is the DOM id of the sticky header, and the rail's key. */
+  key: string
+  /** Full name, for the header and the rail's bubble. */
+  label: string
+  /** One or two characters, for the rail itself. */
+  tick: string
+  /** Sort position; ties are broken on the label. */
+  order: number
+  items: InventoryGridProductInfo[]
+}
+
 const { getDetailedProducts } = useProductsApi()
 const { isExpired: checkIsExpired, isExpiringSoon: checkIsExpiringSoon } = useExpirationCheck()
-const { t: $t } = useI18n()
+const { t: $t, locale: $locale } = useI18n()
 const { showCameraButton } = useCameraAvailability()
 const inventorySocket = useInventorySocket()
 const eventBus = useEventBus()
@@ -302,6 +374,7 @@ const barcodeFilter = ref('all')
 const scopeFilter = ref('all')
 const minQuantity = ref<number | null>(null)
 const maxQuantity = ref<number | null>(null)
+const groupBy = ref<GroupBy>('none')
 
 // Pagination state
 const currentPage = ref(1)
@@ -315,6 +388,12 @@ const expirationOptions = computed(() => [
   { label: $t('pages.products.filters.all'), value: 'all' },
   { label: $t('pages.products.filters.expired'), value: 'expired' },
   { label: $t('pages.products.filters.expiringSoon'), value: 'expiringSoon' }
+])
+
+const groupByOptions = computed(() => [
+  { label: $t('pages.products.groupBy.none'), value: 'none' },
+  { label: $t('pages.products.groupBy.name'), value: 'name' },
+  { label: $t('pages.products.groupBy.category'), value: 'category' }
 ])
 
 const eatableOptions = computed(() => [
@@ -425,7 +504,8 @@ const filterState = computed(() => ({
   barcode: barcodeFilter.value,
   scope: scopeFilter.value,
   minQuantity: minQuantity.value,
-  maxQuantity: maxQuantity.value
+  maxQuantity: maxQuantity.value,
+  groupBy: groupBy.value
 }))
 
 // Computed - client-side filtering
@@ -515,16 +595,146 @@ const filteredProducts = computed(() => {
   return [...expiredProducts, ...expiringSoonProducts, ...otherProducts]
 })
 
+// --- Sections -----------------------------------------------------------------------------------
+//
+// Grouping is computed over the **whole** filtered list, never the rendered slice: the index rail
+// has to be able to point at a group the incremental renderer has not reached, and a rail built
+// from what happens to be on screen would grow as you scrolled.
+
+/**
+ * The sections, in the order they are shown. Empty when not grouping — which is how the template
+ * decides between one flat grid and a grid per section.
+ *
+ * Within a section the products keep `filteredProducts`' order (urgency, then alphabetical), so
+ * grouping changes where a card sits, not how the list ranks what is inside a group.
+ */
+const sections = computed<ProductSection[]>(() => {
+  if (groupBy.value === 'none') return []
+
+  const buckets = new Map<string, ProductSection>()
+
+  for (const product of filteredProducts.value) {
+    const bucket = groupBy.value === 'name' ? nameBucket(product) : categoryBucket(product)
+    const existing = buckets.get(bucket.key)
+
+    if (existing) existing.items.push(product)
+    else buckets.set(bucket.key, { ...bucket, items: [product] })
+  }
+
+  // `order` puts the category groups in the pickers' order and pushes the name buckets' "#" last;
+  // the label breaks the remaining ties, which is every letter bucket.
+  return [...buckets.values()].sort((a, b) =>
+    a.order - b.order || a.label.localeCompare(b.label, $locale.value)
+  )
+})
+
+/** First letter, uppercased. Digits and symbols share one bucket, sorted after the letters. */
+function nameBucket(product: InventoryGridProductInfo): Omit<ProductSection, 'items'> {
+  const initial = (product.name.trim()[0] ?? '').toLocaleUpperCase($locale.value)
+  const isLetter = /\p{L}/u.test(initial)
+
+  return isLetter
+    ? { key: `name-${initial}`, label: initial, tick: initial, order: 0 }
+    : { key: 'name-other', label: '#', tick: '#', order: 1 }
+}
+
+/**
+ * The product's `ProductCategoryGroup`. Presentation-only — the API stores the category, not the
+ * group — and a product with no category lands in `Other`, which is where the enum puts it too.
+ */
+function categoryBucket(product: InventoryGridProductInfo): Omit<ProductSection, 'items'> {
+  const group = product.category == null
+    ? ProductCategoryGroup.Other
+    : getProductCategoryGroup(product.category) ?? ProductCategoryGroup.Other
+  const label = $t(`enums.productCategoryGroup.${group}`)
+
+  return {
+    key: `category-${group}`,
+    label,
+    tick: label.slice(0, 2),
+    order: PRODUCT_CATEGORY_GROUP_ORDER.indexOf(group)
+  }
+}
+
+/** What the rail shows: every section, rendered or not. */
+const railSections = computed(() =>
+  sections.value.map(({ key, label, tick }) => ({ key, label, tick }))
+)
+
+/** Whether the rail is up — the content gutter widens to match, so it never covers a card. */
+const showIndexRail = computed(() => railSections.value.length >= MIN_INDEX_SECTIONS)
+
+/** The flat order the incremental renderer pages through — the grouped one while grouping. */
+const orderedProducts = computed(() =>
+  groupBy.value === 'none'
+    ? filteredProducts.value
+    : sections.value.flatMap(section => section.items)
+)
+
 // Paginated products for display (lazy loading)
 const displayedProducts = computed(() => {
   const startIndex = 0
   const endIndex = currentPage.value * pageSize
-  return filteredProducts.value.slice(startIndex, endIndex)
+  return orderedProducts.value.slice(startIndex, endIndex)
+})
+
+/**
+ * The sections trimmed to what is rendered. `count` stays the section's real size, so a header does
+ * not count up as you scroll into it.
+ */
+const displayedSections = computed(() => {
+  const limit = currentPage.value * pageSize
+  const out: { key: string, label: string, count: number, items: InventoryGridProductInfo[] }[] = []
+  let taken = 0
+
+  for (const section of sections.value) {
+    if (taken >= limit) break
+
+    const items = section.items.slice(0, limit - taken)
+    taken += items.length
+    out.push({ key: section.key, label: section.label, count: section.items.length, items })
+  }
+
+  return out
 })
 
 const hasMoreProducts = computed(() => {
-  return displayedProducts.value.length < filteredProducts.value.length
+  return displayedProducts.value.length < orderedProducts.value.length
 })
+
+/**
+ * Jumps to a section, rendering however much of the list it takes to get there first.
+ *
+ * That render-ahead is the point: the rail lists every group, so picking one past the rendered
+ * slice has to reveal it rather than scroll to nothing. It only ever grows the rendered range, so
+ * scrolling back up afterwards costs nothing.
+ */
+async function jumpToSection(key: string) {
+  const index = sections.value.findIndex(section => section.key === key)
+  if (index === -1) return
+
+  let offset = 0
+  for (let i = 0; i < index; i++) offset += sections.value[i]!.items.length
+
+  const pagesNeeded = Math.ceil((offset + 1) / pageSize)
+  if (currentPage.value < pagesNeeded) currentPage.value = pagesNeeded
+
+  await nextTick()
+
+  const header = document.getElementById(`section-${key}`)
+  if (!header) return
+
+  // Not scrollIntoView: the app header is fixed, so a section scrolled to the top of the viewport
+  // would sit underneath it.
+  const headerHeight = parseFloat(
+    getComputedStyle(document.documentElement).getPropertyValue('--app-header-height')
+  ) || 88
+
+  window.scrollTo({
+    top: header.getBoundingClientRect().top + window.scrollY - headerHeight - 8,
+    behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth'
+  })
+}
 
 // Helper function to check if product has expired items
 const hasExpiredItems = (product: InventoryGridProductInfo): boolean => {
@@ -734,6 +944,9 @@ onMounted(() => {
       }
       if (['all', 'family', 'personal'].includes(parsed.scope)) {
         scopeFilter.value = parsed.scope
+      }
+      if (GROUP_BY_VALUES.includes(parsed.groupBy)) {
+        groupBy.value = parsed.groupBy
       }
       minQuantity.value = normalizeQty(parsed.minQuantity)
       maxQuantity.value = normalizeQty(parsed.maxQuantity)

@@ -1,3 +1,4 @@
+using Homassy.API.Constants;
 using Homassy.API.Context;
 using Homassy.API.Entities.User;
 using Homassy.API.Enums;
@@ -544,7 +545,7 @@ namespace Homassy.API.Functions
                 {
                     Name = u.Name,
                     DisplayName = profile?.DisplayName ?? u.Name,
-                    ProfilePictureBase64 = profile?.ProfilePictureBase64,
+                    ProfilePictureUrl = MediaUrls.ProfilePicture(u.PublicId, profile?.ProfilePictureVersion),
                     TimeZone = profile?.DefaultTimeZone.ToTimeZoneId() ?? string.Empty,
                     Language = profile?.DefaultLanguage.ToLanguageCode() ?? string.Empty,
                     Currency = profile?.DefaultCurrency.ToCurrencyCode() ?? string.Empty
@@ -825,7 +826,7 @@ namespace Homassy.API.Functions
                 Email = user.Email,
                 Name = user.Name,
                 DisplayName = profile.DisplayName,
-                ProfilePictureBase64 = profile.ProfilePictureBase64,
+                ProfilePictureUrl = MediaUrls.ProfilePicture(user.PublicId, profile.ProfilePictureVersion),
                 TimeZone = profile.DefaultTimeZone.ToTimeZoneId(),
                 Language = profile.DefaultLanguage.ToLanguageCode(),
                 Currency = profile.DefaultCurrency.ToCurrencyCode(),
@@ -927,87 +928,6 @@ namespace Homassy.API.Functions
             }
         }
 
-        public async Task UploadProfilePictureAsync(string profilePictureBase64, CancellationToken cancellationToken = default)
-        {
-            var userId = SessionInfo.GetUserId();
-            if (!userId.HasValue)
-            {
-                Log.Warning("Invalid session: User ID not found");
-                throw new UserNotFoundException("User not found", ErrorCodes.UserNotFound);
-            }
-
-            if (string.IsNullOrWhiteSpace(profilePictureBase64))
-            {
-                throw new BadRequestException("Profile picture data is required", ErrorCodes.ValidationProfilePictureRequired);
-            }
-
-            using var context = _contextFactory.CreateDbContext();
-            await using var transaction = await context.Database.BeginTransactionAsync(cancellationToken);
-            try
-            {
-                var profile = await context.Set<UserProfile>().FirstOrDefaultAsync(p => p.UserId == userId, cancellationToken);
-
-                if (profile == null)
-                {
-                    Log.Warning($"UserProfile not found for user {userId}");
-                    throw new UserNotFoundException("UserProfile not found", ErrorCodes.UserProfileNotFound);
-                }
-
-                profile.ProfilePictureBase64 = profilePictureBase64;
-
-                await context.SaveChangesAsync(cancellationToken);
-                await transaction.CommitAsync(cancellationToken);
-
-                Log.Information($"User {userId} uploaded profile picture");
-            }
-            catch (Exception ex)
-            {
-                await transaction.RollbackAsync(cancellationToken);
-                Log.Error(ex, $"Error uploading profile picture for user {userId}");
-                throw;
-            }
-        }
-
-        public async Task DeleteProfilePictureAsync(CancellationToken cancellationToken = default)
-        {
-            var userId = SessionInfo.GetUserId();
-            if (!userId.HasValue)
-            {
-                Log.Warning("Invalid session: User ID not found");
-                throw new UserNotFoundException("User not found", ErrorCodes.UserNotFound);
-            }
-
-            using var context = _contextFactory.CreateDbContext();
-            await using var transaction = await context.Database.BeginTransactionAsync(cancellationToken);
-            try
-            {
-                var profile = await context.Set<UserProfile>().FirstOrDefaultAsync(p => p.UserId == userId, cancellationToken);
-
-                if (profile == null)
-                {
-                    Log.Warning($"UserProfile not found for user {userId}");
-                    throw new UserNotFoundException("UserProfile not found", ErrorCodes.UserProfileNotFound);
-                }
-
-                if (string.IsNullOrEmpty(profile.ProfilePictureBase64))
-                {
-                    throw new BadRequestException("No profile picture to delete", ErrorCodes.UserNoProfilePicture);
-                }
-
-                profile.ProfilePictureBase64 = null;
-
-                await context.SaveChangesAsync(cancellationToken);
-                await transaction.CommitAsync(cancellationToken);
-
-                Log.Information($"User {userId} deleted profile picture");
-            }
-            catch (Exception ex)
-            {
-                await transaction.RollbackAsync(cancellationToken);
-                Log.Error(ex, $"Error deleting profile picture for user {userId}");
-                throw;
-            }
-        }
         #endregion
 
         #region Current User
@@ -1041,7 +961,7 @@ namespace Homassy.API.Functions
             {
                 Name = user.Name,
                 DisplayName = profile.DisplayName,
-                ProfilePictureBase64 = profile.ProfilePictureBase64,
+                ProfilePictureUrl = MediaUrls.ProfilePicture(user.PublicId, profile.ProfilePictureVersion),
                 TimeZone = profile.DefaultTimeZone.ToTimeZoneId(),
                 Language = profile.DefaultLanguage.ToLanguageCode(),
                 Currency = profile.DefaultCurrency.ToCurrencyCode()
@@ -1059,11 +979,15 @@ namespace Homassy.API.Functions
         {
             var traits = session.Identity.Traits;
 
+            // The avatar is the one field here that does not come from the session: the traits no
+            // longer carry a picture, and the local profile is where its version lives.
+            var pictureVersion = GetUserProfileByUserId(user.Id)?.ProfilePictureVersion;
+
             return new UserInfo
             {
                 Name = traits.Name ?? user.Name,
                 DisplayName = traits.DisplayName ?? traits.Name ?? user.Name,
-                ProfilePictureBase64 = traits.ProfilePictureBase64,
+                ProfilePictureUrl = MediaUrls.ProfilePicture(user.PublicId, pictureVersion),
                 TimeZone = traits.DefaultTimezone ?? "Europe/Budapest",
                 Language = traits.DefaultLanguage ?? "hu",
                 Currency = traits.DefaultCurrency ?? "HUF"
@@ -1099,7 +1023,6 @@ namespace Homassy.API.Functions
                 {
                     UserId = user.Id,
                     DisplayName = identity.Traits.DisplayName ?? identity.Traits.Name ?? user.Name,
-                    ProfilePictureBase64 = identity.Traits.ProfilePictureBase64,
                     DateOfBirth = !string.IsNullOrEmpty(identity.Traits.DateOfBirth) 
                         ? DateTime.TryParse(identity.Traits.DateOfBirth, out var dob) ? dob : null 
                         : null,
@@ -1148,8 +1071,10 @@ namespace Homassy.API.Functions
                 Email = user.Email,
                 Name = user.Name,
                 DisplayName = profile.DisplayName,
-                // Convert empty string to null for JsonIgnore to work
-                ProfilePictureBase64 = string.IsNullOrEmpty(profile.ProfilePictureBase64) ? null : profile.ProfilePictureBase64,
+                // Deliberately null: avatars are served from GET /User/{publicId}/profile-picture
+                // and are not a Kratos trait any more. Writing null here is also what clears the
+                // legacy trait off identities that still carry one.
+                ProfilePictureBase64 = null,
                 DateOfBirth = profile.DateOfBirth?.ToString("yyyy-MM-dd"),
                 Gender = string.IsNullOrEmpty(profile.Gender) ? null : profile.Gender,
                 // Use ToKratosCurrencyEnum() for Kratos schema compatibility (maps unsupported currencies to EUR)
@@ -1228,7 +1153,6 @@ namespace Homassy.API.Functions
                 if (profile != null)
                 {
                     profile.DisplayName = identity.Traits.DisplayName ?? identity.Traits.Name ?? profile.DisplayName;
-                    profile.ProfilePictureBase64 = identity.Traits.ProfilePictureBase64 ?? profile.ProfilePictureBase64;
                     profile.DefaultCurrency = ParseCurrency(identity.Traits.DefaultCurrency);
                     profile.DefaultTimeZone = ParseTimeZone(identity.Traits.DefaultTimezone);
                     profile.DefaultLanguage = ParseLanguage(identity.Traits.DefaultLanguage);

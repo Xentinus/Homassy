@@ -50,12 +50,18 @@
       <p v-if="product.inventoryItems.length === 0" class="text-xs text-muted italic text-center py-1">
         {{ $t('common.noData') }}
       </p>
-      <div v-else class="flex flex-col gap-1">
+      <div v-else class="flex flex-col gap-1.5">
         <div v-for="entry in stockByUnit" :key="entry.unit" class="flex items-center gap-2 text-xs">
-          <UIcon name="i-lucide-package-2" class="h-3.5 w-3.5 text-amber-600 dark:text-amber-400 flex-shrink-0" />
+          <StockRing :value="entry.quantity" :reference="entry.reference" :size="26" :class="tone.text">
+            <UIcon name="i-lucide-package-2" class="h-3 w-3" />
+          </StockRing>
           <span class="font-bold text-highlighted tabular-nums">{{ entry.quantity }}</span>
           <span class="text-toned">{{ entry.unitLabel }}</span>
         </div>
+
+        <!-- The soonest date that is worth flagging. Silent while everything is comfortably in
+             date, so the card does not spend a line saying "fine". -->
+        <ExpirationChip v-if="soonestExpiration" :date="soonestExpiration" class="text-xs" />
       </div>
     </div>
   </div>
@@ -80,31 +86,55 @@ const emit = defineEmits<{
 }>()
 
 const { t } = useI18n()
-const { isExpired: checkIsExpired, isExpiringSoon: checkIsExpiringSoon } = useExpirationCheck()
+const { toneForLevel, worstExpirationLevel } = useExpirationStatus()
 
-// Aggregate inventory quantities by unit
+/**
+ * Aggregate inventory quantities by unit, with a stock-ring denominator per unit.
+ *
+ * The reference is only offered when **every** item in the unit group knows what it was bought at:
+ * summing over the ones that do and calling that the whole would be a made-up scale, and the ring
+ * falls back to a flat badge instead.
+ */
 const stockByUnit = computed(() => {
-  const map = new Map<number, number>()
+  const groups = new Map<number, { quantity: number, original: number, complete: boolean }>()
+
   for (const item of props.product.inventoryItems) {
     const unit = item.unit as number
-    map.set(unit, (map.get(unit) ?? 0) + item.currentQuantity)
+    const group = groups.get(unit) ?? { quantity: 0, original: 0, complete: true }
+
+    group.quantity += item.currentQuantity
+    if (item.originalQuantity && item.originalQuantity > 0) group.original += item.originalQuantity
+    else group.complete = false
+
+    groups.set(unit, group)
   }
-  return Array.from(map.entries()).map(([unit, quantity]) => ({
+
+  return Array.from(groups.entries()).map(([unit, group]) => ({
     unit,
-    quantity: Number.isInteger(quantity) ? quantity : parseFloat(quantity.toFixed(3)),
+    quantity: Number.isInteger(group.quantity) ? group.quantity : parseFloat(group.quantity.toFixed(3)),
+    reference: group.complete && group.original > 0 ? group.original : null,
     unitLabel: t(`enums.unit.${unit}`)
   }))
 })
 
-// Dynamic border classes based on status
-const cardBorderClass = computed(() => {
-  if (hasExpiredItems.value) {
-    return 'border-red-400 dark:border-red-500'
-  }
-  if (hasExpiringSoonItems.value) {
-    return 'border-primary-400 dark:border-primary-500'
-  }
-  return 'border-gray-200 dark:border-gray-700'
+// One source for the card's expiry colours: the shared ramp, in theme tokens rather than the
+// red/primary palette literals this card used to carry.
+const tone = computed(() => toneForLevel(worstExpirationLevel(
+  props.product.inventoryItems.map(item => item.expirationAt)
+)))
+
+const cardBorderClass = computed(() => tone.value.border)
+
+/** The date driving the card's colour — the one the label should name. */
+const soonestExpiration = computed(() => {
+  if (tone.value.level === 'none' || tone.value.level === 'ok') return null
+
+  const dates = props.product.inventoryItems
+    .map(item => item.expirationAt)
+    .filter((date): date is string => !!date)
+    .sort()
+
+  return dates[0] ?? null
 })
 
 // Helper function to escape regex special characters
@@ -124,28 +154,6 @@ const highlightText = (text: string, query: string): string => {
   const regex = new RegExp(`(${escapeRegex(normalizedQuery)})`, 'gi')
   return text.replace(regex, '<span class="font-bold text-primary-600 dark:text-primary-400 bg-primary-100 dark:bg-primary-900/30 px-1 py-0.5 rounded">$1</span>')
 }
-
-const hasExpiredItems = computed(() => {
-  return props.product.inventoryItems.some(item => {
-    if (!item.expirationAt) return false
-    try {
-      return checkIsExpired(item.expirationAt)
-    } catch {
-      return false
-    }
-  })
-})
-
-const hasExpiringSoonItems = computed(() => {
-  return props.product.inventoryItems.some(item => {
-    if (!item.expirationAt) return false
-    try {
-      return checkIsExpiringSoon(item.expirationAt)
-    } catch {
-      return false
-    }
-  })
-})
 
 const selectProduct = () => {
   emit('select', props.product.publicId)

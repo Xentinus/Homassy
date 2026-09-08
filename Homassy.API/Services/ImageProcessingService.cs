@@ -1,5 +1,12 @@
 using Homassy.API.Enums;
 using Homassy.API.Models.ImageUpload;
+using Serilog;
+using SixLabors.ImageSharp;
+using SixLabors.ImageSharp.Formats.Jpeg;
+using SixLabors.ImageSharp.Formats.Png;
+using SixLabors.ImageSharp.Formats.Webp;
+using SixLabors.ImageSharp.Processing;
+using SixImage = SixLabors.ImageSharp.Image;
 
 namespace Homassy.API.Services
 {
@@ -333,9 +340,137 @@ namespace Homassy.API.Services
             return (Math.Max(1, newWidth), Math.Max(1, newHeight));
         }
 
+        public ProcessedImage? CreateSquareThumbnail(byte[] imageBytes, int size, int quality = 75)
+        {
+            if (imageBytes.Length == 0 || size <= 0)
+            {
+                return null;
+            }
+
+            try
+            {
+                using var image = SixImage.Load(imageBytes);
+
+                image.Mutate(ctx => ctx.Resize(new ResizeOptions
+                {
+                    Size = new Size(size, size),
+                    // Crop, not Pad: a thumbnail fills a fixed square box in the UI, and letterbox
+                    // bars baked into the bytes would show through every rounded corner.
+                    Mode = ResizeMode.Crop,
+                    Position = AnchorPositionMode.Center
+                }));
+
+                using var output = new MemoryStream();
+                image.SaveAsWebp(output, new WebpEncoder { Quality = quality });
+
+                return Describe(output.ToArray(), ImageFormat.WebP, image.Width, image.Height);
+            }
+            catch (Exception ex)
+            {
+                Log.Warning(ex, "Failed to create a {Size}px thumbnail from {ByteCount} bytes", size, imageBytes.Length);
+                return null;
+            }
+        }
+
+        public ProcessedImage? CreateBoundedThumbnail(byte[] imageBytes, int maxSize, int quality = 75)
+        {
+            if (imageBytes.Length == 0 || maxSize <= 0)
+            {
+                return null;
+            }
+
+            try
+            {
+                using var image = SixImage.Load(imageBytes);
+
+                var (width, height) = CalculateResizedDimensions(image.Width, image.Height, maxSize, maxSize);
+                if (width != image.Width || height != image.Height)
+                {
+                    image.Mutate(ctx => ctx.Resize(width, height));
+                }
+
+                using var output = new MemoryStream();
+                image.SaveAsWebp(output, new WebpEncoder { Quality = quality });
+
+                return Describe(output.ToArray(), ImageFormat.WebP, image.Width, image.Height);
+            }
+            catch (Exception ex)
+            {
+                Log.Warning(ex, "Failed to create a {Size}px bounded thumbnail from {ByteCount} bytes", maxSize, imageBytes.Length);
+                return null;
+            }
+        }
+
+        public ProcessedImage? TranscodeToJpeg(byte[] imageBytes, int quality = 80)
+        {
+            if (imageBytes.Length == 0)
+            {
+                return null;
+            }
+
+            try
+            {
+                using var image = SixImage.Load(imageBytes);
+
+                using var output = new MemoryStream();
+                image.SaveAsJpeg(output, new JpegEncoder { Quality = quality });
+
+                return Describe(output.ToArray(), ImageFormat.Jpeg, image.Width, image.Height);
+            }
+            catch (Exception ex)
+            {
+                Log.Warning(ex, "Failed to transcode {ByteCount} bytes to JPEG", imageBytes.Length);
+                return null;
+            }
+        }
+
+        private static ProcessedImage Describe(byte[] data, ImageFormat format, int width, int height)
+        {
+            return new ProcessedImage
+            {
+                Data = data,
+                Base64 = Convert.ToBase64String(data),
+                Format = format,
+                Width = width,
+                Height = height,
+                FileSizeBytes = data.Length,
+                ContentType = GetContentType(format)
+            };
+        }
+
         private static byte[]? ResizeImage(byte[] data, ImageFormat format, int targetWidth, int targetHeight, int quality)
         {
-            return data;
+            try
+            {
+                using var image = SixImage.Load(data);
+
+                // Stretch is safe here: the caller derived the target from the source's own aspect
+                // ratio (CalculateResizedDimensions), so there is nothing to crop or pad.
+                image.Mutate(ctx => ctx.Resize(targetWidth, targetHeight));
+
+                using var output = new MemoryStream();
+                switch (format)
+                {
+                    case ImageFormat.Png:
+                        image.SaveAsPng(output, new PngEncoder());
+                        break;
+                    case ImageFormat.WebP:
+                        image.SaveAsWebp(output, new WebpEncoder { Quality = quality });
+                        break;
+                    default:
+                        image.SaveAsJpeg(output, new JpegEncoder { Quality = quality });
+                        break;
+                }
+
+                return output.ToArray();
+            }
+            catch (Exception ex)
+            {
+                // Callers treat null as "could not process"; the upload then answers 400 rather
+                // than storing an image whose stored dimensions lie about its bytes.
+                Log.Warning(ex, "Failed to resize a {Format} image to {Width}x{Height}", format, targetWidth, targetHeight);
+                return null;
+            }
         }
 
         private static string GetContentType(ImageFormat format)

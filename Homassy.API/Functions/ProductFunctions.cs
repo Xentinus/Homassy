@@ -1,4 +1,5 @@
-﻿using Homassy.API.Context;
+﻿using Homassy.API.Constants;
+using Homassy.API.Context;
 using Homassy.API.Entities.Location;
 using Homassy.API.Entities.Product;
 using Homassy.API.Entities.User;
@@ -511,7 +512,8 @@ namespace Homassy.API.Functions
                     Category = p.Category,
                     Unit = p.Unit,
                     Barcode = p.Barcode,
-                    ProductPictureBase64 = p.ProductPictureBase64,
+                    ProductImageUrl = MediaUrls.ProductImage(p.PublicId, p.ProductPictureVersion),
+                    ProductImageFullUrl = MediaUrls.ProductImage(p.PublicId, p.ProductPictureVersion, ImageVariant.Full),
                     IsEatable = p.IsEatable,
                     IsFavorite = customization?.IsFavorite ?? false
                 };
@@ -602,7 +604,8 @@ namespace Homassy.API.Functions
                     Category = product.Category,
                     Unit = product.Unit,
                     Barcode = product.Barcode,
-                    ProductPictureBase64 = product.ProductPictureBase64,
+                    ProductImageUrl = MediaUrls.ProductImage(product.PublicId, product.ProductPictureVersion),
+                    ProductImageFullUrl = MediaUrls.ProductImage(product.PublicId, product.ProductPictureVersion, ImageVariant.Full),
                     IsEatable = product.IsEatable,
                     IsFavorite = isFavorite
                 };
@@ -736,7 +739,8 @@ namespace Homassy.API.Functions
                     Category = product.Category,
                     Unit = product.Unit,
                     Barcode = product.Barcode,
-                    ProductPictureBase64 = product.ProductPictureBase64,
+                    ProductImageUrl = MediaUrls.ProductImage(product.PublicId, product.ProductPictureVersion),
+                    ProductImageFullUrl = MediaUrls.ProductImage(product.PublicId, product.ProductPictureVersion, ImageVariant.Full),
                     IsEatable = product.IsEatable,
                     IsFavorite = customization?.IsFavorite ?? false
                 };
@@ -913,7 +917,8 @@ namespace Homassy.API.Functions
                     Category = product.Category,
                     Unit = product.Unit,
                     Barcode = product.Barcode,
-                    ProductPictureBase64 = product.ProductPictureBase64,
+                    ProductImageUrl = MediaUrls.ProductImage(product.PublicId, product.ProductPictureVersion),
+                    ProductImageFullUrl = MediaUrls.ProductImage(product.PublicId, product.ProductPictureVersion, ImageVariant.Full),
                     IsEatable = product.IsEatable,
                     IsFavorite = newFavoriteStatus
                 };
@@ -1007,7 +1012,8 @@ namespace Homassy.API.Functions
                 Category = product.Category,
                 Unit = product.Unit,
                 Barcode = product.Barcode,
-                ProductPictureBase64 = product.ProductPictureBase64,
+                ProductImageUrl = MediaUrls.ProductImage(product.PublicId, product.ProductPictureVersion),
+                ProductImageFullUrl = MediaUrls.ProductImage(product.PublicId, product.ProductPictureVersion, ImageVariant.Full),
                 IsEatable = product.IsEatable,
                 IsFavorite = customization?.IsFavorite ?? false,
                 InventoryItems = inventoryItemInfos
@@ -1260,7 +1266,8 @@ namespace Homassy.API.Functions
                     Category = product.Category,
                     Unit = product.Unit,
                     Barcode = product.Barcode,
-                    ProductPictureBase64 = product.ProductPictureBase64,
+                    ProductImageUrl = MediaUrls.ProductImage(product.PublicId, product.ProductPictureVersion),
+                    ProductImageFullUrl = MediaUrls.ProductImage(product.PublicId, product.ProductPictureVersion, ImageVariant.Full),
                     IsEatable = product.IsEatable,
                     IsFavorite = customization?.IsFavorite ?? false,
                     InventoryItems = inventoryItemInfos
@@ -1294,7 +1301,7 @@ namespace Homassy.API.Functions
                 var items = GetInventoryItemsByProductId(product.Id, includeConsumed: false)
                     .Where(item => item.UserId == userId.Value ||
                                    (familyId.HasValue && item.FamilyId == familyId.Value))
-                    .Select(item => BuildGridItem(item, product.PublicId))
+                    .Select(item => GridItem(item, product.PublicId))
                     .ToList();
 
                 return new InventoryGridProductInfo
@@ -1302,6 +1309,7 @@ namespace Homassy.API.Functions
                     PublicId = product.PublicId,
                     Name = product.Name,
                     Brand = product.Brand,
+                    Category = product.Category,
                     Barcode = product.Barcode,
                     IsEatable = product.IsEatable,
                     IsFavorite = customization?.IsFavorite ?? false,
@@ -1311,15 +1319,34 @@ namespace Homassy.API.Functions
         }
 
         /// <summary>Builds the lightweight grid item projection used by the snapshot and realtime broadcasts.</summary>
-        public static InventoryGridItemInfo BuildGridItem(ProductInventoryItem item, Guid productPublicId) => new()
+        /// <param name="item">The inventory item to project.</param>
+        /// <param name="productPublicId">Its product, which the projection does not navigate to.</param>
+        /// <param name="originalQuantity">
+        /// The purchased amount, for the card's stock ring. Callers with a context of their own pass
+        /// it; the fallback reads the navigation, which is loaded on a tracked item and null on one
+        /// that came out of the cache — hence <see cref="GridItem"/> for callers inside this class.
+        /// </param>
+        public static InventoryGridItemInfo BuildGridItem(
+            ProductInventoryItem item,
+            Guid productPublicId,
+            decimal? originalQuantity = null) => new()
         {
             PublicId = item.PublicId,
             ProductPublicId = productPublicId,
             CurrentQuantity = item.CurrentQuantity,
+            OriginalQuantity = originalQuantity ?? item.PurchaseInfo?.OriginalQuantity,
             Unit = item.Unit,
             ExpirationAt = item.ExpirationAt,
             IsSharedWithFamily = item.FamilyId.HasValue
         };
+
+        /// <summary>
+        /// <see cref="BuildGridItem"/> with the purchased amount resolved from this instance's
+        /// caches, so every projection this class emits carries a stock-ring denominator whether
+        /// the item came from the cache or from a tracked query.
+        /// </summary>
+        private InventoryGridItemInfo GridItem(ProductInventoryItem item, Guid productPublicId) =>
+            BuildGridItem(item, productPublicId, GetPurchaseInfoByInventoryItemId(item.Id)?.OriginalQuantity);
 
         /// <summary>
         /// Builds a lightweight grid product carrier (no items) for an <c>InventoryUpserted</c> broadcast,
@@ -1331,19 +1358,29 @@ namespace Homassy.API.Functions
             PublicId = product.PublicId,
             Name = product.Name,
             Brand = product.Brand,
+            Category = product.Category,
             Barcode = product.Barcode,
             IsEatable = product.IsEatable,
             IsFavorite = false,
             InventoryItems = new()
         };
 
-        public async Task<int> GetExpiringAndExpiredInventoryCountAsync(CancellationToken cancellationToken = default)
+        /// <summary>
+        /// How many of the current user's inventory items are expired or expiring inside the
+        /// warning window, and how many of those are already expired.
+        /// </summary>
+        /// <remarks>
+        /// The split drives the nav badge's colour: the client cannot derive it from a total, and a
+        /// badge that is always red says the same thing whether milk goes off today or in a
+        /// fortnight.
+        /// </remarks>
+        public async Task<ExpirationCountResponse> GetExpiringAndExpiredInventoryCountAsync(CancellationToken cancellationToken = default)
         {
             var userId = SessionInfo.GetUserId();
             if (!userId.HasValue)
             {
                 Log.Warning("Invalid session: User ID not found");
-                return 0;
+                return new ExpirationCountResponse();
             }
 
             var familyId = SessionInfo.GetFamilyId();
@@ -1351,17 +1388,22 @@ namespace Homassy.API.Functions
             var expiringThreshold = today.AddDays(EXPIRING_SOON_THRESHOLD_DAYS);
 
             int count;
+            int expiredCount;
 
             if (Inited)
             {
                 // Use cache
-                count = _inventoryItemCache.Values
+                var inScope = _inventoryItemCache.Values
                     .Where(i => !i.IsDeleted && !i.IsFullyConsumed && i.ExpirationAt.HasValue)
                     .Where(i => _productCache.TryGetValue(i.ProductId, out var product) && !product.IsDeleted)
-                    .Where(i => familyId.HasValue 
+                    .Where(i => familyId.HasValue
                         ? (i.UserId == userId || i.FamilyId == familyId)
                         : i.UserId == userId)
-                    .Count(i => i.ExpirationAt!.Value.Date <= expiringThreshold);
+                    .Where(i => i.ExpirationAt!.Value.Date <= expiringThreshold)
+                    .ToList();
+
+                count = inScope.Count;
+                expiredCount = inScope.Count(i => i.ExpirationAt!.Value.Date < today);
             }
             else
             {
@@ -1381,10 +1423,17 @@ namespace Homassy.API.Functions
                     query = query.Where(i => i.UserId == userId);
                 }
 
-                count = await query.CountAsync(i => i.ExpirationAt!.Value.Date <= expiringThreshold, cancellationToken);
+                query = query.Where(i => i.ExpirationAt!.Value.Date <= expiringThreshold);
+
+                count = await query.CountAsync(cancellationToken);
+                expiredCount = await query.CountAsync(i => i.ExpirationAt!.Value.Date < today, cancellationToken);
             }
 
-            return count;
+            return new ExpirationCountResponse
+            {
+                TotalCount = count,
+                ExpiredCount = expiredCount
+            };
         }
         #endregion
 
@@ -1476,7 +1525,7 @@ namespace Homassy.API.Functions
                 await _runtime.Inventory.InventoryUpsertedAsync(
                     userId.Value, familyId,
                     BuildGridProductCarrier(product),
-                    BuildGridItem(inventoryItem, product.PublicId),
+                    GridItem(inventoryItem, product.PublicId),
                     cancellationToken);
 
                 // Check low-stock automations
@@ -1582,7 +1631,7 @@ namespace Homassy.API.Functions
                 await _runtime.Inventory.InventoryUpsertedAsync(
                     userId.Value, familyId,
                     BuildGridProductCarrier(product),
-                    BuildGridItem(inventoryItem, product.PublicId),
+                    GridItem(inventoryItem, product.PublicId),
                     cancellationToken);
 
                 // Check low-stock automations
@@ -1786,7 +1835,7 @@ namespace Homassy.API.Functions
                         await _runtime.Inventory.InventoryUpsertedAsync(
                             userId.Value, familyId,
                             BuildGridProductCarrier(broadcastProduct),
-                            BuildGridItem(trackedItem, broadcastProduct.PublicId),
+                            GridItem(trackedItem, broadcastProduct.PublicId),
                             cancellationToken);
                     }
                 }
@@ -2035,7 +2084,7 @@ namespace Homassy.API.Functions
                         await _runtime.Inventory.InventoryUpsertedAsync(
                             userId.Value, familyId,
                             BuildGridProductCarrier(consumedProduct),
-                            BuildGridItem(trackedItem, consumedProduct.PublicId),
+                            GridItem(trackedItem, consumedProduct.PublicId),
                             cancellationToken);
                     }
                 }
@@ -2199,7 +2248,7 @@ namespace Homassy.API.Functions
                     await _runtime.Inventory.InventoryUpsertedAsync(
                         userId.Value, familyId,
                         BuildGridProductCarrier(bp),
-                        BuildGridItem(bi, bp.PublicId),
+                        GridItem(bi, bp.PublicId),
                         cancellationToken);
 
                 // Check low-stock automations for all affected products
@@ -2334,7 +2383,7 @@ namespace Homassy.API.Functions
                     await _runtime.Inventory.InventoryUpsertedAsync(
                         userId.Value, familyId,
                         BuildGridProductCarrier(bp),
-                        BuildGridItem(bi, bp.PublicId),
+                        GridItem(bi, bp.PublicId),
                         cancellationToken);
 
                 Log.Information($"User {userId} moved {request.InventoryItemPublicIds.Count} inventory items to storage location {storageLocation.Id}");
@@ -2607,7 +2656,7 @@ namespace Homassy.API.Functions
                         await _runtime.Inventory.InventoryUpsertedAsync(
                             userId.Value, familyId,
                             BuildGridProductCarrier(bp),
-                            BuildGridItem(bi, bp.PublicId),
+                            GridItem(bi, bp.PublicId),
                             cancellationToken);
                 }
 
@@ -2746,12 +2795,12 @@ namespace Homassy.API.Functions
                     await _runtime.Inventory.InventoryUpsertedAsync(
                         userId.Value, familyId,
                         BuildGridProductCarrier(splitProduct),
-                        BuildGridItem(trackedItem, splitProduct.PublicId),
+                        GridItem(trackedItem, splitProduct.PublicId),
                         cancellationToken);
                     await _runtime.Inventory.InventoryUpsertedAsync(
                         userId.Value, familyId,
                         BuildGridProductCarrier(splitProduct),
-                        BuildGridItem(newItem, splitProduct.PublicId),
+                        GridItem(newItem, splitProduct.PublicId),
                         cancellationToken);
                 }
 
@@ -2950,7 +2999,8 @@ namespace Homassy.API.Functions
                         Category = product.Category,
                     Unit = product.Unit,
                         Barcode = product.Barcode,
-                        ProductPictureBase64 = product.ProductPictureBase64,
+                        ProductImageUrl = MediaUrls.ProductImage(product.PublicId, product.ProductPictureVersion),
+                        ProductImageFullUrl = MediaUrls.ProductImage(product.PublicId, product.ProductPictureVersion, ImageVariant.Full),
                         IsEatable = product.IsEatable,
                         IsFavorite = isFavorite
                     });
@@ -2997,7 +3047,8 @@ namespace Homassy.API.Functions
                 Category = product.Category,
                 Unit = product.Unit,
                 Barcode = product.Barcode,
-                ProductPictureBase64 = product.ProductPictureBase64,
+                ProductImageUrl = MediaUrls.ProductImage(product.PublicId, product.ProductPictureVersion),
+                ProductImageFullUrl = MediaUrls.ProductImage(product.PublicId, product.ProductPictureVersion, ImageVariant.Full),
                 IsEatable = product.IsEatable,
                 IsFavorite = customization?.IsFavorite ?? false
             };

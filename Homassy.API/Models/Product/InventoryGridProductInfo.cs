@@ -1,3 +1,5 @@
+using Homassy.API.Enums;
+
 namespace Homassy.API.Models.Product
 {
     /// <summary>
@@ -14,6 +16,14 @@ namespace Homassy.API.Models.Product
         public Guid PublicId { get; set; }
         public string Name { get; set; } = string.Empty;
         public string Brand { get; set; } = string.Empty;
+
+        /// <summary>
+        /// The product's category, so the grid can group its cards by category. Presentation-only
+        /// on the client, which maps it onto a <c>ProductCategoryGroup</c> the API does not know
+        /// about.
+        /// </summary>
+        public ProductCategory? Category { get; set; }
+
         public string? Barcode { get; set; }
         public bool IsEatable { get; set; }
         public bool IsFavorite { get; set; }

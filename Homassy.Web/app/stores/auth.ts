@@ -69,10 +69,12 @@ export const useAuthStore = defineStore('auth', {
      * Convert Kratos traits to UserInfo format
      */
     traitsToUserInfo(traits: KratosUserTraits): UserInfo {
+      // No avatar here on purpose: it is served from the API's image endpoint, keyed by the
+      // user's public id, and neither of those is a Kratos trait. fetchUserFromBackend() fills
+      // `profilePictureUrl` in a moment; until then the shared avatar shows its placeholder.
       return {
         name: traits.name || '',
         displayName: traits.display_name || traits.name || '',
-        profilePictureBase64: traits.profile_picture_base64,
         timeZone: traits.default_timezone || 'UTC',
         language: traits.default_language || 'en',
         currency: traits.default_currency || 'EUR'

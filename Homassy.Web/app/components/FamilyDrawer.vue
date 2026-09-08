@@ -58,7 +58,7 @@
 
         <div class="space-y-3">
           <div v-for="req in joinRequests" :key="req.publicId" class="flex items-center gap-3 p-3 rounded-lg bg-gray-50 dark:bg-gray-800/50">
-            <UAvatar :src="req.profilePictureBase64 ? `data:image/jpeg;base64,${req.profilePictureBase64}` : undefined" :alt="req.displayName || req.name" class="h-12 w-12" />
+            <UserAvatar :src="req.profilePictureUrl" :name="req.displayName || req.name" :size="48" />
             <div class="flex-1 min-w-0">
               <div class="font-medium truncate">{{ req.displayName || req.name }}</div>
               <div class="text-sm text-gray-500 dark:text-gray-400">{{ t('profile.family.joinRequests.sentAt') }}: <RelativeTime :date="req.requestedAt" /></div>
@@ -86,7 +86,7 @@
         </div>
         <div class="space-y-3">
           <div v-for="member in members" :key="member.publicId" class="flex items-center gap-3 p-3 rounded-lg bg-gray-50 dark:bg-gray-800/50">
-            <UAvatar :src="member.profilePictureBase64 ? `data:image/jpeg;base64,${member.profilePictureBase64}` : undefined" :alt="member.displayName || member.name" class="h-12 w-12" />
+            <UserAvatar :src="member.profilePictureUrl" :name="member.displayName || member.name" :size="48" />
             <div class="flex-1">
               <div class="flex items-center gap-2">
                 <span class="font-medium">{{ member.displayName || member.name }}</span>

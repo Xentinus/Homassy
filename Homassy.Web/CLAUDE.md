@@ -82,6 +82,7 @@ Homassy.Web/
 │   │   ├── useDeviceDetection.ts
 │   │   ├── useEnumLabel.ts
 │   │   ├── useEventBus.ts
+│   │   ├── useExpirationStatus.ts  The expiration ramp: date → level → tokens (see below)
 │   │   ├── useExpirationCheck.ts
 │   │   ├── useFabActions.ts    Shared state for the layout floating action button
 │   │   ├── useGeocoding.ts     Address → coordinates via Nominatim (OpenStreetMap, keyless)
@@ -89,6 +90,7 @@ Homassy.Web/
 │   │   ├── useHaptics.ts       The app's vibration vocabulary + the user's on/off switch
 │   │   ├── useImageCrop.ts
 │   │   ├── useInputDateLocale.ts
+│   │   ├── useMediaUrl.ts      API-relative media path → loadable URL (see Images below)
 │   │   ├── usePullToRefresh.ts
 │   │   ├── usePushNotifications.ts
 │   │   ├── useShoppingListSocket.ts  SignalR realtime client for shopping lists
@@ -335,6 +337,34 @@ The spellings are pinned by `ProductControllerTests.CreateProduct_InvalidRequest
 
 ---
 
+## Images from the API
+
+Uploaded pictures are **served**, not embedded. The API's DTOs carry a path (`profilePictureUrl`),
+never base64 — base64 is ~33% larger than the bytes, cannot be cached by the browser or the
+service worker, and was re-downloaded with every payload that mentioned its user.
+
+| Piece | Role |
+|---|---|
+| `app/composables/useMediaUrl.ts` | `mediaUrl(path)` — prefixes `runtimeConfig.public.apiBase`; passes absolute / `data:` / `blob:` URLs through |
+| `app/components/UserAvatar.vue` | the app's one user avatar: picture, or a deterministic gradient + initials |
+| `app/components/ProductImage.vue` | the app's one product picture: fills its parent, falls back to a category icon |
+| `app/utils/productCategoryVisuals.ts` | icon + hue per `ProductCategoryGroup`, for that fallback (hand-written; `productCategoryGroups.ts` next to it is generated) |
+| `nuxt.config.ts` → `image.providers.none` | the passthrough `@nuxt/image` provider these components render through |
+| `nuxt.config.ts` → `pwa.workbox.runtimeCaching` `remote-images` | CacheFirst for the image endpoints |
+
+Easy to get wrong:
+
+- **`crossorigin="use-credentials"` is required.** The endpoints are behind `[Authorize]`, and in development the API is a different origin — without it the browser omits the Kratos session cookie and every avatar 401s. In production (same origin behind the reverse proxy) the attribute is a no-op.
+- **`provider="none"`, never the default `ipx`.** IPX would fetch the image from the Nitro server, which has no session cookie. The API already serves a purpose-sized rendition per `?size=`, so there is nothing for IPX to do.
+- **Never append a cache-buster.** The URL already ends in `?v=<content hash>`, so a changed picture is a new URL; adding `?t=Date.now()` would defeat both the browser cache and the `remote-images` service-worker cache.
+- **The placeholder renders underneath the image, always.** It is both the loading state and the permanent fallback, which is what keeps a list from flashing empty circles. Its colour is generated from the name (there is no theme token for "a colour per user") at a lightness that works in both themes.
+- Avatars are **no longer a Kratos trait**. `traitsToUserInfo` does not set one; `fetchUserFromBackend()` is what fills `profilePictureUrl` in.
+- `ProductImage` renders `object-contain`, matching the server's bounded (not cropped) product thumbnail, so nothing is clipped off a tall bottle. `UserAvatar` is the cropped-square case.
+- The category placeholder's two theme variants are **CSS**, not a computed value: the colour mode is unknown during SSR, so branching on it in script is a hydration mismatch. The hue goes in as a `--cat-hue` custom property and light/dark lightness comes from a `dark:` variant.
+- `ProductFormDrawer` keeps a single `imagePreview` src that is the stored image's URL most of the time and a `data:` URI in the moment between cropping and the upload finishing — `useMediaUrl` passes the latter through untouched.
+
+---
+
 ## Haptics
 
 `useHaptics()` is the **only** place the app is allowed to call `navigator.vibrate`. Call sites pick a *meaning* from a fixed vocabulary, never a duration, so the whole app can be retuned from one table:
@@ -364,6 +394,137 @@ All of its state is module-scoped, so `useHaptics()` is safe to call from plain 
 - The visible label renders inside `<ClientOnly>` with the absolute date as the fallback. A server-rendered relative phrase would disagree with the client's the moment a minute ticked over between the two.
 
 Used by `ActivityCard`, `ProductHistoryList`, `FamilyDrawer`, `DataExternalCalendarCard` and the calendar day list. The calendar passes `absolute-format="time"` with a 24 h threshold: the day panel header already names the date, so "3 days ago" would say less there than "14:32".
+
+---
+
+## Grouped grid + fast-scroll index (`pages/products/index.vue`)
+
+The inventory grid can group its cards under sticky section headers, with a right-edge index rail
+for jumping between them. `SectionIndexRail` owns the rail; the page owns the grouping.
+
+- **Group by** is a filter-drawer chip group (`none` / `name` / `category`), persisted with the
+  rest of the filters in the `productsFilters` localStorage entry. `none` is the flat,
+  urgency-ordered list the page has always shown.
+- **Storage location is deliberately not offered**, though the issue that asked for this listed it:
+  it is not in the grid's payload (`InventoryGridItemInfo` omits it on purpose) and a product with
+  items in several locations has no single one to group under. Category grouping needed one field
+  added — `InventoryGridProductInfo.Category` — and maps it client-side onto a
+  `ProductCategoryGroup` the API neither knows nor stores.
+- **Grouping is computed over `filteredProducts`, never the rendered slice.** The rail lists every
+  section, so it has to be able to point at a group the `IntersectionObserver` paging has not
+  reached; a rail built from what happens to be on screen would grow as you scrolled. `jumpToSection`
+  therefore raises `currentPage` far enough to include the target before scrolling to it — which
+  does mean jumping to the last group of a very long list renders everything above it. That is the
+  cost of keeping the incremental renderer instead of virtualizing.
+- Section headers count the **whole** group, not the rendered part of it, so a header does not
+  count up as you scroll into it.
+- Each section is its own `AnimatedList`. A header inside one would join the cards' FLIP animation
+  — the same reason the shopping list splits its "buy here" section out.
+- The scroll is a `window.scrollTo` with the header height subtracted, not `scrollIntoView`: the
+  app header is fixed, so a section scrolled to the top of the viewport would sit under it.
+- `SectionIndexRail` knows nothing about products. It reports the picked key and leaves revealing
+  and scrolling to the page. It resolves the tick under the pointer from its own measured geometry
+  (not a fixed row height), ticks `useHaptics().select()` once per detent crossed rather than per
+  pointer move, and hides itself below `minSections` — the page passes the same constant it uses to
+  widen the content gutter, so the rail overlays the gutter rather than a card.
+
+**Not done here:** the same treatment for the shopping list grouped by shop section or aisle order.
+That grouping does not exist yet — it arrives with drag-and-drop reordering in R7.
+
+---
+
+## The expiration ramp
+
+`app/composables/useExpirationStatus.ts` is the single mapping from "when does this expire" to a
+severity level, plus one table of what each level looks like. Every surface that says anything
+about expiry reads from it, so they cannot drift apart:
+
+| Level | When | Tone |
+|---|---|---|
+| `none` | no date at all | dimmed, calendar icon |
+| `ok` | more than 14 days | dimmed, calendar icon |
+| `soon` | within 14 days | `warning`, clock |
+| `critical` | within 3 days | `error`, alarm clock |
+| `expired` | past | `error` (stronger surface), alert circle |
+
+- Colours are Nuxt UI **semantic tokens** (`text-warning`, `border-error/50`, `bg-error/10`,
+  `text-dimmed`), not palette shades — both themes work with no `dark:` variant per class, and
+  `StockRing` can stroke with `currentColor` and inherit whatever the caller set.
+- Consumers: `InventoryItemRow` (surface, border, icon), `DetailedProductCard` (border, via
+  `worstExpirationLevel` across the product's items), `ExpirationChip` (label + colour), and the
+  nav badge in `layouts/auth.vue`. Each of those used to carry its own `red-400` / `amber-600` /
+  `primary-400` literals, and the nav badge was permanently red whether milk went off today or in
+  a fortnight — which is why `GET /product/inventory/expiration-count` now also returns
+  `expiredCount`.
+- `ExpirationChip` phrases the label through `useRelativeTime`, so all three locales get
+  grammatical output and "tomorrow" rather than "in 1 day". Past the 14-day window it gives way to
+  the absolute date; the exact date and time is always on the `title`.
+- **Known mismatch:** the client ramp's window is 14 days (matching the long-standing
+  `isExpiringWithinTwoWeeks`), while the API's count uses `ProductSettings:ExpiringSoonThresholdDays`.
+  With those set differently, a card can be amber for an item the badge does not count.
+
+### `StockRing`
+
+A circular gauge drawn around whatever is slotted into it, showing how much of an item is left
+**against what was bought** (`PurchaseInfo.OriginalQuantity`).
+
+- **No reference amount, no gauge.** An item with no purchase info has no denominator, and rather
+  than picking one the ring becomes a flat badge — the slot reads the same, but nothing on screen
+  claims a proportion. On a grid card the denominator is only used when *every* item in the unit
+  group has one, for the same reason.
+- `InventoryGridItemInfo` carries `originalQuantity` for this. It is the one piece of purchase
+  info in that otherwise deliberately light payload, and the realtime broadcast paths fill it too —
+  without that the ring would vanish from a card every time an automation touched it.
+- The fill animates in on mount (single frame, plus a timeout because `requestAnimationFrame` does
+  not fire in a hidden tab); under `prefers-reduced-motion` it is simply there.
+
+---
+
+## Image lightbox (`ImageLightbox`)
+
+One full-screen viewer for every image the app shows large. It replaced two ad-hoc overlays — the
+inventory drawer and the shopping-list card each kept their own `isImageOverlayOpen`, their own
+markup, and neither had zoom, pan or a dismiss gesture.
+
+```vue
+<ImageLightbox v-model:open="isOpen" :images="images" :origin="thumbnailEl" />
+```
+
+- **`images` is an array** of `{ thumb, full, alt }`, even where there is one. Paging and the dots
+  are already there, so a product gallery is a change at the call site and nowhere else.
+- **`origin` is the element the viewer was opened from.** Its box is where the shared-element
+  transition starts and where it returns to. `ProductInfoPanel` therefore emits `image-click` with
+  its thumbnail element rather than emitting nothing. Without an origin the lightbox just fades.
+- Only the visible page's `full` variant is rendered, so a gallery loads one large image. The
+  `thumb` sits underneath as the placeholder — it was just on screen, so it is in the browser
+  cache — and is what the open transition appears to grow.
+
+**Gesture arbitration** (all pointer events, so touch, pen and mouse behave the same):
+
+| Input | Does |
+|---|---|
+| two pointers | pinch zoom (always wins — no one-finger gesture a second finger could continue) |
+| one pointer, zoomed in | pan, clamped to the image's own edges |
+| one pointer, at 1x | axis-locked after 8px: down dismisses, sideways pages |
+| double tap | toggles fit ↔ 2.5x, centred on the tap |
+| wheel / trackpad pinch | zoom about the cursor |
+| `Escape` / `←` / `→` | close, previous, next |
+
+**Easy to regress, all deliberate:**
+
+- The open transition needs **two animation frames** between setting the origin transform and
+  releasing it — one frame gets coalesced with the style that set it and no transition runs. There
+  is a 120 ms timeout alongside, because `requestAnimationFrame` does not fire in a hidden tab and
+  without it a lightbox opened in one stays pinned at zero opacity.
+- Focus goes to the close button found **through the DOM**, not through a component ref: a Nuxt UI
+  `UButton`'s `$el` is not reliably an element (its root is a `Primitive`, so it can be a comment
+  anchor), and calling `.querySelector` on one throws — which aborted the whole open sequence.
+- `setPointerCapture` is wrapped in a `try`: it throws once the pointer is no longer active, and a
+  throw there abandons the gesture.
+- A dismiss flick closes **without** the shared-element transition: the image is already on its way
+  off screen, and pulling it back to the thumbnail first would look like a bounce.
+- The backdrop's opacity ramps with the drag; the blur is skipped under `prefers-reduced-motion`
+  along with the transitions, but the opacity ramp stays — it is the feedback, not decoration.
 
 ---
 

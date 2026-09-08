@@ -38,7 +38,7 @@ export interface FamilyMemberResponse {
   name: string
   displayName: string
   lastLoginAt: string
-  profilePictureBase64?: string
+  profilePictureUrl?: string
   isCurrentUser: boolean
 }
 
@@ -57,6 +57,6 @@ export interface FamilyJoinRequestResponse {
   publicId: string
   name: string
   displayName: string
-  profilePictureBase64?: string
+  profilePictureUrl?: string
   requestedAt: string
 }

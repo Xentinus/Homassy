@@ -41,7 +41,8 @@ export interface RefreshTokenResponse {
 export interface UserInfo {
   name: string
   displayName: string
-  profilePictureBase64?: string
+  /** Server-relative, version-stamped path to the avatar thumbnail. See `useMediaUrl`. */
+  profilePictureUrl?: string
   timeZone: string
   language: string
   currency: string
@@ -52,7 +53,6 @@ export interface KratosUserTraits {
   email: string
   name: string
   display_name?: string
-  profile_picture_base64?: string
   date_of_birth?: string
   gender?: string
   default_currency?: string

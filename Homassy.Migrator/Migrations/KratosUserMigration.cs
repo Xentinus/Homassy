@@ -235,7 +235,6 @@ namespace Homassy.Migrator.Migrations
             if (user.Profile != null)
             {
                 traits.DisplayName = user.Profile.DisplayName;
-                traits.ProfilePictureBase64 = user.Profile.ProfilePictureBase64;
                 traits.DateOfBirth = user.Profile.DateOfBirth?.ToString("yyyy-MM-dd");
                 traits.Gender = user.Profile.Gender;
                 traits.DefaultCurrency = MapCurrencyToString(user.Profile.DefaultCurrency);

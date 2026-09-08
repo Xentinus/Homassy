@@ -14,7 +14,10 @@ export interface ProductInfo {
   category?: ProductCategory
   unit: Unit
   barcode?: string
-  productPictureBase64?: string
+  /** Server-relative, version-stamped path to the list thumbnail. See `useMediaUrl`. */
+  productImageUrl?: string
+  /** Same, for the full-size rendition used by the detail view and the lightbox. */
+  productImageFullUrl?: string
   isEatable: boolean
   isFavorite: boolean
 }
@@ -32,6 +35,8 @@ export interface InventoryGridItemInfo {
   publicId: string
   productPublicId: string
   currentQuantity: number
+  /** What was bought, when the item has purchase info — the stock ring's denominator. */
+  originalQuantity?: number
   unit: Unit
   expirationAt?: string
   isSharedWithFamily: boolean
@@ -42,6 +47,8 @@ export interface InventoryGridProductInfo {
   publicId: string
   name: string
   brand: string
+  /** Drives the grid's "group by category" sections (mapped client-side onto a group). */
+  category?: ProductCategory
   barcode?: string
   isEatable: boolean
   isFavorite: boolean
@@ -103,7 +110,8 @@ export interface UploadProductImageRequest {
 
 export interface ProductImageInfo {
   productPublicId: string
-  imageBase64: string
+  productImageUrl: string
+  productImageFullUrl: string
   format: ImageFormat
   width: number
   height: number
@@ -202,6 +210,8 @@ export interface SplitInventoryItemResponse {
 
 export interface ExpirationCountResponse {
   totalCount: number
+  /** How many of those are already past their date; picks the nav badge's ramp colour. */
+  expiredCount: number
 }
 
 export interface ConsumeInventoryItemEntry {

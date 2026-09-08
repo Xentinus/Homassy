@@ -3,6 +3,7 @@ using System.Net.Http.Json;
 using System.Text.Json;
 using Homassy.API.Enums;
 using Homassy.API.Models.Common;
+using Homassy.API.Models.ImageUpload;
 using Homassy.API.Models.Product;
 using Homassy.Tests.Infrastructure;
 using Xunit.Abstractions;
@@ -441,6 +442,123 @@ public class ProductControllerTests : IClassFixture<HomassyWebApplicationFactory
             _output.WriteLine($"Response: {responseBody}");
 
             Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
+        }
+        finally
+        {
+            _authHelper.ClearAuthToken();
+            if (testEmail != null)
+                await _authHelper.CleanupUserAsync(testEmail);
+        }
+    }
+    #endregion
+
+    #region Product Image Tests
+    [Fact]
+    public async Task GetProductImage_WithoutToken_ReturnsUnauthorized()
+    {
+        // The endpoint answers with image bytes rather than an ApiResponse envelope, so it is
+        // worth pinning that it is still behind [Authorize] like the rest of the controller.
+        var response = await _client.GetAsync($"/api/v1.0/product/{Guid.NewGuid()}/image");
+        _output.WriteLine($"Status: {response.StatusCode}");
+        Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task ProductImage_FullFlow_ServesBytesAndCaches()
+    {
+        string? testEmail = null;
+        try
+        {
+            var (email, auth) = await _authHelper.CreateAndAuthenticateUserAsync("prod-image");
+            testEmail = email;
+            _authHelper.SetAuthToken(auth.AccessToken);
+
+            var createResponse = await _client.PostAsJsonAsync("/api/v1.0/product", new CreateProductRequest
+            {
+                Unit = ProductUnit.Piece,
+                Name = "Image Product",
+                Brand = "Image Brand",
+                Category = ProductCategory.Milk,
+                IsEatable = true
+            });
+            Assert.Equal(HttpStatusCode.OK, createResponse.StatusCode);
+
+            var created = await createResponse.Content.ReadFromJsonAsync<ApiResponse<ProductInfo>>();
+            Assert.NotNull(created?.Data);
+            var productId = created.Data.PublicId;
+
+            // A product with no picture has no URL and its image endpoint 404s.
+            Assert.Null(created.Data.ProductImageUrl);
+            var missingResponse = await _client.GetAsync($"/api/v1.0/product/{productId}/image");
+            Assert.Equal(HttpStatusCode.NotFound, missingResponse.StatusCode);
+
+            // 50x50 - the upload path's minimum dimensions.
+            var validBase64 = TestImages.PngBase64();
+
+            var uploadResponse = await _client.PostAsJsonAsync(
+                $"/api/v1.0/product/{productId}/image",
+                new UploadProductImageRequest { ProductPublicId = productId, ImageBase64 = validBase64 });
+            var uploadBody = await uploadResponse.Content.ReadAsStringAsync();
+            _output.WriteLine($"Upload Status: {uploadResponse.StatusCode}");
+            _output.WriteLine($"Upload Response: {uploadBody}");
+            Assert.Equal(HttpStatusCode.OK, uploadResponse.StatusCode);
+
+            var uploaded = await uploadResponse.Content.ReadFromJsonAsync<ApiResponse<ProductImageInfo>>();
+            Assert.NotNull(uploaded?.Data);
+            var thumbUrl = uploaded.Data.ProductImageUrl;
+            var fullUrl = uploaded.Data.ProductImageFullUrl;
+
+            // Both renditions are the same picture, so they carry the same version.
+            Assert.Contains("size=thumb", thumbUrl);
+            Assert.Contains("size=full", fullUrl);
+            Assert.Contains("v=", thumbUrl);
+
+            foreach (var url in new[] { thumbUrl, fullUrl })
+            {
+                var imageResponse = await _client.GetAsync(url);
+
+                Assert.Equal(HttpStatusCode.OK, imageResponse.StatusCode);
+                Assert.StartsWith("image/", imageResponse.Content.Headers.ContentType?.MediaType);
+                Assert.NotEmpty(await imageResponse.Content.ReadAsByteArrayAsync());
+
+                var etag = imageResponse.Headers.ETag;
+                Assert.NotNull(etag);
+
+                var conditional = new HttpRequestMessage(HttpMethod.Get, url);
+                conditional.Headers.IfNoneMatch.Add(etag);
+                var notModified = await _client.SendAsync(conditional);
+                Assert.Equal(HttpStatusCode.NotModified, notModified.StatusCode);
+            }
+
+            // The thumbnail and the full image are different bytes, which is the point of asking
+            // for one or the other rather than always shipping the upload.
+            var thumbEtag = (await _client.GetAsync(thumbUrl)).Headers.ETag?.Tag;
+            var fullEtag = (await _client.GetAsync(fullUrl)).Headers.ETag?.Tag;
+            Assert.NotEqual(thumbEtag, fullEtag);
+
+            // The product payload now carries the URL instead of the image. Polled rather than
+            // asserted outright: the product row is served from the Functions layer's cache, which
+            // picks the new version up on its next trigger-driven refresh, not synchronously.
+            string? payloadUrl = null;
+            for (var attempt = 0; attempt < 40 && payloadUrl == null; attempt++)
+            {
+                var detailedResponse = await _client.GetAsync($"/api/v1.0/product/{productId}/detailed");
+                var detailed = await detailedResponse.Content.ReadFromJsonAsync<ApiResponse<DetailedProductInfo>>();
+                payloadUrl = detailed?.Data?.ProductImageUrl;
+
+                if (payloadUrl == null)
+                {
+                    await Task.Delay(250);
+                }
+            }
+
+            Assert.Equal(thumbUrl, payloadUrl);
+
+            var deleteResponse = await _client.DeleteAsync($"/api/v1.0/product/{productId}/image");
+            Assert.Equal(HttpStatusCode.OK, deleteResponse.StatusCode);
+
+            var goneResponse = await _client.GetAsync(thumbUrl);
+            Assert.Equal(HttpStatusCode.NotFound, goneResponse.StatusCode);
         }
         finally
         {

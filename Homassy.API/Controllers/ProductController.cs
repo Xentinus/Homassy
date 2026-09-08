@@ -1,5 +1,6 @@
 using Asp.Versioning;
 using Homassy.API.Enums;
+using Homassy.API.Extensions;
 using Homassy.API.Functions;
 using Homassy.API.Models;
 using Homassy.API.Models.Common;
@@ -173,13 +174,7 @@ namespace Homassy.API.Controllers
         [ProducesResponseType(typeof(ApiResponse<ExpirationCountResponse>), StatusCodes.Status200OK)]
         public async Task<IActionResult> GetExpirationCount(CancellationToken cancellationToken)
         {
-            var count = await _productFunctions.GetExpiringAndExpiredInventoryCountAsync(cancellationToken);
-
-            var response = new ExpirationCountResponse
-            {
-                TotalCount = count
-            };
-
+            var response = await _productFunctions.GetExpiringAndExpiredInventoryCountAsync(cancellationToken);
             return Ok(ApiResponse<ExpirationCountResponse>.SuccessResponse(response));
         }
         #endregion
@@ -385,6 +380,43 @@ namespace Homassy.API.Controllers
         #endregion
 
         #region Product Image
+        /// <summary>
+        /// Serves a product's picture as image bytes.
+        /// </summary>
+        /// <remarks>
+        /// The counterpart of the avatar endpoint on <c>UserController</c>, and the reason
+        /// <c>ProductInfo</c> can carry a URL instead of the image: a product list used to
+        /// download every picture inline, uncacheably, on every fetch and again after each
+        /// realtime refresh.
+        /// <para>
+        /// The <c>v</c> query parameter is not read — it is the stored picture's content hash, so
+        /// that a changed picture is a changed URL. That is what makes the long
+        /// <c>Cache-Control</c> safe.
+        /// </para>
+        /// </remarks>
+        /// <param name="publicId">The product whose picture to serve.</param>
+        /// <param name="size">Which rendition: <c>thumb</c> (default, for cards) or <c>full</c>.</param>
+        /// <param name="cancellationToken">Cancellation token.</param>
+        [HttpGet("{publicId:guid}/image")]
+        [MapToApiVersion(1.0)]
+        [ProducesResponseType(typeof(FileContentResult), StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status304NotModified)]
+        [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status404NotFound)]
+        public async Task<IActionResult> GetProductImage(
+            Guid publicId,
+            [FromQuery] ImageVariant size = ImageVariant.Thumb,
+            CancellationToken cancellationToken = default)
+        {
+            var image = await _imageFunctions.GetProductImageAsync(publicId, size, this.AcceptsWebp(), cancellationToken);
+
+            if (image == null)
+            {
+                return NotFound(ApiResponse.ErrorResponse(ErrorCodes.ProductNotFound));
+            }
+
+            return this.CacheableImage(image);
+        }
+
         /// <summary>
         /// Uploads and processes an image for a product (synchronous - legacy).
         /// </summary>

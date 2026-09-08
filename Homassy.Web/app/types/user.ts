@@ -8,7 +8,7 @@ export interface UserProfileResponse {
   email: string
   name: string
   displayName?: string
-  profilePictureBase64?: string
+  profilePictureUrl?: string
   language: string
   currency: string
   timeZone: string
@@ -31,7 +31,7 @@ export interface UploadUserProfileImageRequest {
 }
 
 export interface UserProfileImageInfo {
-  imageBase64: string
+  profilePictureUrl: string
   format: ImageFormat
   width: number
   height: number
@@ -60,7 +60,7 @@ export interface UpdateNotificationPreferencesRequest {
 export interface UserInfo {
   name: string
   displayName: string
-  profilePictureBase64?: string
+  profilePictureUrl?: string
   timeZone: string
   language: string
   currency: string

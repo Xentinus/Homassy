@@ -6,7 +6,6 @@
       <ProfileIdentityCard
         :loading="loading"
         :avatar-src="avatarSrc"
-        :avatar-initial="avatarInitial"
         :primary-name="primaryName"
         :secondary-name="secondaryName"
         @select="openEditProfile"
@@ -181,12 +180,7 @@
             <!-- Avatar -->
             <div class="flex flex-col items-center gap-3">
               <div class="border-2 border-primary-500 rounded-full p-0.5">
-                <UAvatar
-                  :src="avatarSrc"
-                  :alt="primaryName || 'User'"
-                  :text="avatarInitial"
-                  class="h-24 w-24 text-3xl"
-                />
+                <UserAvatar :src="avatarSrc" :name="primaryName" :size="96" />
               </div>
               <div class="flex items-center gap-2">
                 <UButton
@@ -295,16 +289,8 @@ const displayVersion = computed(() => {
 })
 
 // --- User display (single source of truth: the auth store) -----------------
-const hasAvatar = computed(() => !!authStore.user?.profilePictureBase64)
-const avatarSrc = computed(() => {
-  const b64 = authStore.user?.profilePictureBase64
-  return b64 ? `data:image/jpeg;base64,${b64}` : undefined
-})
-const avatarInitial = computed(() => {
-  const name = authStore.user?.displayName || authStore.user?.name
-  if (!name) return '?'
-  return name.trim().split(/\s+/).map(w => w.charAt(0).toUpperCase()).join('')
-})
+const hasAvatar = computed(() => !!authStore.user?.profilePictureUrl)
+const avatarSrc = computed(() => authStore.user?.profilePictureUrl ?? undefined)
 const hasDisplayName = computed(() =>
   !!(authStore.user?.displayName && authStore.user.displayName.trim())
 )

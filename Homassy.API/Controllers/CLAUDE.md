@@ -32,6 +32,7 @@ Manages user profile, settings, activity, and push notifications (all endpoints 
 |--------|----------|-------------|
 | GET | `/profile` | Get user profile |
 | PUT | `/settings` | Update user settings and preferences |
+| GET | `/{publicId}/profile-picture` | Serve a user's avatar as image **bytes** (`?size=thumb\|full`, `?v=` version) |
 | POST | `/profile-picture` | Upload profile picture synchronously (legacy) |
 | POST | `/profile-picture/upload-async` | Upload profile picture asynchronously (returns job ID) |
 | DELETE | `/profile-picture` | Delete profile picture |
@@ -47,6 +48,11 @@ Manages user profile, settings, activity, and push notifications (all endpoints 
 **Key Patterns:**
 - All endpoints require authentication
 - Base64 image upload for profile pictures
+- **Avatars are served, not embedded.** Every DTO that mentions a user (`UserInfo`, `UserProfileResponse`, `FamilyMemberResponse`, `FamilyJoinRequestResponse`) carries `ProfilePictureUrl` — a server-relative path built by `Constants/MediaUrls` — instead of the image. The bytes come from `GET /{publicId}/profile-picture`, which answers raw image data (no `ApiResponse` envelope) with an `ETag`, `Cache-Control: private, max-age=1y, immutable` and `304` handling, via `ControllerBase.CacheableImage()` in `Extensions/ImageResponseExtensions`
+- The `?v=` in the URL is the stored image's content hash and is **not read** by the endpoint. It exists so a changed picture is a changed URL — which is what makes the year-long cache lifetime correct and means there is no cache to invalidate on upload
+- `?size=thumb` (the default, and what every list uses) serves the 128px square WebP thumbnail generated on upload; `?size=full` serves the uploaded image. A row with no thumbnail (uploaded before thumbnails existed) gets one generated and stored on the first `thumb` request, and falls back to the full image if that fails — the ETag says which was served, so a cached fallback is not kept after a successful backfill
+- Thumbnails are WebP; a client whose `Accept` header rules that out gets a JPEG transcode, hence the `Vary: Accept`
+- Bytes live in `UserProfilePictures`, not on `UserProfiles` — see [../Entities/CLAUDE.md](../Entities/CLAUDE.md)
 - Async image upload returns a `jobId`; track progress via `GET /progress/{jobId}`
 - Push notifications use Web Push API (VAPID)
 - Activity feed supports pagination (`pageNumber`, `pageSize`, `returnAll`) and filtering by type/date/user
@@ -89,14 +95,22 @@ Manages product catalog and inventory (all endpoints require `[Authorize]`).
 | Method | Endpoint | Description |
 |--------|----------|-------------|
 | GET | `/` | Get all products |
+| GET | `/{publicId}/image` | Serve a product's picture as image **bytes** (`?size=thumb\|full`, `?v=` version) |
 | POST | `/` | Create new product |
 | PUT | `/{productPublicId}` | Update product |
 | DELETE | `/{productPublicId}` | Always rejected with **403** `PRODUCT-0004` — products are global |
 | POST | `/{productPublicId}/favorite` | Toggle favorite status |
 | GET | `/{productPublicId}/detailed` | Get detailed product info with inventory |
+| GET | `/inventory/expiration-count` | Count of expiring/expired items, split by already-expired |
 | GET | `/detailed` | Get all detailed products for user |
 
 **Key Patterns:**
+- **Pictures are served, not embedded.** `ProductInfo` carries `ProductImageUrl` (the list thumbnail) and `ProductImageFullUrl` (the detail/lightbox rendition) instead of the image. Both come from `GET /{publicId}/image`, which behaves exactly like the avatar endpoint on `UserController` — read its notes for the ETag, caching, `?v=` and `Accept` rules. The full URL is carried in list payloads too, because the lightbox opens from a card in a list
+- Product thumbnails are **bounded (256px), not square-cropped** like avatars: a card renders its image `object-contain`, so a centre crop would clip a tall bottle or a wide label
+- `GET /inventory/expiration-count` returns `TotalCount` **and** `ExpiredCount`. The split is what lets the client colour its nav badge from the same expiration ramp its cards use — a single total could only ever be one colour, and it was always the alarming one
+- `InventoryGridProductInfo` carries `Category`, so the grid can group its cards by category (the client maps it onto a presentation-only `ProductCategoryGroup`; the API neither knows nor stores the group)
+- `InventoryGridItemInfo` carries `OriginalQuantity` (from the item's purchase info) so a grid card can draw a stock ring. It is the only piece of purchase detail in that otherwise deliberately light payload, and `ProductFunctions.GridItem` — the instance wrapper around `BuildGridItem` — is what fills it from the cache on every projection this layer emits, including the realtime broadcasts
+- Bytes live in `ProductImages`, not on `Products` — the strongest case for the split, since these are the largest images the app stores, a list shows many, and the whole `Product` row sits in a process-wide cache
 - Product customization per user (favorites, notes)
 - Inventory tracking with purchase info and consumption logs
 - Family-shared products support

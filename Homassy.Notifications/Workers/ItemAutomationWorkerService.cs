@@ -72,6 +72,10 @@ public sealed class ItemAutomationWorkerService : BackgroundService
         var dueAutomations = await context.ItemAutomations
             .Include(a => a.ProductInventoryItem)
                 .ThenInclude(i => i!.Product)
+            // The grid card's stock ring needs the purchased amount, and this worker's broadcast
+            // replaces the card wholesale — without it the ring would vanish on every automation run.
+            .Include(a => a.ProductInventoryItem)
+                .ThenInclude(i => i!.PurchaseInfo)
             .Include(a => a.Product)
             .Include(a => a.ShoppingList)
             .Where(a => a.IsEnabled && a.NextExecutionAt != null && a.NextExecutionAt <= utcNow)

@@ -55,7 +55,7 @@ public class UserControllerTests : IClassFixture<HomassyWebApplicationFactory>
     public async Task UploadProfilePicture_WithoutToken_ReturnsUnauthorized()
     {
         // Arrange
-        var request = new UploadProfilePictureRequest { ProfilePictureBase64 = "dGVzdA==" };
+        var request = new UploadUserProfileImageRequest { ImageBase64 = "dGVzdA==" };
 
         // Act
         var response = await _client.PostAsJsonAsync("/api/v1.0/user/profile-picture", request);
@@ -75,6 +75,18 @@ public class UserControllerTests : IClassFixture<HomassyWebApplicationFactory>
         _output.WriteLine($"Status: {response.StatusCode}");
 
         // Assert
+        Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task GetProfilePicture_WithoutToken_ReturnsUnauthorized()
+    {
+        // The endpoint answers with image bytes rather than an ApiResponse envelope, so it is
+        // worth pinning that it is still behind [Authorize] like the rest of the controller.
+        var response = await _client.GetAsync($"/api/v1.0/user/{Guid.NewGuid()}/profile-picture");
+
+        _output.WriteLine($"Status: {response.StatusCode}");
+
         Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
     }
     #endregion
@@ -228,9 +240,9 @@ public class UserControllerTests : IClassFixture<HomassyWebApplicationFactory>
             testEmail = email;
             _authHelper.SetAuthToken(auth.AccessToken);
 
-            var request = new UploadProfilePictureRequest
+            var request = new UploadUserProfileImageRequest
             {
-                ProfilePictureBase64 = "not-valid-base64!!!"
+                ImageBase64 = "not-valid-base64!!!"
             };
 
             // Act
@@ -291,8 +303,8 @@ public class UserControllerTests : IClassFixture<HomassyWebApplicationFactory>
             testEmail = email;
             _authHelper.SetAuthToken(auth.AccessToken);
 
-            // Valid Base64 image (50x50 red PNG that meets minimum size requirements)
-            var validBase64 = "iVBORw0KGgoAAAANSUhEUgAAADIAAAAyCAIAAACRXR/mAAAAGklEQVR42mP8z8Dw/z8DA+MMRgxg0AMDCwAAMVsD+RFtk8MAAAAASUVORK5CYII=";
+            // 50x50 - the upload path's minimum dimensions.
+            var validBase64 = TestImages.PngBase64();
 
             // Step 1: Upload
             _output.WriteLine("=== Step 1: Upload Profile Picture ===");
@@ -313,8 +325,36 @@ public class UserControllerTests : IClassFixture<HomassyWebApplicationFactory>
             var profileResponse = await _client.GetAsync("/api/v1.0/user/profile");
             var profileContent = await profileResponse.Content.ReadFromJsonAsync<ApiResponse<UserProfileResponse>>();
 
-            Assert.NotNull(profileContent?.Data?.ProfilePictureBase64);
-            _output.WriteLine("Profile picture exists in profile");
+            var pictureUrl = profileContent?.Data?.ProfilePictureUrl;
+            Assert.NotNull(pictureUrl);
+            // The profile carries a versioned URL, not the image: that is the whole point of the
+            // separate endpoint, and a payload that still embedded base64 would pass the old
+            // assertion just as well.
+            Assert.Contains("/profile-picture?", pictureUrl);
+            Assert.Contains("v=", pictureUrl);
+            _output.WriteLine($"Profile picture URL: {pictureUrl}");
+
+            // Step 2b: the URL serves bytes, with an ETag that answers a conditional request
+            _output.WriteLine("\n=== Step 2b: Fetch the image ===");
+            var imageResponse = await _client.GetAsync(pictureUrl);
+
+            Assert.Equal(HttpStatusCode.OK, imageResponse.StatusCode);
+            Assert.StartsWith("image/", imageResponse.Content.Headers.ContentType?.MediaType);
+            Assert.NotEmpty(await imageResponse.Content.ReadAsByteArrayAsync());
+
+            var etag = imageResponse.Headers.ETag;
+            Assert.NotNull(etag);
+            Assert.True(imageResponse.Headers.CacheControl?.Private);
+            // Answered from the thumbnail generated on upload, not by falling back to the
+            // full-size image.
+            Assert.Contains("thumb", etag.Tag);
+
+            var conditional = new HttpRequestMessage(HttpMethod.Get, pictureUrl);
+            conditional.Headers.IfNoneMatch.Add(etag);
+            var notModified = await _client.SendAsync(conditional);
+
+            Assert.Equal(HttpStatusCode.NotModified, notModified.StatusCode);
+            _output.WriteLine("Conditional request answered 304");
 
             // Step 3: Delete
             _output.WriteLine("\n=== Step 3: Delete Profile Picture ===");
@@ -324,6 +364,10 @@ public class UserControllerTests : IClassFixture<HomassyWebApplicationFactory>
             _output.WriteLine($"Delete Status: {deleteResponse.StatusCode}");
             _output.WriteLine($"Delete Response: {deleteBody}");
             Assert.Equal(HttpStatusCode.OK, deleteResponse.StatusCode);
+
+            // Step 4: the URL stops resolving once the picture is gone
+            var goneResponse = await _client.GetAsync(pictureUrl);
+            Assert.Equal(HttpStatusCode.NotFound, goneResponse.StatusCode);
 
             _output.WriteLine("\n=== Full Profile Picture Flow Completed Successfully! ===");
         }

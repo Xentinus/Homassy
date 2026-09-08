@@ -99,6 +99,15 @@
       "cancelButton": "Upload abbrechen"
     }
   },
+  "lightbox": {
+    "title": "Bildansicht",
+    "close": "Schließen",
+    "counter": "{current} / {total}",
+    "goTo": "Zu Bild {index}"
+  },
+  "expiration": {
+    "expiredRelative": "abgelaufen {relative}"
+  },
   "auth": {
     "login": "Anmelden",
     "logout": "Abmelden",
@@ -323,7 +332,8 @@
         "barcode": "Barcode",
         "scope": "Bereich",
         "quantity": "Bestandsmenge",
-        "properties": "Eigenschaften"
+        "properties": "Eigenschaften",
+        "groupBy": "Gruppieren nach"
       },
       "scopeFilters": {
         "all": "Alle Artikel",
@@ -446,12 +456,19 @@
           "cancel": "Abbrechen",
           "confirm": "Speichern",
           "success": "Produkt erfolgreich aktualisiert"
-        }
+        },
+        "stockRemaining": "{percent}% übrig"
       },
       "noInventory": "Ihr Bestand ist leer",
       "noInventoryHint": "Fügen Sie einen Artikel hinzu, um zu verfolgen, was Sie zu Hause haben.",
       "noResultsTitle": "Keine Ergebnisse gefunden",
-      "tryDifferentSearch": "Versuchen Sie einen anderen Suchbegriff oder setzen Sie die Filter zurück"
+      "tryDifferentSearch": "Versuchen Sie einen anderen Suchbegriff oder setzen Sie die Filter zurück",
+      "groupBy": {
+        "none": "Keine",
+        "name": "Name",
+        "category": "Kategorie"
+      },
+      "sectionIndex": "Zum Abschnitt springen"
     },
     "addProduct": {
       "title": "Bestand hinzufügen",

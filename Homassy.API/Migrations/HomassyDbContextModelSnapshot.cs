@@ -622,8 +622,9 @@ namespace Homassy.API.Migrations
                         .HasMaxLength(128)
                         .HasColumnType("character varying(128)");
 
-                    b.Property<string>("ProductPictureBase64")
-                        .HasColumnType("text");
+                    b.Property<string>("ProductPictureVersion")
+                        .HasMaxLength(32)
+                        .HasColumnType("character varying(32)");
 
                     b.Property<Guid>("PublicId")
                         .ValueGeneratedOnAdd()
@@ -722,6 +723,57 @@ namespace Homassy.API.Migrations
                     b.HasIndex("ProductId");
 
                     b.ToTable("ProductCustomizations");
+                });
+
+            modelBuilder.Entity("Homassy.API.Entities.Product.ProductImage", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<byte[]>("Data")
+                        .IsRequired()
+                        .HasColumnType("bytea");
+
+                    b.Property<int>("Format")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("Height")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("ProductId")
+                        .HasColumnType("integer");
+
+                    b.Property<Guid>("PublicId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasDefaultValueSql("gen_random_uuid()");
+
+                    b.Property<byte[]>("ThumbnailData")
+                        .HasColumnType("bytea");
+
+                    b.Property<int>("ThumbnailFormat")
+                        .HasColumnType("integer");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Version")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("character varying(32)");
+
+                    b.Property<int>("Width")
+                        .HasColumnType("integer");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ProductId")
+                        .IsUnique();
+
+                    b.ToTable("ProductImages");
                 });
 
             modelBuilder.Entity("Homassy.API.Entities.Product.ProductInventoryItem", b =>
@@ -1064,8 +1116,9 @@ namespace Homassy.API.Migrations
                     b.Property<bool>("IsDeleted")
                         .HasColumnType("boolean");
 
-                    b.Property<string>("ProfilePictureBase64")
-                        .HasColumnType("text");
+                    b.Property<string>("ProfilePictureVersion")
+                        .HasMaxLength(32)
+                        .HasColumnType("character varying(32)");
 
                     b.Property<Guid>("PublicId")
                         .ValueGeneratedOnAdd()
@@ -1085,6 +1138,57 @@ namespace Homassy.API.Migrations
                         .IsUnique();
 
                     b.ToTable("UserProfiles");
+                });
+
+            modelBuilder.Entity("Homassy.API.Entities.User.UserProfilePicture", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<byte[]>("Data")
+                        .IsRequired()
+                        .HasColumnType("bytea");
+
+                    b.Property<int>("Format")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("Height")
+                        .HasColumnType("integer");
+
+                    b.Property<Guid>("PublicId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasDefaultValueSql("gen_random_uuid()");
+
+                    b.Property<byte[]>("ThumbnailData")
+                        .HasColumnType("bytea");
+
+                    b.Property<int>("ThumbnailFormat")
+                        .HasColumnType("integer");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<int>("UserId")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("Version")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("character varying(32)");
+
+                    b.Property<int>("Width")
+                        .HasColumnType("integer");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("UserId")
+                        .IsUnique();
+
+                    b.ToTable("UserProfilePictures");
                 });
 
             modelBuilder.Entity("Homassy.API.Entities.User.UserPushSubscription", b =>
@@ -1250,6 +1354,17 @@ namespace Homassy.API.Migrations
                     b.Navigation("Product");
                 });
 
+            modelBuilder.Entity("Homassy.API.Entities.Product.ProductImage", b =>
+                {
+                    b.HasOne("Homassy.API.Entities.Product.Product", "Product")
+                        .WithMany()
+                        .HasForeignKey("ProductId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Product");
+                });
+
             modelBuilder.Entity("Homassy.API.Entities.Product.ProductInventoryItem", b =>
                 {
                     b.HasOne("Homassy.API.Entities.Product.Product", "Product")
@@ -1313,6 +1428,17 @@ namespace Homassy.API.Migrations
                     b.HasOne("Homassy.API.Entities.User.User", "User")
                         .WithOne("Profile")
                         .HasForeignKey("Homassy.API.Entities.User.UserProfile", "UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("User");
+                });
+
+            modelBuilder.Entity("Homassy.API.Entities.User.UserProfilePicture", b =>
+                {
+                    b.HasOne("Homassy.API.Entities.User.User", "User")
+                        .WithMany()
+                        .HasForeignKey("UserId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 

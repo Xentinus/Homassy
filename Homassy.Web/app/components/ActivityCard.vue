@@ -6,20 +6,12 @@
     <div class="flex items-start gap-3 mb-3">
       <!-- User Avatar -->
       <div class="flex-shrink-0">
-        <img
-          v-if="userInfo?.profilePictureBase64"
-          :src="`data:image/jpeg;base64,${userInfo.profilePictureBase64}`"
-          :alt="userInfo.displayName || userInfo.name"
-          class="h-10 w-10 rounded-full object-cover ring-2 ring-gray-200 dark:ring-gray-700"
-        >
-        <div
-          v-else
-          class="h-10 w-10 rounded-full bg-gradient-to-br from-primary-400 to-primary-600 flex items-center justify-center"
-        >
-          <span class="text-white font-semibold text-sm">
-            {{ getInitials(userInfo?.displayName || userInfo?.name || '?') }}
-          </span>
-        </div>
+        <UserAvatar
+          :src="userInfo?.profilePictureUrl"
+          :name="userInfo?.displayName || userInfo?.name"
+          :size="40"
+          class="ring-2 ring-gray-200 dark:ring-gray-700"
+        />
       </div>
 
       <!-- User name and timestamp -->
@@ -75,16 +67,6 @@ defineProps<{
 }>()
 
 const { t: $t } = useI18n()
-
-// Get user initials for avatar fallback
-const getInitials = (name: string): string => {
-  if (!name) return '?'
-  const parts = name.trim().split(' ')
-  if (parts.length >= 2) {
-    return (parts[0][0] + parts[1][0]).toUpperCase()
-  }
-  return name.substring(0, 2).toUpperCase()
-}
 
 // Format quantity: show integers without decimals, otherwise max 2 decimal places
 const formatQuantity = (quantity: number): string => {

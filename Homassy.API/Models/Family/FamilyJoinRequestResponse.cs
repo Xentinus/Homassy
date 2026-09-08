@@ -8,7 +8,7 @@ namespace Homassy.API.Models.Family
         public Guid PublicId { get; init; }
         public string Name { get; init; } = string.Empty;
         public string DisplayName { get; init; } = string.Empty;
-        public string? ProfilePictureBase64 { get; init; }
+        public string? ProfilePictureUrl { get; init; }
         public DateTime RequestedAt { get; init; }
     }
 }

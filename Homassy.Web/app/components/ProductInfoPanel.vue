@@ -2,25 +2,21 @@
   <section class="rounded-2xl border-2 border-gray-200 dark:border-gray-700 bg-default shadow-sm overflow-hidden">
     <!-- Navbar-style header: thumbnail + name/brand + favorite + actions menu -->
     <div class="flex items-center gap-3 border-b border-gray-200 dark:border-gray-800 p-4">
-      <!-- Thumbnail / placeholder -->
+      <!-- Thumbnail / placeholder. Only tappable when there is something to open. -->
       <button
-        v-if="product.productPictureBase64"
+        v-if="product.productImageUrl"
         type="button"
-        class="w-14 h-14 rounded-xl overflow-hidden border border-gray-200 dark:border-gray-700 bg-white/80 dark:bg-gray-900/40 shrink-0 cursor-pointer hover:opacity-90 transition-opacity"
+        class="w-14 h-14 rounded-xl overflow-hidden border border-gray-200 dark:border-gray-700 shrink-0 cursor-pointer hover:opacity-90 transition-opacity"
         :aria-label="product.name"
-        @click="emit('image-click')"
+        @click="emit('image-click', $event.currentTarget as HTMLElement)"
       >
-        <img
-          :src="`data:image/jpeg;base64,${product.productPictureBase64}`"
-          :alt="product.name"
-          class="w-full h-full object-contain"
-        >
+        <ProductImage :src="product.productImageUrl" :category="product.category" />
       </button>
       <div
         v-else
-        class="w-14 h-14 rounded-xl border border-gray-200 dark:border-gray-700 bg-gray-100 dark:bg-gray-800 flex items-center justify-center shrink-0"
+        class="w-14 h-14 rounded-xl overflow-hidden border border-gray-200 dark:border-gray-700 shrink-0"
       >
-        <UIcon name="i-lucide-package" class="h-7 w-7 text-gray-400 dark:text-gray-500" />
+        <ProductImage :category="product.category" />
       </div>
 
       <!-- Name + brand -->
@@ -85,7 +81,8 @@ interface Props {
 defineProps<Props>()
 
 const emit = defineEmits<{
-  'image-click': []
+  /** Carries the thumbnail element, so the viewer that opens can grow out of it. */
+  'image-click': [origin: HTMLElement]
   'toggle-favorite': []
 }>()
 

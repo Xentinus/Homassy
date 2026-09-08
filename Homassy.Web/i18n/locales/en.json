@@ -99,6 +99,15 @@
       "cancelButton": "Cancel Upload"
     }
   },
+  "lightbox": {
+    "title": "Image viewer",
+    "close": "Close",
+    "counter": "{current} / {total}",
+    "goTo": "Go to image {index}"
+  },
+  "expiration": {
+    "expiredRelative": "expired {relative}"
+  },
   "auth": {
     "login": "Login",
     "logout": "Logout",
@@ -323,7 +332,8 @@
         "barcode": "Barcode",
         "scope": "Scope",
         "quantity": "Stock quantity",
-        "properties": "Properties"
+        "properties": "Properties",
+        "groupBy": "Group by"
       },
       "scopeFilters": {
         "all": "All items",
@@ -446,12 +456,19 @@
           "cancel": "Cancel",
           "confirm": "Save",
           "success": "Product updated successfully"
-        }
+        },
+        "stockRemaining": "{percent}% left"
       },
       "noInventory": "Your inventory is empty",
       "noInventoryHint": "Add an item to start tracking what you have at home.",
       "noResultsTitle": "No results found",
-      "tryDifferentSearch": "Try a different search term or clear the filters"
+      "tryDifferentSearch": "Try a different search term or clear the filters",
+      "groupBy": {
+        "none": "None",
+        "name": "Name",
+        "category": "Category"
+      },
+      "sectionIndex": "Jump to section"
     },
     "addProduct": {
       "title": "Add Inventory",

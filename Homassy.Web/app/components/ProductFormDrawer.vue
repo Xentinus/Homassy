@@ -9,15 +9,14 @@
     <div class="space-y-6">
         <!-- Product image (edit only — upload needs an existing product) -->
         <div v-if="isEdit" class="flex flex-col items-center gap-3">
-          <div class="h-28 w-28 rounded-xl overflow-hidden bg-gray-100 dark:bg-gray-800 flex items-center justify-center border border-default">
-            <img v-if="localImage" :src="`data:image/jpeg;base64,${localImage}`" :alt="form.name" class="w-full h-full object-contain">
-            <UIcon v-else name="i-lucide-package" class="h-12 w-12 text-gray-400" />
+          <div class="h-28 w-28 rounded-xl overflow-hidden border border-default">
+            <ProductImage :src="imagePreview" :category="form.category" />
           </div>
           <input ref="fileInput" type="file" accept="image/*" class="hidden" @change="handleFileSelect">
           <div class="flex items-center gap-2 flex-wrap justify-center">
             <UButton icon="i-lucide-upload" color="primary" variant="soft" :label="t('profile.changePhoto')" :loading="isUploadingImage" @click="fileInput?.click()" />
-            <UButton v-if="!localImage && form.barcode" icon="i-lucide-barcode" color="primary" variant="soft" :label="t('pages.addProduct.form.imageFromBarcode')" :loading="isImportingImageFromBarcode" @click="handleImportImageFromBarcode" />
-            <UButton v-if="localImage" icon="i-lucide-trash-2" color="error" variant="soft" :label="t('profile.removePhoto')" :loading="isDeletingImage" @click="handleDeleteProductImage" />
+            <UButton v-if="!imagePreview && form.barcode" icon="i-lucide-barcode" color="primary" variant="soft" :label="t('pages.addProduct.form.imageFromBarcode')" :loading="isImportingImageFromBarcode" @click="handleImportImageFromBarcode" />
+            <UButton v-if="imagePreview" icon="i-lucide-trash-2" color="error" variant="soft" :label="t('profile.removePhoto')" :loading="isDeletingImage" @click="handleDeleteProductImage" />
           </div>
         </div>
 
@@ -210,7 +209,9 @@ watch(() => form.value.barcode, (v) => {
 })
 
 // --- Product image -----------------------------------------------------------
-const localImage = ref<string | undefined>(undefined)
+// A ready-to-render src, not raw base64: it is the stored image's URL while the drawer is just
+// showing the product, and a data URI in the moment between cropping and the upload finishing.
+const imagePreview = ref<string | undefined>(undefined)
 const fileInput = ref<HTMLInputElement | null>(null)
 const isUploadingImage = ref(false)
 const isDeletingImage = ref(false)
@@ -238,10 +239,10 @@ watch(() => props.open, (isOpen) => {
       isFavorite: props.product.isFavorite,
       notes: ''
     }
-    localImage.value = props.product.productPictureBase64 || undefined
+    imagePreview.value = props.product.productImageUrl || undefined
   } else {
     form.value = emptyProductForm()
-    localImage.value = undefined
+    imagePreview.value = undefined
   }
 })
 
@@ -305,7 +306,9 @@ async function uploadWithProgress(base64Data: string) {
         uploadErrorMessage.value = progress.errorMessage
         if (progress.status === 'completed') {
           isUploadingImage.value = false
-          localImage.value = base64Data
+          // The uploaded bytes, not the new URL: showing them straight away avoids a round trip,
+          // and the parent's `updated` refetch brings the canonical (server-processed) URL in.
+          imagePreview.value = `data:image/jpeg;base64,${base64Data}`
           emit('updated')
           setTimeout(() => handleCloseUpload(), 500)
         } else if (progress.status === 'failed' || progress.status === 'cancelled') {
@@ -345,7 +348,7 @@ async function handleDeleteProductImage() {
   isDeletingImage.value = true
   try {
     await deleteProductImage(props.product.publicId)
-    localImage.value = undefined
+    imagePreview.value = undefined
     emit('updated')
   } catch (error) {
     console.error('Failed to delete image:', error)
@@ -363,7 +366,7 @@ async function handleImportImageFromBarcode() {
       let base64Data = response.data.image_base64
       if (base64Data.includes(',')) base64Data = base64Data.split(',')[1] || ''
       await uploadProductImage(props.product.publicId, { productPublicId: props.product.publicId, imageBase64: base64Data })
-      localImage.value = base64Data
+      imagePreview.value = `data:image/jpeg;base64,${base64Data}`
       emit('updated')
     } else {
       toast.add({ title: t('toast.error'), description: t('pages.addProduct.openFoodFacts.noProductError'), color: 'error' })

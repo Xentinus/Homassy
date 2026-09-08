@@ -99,6 +99,15 @@
       "cancelButton": "Feltöltés megszakítása"
     }
   },
+  "lightbox": {
+    "title": "Képnéző",
+    "close": "Bezárás",
+    "counter": "{current} / {total}",
+    "goTo": "Ugrás a {index}. képre"
+  },
+  "expiration": {
+    "expiredRelative": "lejárt {relative}"
+  },
   "auth": {
     "login": "Bejelentkezés",
     "logout": "Kijelentkezés",
@@ -323,7 +332,8 @@
         "barcode": "Vonalkód",
         "scope": "Hatókör",
         "quantity": "Készlet mennyiség",
-        "properties": "Tulajdonságok"
+        "properties": "Tulajdonságok",
+        "groupBy": "Csoportosítás"
       },
       "scopeFilters": {
         "all": "Minden tétel",
@@ -446,12 +456,19 @@
           "cancel": "Mégse",
           "confirm": "Mentés",
           "success": "Termék sikeresen frissítve"
-        }
+        },
+        "stockRemaining": "{percent}% maradt"
       },
       "noInventory": "A készlet üres",
       "noInventoryHint": "Adj hozzá egy tételt, hogy nyomon követhesd, mi van otthon.",
       "noResultsTitle": "Nincs találat",
-      "tryDifferentSearch": "Próbálj meg más keresési feltételt, vagy töröld a szűrőket"
+      "tryDifferentSearch": "Próbálj meg más keresési feltételt, vagy töröld a szűrőket",
+      "groupBy": {
+        "none": "Nincs",
+        "name": "Név",
+        "category": "Kategória"
+      },
+      "sectionIndex": "Ugrás szakaszra"
     },
     "addProduct": {
       "title": "Készlet hozzáadása",

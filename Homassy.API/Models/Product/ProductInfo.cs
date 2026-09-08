@@ -10,7 +10,21 @@ namespace Homassy.API.Models.Product
         public ProductCategory? Category { get; set; }
         public Unit Unit { get; set; }
         public string? Barcode { get; set; }
-        public string? ProductPictureBase64 { get; set; }
+        /// <summary>
+        /// Versioned path to the list-sized thumbnail, or null when the product has no picture.
+        /// See <see cref="Constants.MediaUrls"/>.
+        /// </summary>
+        public string? ProductImageUrl { get; set; }
+
+        /// <summary>
+        /// Versioned path to the full-size picture, for the detail view and the lightbox.
+        /// </summary>
+        /// <remarks>
+        /// Carried alongside the thumbnail even in list payloads because the lightbox opens from a
+        /// card in a list — the alternative is the client assembling the URL itself, which would
+        /// put the endpoint's shape in two places.
+        /// </remarks>
+        public string? ProductImageFullUrl { get; set; }
         public bool IsEatable { get; set; }
         public bool IsFavorite { get; set; } = false;
     }

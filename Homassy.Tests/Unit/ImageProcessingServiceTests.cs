@@ -1,6 +1,9 @@
 using Homassy.API.Enums;
 using Homassy.API.Models.ImageUpload;
 using Homassy.API.Services;
+using SixLabors.ImageSharp;
+using SixLabors.ImageSharp.PixelFormats;
+using SixImage = SixLabors.ImageSharp.Image;
 
 namespace Homassy.Tests.Unit
 {
@@ -295,6 +298,142 @@ namespace Homassy.Tests.Unit
         }
         #endregion
 
+        #region ProcessImage - Resizing
+        [Fact]
+        public void ProcessImage_WhenLargerThanMax_ScalesDownKeepingAspectRatio()
+        {
+            var base64 = Convert.ToBase64String(CreatePng(400, 200));
+
+            var options = new ImageProcessingOptions
+            {
+                MaxWidth = 100,
+                MaxHeight = 100,
+                MinWidth = 1,
+                MinHeight = 1
+            };
+
+            var result = _service.ProcessImage(base64, options);
+
+            Assert.NotNull(result);
+            Assert.Equal(100, result.Width);
+            Assert.Equal(50, result.Height);
+            // The reported dimensions have to be the bytes' real dimensions — they used to be the
+            // target while the bytes were returned untouched.
+            using var actual = SixImage.Load(result.Data);
+            Assert.Equal(100, actual.Width);
+            Assert.Equal(50, actual.Height);
+        }
+
+        [Fact]
+        public void ProcessImage_WhenWithinMax_LeavesDimensionsAlone()
+        {
+            var base64 = Convert.ToBase64String(CreatePng(120, 80));
+
+            var options = new ImageProcessingOptions
+            {
+                MaxWidth = 800,
+                MaxHeight = 800,
+                MinWidth = 1,
+                MinHeight = 1
+            };
+
+            var result = _service.ProcessImage(base64, options);
+
+            Assert.NotNull(result);
+            Assert.Equal(120, result.Width);
+            Assert.Equal(80, result.Height);
+        }
+        #endregion
+
+        #region CreateSquareThumbnail
+        [Fact]
+        public void CreateSquareThumbnail_WhenValidImage_ReturnsSquareWebP()
+        {
+            var result = _service.CreateSquareThumbnail(CreatePng(400, 200), 64);
+
+            Assert.NotNull(result);
+            Assert.Equal(ImageFormat.WebP, result.Format);
+            Assert.Equal("image/webp", result.ContentType);
+            Assert.Equal(64, result.Width);
+            Assert.Equal(64, result.Height);
+
+            using var actual = SixImage.Load(result.Data);
+            Assert.Equal(64, actual.Width);
+            Assert.Equal(64, actual.Height);
+        }
+
+        [Fact]
+        public void CreateSquareThumbnail_WhenNotDecodable_ReturnsNull()
+        {
+            var result = _service.CreateSquareThumbnail([0xFF, 0xD8, 0xFF, 0x00, 0x01], 64);
+
+            Assert.Null(result);
+        }
+
+        [Fact]
+        public void CreateSquareThumbnail_WhenEmpty_ReturnsNull()
+        {
+            Assert.Null(_service.CreateSquareThumbnail([], 64));
+        }
+        #endregion
+
+        #region CreateBoundedThumbnail
+        [Fact]
+        public void CreateBoundedThumbnail_WhenLargerThanBox_ScalesDownKeepingAspectRatio()
+        {
+            var result = _service.CreateBoundedThumbnail(CreatePng(400, 200), 100);
+
+            Assert.NotNull(result);
+            Assert.Equal(ImageFormat.WebP, result.Format);
+            Assert.Equal(100, result.Width);
+            Assert.Equal(50, result.Height);
+
+            using var actual = SixImage.Load(result.Data);
+            Assert.Equal(100, actual.Width);
+            Assert.Equal(50, actual.Height);
+        }
+
+        [Fact]
+        public void CreateBoundedThumbnail_WhenSmallerThanBox_DoesNotScaleUp()
+        {
+            // Products often carry small pictures; upscaling them would spend bytes on nothing.
+            var result = _service.CreateBoundedThumbnail(CreatePng(50, 50), 256);
+
+            Assert.NotNull(result);
+            Assert.Equal(50, result.Width);
+            Assert.Equal(50, result.Height);
+        }
+
+        [Fact]
+        public void CreateBoundedThumbnail_WhenNotDecodable_ReturnsNull()
+        {
+            Assert.Null(_service.CreateBoundedThumbnail([0x89, 0x50, 0x4E, 0x47], 256));
+        }
+        #endregion
+
+        #region TranscodeToJpeg
+        [Fact]
+        public void TranscodeToJpeg_WhenGivenWebP_ReturnsJpegOfTheSameSize()
+        {
+            var webp = _service.CreateSquareThumbnail(CreatePng(200, 200), 48);
+            Assert.NotNull(webp);
+
+            var result = _service.TranscodeToJpeg(webp.Data);
+
+            Assert.NotNull(result);
+            Assert.Equal(ImageFormat.Jpeg, result.Format);
+            Assert.Equal("image/jpeg", result.ContentType);
+            Assert.Equal(48, result.Width);
+            Assert.Equal(48, result.Height);
+        }
+
+        [Fact]
+        public void TranscodeToJpeg_WhenNotDecodable_ReturnsNull()
+        {
+            Assert.Null(_service.TranscodeToJpeg([0x01, 0x02, 0x03]));
+        }
+        #endregion
+
         #region ImageProcessingOptions Defaults
         [Fact]
         public void ImageProcessingOptions_HasCorrectDefaults()
@@ -343,6 +482,22 @@ namespace Homassy.Tests.Unit
         #endregion
 
         #region Helper Methods
+        /// <summary>
+        /// A real, decodable PNG of the given size.
+        /// </summary>
+        /// <remarks>
+        /// The hand-written byte arrays below carry valid headers but nothing a decoder can read,
+        /// which is all the validation tests need. Resizing and thumbnailing actually decode, so
+        /// they need this instead.
+        /// </remarks>
+        private static byte[] CreatePng(int width, int height)
+        {
+            using var image = new Image<Rgba32>(width, height);
+            using var buffer = new MemoryStream();
+            image.SaveAsPng(buffer);
+            return buffer.ToArray();
+        }
+
         private static byte[] CreateMinimalJpeg()
         {
             return
