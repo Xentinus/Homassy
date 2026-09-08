@@ -6,55 +6,58 @@
  * wrapping this one: the page calls `groupByDay` straight from a `computed`, since there is no
  * connection state to make reactive here, only a list and a clock.
  *
- * Calendar days are resolved in UTC, not the viewer's IANA timezone. That is deliberate, not an
- * oversight of "local": the API hands back UTC timestamps and this module is never given the
- * viewer's timezone (`now` is just a `Date`, and a `Date`'s local getters silently reflect
- * whatever the *runtime* — the browser, or a CI box — happens to be set to). Using local getters
- * here would make `dayBucketKey` non-deterministic across machines and would not even agree with
- * itself: a family in Budapest (UTC+2) whose evening activity local-crosses midnight before its
- * UTC calendar date does would see that entry drift between "today" and "yesterday" depending on
- * which of the two clocks a given render happened to read. Comparing UTC calendar dates is the
- * one boundary every caller agrees on regardless of where the app is running, which is what makes
- * `dayBucketKey`'s own unit tests deterministic rather than timezone-flaky.
+ * Calendar days are resolved in the *runtime's local* timezone, not UTC. This is client-only code
+ * (`app/pages/activity/index.vue`), so "the runtime" always means the viewer's own device, and the
+ * day separators are a statement about the viewer's own wall clock — they read "Today" /
+ * "Yesterday" / a date, and "today" can only sensibly mean the viewer's today. The API hands back
+ * UTC timestamps, but bucketing by UTC instead mislabels a band of hours around *local* midnight
+ * for every viewer not on UTC: someone in UTC+2 reading the timeline at 00:30 local expects an
+ * activity from 23:00 local *yesterday* to read "Yesterday" — even though, at that moment, both
+ * instants already share the same UTC calendar date, so a UTC comparison would call it "today".
+ * The reverse mislabelling happens on the other side of local midnight too. Comparing local
+ * calendar dates via the runtime's own local getters (`getFullYear` / `getMonth` / `getDate`) is
+ * what makes "Today"/"Yesterday" actually track the viewer's own today and yesterday instead of
+ * whichever side of UTC's midnight they happen to be standing on.
  *
  * The comparison is a **calendar-date** difference, not an elapsed-time (epoch delta) one — that
- * is the actual bug this guards against, not the UTC-vs-local question above. A same-day entry
- * from very early this morning can be right up against 24 hours old by the time "now" is late
- * this evening (see the spec's "not a 24-hour window" case), and a naive
+ * is the other bug this guards against, independent of the local-vs-UTC question above. A
+ * same-day entry from very early this morning can be right up against 24 hours old by the time
+ * "now" is late this evening (see the spec's "not a 24-hour window" case), and a naive
  * `Math.floor((now - timestamp) / MS_PER_DAY)` gets both directions wrong: it can read an entry
  * from 11pm yesterday as "today" (barely any elapsed time, but already a different calendar day)
  * and one from early this morning as still "today" only by chance of the clock, not because it
- * actually is. Converting each side to its own UTC midnight first and differencing *those* turns
+ * actually is. Converting each side to its own local midnight first and differencing *those* turns
  * "how long ago" into "how many calendar days apart", which is the question a day separator is
- * actually asking.
+ * actually asking. That difference is *rounded*, not floored: the calendar day either side of a
+ * DST transition is 23 or 25 hours long, not exactly 24, so rounding the whole gap between the two
+ * midnights absorbs that, where flooring each midnight's own epoch value independently would not.
  */
 
-/** 'today' / 'yesterday' for the two nearby buckets, else the entry's own UTC day as YYYY-MM-DD. */
+/** 'today' / 'yesterday' for the two nearby buckets, else the entry's own local day as YYYY-MM-DD. */
 export type DayBucketKey = 'today' | 'yesterday' | string
 
 const MS_PER_DAY = 24 * 60 * 60 * 1000
 
-/** YYYY-MM-DD, zero-padded, from a Date's UTC calendar fields. */
+/** YYYY-MM-DD, zero-padded, from a Date's *local* calendar fields — the viewer's own day. */
 const isoDate = (date: Date): string => {
-  const y = date.getUTCFullYear()
-  const m = String(date.getUTCMonth() + 1).padStart(2, '0')
-  const d = String(date.getUTCDate()).padStart(2, '0')
+  const y = date.getFullYear()
+  const m = String(date.getMonth() + 1).padStart(2, '0')
+  const d = String(date.getDate()).padStart(2, '0')
   return `${y}-${m}-${d}`
 }
 
 /**
- * The date's UTC midnight, as a whole number of days since the epoch. Two timestamps on the same
- * UTC calendar day always produce the same number here, however many (or few) hours apart they
- * are — which is the whole point: subtracting these, not the timestamps themselves, is what turns
- * a millisecond delta into a calendar-day delta.
+ * `date`'s own local midnight, as a `Date`. Two timestamps on the same local calendar day always
+ * produce an identical value here, however many (or few) hours apart they are — which is the
+ * whole point: differencing these, not the timestamps themselves, is what turns a millisecond
+ * delta into a calendar-day delta.
  */
-const utcDayNumber = (date: Date): number =>
-  Math.floor(Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate()) / MS_PER_DAY)
+const localMidnight = (date: Date): Date => new Date(date.getFullYear(), date.getMonth(), date.getDate())
 
 /** Which day bucket `timestamp` falls into relative to `now`. Pure — no clock of its own. */
 export const dayBucketKey = (timestamp: string, now: Date): DayBucketKey => {
   const date = new Date(timestamp)
-  const dayDiff = utcDayNumber(now) - utcDayNumber(date)
+  const dayDiff = Math.round((localMidnight(now).getTime() - localMidnight(date).getTime()) / MS_PER_DAY)
 
   if (dayDiff === 0) return 'today'
   if (dayDiff === 1) return 'yesterday'
