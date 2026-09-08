@@ -8,5 +8,8 @@
         public DateTime LastLoginAt { get; init; }
         public string? ProfilePictureUrl { get; init; }
         public bool IsCurrentUser { get; init; }
+
+        /// <summary>Chosen identity-colour key from the curated palette, or null for the deterministic pick.</summary>
+        public string? IdentityColor { get; init; }
     }
 }

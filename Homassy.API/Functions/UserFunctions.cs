@@ -22,6 +22,18 @@ namespace Homassy.API.Functions
         private static readonly ConcurrentDictionary<int, UserProfile> _userProfileCache = new();
         private static readonly ConcurrentDictionary<int, UserNotificationPreferences> _userNotificationPrefsCache = new();
 
+        /// <summary>
+        /// The curated identity-colour palette, mirroring <c>Homassy.Web/app/utils/memberColors.ts</c>.
+        /// Kept as a literal set rather than an enum because the web palette is the source of truth and
+        /// this is only here to reject values that would break the contrast guarantee.
+        /// </summary>
+        private static readonly HashSet<string> IdentityColorKeys = new(StringComparer.Ordinal)
+        {
+            "rose", "amber", "lime", "teal", "sky", "indigo", "violet", "fuchsia"
+        };
+
+        private const string IdentityColorAuto = "auto";
+
         public static bool Inited = false;
 
         private readonly IDbContextFactory<HomassyDbContext> _contextFactory;
@@ -543,12 +555,14 @@ namespace Homassy.API.Functions
                 var profile = profiles.FirstOrDefault(p => p.UserId == u.Id);
                 return new UserInfo
                 {
+                    PublicId = u.PublicId,
                     Name = u.Name,
                     DisplayName = profile?.DisplayName ?? u.Name,
                     ProfilePictureUrl = MediaUrls.ProfilePicture(u.PublicId, profile?.ProfilePictureVersion),
                     TimeZone = profile?.DefaultTimeZone.ToTimeZoneId() ?? string.Empty,
                     Language = profile?.DefaultLanguage.ToLanguageCode() ?? string.Empty,
-                    Currency = profile?.DefaultCurrency.ToCurrencyCode() ?? string.Empty
+                    Currency = profile?.DefaultCurrency.ToCurrencyCode() ?? string.Empty,
+                    IdentityColor = profile?.IdentityColor
                 };
             }).ToList();
 
@@ -823,6 +837,7 @@ namespace Homassy.API.Functions
 
             var profileResponse = new UserProfileResponse
             {
+                PublicId = user.PublicId,
                 Email = user.Email,
                 Name = user.Name,
                 DisplayName = profile.DisplayName,
@@ -830,6 +845,7 @@ namespace Homassy.API.Functions
                 TimeZone = profile.DefaultTimeZone.ToTimeZoneId(),
                 Language = profile.DefaultLanguage.ToLanguageCode(),
                 Currency = profile.DefaultCurrency.ToCurrencyCode(),
+                IdentityColor = profile.IdentityColor,
                 Family = familyInfo
             };
 
@@ -909,6 +925,22 @@ namespace Homassy.API.Functions
                     profile.DefaultLanguage = request.DefaultLanguage.Value;
                 }
 
+                if (request.IdentityColor != null)
+                {
+                    if (request.IdentityColor == IdentityColorAuto)
+                    {
+                        profile.IdentityColor = null;
+                    }
+                    else if (IdentityColorKeys.Contains(request.IdentityColor))
+                    {
+                        profile.IdentityColor = request.IdentityColor;
+                    }
+                    else
+                    {
+                        throw new BadRequestException("Unknown identity colour.", ErrorCodes.ValidationInvalidRequest);
+                    }
+                }
+
                 await context.SaveChangesAsync(cancellationToken);
                 await transaction.CommitAsync(cancellationToken);
 
@@ -959,12 +991,14 @@ namespace Homassy.API.Functions
 
             var userInfo = new UserInfo
             {
+                PublicId = user.PublicId,
                 Name = user.Name,
                 DisplayName = profile.DisplayName,
                 ProfilePictureUrl = MediaUrls.ProfilePicture(user.PublicId, profile.ProfilePictureVersion),
                 TimeZone = profile.DefaultTimeZone.ToTimeZoneId(),
                 Language = profile.DefaultLanguage.ToLanguageCode(),
-                Currency = profile.DefaultCurrency.ToCurrencyCode()
+                Currency = profile.DefaultCurrency.ToCurrencyCode(),
+                IdentityColor = profile.IdentityColor
             };
 
             return userInfo;
@@ -979,18 +1013,20 @@ namespace Homassy.API.Functions
         {
             var traits = session.Identity.Traits;
 
-            // The avatar is the one field here that does not come from the session: the traits no
-            // longer carry a picture, and the local profile is where its version lives.
-            var pictureVersion = GetUserProfileByUserId(user.Id)?.ProfilePictureVersion;
+            // The avatar and identity colour are the two fields here that do not come from the
+            // session: neither is a Kratos trait, and the local profile is where they live.
+            var profile = GetUserProfileByUserId(user.Id);
 
             return new UserInfo
             {
+                PublicId = user.PublicId,
                 Name = traits.Name ?? user.Name,
                 DisplayName = traits.DisplayName ?? traits.Name ?? user.Name,
-                ProfilePictureUrl = MediaUrls.ProfilePicture(user.PublicId, pictureVersion),
+                ProfilePictureUrl = MediaUrls.ProfilePicture(user.PublicId, profile?.ProfilePictureVersion),
                 TimeZone = traits.DefaultTimezone ?? "Europe/Budapest",
                 Language = traits.DefaultLanguage ?? "hu",
-                Currency = traits.DefaultCurrency ?? "HUF"
+                Currency = traits.DefaultCurrency ?? "HUF",
+                IdentityColor = profile?.IdentityColor
             };
         }
 

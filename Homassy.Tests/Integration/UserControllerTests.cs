@@ -379,4 +379,166 @@ public class UserControllerTests : IClassFixture<HomassyWebApplicationFactory>
         }
     }
     #endregion
+
+    #region Identity Color Tests
+    [Fact]
+    public async Task UpdateUserSettings_WithPaletteIdentityColor_PersistsAndReturnsIt()
+    {
+        string? testEmail = null;
+        try
+        {
+            // Arrange
+            var (email, auth) = await _authHelper.CreateAndAuthenticateUserAsync("identity-color");
+            testEmail = email;
+            _authHelper.SetAuthToken(auth.AccessToken);
+
+            var request = new UpdateUserSettingsRequest
+            {
+                IdentityColor = "teal"
+            };
+
+            // Act
+            var response = await _client.PutAsJsonAsync("/api/v1.0/user/settings", request);
+            var responseBody = await response.Content.ReadAsStringAsync();
+
+            _output.WriteLine($"Status: {response.StatusCode}");
+            _output.WriteLine($"Response: {responseBody}");
+
+            Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+
+            // The profile GET is cache-first (see GetAllUserDataById); the write above only
+            // touches the database, so the same wait the profile-picture flow test uses applies
+            // here too (cache service refreshes every 5 seconds).
+            await Task.Delay(TimeSpan.FromSeconds(6));
+
+            var profileResponse = await _client.GetAsync("/api/v1.0/user/profile");
+            var profileContent = await profileResponse.Content.ReadFromJsonAsync<ApiResponse<UserProfileResponse>>();
+
+            // Assert
+            Assert.Equal(HttpStatusCode.OK, profileResponse.StatusCode);
+            Assert.NotNull(profileContent?.Data);
+            Assert.Equal("teal", profileContent.Data.IdentityColor);
+        }
+        finally
+        {
+            _authHelper.ClearAuthToken();
+            if (testEmail != null)
+                await _authHelper.CleanupUserAsync(testEmail);
+        }
+    }
+
+    [Fact]
+    public async Task UpdateUserSettings_WithAutoIdentityColor_ClearsTheOverride()
+    {
+        string? testEmail = null;
+        try
+        {
+            // Arrange: set "teal" first.
+            var (email, auth) = await _authHelper.CreateAndAuthenticateUserAsync("identity-color-auto");
+            testEmail = email;
+            _authHelper.SetAuthToken(auth.AccessToken);
+
+            var setRequest = new UpdateUserSettingsRequest { IdentityColor = "teal" };
+            var setResponse = await _client.PutAsJsonAsync("/api/v1.0/user/settings", setRequest);
+            Assert.Equal(HttpStatusCode.OK, setResponse.StatusCode);
+
+            // Act
+            var clearRequest = new UpdateUserSettingsRequest { IdentityColor = "auto" };
+            var clearResponse = await _client.PutAsJsonAsync("/api/v1.0/user/settings", clearRequest);
+            var clearBody = await clearResponse.Content.ReadAsStringAsync();
+
+            _output.WriteLine($"Status: {clearResponse.StatusCode}");
+            _output.WriteLine($"Response: {clearBody}");
+
+            Assert.Equal(HttpStatusCode.OK, clearResponse.StatusCode);
+
+            // The profile GET is cache-first (see GetAllUserDataById); the write above only
+            // touches the database, so the same wait the profile-picture flow test uses applies
+            // here too (cache service refreshes every 5 seconds).
+            await Task.Delay(TimeSpan.FromSeconds(6));
+
+            var profileResponse = await _client.GetAsync("/api/v1.0/user/profile");
+            var profileContent = await profileResponse.Content.ReadFromJsonAsync<ApiResponse<UserProfileResponse>>();
+
+            // Assert
+            Assert.NotNull(profileContent?.Data);
+            Assert.Null(profileContent.Data.IdentityColor);
+        }
+        finally
+        {
+            _authHelper.ClearAuthToken();
+            if (testEmail != null)
+                await _authHelper.CleanupUserAsync(testEmail);
+        }
+    }
+
+    [Fact]
+    public async Task UpdateUserSettings_WithUnknownIdentityColor_Returns400()
+    {
+        string? testEmail = null;
+        try
+        {
+            // Arrange
+            var (email, auth) = await _authHelper.CreateAndAuthenticateUserAsync("identity-color-bad");
+            testEmail = email;
+            _authHelper.SetAuthToken(auth.AccessToken);
+
+            var request = new UpdateUserSettingsRequest
+            {
+                IdentityColor = "#ff0000"
+            };
+
+            // Act
+            var response = await _client.PutAsJsonAsync("/api/v1.0/user/settings", request);
+            var responseBody = await response.Content.ReadAsStringAsync();
+
+            _output.WriteLine($"Status: {response.StatusCode}");
+            _output.WriteLine($"Response: {responseBody}");
+
+            // Assert: a free-form colour must never reach the column - the palette is what
+            // guarantees contrast in both themes.
+            Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        }
+        finally
+        {
+            _authHelper.ClearAuthToken();
+            if (testEmail != null)
+                await _authHelper.CleanupUserAsync(testEmail);
+        }
+    }
+
+    [Fact]
+    public async Task GetProfile_ReturnsPublicId()
+    {
+        string? testEmail = null;
+        try
+        {
+            // Arrange
+            var (email, auth) = await _authHelper.CreateAndAuthenticateUserAsync("profile-publicid");
+            testEmail = email;
+            _authHelper.SetAuthToken(auth.AccessToken);
+
+            // Act
+            var response = await _client.GetAsync("/api/v1.0/user/profile");
+            var responseBody = await response.Content.ReadAsStringAsync();
+
+            _output.WriteLine($"Status: {response.StatusCode}");
+            _output.WriteLine($"Response: {responseBody}");
+
+            // Assert: the client needs a non-empty publicId to derive the deterministic colour
+            // when no override is set.
+            Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+
+            var content = await response.Content.ReadFromJsonAsync<ApiResponse<UserProfileResponse>>();
+            Assert.NotNull(content?.Data);
+            Assert.NotEqual(Guid.Empty, content.Data.PublicId);
+        }
+        finally
+        {
+            _authHelper.ClearAuthToken();
+            if (testEmail != null)
+                await _authHelper.CleanupUserAsync(testEmail);
+        }
+    }
+    #endregion
 }

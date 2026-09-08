@@ -25,5 +25,11 @@ namespace Homassy.API.Models.User
 
         [EnumDataType(typeof(Language))]
         public Language? DefaultLanguage { get; init; }
+
+        /// <summary>
+        /// Identity-colour key from the curated palette, the literal <c>"auto"</c> to clear the override
+        /// and go back to the deterministic pick, or null to leave the current value untouched.
+        /// </summary>
+        public string? IdentityColor { get; init; }
     }
 }
