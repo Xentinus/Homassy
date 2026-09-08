@@ -168,6 +168,7 @@
                     :activity-type="item.data.activityType"
                     :user-name="item.data.userName"
                     :user-public-id="item.data.userPublicId"
+                    :identity-color="item.data.identityColor"
                     :record-name="item.data.recordName"
                     :timestamp="item.data.timestamp"
                   />
@@ -231,6 +232,7 @@ interface CalActivity {
   activityType: ActivityType
   userName: string
   userPublicId: string
+  identityColor?: string | null
   recordName: string
   timestamp: string
   dateStr: string
@@ -476,6 +478,7 @@ const mapActivities = (items: ActivityInfo[]): CalActivity[] =>
     activityType: a.activityType,
     userName: a.userName,
     userPublicId: a.userPublicId,
+    identityColor: a.identityColor,
     recordName: a.recordName,
     timestamp: a.timestamp,
     dateStr: a.timestamp.split('T')[0] ?? a.timestamp

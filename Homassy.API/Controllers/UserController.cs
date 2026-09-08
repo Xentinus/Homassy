@@ -302,6 +302,47 @@ namespace Homassy.API.Controllers
         }
 
         /// <summary>
+        /// Gets one page of the cursor-paged, server-aggregated activity timeline: same-actor,
+        /// same-type activities recorded close together collapse into a single entry, and paging
+        /// follows an opaque cursor (from the previous page's <c>nextCursor</c>) rather than a page
+        /// number, so a newly inserted activity cannot shift the page a client is already on.
+        /// </summary>
+        /// <param name="cursor">Opaque cursor from a previous page's response, or omitted for the first page.</param>
+        /// <param name="activityType">Optional activity type filter.</param>
+        /// <param name="userPublicId">Optional single-member filter; omitted shows the caller's own activities plus their family's.</param>
+        /// <param name="pageSize">Maximum number of entries to return.</param>
+        /// <param name="cancellationToken">Cancellation token.</param>
+        [HttpGet("activities/timeline")]
+        [MapToApiVersion(1.0)]
+        [ProducesResponseType(typeof(ApiResponse<Models.Activity.ActivityTimelineResult>), StatusCodes.Status200OK)]
+        [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status400BadRequest)]
+        public async Task<IActionResult> GetActivityTimeline(
+            [FromQuery] string? cursor,
+            [FromQuery] int? activityType,
+            [FromQuery] Guid? userPublicId,
+            [FromQuery] int pageSize = 30,
+            CancellationToken cancellationToken = default)
+        {
+            if (!ModelState.IsValid)
+            {
+                return BadRequest(ApiResponse.ErrorResponse(ErrorCodes.ValidationInvalidRequest));
+            }
+
+            var request = new Models.Activity.ActivityTimelineRequest
+            {
+                Cursor = cursor,
+                PageSize = pageSize,
+                ActivityType = activityType.HasValue ? (Enums.ActivityType)activityType.Value : null,
+                UserPublicId = userPublicId
+            };
+
+            // An undecodable cursor throws ArgumentException from GetActivityTimelineAsync, mapped
+            // to 400 by GlobalExceptionMiddleware - no try/catch needed here.
+            var result = await _activityFunctions.GetActivityTimelineAsync(request, cancellationToken);
+            return Ok(ApiResponse<Models.Activity.ActivityTimelineResult>.SuccessResponse(result));
+        }
+
+        /// <summary>
         /// Gets the VAPID public key for push notification subscription.
         /// </summary>
         [HttpGet("push/vapid-key")]

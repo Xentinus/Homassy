@@ -59,6 +59,8 @@ export interface ActivityInfo {
   publicId: string
   userPublicId: string
   userName: string
+  /** The actor's chosen identity-colour key, or null/absent for the deterministic pick. */
+  identityColor?: string | null
   timestamp: string
   activityType: ActivityType
   recordName: string
