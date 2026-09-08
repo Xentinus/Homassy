@@ -1,5 +1,5 @@
-import { describe, expect, it } from 'vitest'
-import { collapseLabel, createUndoQueue, type PendingAction } from '~/utils/undoQueue'
+import { describe, expect, it, vi } from 'vitest'
+import { collapseLabel, createUndoQueue, settleCommit, type PendingAction } from '~/utils/undoQueue'
 
 /** Matches the shape `collapseLabel`'s `t` parameter expects, without pulling in real i18n. */
 const fakeT = (key: string, params?: Record<string, unknown>): string =>
@@ -95,5 +95,38 @@ describe('collapseLabel', () => {
 
   it('returns an empty string for an empty list', () => {
     expect(collapseLabel([], fakeT)).toBe('')
+  })
+})
+
+// This is the regression that must never come back: a `commit()` that resolves normally with
+// `{ success: false }` (the shape an HTTP error status actually takes — see useApiClient.ts's
+// request() — not a rejection) used to be silently treated as a success, leaving the optimistic
+// mutation permanently wrong on screen with no revert and no error surfaced.
+describe('settleCommit', () => {
+  it('returns true and never reverts when the commit resolves successfully', async () => {
+    const revert = vi.fn()
+
+    const succeeded = await settleCommit(async () => ({ success: true }), revert)
+
+    expect(succeeded).toBe(true)
+    expect(revert).not.toHaveBeenCalled()
+  })
+
+  it('reverts and returns false when the commit resolves with success: false', async () => {
+    const revert = vi.fn()
+
+    const succeeded = await settleCommit(async () => ({ success: false }), revert)
+
+    expect(succeeded).toBe(false)
+    expect(revert).toHaveBeenCalledOnce()
+  })
+
+  it('reverts and returns false when the commit rejects (a transport failure)', async () => {
+    const revert = vi.fn()
+
+    const succeeded = await settleCommit(async () => { throw new Error('network down') }, revert)
+
+    expect(succeeded).toBe(false)
+    expect(revert).toHaveBeenCalledOnce()
   })
 })

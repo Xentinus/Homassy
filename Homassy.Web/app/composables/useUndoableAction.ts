@@ -14,12 +14,14 @@ import { computed, ref } from 'vue'
 import {
   createUndoQueue,
   nextActionId,
+  settleCommit,
   UNDO_WINDOW_MS,
+  type CommitResult,
   type PendingAction,
   type UndoKind
 } from '~/utils/undoQueue'
 
-interface RunOptions<T> {
+interface RunOptions<T extends CommitResult> {
   /** The row/item this action is about — what `isPendingEntity` and same-entity replacement key off. */
   entityId: string
   kind: UndoKind
@@ -29,7 +31,12 @@ interface RunOptions<T> {
   apply: () => void
   /** Undoes exactly what `apply` did. Never called once `commit` has been sent. */
   revert: () => void
-  /** The real network request. Only ever invoked after the undo window has fully elapsed. */
+  /**
+   * The real network request. Only ever invoked after the undo window has fully elapsed. Must
+   * resolve to `{ success: boolean, ... }` rather than throw on a business-rule failure — every
+   * API composable call already does (see `useApiClient.ts`'s `request()`) — because
+   * `settleCommit` (undoQueue.ts) reverts on either a rejection or a resolved `success: false`.
+   */
   commit: () => Promise<T>
 }
 
@@ -43,7 +50,7 @@ const sync = (): void => { pending.value = queue.list() }
 // commit()/revert() closures, keyed by PendingAction.id rather than entityId: a same-entity
 // replacement drops the old id's entry entirely (see undoQueue.ts), so there is never a stale
 // closure left behind for an id no longer in the queue.
-const commits = new Map<string, () => Promise<unknown>>()
+const commits = new Map<string, () => Promise<CommitResult>>()
 const reverts = new Map<string, () => void>()
 
 let timer: ReturnType<typeof setTimeout> | null = null
@@ -73,12 +80,11 @@ async function onExpire(): Promise<void> {
     reverts.delete(action.id)
     if (!commit) continue
 
-    try {
-      await commit()
-    } catch {
-      revert?.()
-      reportFailure()
-    }
+    // A rejection and a resolved `success: false` are both a failure (see undoQueue.ts's
+    // `settleCommit` — the shape every real commit() resolves to) and both revert; only the
+    // toast (this composable's one Nuxt-dependent bit) lives out here.
+    const succeeded = await settleCommit(commit, () => revert?.())
+    if (!succeeded) reportFailure()
   }
 
   // Something may have been queued while the above commits were in flight — arm the next wave.
@@ -136,7 +142,7 @@ const remainingRatio = computed(() => {
  */
 const isPendingEntity = (entityId: string): boolean => queue.has(entityId)
 
-const run = <T,>(options: RunOptions<T>): void => {
+const run = <T extends CommitResult,>(options: RunOptions<T>): void => {
   const { entityId, kind, label, apply, revert, commit } = options
 
   apply()
@@ -153,7 +159,7 @@ const run = <T,>(options: RunOptions<T>): void => {
   const expiresAt = Date.now() + UNDO_WINDOW_MS
 
   queue.add({ id, entityId, kind, label, expiresAt })
-  commits.set(id, commit as () => Promise<unknown>)
+  commits.set(id, commit)
   reverts.set(id, revert)
   sync()
 
