@@ -1065,4 +1065,263 @@ public class UserControllerTests : IClassFixture<HomassyWebApplicationFactory>
         }
     }
     #endregion
+
+    #region Activity Visibility Filter Tests (member filter scoped to the caller's own family)
+
+    // Fix: ApplyActivityVisibilityFilter used to apply `a.UserId == requestedUser.Id` for a named
+    // UserPublicId with no family constraint at all, so any authenticated user could read a
+    // stranger's whole activity feed by guessing (or otherwise obtaining) their public GUID. The
+    // three scenarios below are exercised against both GET /activities and GET
+    // /activities/timeline, since both now go through the same shared filter.
+
+    [Fact]
+    public async Task GetActivities_FilterByOwnPublicId_ReturnsOwnRows()
+    {
+        string? testEmail = null;
+        try
+        {
+            var (email, auth) = await _authHelper.CreateAndAuthenticateUserAsync("activities-vis-self");
+            testEmail = email;
+            _authHelper.SetAuthToken(auth.AccessToken);
+            var userId = _factory.GetUserIdByEmail(email)!.Value;
+            var userPublicId = GetUserPublicId(userId);
+
+            await SeedActivityAsync(userId, ActivityType.ProductCreate, DateTime.UtcNow.AddMinutes(-5), "My own item");
+
+            var response = await _client.GetAsync($"/api/v1.0/user/activities?userPublicId={userPublicId}&pageSize=10");
+            var body = await response.Content.ReadAsStringAsync();
+            _output.WriteLine($"Response: {body}");
+
+            Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+            var content = await response.Content.ReadFromJsonAsync<ApiResponse<PagedResult<ActivityInfo>>>();
+            Assert.NotNull(content?.Data);
+            Assert.Single(content.Data.Items);
+            Assert.Equal(userPublicId, content.Data.Items[0].UserPublicId);
+        }
+        finally
+        {
+            _authHelper.ClearAuthToken();
+            if (testEmail != null)
+                await _authHelper.CleanupUserAsync(testEmail);
+        }
+    }
+
+    [Fact]
+    public async Task GetActivities_FilterByFamilyMembersPublicId_ReturnsThatMembersRows()
+    {
+        string? testEmailA = null;
+        string? testEmailB = null;
+        int? familyId = null;
+        try
+        {
+            var (emailA, authA) = await _authHelper.CreateAndAuthenticateUserAsync("activities-vis-member-a");
+            testEmailA = emailA;
+            var (emailB, _) = await _authHelper.CreateAndAuthenticateUserAsync("activities-vis-member-b");
+            testEmailB = emailB;
+
+            var userIdA = _factory.GetUserIdByEmail(emailA)!.Value;
+            var userIdB = _factory.GetUserIdByEmail(emailB)!.Value;
+            familyId = await CreateFamilyWithMembersAsync(userIdA, userIdB);
+            var userPublicIdB = GetUserPublicId(userIdB);
+
+            await SeedActivityAsync(userIdA, ActivityType.ProductCreate, DateTime.UtcNow.AddMinutes(-10), "A's item", familyId);
+            await SeedActivityAsync(userIdB, ActivityType.ProductCreate, DateTime.UtcNow.AddMinutes(-5), "B's item", familyId);
+
+            _authHelper.SetAuthToken(authA.AccessToken);
+            var response = await _client.GetAsync($"/api/v1.0/user/activities?userPublicId={userPublicIdB}&pageSize=10");
+            var body = await response.Content.ReadAsStringAsync();
+            _output.WriteLine($"Response: {body}");
+
+            Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+            var content = await response.Content.ReadFromJsonAsync<ApiResponse<PagedResult<ActivityInfo>>>();
+            Assert.NotNull(content?.Data);
+            Assert.Single(content.Data.Items);
+            Assert.Equal(userPublicIdB, content.Data.Items[0].UserPublicId);
+            Assert.Equal("B's item", content.Data.Items[0].RecordName);
+        }
+        finally
+        {
+            _authHelper.ClearAuthToken();
+            if (testEmailA != null)
+                await _authHelper.CleanupUserAsync(testEmailA);
+            if (testEmailB != null)
+                await _authHelper.CleanupUserAsync(testEmailB);
+            if (familyId.HasValue)
+                await DeleteFamilyAsync(familyId.Value);
+        }
+    }
+
+    [Fact]
+    public async Task GetActivities_FilterByUserInAnotherFamily_ReturnsEmptyResult()
+    {
+        string? testEmailA = null;
+        string? testEmailStranger = null;
+        int? familyIdA = null;
+        int? familyIdStranger = null;
+        try
+        {
+            var (emailA, authA) = await _authHelper.CreateAndAuthenticateUserAsync("activities-vis-cross-a");
+            testEmailA = emailA;
+            var (emailStranger, _) = await _authHelper.CreateAndAuthenticateUserAsync("activities-vis-cross-s");
+            testEmailStranger = emailStranger;
+
+            var userIdA = _factory.GetUserIdByEmail(emailA)!.Value;
+            var userIdStranger = _factory.GetUserIdByEmail(emailStranger)!.Value;
+            familyIdA = await CreateFamilyWithMembersAsync(userIdA);
+            familyIdStranger = await CreateFamilyWithMembersAsync(userIdStranger);
+            var userPublicIdStranger = GetUserPublicId(userIdStranger);
+
+            await SeedActivityAsync(userIdStranger, ActivityType.ProductCreate, DateTime.UtcNow.AddMinutes(-5), "Stranger's item", familyIdStranger);
+
+            _authHelper.SetAuthToken(authA.AccessToken);
+            var response = await _client.GetAsync($"/api/v1.0/user/activities?userPublicId={userPublicIdStranger}&pageSize=10");
+            var body = await response.Content.ReadAsStringAsync();
+            _output.WriteLine($"Response: {body}");
+
+            // Pre-fix, this returned the stranger's whole feed - record names, quantities,
+            // timestamps - with nothing but the GUID's unguessability standing in the way.
+            Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+            var content = await response.Content.ReadFromJsonAsync<ApiResponse<PagedResult<ActivityInfo>>>();
+            Assert.NotNull(content?.Data);
+            Assert.Empty(content.Data.Items);
+            Assert.Equal(0, content.Data.TotalCount);
+        }
+        finally
+        {
+            _authHelper.ClearAuthToken();
+            if (testEmailA != null)
+                await _authHelper.CleanupUserAsync(testEmailA);
+            if (testEmailStranger != null)
+                await _authHelper.CleanupUserAsync(testEmailStranger);
+            if (familyIdA.HasValue)
+                await DeleteFamilyAsync(familyIdA.Value);
+            if (familyIdStranger.HasValue)
+                await DeleteFamilyAsync(familyIdStranger.Value);
+        }
+    }
+
+    [Fact]
+    public async Task GetActivityTimeline_FilterByOwnPublicId_ReturnsOwnRows()
+    {
+        string? testEmail = null;
+        try
+        {
+            var (email, auth) = await _authHelper.CreateAndAuthenticateUserAsync("timeline-vis-self");
+            testEmail = email;
+            _authHelper.SetAuthToken(auth.AccessToken);
+            var userId = _factory.GetUserIdByEmail(email)!.Value;
+            var userPublicId = GetUserPublicId(userId);
+
+            await SeedActivityAsync(userId, ActivityType.ProductCreate, DateTime.UtcNow.AddMinutes(-5), "My own item");
+
+            var response = await _client.GetAsync($"/api/v1.0/user/activities/timeline?userPublicId={userPublicId}&pageSize=10");
+            var body = await response.Content.ReadAsStringAsync();
+            _output.WriteLine($"Response: {body}");
+
+            Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+            var content = await response.Content.ReadFromJsonAsync<ApiResponse<ActivityTimelineResult>>();
+            Assert.NotNull(content?.Data);
+            Assert.Single(content.Data.Entries);
+            Assert.Equal(userPublicId, content.Data.Entries[0].UserPublicId);
+        }
+        finally
+        {
+            _authHelper.ClearAuthToken();
+            if (testEmail != null)
+                await _authHelper.CleanupUserAsync(testEmail);
+        }
+    }
+
+    [Fact]
+    public async Task GetActivityTimeline_FilterByFamilyMembersPublicId_ReturnsThatMembersRows()
+    {
+        string? testEmailA = null;
+        string? testEmailB = null;
+        int? familyId = null;
+        try
+        {
+            var (emailA, authA) = await _authHelper.CreateAndAuthenticateUserAsync("timeline-vis-member-a");
+            testEmailA = emailA;
+            var (emailB, _) = await _authHelper.CreateAndAuthenticateUserAsync("timeline-vis-member-b");
+            testEmailB = emailB;
+
+            var userIdA = _factory.GetUserIdByEmail(emailA)!.Value;
+            var userIdB = _factory.GetUserIdByEmail(emailB)!.Value;
+            familyId = await CreateFamilyWithMembersAsync(userIdA, userIdB);
+            var userPublicIdB = GetUserPublicId(userIdB);
+
+            await SeedActivityAsync(userIdA, ActivityType.ProductCreate, DateTime.UtcNow.AddMinutes(-10), "A's item", familyId);
+            await SeedActivityAsync(userIdB, ActivityType.ProductCreate, DateTime.UtcNow.AddMinutes(-5), "B's item", familyId);
+
+            _authHelper.SetAuthToken(authA.AccessToken);
+            var response = await _client.GetAsync($"/api/v1.0/user/activities/timeline?userPublicId={userPublicIdB}&pageSize=10");
+            var body = await response.Content.ReadAsStringAsync();
+            _output.WriteLine($"Response: {body}");
+
+            Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+            var content = await response.Content.ReadFromJsonAsync<ApiResponse<ActivityTimelineResult>>();
+            Assert.NotNull(content?.Data);
+            Assert.Single(content.Data.Entries);
+            Assert.Equal(userPublicIdB, content.Data.Entries[0].UserPublicId);
+            Assert.Equal("B's item", content.Data.Entries[0].RecordName);
+        }
+        finally
+        {
+            _authHelper.ClearAuthToken();
+            if (testEmailA != null)
+                await _authHelper.CleanupUserAsync(testEmailA);
+            if (testEmailB != null)
+                await _authHelper.CleanupUserAsync(testEmailB);
+            if (familyId.HasValue)
+                await DeleteFamilyAsync(familyId.Value);
+        }
+    }
+
+    [Fact]
+    public async Task GetActivityTimeline_FilterByUserInAnotherFamily_ReturnsEmptyResult()
+    {
+        string? testEmailA = null;
+        string? testEmailStranger = null;
+        int? familyIdA = null;
+        int? familyIdStranger = null;
+        try
+        {
+            var (emailA, authA) = await _authHelper.CreateAndAuthenticateUserAsync("timeline-vis-cross-a");
+            testEmailA = emailA;
+            var (emailStranger, _) = await _authHelper.CreateAndAuthenticateUserAsync("timeline-vis-cross-s");
+            testEmailStranger = emailStranger;
+
+            var userIdA = _factory.GetUserIdByEmail(emailA)!.Value;
+            var userIdStranger = _factory.GetUserIdByEmail(emailStranger)!.Value;
+            familyIdA = await CreateFamilyWithMembersAsync(userIdA);
+            familyIdStranger = await CreateFamilyWithMembersAsync(userIdStranger);
+            var userPublicIdStranger = GetUserPublicId(userIdStranger);
+
+            await SeedActivityAsync(userIdStranger, ActivityType.ProductCreate, DateTime.UtcNow.AddMinutes(-5), "Stranger's item", familyIdStranger);
+
+            _authHelper.SetAuthToken(authA.AccessToken);
+            var response = await _client.GetAsync($"/api/v1.0/user/activities/timeline?userPublicId={userPublicIdStranger}&pageSize=10");
+            var body = await response.Content.ReadAsStringAsync();
+            _output.WriteLine($"Response: {body}");
+
+            Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+            var content = await response.Content.ReadFromJsonAsync<ApiResponse<ActivityTimelineResult>>();
+            Assert.NotNull(content?.Data);
+            Assert.Empty(content.Data.Entries);
+            Assert.Null(content.Data.NextCursor);
+        }
+        finally
+        {
+            _authHelper.ClearAuthToken();
+            if (testEmailA != null)
+                await _authHelper.CleanupUserAsync(testEmailA);
+            if (testEmailStranger != null)
+                await _authHelper.CleanupUserAsync(testEmailStranger);
+            if (familyIdA.HasValue)
+                await DeleteFamilyAsync(familyIdA.Value);
+            if (familyIdStranger.HasValue)
+                await DeleteFamilyAsync(familyIdStranger.Value);
+        }
+    }
+    #endregion
 }

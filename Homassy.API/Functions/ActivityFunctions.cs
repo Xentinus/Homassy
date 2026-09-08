@@ -231,25 +231,36 @@ namespace Homassy.API.Functions
         /// </summary>
         /// <returns>
         /// The visibility-filtered query, or <c>null</c> when <paramref name="filterUserPublicId"/>
-        /// names a user that does not exist - the caller should then answer an empty result without
-        /// querying further.
+        /// names a user that does not exist, or one the caller may not see - the caller should
+        /// then answer an empty result without querying further.
         /// </returns>
         private IQueryable<Activity>? ApplyActivityVisibilityFilter(
             IQueryable<Activity> query,
             int callerUserId,
             Guid? filterUserPublicId)
         {
+            var familyId = SessionInfo.GetFamilyId();
+
             if (filterUserPublicId.HasValue)
             {
                 var requestedUser = new UserFunctions(_contextFactory).GetUserByPublicId(filterUserPublicId.Value);
                 if (requestedUser == null)
                     return null;
 
+                // The named member must be the caller themselves or a member of the caller's own
+                // family - anything else (a stranger in another family, or no shared family at
+                // all) is treated exactly like a UserPublicId that matches no user: an empty
+                // result, never a peek at someone else's feed. Unguessability of a GUID is not
+                // authorization.
+                var isSelf = requestedUser.Id == callerUserId;
+                var isSameFamily = familyId.HasValue && requestedUser.FamilyId == familyId.Value;
+                if (!isSelf && !isSameFamily)
+                    return null;
+
                 return query.Where(a => a.UserId == requestedUser.Id);
             }
 
             // Default: the caller's own activities + their family's.
-            var familyId = SessionInfo.GetFamilyId();
             return familyId.HasValue
                 ? query.Where(a => a.UserId == callerUserId || a.FamilyId == familyId.Value)
                 : query.Where(a => a.UserId == callerUserId);
