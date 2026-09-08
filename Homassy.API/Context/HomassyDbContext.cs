@@ -102,6 +102,19 @@ namespace Homassy.API.Context
                 entity.HasIndex(e => e.UserId);
                 entity.HasIndex(e => e.Endpoint).IsUnique();
             });
+
+            // No navigation from User to its picture on purpose: the whole point of the separate
+            // table is that loading a user never loads the bytes, and a navigation is an
+            // invitation to Include() them.
+            modelBuilder.Entity<UserProfilePicture>(entity =>
+            {
+                entity.HasOne(p => p.User)
+                    .WithMany()
+                    .HasForeignKey(p => p.UserId)
+                    .OnDelete(DeleteBehavior.Cascade);
+
+                entity.HasIndex(e => e.UserId).IsUnique();
+            });
             #endregion
 
             #region FamilyExternalCalendar Relationships
@@ -315,6 +328,7 @@ namespace Homassy.API.Context
         #region User Related DbSets
         public DbSet<User> Users { get; set; }
         public DbSet<UserProfile> UserProfiles { get; set; }
+        public DbSet<UserProfilePicture> UserProfilePictures { get; set; }
         public DbSet<UserNotificationPreferences> UserNotificationPreferences { get; set; }
         public DbSet<UserPushSubscription> UserPushSubscriptions { get; set; }
         public DbSet<Family> Families { get; set; }

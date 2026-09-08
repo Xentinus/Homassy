@@ -124,6 +124,16 @@ export default defineNuxtConfig({
     ]
   },
 
+  image: {
+    providers: {
+      // Passthrough provider, used by UserAvatar / ProductImage for the API's image endpoints.
+      // Those URLs must reach the browser verbatim: IPX would fetch them from the Nitro server,
+      // which has no Kratos session cookie, and the API already serves a purpose-sized variant
+      // per `?size=`. Registering it here is also what puts "none" in the `provider` prop's type.
+      none: { provider: 'none' }
+    }
+  },
+
   imports: {
     presets: [
       {
@@ -242,6 +252,28 @@ export default defineNuxtConfig({
             expiration: {
               maxEntries: 200,
               maxAgeSeconds: 2592000 // 30 days
+            }
+          }
+        },
+        {
+          // Avatars and product images. They are served from the API rather than as files, so
+          // they have no extension for the `static-assets` rule above to match — and being under
+          // `/api/` they would otherwise never be cached at all. CacheFirst is safe because each
+          // URL carries the image's content hash as `?v=`: a changed picture is a different URL,
+          // never a stale hit. Same-origin only, which is the production reverse-proxy setup; in
+          // development the API is a different origin and the browser cache handles it instead.
+          urlPattern: ({ url, sameOrigin }) =>
+            sameOrigin === true
+            && /^\/api\/v[\d.]+\/(User\/[^/]+\/profile-picture|Product\/[^/]+\/image)$/i.test(url.pathname),
+          handler: 'CacheFirst',
+          options: {
+            cacheName: 'remote-images',
+            expiration: {
+              maxEntries: 300,
+              maxAgeSeconds: 2592000 // 30 days
+            },
+            cacheableResponse: {
+              statuses: [200]
             }
           }
         }

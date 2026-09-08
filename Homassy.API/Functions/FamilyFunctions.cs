@@ -1,4 +1,5 @@
-﻿using Homassy.API.Context;
+﻿using Homassy.API.Constants;
+using Homassy.API.Context;
 using Homassy.API.Entities.Family;
 using Homassy.API.Entities.Location;
 using Homassy.API.Entities.User;
@@ -304,15 +305,25 @@ namespace Homassy.API.Functions
                 .Include(u => u.Profile)
                 .Where(u => u.FamilyId == user.FamilyId.Value)
                 .OrderByDescending(u => u.LastLoginAt)
+                // Two projections: the first is the one that runs in SQL (Profile is optional on
+                // User, and a null navigation yields NULL there rather than throwing), the second
+                // builds the avatar URL, which SQL cannot.
+                .Select(u => new
+                {
+                    u.PublicId,
+                    u.Name,
+                    DisplayName = u.Profile != null ? u.Profile.DisplayName : string.Empty,
+                    u.LastLoginAt,
+                    PictureVersion = u.Profile != null ? u.Profile.ProfilePictureVersion : null
+                })
+                .ToList()
                 .Select(u => new FamilyMemberResponse
                 {
                     PublicId = u.PublicId,
                     Name = u.Name,
-                    // Profile is optional on User, and the projection runs in SQL where a null
-                    // navigation yields NULL rather than throwing.
-                    DisplayName = u.Profile != null ? u.Profile.DisplayName : string.Empty,
+                    DisplayName = u.DisplayName,
                     LastLoginAt = u.LastLoginAt,
-                    ProfilePictureBase64 = u.Profile != null ? u.Profile.ProfilePictureBase64 : null,
+                    ProfilePictureUrl = MediaUrls.ProfilePicture(u.PublicId, u.PictureVersion),
                     IsCurrentUser = u.PublicId == currentPublicId
                 })
                 .ToList();

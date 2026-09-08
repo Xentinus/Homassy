@@ -40,7 +40,8 @@ Homassy.API is a home storage management system built with ASP.NET Core. The pro
 - **Request/Response Logging**: Sanitized logging with sensitive data filtering for observability
 - **Input Sanitization**: Automatic XSS protection via `[SanitizedString]` validation attribute
 - **Barcode Validation**: Multi-format barcode validation with checksum verification (EAN-13, EAN-8, UPC-A, UPC-E, Code-128)
-- **Image Processing**: Secure image upload with magic number validation, format detection, and dimension constraints
+- **Image Processing**: Secure image upload with magic number validation, format detection, and dimension constraints; resizing and thumbnailing via ImageSharp
+- **Images Are Served, Not Embedded**: uploaded pictures live in their own tables (`UserProfilePictures`) and are served as bytes from dedicated endpoints with an `ETag` and a content-hash version in the URL. DTOs carry a URL, never base64
 - **Async Progress Tracking**: Long-running operations (e.g. image uploads) tracked via `ProgressTrackerService` with job IDs
 - **Push Notifications**: Web Push API (VAPID) for browser push notifications with per-user subscription management
 - **Activity Feed**: Per-family activity log tracking create/update/delete operations across entities
@@ -102,6 +103,8 @@ Homassy.API/
 │       └── ValidBarcodeAttribute.cs
 ├── Constants/              Application-wide constants
 │   ├── ErrorCodeDescriptions.cs   Error code enum → human-readable map
+│   ├── ImageSizes.cs              Pixel sizes the stored image renditions are generated at
+│   ├── MediaUrls.cs               Builds the versioned image-endpoint paths DTOs carry
 │   └── TableNames.cs
 ├── Context/               Database context and session management
 │   ├── HomassyDbContext.cs
@@ -131,6 +134,7 @@ Homassy.API/
 │   │   ├── BaseEntity.cs
 │   │   ├── SoftDeleteEntity.cs
 │   │   ├── RecordChangeEntity.cs
+│   │   ├── StoredImageEntity.cs   Uploaded image bytes + thumbnail + content-hash version
 │   │   └── TableRecordChange.cs
 │   ├── Family/
 │   │   ├── Family.cs
@@ -154,6 +158,7 @@ Homassy.API/
 │       ├── User.cs
 │       ├── UserNotificationPreferences.cs
 │       ├── UserProfile.cs
+│       ├── UserProfilePicture.cs
 │       └── UserPushSubscription.cs
 ├── Enums/                Application enumerations
 │   ├── ActivityType.cs
@@ -161,6 +166,7 @@ Homassy.API/
 │   ├── Currency.cs
 │   ├── ErrorCode.cs               Typed error codes for all API error responses
 │   ├── ImageFormat.cs
+│   ├── ImageVariant.cs            Which stored rendition an `?size=` query wants
 │   ├── ImageValidationError.cs
 │   ├── Language.cs
 │   ├── ProductCategory.cs
@@ -179,6 +185,7 @@ Homassy.API/
 ├── Extensions/           Extension methods
 │   ├── CurrencyExtensions.cs
 │   ├── HttpContextExtensions.cs    GetKratosSession() helper
+│   ├── ImageResponseExtensions.cs  CacheableImage() / AcceptsWebp() for the image endpoints
 │   ├── LanguageExtensions.cs
 │   ├── QueryableExtensions.cs
 │   ├── RequestLoggingMiddlewareExtensions.cs

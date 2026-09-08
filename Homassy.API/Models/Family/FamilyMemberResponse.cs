@@ -6,7 +6,7 @@
         public string Name { get; init; } = string.Empty;
         public string DisplayName { get; init; } = string.Empty;
         public DateTime LastLoginAt { get; init; }
-        public string? ProfilePictureBase64 { get; init; }
+        public string? ProfilePictureUrl { get; init; }
         public bool IsCurrentUser { get; init; }
     }
 }

@@ -130,7 +130,6 @@ From `UserProfile` entity (if present):
 | Profile field | Kratos trait | Notes |
 |---------------|-------------|-------|
 | `DisplayName` | `display_name` | – |
-| `ProfilePictureBase64` | `profile_picture_base64` | – |
 | `DateOfBirth` | `date_of_birth` | ISO 8601 string |
 | `Gender` | `gender` | – |
 | `DefaultCurrency` | `default_currency` | enum → `"HUF"`, `"EUR"`, etc. |

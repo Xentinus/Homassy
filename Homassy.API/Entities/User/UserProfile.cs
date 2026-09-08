@@ -13,8 +13,13 @@ namespace Homassy.API.Entities.User
         [StringLength(128, MinimumLength = 2)]
         public required string DisplayName { get; set; }
 
-        [Base64String]
-        public string? ProfilePictureBase64 { get; set; }
+        /// <summary>
+        /// Content hash of the avatar in <see cref="UserProfilePicture"/>, or null when the user
+        /// has none. Kept here so building an avatar URL costs nothing beyond the profile row the
+        /// cache already holds — the bytes themselves are never loaded to render a list.
+        /// </summary>
+        [StringLength(32)]
+        public string? ProfilePictureVersion { get; set; }
 
         public DateTime? DateOfBirth { get; set; }
         public string? Gender { get; set; }

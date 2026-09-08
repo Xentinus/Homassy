@@ -15,12 +15,7 @@
       @click="onSelect"
     >
       <div class="border-2 border-primary-500 rounded-full p-0.5 shrink-0">
-        <UAvatar
-          :src="avatarSrc"
-          :alt="primaryName || 'User'"
-          :text="avatarInitial"
-          class="h-16 w-16 text-2xl"
-        />
+        <UserAvatar :src="avatarSrc" :name="primaryName" :size="64" />
       </div>
 
       <div class="flex-1 min-w-0">
@@ -44,14 +39,13 @@
 withDefaults(defineProps<{
   primaryName?: string
   secondaryName?: string | null
+  /** `profilePictureUrl` from the API; the initials placeholder is derived from the name. */
   avatarSrc?: string
-  avatarInitial?: string
   loading?: boolean
 }>(), {
   primaryName: undefined,
   secondaryName: undefined,
   avatarSrc: undefined,
-  avatarInitial: undefined,
   loading: false
 })
 

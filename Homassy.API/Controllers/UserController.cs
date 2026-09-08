@@ -1,6 +1,7 @@
 ﻿using Asp.Versioning;
 using Homassy.API.Context;
 using Homassy.API.Enums;
+using Homassy.API.Extensions;
 using Homassy.API.Functions;
 using Homassy.API.Models;
 using Homassy.API.Models.Common;
@@ -78,6 +79,43 @@ namespace Homassy.API.Controllers
 
             await _userFunctions.UpdateUserProfileAsync(request, _kratosService, cancellationToken);
             return Ok(ApiResponse.SuccessResponse());
+        }
+
+        /// <summary>
+        /// Serves a user's avatar as image bytes.
+        /// </summary>
+        /// <remarks>
+        /// Answers with the bytes, not an <c>ApiResponse</c> envelope: an avatar that rides along
+        /// inside JSON cannot be cached by the browser, cannot be served by the service worker,
+        /// and is re-downloaded with every payload that mentions its user.
+        /// <para>
+        /// The <c>v</c> query parameter is not read — it is the stored picture's content hash,
+        /// present so that a changed picture is a changed URL. That is what makes the long
+        /// <c>Cache-Control</c> below safe, and it is why there is no cache to invalidate when a
+        /// user changes their avatar.
+        /// </para>
+        /// </remarks>
+        /// <param name="publicId">The user whose avatar to serve.</param>
+        /// <param name="size">Which rendition: <c>thumb</c> (default) or <c>full</c>.</param>
+        /// <param name="cancellationToken">Cancellation token.</param>
+        [HttpGet("{publicId:guid}/profile-picture")]
+        [MapToApiVersion(1.0)]
+        [ProducesResponseType(typeof(FileContentResult), StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status304NotModified)]
+        [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status404NotFound)]
+        public async Task<IActionResult> GetProfilePicture(
+            Guid publicId,
+            [FromQuery] ImageVariant size = ImageVariant.Thumb,
+            CancellationToken cancellationToken = default)
+        {
+            var image = await _imageFunctions.GetUserProfilePictureAsync(publicId, size, this.AcceptsWebp(), cancellationToken);
+
+            if (image == null)
+            {
+                return NotFound(ApiResponse.ErrorResponse(ErrorCodes.UserNoProfilePicture));
+            }
+
+            return this.CacheableImage(image);
         }
 
         /// <summary>

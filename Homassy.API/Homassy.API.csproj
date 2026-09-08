@@ -37,6 +37,12 @@
     <PackageReference Include="Serilog.Sinks.Console" Version="6.1.1" />
     <PackageReference Include="Serilog.Sinks.File" Version="7.0.0" />
     <PackageReference Include="Ical.Net" Version="4.*" />
+    <!-- Fully managed (no native assets), so it works unchanged in the Linux container.
+         Used only by ImageProcessingService: decode, resize, re-encode.
+         Pinned to 3.x on purpose: 4.x requires a paid Six Labors license key and warns on every
+         build without one, which -warnaserror in CI turns into a failure. 3.1.x is under the Six
+         Labors Split License, which this AGPL-3.0 project qualifies for. -->
+    <PackageReference Include="SixLabors.ImageSharp" Version="3.1.12" />
 
   </ItemGroup>
 

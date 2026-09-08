@@ -61,15 +61,7 @@
                 <!-- Avatar is auth-store driven (client-only): render on the client
                      so SSR (user=null → "?") doesn't mismatch the hydrated initials. -->
                 <ClientOnly>
-                  <img
-                    v-if="avatarSrc"
-                    :src="avatarSrc"
-                    :alt="item.label"
-                    class="h-full w-full object-cover"
-                  >
-                  <span v-else class="text-[10px] font-semibold text-primary-600 dark:text-primary-300 leading-none">
-                    {{ avatarInitials }}
-                  </span>
+                  <UserAvatar :src="avatarSrc" :name="avatarName" :size="24" />
                 </ClientOnly>
               </div>
               <UIcon v-else :name="item.icon" class="h-6 w-6" />
@@ -96,17 +88,10 @@ const eventBus = useEventBus()
 const { fabVisible } = useFab()
 const authStore = useAuthStore()
 
-// Profile nav item shows the user's avatar (picture, or initials fallback) — mirrors
-// the profile page (app/pages/profile/index.vue).
-const avatarSrc = computed(() => {
-  const b64 = authStore.user?.profilePictureBase64
-  return b64 ? `data:image/jpeg;base64,${b64}` : undefined
-})
-const avatarInitials = computed(() => {
-  const name = authStore.user?.displayName || authStore.user?.name || ''
-  if (!name) return '?'
-  return name.trim().split(/\s+/).map(w => w.charAt(0).toUpperCase()).join('').slice(0, 2)
-})
+// Profile nav item shows the user's avatar. UserAvatar owns the picture-or-initials
+// fallback, so this layout only has to say whose avatar it is.
+const avatarSrc = computed(() => authStore.user?.profilePictureUrl ?? undefined)
+const avatarName = computed(() => authStore.user?.displayName || authStore.user?.name || '')
 
 const expirationCount = ref(0)
 const deadlineCount = ref(0)

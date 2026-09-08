@@ -32,6 +32,7 @@ Manages user profile, settings, activity, and push notifications (all endpoints 
 |--------|----------|-------------|
 | GET | `/profile` | Get user profile |
 | PUT | `/settings` | Update user settings and preferences |
+| GET | `/{publicId}/profile-picture` | Serve a user's avatar as image **bytes** (`?size=thumb\|full`, `?v=` version) |
 | POST | `/profile-picture` | Upload profile picture synchronously (legacy) |
 | POST | `/profile-picture/upload-async` | Upload profile picture asynchronously (returns job ID) |
 | DELETE | `/profile-picture` | Delete profile picture |
@@ -47,6 +48,11 @@ Manages user profile, settings, activity, and push notifications (all endpoints 
 **Key Patterns:**
 - All endpoints require authentication
 - Base64 image upload for profile pictures
+- **Avatars are served, not embedded.** Every DTO that mentions a user (`UserInfo`, `UserProfileResponse`, `FamilyMemberResponse`, `FamilyJoinRequestResponse`) carries `ProfilePictureUrl` — a server-relative path built by `Constants/MediaUrls` — instead of the image. The bytes come from `GET /{publicId}/profile-picture`, which answers raw image data (no `ApiResponse` envelope) with an `ETag`, `Cache-Control: private, max-age=1y, immutable` and `304` handling, via `ControllerBase.CacheableImage()` in `Extensions/ImageResponseExtensions`
+- The `?v=` in the URL is the stored image's content hash and is **not read** by the endpoint. It exists so a changed picture is a changed URL — which is what makes the year-long cache lifetime correct and means there is no cache to invalidate on upload
+- `?size=thumb` (the default, and what every list uses) serves the 128px square WebP thumbnail generated on upload; `?size=full` serves the uploaded image. A row with no thumbnail (uploaded before thumbnails existed) gets one generated and stored on the first `thumb` request, and falls back to the full image if that fails — the ETag says which was served, so a cached fallback is not kept after a successful backfill
+- Thumbnails are WebP; a client whose `Accept` header rules that out gets a JPEG transcode, hence the `Vary: Accept`
+- Bytes live in `UserProfilePictures`, not on `UserProfiles` — see [../Entities/CLAUDE.md](../Entities/CLAUDE.md)
 - Async image upload returns a `jobId`; track progress via `GET /progress/{jobId}`
 - Push notifications use Web Push API (VAPID)
 - Activity feed supports pagination (`pageNumber`, `pageSize`, `returnAll`) and filtering by type/date/user

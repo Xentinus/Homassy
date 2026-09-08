@@ -89,6 +89,7 @@ Homassy.Web/
 │   │   ├── useHaptics.ts       The app's vibration vocabulary + the user's on/off switch
 │   │   ├── useImageCrop.ts
 │   │   ├── useInputDateLocale.ts
+│   │   ├── useMediaUrl.ts      API-relative media path → loadable URL (see Images below)
 │   │   ├── usePullToRefresh.ts
 │   │   ├── usePushNotifications.ts
 │   │   ├── useShoppingListSocket.ts  SignalR realtime client for shopping lists
@@ -332,6 +333,29 @@ The spellings are pinned by `ProductControllerTests.CreateProduct_InvalidRequest
 ### Swipe Actions
 
 `useSwipeActions(el, options)` adds swipe gestures to an element (used by `ShoppingListItemCard`): swipe left/right past a threshold (`max(40% width, 56px)`) commits `onSwipeLeft`/`onSwipeRight`. Pointer-event based with axis lock (vertical drags fall through to native scroll / pull-to-refresh), damped overshoot, haptic tick at the threshold, and a `suppressClick` flag consumers must check in their click handler. Requires `touch-action: pan-y` on the wrapper and works with touch, pen, and mouse.
+
+---
+
+## Images from the API
+
+Uploaded pictures are **served**, not embedded. The API's DTOs carry a path (`profilePictureUrl`),
+never base64 — base64 is ~33% larger than the bytes, cannot be cached by the browser or the
+service worker, and was re-downloaded with every payload that mentioned its user.
+
+| Piece | Role |
+|---|---|
+| `app/composables/useMediaUrl.ts` | `mediaUrl(path)` — prefixes `runtimeConfig.public.apiBase`; passes absolute / `data:` / `blob:` URLs through |
+| `app/components/UserAvatar.vue` | the app's one user avatar: picture, or a deterministic gradient + initials |
+| `nuxt.config.ts` → `image.providers.none` | the passthrough `@nuxt/image` provider these components render through |
+| `nuxt.config.ts` → `pwa.workbox.runtimeCaching` `remote-images` | CacheFirst for the image endpoints |
+
+Easy to get wrong:
+
+- **`crossorigin="use-credentials"` is required.** The endpoints are behind `[Authorize]`, and in development the API is a different origin — without it the browser omits the Kratos session cookie and every avatar 401s. In production (same origin behind the reverse proxy) the attribute is a no-op.
+- **`provider="none"`, never the default `ipx`.** IPX would fetch the image from the Nitro server, which has no session cookie. The API already serves a purpose-sized rendition per `?size=`, so there is nothing for IPX to do.
+- **Never append a cache-buster.** The URL already ends in `?v=<content hash>`, so a changed picture is a new URL; adding `?t=Date.now()` would defeat both the browser cache and the `remote-images` service-worker cache.
+- **The placeholder renders underneath the image, always.** It is both the loading state and the permanent fallback, which is what keeps a list from flashing empty circles. Its colour is generated from the name (there is no theme token for "a colour per user") at a lightness that works in both themes.
+- Avatars are **no longer a Kratos trait**. `traitsToUserInfo` does not set one; `fetchUserFromBackend()` is what fills `profilePictureUrl` in.
 
 ---
 

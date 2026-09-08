@@ -1,3 +1,4 @@
+using Homassy.API.Constants;
 using Homassy.API.Context;
 using Homassy.API.Entities.Family;
 using Homassy.API.Enums;
@@ -196,12 +197,24 @@ namespace Homassy.API.Functions
                     .ThenInclude(u => u!.Profile)
                 .Where(r => r.FamilyId == user.FamilyId.Value && r.Status == FamilyJoinRequestStatus.Pending)
                 .OrderBy(r => r.RequestedAt)
+                // The avatar URL needs the requester's own PublicId, not the request's, and it
+                // cannot be built in SQL — hence the second, in-memory projection.
+                .Select(r => new
+                {
+                    r.PublicId,
+                    UserPublicId = r.User!.PublicId,
+                    r.User.Name,
+                    DisplayName = r.User.Profile != null ? r.User.Profile.DisplayName : r.User.Name,
+                    PictureVersion = r.User.Profile != null ? r.User.Profile.ProfilePictureVersion : null,
+                    r.RequestedAt
+                })
+                .ToList()
                 .Select(r => new FamilyJoinRequestResponse
                 {
                     PublicId = r.PublicId,
-                    Name = r.User!.Name,
-                    DisplayName = r.User.Profile != null ? r.User.Profile.DisplayName : r.User.Name,
-                    ProfilePictureBase64 = r.User.Profile != null ? r.User.Profile.ProfilePictureBase64 : null,
+                    Name = r.Name,
+                    DisplayName = r.DisplayName,
+                    ProfilePictureUrl = MediaUrls.ProfilePicture(r.UserPublicId, r.PictureVersion),
                     RequestedAt = r.RequestedAt
                 })
                 .ToList();
