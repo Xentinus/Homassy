@@ -18,11 +18,15 @@ import * as signalR from '@microsoft/signalr'
 import type { HubEventHandler, SignalRHandler } from '~/types/realtime'
 import { ref } from 'vue'
 import type { InventoryGridProductInfo } from '~/types/product'
+import type { HubState } from '~/utils/realtimeStatus'
 
 // Module-level singletons: one connection shared across the whole app.
 let connection: signalR.HubConnection | null = null
 let startPromise: Promise<void> | null = null
 const isConnected = ref(false)
+// Same lifecycle as isConnected, but distinguishes "never opened" from "currently down" — see
+// useRealtimeStatus, which aggregates this across the three hubs into one status indicator.
+const hubState = ref<HubState>('idle')
 
 // Callbacks to run after an automatic reconnect (groups are re-joined server-side in
 // OnConnectedAsync, but events during the gap are missed, so consumers re-fetch the snapshot).
@@ -45,10 +49,11 @@ export const useInventorySocket = () => {
         .configureLogging(signalR.LogLevel.Warning)
         .build()
 
-      connection.onreconnecting(() => { isConnected.value = false })
-      connection.onclose(() => { isConnected.value = false })
+      connection.onreconnecting(() => { isConnected.value = false; hubState.value = 'reconnecting' })
+      connection.onclose(() => { isConnected.value = false; hubState.value = 'closed' })
       connection.onreconnected(() => {
         isConnected.value = true
+        hubState.value = 'connected'
         // Re-sync: let consumers reload the snapshot to catch events missed while disconnected.
         reconnectedCallbacks.forEach((cb) => { try { cb() } catch { /* ignore */ } })
       })
@@ -65,7 +70,7 @@ export const useInventorySocket = () => {
 
     if (!startPromise) {
       startPromise = conn.start()
-        .then(() => { isConnected.value = true })
+        .then(() => { isConnected.value = true; hubState.value = 'connected' })
         .catch((error) => { startPromise = null; throw error })
     }
 
@@ -109,6 +114,7 @@ export const useInventorySocket = () => {
   return {
     isSupported,
     isConnected,
+    hubState,
     ensureConnected,
     joinInventory,
     on,

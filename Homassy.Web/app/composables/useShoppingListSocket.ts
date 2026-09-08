@@ -22,11 +22,15 @@ import type { HubEventHandler, PresenceMember, SignalRHandler } from '~/types/re
 import { ref } from 'vue'
 import type { DetailedShoppingListInfo } from '~/types/shoppingList'
 import { useAuthStore } from '~/stores/auth'
+import type { HubState } from '~/utils/realtimeStatus'
 
 // Module-level singletons: one connection shared across the whole app.
 let connection: signalR.HubConnection | null = null
 let startPromise: Promise<void> | null = null
 const isConnected = ref(false)
+// Same lifecycle as isConnected, but distinguishes "never opened" from "currently down" — see
+// useRealtimeStatus, which aggregates this across the three hubs into one status indicator.
+const hubState = ref<HubState>('idle')
 
 // Who else has the currently-joined list open right now (excludes the caller). Module-level,
 // alongside isConnected: the connection is an app-wide singleton, so its presence is too — every
@@ -74,14 +78,17 @@ export const useShoppingListSocket = () => {
 
       connection.onreconnecting(() => {
         isConnected.value = false
+        hubState.value = 'reconnecting'
         presentMembers.value = []
       })
       connection.onclose(() => {
         isConnected.value = false
+        hubState.value = 'closed'
         presentMembers.value = []
       })
       connection.onreconnected(() => {
         isConnected.value = true
+        hubState.value = 'connected'
         // Re-sync: let consumers reload the snapshot (which re-joins the group). If no
         // consumer registered, best-effort re-join so we keep receiving events.
         if (reconnectedCallbacks.length > 0) {
@@ -103,7 +110,7 @@ export const useShoppingListSocket = () => {
 
     if (!startPromise) {
       startPromise = conn.start()
-        .then(() => { isConnected.value = true })
+        .then(() => { isConnected.value = true; hubState.value = 'connected' })
         .catch((error) => { startPromise = null; throw error })
     }
 
@@ -164,6 +171,7 @@ export const useShoppingListSocket = () => {
   return {
     isSupported,
     isConnected,
+    hubState,
     presentMembers,
     ensureConnected,
     joinList,

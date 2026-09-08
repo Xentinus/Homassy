@@ -94,6 +94,12 @@ html {
   /* Shopping-list "changed by" flash (see .item-attribution-flash below) — how long a foreign
      change stays highlighted on a card. The one new duration this feature needs. */
   --attribution-flash: 1500ms;
+
+  /* RealtimeConnectionBar (see useRealtimeStatus.ts) — how long the "Back online" confirmation
+     holds before it fades via the bubble transition. Not itself a CSS animation duration (there is
+     no keyframe using it), but declared here rather than as a JS magic number so every timed
+     duration in the app has one visible home. */
+  --realtime-reconnected-hold: 2500ms;
 }
 
 /* Page content cross-fade on navigation (the bottom nav + header stay fixed in the layout). */
