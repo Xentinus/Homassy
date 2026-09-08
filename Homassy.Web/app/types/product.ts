@@ -47,6 +47,8 @@ export interface InventoryGridProductInfo {
   publicId: string
   name: string
   brand: string
+  /** Drives the grid's "group by category" sections (mapped client-side onto a group). */
+  category?: ProductCategory
   barcode?: string
   isEatable: boolean
   isFavorite: boolean

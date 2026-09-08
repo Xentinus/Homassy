@@ -332,7 +332,8 @@
         "barcode": "Barcode",
         "scope": "Bereich",
         "quantity": "Bestandsmenge",
-        "properties": "Eigenschaften"
+        "properties": "Eigenschaften",
+        "groupBy": "Gruppieren nach"
       },
       "scopeFilters": {
         "all": "Alle Artikel",
@@ -461,7 +462,13 @@
       "noInventory": "Ihr Bestand ist leer",
       "noInventoryHint": "Fügen Sie einen Artikel hinzu, um zu verfolgen, was Sie zu Hause haben.",
       "noResultsTitle": "Keine Ergebnisse gefunden",
-      "tryDifferentSearch": "Versuchen Sie einen anderen Suchbegriff oder setzen Sie die Filter zurück"
+      "tryDifferentSearch": "Versuchen Sie einen anderen Suchbegriff oder setzen Sie die Filter zurück",
+      "groupBy": {
+        "none": "Keine",
+        "name": "Name",
+        "category": "Kategorie"
+      },
+      "sectionIndex": "Zum Abschnitt springen"
     },
     "addProduct": {
       "title": "Bestand hinzufügen",

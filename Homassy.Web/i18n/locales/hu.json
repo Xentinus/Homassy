@@ -332,7 +332,8 @@
         "barcode": "Vonalkód",
         "scope": "Hatókör",
         "quantity": "Készlet mennyiség",
-        "properties": "Tulajdonságok"
+        "properties": "Tulajdonságok",
+        "groupBy": "Csoportosítás"
       },
       "scopeFilters": {
         "all": "Minden tétel",
@@ -461,7 +462,13 @@
       "noInventory": "A készlet üres",
       "noInventoryHint": "Adj hozzá egy tételt, hogy nyomon követhesd, mi van otthon.",
       "noResultsTitle": "Nincs találat",
-      "tryDifferentSearch": "Próbálj meg más keresési feltételt, vagy töröld a szűrőket"
+      "tryDifferentSearch": "Próbálj meg más keresési feltételt, vagy töröld a szűrőket",
+      "groupBy": {
+        "none": "Nincs",
+        "name": "Név",
+        "category": "Kategória"
+      },
+      "sectionIndex": "Ugrás szakaszra"
     },
     "addProduct": {
       "title": "Készlet hozzáadása",

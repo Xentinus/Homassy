@@ -397,6 +397,42 @@ Used by `ActivityCard`, `ProductHistoryList`, `FamilyDrawer`, `DataExternalCalen
 
 ---
 
+## Grouped grid + fast-scroll index (`pages/products/index.vue`)
+
+The inventory grid can group its cards under sticky section headers, with a right-edge index rail
+for jumping between them. `SectionIndexRail` owns the rail; the page owns the grouping.
+
+- **Group by** is a filter-drawer chip group (`none` / `name` / `category`), persisted with the
+  rest of the filters in the `productsFilters` localStorage entry. `none` is the flat,
+  urgency-ordered list the page has always shown.
+- **Storage location is deliberately not offered**, though the issue that asked for this listed it:
+  it is not in the grid's payload (`InventoryGridItemInfo` omits it on purpose) and a product with
+  items in several locations has no single one to group under. Category grouping needed one field
+  added — `InventoryGridProductInfo.Category` — and maps it client-side onto a
+  `ProductCategoryGroup` the API neither knows nor stores.
+- **Grouping is computed over `filteredProducts`, never the rendered slice.** The rail lists every
+  section, so it has to be able to point at a group the `IntersectionObserver` paging has not
+  reached; a rail built from what happens to be on screen would grow as you scrolled. `jumpToSection`
+  therefore raises `currentPage` far enough to include the target before scrolling to it — which
+  does mean jumping to the last group of a very long list renders everything above it. That is the
+  cost of keeping the incremental renderer instead of virtualizing.
+- Section headers count the **whole** group, not the rendered part of it, so a header does not
+  count up as you scroll into it.
+- Each section is its own `AnimatedList`. A header inside one would join the cards' FLIP animation
+  — the same reason the shopping list splits its "buy here" section out.
+- The scroll is a `window.scrollTo` with the header height subtracted, not `scrollIntoView`: the
+  app header is fixed, so a section scrolled to the top of the viewport would sit under it.
+- `SectionIndexRail` knows nothing about products. It reports the picked key and leaves revealing
+  and scrolling to the page. It resolves the tick under the pointer from its own measured geometry
+  (not a fixed row height), ticks `useHaptics().select()` once per detent crossed rather than per
+  pointer move, and hides itself below `minSections` — the page passes the same constant it uses to
+  widen the content gutter, so the rail overlays the gutter rather than a card.
+
+**Not done here:** the same treatment for the shopping list grouped by shop section or aisle order.
+That grouping does not exist yet — it arrives with drag-and-drop reordering in R7.
+
+---
+
 ## The expiration ramp
 
 `app/composables/useExpirationStatus.ts` is the single mapping from "when does this expire" to a
