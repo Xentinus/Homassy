@@ -98,6 +98,87 @@ describe('createUndoQueue', () => {
     expect(queue.has('e2')).toBe(true)
     expect(queue.has('e3')).toBe(true)
   })
+
+  // The regression this fix closes: a partial overlap (new action's entity set isn't exactly the
+  // old one's) used to drop the whole old action outright, discarding its commit — for a batch,
+  // that silently lost the write for every entity the new action didn't touch (e1 and e3 below),
+  // while the optimistic UI kept showing them as moved. `add()` now reports these via `toSettle`
+  // instead of just dropping them, so the caller (`useUndoableAction.ts`) can fire the old
+  // action's commit right now rather than lose it. See the file header's NON-OBVIOUS RULE.
+  describe('AddResult — settling a partial overlap instead of silently dropping it', () => {
+    it('reports a partially-overlapping action to settle, and still queues the new one', () => {
+      const queue = createUndoQueue()
+      // A 3-item batched move is pending...
+      queue.add(action({ id: 'a1', entityIds: ['e1', 'e2', 'e3'], kind: 'move', label: 'Moved' }))
+      // ...then, inside the same window, a solo delete touches just one of those entities.
+      const result = queue.add(action({ id: 'a2', entityIds: ['e2'], kind: 'delete', label: 'Deleted' }))
+
+      expect(result.replaced.map(a => a.id)).toEqual(['a1'])
+      expect(result.toSettle.map(a => a.id)).toEqual(['a1'])
+
+      // a1 is gone from the pending list either way (it is being settled, not left pending), and
+      // a2 is now what's pending — including e1/e3, which a2 doesn't even touch, staying clear.
+      expect(queue.list().map(a => a.id)).toEqual(['a2'])
+      expect(queue.has('e1')).toBe(false)
+      expect(queue.has('e2')).toBe(true)
+      expect(queue.has('e3')).toBe(false)
+    })
+
+    it('does not report an exact entity-set match to settle — it is replaced outright, same as before', () => {
+      const queue = createUndoQueue()
+      queue.add(action({ id: 'a1', entityIds: ['e1', 'e2', 'e3'], kind: 'move', label: 'Moved once' }))
+      // Same three entities as a *set*, just reordered — still an exact match, not a partial one.
+      const result = queue.add(action({ id: 'a2', entityIds: ['e3', 'e1', 'e2'], kind: 'move', label: 'Moved again' }))
+
+      expect(result.replaced.map(a => a.id)).toEqual(['a1'])
+      expect(result.toSettle).toEqual([])
+      expect(queue.list().map(a => a.id)).toEqual(['a2'])
+    })
+
+    it('reports nothing when the new action does not overlap anything pending', () => {
+      const queue = createUndoQueue()
+      queue.add(action({ id: 'a1', entityIds: ['e1'], kind: 'delete', label: 'Deleted' }))
+      const result = queue.add(action({ id: 'a2', entityIds: ['e9'], kind: 'delete', label: 'Also deleted' }))
+
+      expect(result.replaced).toEqual([])
+      expect(result.toSettle).toEqual([])
+      expect(queue.list()).toHaveLength(2)
+    })
+
+    // What useUndoableAction.ts's run() actually does with each action in `toSettle`: fire its
+    // own commit right now via the same settleCommit() the normal 5-second expiry uses (see the
+    // settleCommit describe block below for its other cases), instead of discarding it.
+    it('settling a reported action runs its commit and leaves its revert untouched on success', async () => {
+      const queue = createUndoQueue()
+      queue.add(action({ id: 'a1', entityIds: ['e1', 'e2', 'e3'], kind: 'move', label: 'Moved' }))
+      const { toSettle } = queue.add(action({ id: 'a2', entityIds: ['e2'], kind: 'delete', label: 'Deleted' }))
+      expect(toSettle.map(a => a.id)).toEqual(['a1'])
+
+      const oldCommit = vi.fn(async () => ({ success: true }))
+      const oldRevert = vi.fn()
+      const succeeded = await settleCommit(oldCommit, oldRevert)
+
+      expect(succeeded).toBe(true)
+      expect(oldCommit).toHaveBeenCalledOnce()
+      expect(oldRevert).not.toHaveBeenCalled()
+    })
+
+    // The failure case: settling early is still subject to the same rule as a normal expiry — a
+    // rejection or a resolved `success: false` both revert (and, in useUndoableAction.ts, still
+    // report through the one shared toast).
+    it('settling a reported action still reverts when its commit resolves { success: false }', async () => {
+      const queue = createUndoQueue()
+      queue.add(action({ id: 'a1', entityIds: ['e1', 'e2', 'e3'], kind: 'move', label: 'Moved' }))
+      const { toSettle } = queue.add(action({ id: 'a2', entityIds: ['e2'], kind: 'delete', label: 'Deleted' }))
+      expect(toSettle.map(a => a.id)).toEqual(['a1'])
+
+      const oldRevert = vi.fn()
+      const succeeded = await settleCommit(async () => ({ success: false }), oldRevert)
+
+      expect(succeeded).toBe(false)
+      expect(oldRevert).toHaveBeenCalledOnce()
+    })
+  })
 })
 
 describe('collapseLabel', () => {

@@ -8,19 +8,35 @@
  * `PendingAction` carries `entityIds`, a *collection* — one entry for an ordinary single-row
  * action, several for a batch (e.g. moving 50 inventory items to a new storage location at once,
  * committed as the one request it always should have been rather than 50). Adding a new pending
- * action *replaces* any existing action that shares **any** entity id with it, instead of
- * stacking. Two pending mutations touching the same row (e.g. a delete and, a moment later, a
- * purchase on the same shopping-list item, both still inside their undo window) cannot be shown or
- * reverted coherently — there is one row and one Undo button, so it can only be in one pending
- * state at a time; the same reasoning extends to a batch that re-touches a row another pending
- * action already claimed. The newer action wins outright: its own `apply` already ran on top of
- * whatever the older action's `apply` had done, so the older action's `revert` would no longer make
- * sense and is simply dropped, never called — for *all* of the older action's entities, even ones
- * the new action doesn't touch, since one action's `commit`/`revert` is one indivisible unit, not
- * separable per entity. Callers building `apply`/`revert` closures for anything but a single,
- * isolated mutation should re-locate each entity by id when they run rather than trusting a
- * position captured earlier, since a replacement can happen between one action being queued and it
- * being undone or committed.
+ * action that shares **any** entity id with an existing one always removes that existing action
+ * from the pending list — it can never stay half-pending, split by entity — but what happens to
+ * its `commit` depends on whether the overlap is total or partial (`add()`'s `AddResult`, below):
+ *
+ * - **Exact entity-set match** (the new action's `entityIds`, as a *set*, equal the old one's):
+ *   the newer action wins outright and the old one is simply dropped — its `commit` is never
+ *   called, and neither is its `revert`. Safe because the newer `apply` already ran on top of
+ *   exactly what the older action's `apply` had done, over the identical entities; nothing the
+ *   older action would have written is left undone.
+ * - **Partial overlap** (some but not all entity ids in common — e.g. a 3-item batched move later
+ *   overlapping a swipe-delete of just one of those items): the old action is *not* simply
+ *   dropped. Its `apply` was only superseded for the entities the two actions share — the entities
+ *   the new action doesn't touch still need the old action's own `commit` to actually reach the
+ *   server, and dropping it would silently lose that write while leaving the optimistic UI
+ *   showing it as done. `add()` reports these as `toSettle` instead of discarding them; this
+ *   module has no timers or async of its own, so it is `useUndoableAction.ts` that actually fires
+ *   each one's `commit` right now rather than waiting out its remaining undo window, keeping its
+ *   `revert` wired in case that commit fails. The user loses the ability to undo the *older*
+ *   action, which is the right trade: they have visibly moved on, and losing an undo is far better
+ *   than losing a write.
+ *
+ * Two pending mutations touching the same row (e.g. a delete and, a moment later, a purchase on
+ * the same shopping-list item, both still inside their undo window) cannot be shown or reverted
+ * coherently — there is one row and one Undo button, so it can only be in one pending state at a
+ * time; the same reasoning extends to a batch that re-touches a row another pending action already
+ * claimed, exact-match or not. Callers building `apply`/`revert` closures for anything but a
+ * single, isolated mutation should re-locate each entity by id when they run rather than trusting
+ * a position captured earlier, since a replacement — or a settle — can happen between one action
+ * being queued and it being undone, committed, or settled early.
  *
  * `has(entityId)` and every socket handler's pending guard (`isPendingEntity`, in
  * `useUndoableAction.ts`) check a *single real* entity id for membership in any pending action's
@@ -58,8 +74,28 @@ export interface PendingAction {
   expiresAt: number
 }
 
+/**
+ * What `add()` did to the *previously* pending actions it overlapped, if any — see the file
+ * header's NON-OBVIOUS RULE for the exact-match-vs-partial-overlap distinction. Both arrays are
+ * `PendingAction`s, not the `commit`/`revert` closures for them: this module never holds those (see
+ * `useUndoableAction.ts`'s `commits`/`reverts` maps, keyed by `PendingAction.id`), so releasing —
+ * and, for `toSettle`, firing — that bookkeeping is entirely the caller's job.
+ */
+export interface AddResult {
+  /** Every action `add()` just removed from the pending list because it shared at least one
+   *  entity id with the new one — the union of an exact-match drop and a `toSettle` entry. The
+   *  caller must release its own per-id `commit`/`revert` bookkeeping for each of these. */
+  replaced: PendingAction[]
+  /** The subset of `replaced` whose entity set was *not* an exact match for the new action's —
+   *  these must be settled, not merely dropped: the caller should fire each one's `commit` right
+   *  now (cutting its remaining undo window short) rather than discard it, keeping its `revert`
+   *  wired so a failed commit still reverts and reports. An exact entity-set match is never in
+   *  here — dropping it outright, without ever calling its commit, remains correct (file header). */
+  toSettle: PendingAction[]
+}
+
 export interface UndoQueue {
-  add: (action: PendingAction) => void
+  add: (action: PendingAction) => AddResult
   cancel: (id: string) => void
   drain: (now?: number) => PendingAction[]
   has: (entityId: string) => boolean
@@ -98,13 +134,31 @@ export const collapseLabel = (
 export const createUndoQueue = (): UndoQueue => {
   let actions: PendingAction[] = []
 
-  const add = (action: PendingAction): void => {
-    // Overlap, not exact-match: a batch that re-touches even one entity id another pending action
-    // already claims replaces that whole action (see the file header).
-    const overlaps = (a: PendingAction): boolean => a.entityIds.some(id => action.entityIds.includes(id))
-    const others = actions.filter(a => !overlaps(a))
+  const add = (action: PendingAction): AddResult => {
+    const newIds = new Set(action.entityIds)
+    const overlaps = (a: PendingAction): boolean => a.entityIds.some(id => newIds.has(id))
+    // An exact match: the same entities, as a *set* — order never matters. This, and only this,
+    // is what still drops the old action's commit outright rather than settling it (file header).
+    const isExactMatch = (a: PendingAction): boolean =>
+      a.entityIds.length === newIds.size && a.entityIds.every(id => newIds.has(id))
+
+    const kept: PendingAction[] = []
+    const replaced: PendingAction[] = []
+    const toSettle: PendingAction[] = []
+
+    for (const existing of actions) {
+      if (!overlaps(existing)) {
+        kept.push(existing)
+        continue
+      }
+      replaced.push(existing)
+      if (!isExactMatch(existing)) toSettle.push(existing)
+    }
+
     // Shared queue-wide deadline — see the file header comment.
-    actions = [...others.map(a => ({ ...a, expiresAt: action.expiresAt })), action]
+    actions = [...kept.map(a => ({ ...a, expiresAt: action.expiresAt })), action]
+
+    return { replaced, toSettle }
   }
 
   const cancel = (id: string): void => {

@@ -113,6 +113,18 @@ function reportFailure(): void {
   })
 }
 
+/**
+ * Settles one displaced action's commit right now instead of waiting out its remaining undo
+ * window — what `run()` below does with every action `queue.add()` reports in `AddResult.toSettle`
+ * (see undoQueue.ts's file header: a partial-overlap displacement must not simply drop the older
+ * action's write). Same failure handling as a normally-expired commit (`settleCommit` + the one
+ * shared toast, `onExpire` below) — only triggered early, and for one action instead of a batch.
+ */
+async function settleEarly(commit: () => Promise<CommitResult>, revert: () => void): Promise<void> {
+  const succeeded = await settleCommit(commit, revert)
+  if (!succeeded) reportFailure()
+}
+
 // --- requestAnimationFrame clock -------------------------------------------------------------
 // One loop for the whole app, running only while something is pending, driving `now` for
 // `remainingRatio`. Not a `setInterval`: this only needs to move while the ring is actually on
@@ -156,21 +168,32 @@ const run = <T extends CommitResult,>(options: RunOptions<T>): void => {
 
   apply()
 
-  // An overlap-based replacement (see undoQueue.ts) drops every previous action sharing any
-  // entity id with this one, bookkeeping included — more than one can overlap a new batch (e.g.
-  // two single-item actions each folded into one new multi-item move), so clean up all of them,
-  // not just the first match. Each dropped action's revert must never fire once a newer apply has
-  // run on top of it.
-  const overlapping = queue.list().filter(a => a.entityIds.some(id => entityIds.includes(id)))
-  for (const previous of overlapping) {
-    commits.delete(previous.id)
-    reverts.delete(previous.id)
-  }
-
   const id = nextActionId()
   const expiresAt = Date.now() + UNDO_WINDOW_MS
 
-  queue.add({ id, entityIds, kind, label, expiresAt })
+  // The queue decides what an overlap means — an exact entity-set match is simply replaced (its
+  // commit never runs), a partial one must be settled instead (see undoQueue.ts's file header and
+  // `AddResult`). Either way every action it reports removing had its own commit()/revert()
+  // bookkeeping in the two maps below, keyed by id — the queue only ever deals in `PendingAction`,
+  // never those closures, so releasing (and, for `toSettle`, firing) them is this composable's job.
+  const { replaced, toSettle } = queue.add({ id, entityIds, kind, label, expiresAt })
+  const toSettleIds = new Set(toSettle.map(a => a.id))
+
+  for (const previous of replaced) {
+    const previousCommit = commits.get(previous.id)
+    const previousRevert = reverts.get(previous.id)
+    commits.delete(previous.id)
+    reverts.delete(previous.id)
+
+    // Not reported for settling: an exact-set match, dropped outright — its revert must never
+    // fire once a newer apply has run on top of it (same as before this fix).
+    if (!toSettleIds.has(previous.id) || !previousCommit) continue
+
+    // Fire it now rather than waiting out its remaining window: the entities this new action
+    // doesn't touch still need this write to reach the server, or it is lost for good.
+    void settleEarly(previousCommit, () => previousRevert?.())
+  }
+
   commits.set(id, commit)
   reverts.set(id, revert)
   sync()
