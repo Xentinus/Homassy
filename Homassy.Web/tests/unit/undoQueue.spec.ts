@@ -145,22 +145,38 @@ describe('createUndoQueue', () => {
       expect(queue.list()).toHaveLength(2)
     })
 
-    // What useUndoableAction.ts's run() actually does with each action in `toSettle`: fire its
-    // own commit right now via the same settleCommit() the normal 5-second expiry uses (see the
-    // settleCommit describe block below for its other cases), instead of discarding it.
+    // What useUndoableAction.ts's run() actually does with each action in `toSettle`: look up the
+    // *real* commit()/revert() the settled action's own id was registered under (its own
+    // `commits`/`reverts` maps, keyed by PendingAction.id — the queue itself never holds those
+    // closures, see the file header) and fire that commit right now via the same settleCommit()
+    // the normal 5-second expiry uses (see the settleCommit describe block below for its other
+    // cases), instead of discarding it.
+    //
+    // This spec used to build the queue, read `toSettle`, and then call settleCommit with a
+    // fresh, unrelated pair of vi.fn()s that were never wired to a1 at all — every assertion below
+    // would have passed just as well against a run() that ignored `toSettle` completely, since
+    // nothing tied the settled id back to a1's own commit/revert. Mirroring the real
+    // id-keyed-map wiring (commits/reverts here) is what makes it actually exercise that link.
     it('settling a reported action runs its commit and leaves its revert untouched on success', async () => {
       const queue = createUndoQueue()
+      const commits = new Map<string, () => Promise<CommitResult>>()
+      const reverts = new Map<string, () => void>()
+
+      const a1Commit = vi.fn(async (): Promise<CommitResult> => ({ success: true }))
+      const a1Revert = vi.fn()
+      commits.set('a1', a1Commit)
+      reverts.set('a1', a1Revert)
       queue.add(action({ id: 'a1', entityIds: ['e1', 'e2', 'e3'], kind: 'move', label: 'Moved' }))
+
       const { toSettle } = queue.add(action({ id: 'a2', entityIds: ['e2'], kind: 'delete', label: 'Deleted' }))
       expect(toSettle.map(a => a.id)).toEqual(['a1'])
 
-      const oldCommit = vi.fn(async () => ({ success: true }))
-      const oldRevert = vi.fn()
-      const succeeded = await settleCommit(oldCommit, oldRevert)
+      const settledId = toSettle[0]!.id
+      const succeeded = await settleCommit(commits.get(settledId)!, () => reverts.get(settledId)?.())
 
       expect(succeeded).toBe(true)
-      expect(oldCommit).toHaveBeenCalledOnce()
-      expect(oldRevert).not.toHaveBeenCalled()
+      expect(a1Commit).toHaveBeenCalledOnce()
+      expect(a1Revert).not.toHaveBeenCalled()
     })
 
     // The failure case: settling early is still subject to the same rule as a normal expiry — a
@@ -168,15 +184,22 @@ describe('createUndoQueue', () => {
     // report through the one shared toast).
     it('settling a reported action still reverts when its commit resolves { success: false }', async () => {
       const queue = createUndoQueue()
+      const commits = new Map<string, () => Promise<CommitResult>>()
+      const reverts = new Map<string, () => void>()
+
+      commits.set('a1', vi.fn(async (): Promise<CommitResult> => ({ success: false })))
+      const a1Revert = vi.fn()
+      reverts.set('a1', a1Revert)
       queue.add(action({ id: 'a1', entityIds: ['e1', 'e2', 'e3'], kind: 'move', label: 'Moved' }))
+
       const { toSettle } = queue.add(action({ id: 'a2', entityIds: ['e2'], kind: 'delete', label: 'Deleted' }))
       expect(toSettle.map(a => a.id)).toEqual(['a1'])
 
-      const oldRevert = vi.fn()
-      const succeeded = await settleCommit(async () => ({ success: false }), oldRevert)
+      const settledId = toSettle[0]!.id
+      const succeeded = await settleCommit(commits.get(settledId)!, () => reverts.get(settledId)?.())
 
       expect(succeeded).toBe(false)
-      expect(oldRevert).toHaveBeenCalledOnce()
+      expect(a1Revert).toHaveBeenCalledOnce()
     })
   })
 })

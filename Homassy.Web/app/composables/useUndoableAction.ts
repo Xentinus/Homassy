@@ -1,14 +1,17 @@
 /**
  * The app-wide optimistic-action queue, reactive and timed. See `app/utils/undoQueue.ts` for the
- * pure queue rules (same-entity replacement, the shared deadline, collapsing); this file is just
- * the timer, the `requestAnimationFrame` clock, and the error-toast wiring around it — the same
- * split `useRealtimeStatus.ts` uses around `realtimeStatus.ts`.
+ * pure queue rules (same-entity replacement, the shared deadline, collapsing, the revert-ownership
+ * rule) and `app/utils/undoOrchestrator.ts` for the pure commit/revert orchestration built on top
+ * of it (run()/expiry/undoAll, the `commits`/`reverts` bookkeeping) — this file is what is left
+ * once both of those are pure and framework-free: real Vue refs, a real `setTimeout`, the
+ * `requestAnimationFrame` clock, and the error-toast wiring, the same split `useRealtimeStatus.ts`
+ * uses around `realtimeStatus.ts`.
  *
  * Module-level singletons (not per-call state), like `useShoppingListSocket`'s connection: every
  * caller — every swipe-to-delete, every purchase toggle, every socket handler's pending check, and
- * the one `UndoToast` mounted in `app.vue` — shares the same queue, the same timer and the same
- * clock, so a pending action started on one page is still there (and still committing on time) if
- * the user navigates before the undo window closes.
+ * the one `UndoToast` mounted in `app.vue` — shares the same orchestrator, the same timer and the
+ * same clock, so a pending action started on one page is still there (and still committing on
+ * time) if the user navigates before the undo window closes.
  *
  * The queue's replacement rule (undoQueue.ts) assumes every `commit` is an absolute write, safe to
  * fully supersede because applying only the newer one still leaves the row correct. A relative
@@ -18,55 +21,12 @@
  * reasoning and the pre-existing server-side race a queued delta would also widen.
  */
 import { computed, ref } from 'vue'
-import {
-  createUndoQueue,
-  nextActionId,
-  settleCommit,
-  UNDO_WINDOW_MS,
-  type CommitResult,
-  type PendingAction,
-  type UndoKind
-} from '~/utils/undoQueue'
+import { createUndoOrchestrator, type UndoRunOptions } from '~/utils/undoOrchestrator'
+import { UNDO_WINDOW_MS, type CommitResult, type PendingAction } from '~/utils/undoQueue'
 
-interface RunOptions<T extends CommitResult> {
-  /** The row(s)/item(s) this action is about — one entry for an ordinary single-row action,
-   *  several for a batch (see undoQueue.ts). What `isPendingEntity` and overlap-based replacement
-   *  key off. */
-  entityIds: string[]
-  kind: UndoKind
-  /** This action's own label, shown verbatim while it is the only one pending. */
-  label: string
-  /** Mutates local state immediately — the row disappears / the toggle flips now. */
-  apply: () => void
-  /**
-   * Undoes exactly what `apply` did, but only for `ownedEntityIds` — the subset of this action's
-   * own `entityIds` not currently claimed by some newer pending action (see undoQueue.ts's
-   * `owned()` and its file header's fourth NON-OBVIOUS RULE). For an ordinary single-entity action
-   * this is either `[entityId]` or `[]`; a batch must check membership per entity rather than
-   * reverting the whole set. Never called once `commit` has been sent.
-   */
-  revert: (ownedEntityIds: string[]) => void
-  /**
-   * The real network request. Only ever invoked after the undo window has fully elapsed. Must
-   * resolve to `{ success: boolean, ... }` rather than throw on a business-rule failure — every
-   * API composable call already does (see `useApiClient.ts`'s `request()`) — because
-   * `settleCommit` (undoQueue.ts) reverts on either a rejection or a resolved `success: false`.
-   */
-  commit: () => Promise<T>
-}
-
-const queue = createUndoQueue()
-
-// A plain reactive snapshot of the queue's contents, refreshed on every mutation below — the
-// queue itself is intentionally not reactive (it is a pure module with its own unit tests).
+// A plain reactive snapshot of the orchestrator's pending list, refreshed via onChange below — the
+// orchestrator itself is intentionally not reactive (it is a pure module with its own unit tests).
 const pending = ref<PendingAction[]>([])
-const sync = (): void => { pending.value = queue.list() }
-
-// commit()/revert() closures, keyed by PendingAction.id rather than by an entity id: an
-// overlap-based replacement drops the old action's entry entirely (see undoQueue.ts), so there is
-// never a stale closure left behind for an id no longer in the queue.
-const commits = new Map<string, () => Promise<CommitResult>>()
-const reverts = new Map<string, (ownedEntityIds: string[]) => void>()
 
 let timer: ReturnType<typeof setTimeout> | null = null
 
@@ -77,45 +37,9 @@ const clearTimer = (): void => {
   }
 }
 
-/** (Re)arms the single queue-wide timer for `expiresAt`. Never more than one timer at a time. */
-const armTimer = (expiresAt: number): void => {
-  clearTimer()
-  timer = setTimeout(onExpire, Math.max(0, expiresAt - Date.now()))
-}
-
-async function onExpire(): Promise<void> {
-  timer = null
-  const due = queue.drain()
-  sync()
-
-  for (const action of due) {
-    const commit = commits.get(action.id)
-    const revert = reverts.get(action.id)
-    commits.delete(action.id)
-    reverts.delete(action.id)
-    if (!commit) continue
-
-    // A rejection and a resolved `success: false` are both a failure (see undoQueue.ts's
-    // `settleCommit` — the shape every real commit() resolves to) and both revert; only the
-    // toast (this composable's one Nuxt-dependent bit) lives out here.
-    //
-    // queue.owned(action.entityIds) is evaluated lazily, inside this thunk, so it reflects
-    // ownership at the moment the commit actually resolves — not at drain() time above. A normal
-    // expiry's entities can never overlap another *currently* pending action (an overlap would
-    // have settled this one early instead — see undoQueue.ts), but a brand new action can still
-    // claim one of them while this commit is in flight; scoping the revert this way covers that
-    // race the same way it covers a settled-early one (settleEarly below).
-    const succeeded = await settleCommit(commit, () => revert?.(queue.owned(action.entityIds)))
-    if (!succeeded) reportFailure()
-  }
-
-  // Something may have been queued while the above commits were in flight — arm the next wave.
-  const remaining = queue.list()
-  if (remaining.length > 0) armTimer(remaining[0]!.expiresAt)
-}
-
 /** Surfaces a failed (and already-reverted) commit through the app's existing toast, matching the
- *  shape `InventoryItemRow.vue` uses for its own error toasts. */
+ *  shape `InventoryItemRow.vue` uses for its own error toasts. The one Nuxt-dependent bit in this
+ *  whole file — everything else the orchestrator needs is a plain callback. */
 function reportFailure(): void {
   const toast = useToast()
   const { t } = useI18n()
@@ -126,17 +50,20 @@ function reportFailure(): void {
   })
 }
 
-/**
- * Settles one displaced action's commit right now instead of waiting out its remaining undo
- * window — what `run()` below does with every action `queue.add()` reports in `AddResult.toSettle`
- * (see undoQueue.ts's file header: a partial-overlap displacement must not simply drop the older
- * action's write). Same failure handling as a normally-expired commit (`settleCommit` + the one
- * shared toast, `onExpire` below) — only triggered early, and for one action instead of a batch.
- */
-async function settleEarly(commit: () => Promise<CommitResult>, revert: () => void): Promise<void> {
-  const succeeded = await settleCommit(commit, revert)
-  if (!succeeded) reportFailure()
-}
+const orchestrator = createUndoOrchestrator({
+  onChange: (snapshot) => { pending.value = snapshot },
+  // (Re)arms the single queue-wide timer for `expiresAt`. Never more than one timer at a time —
+  // clearTimer() first is what keeps a later run() from ever stacking a second one.
+  scheduleExpiry: (expiresAt, fire) => {
+    clearTimer()
+    timer = setTimeout(() => {
+      timer = null
+      fire()
+    }, Math.max(0, expiresAt - Date.now()))
+  },
+  cancelScheduledExpiry: clearTimer,
+  onSettleFailure: reportFailure
+})
 
 // --- requestAnimationFrame clock -------------------------------------------------------------
 // One loop for the whole app, running only while something is pending, driving `now` for
@@ -174,72 +101,19 @@ const remainingRatio = computed(() => {
  * because of it) is what reconciles from there, last-write-wins by entity id with the server as
  * the tiebreak.
  */
-const isPendingEntity = (entityId: string): boolean => queue.has(entityId)
+const isPendingEntity = (entityId: string): boolean => orchestrator.isPendingEntity(entityId)
 
-const run = <T extends CommitResult,>(options: RunOptions<T>): void => {
-  const { entityIds, kind, label, apply, revert, commit } = options
-
-  apply()
-
-  const id = nextActionId()
-  const expiresAt = Date.now() + UNDO_WINDOW_MS
-
-  // The queue decides what an overlap means — an exact entity-set match is simply replaced (its
-  // commit never runs), a partial one must be settled instead (see undoQueue.ts's file header and
-  // `AddResult`). Either way every action it reports removing had its own commit()/revert()
-  // bookkeeping in the two maps below, keyed by id — the queue only ever deals in `PendingAction`,
-  // never those closures, so releasing (and, for `toSettle`, firing) them is this composable's job.
-  const { replaced, toSettle } = queue.add({ id, entityIds, kind, label, expiresAt })
-  const toSettleIds = new Set(toSettle.map(a => a.id))
-
-  for (const previous of replaced) {
-    const previousCommit = commits.get(previous.id)
-    const previousRevert = reverts.get(previous.id)
-    commits.delete(previous.id)
-    reverts.delete(previous.id)
-
-    // Not reported for settling: an exact-set match, dropped outright — its revert must never
-    // fire once a newer apply has run on top of it (same as before this fix).
-    if (!toSettleIds.has(previous.id) || !previousCommit) continue
-
-    // Fire it now rather than waiting out its remaining window: the entities this new action
-    // doesn't touch still need this write to reach the server, or it is lost for good. If that
-    // commit then fails, its revert must be scoped to queue.owned(previous.entityIds) — the
-    // entities *this* new action just claimed (id, above — B in the batch-move-then-solo-move
-    // example) are no longer `previous`'s to restore; see undoQueue.ts's fourth NON-OBVIOUS RULE.
-    void settleEarly(previousCommit, () => previousRevert?.(queue.owned(previous.entityIds)))
-  }
-
-  commits.set(id, commit)
-  reverts.set(id, revert)
-  sync()
-
-  // The queue just gave every pending action this same expiresAt (see undoQueue.ts), so arming
-  // the one timer against it keeps the JS timer and `remainingRatio` in lockstep.
-  armTimer(expiresAt)
+const run = <T extends CommitResult,>(options: UndoRunOptions<T>): void => {
+  orchestrator.run(options)
+  // Only this composable knows about the clock; the orchestrator itself has no concept of
+  // rendering anything and so no reason to start it.
   startClock()
 }
 
 /** Undo for the whole toast: reverts every currently pending action and cancels the timer before
  *  any of their commits are ever sent — pressing Undo means no request happens, not that one gets
  *  reverted afterwards. */
-const undoAll = (): void => {
-  const all = queue.list()
-  clearTimer()
-
-  for (const action of all) {
-    queue.cancel(action.id)
-    const revert = reverts.get(action.id)
-    commits.delete(action.id)
-    reverts.delete(action.id)
-    // Always the full entityIds in practice — a still-pending action's ids can't overlap any
-    // other pending action's (see undoQueue.ts) — but routed through queue.owned() anyway so
-    // every revert call in this file honours the same contract.
-    revert?.(queue.owned(action.entityIds))
-  }
-
-  sync()
-}
+const undoAll = (): void => orchestrator.undoAll()
 
 export const useUndoableAction = () => {
   return {
