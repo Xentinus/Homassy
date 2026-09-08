@@ -71,6 +71,7 @@ try
     builder.Services.AddSingleton<InventoryRealtime>();
     builder.Services.AddSingleton<MasterDataRealtime>();
     builder.Services.AddSingleton<ShoppingListRealtime>();
+    builder.Services.AddSingleton<ShoppingListPresence>();
 
     // The cross-cutting services the Functions layer needs, as one typed parameter object.
     // See FunctionsRuntime for why it is a bundle rather than separate constructor parameters.
