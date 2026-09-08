@@ -44,7 +44,8 @@
               <!-- Badge for expiration count -->
               <div
                 v-if="item.badge"
-                class="absolute -top-1.5 -right-1.5 z-10 flex items-center justify-center min-w-[18px] h-[18px] px-1 rounded-full bg-red-500 dark:bg-red-600 shadow-md"
+                class="absolute -top-1.5 -right-1.5 z-10 flex items-center justify-center min-w-[18px] h-[18px] px-1 rounded-full shadow-md"
+                :class="item.badgeClass"
               >
                 <!-- tabular-nums: the count changes under the mounted badge (a
                      product expires, an item goes overdue), and proportional
@@ -94,7 +95,9 @@ const avatarSrc = computed(() => authStore.user?.profilePictureUrl ?? undefined)
 const avatarName = computed(() => authStore.user?.displayName || authStore.user?.name || '')
 
 const expirationCount = ref(0)
+const expiredCount = ref(0)
 const deadlineCount = ref(0)
+const { toneForLevel } = useExpirationStatus()
 
 // Shared motion tokens for the nav — keep the sliding indicator and the FAB
 // gap in lock-step so the pill tracks the items as they slide apart.
@@ -117,10 +120,12 @@ const fetchExpirationCount = async () => {
     const response = await getExpirationCount()
     if (response.success && response.data) {
       expirationCount.value = response.data.totalCount
+      expiredCount.value = response.data.expiredCount
     }
   } catch (error) {
     console.error('Failed to fetch expiration count:', error)
     expirationCount.value = 0
+    expiredCount.value = 0
   }
 }
 
@@ -212,14 +217,20 @@ const navItems = computed(() => [
     to: '/products',
     icon: 'i-lucide-package',
     active: route.path.startsWith('/products'),
-    badge: expirationCount.value > 0 ? expirationCount.value : undefined
+    badge: expirationCount.value > 0 ? expirationCount.value : undefined,
+    // Straight off the expiration ramp the cards use, so the badge and the cards cannot say
+    // different things: red once something has actually expired, amber while everything is only
+    // close to it. It used to be red either way.
+    badgeClass: toneForLevel(expiredCount.value > 0 ? 'expired' : 'soon').badge
   },
   {
     label: t('nav.shoppingLists'),
     to: '/shopping-lists',
     icon: 'i-lucide-shopping-cart',
     active: route.path.startsWith('/shopping-lists'),
-    badge: deadlineCount.value > 0 ? deadlineCount.value : undefined
+    badge: deadlineCount.value > 0 ? deadlineCount.value : undefined,
+    // An overdue shopping-list item is past its date, so it takes the ramp's expired tone.
+    badgeClass: toneForLevel('expired').badge
   },
   {
     label: t('nav.profile'),

@@ -105,6 +105,9 @@
     "counter": "{current} / {total}",
     "goTo": "Zu Bild {index}"
   },
+  "expiration": {
+    "expiredRelative": "abgelaufen {relative}"
+  },
   "auth": {
     "login": "Anmelden",
     "logout": "Abmelden",
@@ -452,7 +455,8 @@
           "cancel": "Abbrechen",
           "confirm": "Speichern",
           "success": "Produkt erfolgreich aktualisiert"
-        }
+        },
+        "stockRemaining": "{percent}% übrig"
       },
       "noInventory": "Ihr Bestand ist leer",
       "noInventoryHint": "Fügen Sie einen Artikel hinzu, um zu verfolgen, was Sie zu Hause haben.",

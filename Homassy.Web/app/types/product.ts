@@ -35,6 +35,8 @@ export interface InventoryGridItemInfo {
   publicId: string
   productPublicId: string
   currentQuantity: number
+  /** What was bought, when the item has purchase info — the stock ring's denominator. */
+  originalQuantity?: number
   unit: Unit
   expirationAt?: string
   isSharedWithFamily: boolean
@@ -206,6 +208,8 @@ export interface SplitInventoryItemResponse {
 
 export interface ExpirationCountResponse {
   totalCount: number
+  /** How many of those are already past their date; picks the nav badge's ramp colour. */
+  expiredCount: number
 }
 
 export interface ConsumeInventoryItemEntry {

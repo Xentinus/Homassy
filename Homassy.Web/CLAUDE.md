@@ -82,6 +82,7 @@ Homassy.Web/
 │   │   ├── useDeviceDetection.ts
 │   │   ├── useEnumLabel.ts
 │   │   ├── useEventBus.ts
+│   │   ├── useExpirationStatus.ts  The expiration ramp: date → level → tokens (see below)
 │   │   ├── useExpirationCheck.ts
 │   │   ├── useFabActions.ts    Shared state for the layout floating action button
 │   │   ├── useGeocoding.ts     Address → coordinates via Nominatim (OpenStreetMap, keyless)
@@ -393,6 +394,53 @@ All of its state is module-scoped, so `useHaptics()` is safe to call from plain 
 - The visible label renders inside `<ClientOnly>` with the absolute date as the fallback. A server-rendered relative phrase would disagree with the client's the moment a minute ticked over between the two.
 
 Used by `ActivityCard`, `ProductHistoryList`, `FamilyDrawer`, `DataExternalCalendarCard` and the calendar day list. The calendar passes `absolute-format="time"` with a 24 h threshold: the day panel header already names the date, so "3 days ago" would say less there than "14:32".
+
+---
+
+## The expiration ramp
+
+`app/composables/useExpirationStatus.ts` is the single mapping from "when does this expire" to a
+severity level, plus one table of what each level looks like. Every surface that says anything
+about expiry reads from it, so they cannot drift apart:
+
+| Level | When | Tone |
+|---|---|---|
+| `none` | no date at all | dimmed, calendar icon |
+| `ok` | more than 14 days | dimmed, calendar icon |
+| `soon` | within 14 days | `warning`, clock |
+| `critical` | within 3 days | `error`, alarm clock |
+| `expired` | past | `error` (stronger surface), alert circle |
+
+- Colours are Nuxt UI **semantic tokens** (`text-warning`, `border-error/50`, `bg-error/10`,
+  `text-dimmed`), not palette shades — both themes work with no `dark:` variant per class, and
+  `StockRing` can stroke with `currentColor` and inherit whatever the caller set.
+- Consumers: `InventoryItemRow` (surface, border, icon), `DetailedProductCard` (border, via
+  `worstExpirationLevel` across the product's items), `ExpirationChip` (label + colour), and the
+  nav badge in `layouts/auth.vue`. Each of those used to carry its own `red-400` / `amber-600` /
+  `primary-400` literals, and the nav badge was permanently red whether milk went off today or in
+  a fortnight — which is why `GET /product/inventory/expiration-count` now also returns
+  `expiredCount`.
+- `ExpirationChip` phrases the label through `useRelativeTime`, so all three locales get
+  grammatical output and "tomorrow" rather than "in 1 day". Past the 14-day window it gives way to
+  the absolute date; the exact date and time is always on the `title`.
+- **Known mismatch:** the client ramp's window is 14 days (matching the long-standing
+  `isExpiringWithinTwoWeeks`), while the API's count uses `ProductSettings:ExpiringSoonThresholdDays`.
+  With those set differently, a card can be amber for an item the badge does not count.
+
+### `StockRing`
+
+A circular gauge drawn around whatever is slotted into it, showing how much of an item is left
+**against what was bought** (`PurchaseInfo.OriginalQuantity`).
+
+- **No reference amount, no gauge.** An item with no purchase info has no denominator, and rather
+  than picking one the ring becomes a flat badge — the slot reads the same, but nothing on screen
+  claims a proportion. On a grid card the denominator is only used when *every* item in the unit
+  group has one, for the same reason.
+- `InventoryGridItemInfo` carries `originalQuantity` for this. It is the one piece of purchase
+  info in that otherwise deliberately light payload, and the realtime broadcast paths fill it too —
+  without that the ring would vanish from a card every time an automation touched it.
+- The fill animates in on mount (single frame, plus a timeout because `requestAnimationFrame` does
+  not fire in a hidden tab); under `prefers-reduced-motion` it is simply there.
 
 ---
 

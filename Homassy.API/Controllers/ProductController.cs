@@ -174,13 +174,7 @@ namespace Homassy.API.Controllers
         [ProducesResponseType(typeof(ApiResponse<ExpirationCountResponse>), StatusCodes.Status200OK)]
         public async Task<IActionResult> GetExpirationCount(CancellationToken cancellationToken)
         {
-            var count = await _productFunctions.GetExpiringAndExpiredInventoryCountAsync(cancellationToken);
-
-            var response = new ExpirationCountResponse
-            {
-                TotalCount = count
-            };
-
+            var response = await _productFunctions.GetExpiringAndExpiredInventoryCountAsync(cancellationToken);
             return Ok(ApiResponse<ExpirationCountResponse>.SuccessResponse(response));
         }
         #endregion

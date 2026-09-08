@@ -37,14 +37,26 @@
       :style="swipe.cardStyle.value"
       @click="handleRowClick"
     >
-      <!-- Header: quantity -->
+      <!-- Header: how much is left, as a gauge against what was bought -->
       <div class="flex items-center gap-3 mb-3">
-        <UIcon :name="quantityIcon" class="h-6 w-6 shrink-0" :class="quantityIconColor" />
-        <!-- tabular-nums: consume/add operations rewrite the quantity while the
-             row stays mounted. -->
-        <span class="text-lg font-semibold text-highlighted tabular-nums">
-          {{ item.currentQuantity }} {{ $t(`enums.unit.${item.unit}`) }}
-        </span>
+        <StockRing
+          :value="item.currentQuantity"
+          :reference="item.purchaseInfo?.originalQuantity"
+          :size="44"
+          :class="tone.text"
+        >
+          <UIcon :name="quantityIcon" class="h-5 w-5" />
+        </StockRing>
+        <div class="min-w-0">
+          <!-- tabular-nums: consume/add operations rewrite the quantity while the
+               row stays mounted. -->
+          <p class="text-lg font-semibold text-highlighted tabular-nums leading-tight">
+            {{ item.currentQuantity }} {{ $t(`enums.unit.${item.unit}`) }}
+          </p>
+          <p v-if="stockShare !== null" class="text-xs text-muted tabular-nums">
+            {{ $t('pages.products.details.stockRemaining', { percent: stockShare }) }}
+          </p>
+        </div>
       </div>
 
       <!-- Storage Location -->
@@ -53,10 +65,10 @@
         <span class="text-toned">{{ item.storageLocation.name }}</span>
       </div>
 
-      <!-- Expiration -->
-      <div v-if="item.expirationAt" class="mb-2 flex items-center gap-2 text-sm" :class="expirationTextColorClass">
-        <UIcon :name="expirationIcon" class="h-4 w-4 shrink-0" />
-        <span><span class="font-medium">{{ $t('common.expirationDate') }}:</span> {{ formatDate(item.expirationAt) }}</span>
+      <!-- Expiration: the ramp's colour plus a compact relative label -->
+      <div v-if="item.expirationAt" class="mb-2 flex flex-wrap items-center gap-x-2 gap-y-0.5">
+        <ExpirationChip :date="item.expirationAt" />
+        <span class="text-sm text-muted">{{ formatDate(item.expirationAt) }}</span>
       </div>
 
       <!-- Purchase Info -->
@@ -252,7 +264,7 @@ const haptics = useHaptics()
 const { formatDate } = useDateFormat()
 const { inputDateLocale } = useInputDateLocale()
 const { consumeInventoryItem, updateInventoryItem, deleteInventoryItem } = useProductsApi()
-const { isExpired: checkIsExpired, isExpiringSoon: checkIsExpiringSoon } = useExpirationCheck()
+const { expirationTone } = useExpirationStatus()
 const toast = useToast()
 
 // State
@@ -302,45 +314,26 @@ const currencyOptions = computed(() => [
 ])
 
 // Computed status / styling
-const isExpired = computed(() => checkIsExpired(props.item.expirationAt))
-const isExpiringSoon = computed(() => checkIsExpiringSoon(props.item.expirationAt))
+// One source for the row's colours: the shared expiration ramp, in theme tokens rather than the
+// red/amber palette literals this component used to carry.
+const tone = computed(() => expirationTone(props.item.expirationAt))
 
-const backgroundClass = computed(() => {
-  if (isExpired.value)
-    return 'bg-gradient-to-br from-red-50 to-red-100/50 dark:from-red-900/30 dark:to-red-800/20'
-  if (isExpiringSoon.value)
-    return 'bg-gradient-to-br from-amber-50 to-amber-100/50 dark:from-amber-900/30 dark:to-amber-800/20'
-  return 'bg-default'
-})
+const backgroundClass = computed(() => tone.value.surface)
+const borderClass = computed(() => tone.value.border)
 
-const borderClass = computed(() => {
-  if (isExpired.value) return 'border-red-400 dark:border-red-500'
-  if (isExpiringSoon.value) return 'border-primary-400 dark:border-primary-500'
-  return 'border-gray-200 dark:border-gray-700'
-})
+const quantityIcon = computed(() =>
+  tone.value.level === 'ok' || tone.value.level === 'none' ? 'i-lucide-package-2' : tone.value.icon
+)
 
-const quantityIcon = computed(() => {
-  if (isExpired.value) return 'i-lucide-alert-circle'
-  if (isExpiringSoon.value) return 'i-lucide-clock'
-  return 'i-lucide-package-2'
-})
-
-const quantityIconColor = computed(() => {
-  if (isExpired.value) return 'text-red-600 dark:text-red-400'
-  if (isExpiringSoon.value) return 'text-amber-600 dark:text-amber-400'
-  return 'text-primary-600 dark:text-primary-400'
-})
-
-const expirationTextColorClass = computed(() => {
-  if (isExpired.value) return 'text-red-600 dark:text-red-400'
-  if (isExpiringSoon.value) return 'text-primary-600 dark:text-primary-400'
-  return 'text-gray-600 dark:text-gray-400'
-})
-
-const expirationIcon = computed(() => {
-  if (isExpired.value) return 'i-lucide-alert-circle'
-  if (isExpiringSoon.value) return 'i-lucide-clock'
-  return 'i-lucide-calendar'
+/**
+ * How much of the purchase is left, as a percentage — the number the ring draws, spelled out for
+ * anyone who cannot read an arc. Null without purchase info, which is also when the ring gives way
+ * to a flat badge.
+ */
+const stockShare = computed(() => {
+  const original = props.item.purchaseInfo?.originalQuantity
+  if (!original || original <= 0) return null
+  return Math.round(Math.min(props.item.currentQuantity / original, 1) * 100)
 })
 
 // Methods

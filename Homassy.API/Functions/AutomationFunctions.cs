@@ -913,7 +913,10 @@ namespace Homassy.API.Functions
                     await _runtime.Inventory.InventoryUpsertedAsync(
                         itemUserId, trackedItem.FamilyId,
                         ProductFunctions.BuildGridProductCarrier(broadcastProduct),
-                        ProductFunctions.BuildGridItem(trackedItem, broadcastProduct.PublicId),
+                        ProductFunctions.BuildGridItem(
+                            trackedItem,
+                            broadcastProduct.PublicId,
+                            new ProductFunctions(_runtime).GetPurchaseInfoByInventoryItemId(trackedItem.Id)?.OriginalQuantity),
                         cancellationToken);
                 }
             }

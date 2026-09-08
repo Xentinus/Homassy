@@ -105,6 +105,9 @@
     "counter": "{current} / {total}",
     "goTo": "Ugrás a {index}. képre"
   },
+  "expiration": {
+    "expiredRelative": "lejárt {relative}"
+  },
   "auth": {
     "login": "Bejelentkezés",
     "logout": "Kijelentkezés",
@@ -452,7 +455,8 @@
           "cancel": "Mégse",
           "confirm": "Mentés",
           "success": "Termék sikeresen frissítve"
-        }
+        },
+        "stockRemaining": "{percent}% maradt"
       },
       "noInventory": "A készlet üres",
       "noInventoryHint": "Adj hozzá egy tételt, hogy nyomon követhesd, mi van otthon.",

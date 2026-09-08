@@ -105,6 +105,9 @@
     "counter": "{current} / {total}",
     "goTo": "Go to image {index}"
   },
+  "expiration": {
+    "expiredRelative": "expired {relative}"
+  },
   "auth": {
     "login": "Login",
     "logout": "Logout",
@@ -452,7 +455,8 @@
           "cancel": "Cancel",
           "confirm": "Save",
           "success": "Product updated successfully"
-        }
+        },
+        "stockRemaining": "{percent}% left"
       },
       "noInventory": "Your inventory is empty",
       "noInventoryHint": "Add an item to start tracking what you have at home.",
