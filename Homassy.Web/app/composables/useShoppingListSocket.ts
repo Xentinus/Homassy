@@ -3,9 +3,13 @@
  *
  * Manages a single app-wide connection to the API's `/hubs/shopping-list` hub. A client
  * "joins" the list it is viewing and receives live `ItemUpserted` / `ItemDeleted` /
- * `ListUpdated` / `ListDeleted` events for it, so the open list stays current without
- * polling or manual refresh. Writes still go through the REST endpoints; the server
- * broadcasts the resulting change to everyone in the list's group.
+ * `ListUpdated` / `ListDeleted` / `PresenceChanged` events for it, so the open list stays
+ * current without polling or manual refresh. Writes still go through the REST endpoints; the
+ * server broadcasts the resulting change to everyone in the list's group.
+ *
+ * `PresenceChanged` carries the list's full member snapshot; this composable folds it into
+ * `presentMembers` (excluding the caller) rather than handing the raw event to consumers, since
+ * presence — like the connection itself — is one app-wide truth, not a per-page subscription.
  *
  * Auth: the Kratos session cookie is sent on the WS handshake via `withCredentials`, so the
  * existing server-side session middleware authenticates the connection — no token plumbing.
@@ -14,14 +18,22 @@
  * and `joinList` returns `null` so callers can fall back to a plain REST fetch.
  */
 import * as signalR from '@microsoft/signalr'
-import type { HubEventHandler, SignalRHandler } from '~/types/realtime'
+import type { HubEventHandler, PresenceMember, SignalRHandler } from '~/types/realtime'
 import { ref } from 'vue'
 import type { DetailedShoppingListInfo } from '~/types/shoppingList'
+import { useAuthStore } from '~/stores/auth'
 
 // Module-level singletons: one connection shared across the whole app.
 let connection: signalR.HubConnection | null = null
 let startPromise: Promise<void> | null = null
 const isConnected = ref(false)
+
+// Who else has the currently-joined list open right now (excludes the caller). Module-level,
+// alongside isConnected: the connection is an app-wide singleton, so its presence is too — every
+// consumer sees the same roster rather than each keeping its own copy. Cleared to [] whenever the
+// socket is down (see the onreconnecting/onclose wiring below): while disconnected the app does
+// not know who is there, and a stale row is worse than showing none.
+const presentMembers = ref<PresenceMember[]>([])
 
 // Track what we're currently joined to, so we can re-join after an automatic reconnect
 // (SignalR groups are connection-scoped and are lost when the connection is rebuilt).
@@ -33,6 +45,18 @@ export const useShoppingListSocket = () => {
   const isSupported = import.meta.client
   const config = useRuntimeConfig()
   const apiBase = (config.public.apiBase as string) || 'http://localhost:5226'
+
+  /**
+   * The signed-in member's own public id, so `PresenceChanged` can filter them out of
+   * `presentMembers` ("who *else* is here"). `UserInfo` (app/types/auth.ts) does not yet declare
+   * `publicId`, though the API's `UserInfo` DTO (Homassy.API/Models/User/UserInfo.cs) sends one —
+   * read off the store's raw object rather than widening that type, which is outside this
+   * composable's scope.
+   */
+  const currentUserPublicId = (): string | null => {
+    const auth = useAuthStore()
+    return (auth.user as { publicId?: string } | null)?.publicId ?? null
+  }
 
   const getConnection = (): signalR.HubConnection | null => {
     if (!isSupported) return null
@@ -46,8 +70,19 @@ export const useShoppingListSocket = () => {
         .configureLogging(signalR.LogLevel.Warning)
         .build()
 
-      connection.onreconnecting(() => { isConnected.value = false })
-      connection.onclose(() => { isConnected.value = false })
+      connection.on('PresenceChanged', (members: PresenceMember[]) => {
+        const myPublicId = currentUserPublicId()
+        presentMembers.value = members.filter(m => m.publicId !== myPublicId)
+      })
+
+      connection.onreconnecting(() => {
+        isConnected.value = false
+        presentMembers.value = []
+      })
+      connection.onclose(() => {
+        isConnected.value = false
+        presentMembers.value = []
+      })
       connection.onreconnected(() => {
         isConnected.value = true
         // Re-sync: let consumers reload the snapshot (which re-joins the group). If no
@@ -132,6 +167,7 @@ export const useShoppingListSocket = () => {
   return {
     isSupported,
     isConnected,
+    presentMembers,
     ensureConnected,
     joinList,
     leaveList,

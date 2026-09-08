@@ -949,7 +949,12 @@
     "itemUpdated": "Elem sikeresen frissítve",
     "itemDeleted": "Elem sikeresen törölve",
     "restorePurchaseWarning": "Biztosan vissza szeretnéd állítani ezt a vásárlást?",
-    "restorePurchaseInventoryWarning": "Megjegyzés: Ez csak megjelöli az elemet nem vásároltként. NEM távolítja el az elemet a készletből, ha már hozzá lett adva."
+    "restorePurchaseInventoryWarning": "Megjegyzés: Ez csak megjelöli az elemet nem vásároltként. NEM távolítja el az elemet a készletből, ha már hozzá lett adva.",
+    "changedBy": "Módosította: {name}",
+    "presence": {
+      "othersHere": "Még {count} másik itt van",
+      "overflow": "+{count} további"
+    }
   },
   "profile": {
     "title": "Profil",

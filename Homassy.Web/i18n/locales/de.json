@@ -949,7 +949,12 @@
     "itemUpdated": "Artikel erfolgreich aktualisiert",
     "itemDeleted": "Artikel erfolgreich gelöscht",
     "restorePurchaseWarning": "Möchten Sie diesen Kauf wirklich wiederherstellen?",
-    "restorePurchaseInventoryWarning": "Hinweis: Dies markiert nur den Artikel als nicht gekauft. Es entfernt den Artikel NICHT aus dem Inventar, wenn er bereits hinzugefügt wurde."
+    "restorePurchaseInventoryWarning": "Hinweis: Dies markiert nur den Artikel als nicht gekauft. Es entfernt den Artikel NICHT aus dem Inventar, wenn er bereits hinzugefügt wurde.",
+    "changedBy": "Geändert von {name}",
+    "presence": {
+      "othersHere": "{count} weitere Person(en) hier",
+      "overflow": "+{count} weitere"
+    }
   },
   "profile": {
     "title": "Profil",

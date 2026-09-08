@@ -85,6 +85,11 @@
       </div>
     </Teleport>
 
+    <!-- Who else has this list open right now — trailing header action, next to the title. -->
+    <Teleport to="#app-header-actions">
+      <PresenceAvatars v-if="currentListDetails" :members="socket.presentMembers.value" />
+    </Teleport>
+
     <!-- Content Section -->
     <div class="px-2 sm:px-4 md:px-6 lg:px-8 pb-6">
       <PullToRefreshIndicator
@@ -184,18 +189,28 @@
             </UBadge>
           </div>
           <AnimatedList class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 mb-6">
-            <ShoppingListItemCard
-              v-for="item in hereItems"
-              :key="item.publicId"
-              :item="item"
-              :search-query="searchQuery"
-              :at-current-location="isItemAtCurrentLocation(item)"
-              :similar-type-at-current-location="isItemSimilarTypeHere(item)"
-              :shopping-locations="allShoppingLocations"
-              :current-store="currentStoreForItem(item)"
-              @refresh="handleItemRefresh"
-              @deleted="handleItemRefresh"
-            />
+            <div
+              v-for="entry in hereItemsWithAttribution"
+              :key="entry.item.publicId"
+              class="relative rounded-2xl"
+              :class="{ 'item-attribution-flash': !!entry.attribution }"
+              :style="entry.attribution?.style"
+            >
+              <ShoppingListItemCard
+                :item="entry.item"
+                :search-query="searchQuery"
+                :at-current-location="isItemAtCurrentLocation(entry.item)"
+                :similar-type-at-current-location="isItemSimilarTypeHere(entry.item)"
+                :shopping-locations="allShoppingLocations"
+                :current-store="currentStoreForItem(entry.item)"
+                @refresh="handleItemRefresh"
+                @deleted="handleItemRefresh"
+              />
+              <div v-if="entry.attribution" class="item-attribution-label">
+                <span class="item-attribution-dot" :style="entry.attribution.style" />
+                {{ $t('shoppingList.changedBy', { name: entry.attribution.name }) }}
+              </div>
+            </div>
           </AnimatedList>
           <div v-if="restItems.length" class="flex items-center gap-2 mb-3">
             <UIcon name="i-lucide-list" class="h-5 w-5 text-gray-500 dark:text-gray-400 shrink-0" />
@@ -207,18 +222,28 @@
 
         <!-- Items Grid (everything not buyable here; the whole list away from a store) -->
         <AnimatedList class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-          <ShoppingListItemCard
-            v-for="item in restItems"
-            :key="item.publicId"
-            :item="item"
-            :search-query="searchQuery"
-            :at-current-location="isItemAtCurrentLocation(item)"
-            :similar-type-at-current-location="isItemSimilarTypeHere(item)"
-            :shopping-locations="allShoppingLocations"
-            :current-store="currentStoreForItem(item)"
-            @refresh="handleItemRefresh"
-            @deleted="handleItemRefresh"
-          />
+          <div
+            v-for="entry in restItemsWithAttribution"
+            :key="entry.item.publicId"
+            class="relative rounded-2xl"
+            :class="{ 'item-attribution-flash': !!entry.attribution }"
+            :style="entry.attribution?.style"
+          >
+            <ShoppingListItemCard
+              :item="entry.item"
+              :search-query="searchQuery"
+              :at-current-location="isItemAtCurrentLocation(entry.item)"
+              :similar-type-at-current-location="isItemSimilarTypeHere(entry.item)"
+              :shopping-locations="allShoppingLocations"
+              :current-store="currentStoreForItem(entry.item)"
+              @refresh="handleItemRefresh"
+              @deleted="handleItemRefresh"
+            />
+            <div v-if="entry.attribution" class="item-attribution-label">
+              <span class="item-attribution-dot" :style="entry.attribution.style" />
+              {{ $t('shoppingList.changedBy', { name: entry.attribution.name }) }}
+            </div>
+          </div>
         </AnimatedList>
       </template>
     </div>
@@ -380,6 +405,7 @@
 import { ref, computed, watch, onMounted, onBeforeUnmount } from 'vue'
 import type { SelectValue } from '../../types/selectValue'
 import type { DetailedShoppingListInfo, ShoppingListItemInfo, ShoppingListInfo } from '../../types/shoppingList'
+import type { ItemDeletedEvent, ItemUpsertedEvent } from '../../types/realtime'
 import { SelectValueType, StoreType } from '../../types/enums'
 import { useSelectValueApi } from '../../composables/api/useSelectValueApi'
 import { useShoppingListApi } from '../../composables/api/useShoppingListApi'
@@ -388,6 +414,7 @@ import { normalizeForSearch } from '../../utils/stringUtils'
 import { useCameraAvailability } from '../../composables/useCameraAvailability'
 import type { GeoPosition } from '../../composables/useGeolocation'
 import type { ShoppingLocationInfo } from '../../types/location'
+import { useAuthStore } from '../../stores/auth'
 
 definePageMeta({
   layout: 'auth',
@@ -410,6 +437,16 @@ const { permissionStatus: notificationPermission } = usePushNotifications()
 // Realtime channel for the currently-open list (see useShoppingListSocket).
 const socket = useShoppingListSocket()
 const { emit: emitBusEvent } = useEventBus()
+const { accentStyle } = useMemberColor()
+const authStore = useAuthStore()
+
+/**
+ * The signed-in member's own public id. `UserInfo` (app/types/auth.ts) does not yet declare
+ * `publicId`, though the API's UserInfo DTO (Homassy.API/Models/User/UserInfo.cs) sends one —
+ * read off the store's raw object rather than widening that type, which is outside this task's
+ * scope. Used only to make sure a foreign-change flash never fires for the user's own edit.
+ */
+const currentUserPublicId = computed(() => (authStore.user as { publicId?: string } | null)?.publicId ?? null)
 
 const { pullDistance, isPulling, isRefreshing, isReady } = usePullToRefresh(async () => {
   await loadShoppingLists()
@@ -880,6 +917,73 @@ const restItems = computed(() =>
 
 const herePendingCount = computed(() => hereItems.value.filter(item => !item.purchasedAt).length)
 
+// --- Per-item "changed by" flash --------------------------------------------
+// ShoppingListItemCard is out of scope for this task, so the flash ring and the "changed by"
+// label are painted by a thin wrapper this page owns around each card (see the template) rather
+// than inside the card component itself. Keyed by item publicId; cleared after
+// ATTRIBUTION_FLASH_MS or as soon as the item is deleted.
+interface ItemAttribution {
+  name: string
+  // Pre-resolved --member-color style, ready to :style-bind on both the wrapper and the label's
+  // dot. Derived from accentStyle's own return type (useMemberColor.ts's MemberAccentStyle isn't
+  // exported) so this never drifts from what accentStyle actually returns.
+  style: ReturnType<typeof accentStyle>
+}
+
+const attributions = ref<Record<string, ItemAttribution>>({})
+const attributionTimers = new Map<string, ReturnType<typeof setTimeout>>()
+// Keep in sync with --attribution-flash in main.css.
+const ATTRIBUTION_FLASH_MS = 1500
+
+// Present members, keyed by publicId. Item events carry only actorPublicId, never a name/colour,
+// so presentMembers (which already excludes the current user — see useShoppingListSocket) is the
+// only place to resolve who a *foreign* actor actually is.
+const presenceByPublicId = computed(() => new Map(socket.presentMembers.value.map(m => [m.publicId, m])))
+
+/** Attach the ~1.5s flash to `itemPublicId` when `actorPublicId` names a present, foreign member. */
+const attributeChange = (itemPublicId: string, actorPublicId?: string | null) => {
+  if (!actorPublicId || actorPublicId === currentUserPublicId.value) return
+
+  const actor = presenceByPublicId.value.get(actorPublicId)
+  // Actor already left presence (rare race between the item event and their disconnect) — with
+  // no name to show, skip the flash rather than attribute to "someone".
+  if (!actor) return
+
+  attributions.value = {
+    ...attributions.value,
+    [itemPublicId]: { name: actor.displayName, style: accentStyle(actor.publicId, actor.identityColor) }
+  }
+
+  const existingTimer = attributionTimers.get(itemPublicId)
+  if (existingTimer) clearTimeout(existingTimer)
+  attributionTimers.set(itemPublicId, setTimeout(() => {
+    attributionTimers.delete(itemPublicId)
+    const next = { ...attributions.value }
+    Reflect.deleteProperty(next, itemPublicId)
+    attributions.value = next
+  }, ATTRIBUTION_FLASH_MS))
+}
+
+/** Drop any pending flash for a deleted item — nothing left on screen to keep it lit. */
+const clearAttribution = (itemPublicId: string) => {
+  const existingTimer = attributionTimers.get(itemPublicId)
+  if (existingTimer) {
+    clearTimeout(existingTimer)
+    attributionTimers.delete(itemPublicId)
+  }
+  if (itemPublicId in attributions.value) {
+    const next = { ...attributions.value }
+    Reflect.deleteProperty(next, itemPublicId)
+    attributions.value = next
+  }
+}
+
+const withAttribution = (items: ShoppingListItemInfo[]) =>
+  items.map(item => ({ item, attribution: attributions.value[item.publicId] ?? null }))
+
+const hereItemsWithAttribution = computed(() => withAttribution(hereItems.value))
+const restItemsWithAttribution = computed(() => withAttribution(restItems.value))
+
 // The store the user is currently standing at, used to pre-fill an item's purchase location.
 // Prefers the item's own store if the user is at it, otherwise the first nearby saved store.
 const currentStoreForItem = (item: ShoppingListItemInfo): ShoppingLocationInfo | undefined => {
@@ -1130,7 +1234,10 @@ const handleItemRefresh = async () => {
 }
 
 // --- Realtime handlers: mutate the open list in place instead of refetching. ---
-const handleRealtimeItemUpserted = (item: ShoppingListItemInfo) => {
+// ItemUpserted/ItemDeleted now arrive as { item, actorPublicId } / { publicId,
+// shoppingListPublicId, actorPublicId } (Homassy.API.Hubs.ShoppingListRealtime) rather than the
+// bare item/id the client used to read — every handler below destructures the new shape.
+const handleRealtimeItemUpserted = ({ item, actorPublicId }: ItemUpsertedEvent) => {
   if (!currentListDetails.value || item.shoppingListPublicId !== selectedListId.value) return
   const items = currentListDetails.value.items
   const index = items.findIndex(i => i.publicId === item.publicId)
@@ -1138,12 +1245,15 @@ const handleRealtimeItemUpserted = (item: ShoppingListItemInfo) => {
   else items.push(item)
   // Nudge the bottom-nav deadline badge to recount.
   emitBusEvent('shopping-list-item:updated')
+  attributeChange(item.publicId, actorPublicId)
 }
 
-const handleRealtimeItemDeleted = (payload: { publicId: string; shoppingListPublicId: string }) => {
-  if (!currentListDetails.value || payload.shoppingListPublicId !== selectedListId.value) return
-  currentListDetails.value.items = currentListDetails.value.items.filter(i => i.publicId !== payload.publicId)
+const handleRealtimeItemDeleted = ({ publicId, shoppingListPublicId }: ItemDeletedEvent) => {
+  if (!currentListDetails.value || shoppingListPublicId !== selectedListId.value) return
+  currentListDetails.value.items = currentListDetails.value.items.filter(i => i.publicId !== publicId)
   emitBusEvent('shopping-list-item:deleted')
+  // The card itself is about to leave via the bubble transition — nothing left to flash.
+  clearAttribution(publicId)
 }
 
 const handleRealtimeListUpdated = (list: ShoppingListInfo) => {
@@ -1279,5 +1389,9 @@ onBeforeUnmount(() => {
 
   // Stop watching the device position when leaving the page.
   stopWatch()
+
+  // Drop any pending attribution-flash timeouts so none fire after this page is gone.
+  attributionTimers.forEach(timer => clearTimeout(timer))
+  attributionTimers.clear()
 })
 </script>

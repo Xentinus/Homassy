@@ -949,7 +949,12 @@
     "itemUpdated": "Item updated successfully",
     "itemDeleted": "Item deleted successfully",
     "restorePurchaseWarning": "Are you sure you want to restore this purchase?",
-    "restorePurchaseInventoryWarning": "Note: This will only unmark the item as purchased. It will NOT remove the item from inventory if it was already added."
+    "restorePurchaseInventoryWarning": "Note: This will only unmark the item as purchased. It will NOT remove the item from inventory if it was already added.",
+    "changedBy": "Changed by {name}",
+    "presence": {
+      "othersHere": "{count} other(s) here",
+      "overflow": "+{count} more"
+    }
   },
   "profile": {
     "title": "Profile",
