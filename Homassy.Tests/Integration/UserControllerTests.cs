@@ -442,6 +442,16 @@ public class UserControllerTests : IClassFixture<HomassyWebApplicationFactory>
             var setResponse = await _client.PutAsJsonAsync("/api/v1.0/user/settings", setRequest);
             Assert.Equal(HttpStatusCode.OK, setResponse.StatusCode);
 
+            // Verify intermediate state: the write path actually persisted "teal" to the database.
+            // This ensures the test fails if the entire IdentityColor write path becomes a silent no-op.
+            var userId = _factory.GetUserIdByEmail(email);
+            var (scope, context) = _factory.CreateScopedDbContext();
+            await using var _ = scope as IAsyncDisposable;
+
+            var userProfile = context.UserProfiles.FirstOrDefault(up => up.UserId == userId);
+            Assert.NotNull(userProfile);
+            Assert.Equal("teal", userProfile.IdentityColor);
+
             // Act
             var clearRequest = new UpdateUserSettingsRequest { IdentityColor = "auto" };
             var clearResponse = await _client.PutAsJsonAsync("/api/v1.0/user/settings", clearRequest);
