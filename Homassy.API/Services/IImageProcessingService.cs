@@ -13,12 +13,25 @@ namespace Homassy.API.Services
         /// <paramref name="size"/> px, encoded as WebP.
         /// </summary>
         /// <remarks>
-        /// Square because every consumer of a thumbnail is a fixed-size box (avatar, card
-        /// thumbnail) — cropping here is what lets those boxes avoid <c>object-fit</c> surprises
-        /// and lets the list ask for exactly the pixels it will show. Returns null if the bytes
-        /// cannot be decoded.
+        /// What avatars use: they are always drawn in a circle, so a square crop is what the UI
+        /// would do anyway, and doing it here means the bytes are not paying for pixels that get
+        /// clipped. Product pictures want <see cref="CreateBoundedThumbnail"/> instead. Returns
+        /// null if the bytes cannot be decoded.
         /// </remarks>
         ProcessedImage? CreateSquareThumbnail(byte[] imageBytes, int size, int quality = 75);
+
+        /// <summary>
+        /// Scales <paramref name="imageBytes"/> down so neither side exceeds
+        /// <paramref name="maxSize"/> px, keeping the aspect ratio and cropping nothing, encoded
+        /// as WebP.
+        /// </summary>
+        /// <remarks>
+        /// What product pictures use, as opposed to the square crop avatars get: a product card
+        /// renders its image <c>object-contain</c>, so a centre crop would cut the top off a tall
+        /// bottle or the ends off a wide label. Never scales up — an image already inside the box
+        /// is only re-encoded. Returns null if the bytes cannot be decoded.
+        /// </remarks>
+        ProcessedImage? CreateBoundedThumbnail(byte[] imageBytes, int maxSize, int quality = 75);
 
         /// <summary>
         /// Re-encodes <paramref name="imageBytes"/> as JPEG, for the rare client whose

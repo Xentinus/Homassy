@@ -10,6 +10,7 @@
         public const string UserNotificationPreferences = "UserNotificationPreferences";
 
         public const string Products = "Products";
+        public const string ProductImages = "ProductImages";
         public const string ProductInventoryItems = "ProductInventoryItems";
         public const string ProductPurchaseInfos = "ProductPurchaseInfos";
         public const string ProductConsumptionLogs = "ProductConsumptionLogs";

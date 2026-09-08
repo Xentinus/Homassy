@@ -11,10 +11,15 @@ namespace Homassy.API.Constants
     /// </remarks>
     public static class ImageSizes
     {
-        /// <summary>Avatar thumbnails. Largest avatar on screen is the 64px profile identity card.</summary>
+        /// <summary>
+        /// Avatar thumbnails, square-cropped. Largest avatar on screen is the 64px profile
+        /// identity card.
+        /// </summary>
         public const int AvatarThumbnail = 128;
 
-        /// <summary>Product card thumbnails. Largest card image is ~128px wide.</summary>
+        /// <summary>
+        /// Product card thumbnails, bounded rather than cropped. Largest card image is ~128px.
+        /// </summary>
         public const int ProductThumbnail = 256;
     }
 }

@@ -303,8 +303,8 @@ public class UserControllerTests : IClassFixture<HomassyWebApplicationFactory>
             testEmail = email;
             _authHelper.SetAuthToken(auth.AccessToken);
 
-            // Valid Base64 image (50x50 red PNG that meets minimum size requirements)
-            var validBase64 = "iVBORw0KGgoAAAANSUhEUgAAADIAAAAyCAIAAACRXR/mAAAAGklEQVR42mP8z8Dw/z8DA+MMRgxg0AMDCwAAMVsD+RFtk8MAAAAASUVORK5CYII=";
+            // 50x50 - the upload path's minimum dimensions.
+            var validBase64 = TestImages.PngBase64();
 
             // Step 1: Upload
             _output.WriteLine("=== Step 1: Upload Profile Picture ===");
@@ -345,6 +345,9 @@ public class UserControllerTests : IClassFixture<HomassyWebApplicationFactory>
             var etag = imageResponse.Headers.ETag;
             Assert.NotNull(etag);
             Assert.True(imageResponse.Headers.CacheControl?.Private);
+            // Answered from the thumbnail generated on upload, not by falling back to the
+            // full-size image.
+            Assert.Contains("thumb", etag.Tag);
 
             var conditional = new HttpRequestMessage(HttpMethod.Get, pictureUrl);
             conditional.Headers.IfNoneMatch.Add(etag);

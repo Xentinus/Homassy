@@ -25,7 +25,7 @@ BaseEntity (abstract)
           └── Data / Format / Width / Height / ThumbnailData / ThumbnailFormat
               / Version / UpdatedAt
               │
-              └── UserProfilePicture
+              └── UserProfilePicture, ProductImage
 ```
 
 #### BaseEntity
@@ -101,6 +101,7 @@ Uploaded picture bytes, in a table of their own rather than as a column on the r
 
 ```
 UserProfilePicture  →  UserProfilePictures  (unique FK to Users, cascade delete)
+ProductImage        →  ProductImages        (unique FK to Products, cascade delete)
 ```
 
 Two reasons, which are really the same reason — the bytes were part of the entity:
@@ -108,7 +109,7 @@ Two reasons, which are really the same reason — the bytes were part of the ent
 1. The Functions layer holds whole entities in process-wide caches, so a blob column on `UserProfiles` or `Products` is a blob resident in memory for every row a family owns.
 2. Everything that serialized the row serialized the image with it, uncacheably, in every payload.
 
-The owning row keeps only `…PictureVersion` — a 16-hex-character content hash — which is all `Constants/MediaUrls` needs to build a URL. These tables are read by the image endpoints and by nothing else, so there is deliberately **no navigation property** from `User` to its picture: a navigation is an invitation to `Include()` the bytes back into a list query.
+The owning row keeps only `…PictureVersion` — a 16-hex-character content hash — which is all `Constants/MediaUrls` needs to build a URL. These tables are read by the image endpoints and by nothing else, so there is deliberately **no navigation property** from `User` or `Product` to its image: a navigation is an invitation to `Include()` the bytes back into a list query.
 
 It descends from `BaseEntity`, not `RecordChangeEntity`: there is nothing to soft-delete (deleting the picture deletes the row) and no cache to invalidate, so it stays out of the trigger system below.
 

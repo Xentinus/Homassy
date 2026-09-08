@@ -1,4 +1,5 @@
-﻿using Homassy.API.Context;
+﻿using Homassy.API.Constants;
+using Homassy.API.Context;
 using Homassy.API.Entities.Location;
 using Homassy.API.Entities.Product;
 using Homassy.API.Entities.User;
@@ -511,7 +512,8 @@ namespace Homassy.API.Functions
                     Category = p.Category,
                     Unit = p.Unit,
                     Barcode = p.Barcode,
-                    ProductPictureBase64 = p.ProductPictureBase64,
+                    ProductImageUrl = MediaUrls.ProductImage(p.PublicId, p.ProductPictureVersion),
+                    ProductImageFullUrl = MediaUrls.ProductImage(p.PublicId, p.ProductPictureVersion, ImageVariant.Full),
                     IsEatable = p.IsEatable,
                     IsFavorite = customization?.IsFavorite ?? false
                 };
@@ -602,7 +604,8 @@ namespace Homassy.API.Functions
                     Category = product.Category,
                     Unit = product.Unit,
                     Barcode = product.Barcode,
-                    ProductPictureBase64 = product.ProductPictureBase64,
+                    ProductImageUrl = MediaUrls.ProductImage(product.PublicId, product.ProductPictureVersion),
+                    ProductImageFullUrl = MediaUrls.ProductImage(product.PublicId, product.ProductPictureVersion, ImageVariant.Full),
                     IsEatable = product.IsEatable,
                     IsFavorite = isFavorite
                 };
@@ -736,7 +739,8 @@ namespace Homassy.API.Functions
                     Category = product.Category,
                     Unit = product.Unit,
                     Barcode = product.Barcode,
-                    ProductPictureBase64 = product.ProductPictureBase64,
+                    ProductImageUrl = MediaUrls.ProductImage(product.PublicId, product.ProductPictureVersion),
+                    ProductImageFullUrl = MediaUrls.ProductImage(product.PublicId, product.ProductPictureVersion, ImageVariant.Full),
                     IsEatable = product.IsEatable,
                     IsFavorite = customization?.IsFavorite ?? false
                 };
@@ -913,7 +917,8 @@ namespace Homassy.API.Functions
                     Category = product.Category,
                     Unit = product.Unit,
                     Barcode = product.Barcode,
-                    ProductPictureBase64 = product.ProductPictureBase64,
+                    ProductImageUrl = MediaUrls.ProductImage(product.PublicId, product.ProductPictureVersion),
+                    ProductImageFullUrl = MediaUrls.ProductImage(product.PublicId, product.ProductPictureVersion, ImageVariant.Full),
                     IsEatable = product.IsEatable,
                     IsFavorite = newFavoriteStatus
                 };
@@ -1007,7 +1012,8 @@ namespace Homassy.API.Functions
                 Category = product.Category,
                 Unit = product.Unit,
                 Barcode = product.Barcode,
-                ProductPictureBase64 = product.ProductPictureBase64,
+                ProductImageUrl = MediaUrls.ProductImage(product.PublicId, product.ProductPictureVersion),
+                ProductImageFullUrl = MediaUrls.ProductImage(product.PublicId, product.ProductPictureVersion, ImageVariant.Full),
                 IsEatable = product.IsEatable,
                 IsFavorite = customization?.IsFavorite ?? false,
                 InventoryItems = inventoryItemInfos
@@ -1260,7 +1266,8 @@ namespace Homassy.API.Functions
                     Category = product.Category,
                     Unit = product.Unit,
                     Barcode = product.Barcode,
-                    ProductPictureBase64 = product.ProductPictureBase64,
+                    ProductImageUrl = MediaUrls.ProductImage(product.PublicId, product.ProductPictureVersion),
+                    ProductImageFullUrl = MediaUrls.ProductImage(product.PublicId, product.ProductPictureVersion, ImageVariant.Full),
                     IsEatable = product.IsEatable,
                     IsFavorite = customization?.IsFavorite ?? false,
                     InventoryItems = inventoryItemInfos
@@ -2950,7 +2957,8 @@ namespace Homassy.API.Functions
                         Category = product.Category,
                     Unit = product.Unit,
                         Barcode = product.Barcode,
-                        ProductPictureBase64 = product.ProductPictureBase64,
+                        ProductImageUrl = MediaUrls.ProductImage(product.PublicId, product.ProductPictureVersion),
+                        ProductImageFullUrl = MediaUrls.ProductImage(product.PublicId, product.ProductPictureVersion, ImageVariant.Full),
                         IsEatable = product.IsEatable,
                         IsFavorite = isFavorite
                     });
@@ -2997,7 +3005,8 @@ namespace Homassy.API.Functions
                 Category = product.Category,
                 Unit = product.Unit,
                 Barcode = product.Barcode,
-                ProductPictureBase64 = product.ProductPictureBase64,
+                ProductImageUrl = MediaUrls.ProductImage(product.PublicId, product.ProductPictureVersion),
+                ProductImageFullUrl = MediaUrls.ProductImage(product.PublicId, product.ProductPictureVersion, ImageVariant.Full),
                 IsEatable = product.IsEatable,
                 IsFavorite = customization?.IsFavorite ?? false
             };

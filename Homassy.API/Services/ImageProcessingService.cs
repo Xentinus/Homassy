@@ -372,6 +372,35 @@ namespace Homassy.API.Services
             }
         }
 
+        public ProcessedImage? CreateBoundedThumbnail(byte[] imageBytes, int maxSize, int quality = 75)
+        {
+            if (imageBytes.Length == 0 || maxSize <= 0)
+            {
+                return null;
+            }
+
+            try
+            {
+                using var image = SixImage.Load(imageBytes);
+
+                var (width, height) = CalculateResizedDimensions(image.Width, image.Height, maxSize, maxSize);
+                if (width != image.Width || height != image.Height)
+                {
+                    image.Mutate(ctx => ctx.Resize(width, height));
+                }
+
+                using var output = new MemoryStream();
+                image.SaveAsWebp(output, new WebpEncoder { Quality = quality });
+
+                return Describe(output.ToArray(), ImageFormat.WebP, image.Width, image.Height);
+            }
+            catch (Exception ex)
+            {
+                Log.Warning(ex, "Failed to create a {Size}px bounded thumbnail from {ByteCount} bytes", maxSize, imageBytes.Length);
+                return null;
+            }
+        }
+
         public ProcessedImage? TranscodeToJpeg(byte[] imageBytes, int quality = 80)
         {
             if (imageBytes.Length == 0)

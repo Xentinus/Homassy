@@ -346,6 +346,8 @@ service worker, and was re-downloaded with every payload that mentioned its user
 |---|---|
 | `app/composables/useMediaUrl.ts` | `mediaUrl(path)` — prefixes `runtimeConfig.public.apiBase`; passes absolute / `data:` / `blob:` URLs through |
 | `app/components/UserAvatar.vue` | the app's one user avatar: picture, or a deterministic gradient + initials |
+| `app/components/ProductImage.vue` | the app's one product picture: fills its parent, falls back to a category icon |
+| `app/utils/productCategoryVisuals.ts` | icon + hue per `ProductCategoryGroup`, for that fallback (hand-written; `productCategoryGroups.ts` next to it is generated) |
 | `nuxt.config.ts` → `image.providers.none` | the passthrough `@nuxt/image` provider these components render through |
 | `nuxt.config.ts` → `pwa.workbox.runtimeCaching` `remote-images` | CacheFirst for the image endpoints |
 
@@ -356,6 +358,9 @@ Easy to get wrong:
 - **Never append a cache-buster.** The URL already ends in `?v=<content hash>`, so a changed picture is a new URL; adding `?t=Date.now()` would defeat both the browser cache and the `remote-images` service-worker cache.
 - **The placeholder renders underneath the image, always.** It is both the loading state and the permanent fallback, which is what keeps a list from flashing empty circles. Its colour is generated from the name (there is no theme token for "a colour per user") at a lightness that works in both themes.
 - Avatars are **no longer a Kratos trait**. `traitsToUserInfo` does not set one; `fetchUserFromBackend()` is what fills `profilePictureUrl` in.
+- `ProductImage` renders `object-contain`, matching the server's bounded (not cropped) product thumbnail, so nothing is clipped off a tall bottle. `UserAvatar` is the cropped-square case.
+- The category placeholder's two theme variants are **CSS**, not a computed value: the colour mode is unknown during SSR, so branching on it in script is a hydration mismatch. The hue goes in as a `--cat-hue` custom property and light/dark lightness comes from a `dark:` variant.
+- `ProductFormDrawer` keeps a single `imagePreview` src that is the stored image's URL most of the time and a `data:` URI in the moment between cropping and the upload finishing — `useMediaUrl` passes the latter through untouched.
 
 ---
 

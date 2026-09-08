@@ -1,6 +1,7 @@
 using Homassy.API.Constants;
 using Homassy.API.Context;
 using Homassy.API.Entities.Common;
+using Homassy.API.Entities.Product;
 using Homassy.API.Entities.User;
 using Homassy.API.Enums;
 using Homassy.API.Exceptions;
@@ -92,11 +93,27 @@ namespace Homassy.API.Functions
                     throw new ProductNotFoundException();
                 }
 
-                trackedProduct.ProductPictureBase64 = processedImage.Base64;
-                
+                var image = await context.ProductImages.FirstOrDefaultAsync(i => i.ProductId == product.Id, cancellationToken);
+                var version = ContentVersion(processedImage.Data);
+                var thumbnail = _imageProcessingService.CreateBoundedThumbnail(processedImage.Data, ImageSizes.ProductThumbnail);
+
+                if (image == null)
+                {
+                    image = new ProductImage
+                    {
+                        ProductId = product.Id,
+                        Data = processedImage.Data,
+                        Version = version
+                    };
+                    context.ProductImages.Add(image);
+                }
+
+                Apply(image, processedImage, thumbnail, version);
+                trackedProduct.ProductPictureVersion = version;
+
                 cancellationToken.ThrowIfCancellationRequested();
                 progress?.Report(new ProgressInfo { Percentage = 90, Stage = ProgressStage.Saving, Status = ProgressStatus.InProgress, UpdatedAt = DateTime.UtcNow });
-                
+
                 await context.SaveChangesAsync(cancellationToken);
                 await transaction.CommitAsync(cancellationToken);
 
@@ -125,7 +142,8 @@ namespace Homassy.API.Functions
                 return new ProductImageInfo
                 {
                     ProductPublicId = product.PublicId,
-                    ImageBase64 = processedImage.Base64,
+                    ProductImageUrl = MediaUrls.ProductImage(product.PublicId, version)!,
+                    ProductImageFullUrl = MediaUrls.ProductImage(product.PublicId, version, ImageVariant.Full)!,
                     Format = processedImage.Format,
                     Width = processedImage.Width,
                     Height = processedImage.Height,
@@ -167,7 +185,13 @@ namespace Homassy.API.Functions
                     throw new ProductNotFoundException();
                 }
 
-                trackedProduct.ProductPictureBase64 = null;
+                var image = await context.ProductImages.FirstOrDefaultAsync(i => i.ProductId == product.Id, cancellationToken);
+                if (image != null)
+                {
+                    context.ProductImages.Remove(image);
+                }
+
+                trackedProduct.ProductPictureVersion = null;
                 await context.SaveChangesAsync(cancellationToken);
                 await transaction.CommitAsync(cancellationToken);
 
@@ -389,12 +413,63 @@ namespace Homassy.API.Functions
 
             if (variant == ImageVariant.Thumb && picture.ThumbnailData == null)
             {
-                await BackfillThumbnailAsync(picture.Id, ImageSizes.AvatarThumbnail, cancellationToken);
+                await BackfillThumbnailAsync(
+                    c => c.UserProfilePictures,
+                    picture.Id,
+                    ImageSizes.AvatarThumbnail,
+                    (data, size) => _imageProcessingService.CreateSquareThumbnail(data, size),
+                    cancellationToken);
                 picture = await context.UserProfilePictures
                     .FirstOrDefaultAsync(p => p.UserId == user.Id, cancellationToken) ?? picture;
             }
 
             return Render(picture, variant, acceptsWebp);
+        }
+
+        /// <summary>
+        /// Serves one rendition of a product's picture, or null when it has none.
+        /// </summary>
+        /// <param name="productPublicId">The product whose picture is being asked for.</param>
+        /// <param name="variant">Which stored rendition to answer with.</param>
+        /// <param name="acceptsWebp">
+        /// Whether the requesting client accepts <c>image/webp</c>. Thumbnails are stored as WebP;
+        /// a client that does not accept it gets a JPEG transcode instead.
+        /// </param>
+        /// <param name="cancellationToken">Cancellation token.</param>
+        public async Task<StoredImageResponse?> GetProductImageAsync(
+            Guid productPublicId,
+            ImageVariant variant,
+            bool acceptsWebp,
+            CancellationToken cancellationToken = default)
+        {
+            var product = new ProductFunctions(_runtime).GetProductByPublicId(productPublicId);
+            if (product == null)
+            {
+                return null;
+            }
+
+            using var context = _contextFactory.CreateForReading();
+            var image = await context.ProductImages
+                .FirstOrDefaultAsync(i => i.ProductId == product.Id, cancellationToken);
+
+            if (image == null)
+            {
+                return null;
+            }
+
+            if (variant == ImageVariant.Thumb && image.ThumbnailData == null)
+            {
+                await BackfillThumbnailAsync(
+                    c => c.ProductImages,
+                    image.Id,
+                    ImageSizes.ProductThumbnail,
+                    (data, size) => _imageProcessingService.CreateBoundedThumbnail(data, size),
+                    cancellationToken);
+                image = await context.ProductImages
+                    .FirstOrDefaultAsync(i => i.ProductId == product.Id, cancellationToken) ?? image;
+            }
+
+            return Render(image, variant, acceptsWebp);
         }
 
         /// <summary>
@@ -406,32 +481,38 @@ namespace Homassy.API.Functions
         /// cache fill, not part of answering the request. If it fails the request still succeeds —
         /// <see cref="Render"/> falls back to the full-size bytes.
         /// </remarks>
-        private async Task BackfillThumbnailAsync(int pictureId, int size, CancellationToken cancellationToken)
+        private async Task BackfillThumbnailAsync<TImage>(
+            Func<HomassyDbContext, DbSet<TImage>> table,
+            int imageId,
+            int size,
+            Func<byte[], int, ProcessedImage?> makeThumbnail,
+            CancellationToken cancellationToken)
+            where TImage : StoredImageEntity
         {
             try
             {
                 using var context = _contextFactory.CreateDbContext();
-                var picture = await context.UserProfilePictures.FirstOrDefaultAsync(p => p.Id == pictureId, cancellationToken);
-                if (picture == null || picture.ThumbnailData != null)
+                var image = await table(context).FirstOrDefaultAsync(i => i.Id == imageId, cancellationToken);
+                if (image == null || image.ThumbnailData != null)
                 {
                     return;
                 }
 
-                var thumbnail = _imageProcessingService.CreateSquareThumbnail(picture.Data, size);
+                var thumbnail = makeThumbnail(image.Data, size);
                 if (thumbnail == null)
                 {
                     return;
                 }
 
-                picture.ThumbnailData = thumbnail.Data;
-                picture.ThumbnailFormat = thumbnail.Format;
+                image.ThumbnailData = thumbnail.Data;
+                image.ThumbnailFormat = thumbnail.Format;
                 await context.SaveChangesAsync(cancellationToken);
 
-                Log.Information("Backfilled a {Size}px thumbnail for user profile picture {PictureId}", size, pictureId);
+                Log.Information("Backfilled a {Size}px thumbnail for {Table} {ImageId}", size, typeof(TImage).Name, imageId);
             }
             catch (Exception ex)
             {
-                Log.Warning(ex, "Failed to backfill the thumbnail for user profile picture {PictureId}", pictureId);
+                Log.Warning(ex, "Failed to backfill the thumbnail for {Table} {ImageId}", typeof(TImage).Name, imageId);
             }
         }
 

@@ -18,14 +18,8 @@
     </div>
 
     <!-- Product Image -->
-    <div class="aspect-square bg-gray-100 dark:bg-gray-800 rounded-md mb-2 overflow-hidden flex items-center justify-center relative">
-      <img
-        v-if="product.productPictureBase64"
-        :src="`data:image/jpeg;base64,${product.productPictureBase64}`"
-        :alt="product.name"
-        class="w-full h-full object-contain transition-opacity"
-      >
-      <UIcon v-else name="i-lucide-package" class="h-12 w-12 text-gray-400" />
+    <div class="aspect-square rounded-md mb-2 overflow-hidden relative">
+      <ProductImage :src="product.productImageUrl" :category="product.category" />
     </div>
     
     <!-- Product Info -->

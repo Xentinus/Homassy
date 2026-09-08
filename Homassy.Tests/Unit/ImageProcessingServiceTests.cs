@@ -377,6 +377,40 @@ namespace Homassy.Tests.Unit
         }
         #endregion
 
+        #region CreateBoundedThumbnail
+        [Fact]
+        public void CreateBoundedThumbnail_WhenLargerThanBox_ScalesDownKeepingAspectRatio()
+        {
+            var result = _service.CreateBoundedThumbnail(CreatePng(400, 200), 100);
+
+            Assert.NotNull(result);
+            Assert.Equal(ImageFormat.WebP, result.Format);
+            Assert.Equal(100, result.Width);
+            Assert.Equal(50, result.Height);
+
+            using var actual = SixImage.Load(result.Data);
+            Assert.Equal(100, actual.Width);
+            Assert.Equal(50, actual.Height);
+        }
+
+        [Fact]
+        public void CreateBoundedThumbnail_WhenSmallerThanBox_DoesNotScaleUp()
+        {
+            // Products often carry small pictures; upscaling them would spend bytes on nothing.
+            var result = _service.CreateBoundedThumbnail(CreatePng(50, 50), 256);
+
+            Assert.NotNull(result);
+            Assert.Equal(50, result.Width);
+            Assert.Equal(50, result.Height);
+        }
+
+        [Fact]
+        public void CreateBoundedThumbnail_WhenNotDecodable_ReturnsNull()
+        {
+            Assert.Null(_service.CreateBoundedThumbnail([0x89, 0x50, 0x4E, 0x47], 256));
+        }
+        #endregion
+
         #region TranscodeToJpeg
         [Fact]
         public void TranscodeToJpeg_WhenGivenWebP_ReturnsJpegOfTheSameSize()

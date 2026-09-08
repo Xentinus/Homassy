@@ -95,6 +95,7 @@ Manages product catalog and inventory (all endpoints require `[Authorize]`).
 | Method | Endpoint | Description |
 |--------|----------|-------------|
 | GET | `/` | Get all products |
+| GET | `/{publicId}/image` | Serve a product's picture as image **bytes** (`?size=thumb\|full`, `?v=` version) |
 | POST | `/` | Create new product |
 | PUT | `/{productPublicId}` | Update product |
 | DELETE | `/{productPublicId}` | Always rejected with **403** `PRODUCT-0004` — products are global |
@@ -103,6 +104,9 @@ Manages product catalog and inventory (all endpoints require `[Authorize]`).
 | GET | `/detailed` | Get all detailed products for user |
 
 **Key Patterns:**
+- **Pictures are served, not embedded.** `ProductInfo` carries `ProductImageUrl` (the list thumbnail) and `ProductImageFullUrl` (the detail/lightbox rendition) instead of the image. Both come from `GET /{publicId}/image`, which behaves exactly like the avatar endpoint on `UserController` — read its notes for the ETag, caching, `?v=` and `Accept` rules. The full URL is carried in list payloads too, because the lightbox opens from a card in a list
+- Product thumbnails are **bounded (256px), not square-cropped** like avatars: a card renders its image `object-contain`, so a centre crop would clip a tall bottle or a wide label
+- Bytes live in `ProductImages`, not on `Products` — the strongest case for the split, since these are the largest images the app stores, a list shows many, and the whole `Product` row sits in a process-wide cache
 - Product customization per user (favorites, notes)
 - Inventory tracking with purchase info and consumption logs
 - Family-shared products support

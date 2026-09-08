@@ -52,14 +52,15 @@
     leave-to-class="opacity-0"
   >
     <div
-      v-if="isImageOverlayOpen && product?.productPictureBase64"
+      v-if="isImageOverlayOpen && product?.productImageFullUrl"
       class="fixed inset-0 z-[100] bg-black/80 flex items-center justify-center p-4 cursor-pointer"
       @click="isImageOverlayOpen = false"
       @keydown.esc="isImageOverlayOpen = false"
     >
       <img
-        :src="`data:image/jpeg;base64,${product.productPictureBase64}`"
+        :src="mediaUrl(product.productImageFullUrl)"
         :alt="product.name"
+        crossorigin="use-credentials"
         class="max-w-full max-h-full object-contain"
       >
     </div>
@@ -91,6 +92,7 @@ const emit = defineEmits<{
 
 const { t: $t } = useI18n()
 const { getProductDetails, getProductHistory, toggleFavorite } = useProductsApi()
+const { mediaUrl } = useMediaUrl()
 const inventorySocket = useInventorySocket()
 const toast = useToast()
 

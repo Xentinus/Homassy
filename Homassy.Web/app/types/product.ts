@@ -14,7 +14,10 @@ export interface ProductInfo {
   category?: ProductCategory
   unit: Unit
   barcode?: string
-  productPictureBase64?: string
+  /** Server-relative, version-stamped path to the list thumbnail. See `useMediaUrl`. */
+  productImageUrl?: string
+  /** Same, for the full-size rendition used by the detail view and the lightbox. */
+  productImageFullUrl?: string
   isEatable: boolean
   isFavorite: boolean
 }
@@ -103,7 +106,8 @@ export interface UploadProductImageRequest {
 
 export interface ProductImageInfo {
   productPublicId: string
-  imageBase64: string
+  productImageUrl: string
+  productImageFullUrl: string
   format: ImageFormat
   width: number
   height: number

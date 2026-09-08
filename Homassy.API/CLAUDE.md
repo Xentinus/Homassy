@@ -41,7 +41,7 @@ Homassy.API is a home storage management system built with ASP.NET Core. The pro
 - **Input Sanitization**: Automatic XSS protection via `[SanitizedString]` validation attribute
 - **Barcode Validation**: Multi-format barcode validation with checksum verification (EAN-13, EAN-8, UPC-A, UPC-E, Code-128)
 - **Image Processing**: Secure image upload with magic number validation, format detection, and dimension constraints; resizing and thumbnailing via ImageSharp
-- **Images Are Served, Not Embedded**: uploaded pictures live in their own tables (`UserProfilePictures`) and are served as bytes from dedicated endpoints with an `ETag` and a content-hash version in the URL. DTOs carry a URL, never base64
+- **Images Are Served, Not Embedded**: uploaded pictures live in their own tables (`UserProfilePictures`, `ProductImages`) and are served as bytes from dedicated endpoints with an `ETag` and a content-hash version in the URL. DTOs carry a URL, never base64
 - **Async Progress Tracking**: Long-running operations (e.g. image uploads) tracked via `ProgressTrackerService` with job IDs
 - **Push Notifications**: Web Push API (VAPID) for browser push notifications with per-user subscription management
 - **Activity Feed**: Per-family activity log tracking create/update/delete operations across entities
@@ -146,6 +146,7 @@ Homassy.API/
 │   ├── Product/
 │   │   ├── Product.cs
 │   │   ├── ProductConsumptionLog.cs
+│   │   ├── ProductImage.cs
 │   │   ├── ProductCustomization.cs
 │   │   ├── ProductInventoryItem.cs
 │   │   ├── ProductPurchaseInfo.cs

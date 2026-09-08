@@ -182,6 +182,18 @@ namespace Homassy.API.Context
             #endregion
 
             #region Product Relationships
+            // Same shape as UserProfilePicture, and for the same reason: no navigation from
+            // Product, so a product query cannot pull the bytes back in.
+            modelBuilder.Entity<ProductImage>(entity =>
+            {
+                entity.HasOne(p => p.Product)
+                    .WithMany()
+                    .HasForeignKey(p => p.ProductId)
+                    .OnDelete(DeleteBehavior.Cascade);
+
+                entity.HasIndex(e => e.ProductId).IsUnique();
+            });
+
             modelBuilder.Entity<Product>()
                 .HasMany(p => p.Customizations)
                 .WithOne(c => c.Product)
@@ -339,6 +351,7 @@ namespace Homassy.API.Context
 
         #region Product Related DbSets
         public DbSet<Product> Products { get; set; }
+        public DbSet<ProductImage> ProductImages { get; set; }
         public DbSet<ProductInventoryItem> ProductInventoryItems { get; set; }
         public DbSet<ProductPurchaseInfo> ProductPurchaseInfos { get; set; }
         public DbSet<ProductConsumptionLog> ProductConsumptionLogs { get; set; }
