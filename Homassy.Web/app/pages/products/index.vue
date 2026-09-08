@@ -175,6 +175,8 @@
       :is-ready="isReady"
     />
 
+    <RealtimeConnectionBar class="mb-4" />
+
     <!-- Loading State — first load only. A pull-to-refresh, a socket reconnect
          or a filter change keeps the grid mounted (PullToRefreshIndicator gives
          the feedback); swapping it out would remount every card and replay the
@@ -203,17 +205,23 @@
            list per section under a sticky header. Separate lists on purpose — a header inside a
            TransitionGroup would join the cards' FLIP animation. -->
       <AnimatedList v-if="sections.length === 0" class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-        <DetailedProductCard
-          v-for="product in displayedProducts"
-          :key="product.publicId"
-          :product="product"
-          :search-query="searchQuery"
-          @select="openOverview"
-        />
+        <div
+          v-for="entry in displayedProductsView"
+          :key="entry.product.publicId"
+          class="relative rounded-2xl"
+          :class="{ 'row-updated-flash': entry.updated }"
+        >
+          <DetailedProductCard
+            :product="entry.product"
+            :search-query="searchQuery"
+            @select="openOverview"
+          />
+          <span v-if="entry.updated" class="sr-only">{{ $t('realtime.updatedFlash') }}</span>
+        </div>
       </AnimatedList>
 
       <template v-else>
-        <section v-for="section in displayedSections" :key="section.key" :aria-labelledby="`section-${section.key}`">
+        <section v-for="section in displayedSectionsView" :key="section.key" :aria-labelledby="`section-${section.key}`">
           <!-- Sticky under the app header, whose measured height is published as
                --app-header-height. -->
           <h2
@@ -226,13 +234,19 @@
           </h2>
 
           <AnimatedList class="mb-4 grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-            <DetailedProductCard
-              v-for="product in section.items"
-              :key="product.publicId"
-              :product="product"
-              :search-query="searchQuery"
-              @select="openOverview"
-            />
+            <div
+              v-for="entry in section.items"
+              :key="entry.product.publicId"
+              class="relative rounded-2xl"
+              :class="{ 'row-updated-flash': entry.updated }"
+            >
+              <DetailedProductCard
+                :product="entry.product"
+                :search-query="searchQuery"
+                @select="openOverview"
+              />
+              <span v-if="entry.updated" class="sr-only">{{ $t('realtime.updatedFlash') }}</span>
+            </div>
           </AnimatedList>
         </section>
       </template>
@@ -702,6 +716,39 @@ const hasMoreProducts = computed(() => {
   return displayedProducts.value.length < orderedProducts.value.length
 })
 
+// --- Reconnect "updated" flash -----------------------------------------------------------------
+// On reconnect the grid is refetched wholesale (see handleInventoryReconnected below); this flashes
+// the cards whose payload actually changed while the socket was down. Neutral, not member-coloured
+// — see .row-updated-flash in main.css — since this is the server catching the client up, not any
+// one person's edit (there is no per-item "changed by" attribution on this grid).
+const rowUpdates = ref<Set<string>>(new Set())
+const rowUpdateTimers = new Map<string, ReturnType<typeof setTimeout>>()
+// Keep in sync with --attribution-flash in main.css (same "a card briefly needs your eye" duration).
+const ROW_UPDATED_FLASH_MS = 1500
+
+const flashUpdatedRow = (publicId: string) => {
+  rowUpdates.value = new Set(rowUpdates.value).add(publicId)
+  const existingTimer = rowUpdateTimers.get(publicId)
+  if (existingTimer) clearTimeout(existingTimer)
+  rowUpdateTimers.set(publicId, setTimeout(() => {
+    rowUpdateTimers.delete(publicId)
+    const next = new Set(rowUpdates.value)
+    next.delete(publicId)
+    rowUpdates.value = next
+  }, ROW_UPDATED_FLASH_MS))
+}
+
+/** `displayedProducts` / `displayedSections`, each entry paired with whether it just got flashed. */
+const withUpdateFlag = (products: InventoryGridProductInfo[]) =>
+  products.map(product => ({ product, updated: rowUpdates.value.has(product.publicId) }))
+
+const displayedProductsView = computed(() => withUpdateFlag(displayedProducts.value))
+
+const displayedSectionsView = computed(() => displayedSections.value.map(section => ({
+  ...section,
+  items: withUpdateFlag(section.items)
+})))
+
 /**
  * Jumps to a section, rendering however much of the list it takes to get there first.
  *
@@ -817,6 +864,21 @@ const loadProducts = async () => {
 // socket and patches in place, so no full refetch is needed.
 const handleInventoryCreated = () => {
   if (!inventorySocket.isConnected.value) loadProducts()
+}
+
+/**
+ * Re-syncs the grid after a dropped-then-recovered connection, then flashes whichever cards'
+ * payload actually differs from what was on screen right before the refetch (by product public
+ * id) — a full-payload comparison rather than tracking individual fields, since neither
+ * `InventoryGridProductInfo` nor its items carry a version/updatedAt to diff more cheaply, and the
+ * grid is small enough that this is cheap regardless.
+ */
+const handleInventoryReconnected = async () => {
+  const before = new Map(allProducts.value.map(p => [p.publicId, JSON.stringify(p)]))
+  await loadProducts()
+  for (const product of allProducts.value) {
+    if (before.get(product.publicId) !== JSON.stringify(product)) flashUpdatedRow(product.publicId)
+  }
 }
 
 // --- Realtime patch handlers: mutate allProducts in place instead of refetching ---
@@ -963,7 +1025,7 @@ onMounted(() => {
   inventorySocket.on('ProductUpdated', handleRealtimeProductUpdated)
   inventorySocket.on('ProductFavoriteChanged', handleRealtimeProductFavoriteChanged)
   inventorySocket.on('ProductDeleted', handleRealtimeProductDeleted)
-  inventorySocket.onReconnected(loadProducts)
+  inventorySocket.onReconnected(handleInventoryReconnected)
 })
 
 // Cleanup on unmount
@@ -973,10 +1035,14 @@ onBeforeUnmount(() => {
   inventorySocket.off('ProductUpdated', handleRealtimeProductUpdated)
   inventorySocket.off('ProductFavoriteChanged', handleRealtimeProductFavoriteChanged)
   inventorySocket.off('ProductDeleted', handleRealtimeProductDeleted)
-  inventorySocket.offReconnected(loadProducts)
+  inventorySocket.offReconnected(handleInventoryReconnected)
 
   if (observer.value) {
     observer.value.disconnect()
   }
+
+  // Drop any pending "updated" flash timeouts so none fire after this page is gone.
+  rowUpdateTimers.forEach(timer => clearTimeout(timer))
+  rowUpdateTimers.clear()
 })
 </script>

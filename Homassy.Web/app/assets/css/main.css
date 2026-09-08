@@ -276,3 +276,32 @@ html {
     transform: translate(-50%, 0);
   }
 }
+
+/* ---------------------------------------------------------------------------
+   Realtime "row updated" flash — see app/pages/products/index.vue and
+   app/pages/shopping-lists/index.vue. Both re-fetch their snapshot on a socket reconnect; each
+   diffs the incoming data against what was on screen right before the fetch (by entity public id)
+   and applies this class to whichever rows actually changed.
+
+   Deliberately NOT .item-attribution-flash: that ring is tinted per member (--member-color)
+   because it means "a person changed this". This one means "the server had newer data than what
+   was on screen" — nobody in particular did it, so the ring is a fixed, theme-aware token
+   (--ui-primary) rather than any member's hue. Reuses --attribution-flash's duration (the same
+   "a card briefly needs your eye" length) rather than adding a near-duplicate token.
+--------------------------------------------------------------------------- */
+.row-updated-flash {
+  animation: row-updated-ring var(--attribution-flash) ease-out forwards;
+}
+
+@keyframes row-updated-ring {
+  0% { box-shadow: 0 0 0 0 var(--ui-primary); }
+  12% { box-shadow: 0 0 0 4px var(--ui-primary); }
+  100% { box-shadow: 0 0 0 0 var(--ui-primary); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .row-updated-flash {
+    animation: none;
+    box-shadow: 0 0 0 4px var(--ui-primary);
+  }
+}

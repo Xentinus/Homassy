@@ -85,9 +85,11 @@
       </div>
     </Teleport>
 
-    <!-- Who else has this list open right now — trailing header action, next to the title. -->
+    <!-- Who else has this list open right now, and whether the realtime connection is healthy —
+         trailing header actions, next to the title. -->
     <Teleport to="#app-header-actions">
       <PresenceAvatars v-if="currentListDetails" :members="socket.presentMembers.value" />
+      <RealtimeConnectionBar variant="chip" />
     </Teleport>
 
     <!-- Content Section -->
@@ -193,7 +195,7 @@
               v-for="entry in hereItemsWithAttribution"
               :key="entry.item.publicId"
               class="relative rounded-2xl"
-              :class="{ 'item-attribution-flash': !!entry.attribution }"
+              :class="{ 'item-attribution-flash': !!entry.attribution, 'row-updated-flash': entry.updated }"
               :style="entry.attribution?.style"
             >
               <ShoppingListItemCard
@@ -210,6 +212,7 @@
                 <span class="item-attribution-dot" :style="entry.attribution.style" />
                 {{ $t('shoppingList.changedBy', { name: entry.attribution.name }) }}
               </div>
+              <span v-if="entry.updated" class="sr-only">{{ $t('realtime.updatedFlash') }}</span>
             </div>
           </AnimatedList>
           <div v-if="restItems.length" class="flex items-center gap-2 mb-3">
@@ -226,7 +229,7 @@
             v-for="entry in restItemsWithAttribution"
             :key="entry.item.publicId"
             class="relative rounded-2xl"
-            :class="{ 'item-attribution-flash': !!entry.attribution }"
+            :class="{ 'item-attribution-flash': !!entry.attribution, 'row-updated-flash': entry.updated }"
             :style="entry.attribution?.style"
           >
             <ShoppingListItemCard
@@ -243,6 +246,7 @@
               <span class="item-attribution-dot" :style="entry.attribution.style" />
               {{ $t('shoppingList.changedBy', { name: entry.attribution.name }) }}
             </div>
+            <span v-if="entry.updated" class="sr-only">{{ $t('realtime.updatedFlash') }}</span>
           </div>
         </AnimatedList>
       </template>
@@ -933,6 +937,27 @@ const attributionTimers = new Map<string, ReturnType<typeof setTimeout>>()
 // Keep in sync with --attribution-flash in main.css.
 const ATTRIBUTION_FLASH_MS = 1500
 
+// --- Reconnect "updated" flash ---------------------------------------------
+// Neutral (not member-coloured) — see .row-updated-flash in main.css. Fires when
+// handleSocketReconnected's diff finds a row whose payload actually changed while the socket was
+// down, unlike the attribution flash above, which only ever fires for a live event from another
+// present member. Its own map/timers on purpose: the two can in principle overlap (a live edit
+// arriving just after a reconnect resync) and each clears independently.
+const rowUpdates = ref<Set<string>>(new Set())
+const rowUpdateTimers = new Map<string, ReturnType<typeof setTimeout>>()
+
+const flashUpdatedRow = (itemPublicId: string) => {
+  rowUpdates.value = new Set(rowUpdates.value).add(itemPublicId)
+  const existingTimer = rowUpdateTimers.get(itemPublicId)
+  if (existingTimer) clearTimeout(existingTimer)
+  rowUpdateTimers.set(itemPublicId, setTimeout(() => {
+    rowUpdateTimers.delete(itemPublicId)
+    const next = new Set(rowUpdates.value)
+    next.delete(itemPublicId)
+    rowUpdates.value = next
+  }, ATTRIBUTION_FLASH_MS))
+}
+
 // Present members, keyed by publicId. Item events carry only actorPublicId, never a name/colour,
 // so presentMembers (which already excludes the current user — see useShoppingListSocket) is the
 // only place to resolve who a *foreign* actor actually is.
@@ -962,7 +987,8 @@ const attributeChange = (itemPublicId: string, actorPublicId?: string | null) =>
   }, ATTRIBUTION_FLASH_MS))
 }
 
-/** Drop any pending flash for a deleted item — nothing left on screen to keep it lit. */
+/** Drop any pending flash (attribution or "updated") for a deleted item — nothing left on screen
+ *  to keep it lit. */
 const clearAttribution = (itemPublicId: string) => {
   const existingTimer = attributionTimers.get(itemPublicId)
   if (existingTimer) {
@@ -974,10 +1000,25 @@ const clearAttribution = (itemPublicId: string) => {
     Reflect.deleteProperty(next, itemPublicId)
     attributions.value = next
   }
+
+  const existingRowTimer = rowUpdateTimers.get(itemPublicId)
+  if (existingRowTimer) {
+    clearTimeout(existingRowTimer)
+    rowUpdateTimers.delete(itemPublicId)
+  }
+  if (rowUpdates.value.has(itemPublicId)) {
+    const next = new Set(rowUpdates.value)
+    next.delete(itemPublicId)
+    rowUpdates.value = next
+  }
 }
 
 const withAttribution = (items: ShoppingListItemInfo[]) =>
-  items.map(item => ({ item, attribution: attributions.value[item.publicId] ?? null }))
+  items.map(item => ({
+    item,
+    attribution: attributions.value[item.publicId] ?? null,
+    updated: rowUpdates.value.has(item.publicId)
+  }))
 
 const hereItemsWithAttribution = computed(() => withAttribution(hereItems.value))
 const restItemsWithAttribution = computed(() => withAttribution(restItems.value))
@@ -1270,9 +1311,21 @@ const handleRealtimeListDeleted = (payload: { publicId: string }) => {
   loadShoppingLists()
 }
 
-const handleSocketReconnected = () => {
-  // Re-sync the snapshot after a dropped connection (this also re-joins the group).
-  if (selectedListId.value) loadListDetails(selectedListId.value)
+const handleSocketReconnected = async () => {
+  // Re-sync the snapshot after a dropped connection (this also re-joins the group). Diff the
+  // incoming items against what was on screen right before the refetch (by public id) so a row
+  // that actually changed while disconnected gets a neutral "updated" flash instead of silently
+  // swapping in — a full-payload comparison rather than tracking individual fields, since
+  // ShoppingListItemInfo carries no version/updatedAt to diff more cheaply, and a list's item count
+  // is small enough that this is cheap regardless.
+  if (!selectedListId.value) return
+
+  const before = new Map((currentListDetails.value?.items ?? []).map(item => [item.publicId, JSON.stringify(item)]))
+  await loadListDetails(selectedListId.value)
+
+  for (const item of currentListDetails.value?.items ?? []) {
+    if (before.get(item.publicId) !== JSON.stringify(item)) flashUpdatedRow(item.publicId)
+  }
 }
 
 // Barcode scanner handler
@@ -1388,8 +1441,10 @@ onBeforeUnmount(() => {
   // Stop watching the device position when leaving the page.
   stopWatch()
 
-  // Drop any pending attribution-flash timeouts so none fire after this page is gone.
+  // Drop any pending attribution-flash / "updated"-flash timeouts so none fire after this page is gone.
   attributionTimers.forEach(timer => clearTimeout(timer))
   attributionTimers.clear()
+  rowUpdateTimers.forEach(timer => clearTimeout(timer))
+  rowUpdateTimers.clear()
 })
 </script>

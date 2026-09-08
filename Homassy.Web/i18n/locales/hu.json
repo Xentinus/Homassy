@@ -956,6 +956,13 @@
       "overflow": "+{count} további"
     }
   },
+  "realtime": {
+    "reconnecting": "Újracsatlakozás…",
+    "socketOffline": "Megszakadt a kapcsolat",
+    "deviceOffline": "Nincs internetkapcsolat",
+    "backOnline": "Újra online",
+    "updatedFlash": "Frissült, amíg offline voltál"
+  },
   "profile": {
     "title": "Profil",
     "settings": {

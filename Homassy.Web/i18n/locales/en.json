@@ -956,6 +956,13 @@
       "overflow": "+{count} more"
     }
   },
+  "realtime": {
+    "reconnecting": "Reconnecting…",
+    "socketOffline": "Connection lost",
+    "deviceOffline": "You're offline",
+    "backOnline": "Back online",
+    "updatedFlash": "Updated while disconnected"
+  },
   "profile": {
     "title": "Profile",
     "settings": {

@@ -956,6 +956,13 @@
       "overflow": "+{count} weitere"
     }
   },
+  "realtime": {
+    "reconnecting": "Verbindung wird wiederhergestellt…",
+    "socketOffline": "Verbindung unterbrochen",
+    "deviceOffline": "Du bist offline",
+    "backOnline": "Wieder online",
+    "updatedFlash": "Aktualisiert, während du offline warst"
+  },
   "profile": {
     "title": "Profil",
     "settings": {
