@@ -48,14 +48,11 @@ export const useShoppingListSocket = () => {
 
   /**
    * The signed-in member's own public id, so `PresenceChanged` can filter them out of
-   * `presentMembers` ("who *else* is here"). `UserInfo` (app/types/auth.ts) does not yet declare
-   * `publicId`, though the API's `UserInfo` DTO (Homassy.API/Models/User/UserInfo.cs) sends one —
-   * read off the store's raw object rather than widening that type, which is outside this
-   * composable's scope.
+   * `presentMembers` ("who *else* is here").
    */
   const currentUserPublicId = (): string | null => {
     const auth = useAuthStore()
-    return (auth.user as { publicId?: string } | null)?.publicId ?? null
+    return auth.user?.publicId ?? null
   }
 
   const getConnection = (): signalR.HubConnection | null => {

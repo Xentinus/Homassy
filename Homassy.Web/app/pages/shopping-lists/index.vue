@@ -441,12 +441,10 @@ const { accentStyle } = useMemberColor()
 const authStore = useAuthStore()
 
 /**
- * The signed-in member's own public id. `UserInfo` (app/types/auth.ts) does not yet declare
- * `publicId`, though the API's UserInfo DTO (Homassy.API/Models/User/UserInfo.cs) sends one —
- * read off the store's raw object rather than widening that type, which is outside this task's
- * scope. Used only to make sure a foreign-change flash never fires for the user's own edit.
+ * The signed-in member's own public id. Used only to make sure a foreign-change flash never
+ * fires for the user's own edit.
  */
-const currentUserPublicId = computed(() => (authStore.user as { publicId?: string } | null)?.publicId ?? null)
+const currentUserPublicId = computed(() => authStore.user?.publicId ?? null)
 
 const { pullDistance, isPulling, isRefreshing, isReady } = usePullToRefresh(async () => {
   await loadShoppingLists()

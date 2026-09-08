@@ -39,6 +39,15 @@ export interface RefreshTokenResponse {
 }
 
 export interface UserInfo {
+  /**
+   * Stable public identifier for this user. The API's `UserInfo` DTO always sends it, but this
+   * interface also backs the brief Kratos-trait-seeded object `authStore.traitsToUserInfo()`
+   * returns between session restore and the first `fetchUserFromBackend()` round-trip — Kratos
+   * traits carry no such id, so it is absent (not empty-string) until then, same as
+   * `profilePictureUrl` below. Used to tell "this is me" apart from other members in
+   * shopping-list presence and change attribution.
+   */
+  publicId?: string
   name: string
   displayName: string
   /** Server-relative, version-stamped path to the avatar thumbnail. See `useMediaUrl`. */
