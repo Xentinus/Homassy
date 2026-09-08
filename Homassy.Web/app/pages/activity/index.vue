@@ -235,13 +235,24 @@ const clearFilters = (): void => {
 // --- Fetching --------------------------------------------------------------------------------
 
 /**
- * Fetches one page. `isFetching` is the single guard against a double-fire -- shared by the
- * initial load, "load more", and the live-refresh path below, so none of the three can ever
- * overlap another.
+ * Bumped by every `resetAndLoad` (a filter change) and captured by each `fetchPage` call at the
+ * moment it starts. A fetch whose captured generation no longer matches the current one has been
+ * superseded by a filter change that started while it was in flight -- it discards its own result
+ * instead of writing stale, wrong-filter data over what the new generation's own fetch is loading
+ * (or has already loaded). Plain state, not a ref: nothing renders off it directly.
+ */
+let requestGeneration = 0
+
+/**
+ * Fetches one page. `isFetching` is the guard against a double-fire -- shared by the initial
+ * load, "load more", and the live-refresh path below, so none of the three can ever overlap
+ * another *within the same generation*. `resetAndLoad` deliberately clears it before starting the
+ * new generation's own fetch, so a reset is never blocked by a still-in-flight superseded one.
  */
 const fetchPage = async (cursor: string | undefined): Promise<void> => {
   if (isFetching.value) return
   isFetching.value = true
+  const generation = requestGeneration
 
   try {
     const response = await getActivityTimeline({
@@ -250,6 +261,13 @@ const fetchPage = async (cursor: string | undefined): Promise<void> => {
       activityType: typeFilter.value,
       userPublicId: memberFilterValue.value
     })
+
+    // A filter change superseded this fetch while it was in flight (resetAndLoad bumped
+    // requestGeneration and started its own fetch already) -- this response belongs to a filter
+    // that is no longer selected. Discard it rather than let it land on top of the new
+    // generation's cleared-then-reloaded state, or resurrect entries/nextCursor for a filter the
+    // user has since changed away from.
+    if (generation !== requestGeneration) return
 
     if (!response.success || !response.data) {
       // Deliberately not cleared/reset here -- see loadError's own doc comment. useApiClient has
@@ -262,12 +280,24 @@ const fetchPage = async (cursor: string | undefined): Promise<void> => {
     entries.value = cursor ? [...entries.value, ...response.data.entries] : response.data.entries
     nextCursor.value = response.data.nextCursor ?? null
   } finally {
-    isFetching.value = false
-    hasLoadedOnce.value = true
+    // Same supersession check: a stale fetch's finally must not clear isFetching/hasLoadedOnce
+    // out from under the new generation's own fetch, which by now has legitimately set isFetching
+    // back to true for itself.
+    if (generation === requestGeneration) {
+      isFetching.value = false
+      hasLoadedOnce.value = true
+    }
   }
 }
 
 const resetAndLoad = (): void => {
+  requestGeneration++
+  // A still-in-flight fetch from the previous generation must not keep this guard held -- without
+  // this, the reload two lines down would see isFetching still true (from that superseded fetch)
+  // and return immediately, silently dropping the reload entirely. Safe to clear synchronously:
+  // fetchPage below re-sets it to true before its own first await, so nothing else can observe it
+  // false in between.
+  isFetching.value = false
   entries.value = []
   nextCursor.value = undefined
   loadError.value = false
