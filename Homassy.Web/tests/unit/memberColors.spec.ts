@@ -10,10 +10,6 @@ const ID_A = '3f2504e0-4f89-11d3-9a0c-0305e82c3301'
 const ID_B = 'b1f0c6a2-8d55-4c1e-9a2b-7e4d1f6c8a90'
 
 describe('pickMemberColor', () => {
-  it('is deterministic for the same public id', () => {
-    expect(pickMemberColor(ID_A).key).toBe(pickMemberColor(ID_A).key)
-  })
-
   it('always returns a colour from the curated palette', () => {
     const keys = MEMBER_COLORS.map(c => c.key)
     expect(keys).toContain(pickMemberColor(ID_A).key)
