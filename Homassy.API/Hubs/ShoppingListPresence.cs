@@ -57,6 +57,26 @@ namespace Homassy.API.Hubs
         /// </summary>
         private readonly ConcurrentDictionary<string, ConnectionJoins> _connectionLists = new();
 
+        /// <summary>
+        /// Every connection id <see cref="Disconnect"/> has ever been called for. SignalR does not
+        /// wait for in-flight hub invocations before calling <c>OnDisconnectedAsync</c>, so a tab
+        /// closed mid-<see cref="Join"/> (already past the hub's group-add, not yet into this
+        /// class) can have <see cref="Disconnect"/> run first, find nothing yet in
+        /// <see cref="_connectionLists"/> for it, and return — before that in-flight
+        /// <see cref="Join"/> goes on to write into both maps for a connection that is already
+        /// gone. Since no further <see cref="Disconnect"/> will ever arrive for that connection id
+        /// (a fresh connection always gets a fresh one), <see cref="Join"/> checks here — inside
+        /// the same lock it writes <see cref="_connectionLists"/> under, the first point since the
+        /// two methods' separate locks where they are ever checked against each other — and undoes
+        /// its own registration rather than stranding it forever. Entries are never removed: that
+        /// is what lets a late <see cref="Join"/> be rejected even when it runs strictly after
+        /// <see cref="Disconnect"/> already finished and tore down every bucket it could see. Grows
+        /// for the life of the process (a few bytes per connection that ever disconnected) — the
+        /// same process-local scope this whole class already accepts, and it resets on restart the
+        /// same way every bucket above does.
+        /// </summary>
+        private readonly ConcurrentDictionary<string, byte> _deadConnections = new();
+
         /// <summary>Registers <paramref name="connectionId"/> as present on the list and returns the post-join snapshot.</summary>
         public IReadOnlyList<PresenceMemberInfo> Join(Guid listPublicId, string connectionId, PresenceMemberInfo member)
         {
@@ -90,6 +110,24 @@ namespace Homassy.API.Hubs
                         continue;
                     }
 
+                    // See _deadConnections' own doc comment: a Disconnect for this exact
+                    // connection id may already have run - and, finding nothing registered yet,
+                    // already returned - between the write into _lists above and this one.
+                    // Nothing will ever call Disconnect again for this id, so undo that write
+                    // rather than leave a presence entry no one will ever retire.
+                    if (_deadConnections.ContainsKey(connectionId))
+                    {
+                        // Retire and remove this bucket too, exactly as Disconnect would have -
+                        // otherwise this GetOrAdd's own (empty, or another in-flight Join's still
+                        // legitimate) bucket is what leaks instead. Lists is deliberately left
+                        // untouched rather than cleared: if Disconnect is concurrently blocked on
+                        // this very lock holding an older reference to this same object, it still
+                        // needs whatever is in there to finish cleaning up the lists it saw.
+                        joins.Retired = true;
+                        _connectionLists.TryRemove(new KeyValuePair<string, ConnectionJoins>(connectionId, joins));
+                        return RemoveConnectionFromList(listPublicId, connectionId);
+                    }
+
                     joins.Lists.Add(listPublicId);
                     break;
                 }
@@ -113,6 +151,11 @@ namespace Homassy.API.Hubs
         /// </summary>
         public IReadOnlyList<(Guid ListPublicId, IReadOnlyList<PresenceMemberInfo> Members)> Disconnect(string connectionId)
         {
+            // Recorded first, unconditionally, before the reverse index is even looked up: see
+            // _deadConnections' own doc comment for why a Join racing this exact connection id
+            // must be able to see this even when the lookup just below finds nothing to clean up.
+            _deadConnections[connectionId] = 0;
+
             if (!_connectionLists.TryGetValue(connectionId, out var joins))
             {
                 return Array.Empty<(Guid, IReadOnlyList<PresenceMemberInfo>)>();

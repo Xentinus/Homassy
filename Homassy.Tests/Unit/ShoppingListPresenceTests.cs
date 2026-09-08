@@ -1,3 +1,4 @@
+using System.Reflection;
 using Homassy.API.Hubs;
 using Homassy.API.Models.ShoppingList;
 
@@ -192,6 +193,61 @@ namespace Homassy.Tests.Unit
             {
                 Assert.Empty(_presence.Snapshot(listId));
             }
+        }
+        #endregion
+
+        #region Join racing its own Disconnect
+        /// <summary>
+        /// Reads the private reverse index's size via reflection. There is no public accessor for
+        /// it - <see cref="ShoppingListPresence"/> deliberately exposes only per-list state
+        /// (<see cref="ShoppingListPresence.Snapshot"/>) - but this is exactly the map the bug
+        /// leaked an entry into per occurrence, so a test claiming "no entry survives in either
+        /// map" has to look at it directly.
+        /// </summary>
+        private static int ConnectionRegistrySize(ShoppingListPresence presence)
+        {
+            var field = typeof(ShoppingListPresence).GetField("_connectionLists", BindingFlags.NonPublic | BindingFlags.Instance);
+            var dictionary = (System.Collections.ICollection)field!.GetValue(presence)!;
+            return dictionary.Count;
+        }
+
+        /// <summary>
+        /// SignalR does not wait for in-flight hub invocations before calling
+        /// <c>OnDisconnectedAsync</c>: a tab can close while <c>ShoppingListHub.JoinList</c> is
+        /// still between its group-add and its call into <see cref="ShoppingListPresence.Join"/>,
+        /// so <see cref="ShoppingListPresence.Disconnect"/> can run - and, finding nothing yet
+        /// registered for the connection, return - before that in-flight <see cref="ShoppingListPresence.Join"/>
+        /// goes on to write into both of this class's maps for a connection nothing will ever call
+        /// Disconnect for again. 200 independent (Join, Disconnect) pairs, each racing on its own
+        /// connection id, launched together rather than one at a time: Disconnect's early-return
+        /// path is far cheaper than Join's two-map registration, so the scheduler reliably
+        /// interleaves plenty of these pairs into exactly the bad order without any artificial
+        /// synchronization forcing it - the same "just launch them and see" shape as the existing
+        /// 200-pair concurrency test above, which pairs a Join with its own later Leave and so
+        /// never exercises a Disconnect racing the Join for the same connection at all.
+        /// </summary>
+        [Fact]
+        public async Task JoinRacingDisconnect_ForTheSameConnection_StrandsNoEntryInEitherMap()
+        {
+            const int pairCount = 200;
+
+            var tasks = Enumerable.Range(0, pairCount).Select(i => Task.Run(() =>
+            {
+                var listId = Guid.NewGuid();
+                var connectionId = $"race-conn-{i}";
+                var member = Member(Guid.NewGuid(), $"Racer{i}");
+
+                var joinTask = Task.Run(() => _presence.Join(listId, connectionId, member));
+                var disconnectTask = Task.Run(() => _presence.Disconnect(connectionId));
+                Task.WaitAll(joinTask, disconnectTask);
+
+                return listId;
+            })).ToArray();
+
+            var listIds = await Task.WhenAll(tasks);
+
+            Assert.All(listIds, listId => Assert.Empty(_presence.Snapshot(listId)));
+            Assert.Equal(0, ConnectionRegistrySize(_presence));
         }
         #endregion
     }
