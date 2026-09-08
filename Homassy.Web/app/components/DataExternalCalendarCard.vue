@@ -35,7 +35,7 @@ name="i-lucide-trash-2" class="h-5 w-5 text-white transition-transform duration-
         <p class="text-xs text-muted truncate mt-0.5 font-mono">{{ calendar.iCalUrl }}</p>
         <div class="flex items-center gap-2 mt-1 text-xs text-toned">
           <UIcon name="i-lucide-refresh-cw" class="h-3.5 w-3.5 text-blue-600 dark:text-blue-400 flex-shrink-0" />
-          <span v-if="calendar.lastSyncedAt">{{ $t('profile.family.externalCalendars.lastSync') }}: {{ formatTimestamp(calendar.lastSyncedAt) }}</span>
+          <span v-if="calendar.lastSyncedAt">{{ $t('profile.family.externalCalendars.lastSync') }}: <RelativeTime :date="calendar.lastSyncedAt" /></span>
           <span v-else>{{ $t('profile.family.externalCalendars.neverSynced') }}</span>
           <span>·</span>
           <span>{{ $t('profile.family.externalCalendars.eventCount', { count: calendar.eventCount }) }}</span>
@@ -96,6 +96,7 @@ const emit = defineEmits<{
 }>()
 
 const { t } = useI18n()
+const haptics = useHaptics()
 
 const isDeleteModalOpen = ref(false)
 
@@ -128,22 +129,8 @@ function handleCardClick(event: MouseEvent) {
 
 function confirmDelete() {
   isDeleteModalOpen.value = false
+  haptics.warning()
   emit('deleted', props.calendar.publicId)
 }
 
-// Relative "time ago" formatter, matching the previous inline row.
-const formatTimestamp = (timestamp: string): string => {
-  const date = new Date(timestamp)
-  const now = new Date()
-  const diffMs = now.getTime() - date.getTime()
-  const diffMins = Math.floor(diffMs / 60000)
-  const diffHours = Math.floor(diffMs / 3600000)
-  const diffDays = Math.floor(diffMs / 86400000)
-
-  if (diffMins < 1) return t('time.justNow')
-  if (diffMins < 60) return t('time.minutesAgo', { count: diffMins })
-  if (diffHours < 24) return t('time.hoursAgo', { count: diffHours })
-  if (diffDays < 7) return t('time.daysAgo', { count: diffDays })
-  return date.toLocaleDateString()
-}
 </script>

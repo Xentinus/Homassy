@@ -28,9 +28,10 @@
           <p class="font-semibold text-gray-900 dark:text-white truncate">
             {{ userInfo?.displayName || userInfo?.name || 'Unknown User' }}
           </p>
-          <span class="text-xs text-gray-500 dark:text-gray-500 flex-shrink-0">
-            {{ formatTimestamp(activity.timestamp) }}
-          </span>
+          <RelativeTime
+            :date="activity.timestamp"
+            class="text-xs text-gray-500 dark:text-gray-500 flex-shrink-0"
+          />
         </div>
 
         <!-- Activity type badge -->
@@ -83,23 +84,6 @@ const getInitials = (name: string): string => {
     return (parts[0][0] + parts[1][0]).toUpperCase()
   }
   return name.substring(0, 2).toUpperCase()
-}
-
-// Format timestamp to relative time
-const formatTimestamp = (timestamp: string): string => {
-  const date = new Date(timestamp)
-  const now = new Date()
-  const diffMs = now.getTime() - date.getTime()
-  const diffMins = Math.floor(diffMs / 60000)
-  const diffHours = Math.floor(diffMs / 3600000)
-  const diffDays = Math.floor(diffMs / 86400000)
-
-  if (diffMins < 1) return $t('time.justNow')
-  if (diffMins < 60) return $t('time.minutesAgo', { count: diffMins })
-  if (diffHours < 24) return $t('time.hoursAgo', { count: diffHours })
-  if (diffDays < 7) return $t('time.daysAgo', { count: diffDays })
-
-  return date.toLocaleDateString()
 }
 
 // Format quantity: show integers without decimals, otherwise max 2 decimal places

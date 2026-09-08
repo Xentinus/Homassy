@@ -1,4 +1,4 @@
-﻿import { ref, onMounted } from 'vue'
+﻿import { computed, ref, onMounted } from 'vue'
 
 /**
  * Composable to check camera availability and permissions
@@ -14,6 +14,11 @@
 export const useCameraAvailability = () => {
   const showCameraButton = ref(true)
   const isChecking = ref(true)
+  // Drives the front/back switch in the scanner overlay: with one camera there
+  // is nothing to switch to. Before permission is granted the labels are blank
+  // but the entries are still counted, which is all this needs.
+  const cameraCount = ref(0)
+  const hasMultipleCameras = computed(() => cameraCount.value > 1)
 
   /**
    * Check if at least one camera device is available
@@ -21,14 +26,17 @@ export const useCameraAvailability = () => {
   const hasCameraDevice = async (): Promise<boolean> => {
     try {
       if (!navigator.mediaDevices || !navigator.mediaDevices.enumerateDevices) {
+        cameraCount.value = 0
         return false
       }
-      
+
       const devices = await navigator.mediaDevices.enumerateDevices()
       const cameras = devices.filter(device => device.kind === 'videoinput')
+      cameraCount.value = cameras.length
       return cameras.length > 0
     } catch (error) {
       console.error('Error checking camera devices:', error)
+      cameraCount.value = 0
       return false
     }
   }
@@ -73,8 +81,10 @@ export const useCameraAvailability = () => {
         return
       }
       
-      // If permission is prompt (not asked yet), show the button
+      // If permission is prompt (not asked yet), show the button. Still count the
+      // devices, so the camera switch knows whether there is a second lens.
       if (permissionStatus === 'prompt' || permissionStatus === 'unknown') {
+        await hasCameraDevice()
         showCameraButton.value = true
         return
       }
@@ -101,6 +111,8 @@ export const useCameraAvailability = () => {
   return {
     showCameraButton,
     isChecking,
+    cameraCount,
+    hasMultipleCameras,
     checkCameraAvailability
   }
 }

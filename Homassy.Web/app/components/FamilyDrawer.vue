@@ -61,7 +61,7 @@
             <UAvatar :src="req.profilePictureBase64 ? `data:image/jpeg;base64,${req.profilePictureBase64}` : undefined" :alt="req.displayName || req.name" class="h-12 w-12" />
             <div class="flex-1 min-w-0">
               <div class="font-medium truncate">{{ req.displayName || req.name }}</div>
-              <div class="text-sm text-gray-500 dark:text-gray-400">{{ t('profile.family.joinRequests.sentAt') }}: {{ formatTimestamp(req.requestedAt) }}</div>
+              <div class="text-sm text-gray-500 dark:text-gray-400">{{ t('profile.family.joinRequests.sentAt') }}: <RelativeTime :date="req.requestedAt" /></div>
             </div>
             <div class="flex items-center gap-2 flex-shrink-0">
               <UButton color="primary" variant="solid" size="sm" icon="i-lucide-check" :loading="processingId === req.publicId" :disabled="processingId !== null" @click="onApproveRequest(req)">
@@ -94,7 +94,7 @@
                   <span class="text-xs font-semibold text-primary-700 dark:text-primary-300">{{ t('profile.family.currentUserBadge') }}</span>
                 </div>
               </div>
-              <div class="text-sm text-gray-500 dark:text-gray-400">{{ t('profile.family.lastSeen') }}: {{ formatTimestamp(member.lastLoginAt) }}</div>
+              <div class="text-sm text-gray-500 dark:text-gray-400">{{ t('profile.family.lastSeen') }}: <RelativeTime :date="member.lastLoginAt" /></div>
             </div>
           </div>
         </div>
@@ -110,7 +110,7 @@
         </div>
         <div class="rounded-md bg-primary-50 dark:bg-primary-900/20 border border-primary-200 dark:border-primary-800 p-4">
           <p class="text-sm text-gray-800 dark:text-gray-200">{{ t('profile.family.pending.body', { family: myRequest.familyName }) }}</p>
-          <p class="text-xs text-gray-500 dark:text-gray-400 mt-2">{{ t('profile.family.pending.sentAt') }}: {{ formatTimestamp(myRequest.requestedAt) }}</p>
+          <p class="text-xs text-gray-500 dark:text-gray-400 mt-2">{{ t('profile.family.pending.sentAt') }}: <RelativeTime :date="myRequest.requestedAt" /></p>
         </div>
         <UButton color="error" variant="soft" class="w-full flex items-center justify-center gap-2" icon="i-lucide-x" :loading="isWithdrawing" :disabled="isWithdrawing" @click="onWithdrawRequest">
           {{ t('profile.family.pending.withdraw') }}
@@ -224,20 +224,6 @@ const familyName = ref('')
 const familyDescription = ref('')
 const shareCode = ref('')
 
-const formatTimestamp = (timestamp: string): string => {
-  const date = new Date(timestamp)
-  const now = new Date()
-  const diffMs = now.getTime() - date.getTime()
-  const diffMins = Math.floor(diffMs / 60000)
-  const diffHours = Math.floor(diffMs / 3600000)
-  const diffDays = Math.floor(diffMs / 86400000)
-
-  if (diffMins < 1) return t('time.justNow')
-  if (diffMins < 60) return t('time.minutesAgo', { count: diffMins })
-  if (diffHours < 24) return t('time.hoursAgo', { count: diffHours })
-  if (diffDays < 7) return t('time.daysAgo', { count: diffDays })
-  return date.toLocaleDateString()
-}
 
 async function fetchFamily() {
   loading.value = true

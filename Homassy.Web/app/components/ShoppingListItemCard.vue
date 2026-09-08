@@ -592,6 +592,7 @@ const emit = defineEmits<{
 }>()
 
 const { t, locale } = useI18n()
+const haptics = useHaptics()
 const { inputDateLocale } = useInputDateLocale()
 const { purchaseShoppingListItem, restorePurchaseShoppingListItem, updateShoppingListItem, deleteShoppingListItem } = useShoppingListApi()
 const { isExpired: checkIsExpired, isExpiringWithinTwoWeeks: checkIsExpiringWithinTwoWeeks } = useExpirationCheck()
@@ -823,6 +824,7 @@ const confirmPurchase = async () => {
     }
     const response = await purchaseShoppingListItem(request)
     if (response.success) {
+      haptics.success()
       isPurchaseModalOpen.value = false
       emit('refresh')
     }
@@ -847,6 +849,7 @@ const handleRestorePurchase = async () => {
   try {
     const response = await restorePurchaseShoppingListItem(props.item.publicId)
     if (response.success) {
+      haptics.tap()
       closeRestoreModal()
       emit('refresh')
     }
@@ -945,6 +948,7 @@ const handleDelete = async () => {
   try {
     const response = await deleteShoppingListItem(props.item.publicId)
     if (response.success) {
+      haptics.warning()
       closeDeleteModal()
       emit('deleted')
     }

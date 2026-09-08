@@ -248,6 +248,7 @@ const emit = defineEmits<{
 }>()
 
 const { t: $t } = useI18n()
+const haptics = useHaptics()
 const { formatDate } = useDateFormat()
 const { inputDateLocale } = useInputDateLocale()
 const { consumeInventoryItem, updateInventoryItem, deleteInventoryItem } = useProductsApi()
@@ -476,6 +477,7 @@ const handleDelete = async () => {
   try {
     const response = await deleteInventoryItem(props.item.publicId)
     if (response.success) {
+      haptics.warning()
       closeDeleteModal()
       emit('deleted')
     }

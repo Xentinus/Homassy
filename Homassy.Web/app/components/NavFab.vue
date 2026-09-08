@@ -69,6 +69,7 @@ import type { FabAction } from '~/composables/useFabActions'
 
 const { actions, fabVisible } = useFab()
 const route = useRoute()
+const haptics = useHaptics()
 
 const rootRef = ref<HTMLElement | null>(null)
 const open = ref(false)
@@ -82,6 +83,7 @@ const close = () => {
 }
 
 const onClick = () => {
+  haptics.tap()
   // Single action → run it straight away, no chooser.
   if (actions.value.length === 1) {
     actions.value[0]?.handler()
@@ -91,6 +93,7 @@ const onClick = () => {
 }
 
 const select = (action: FabAction) => {
+  haptics.select()
   open.value = false
   action.handler()
 }

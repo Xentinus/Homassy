@@ -89,6 +89,27 @@
             </template>
           </SettingsRow>
         </ClientOnly>
+
+        <!-- Vibration is device-local and absent on iOS Safari, so the row only
+             exists where the browser actually has the Vibration API. -->
+        <ClientOnly>
+          <SettingsRow
+            v-if="hapticsSupported"
+            static
+            :chevron="false"
+            :label="$t('profile.haptics.label')"
+            :description="$t('profile.haptics.description')"
+            icon="i-lucide-vibrate"
+          >
+            <template #trailing>
+              <USwitch
+                v-model="hapticsEnabled"
+                :aria-label="$t('profile.haptics.label')"
+                @update:model-value="onHapticsToggle"
+              />
+            </template>
+          </SettingsRow>
+        </ClientOnly>
       </SettingsGroup>
 
       <!-- Family -->
@@ -230,6 +251,7 @@ const progressApi = useProgressApi()
 const { getVersion } = useVersionApi()
 const { t } = useI18n()
 const colorMode = useColorMode()
+const { isSupported: hapticsSupported, enabled: hapticsEnabled, select: hapticSelect } = useHaptics()
 const route = useRoute()
 
 // Persistent header (auth layout) — page identity.
@@ -294,6 +316,11 @@ const secondaryName = computed(() =>
 )
 
 // --- Theme -----------------------------------------------------------------
+// Fire the pattern the moment it is switched on, so the setting demonstrates itself.
+const onHapticsToggle = (value: boolean) => {
+  if (value) hapticSelect()
+}
+
 const themeOptions = computed(() => [
   { value: 'system', icon: 'i-lucide-monitor', label: t('profile.theme.system') },
   { value: 'light', icon: 'i-lucide-sun', label: t('profile.theme.light') },

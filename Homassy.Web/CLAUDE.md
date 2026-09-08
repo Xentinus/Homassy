@@ -86,6 +86,7 @@ Homassy.Web/
 │   │   ├── useFabActions.ts    Shared state for the layout floating action button
 │   │   ├── useGeocoding.ts     Address → coordinates via Nominatim (OpenStreetMap, keyless)
 │   │   ├── useGeolocation.ts   Browser Geolocation wrapper (permission + getCurrentPosition + watch)
+│   │   ├── useHaptics.ts       The app's vibration vocabulary + the user's on/off switch
 │   │   ├── useImageCrop.ts
 │   │   ├── useInputDateLocale.ts
 │   │   ├── usePullToRefresh.ts
@@ -334,6 +335,60 @@ The spellings are pinned by `ProductControllerTests.CreateProduct_InvalidRequest
 
 ---
 
+## Haptics
+
+`useHaptics()` is the **only** place the app is allowed to call `navigator.vibrate`. Call sites pick a *meaning* from a fixed vocabulary, never a duration, so the whole app can be retuned from one table:
+
+| Pattern | Means | Used by |
+|---|---|---|
+| `tap` | light acknowledgement | FAB press, pull-to-refresh release, un-purchase |
+| `select` | a threshold or detent was crossed | swipe threshold, drawer snap, pull-to-refresh arming, FAB chooser pick |
+| `impact` | a gesture committed | swipe action firing |
+| `success` | an operation completed | purchase confirmed, barcode decoded |
+| `warning` | something destructive happened | every delete confirm |
+| `error` | an operation failed | scan found nothing, camera error |
+
+It feature-detects the Vibration API (**absent on iOS Safari**, where every call is a silent no-op and the setting row is hidden) and honours a device-local switch in the profile Preferences group, persisted in `localStorage` under `homassy_haptics`. With nothing stored yet the default follows `prefers-reduced-motion`: `reduce` starts it off.
+
+All of its state is module-scoped, so `useHaptics()` is safe to call from plain functions as well as from `setup`.
+
+---
+
+## Self-updating relative timestamps
+
+`useRelativeTime(date, { thresholdMs })` (in `useDateFormat.ts`) and the `RelativeTime` component that wraps it replace the four hand-rolled "x minutes ago" helpers the app used to carry. Built on `Intl.RelativeTimeFormat`, so all three locales get grammatical phrasing — including "yesterday"/"tegnap"/"gestern" — and future dates read as naturally as past ones.
+
+- **One ticker for the whole app**, never one per component: each caller registers the timestamp it cares about, and a single `setTimeout` chain re-reads the clock every 30 s while anything on screen is under an hour old, every minute after that, and **stops entirely** once nothing left can change.
+- It holds no timer while `document.hidden`, and re-reads the clock on `visibilitychange` and `pageshow`, so returning to a backgrounded PWA never shows a value frozen at the moment it was left.
+- Past `thresholdMs` (default 7 days) the label gives way to the absolute date; the full date **and time** is always on the `title` attribute.
+- The visible label renders inside `<ClientOnly>` with the absolute date as the fallback. A server-rendered relative phrase would disagree with the client's the moment a minute ticked over between the two.
+
+Used by `ActivityCard`, `ProductHistoryList`, `FamilyDrawer`, `DataExternalCalendarCard` and the calendar day list. The calendar passes `absolute-format="time"` with a 24 h threshold: the day panel header already names the date, so "3 days ago" would say less there than "14:32".
+
+---
+
+## Bottom sheets (`AppDrawer` + `useDrawerDragToClose`)
+
+`AppDrawer` is the single source of truth for drawer chrome; `useDrawerDragToClose(headerEl, options)` owns every gesture on it. vaul's native dismiss stays off (`dismissible: false`), so this composable and the ✕ button are the only exits.
+
+Listeners live on the **content** element (`[data-slot="content"]`), not the header, because a drag may legitimately start in the body — but only once the sheet is below its top snap. The composable also reaches for `[data-slot="overlay"]`, `[data-slot="handle"]` and `[data-slot="body"]`, all of which Nuxt UI's `UDrawer` stamps for it.
+
+**Two modes:**
+
+- **Plain (the default, and what almost every drawer uses).** Drag the header down; release past `max(25% height, 120px)` and it slides out and closes, otherwise it snaps back. Displacement decides — deliberately no velocity rule here, because flick-to-close on ~30 existing drawers would be a surprise.
+- **Snapping (`:snap-points="[0.5, 1]"`).** Only the four overview drawers (inventory, shopping list, shopping location, storage location). A snap point is the fraction of the sheet's own height left visible, so `0.5` on a 94dvh sheet shows ~47dvh. The sheet still *opens* full height; the lower points are places a drag can rest instead of closing.
+
+Snapping specifics:
+
+- Release behaviour is velocity-aware: a flick (≥ 0.5 px/ms, having moved ≥ 24px) moves **one snap in the direction thrown, counted from where the gesture began** — so a hard throw down from full lands on the half snap and takes a second throw to dismiss. Anything gentler settles on the nearest snap. Either way, a sheet dragged clean past the lowest snap closes; velocity cannot pull back a sheet that is already most of the way out.
+- Below the top snap the body gets `overflow-y: hidden` + `touch-action: none`, so a vertical drag anywhere moves the sheet; at the top snap the body scrolls again and only the header drags. That is the whole of the gesture arbitration — there is no "drag the sheet when the body is scrolled to 0" rule, which would need non-passive listeners.
+- The backdrop's opacity and blur interpolate with the drag rather than toggling, and the handle swells and cants over while releasing would land the sheet somewhere new. Each detent crossed ticks `useHaptics().select()`.
+- Under `prefers-reduced-motion` the settle is instant and the blur ramp is skipped (the opacity ramp stays — it is information, not decoration).
+
+**Footer-less sheets only.** A footer is pinned to the bottom of the content, so below the top snap it is dragged off-screen with it.
+
+---
+
 ## Layouts
 
 ### `auth.vue` (authenticated)
@@ -400,6 +455,7 @@ Colours always come from Nuxt UI's semantic tokens (`--ui-bg`, `--ui-text*`, `--
 | File | Role |
 |---|---|
 | `app/components/SplashScreen.vue` | the overlay (logo + loading ring SSR'd, name/version `<ClientOnly>`) |
+| ↳ the logo | an **inline** SVG, not `<img src="/favicon.svg">` — an `<img>` is an opaque box to CSS |
 | `app/composables/useSplashScreen.ts` | `markReady()` / `rearm()`, `MIN_VISIBLE_MS` floor |
 | `app/plugins/auth.ts` | owns the primary dismissal after the Kratos session resolves (6 s safety net) |
 | `app/pages/calendar.vue` | dismisses on a normal relaunch, after its first data load |
@@ -407,6 +463,8 @@ Colours always come from Nuxt UI's semantic tokens (`--ui-bg`, `--ui-text*`, `--
 | `nuxt.config.ts` | inline head script adding `.pwa-standalone` (iOS `navigator.standalone`) |
 
 It is theme-aware purely through tokens — `--ui-bg` matches the app background exactly, so the handoff is seamless in both themes, and no `:root.dark` selector is needed because color-mode sets the class from a blocking head script before first paint.
+
+The mark draws itself in: the three faces of the isometric logo are traced by a stroke (`pathLength="1"` makes the dash maths independent of each path's real length), staggered, and each fill then comes up behind its outline; the ring fades in after them, and the `<ClientOnly>` name/version rise in on mount. It is all `stroke-dashoffset` / `opacity` / `transform` on SSR'd markup, so — like the ring — it runs off the first painted frame with no help from hydration, and the whole sequence lands well inside `MIN_VISIBLE_MS`. **The splash never extends its own life for the animation:** dismissal cuts it off whenever the app is ready. Under `prefers-reduced-motion` the logo is simply there, fully drawn.
 
 **Easy to regress, all deliberate:**
 - `visibility: hidden` on `:root[data-splash-ready] .splash`, delayed `visibility 0s linear 0.55s` — iOS keeps sampling a `fixed; inset: 0` element's background for the status bar even at `opacity: 0` and translated off-screen.
@@ -416,6 +474,18 @@ It is theme-aware purely through tokens — `--ui-bg` matches the app background
 - Dismissal toggles an attribute on `<html>`, not a reactive `v-if`, so it works even before Vue mounts.
 
 The manifest's `background_color` takes a single value and cannot be theme-aware; it is tuned to the light background, so a dark-theme launch can show a brief light flash on Android's generated launch screen. There are no `apple-touch-startup-image` tags, so iOS shows a blank frame until the SSR HTML paints.
+
+---
+
+## Barcode scanner overlay
+
+`BarcodeScannerModal.vue` + `useBarcodeScanner.ts`. The composable owns a `cameraState` (`idle` → `requesting` → `ready`, or `denied` / `missing` / `failed`) which it folds together with the scan buffer into one `scanState` the overlay switches on: `requesting`, `denied`, `no-camera`, `error`, `searching`, `found`. Camera trouble outranks everything — there is nothing to search for without a stream — and each of those states gets its own full-bleed panel, with a fix-it hint and a retry for the two that a user can act on.
+
+- The camera stage has a **fixed aspect ratio**: without it the wrapper collapses in exactly the states (permission denied, no camera) that have no video to give it a height.
+- Every successful decode — live buffer, tap-to-capture snapshot, or a manual pick from the multi-code list — goes through one `finishWithBarcode()`, which beeps, buzzes, freezes the stream and holds the result for `SUCCESS_HOLD_MS` before handing it to the caller. That beat is what the reticle's snap-and-checkmark needs; it is deliberately short enough not to read as latency.
+- The reticle is a DOM overlay, not canvas: vue-qrcode-reader hands the `track` callback coordinates **already mapped into element pixel space** (it sizes the tracking canvas to the wrapper's offset size and compensates for `object-fit: cover`), so a box recorded there positions a DOM element verbatim. The tracker records every code's box each frame; on success the reticle animates onto the winning one.
+- `track` draws each detected code's outline and its decoded value, with the largest one — the one the user is aiming at, and the one the stability buffer will settle on — in the primary colour and the rest dimmed. **Canvas cannot resolve `var(--ui-primary)`**: the tokens are read off the DOM with `getComputedStyle` on `@camera-on` and reused per frame. (The old code passed `rgb(var(--color-primary-500))` straight to `strokeStyle`, which the canvas silently ignored.)
+- Torch and camera-switch buttons appear only where the track supports them (`capabilities.torch`, and `useCameraAvailability().hasMultipleCameras`). Constraints are read once when a stream starts, so switching camera — and retrying after an error — bumps a nonce in the stream's `key` to force a remount. `markCameraReady()` re-arms `isScanning` on the way back up, since `handleCameraError` turned it off.
 
 ---
 

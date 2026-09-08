@@ -13,7 +13,15 @@
     <div class="flex items-center gap-1.5 mt-0.5">
       <span class="text-xs text-gray-500 dark:text-gray-400">{{ userName }}</span>
       <span class="text-xs text-gray-400">·</span>
-      <span class="text-xs text-gray-400 dark:text-gray-500">{{ formattedTime }}</span>
+      <!-- Today's entries read as "5 minutes ago" and keep counting; older days
+           fall back to the clock time, since the panel header already names the
+           day and "3 days ago" would say less than "14:32". -->
+      <RelativeTime
+        :date="timestamp"
+        absolute-format="time"
+        :threshold="DAY_MS"
+        class="text-xs text-gray-400 dark:text-gray-500"
+      />
     </div>
   </div>
 </template>
@@ -21,19 +29,14 @@
 <script setup lang="ts">
 import type { ActivityType } from '~/types/activity'
 
-const props = defineProps<{
+defineProps<{
   activityType: ActivityType
   userName: string
   recordName: string
   timestamp: string
 }>()
 
-const { t, locale } = useI18n()
+const { t } = useI18n()
 
-const formattedTime = computed(() =>
-  new Date(props.timestamp).toLocaleTimeString(locale.value, {
-    hour: '2-digit',
-    minute: '2-digit'
-  })
-)
+const DAY_MS = 24 * 60 * 60 * 1000
 </script>

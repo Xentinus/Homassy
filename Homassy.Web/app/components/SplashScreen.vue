@@ -37,13 +37,22 @@ onMounted(async () => {
     <div class="splash__inner">
       <div class="splash__badge">
         <div class="splash__ring" role="status" :aria-label="$t('common.loading')" />
-        <img
-          src="/favicon.svg"
-          alt="Homassy"
+        <!-- Inlined rather than <img src="/favicon.svg"> so the paths are
+             animatable (an <img> is an opaque box to CSS) — and so the one
+             screen every launch goes through costs no extra request. The three
+             subpaths are the isometric mark's faces, in draw order. -->
+        <svg
           class="splash__logo"
+          viewBox="0 0 512 512"
           width="88"
           height="88"
+          xmlns="http://www.w3.org/2000/svg"
+          focusable="false"
         >
+          <path class="splash__logo-face splash__logo-face--top" pathLength="1" d="M256 36 L69 146 L161 198 L256 143 L352 198 L443 145 Z" />
+          <path class="splash__logo-face splash__logo-face--left" pathLength="1" d="M66 151 L65 368 L252 476 L252 370 L157 315 L157 205 Z" />
+          <path class="splash__logo-face splash__logo-face--right" pathLength="1" d="M447 151 L355 205 L355 315 L260 370 L261 476 L447 368 Z" />
+        </svg>
       </div>
 
       <ClientOnly>
@@ -160,18 +169,65 @@ onMounted(async () => {
   background: conic-gradient(from 0deg, var(--ui-primary) 0deg 250deg, var(--ui-bg-accented) 250deg 360deg);
   -webkit-mask: radial-gradient(farthest-side, transparent calc(100% - 7px), #000 calc(100% - 7px));
   mask: radial-gradient(farthest-side, transparent calc(100% - 7px), #000 calc(100% - 7px));
-  animation: splash-spin 0.9s linear infinite;
+  /* Spins from the start but only becomes visible once the mark is drawn, so the
+     sequence reads logo → ring → name/version. `backwards` holds it at 0 through
+     the delay and hands it back to its own (implicit) opacity afterwards. */
+  animation:
+    splash-spin 0.9s linear infinite,
+    splash-rise 0.35s ease-out 0.62s backwards;
 }
 
+/* The mark draws itself in: each face's outline is traced by a stroke
+   (`pathLength="1"` makes the dash maths independent of the real path length),
+   then its fill comes up behind it. Everything is stroke-dashoffset / opacity /
+   transform on SSR'd markup, so — exactly like the ring — it runs off the first
+   painted frame and owes nothing to hydration. The splash never waits for it:
+   the whole sequence lands well inside MIN_VISIBLE_MS, and dismissal cuts it
+   off whenever the app is ready. */
 .splash__logo {
   width: 88px;
   height: 88px;
   filter: drop-shadow(0 2px 6px rgba(0, 0, 0, 0.25));
+  /* The stroke sits astride the path edge; without this it is clipped. */
+  overflow: visible;
+}
+
+.splash__logo-face {
+  fill: var(--ui-primary);
+  stroke: var(--ui-primary);
+  stroke-width: 10;
+  stroke-linejoin: round;
+  fill-opacity: 0;
+  stroke-dasharray: 1;
+  stroke-dashoffset: 1;
+  animation:
+    splash-logo-draw 0.5s cubic-bezier(0.65, 0, 0.35, 1) forwards,
+    splash-logo-fill 0.35s ease-out forwards;
+}
+
+/* Per-face opacity is the mark's own shading (a lit isometric solid); the
+   stagger is what makes it read as drawn rather than simply appearing. */
+.splash__logo-face--top {
+  opacity: 1;
+  animation-delay: 0.05s, 0.5s;
+}
+
+.splash__logo-face--left {
+  opacity: 0.74;
+  animation-delay: 0.17s, 0.62s;
+}
+
+.splash__logo-face--right {
+  opacity: 0.88;
+  animation-delay: 0.29s, 0.74s;
 }
 
 .splash__welcome {
   text-align: center;
   line-height: 1.3;
+  /* Client-only, so this starts when it mounts (after hydration) rather than at
+     first paint — by which point the logo and ring are already up. */
+  animation: splash-rise 0.4s ease-out backwards;
 }
 
 .splash__welcome-label {
@@ -194,6 +250,9 @@ onMounted(async () => {
   text-align: center;
   font-size: 0.75rem;
   opacity: 0.6;
+  /* `backwards` (not `forwards`) so it settles back to the 0.6 declared above
+     instead of being pinned at whatever the keyframe ends on. */
+  animation: splash-rise 0.4s ease-out backwards;
 }
 
 @keyframes splash-spin {
@@ -202,9 +261,40 @@ onMounted(async () => {
   }
 }
 
+@keyframes splash-logo-draw {
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+
+@keyframes splash-logo-fill {
+  to {
+    fill-opacity: 1;
+  }
+}
+
+@keyframes splash-rise {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
+  /* Static logo — fully drawn and filled from the first frame. */
+  .splash__logo-face {
+    fill-opacity: 1;
+    stroke-dashoffset: 0;
+    animation: none;
+  }
+
+  .splash__welcome,
+  .splash__version {
+    animation: none;
+  }
+
   .splash__ring {
-    animation-duration: 2.4s;
+    animation: splash-spin 2.4s linear infinite;
   }
 
   /* No curtain slide — fall back to a plain fade for both layers. */
