@@ -25,7 +25,7 @@
     <div v-else-if="product" class="space-y-6">
       <ProductInfoPanel
         :product="product"
-        @image-click="isImageOverlayOpen = true"
+        @image-click="openLightbox"
         @toggle-favorite="handleToggleFavorite"
       />
 
@@ -42,33 +42,12 @@
     </div>
   </AppDrawer>
 
-  <!-- Image Overlay -->
-  <Transition
-    enter-active-class="transition-opacity duration-200 ease-out"
-    enter-from-class="opacity-0"
-    enter-to-class="opacity-100"
-    leave-active-class="transition-opacity duration-200 ease-in"
-    leave-from-class="opacity-100"
-    leave-to-class="opacity-0"
-  >
-    <div
-      v-if="isImageOverlayOpen && product?.productImageFullUrl"
-      class="fixed inset-0 z-[100] bg-black/80 flex items-center justify-center p-4 cursor-pointer"
-      @click="isImageOverlayOpen = false"
-      @keydown.esc="isImageOverlayOpen = false"
-    >
-      <img
-        :src="mediaUrl(product.productImageFullUrl)"
-        :alt="product.name"
-        crossorigin="use-credentials"
-        class="max-w-full max-h-full object-contain"
-      >
-    </div>
-  </Transition>
+  <ImageLightbox v-model:open="isImageOverlayOpen" :images="lightboxImages" :origin="lightboxOrigin" />
 </template>
 
 <script setup lang="ts">
 import { ref, computed, watch, onMounted, onBeforeUnmount } from 'vue'
+import type { LightboxImage } from './ImageLightbox.vue'
 import type {
   DetailedProductInfo,
   ProductHistoryEventInfo,
@@ -92,7 +71,6 @@ const emit = defineEmits<{
 
 const { t: $t } = useI18n()
 const { getProductDetails, getProductHistory, toggleFavorite } = useProductsApi()
-const { mediaUrl } = useMediaUrl()
 const inventorySocket = useInventorySocket()
 const toast = useToast()
 
@@ -103,6 +81,27 @@ const isLoading = ref(false)
 const isLoadingHistory = ref(false)
 const error = ref(false)
 const isImageOverlayOpen = ref(false)
+const lightboxOrigin = ref<HTMLElement | null>(null)
+
+/**
+ * One image today; an array because the viewer already pages, so a product gallery would be a
+ * change here and nowhere else.
+ */
+const lightboxImages = computed<LightboxImage[]>(() => {
+  const current = product.value
+  if (!current?.productImageFullUrl) return []
+
+  return [{
+    thumb: current.productImageUrl,
+    full: current.productImageFullUrl,
+    alt: current.name
+  }]
+})
+
+function openLightbox(origin: HTMLElement) {
+  lightboxOrigin.value = origin
+  isImageOverlayOpen.value = true
+}
 
 const sortedInventoryItems = computed(() => {
   if (!product.value) return []

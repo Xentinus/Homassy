@@ -8,7 +8,7 @@
         type="button"
         class="w-14 h-14 rounded-xl overflow-hidden border border-gray-200 dark:border-gray-700 shrink-0 cursor-pointer hover:opacity-90 transition-opacity"
         :aria-label="product.name"
-        @click="emit('image-click')"
+        @click="emit('image-click', $event.currentTarget as HTMLElement)"
       >
         <ProductImage :src="product.productImageUrl" :category="product.category" />
       </button>
@@ -81,7 +81,8 @@ interface Props {
 defineProps<Props>()
 
 const emit = defineEmits<{
-  'image-click': []
+  /** Carries the thumbnail element, so the viewer that opens can grow out of it. */
+  'image-click': [origin: HTMLElement]
   'toggle-favorite': []
 }>()
 

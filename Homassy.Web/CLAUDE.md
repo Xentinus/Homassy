@@ -396,6 +396,54 @@ Used by `ActivityCard`, `ProductHistoryList`, `FamilyDrawer`, `DataExternalCalen
 
 ---
 
+## Image lightbox (`ImageLightbox`)
+
+One full-screen viewer for every image the app shows large. It replaced two ad-hoc overlays — the
+inventory drawer and the shopping-list card each kept their own `isImageOverlayOpen`, their own
+markup, and neither had zoom, pan or a dismiss gesture.
+
+```vue
+<ImageLightbox v-model:open="isOpen" :images="images" :origin="thumbnailEl" />
+```
+
+- **`images` is an array** of `{ thumb, full, alt }`, even where there is one. Paging and the dots
+  are already there, so a product gallery is a change at the call site and nowhere else.
+- **`origin` is the element the viewer was opened from.** Its box is where the shared-element
+  transition starts and where it returns to. `ProductInfoPanel` therefore emits `image-click` with
+  its thumbnail element rather than emitting nothing. Without an origin the lightbox just fades.
+- Only the visible page's `full` variant is rendered, so a gallery loads one large image. The
+  `thumb` sits underneath as the placeholder — it was just on screen, so it is in the browser
+  cache — and is what the open transition appears to grow.
+
+**Gesture arbitration** (all pointer events, so touch, pen and mouse behave the same):
+
+| Input | Does |
+|---|---|
+| two pointers | pinch zoom (always wins — no one-finger gesture a second finger could continue) |
+| one pointer, zoomed in | pan, clamped to the image's own edges |
+| one pointer, at 1x | axis-locked after 8px: down dismisses, sideways pages |
+| double tap | toggles fit ↔ 2.5x, centred on the tap |
+| wheel / trackpad pinch | zoom about the cursor |
+| `Escape` / `←` / `→` | close, previous, next |
+
+**Easy to regress, all deliberate:**
+
+- The open transition needs **two animation frames** between setting the origin transform and
+  releasing it — one frame gets coalesced with the style that set it and no transition runs. There
+  is a 120 ms timeout alongside, because `requestAnimationFrame` does not fire in a hidden tab and
+  without it a lightbox opened in one stays pinned at zero opacity.
+- Focus goes to the close button found **through the DOM**, not through a component ref: a Nuxt UI
+  `UButton`'s `$el` is not reliably an element (its root is a `Primitive`, so it can be a comment
+  anchor), and calling `.querySelector` on one throws — which aborted the whole open sequence.
+- `setPointerCapture` is wrapped in a `try`: it throws once the pointer is no longer active, and a
+  throw there abandons the gesture.
+- A dismiss flick closes **without** the shared-element transition: the image is already on its way
+  off screen, and pulling it back to the thumbnail first would look like a bounce.
+- The backdrop's opacity ramps with the drag; the blur is skipped under `prefers-reduced-motion`
+  along with the transitions, but the opacity ramp stays — it is the feedback, not decoration.
+
+---
+
 ## Bottom sheets (`AppDrawer` + `useDrawerDragToClose`)
 
 `AppDrawer` is the single source of truth for drawer chrome; `useDrawerDragToClose(headerEl, options)` owns every gesture on it. vaul's native dismiss stays off (`dismissible: false`), so this composable and the ✕ button are the only exits.

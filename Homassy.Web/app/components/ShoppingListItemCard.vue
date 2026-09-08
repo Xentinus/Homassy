@@ -124,6 +124,7 @@
           <!-- Product Image (if available) -->
           <div v-if="item.product?.productImageUrl" class="flex justify-center">
             <button
+              ref="imageThumb"
               type="button"
               class="w-32 h-32 overflow-hidden rounded-lg cursor-pointer hover:opacity-90 transition-opacity border border-gray-200 dark:border-gray-700"
               :aria-label="displayName"
@@ -525,35 +526,14 @@
       </template>
     </AppDrawer>
 
-    <!-- Image Overlay -->
-    <Transition
-      enter-active-class="transition-opacity duration-200 ease-out"
-      enter-from-class="opacity-0"
-      enter-to-class="opacity-100"
-      leave-active-class="transition-opacity duration-200 ease-in"
-      leave-from-class="opacity-100"
-      leave-to-class="opacity-0"
-    >
-      <div
-        v-if="isImageOverlayOpen && item.product?.productImageFullUrl"
-        class="fixed inset-0 z-[100] bg-black/80 flex items-center justify-center p-4 cursor-pointer"
-        @click.stop="isImageOverlayOpen = false"
-        @keydown.esc="isImageOverlayOpen = false"
-      >
-        <img
-          :src="mediaUrl(item.product.productImageFullUrl)"
-          :alt="displayName"
-          crossorigin="use-credentials"
-          class="max-w-full max-h-full object-contain"
-        >
-      </div>
-      </Transition>
+    <ImageLightbox v-model:open="isImageOverlayOpen" :images="lightboxImages" :origin="imageThumb" />
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
 import { ref, computed } from 'vue'
+import type { LightboxImage } from './ImageLightbox.vue'
 import type { ShoppingListItemInfo, PurchaseShoppingListItemRequest } from '../types/shoppingList'
 import type { ShoppingLocationInfo } from '../types/location'
 import { Unit } from '../types/enums'
@@ -599,10 +579,22 @@ const haptics = useHaptics()
 const { inputDateLocale } = useInputDateLocale()
 const { purchaseShoppingListItem, restorePurchaseShoppingListItem, updateShoppingListItem, deleteShoppingListItem } = useShoppingListApi()
 const { isExpired: checkIsExpired, isExpiringWithinTwoWeeks: checkIsExpiringWithinTwoWeeks } = useExpirationCheck()
-const { mediaUrl } = useMediaUrl()
 
 // State
 const isImageOverlayOpen = ref(false)
+const imageThumb = ref<HTMLElement | null>(null)
+
+/** One image, in the array shape the viewer takes so a gallery needs no change here. */
+const lightboxImages = computed<LightboxImage[]>(() => {
+  const product = props.item.product
+  if (!product?.productImageFullUrl) return []
+
+  return [{
+    thumb: product.productImageUrl,
+    full: product.productImageFullUrl,
+    alt: displayName.value
+  }]
+})
 const isPurchaseModalOpen = ref(false)
 const isQuickPurchasing = ref(false)
 const isRestoring = ref(false)

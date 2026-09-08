@@ -99,6 +99,12 @@
       "cancelButton": "Cancel Upload"
     }
   },
+  "lightbox": {
+    "title": "Image viewer",
+    "close": "Close",
+    "counter": "{current} / {total}",
+    "goTo": "Go to image {index}"
+  },
   "auth": {
     "login": "Login",
     "logout": "Logout",
