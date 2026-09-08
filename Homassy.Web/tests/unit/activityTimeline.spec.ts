@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { dayBucketKey, groupByDay } from '~/utils/activityTimeline'
+import { dayBucketKey, groupByDay, mergeLiveEntries } from '~/utils/activityTimeline'
 
 /**
  * Builds a `Date` from local wall-clock components — never a `Z`/UTC string — so every case below
@@ -65,5 +65,50 @@ describe('groupByDay', () => {
 
   it('returns an empty array for no entries', () => {
     expect(groupByDay([], NOW)).toEqual([])
+  })
+})
+
+describe('mergeLiveEntries', () => {
+  const single = (publicId: string) => ({ publicId, count: 1 })
+  const run = (publicId: string, itemIds: string[]) =>
+    ({ publicId, count: itemIds.length, items: itemIds.map(id => ({ publicId: id })) })
+
+  it('prepends a genuinely new entry with nothing to subsume', () => {
+    const existing = [single('pX')]
+    const fresh = [single('pNew')]
+
+    expect(mergeLiveEntries(fresh, existing)).toEqual([single('pNew'), single('pX')])
+  })
+
+  it('returns existing unchanged (same reference) when there is nothing fresh', () => {
+    const existing = [single('pX')]
+    expect(mergeLiveEntries([], existing)).toBe(existing)
+  })
+
+  // The regression this closes: Anna deletes A (entry pA, count 1); 30 seconds later she deletes
+  // B, within the same actor+type+5-minute bucket, so the run re-anchors to B (entry pB, count 2,
+  // items [B, A]). pB is a "new" publicId, but A's row is not new — it is now just the run's
+  // oldest row. The stale standalone pA entry must be dropped, not left duplicating A alongside
+  // the new aggregated card.
+  it('drops an existing standalone entry whose row is now the oldest row of an incoming run', () => {
+    const existing = [single('pA')]
+    const fresh = [run('pB', ['pB', 'pA'])]
+
+    expect(mergeLiveEntries(fresh, existing)).toEqual([run('pB', ['pB', 'pA'])])
+  })
+
+  it('leaves an unrelated existing entry untouched, ordered after the fresh one', () => {
+    const existing = [single('pOther')]
+    const fresh = [run('pB', ['pB', 'pA'])]
+
+    const result = mergeLiveEntries(fresh, existing)
+    expect(result.map(e => e.publicId)).toEqual(['pB', 'pOther'])
+  })
+
+  it('a single-count fresh entry only ever subsumes its own id, never an unrelated existing one', () => {
+    const existing = [single('pOther')]
+    const fresh = [single('pNew')]
+
+    expect(mergeLiveEntries(fresh, existing).map(e => e.publicId)).toEqual(['pNew', 'pOther'])
   })
 })

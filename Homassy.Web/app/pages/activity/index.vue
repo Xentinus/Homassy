@@ -144,7 +144,7 @@ import type { ActivityTimelineEntry } from '~/types/activity'
 import { ActivityType } from '~/types/activity'
 import type { FamilyMemberResponse } from '~/types/family'
 import type { ItemDeletedEvent, ItemUpsertedEvent } from '~/types/realtime'
-import { groupByDay, type DayBucketKey } from '~/utils/activityTimeline'
+import { groupByDay, mergeLiveEntries, type DayBucketKey } from '~/utils/activityTimeline'
 
 definePageMeta({ layout: 'auth' })
 
@@ -327,9 +327,13 @@ const refreshLatest = async (): Promise<void> => {
     })
     if (!response.success || !response.data) return
 
+    // A "new" publicId is not necessarily an unrelated new entry — it can be a run that already
+    // had a standalone entry on screen, just re-anchored to a newer row as it grew (see
+    // mergeLiveEntries's own doc comment). knownIds only catches the first kind; mergeLiveEntries
+    // also drops whichever existing entry the second kind now subsumes.
     const knownIds = new Set(entries.value.map(entry => entry.publicId))
     const fresh = response.data.entries.filter(entry => !knownIds.has(entry.publicId))
-    if (fresh.length > 0) entries.value = [...fresh, ...entries.value]
+    if (fresh.length > 0) entries.value = mergeLiveEntries(fresh, entries.value)
   } finally {
     refreshInFlight = false
   }

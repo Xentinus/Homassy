@@ -93,3 +93,43 @@ export const groupByDay = <T extends { timestamp: string }>(entries: T[], now: D
 
   return groups
 }
+
+/**
+ * Every individual activity row `entry` represents on the wire — itself when `count === 1`, or
+ * every row in `items` for a collapsed run. `items` always lists the run's *full* membership,
+ * never truncated to the page size (see `Homassy.API.Functions.ActivityFunctions.BuildTimelineEntry`),
+ * which is what makes `mergeLiveEntries` below correct rather than merely best-effort.
+ */
+const rowIdsOf = (entry: { publicId: string; count: number; items?: { publicId: string }[] }): string[] =>
+  entry.count > 1 && entry.items ? entry.items.map(item => item.publicId) : [entry.publicId]
+
+/**
+ * Reconciles a fresh first-page fetch against what `app/pages/activity/index.vue`'s live-prepend
+ * already has on screen. `fresh` must already be filtered down to entries whose own `publicId` is
+ * not one the page has seen before (the page's existing `knownIds` check) — this function's job
+ * starts one step further in: even a "new" `publicId` can be a run that already had a standalone
+ * entry on screen a moment ago, just re-anchored.
+ *
+ * `entry.publicId` identifies a run by its *newest* row, which moves every time the run grows —
+ * a re-anchor. Deduping only on that moving id (the bug this closes) treats a grown run's new
+ * anchor as wholly unrelated to what was on screen before: the old, now-stale standalone entry for
+ * what is now merely the run's *oldest* row stays put, so that row renders twice — once on its
+ * own, once folded into the new aggregated card.
+ *
+ * The fix: drop any existing entry whose own row is now subsumed by an incoming one — i.e. its
+ * `publicId` shows up among the rows an incoming entry represents (`rowIdsOf`, above). This is
+ * only as complete as `fresh` reaches: a run that grew enough to push its now-stale predecessor
+ * off the first page entirely (many unrelated runs all changing at once between one refresh and
+ * the next) is not reconciled by this or any check working from page-1 data alone — a residual
+ * case no client-side dedup can see, since the payload for it was never fetched.
+ */
+export const mergeLiveEntries = <T extends { publicId: string; count: number; items?: { publicId: string }[] }>(
+  fresh: T[],
+  existing: T[]
+): T[] => {
+  if (fresh.length === 0) return existing
+
+  const subsumedIds = new Set(fresh.flatMap(rowIdsOf))
+  const survivors = existing.filter(entry => !subsumedIds.has(entry.publicId))
+  return [...fresh, ...survivors]
+}
