@@ -1,16 +1,18 @@
 <template>
   <div
-    class="p-4 rounded-xl shadow-sm bg-gradient-to-br from-white to-gray-50 dark:from-gray-800 dark:to-gray-900 hover:shadow-lg hover:-translate-y-0.5 transition-all duration-200"
+    class="p-4 rounded-xl shadow-sm bg-gradient-to-br from-white to-gray-50 dark:from-gray-800 dark:to-gray-900 hover:shadow-lg hover:-translate-y-0.5 transition-all duration-200 border-l-[3px]"
+    :style="{ ...accentStyle(activity.userPublicId), borderLeftColor: 'var(--member-color)' }"
   >
     <!-- Header: User info and timestamp -->
     <div class="flex items-start gap-3 mb-3">
-      <!-- User Avatar -->
+      <!-- User Avatar: publicId switches on its own member ring, replacing the old flat
+           ring-2 ring-gray-200 that used to sit here regardless of who the activity belonged to. -->
       <div class="flex-shrink-0">
         <UserAvatar
           :src="userInfo?.profilePictureUrl"
           :name="userInfo?.displayName || userInfo?.name"
+          :public-id="activity.userPublicId"
           :size="40"
-          class="ring-2 ring-gray-200 dark:ring-gray-700"
         />
       </div>
 
@@ -67,6 +69,7 @@ defineProps<{
 }>()
 
 const { t: $t } = useI18n()
+const { accentStyle } = useMemberColor()
 
 // Format quantity: show integers without decimals, otherwise max 2 decimal places
 const formatQuantity = (quantity: number): string => {

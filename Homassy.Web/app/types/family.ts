@@ -40,6 +40,8 @@ export interface FamilyMemberResponse {
   lastLoginAt: string
   profilePictureUrl?: string
   isCurrentUser: boolean
+  /** Chosen identity-colour palette key, or null/absent for the deterministic pick. */
+  identityColor?: string | null
 }
 
 export type FamilyJoinRequestStatus = 'Pending' | 'Approved' | 'Rejected' | 'Cancelled'

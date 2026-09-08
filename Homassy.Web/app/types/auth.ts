@@ -46,6 +46,12 @@ export interface UserInfo {
   timeZone: string
   language: string
   currency: string
+  /**
+   * Chosen identity-colour palette key, or null/absent for the deterministic pick. Backs
+   * `authStore.user`, which is what `useUserPreferences().buildPayload()` reads to keep resending
+   * the current value on every settings save (see that file).
+   */
+  identityColor?: string | null
 }
 
 // Kratos-specific types

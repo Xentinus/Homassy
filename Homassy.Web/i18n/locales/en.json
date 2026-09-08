@@ -953,7 +953,23 @@
   },
   "profile": {
     "title": "Profile",
-    "settings": "Settings",
+    "settings": {
+      "identityColor": {
+        "label": "Identity color",
+        "description": "Accent color for rings, borders, and calendar dots.",
+        "auto": "Automatic",
+        "colors": {
+          "rose": "Rose",
+          "amber": "Amber",
+          "lime": "Lime",
+          "teal": "Teal",
+          "sky": "Sky",
+          "indigo": "Indigo",
+          "violet": "Violet",
+          "fuchsia": "Fuchsia"
+        }
+      }
+    },
     "settingsCardDescription": "Manage your language, currency, and timezone.",
     "name": "Name",
     "displayName": "Display Name",

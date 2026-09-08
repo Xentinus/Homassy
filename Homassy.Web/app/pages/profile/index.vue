@@ -109,6 +109,45 @@
             </template>
           </SettingsRow>
         </ClientOnly>
+
+        <!-- Identity colour: eight palette swatches + "Automatic", current selection ringed.
+             Wrapped in ClientOnly like the theme control above — a swatch's shade follows the
+             live colour mode, which is only known client-side. Not a SettingsRow: the swatch grid
+             needs the row's full width, not just its #trailing slot. -->
+        <ClientOnly>
+          <div class="flex flex-col gap-3 px-4 py-3">
+            <div class="flex items-center gap-3">
+              <UIcon name="i-lucide-swatch-book" class="h-5 w-5 shrink-0 text-primary-500" />
+              <div class="flex-1 min-w-0">
+                <p class="font-medium">{{ $t('profile.settings.identityColor.label') }}</p>
+                <p class="text-xs text-muted">{{ $t('profile.settings.identityColor.description') }}</p>
+              </div>
+              <UIcon
+                v-if="savingIdentityColor"
+                name="i-lucide-loader-2"
+                class="h-4 w-4 shrink-0 animate-spin text-muted"
+              />
+            </div>
+            <div class="flex flex-wrap gap-2 pl-8">
+              <button
+                v-for="option in paletteOptions"
+                :key="option.value"
+                type="button"
+                class="h-7 w-7 rounded-full flex items-center justify-center transition-transform active:scale-95 disabled:opacity-50 disabled:pointer-events-none"
+                :class="currentIdentityColor === option.value
+                  ? 'ring-2 ring-inset ring-primary-500'
+                  : 'ring-1 ring-inset ring-black/10 dark:ring-white/10'"
+                :style="{ backgroundColor: option.swatch }"
+                :disabled="savingIdentityColor"
+                :aria-label="option.value === 'auto' ? $t('profile.settings.identityColor.auto') : $t(`profile.settings.identityColor.colors.${option.value}`)"
+                :aria-pressed="currentIdentityColor === option.value"
+                @click="onSelectIdentityColor(option.value)"
+              >
+                <UIcon v-if="option.value === 'auto'" name="i-lucide-shuffle" class="h-3.5 w-3.5 text-white" />
+              </button>
+            </div>
+          </div>
+        </ClientOnly>
       </SettingsGroup>
 
       <!-- Family -->
@@ -236,6 +275,7 @@ import ImageCropper from '~/components/ImageCropper.vue'
 import imageCompression from 'browser-image-compression'
 import { extractBase64 } from '~/composables/useImageCrop'
 import type { VersionInfo } from '~/types/version'
+import { isMemberColorKey, type MemberColorKey } from '~/utils/memberColors'
 
 definePageMeta({ layout: 'auth', middleware: 'auth' })
 
@@ -261,8 +301,10 @@ const {
   isLoadingOptions,
   loadSelectOptions,
   savePreference,
+  saveIdentityColor,
   saveName
 } = useUserPreferences()
+const { paletteOptions } = useMemberColor()
 
 // Start true on both server and client so the initial (hydrated) render matches;
 // flip to false only after mount, when the auth store is guaranteed populated.
@@ -343,6 +385,26 @@ async function onSavePreference(value: string) {
     await savePreference(field, value)
   } finally {
     savingField.value = null
+  }
+}
+
+// --- Identity colour ---------------------------------------------------------
+const savingIdentityColor = ref(false)
+
+// Narrows the store's free-form string down to a known palette key, same fallback
+// `resolveMemberColor` itself uses for an unrecognised or absent value.
+const currentIdentityColor = computed<MemberColorKey | 'auto'>(() => {
+  const value = authStore.user?.identityColor
+  return isMemberColorKey(value) ? value : 'auto'
+})
+
+async function onSelectIdentityColor(value: MemberColorKey | 'auto') {
+  if (value === currentIdentityColor.value) return
+  savingIdentityColor.value = true
+  try {
+    await saveIdentityColor(value)
+  } finally {
+    savingIdentityColor.value = false
   }
 }
 

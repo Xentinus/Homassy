@@ -953,7 +953,23 @@
   },
   "profile": {
     "title": "Profil",
-    "settings": "Beállítások",
+    "settings": {
+      "identityColor": {
+        "label": "Azonosító szín",
+        "description": "Kiemelőszín a gyűrűkhöz, keretekhez és naptárpontokhoz.",
+        "auto": "Automatikus",
+        "colors": {
+          "rose": "Rózsaszín",
+          "amber": "Borostyán",
+          "lime": "Limezöld",
+          "teal": "Petróleumkék",
+          "sky": "Égkék",
+          "indigo": "Indigó",
+          "violet": "Ibolya",
+          "fuchsia": "Fukszia"
+        }
+      }
+    },
     "settingsCardDescription": "Módosítsd a nyelvet, pénznemet és időzónát.",
     "name": "Név",
     "displayName": "Megjelenítendő név",

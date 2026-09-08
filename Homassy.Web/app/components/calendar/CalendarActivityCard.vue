@@ -1,6 +1,7 @@
 <template>
   <div
-    class="rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 px-4 py-3 border-l-4 border-l-gray-400 dark:border-l-gray-500"
+    class="rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 px-4 py-3 border-l-4"
+    :style="{ ...accentStyle(userPublicId, identityColor), borderLeftColor: 'var(--member-color)' }"
   >
     <div class="flex items-start justify-between gap-2">
       <span class="text-sm font-medium text-gray-900 dark:text-gray-100 leading-snug">
@@ -29,14 +30,20 @@
 <script setup lang="ts">
 import type { ActivityType } from '~/types/activity'
 
-defineProps<{
+withDefaults(defineProps<{
   activityType: ActivityType
   userName: string
+  userPublicId: string
+  /** Chosen palette key override for this member, or null/absent for the deterministic pick. */
+  identityColor?: string | null
   recordName: string
   timestamp: string
-}>()
+}>(), {
+  identityColor: null
+})
 
 const { t } = useI18n()
+const { accentStyle } = useMemberColor()
 
 const DAY_MS = 24 * 60 * 60 * 1000
 </script>

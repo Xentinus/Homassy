@@ -12,6 +12,8 @@ export interface UserProfileResponse {
   language: string
   currency: string
   timeZone: string
+  /** Chosen identity-colour palette key, or null/absent for the deterministic pick. */
+  identityColor?: string | null
   emailVerifiedAt?: string
   createdAt: string
   updatedAt: string
@@ -24,6 +26,8 @@ export interface UpdateUserSettingsRequest {
   defaultLanguage?: Language
   defaultCurrency?: Currency
   defaultTimeZone?: UserTimeZone
+  /** A palette key, `"auto"` to clear the override, or omitted/null to leave it unchanged. */
+  identityColor?: string | null
 }
 
 export interface UploadUserProfileImageRequest {

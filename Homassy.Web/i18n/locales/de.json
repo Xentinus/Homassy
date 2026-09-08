@@ -953,7 +953,23 @@
   },
   "profile": {
     "title": "Profil",
-    "settings": "Einstellungen",
+    "settings": {
+      "identityColor": {
+        "label": "Kennfarbe",
+        "description": "Akzentfarbe für Ringe, Rahmen und Kalenderpunkte.",
+        "auto": "Automatisch",
+        "colors": {
+          "rose": "Rosé",
+          "amber": "Bernstein",
+          "lime": "Limettengrün",
+          "teal": "Petrol",
+          "sky": "Himmelblau",
+          "indigo": "Indigo",
+          "violet": "Violett",
+          "fuchsia": "Fuchsia"
+        }
+      }
+    },
     "settingsCardDescription": "Ändern Sie Ihre Sprache, Währung und Zeitzone.",
     "name": "Name",
     "displayName": "Anzeigename",

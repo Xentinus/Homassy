@@ -167,6 +167,7 @@
                     v-else
                     :activity-type="item.data.activityType"
                     :user-name="item.data.userName"
+                    :user-public-id="item.data.userPublicId"
                     :record-name="item.data.recordName"
                     :timestamp="item.data.timestamp"
                   />
@@ -229,6 +230,7 @@ interface CalActivity {
   publicId: string
   activityType: ActivityType
   userName: string
+  userPublicId: string
   recordName: string
   timestamp: string
   dateStr: string
@@ -473,6 +475,7 @@ const mapActivities = (items: ActivityInfo[]): CalActivity[] =>
     publicId: a.publicId,
     activityType: a.activityType,
     userName: a.userName,
+    userPublicId: a.userPublicId,
     recordName: a.recordName,
     timestamp: a.timestamp,
     dateStr: a.timestamp.split('T')[0] ?? a.timestamp

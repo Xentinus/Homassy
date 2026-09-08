@@ -16,6 +16,7 @@ import { SelectValueType } from '~/types/enums'
 import type { SelectValue } from '~/types/selectValue'
 import type { UpdateUserSettingsRequest } from '~/types/user'
 import { languageCodeToEnum, currencyCodeToEnum, timeZoneIdToEnum } from '~/utils/enumMappers'
+import type { MemberColorKey } from '~/utils/memberColors'
 
 export type PreferenceField = 'language' | 'currency' | 'timeZone'
 
@@ -84,7 +85,13 @@ export const useUserPreferences = () => {
       displayName: u?.displayName || undefined,
       defaultLanguage: languageCodeToEnum(u?.language || ''),
       defaultCurrency: currencyCodeToEnum(u?.currency || ''),
-      defaultTimeZone: timeZoneIdToEnum(u?.timeZone || '')
+      defaultTimeZone: timeZoneIdToEnum(u?.timeZone || ''),
+      // The store holds `null` for "no override" (see `UserInfo.identityColor`'s doc comment), but
+      // the endpoint takes a bare `null` to mean "leave unchanged", not "clear it" — the literal
+      // "auto" is its clear-the-override value. Mapping null onto "auto" here keeps this field
+      // like every other one above: always a fresh snapshot of the store's current value, never a
+      // sparse patch relying on "leave unchanged" semantics.
+      identityColor: u?.identityColor ?? 'auto'
     }
   }
 
@@ -129,6 +136,19 @@ export const useUserPreferences = () => {
     return persist()
   }
 
+  /**
+   * Save the identity-colour override. Mirrors `savePreference`'s shape — patch the store first
+   * (every ring/border/dot reading `authStore.user?.identityColor` repaints instantly), then
+   * persist, reconciling from the backend on failure. `'auto'` clears the override; the store
+   * keeps that as `null`, same as a freshly-fetched profile that has never set one.
+   */
+  async function saveIdentityColor(key: MemberColorKey | 'auto'): Promise<boolean> {
+    const next = key === 'auto' ? null : key
+    if ((authStore.user?.identityColor ?? null) === next) return true
+    authStore.applyUserPatch({ identityColor: next })
+    return persist()
+  }
+
   return {
     isLoadingOptions,
     isSaving,
@@ -138,6 +158,7 @@ export const useUserPreferences = () => {
     optionsByField,
     loadSelectOptions,
     savePreference,
+    saveIdentityColor,
     saveName
   }
 }
