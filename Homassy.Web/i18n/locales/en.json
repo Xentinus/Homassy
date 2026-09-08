@@ -967,7 +967,8 @@
     "filters": {
       "type": "Type",
       "member": "Member",
-      "all": "All"
+      "all": "All",
+      "allTypes": "All types"
     },
     "empty": {
       "title": "No activity yet",

@@ -3,12 +3,33 @@
     <!-- Filters. Changing either resets the cursor and the list (see resetAndLoad) -- a stale
          cursor from the previous filter would page through the wrong set. -->
     <div class="space-y-3 mb-4">
-      <FilterChipGroup
-        :label="t('activity.filters.type')"
-        :model-value="typeFilterChip"
-        :options="typeOptions"
-        @update:model-value="typeFilterChip = $event"
-      />
+      <div>
+        <p class="text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">{{ t('activity.filters.type') }}</p>
+        <div class="flex items-center gap-2">
+          <!-- 29 ActivityType values don't fit as chips on a phone (16 wrapped rows) -- a
+               searchable USelectMenu costs one line. The backend timeline endpoint takes a single
+               exact ActivityType (see ActivityTimelineRequest), never a group or list, so this
+               still resolves to exactly one value (or none, meaning all). "All" is reached by
+               clearing the selection, same as the shopping-location picker on ShoppingListItemCard. -->
+          <USelectMenu
+            v-model="typeFilter"
+            :items="typeOptions"
+            value-key="value"
+            :placeholder="t('activity.filters.allTypes')"
+            :search-input="{ placeholder: t('common.search') }"
+            :aria-label="t('activity.filters.type')"
+            class="flex-1"
+          />
+          <UButton
+            v-if="typeFilter !== undefined"
+            icon="i-lucide-x"
+            color="neutral"
+            variant="ghost"
+            :aria-label="t('common.clear')"
+            @click="typeFilter = undefined"
+          />
+        </div>
+      </div>
       <FilterChipGroup
         :label="t('activity.filters.member')"
         :model-value="memberFilterChip"
@@ -181,25 +202,24 @@ const formatQuantity = (quantity: number): string =>
   Number.isInteger(quantity) ? quantity.toString() : quantity.toFixed(2)
 
 // --- Filters -------------------------------------------------------------------------------
-// FilterChipGroup's modelValue/options are string-keyed, hence the 'all' sentinel plus a
-// computed translating it to the number | undefined / string | undefined the API takes.
+// The member filter stays chips (a family has a handful of members). The type filter is a
+// searchable USelectMenu instead -- FilterChipGroup's modelValue/options are string-keyed hence
+// the 'all' sentinel there, but typeFilter binds straight to the ActivityType enum (or undefined
+// for "all"), so it needs no such translation.
 
-const typeFilterChip = ref<string>('all')
+const typeFilter = ref<ActivityType | undefined>(undefined)
 const memberFilterChip = ref<string>('all')
 
-const typeFilterValue = computed<number | undefined>(() =>
-  typeFilterChip.value === 'all' ? undefined : Number(typeFilterChip.value))
 const memberFilterValue = computed<string | undefined>(() =>
   memberFilterChip.value === 'all' ? undefined : memberFilterChip.value)
 
-const hasActiveFilters = computed(() => typeFilterChip.value !== 'all' || memberFilterChip.value !== 'all')
+const hasActiveFilters = computed(() => typeFilter.value !== undefined || memberFilterChip.value !== 'all')
 
-const typeOptions = computed(() => [
-  { label: t('activity.filters.all'), value: 'all' },
-  ...Object.values(ActivityType)
+const typeOptions = computed(() =>
+  Object.values(ActivityType)
     .filter((value): value is number => typeof value === 'number')
-    .map(value => ({ label: t(`enums.activityType.${value}`), value: String(value) }))
-])
+    .map(value => ({ label: t(`enums.activityType.${value}`), value }))
+)
 
 const familyMembers = ref<FamilyMemberResponse[]>([])
 const memberOptions = computed(() => [
@@ -208,7 +228,7 @@ const memberOptions = computed(() => [
 ])
 
 const clearFilters = (): void => {
-  typeFilterChip.value = 'all'
+  typeFilter.value = undefined
   memberFilterChip.value = 'all'
 }
 
@@ -227,7 +247,7 @@ const fetchPage = async (cursor: string | undefined): Promise<void> => {
     const response = await getActivityTimeline({
       cursor,
       pageSize: PAGE_SIZE,
-      activityType: typeFilterValue.value,
+      activityType: typeFilter.value,
       userPublicId: memberFilterValue.value
     })
 
@@ -263,7 +283,7 @@ const loadMore = (): void => {
   void fetchPage(nextCursor.value)
 }
 
-watch([typeFilterValue, memberFilterValue], resetAndLoad)
+watch([typeFilter, memberFilterValue], resetAndLoad)
 
 // --- Infinite scroll ---------------------------------------------------------------------------
 
@@ -302,7 +322,7 @@ const refreshLatest = async (): Promise<void> => {
   try {
     const response = await getActivityTimeline({
       pageSize: PAGE_SIZE,
-      activityType: typeFilterValue.value,
+      activityType: typeFilter.value,
       userPublicId: memberFilterValue.value
     })
     if (!response.success || !response.data) return

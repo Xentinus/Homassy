@@ -967,7 +967,8 @@
     "filters": {
       "type": "Típus",
       "member": "Családtag",
-      "all": "Összes"
+      "all": "Összes",
+      "allTypes": "Összes típus"
     },
     "empty": {
       "title": "Még nincs tevékenység",

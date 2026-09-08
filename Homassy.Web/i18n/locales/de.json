@@ -967,7 +967,8 @@
     "filters": {
       "type": "Typ",
       "member": "Mitglied",
-      "all": "Alle"
+      "all": "Alle",
+      "allTypes": "Alle Typen"
     },
     "empty": {
       "title": "Noch keine Aktivität",
