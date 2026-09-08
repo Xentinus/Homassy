@@ -220,7 +220,7 @@ const handleDeleteRequested = (item: InventoryItemInfo): void => {
   const belongsToOpenProduct = () => product.value?.publicId === productPublicId
 
   run({
-    entityId: item.publicId,
+    entityIds: [item.publicId],
     kind: 'delete',
     label: $t('undo.item.delete', { name: productName }),
     // Capture the index now: revert must restore the row to its original position, not append it
@@ -238,41 +238,57 @@ const handleDeleteRequested = (item: InventoryItemInfo): void => {
 }
 
 /**
- * `run()` models one pending action per entity, so a multi-select move (the operations drawer can
- * move several items to a new location at once) becomes one `run()` call per item rather than one
- * batched call for all of them — each collapses into the same "N items moved" toast (same `kind`),
- * but each is committed with its own single-item `moveInventoryItems` request rather than the one
- * batched request the drawer used to send. That trade (N requests instead of 1) is what lets each
- * item be independently undoable/pending-guarded by its own entity id; see the task report for the
- * alternative considered and why it was not used.
+ * One `run()` call for the whole batch — `entityIds` can span several items (see undoQueue.ts /
+ * useUndoableAction.ts) — so a multi-select move sends the one batched `moveInventoryItems`
+ * request it always should have, instead of the N single-item requests the earlier
+ * one-action-one-entity model forced. `isPendingEntity` still guards every individual item for the
+ * whole undo window, since `entityIds` lists every one of them; that guarding is exactly why the
+ * model changed, not something this trade gives up.
  */
 const handleMoveRequested = (payload: MoveRequestPayload): void => {
   if (!product.value) return
   const { itemIds, storageLocationPublicId, storageLocationName } = payload
   const productName = product.value.name
+  const currentItems = product.value.inventoryItems
 
+  // Capture each item's original location up front, keyed by id — apply/revert below re-locate
+  // every item by id on every invocation (never a captured index), the same rule the delete
+  // handler above documents: a same-entity replacement, or an item deleted mid-window, can't leave
+  // a revert writing into the wrong slot. An id with no current match (already gone) is dropped.
+  const originalLocations = new Map<string, InventoryItemInfo['storageLocation']>()
   for (const itemId of itemIds) {
-    const index = product.value.inventoryItems.findIndex(i => i.publicId === itemId)
-    if (index < 0) continue
-    const originalLocation = product.value.inventoryItems[index]!.storageLocation
-
-    run({
-      entityId: itemId,
-      kind: 'move',
-      label: $t('undo.item.move', { name: productName }),
-      apply: () => {
-        const items = product.value?.inventoryItems
-        const idx = items?.findIndex(i => i.publicId === itemId) ?? -1
-        if (items && idx >= 0) items[idx] = { ...items[idx]!, storageLocation: { publicId: storageLocationPublicId, name: storageLocationName } }
-      },
-      revert: () => {
-        const items = product.value?.inventoryItems
-        const idx = items?.findIndex(i => i.publicId === itemId) ?? -1
-        if (items && idx >= 0) items[idx] = { ...items[idx]!, storageLocation: originalLocation }
-      },
-      commit: () => moveInventoryItems({ inventoryItemPublicIds: [itemId], storageLocationPublicId })
-    })
+    const item = currentItems.find(i => i.publicId === itemId)
+    if (item) originalLocations.set(itemId, item.storageLocation)
   }
+  if (originalLocations.size === 0) return
+
+  run({
+    entityIds: [...originalLocations.keys()],
+    kind: 'move',
+    // The nicer per-item phrasing for the common case of moving just one item (matches
+    // delete/purchase's own label), the collapsed "N items moved" count for a real batch — both
+    // existing undo.* keys, no new i18n needed.
+    label: originalLocations.size === 1
+      ? $t('undo.item.move', { name: productName })
+      : $t('undo.collapsed.move', { count: originalLocations.size }),
+    apply: () => {
+      const items = product.value?.inventoryItems
+      if (!items) return
+      for (const itemId of originalLocations.keys()) {
+        const idx = items.findIndex(i => i.publicId === itemId)
+        if (idx >= 0) items[idx] = { ...items[idx]!, storageLocation: { publicId: storageLocationPublicId, name: storageLocationName } }
+      }
+    },
+    revert: () => {
+      const items = product.value?.inventoryItems
+      if (!items) return
+      for (const [itemId, originalLocation] of originalLocations) {
+        const idx = items.findIndex(i => i.publicId === itemId)
+        if (idx >= 0) items[idx] = { ...items[idx]!, storageLocation: originalLocation }
+      }
+    },
+    commit: () => moveInventoryItems({ inventoryItemPublicIds: [...originalLocations.keys()], storageLocationPublicId })
+  })
 }
 
 // --- Realtime: keep the open product in sync with changes from other users / automation ---

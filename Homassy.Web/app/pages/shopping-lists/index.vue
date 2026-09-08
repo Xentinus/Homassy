@@ -1301,7 +1301,7 @@ const handleDeleteRequested = (item: ShoppingListItemInfo): void => {
   const belongsToOpenList = () => currentListDetails.value?.publicId === item.shoppingListPublicId
 
   run({
-    entityId: item.publicId,
+    entityIds: [item.publicId],
     kind: 'delete',
     label: $t('undo.item.delete', { name: getDisplayName(item) }),
     // Capture the index now: revert must restore the row to its original position, not append it
@@ -1324,7 +1324,7 @@ const handlePurchaseRequested = (item: ShoppingListItemInfo, request: PurchaseSh
   const originalPurchasedAt = item.purchasedAt
 
   run({
-    entityId: item.publicId,
+    entityIds: [item.publicId],
     kind: 'purchase',
     label: $t('undo.item.purchase', { name: getDisplayName(item) }),
     // Re-locate by id rather than trusting a captured index: a same-entity replacement (e.g. a
@@ -1349,7 +1349,7 @@ const handleRestoreRequested = (item: ShoppingListItemInfo): void => {
   const originalPurchasedAt = item.purchasedAt
 
   run({
-    entityId: item.publicId,
+    entityIds: [item.publicId],
     // Shares the 'purchase' kind with handlePurchaseRequested — the queue only knows three kinds
     // (see undoQueue.ts), and restoring is the same toggle in the other direction.
     kind: 'purchase',

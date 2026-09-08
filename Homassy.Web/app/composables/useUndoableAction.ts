@@ -22,8 +22,10 @@ import {
 } from '~/utils/undoQueue'
 
 interface RunOptions<T extends CommitResult> {
-  /** The row/item this action is about — what `isPendingEntity` and same-entity replacement key off. */
-  entityId: string
+  /** The row(s)/item(s) this action is about — one entry for an ordinary single-row action,
+   *  several for a batch (see undoQueue.ts). What `isPendingEntity` and overlap-based replacement
+   *  key off. */
+  entityIds: string[]
   kind: UndoKind
   /** This action's own label, shown verbatim while it is the only one pending. */
   label: string
@@ -47,9 +49,9 @@ const queue = createUndoQueue()
 const pending = ref<PendingAction[]>([])
 const sync = (): void => { pending.value = queue.list() }
 
-// commit()/revert() closures, keyed by PendingAction.id rather than entityId: a same-entity
-// replacement drops the old id's entry entirely (see undoQueue.ts), so there is never a stale
-// closure left behind for an id no longer in the queue.
+// commit()/revert() closures, keyed by PendingAction.id rather than by an entity id: an
+// overlap-based replacement drops the old action's entry entirely (see undoQueue.ts), so there is
+// never a stale closure left behind for an id no longer in the queue.
 const commits = new Map<string, () => Promise<CommitResult>>()
 const reverts = new Map<string, () => void>()
 
@@ -143,14 +145,17 @@ const remainingRatio = computed(() => {
 const isPendingEntity = (entityId: string): boolean => queue.has(entityId)
 
 const run = <T extends CommitResult,>(options: RunOptions<T>): void => {
-  const { entityId, kind, label, apply, revert, commit } = options
+  const { entityIds, kind, label, apply, revert, commit } = options
 
   apply()
 
-  // A same-entity replacement (see undoQueue.ts) drops the previous action's bookkeeping too —
-  // its revert must never fire once a newer apply has run on top of it.
-  const previous = queue.list().find(a => a.entityId === entityId)
-  if (previous) {
+  // An overlap-based replacement (see undoQueue.ts) drops every previous action sharing any
+  // entity id with this one, bookkeeping included — more than one can overlap a new batch (e.g.
+  // two single-item actions each folded into one new multi-item move), so clean up all of them,
+  // not just the first match. Each dropped action's revert must never fire once a newer apply has
+  // run on top of it.
+  const overlapping = queue.list().filter(a => a.entityIds.some(id => entityIds.includes(id)))
+  for (const previous of overlapping) {
     commits.delete(previous.id)
     reverts.delete(previous.id)
   }
@@ -158,7 +163,7 @@ const run = <T extends CommitResult,>(options: RunOptions<T>): void => {
   const id = nextActionId()
   const expiresAt = Date.now() + UNDO_WINDOW_MS
 
-  queue.add({ id, entityId, kind, label, expiresAt })
+  queue.add({ id, entityIds, kind, label, expiresAt })
   commits.set(id, commit)
   reverts.set(id, revert)
   sync()
