@@ -29,6 +29,23 @@
  *   action, which is the right trade: they have visibly moved on, and losing an undo is far better
  *   than losing a write.
  *
+ * A settled-early action's `revert` must itself be scoped to what it still owns (`owned()`,
+ * below) — the fourth bug in this settle-then-replace machine, and the reason `revert` in
+ * `useUndoableAction.ts`'s `RunOptions` takes the owned id list as a parameter instead of closing
+ * over nothing. Settling early does not mean the old action's `commit` is guaranteed to fail, and
+ * even a guaranteed failure does not mean every one of its entities is still the old action's to
+ * restore: by the time that `commit` actually resolves, some of `entityIds` may already belong to
+ * the newer action that displaced it (the batched-move-then-solo-move example above — B is the
+ * newer action's now, not the old batch's). A `revert` that blindly restores the *original*
+ * `entityIds` wholesale would stomp the newer action's own optimistic value (or race its own
+ * commit) for exactly the entities it does not own any more; it is only ever safe today by
+ * accident, when the newer action happens to delete the shared row, because a revert that
+ * re-locates by id (per the paragraph above) simply cannot find a row that is gone. `owned()`
+ * answers "which of these ids are not currently claimed by some other pending action", queried
+ * fresh at the moment a revert is about to run rather than once when the action was displaced —
+ * necessary because a *normal* (not settled-early) expiry can race exactly the same way if a new
+ * action claims one of its entities while its own commit is still in flight.
+ *
  * Two pending mutations touching the same row (e.g. a delete and, a moment later, a purchase on
  * the same shopping-list item, both still inside their undo window) cannot be shown or reverted
  * coherently — there is one row and one Undo button, so it can only be in one pending state at a
@@ -99,6 +116,7 @@ export interface UndoQueue {
   cancel: (id: string) => void
   drain: (now?: number) => PendingAction[]
   has: (entityId: string) => boolean
+  owned: (entityIds: string[]) => string[]
   list: () => PendingAction[]
   collapseLabel: (actions: PendingAction[], t: (key: string, params?: Record<string, unknown>) => string) => string
 }
@@ -173,9 +191,22 @@ export const createUndoQueue = (): UndoQueue => {
 
   const has = (entityId: string): boolean => actions.some(a => a.entityIds.includes(entityId))
 
+  /**
+   * The subset of `entityIds` not currently claimed by any *other* pending action - what a
+   * settled (or expiring) action's `revert` must be scoped to (see the file header's fourth
+   * NON-OBVIOUS RULE). An id still shows as "owned" here as long as nothing pending right now
+   * lists it; the action asking is itself normally already removed from `actions` by the time it
+   * calls this (settled via `add()`'s `toSettle`, or drained by `drain()`), so this reduces to
+   * "did some newer action re-claim this id before my own revert got a chance to run" - both at
+   * settle time and, since `useUndoableAction.ts` evaluates this again right when a commit
+   * actually resolves rather than once up front, for a normal expiry racing a brand new action
+   * that claims one of the same ids while the commit is in flight.
+   */
+  const owned = (entityIds: string[]): string[] => entityIds.filter(id => !has(id))
+
   const list = (): PendingAction[] => [...actions]
 
-  return { add, cancel, drain, has, list, collapseLabel }
+  return { add, cancel, drain, has, owned, list, collapseLabel }
 }
 
 /**

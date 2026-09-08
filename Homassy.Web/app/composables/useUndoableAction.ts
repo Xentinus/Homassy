@@ -38,8 +38,14 @@ interface RunOptions<T extends CommitResult> {
   label: string
   /** Mutates local state immediately — the row disappears / the toggle flips now. */
   apply: () => void
-  /** Undoes exactly what `apply` did. Never called once `commit` has been sent. */
-  revert: () => void
+  /**
+   * Undoes exactly what `apply` did, but only for `ownedEntityIds` — the subset of this action's
+   * own `entityIds` not currently claimed by some newer pending action (see undoQueue.ts's
+   * `owned()` and its file header's fourth NON-OBVIOUS RULE). For an ordinary single-entity action
+   * this is either `[entityId]` or `[]`; a batch must check membership per entity rather than
+   * reverting the whole set. Never called once `commit` has been sent.
+   */
+  revert: (ownedEntityIds: string[]) => void
   /**
    * The real network request. Only ever invoked after the undo window has fully elapsed. Must
    * resolve to `{ success: boolean, ... }` rather than throw on a business-rule failure — every
@@ -60,7 +66,7 @@ const sync = (): void => { pending.value = queue.list() }
 // overlap-based replacement drops the old action's entry entirely (see undoQueue.ts), so there is
 // never a stale closure left behind for an id no longer in the queue.
 const commits = new Map<string, () => Promise<CommitResult>>()
-const reverts = new Map<string, () => void>()
+const reverts = new Map<string, (ownedEntityIds: string[]) => void>()
 
 let timer: ReturnType<typeof setTimeout> | null = null
 
@@ -92,7 +98,14 @@ async function onExpire(): Promise<void> {
     // A rejection and a resolved `success: false` are both a failure (see undoQueue.ts's
     // `settleCommit` — the shape every real commit() resolves to) and both revert; only the
     // toast (this composable's one Nuxt-dependent bit) lives out here.
-    const succeeded = await settleCommit(commit, () => revert?.())
+    //
+    // queue.owned(action.entityIds) is evaluated lazily, inside this thunk, so it reflects
+    // ownership at the moment the commit actually resolves — not at drain() time above. A normal
+    // expiry's entities can never overlap another *currently* pending action (an overlap would
+    // have settled this one early instead — see undoQueue.ts), but a brand new action can still
+    // claim one of them while this commit is in flight; scoping the revert this way covers that
+    // race the same way it covers a settled-early one (settleEarly below).
+    const succeeded = await settleCommit(commit, () => revert?.(queue.owned(action.entityIds)))
     if (!succeeded) reportFailure()
   }
 
@@ -190,8 +203,11 @@ const run = <T extends CommitResult,>(options: RunOptions<T>): void => {
     if (!toSettleIds.has(previous.id) || !previousCommit) continue
 
     // Fire it now rather than waiting out its remaining window: the entities this new action
-    // doesn't touch still need this write to reach the server, or it is lost for good.
-    void settleEarly(previousCommit, () => previousRevert?.())
+    // doesn't touch still need this write to reach the server, or it is lost for good. If that
+    // commit then fails, its revert must be scoped to queue.owned(previous.entityIds) — the
+    // entities *this* new action just claimed (id, above — B in the batch-move-then-solo-move
+    // example) are no longer `previous`'s to restore; see undoQueue.ts's fourth NON-OBVIOUS RULE.
+    void settleEarly(previousCommit, () => previousRevert?.(queue.owned(previous.entityIds)))
   }
 
   commits.set(id, commit)
@@ -216,7 +232,10 @@ const undoAll = (): void => {
     const revert = reverts.get(action.id)
     commits.delete(action.id)
     reverts.delete(action.id)
-    revert?.()
+    // Always the full entityIds in practice — a still-pending action's ids can't overlap any
+    // other pending action's (see undoQueue.ts) — but routed through queue.owned() anyway so
+    // every revert call in this file honours the same contract.
+    revert?.(queue.owned(action.entityIds))
   }
 
   sync()

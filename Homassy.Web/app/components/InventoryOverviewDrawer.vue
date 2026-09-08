@@ -229,8 +229,8 @@ const handleDeleteRequested = (item: InventoryItemInfo): void => {
       if (!belongsToOpenProduct()) return
       product.value?.inventoryItems.splice(index, 1)
     },
-    revert: () => {
-      if (!belongsToOpenProduct()) return
+    revert: (ownedEntityIds) => {
+      if (!belongsToOpenProduct() || !ownedEntityIds.includes(item.publicId)) return
       product.value?.inventoryItems.splice(index, 0, item)
     },
     commit: () => deleteInventoryItem(item.publicId)
@@ -279,10 +279,15 @@ const handleMoveRequested = (payload: MoveRequestPayload): void => {
         if (idx >= 0) items[idx] = { ...items[idx]!, storageLocation: { publicId: storageLocationPublicId, name: storageLocationName } }
       }
     },
-    revert: () => {
+    // Scoped to ownedEntityIds: if this batch settles early because a later action re-claimed one
+    // of these items (a solo move/delete overlapping the batch), that item is no longer this
+    // revert's to touch — it belongs to whatever claimed it, and blindly restoring it here would
+    // stomp that newer action's own value (see undoQueue.ts's fourth NON-OBVIOUS RULE).
+    revert: (ownedEntityIds) => {
       const items = product.value?.inventoryItems
       if (!items) return
       for (const [itemId, originalLocation] of originalLocations) {
+        if (!ownedEntityIds.includes(itemId)) continue
         const idx = items.findIndex(i => i.publicId === itemId)
         if (idx >= 0) items[idx] = { ...items[idx]!, storageLocation: originalLocation }
       }

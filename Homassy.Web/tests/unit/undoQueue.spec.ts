@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest'
-import { collapseLabel, createUndoQueue, settleCommit, type PendingAction } from '~/utils/undoQueue'
+import { collapseLabel, createUndoQueue, settleCommit, type CommitResult, type PendingAction } from '~/utils/undoQueue'
 
 /** Matches the shape `collapseLabel`'s `t` parameter expects, without pulling in real i18n. */
 const fakeT = (key: string, params?: Record<string, unknown>): string =>
@@ -257,5 +257,81 @@ describe('settleCommit', () => {
 
     expect(succeeded).toBe(false)
     expect(revert).toHaveBeenCalledOnce()
+  })
+})
+
+// The fourth bug in this settle-then-replace machine (see undoQueue.ts's file header): a
+// settled-early action's revert used to restore its *entire original* entityIds, including any
+// entity a newer action had since reclaimed via partial overlap. Concretely - batch-move A, B, C;
+// within the window, move just B (a partial overlap, so the batch settles early); the batch's
+// commit then fails. The old code's revert put B back to its pre-batch location by id, permanently
+// diverging it from the server, because B's own newer action had already committed it elsewhere.
+describe('owned() — scoping a settled-early revert to what it still owns', () => {
+  it('excludes an id a newer partially-overlapping action has since claimed', () => {
+    const queue = createUndoQueue()
+    queue.add(action({ id: 'a1', entityIds: ['e1', 'e2', 'e3'], kind: 'move', label: 'Moved' }))
+    queue.add(action({ id: 'a2', entityIds: ['e2'], kind: 'move', label: 'Moved again' }))
+
+    // e2 is a2's now - a1's revert (should its settled-early commit fail) must not touch it.
+    expect(queue.owned(['e1', 'e2', 'e3'])).toEqual(['e1', 'e3'])
+  })
+
+  it('returns every id unchanged when nothing else currently claims them', () => {
+    const queue = createUndoQueue()
+    queue.add(action({ id: 'a1', entityIds: ['e1', 'e2'], kind: 'delete', label: 'Deleted', expiresAt: 1000 }))
+    // Simulates a normal expiry (useUndoableAction.ts's onExpire calls queue.drain() before it
+    // ever asks about ownership) - a1 is no longer pending itself by the time owned() is asked,
+    // same precondition every real call site relies on (see undoQueue.ts's owned() doc comment).
+    queue.drain(1000)
+
+    expect(queue.owned(['e1', 'e2'])).toEqual(['e1', 'e2'])
+  })
+
+  // End-to-end reconstruction of the exact regression scenario, wired the way
+  // useUndoableAction.ts's run()/settleEarly actually wire it: commit()/revert() closures kept in
+  // maps keyed by PendingAction.id (the queue itself never holds them), the settled action's real
+  // commit invoked through settleCommit(), and its real revert scoped through queue.owned() -
+  // evaluated at the moment revert is about to run, exactly as useUndoableAction.ts does it.
+  it('a settled-early batch whose commit fails reverts only the entities it still owns, and the newer action keeps its own value', async () => {
+    const queue = createUndoQueue()
+    const commits = new Map<string, () => Promise<CommitResult>>()
+    const reverts = new Map<string, (ownedEntityIds: string[]) => void>()
+
+    // A tiny fake "local state" standing in for product.value.inventoryItems / currentListDetails
+    // - e1/e2/e3 all start at 'home'.
+    const locationOf: Record<string, string> = { e1: 'home', e2: 'home', e3: 'home' }
+
+    // The batch move: apply() has already run (as run() always does before queuing), moving all
+    // three to 'batch-target'.
+    locationOf.e1 = locationOf.e2 = locationOf.e3 = 'batch-target'
+    const batchRevert = vi.fn((ownedEntityIds: string[]) => {
+      for (const id of ownedEntityIds) locationOf[id] = 'home'
+    })
+    commits.set('a1', vi.fn(async (): Promise<CommitResult> => ({ success: false })))
+    reverts.set('a1', batchRevert)
+    queue.add(action({ id: 'a1', entityIds: ['e1', 'e2', 'e3'], kind: 'move', label: 'Moved' }))
+
+    // Within the window, a solo move of e2 alone to 'solo-target' - apply() runs first, same as
+    // run() always does, then the queue is told, which reports a1 as toSettle.
+    locationOf.e2 = 'solo-target'
+    const soloRevert = vi.fn()
+    commits.set('a2', vi.fn(async (): Promise<CommitResult> => ({ success: true })))
+    reverts.set('a2', soloRevert)
+    const { toSettle } = queue.add(action({ id: 'a2', entityIds: ['e2'], kind: 'move', label: 'Moved again' }))
+    expect(toSettle.map(a => a.id)).toEqual(['a1'])
+
+    // What run() does with a toSettle entry: look up the *real* commit/revert for that id (not a
+    // fresh unrelated fn - see the two now-fixed specs above) and settle it right now.
+    const settledCommit = commits.get('a1')!
+    const settledRevert = reverts.get('a1')!
+    const succeeded = await settleCommit(settledCommit, () => settledRevert(queue.owned(['e1', 'e2', 'e3'])))
+
+    expect(succeeded).toBe(false)
+    expect(batchRevert).toHaveBeenCalledOnce()
+    expect(batchRevert).toHaveBeenCalledWith(['e1', 'e3'])
+    // a2's own commit succeeded, so it has nothing to revert - and nothing else should have
+    // touched e2's value on its behalf.
+    expect(soloRevert).not.toHaveBeenCalled()
+    expect(locationOf).toEqual({ e1: 'home', e2: 'solo-target', e3: 'home' })
   })
 })

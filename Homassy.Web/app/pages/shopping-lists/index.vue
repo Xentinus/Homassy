@@ -1311,8 +1311,8 @@ const handleDeleteRequested = (item: ShoppingListItemInfo): void => {
       currentListDetails.value?.items.splice(index, 1)
       clearAttribution(item.publicId)
     },
-    revert: () => {
-      if (!belongsToOpenList()) return
+    revert: (ownedEntityIds) => {
+      if (!belongsToOpenList() || !ownedEntityIds.includes(item.publicId)) return
       currentListDetails.value?.items.splice(index, 0, item)
     },
     commit: () => deleteShoppingListItem(item.publicId)
@@ -1335,7 +1335,8 @@ const handlePurchaseRequested = (item: ShoppingListItemInfo, request: PurchaseSh
       const idx = items?.findIndex(i => i.publicId === item.publicId) ?? -1
       if (items && idx >= 0) items[idx] = { ...items[idx]!, purchasedAt: request.purchasedAt }
     },
-    revert: () => {
+    revert: (ownedEntityIds) => {
+      if (!ownedEntityIds.includes(item.publicId)) return
       const items = currentListDetails.value?.items
       const idx = items?.findIndex(i => i.publicId === item.publicId) ?? -1
       if (items && idx >= 0) items[idx] = { ...items[idx]!, purchasedAt: originalPurchasedAt }
@@ -1359,7 +1360,8 @@ const handleRestoreRequested = (item: ShoppingListItemInfo): void => {
       const idx = items?.findIndex(i => i.publicId === item.publicId) ?? -1
       if (items && idx >= 0) items[idx] = { ...items[idx]!, purchasedAt: undefined }
     },
-    revert: () => {
+    revert: (ownedEntityIds) => {
+      if (!ownedEntityIds.includes(item.publicId)) return
       const items = currentListDetails.value?.items
       const idx = items?.findIndex(i => i.publicId === item.publicId) ?? -1
       if (items && idx >= 0) items[idx] = { ...items[idx]!, purchasedAt: originalPurchasedAt }
