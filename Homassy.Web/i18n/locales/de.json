@@ -963,6 +963,23 @@
     "backOnline": "Wieder online",
     "updatedFlash": "Aktualisiert, während du offline warst"
   },
+  "undo": {
+    "action": "Rückgängig",
+    "collapsed": {
+      "delete": "1 Artikel entfernt | {count} Artikel entfernt",
+      "purchase": "1 Artikel gekauft | {count} Artikel gekauft",
+      "move": "1 Artikel verschoben | {count} Artikel verschoben",
+      "mixed": "1 Änderung | {count} Änderungen"
+    },
+    "item": {
+      "delete": "{name} entfernt",
+      "purchase": "{name} gekauft",
+      "restore": "{name} wiederhergestellt",
+      "move": "{name} verschoben"
+    },
+    "failed": "Die Änderung konnte nicht gespeichert werden und wurde rückgängig gemacht.",
+    "secondsLeft": "{seconds} s"
+  },
   "profile": {
     "title": "Profil",
     "settings": {

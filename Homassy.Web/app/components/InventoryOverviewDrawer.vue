@@ -33,6 +33,8 @@
         :items="sortedInventoryItems"
         :product-name="product.name"
         @refresh="refreshAll"
+        @delete-requested="handleDeleteRequested"
+        @move-requested="handleMoveRequested"
       />
 
       <ProductHistoryList
@@ -48,8 +50,10 @@
 <script setup lang="ts">
 import { ref, computed, watch, onMounted, onBeforeUnmount } from 'vue'
 import type { LightboxImage } from './ImageLightbox.vue'
+import type { MoveRequestPayload } from './InventoryOperationsDrawer.vue'
 import type {
   DetailedProductInfo,
+  InventoryItemInfo,
   ProductHistoryEventInfo,
   InventoryGridProductInfo,
   InventoryUpsertedEvent,
@@ -70,9 +74,13 @@ const emit = defineEmits<{
 }>()
 
 const { t: $t } = useI18n()
-const { getProductDetails, getProductHistory, toggleFavorite } = useProductsApi()
+const { getProductDetails, getProductHistory, toggleFavorite, deleteInventoryItem, moveInventoryItems } = useProductsApi()
 const inventorySocket = useInventorySocket()
 const toast = useToast()
+// This drawer owns product.value.inventoryItems, so it is what applies/reverts the optimistic
+// delete and move actions InventoryItemRow / InventoryOperationsDrawer request (see
+// useUndoableAction.ts).
+const { run, isPendingEntity } = useUndoableAction()
 
 // State
 const product = ref<DetailedProductInfo | null>(null)
@@ -188,14 +196,98 @@ const handleToggleFavorite = async () => {
   }
 }
 
+// --- Optimistic delete / storage-location move --------------------------------------------
+// InventoryItemRow / InventoryOperationsDrawer own the confirm UX and (for move) the request
+// shape; this drawer owns product.value.inventoryItems, so it is what apply()/revert() mutate
+// and what commit() eventually calls the REST API with, deferred behind the undo window.
+
+// NOTE on both handlers below: apply/revert deliberately re-read `product.value.inventoryItems`
+// fresh on every invocation rather than closing over the array once. `product` is refetched
+// wholesale (refreshAll(), triggered by e.g. a ProductUpdated event) while an action can still be
+// pending; closing over the old array would silently mutate a detached snapshot the drawer no
+// longer renders instead of the live one.
+
+const handleDeleteRequested = (item: InventoryItemInfo): void => {
+  if (!product.value) return
+  const index = product.value.inventoryItems.findIndex(i => i.publicId === item.publicId)
+  if (index < 0) return
+  const productName = product.value.name
+  // InventoryItemInfo carries no productPublicId of its own (it is only ever read nested inside
+  // a DetailedProductInfo), so this is what apply/revert check to make sure this drawer is still
+  // showing the product the index was captured against — it can close and reopen on a different
+  // product (or the same one refetched) before the undo window ends.
+  const productPublicId = product.value.publicId
+  const belongsToOpenProduct = () => product.value?.publicId === productPublicId
+
+  run({
+    entityId: item.publicId,
+    kind: 'delete',
+    label: $t('undo.item.delete', { name: productName }),
+    // Capture the index now: revert must restore the row to its original position, not append it
+    // to the end of the list.
+    apply: () => {
+      if (!belongsToOpenProduct()) return
+      product.value?.inventoryItems.splice(index, 1)
+    },
+    revert: () => {
+      if (!belongsToOpenProduct()) return
+      product.value?.inventoryItems.splice(index, 0, item)
+    },
+    commit: () => deleteInventoryItem(item.publicId)
+  })
+}
+
+/**
+ * `run()` models one pending action per entity, so a multi-select move (the operations drawer can
+ * move several items to a new location at once) becomes one `run()` call per item rather than one
+ * batched call for all of them — each collapses into the same "N items moved" toast (same `kind`),
+ * but each is committed with its own single-item `moveInventoryItems` request rather than the one
+ * batched request the drawer used to send. That trade (N requests instead of 1) is what lets each
+ * item be independently undoable/pending-guarded by its own entity id; see the task report for the
+ * alternative considered and why it was not used.
+ */
+const handleMoveRequested = (payload: MoveRequestPayload): void => {
+  if (!product.value) return
+  const { itemIds, storageLocationPublicId, storageLocationName } = payload
+  const productName = product.value.name
+
+  for (const itemId of itemIds) {
+    const index = product.value.inventoryItems.findIndex(i => i.publicId === itemId)
+    if (index < 0) continue
+    const originalLocation = product.value.inventoryItems[index]!.storageLocation
+
+    run({
+      entityId: itemId,
+      kind: 'move',
+      label: $t('undo.item.move', { name: productName }),
+      apply: () => {
+        const items = product.value?.inventoryItems
+        const idx = items?.findIndex(i => i.publicId === itemId) ?? -1
+        if (items && idx >= 0) items[idx] = { ...items[idx]!, storageLocation: { publicId: storageLocationPublicId, name: storageLocationName } }
+      },
+      revert: () => {
+        const items = product.value?.inventoryItems
+        const idx = items?.findIndex(i => i.publicId === itemId) ?? -1
+        if (items && idx >= 0) items[idx] = { ...items[idx]!, storageLocation: originalLocation }
+      },
+      commit: () => moveInventoryItems({ inventoryItemPublicIds: [itemId], storageLocationPublicId })
+    })
+  }
+}
+
 // --- Realtime: keep the open product in sync with changes from other users / automation ---
 const isThisProduct = (publicId: string) => props.open && publicId === props.productPublicId
 
 const handleRealtimeInventoryUpserted = (payload: InventoryUpsertedEvent) => {
+  // A local optimistic delete/move is still pending for this item — an echo of the pre-change
+  // server state must not fight it (or a stray full refetch resurrect a row mid-window). The
+  // commit's own resolution is what reconciles once the window closes.
+  if (isPendingEntity(payload.item.publicId)) return
   if (isThisProduct(payload.product.publicId)) refreshAll()
 }
 
 const handleRealtimeInventoryDeleted = (payload: InventoryDeletedEvent) => {
+  if (isPendingEntity(payload.itemPublicId)) return
   if (isThisProduct(payload.productPublicId)) refreshAll()
 }
 

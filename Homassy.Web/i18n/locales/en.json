@@ -963,6 +963,23 @@
     "backOnline": "Back online",
     "updatedFlash": "Updated while disconnected"
   },
+  "undo": {
+    "action": "Undo",
+    "collapsed": {
+      "delete": "1 item removed | {count} items removed",
+      "purchase": "1 item purchased | {count} items purchased",
+      "move": "1 item moved | {count} items moved",
+      "mixed": "1 change | {count} changes"
+    },
+    "item": {
+      "delete": "{name} removed",
+      "purchase": "{name} purchased",
+      "restore": "{name} restored",
+      "move": "{name} moved"
+    },
+    "failed": "The change couldn't be saved, so it was undone.",
+    "secondsLeft": "{seconds}s"
+  },
   "profile": {
     "title": "Profile",
     "settings": {

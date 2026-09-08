@@ -3,7 +3,7 @@
     :open="open"
     :title="view === 'split' ? $t('pages.products.details.splitModal.title') : view === 'move' ? $t('pages.products.details.moveModal.title') : $t('pages.products.details.operationsTitle')"
     icon="i-lucide-settings"
-    :loading="isSplitting || isMoving"
+    :loading="isSplitting"
     @update:open="(value) => emit('update:open', value)"
   >
     <!-- List view: select items, then pick an operation -->
@@ -111,7 +111,6 @@
           v-model="selectedStorageId"
           :items="storageOptions"
           :loading="isLoadingStorages"
-          :disabled="isMoving"
           :placeholder="$t('pages.products.details.moveModal.targetLocationPlaceholder')"
           class="w-full"
         />
@@ -158,7 +157,6 @@
           :label="$t('pages.products.details.moveModal.move')"
           color="primary"
           icon="i-lucide-check"
-          :loading="isMoving"
           :disabled="isLoadingStorages || !selectedStorageId"
           @click="handleMove"
         />
@@ -169,7 +167,7 @@
 
 <script setup lang="ts">
 import { ref, computed, watch } from 'vue'
-import type { InventoryItemInfo, SplitInventoryItemRequest, MoveInventoryItemsRequest } from '../types/product'
+import type { InventoryItemInfo, SplitInventoryItemRequest } from '../types/product'
 import { SelectValueType } from '../types/enums'
 import type { SelectValue } from '../types/selectValue'
 
@@ -180,14 +178,26 @@ interface Props {
 
 const props = defineProps<Props>()
 
+/** What the move screen hands to the parent — enough to apply the move optimistically
+ *  (storageLocationName, so the row can show the new location without a round trip) and to
+ *  eventually call the API once the undo window closes. */
+export interface MoveRequestPayload {
+  itemIds: string[]
+  storageLocationPublicId: string
+  storageLocationName: string
+}
+
 const emit = defineEmits<{
   'update:open': [value: boolean]
   changed: []
+  /** Confirmed on the move screen — the parent (which owns the inventory items array) does the
+   *  actual optimistic move + deferred API calls. See InventoryOverviewDrawer's handleMoveRequested. */
+  'move-requested': [payload: MoveRequestPayload]
 }>()
 
 const { t: $t } = useI18n()
 const { formatDate } = useDateFormat()
-const { splitInventoryItem, moveInventoryItems } = useProductsApi()
+const { splitInventoryItem } = useProductsApi()
 const { getSelectValues } = useSelectValueApi()
 const toast = useToast()
 
@@ -200,7 +210,6 @@ const isSplitting = ref(false)
 const splitQuantity = ref<number | null>(null)
 
 // Move state
-const isMoving = ref(false)
 const isLoadingStorages = ref(false)
 const selectedStorageId = ref<string | null>(null)
 const storageOptions = ref<{ label: string; value: string }[]>([])
@@ -293,24 +302,18 @@ const loadStorageLocations = async () => {
   }
 }
 
-const handleMove = async () => {
+// Optimistic from here: the parent applies the move to each selected item right away and defers
+// the actual API call(s) behind the undo window (see InventoryOverviewDrawer's
+// handleMoveRequested), so this only ever has to gather what the parent needs and close.
+const handleMove = () => {
   if (!selectedStorageId.value || selectedIds.value.length === 0) return
 
-  isMoving.value = true
-  try {
-    const request: MoveInventoryItemsRequest = {
-      inventoryItemPublicIds: [...selectedIds.value],
-      storageLocationPublicId: selectedStorageId.value
-    }
-    const response = await moveInventoryItems(request)
-    if (response.success) {
-      emit('changed')
-      emit('update:open', false)
-    }
-  } catch (error) {
-    console.error('Failed to move inventory items:', error)
-  } finally {
-    isMoving.value = false
-  }
+  const storageLocationName = storageOptions.value.find(o => o.value === selectedStorageId.value)?.label ?? ''
+  emit('move-requested', {
+    itemIds: [...selectedIds.value],
+    storageLocationPublicId: selectedStorageId.value,
+    storageLocationName
+  })
+  emit('update:open', false)
 }
 </script>

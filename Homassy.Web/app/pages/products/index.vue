@@ -337,6 +337,11 @@ const { t: $t, locale: $locale } = useI18n()
 const { showCameraButton } = useCameraAvailability()
 const inventorySocket = useInventorySocket()
 const eventBus = useEventBus()
+// Shared with InventoryOverviewDrawer / InventoryItemRow's optimistic delete + move — see
+// useUndoableAction.ts. This grid never itself starts a pending action, but its own realtime
+// handlers below must still yield to one started elsewhere (e.g. from the product's own overview
+// drawer, open on top of this same grid).
+const { isPendingEntity } = useUndoableAction()
 
 // Persistent header (auth layout) — page identity + info popover.
 usePageHeader(() => ({
@@ -884,6 +889,10 @@ const handleInventoryReconnected = async () => {
 // --- Realtime patch handlers: mutate allProducts in place instead of refetching ---
 
 const handleRealtimeInventoryUpserted = (payload: InventoryUpsertedEvent) => {
+  // A local optimistic delete/move (started from this product's own overview drawer, or another
+  // tab) is still pending for this item — an echo of the pre-change server state must not fight
+  // it. The commit's own resolution is what reconciles once the window closes.
+  if (isPendingEntity(payload.item.publicId)) return
   const { product, item } = payload
   const existing = allProducts.value.find(p => p.publicId === product.publicId)
   if (!existing) {
@@ -898,6 +907,8 @@ const handleRealtimeInventoryUpserted = (payload: InventoryUpsertedEvent) => {
 }
 
 const handleRealtimeInventoryDeleted = (payload: InventoryDeletedEvent) => {
+  // See handleRealtimeInventoryUpserted above — a pending optimistic change on this item wins.
+  if (isPendingEntity(payload.itemPublicId)) return
   const product = allProducts.value.find(p => p.publicId === payload.productPublicId)
   if (!product) return
   product.inventoryItems = product.inventoryItems.filter(i => i.publicId !== payload.itemPublicId)

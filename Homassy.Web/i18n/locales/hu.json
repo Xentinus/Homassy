@@ -963,6 +963,23 @@
     "backOnline": "Újra online",
     "updatedFlash": "Frissült, amíg offline voltál"
   },
+  "undo": {
+    "action": "Visszavonás",
+    "collapsed": {
+      "delete": "{count} tétel törölve",
+      "purchase": "{count} tétel megvásárolva",
+      "move": "{count} tétel áthelyezve",
+      "mixed": "{count} módosítás"
+    },
+    "item": {
+      "delete": "{name} törölve",
+      "purchase": "{name} megvásárolva",
+      "restore": "{name} visszaállítva",
+      "move": "{name} áthelyezve"
+    },
+    "failed": "A módosítást nem sikerült menteni, ezért visszavontuk.",
+    "secondsLeft": "{seconds} mp"
+  },
   "profile": {
     "title": "Profil",
     "settings": {

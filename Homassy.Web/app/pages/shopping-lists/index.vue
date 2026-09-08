@@ -206,7 +206,9 @@
                 :shopping-locations="allShoppingLocations"
                 :current-store="currentStoreForItem(entry.item)"
                 @refresh="handleItemRefresh"
-                @deleted="handleItemRefresh"
+                @delete-requested="handleDeleteRequested(entry.item)"
+                @purchase-requested="(request) => handlePurchaseRequested(entry.item, request)"
+                @restore-requested="handleRestoreRequested(entry.item)"
               />
               <div v-if="entry.attribution" class="item-attribution-label">
                 <span class="item-attribution-dot" :style="entry.attribution.style" />
@@ -408,7 +410,7 @@
 <script setup lang="ts">
 import { ref, computed, watch, onMounted, onBeforeUnmount } from 'vue'
 import type { SelectValue } from '../../types/selectValue'
-import type { DetailedShoppingListInfo, ShoppingListItemInfo, ShoppingListInfo } from '../../types/shoppingList'
+import type { DetailedShoppingListInfo, ShoppingListItemInfo, ShoppingListInfo, PurchaseShoppingListItemRequest } from '../../types/shoppingList'
 import type { ItemDeletedEvent, ItemUpsertedEvent } from '../../types/realtime'
 import { SelectValueType, StoreType } from '../../types/enums'
 import { useSelectValueApi } from '../../composables/api/useSelectValueApi'
@@ -427,7 +429,7 @@ definePageMeta({
 
 const { t: $t } = useI18n()
 const { getSelectValues } = useSelectValueApi()
-const { getShoppingListDetails } = useShoppingListApi()
+const { getShoppingListDetails, deleteShoppingListItem, purchaseShoppingListItem, restorePurchaseShoppingListItem } = useShoppingListApi()
 const { getShoppingLocations } = useLocationsApi()
 const { showCameraButton } = useCameraAvailability()
 const { isExpired: checkIsExpired, isExpiringWithinTwoWeeks: checkIsExpiringWithinTwoWeeks } = useExpirationCheck()
@@ -443,6 +445,9 @@ const socket = useShoppingListSocket()
 const { emit: emitBusEvent } = useEventBus()
 const { accentStyle } = useMemberColor()
 const authStore = useAuthStore()
+// The optimistic undo queue (see useUndoableAction.ts) — this page owns currentListDetails.items,
+// so it is the one that runs() the delete/purchase/restore actions ShoppingListItemCard requests.
+const { run, isPendingEntity } = useUndoableAction()
 
 /**
  * The signed-in member's own public id. Used only to make sure a foreign-change flash never
@@ -1272,11 +1277,106 @@ const handleItemRefresh = async () => {
   }
 }
 
+// --- Optimistic delete/purchase/restore -------------------------------------
+// ShoppingListItemCard owns the confirm-drawer UX and the request shape (and emits once the user
+// has confirmed); this page owns currentListDetails.items, so it is what apply()/revert() mutate
+// and what commit() eventually calls the REST API with, deferred behind the undo window (see
+// useUndoableAction.ts). Nothing here awaits a network response — the row/toggle updates the
+// instant the user confirms, exactly the round-trip this task exists to remove.
+
+// NOTE on all three handlers below: apply/revert deliberately re-read `currentListDetails.value`
+// fresh on every invocation rather than closing over the array once. currentListDetails.value can
+// be replaced wholesale — a list switch, a showPurchased toggle, or handleSocketReconnected's
+// resync — while an action is still pending; closing over the old array would silently mutate a
+// detached snapshot the page no longer renders instead of the live one.
+
+const handleDeleteRequested = (item: ShoppingListItemInfo): void => {
+  if (!currentListDetails.value) return
+  const index = currentListDetails.value.items.findIndex(i => i.publicId === item.publicId)
+  if (index < 0) return
+
+  // Splicing at a captured index only makes sense against the same list it was captured from — if
+  // the user has since switched the open list (or it was reloaded) before the undo window closes,
+  // currentListDetails.value.items is a different list's array and must not be spliced into.
+  const belongsToOpenList = () => currentListDetails.value?.publicId === item.shoppingListPublicId
+
+  run({
+    entityId: item.publicId,
+    kind: 'delete',
+    label: $t('undo.item.delete', { name: getDisplayName(item) }),
+    // Capture the index now: revert must restore the row to its original position, not append it
+    // to the end, which would be a visible bug on this urgency-then-alphabetical list.
+    apply: () => {
+      if (!belongsToOpenList()) return
+      currentListDetails.value?.items.splice(index, 1)
+      clearAttribution(item.publicId)
+    },
+    revert: () => {
+      if (!belongsToOpenList()) return
+      currentListDetails.value?.items.splice(index, 0, item)
+    },
+    commit: () => deleteShoppingListItem(item.publicId)
+  })
+}
+
+const handlePurchaseRequested = (item: ShoppingListItemInfo, request: PurchaseShoppingListItemRequest): void => {
+  if (!currentListDetails.value) return
+  const originalPurchasedAt = item.purchasedAt
+
+  run({
+    entityId: item.publicId,
+    kind: 'purchase',
+    label: $t('undo.item.purchase', { name: getDisplayName(item) }),
+    // Re-locate by id rather than trusting a captured index: a same-entity replacement (e.g. a
+    // rapid purchase-then-restore double-tap) can run this apply/revert more than once, and other
+    // items may have been deleted (or the whole array replaced) in between.
+    apply: () => {
+      const items = currentListDetails.value?.items
+      const idx = items?.findIndex(i => i.publicId === item.publicId) ?? -1
+      if (items && idx >= 0) items[idx] = { ...items[idx]!, purchasedAt: request.purchasedAt }
+    },
+    revert: () => {
+      const items = currentListDetails.value?.items
+      const idx = items?.findIndex(i => i.publicId === item.publicId) ?? -1
+      if (items && idx >= 0) items[idx] = { ...items[idx]!, purchasedAt: originalPurchasedAt }
+    },
+    commit: () => purchaseShoppingListItem(request)
+  })
+}
+
+const handleRestoreRequested = (item: ShoppingListItemInfo): void => {
+  if (!currentListDetails.value) return
+  const originalPurchasedAt = item.purchasedAt
+
+  run({
+    entityId: item.publicId,
+    // Shares the 'purchase' kind with handlePurchaseRequested — the queue only knows three kinds
+    // (see undoQueue.ts), and restoring is the same toggle in the other direction.
+    kind: 'purchase',
+    label: $t('undo.item.restore', { name: getDisplayName(item) }),
+    apply: () => {
+      const items = currentListDetails.value?.items
+      const idx = items?.findIndex(i => i.publicId === item.publicId) ?? -1
+      if (items && idx >= 0) items[idx] = { ...items[idx]!, purchasedAt: undefined }
+    },
+    revert: () => {
+      const items = currentListDetails.value?.items
+      const idx = items?.findIndex(i => i.publicId === item.publicId) ?? -1
+      if (items && idx >= 0) items[idx] = { ...items[idx]!, purchasedAt: originalPurchasedAt }
+    },
+    commit: () => restorePurchaseShoppingListItem(item.publicId)
+  })
+}
+
 // --- Realtime handlers: mutate the open list in place instead of refetching. ---
 // ItemUpserted/ItemDeleted now arrive as { item, actorPublicId } / { publicId,
 // shoppingListPublicId, actorPublicId } (Homassy.API.Hubs.ShoppingListRealtime) rather than the
 // bare item/id the client used to read — every handler below destructures the new shape.
 const handleRealtimeItemUpserted = ({ item, actorPublicId }: ItemUpsertedEvent) => {
+  // A local optimistic change (delete/purchase/restore) is still pending for this item — an echo
+  // of the pre-change server state must not fight it. The commit's own resolution (and whatever
+  // the server broadcasts because of it) is what reconciles once the window closes.
+  if (isPendingEntity(item.publicId)) return
   if (!currentListDetails.value || item.shoppingListPublicId !== selectedListId.value) return
   const items = currentListDetails.value.items
   const index = items.findIndex(i => i.publicId === item.publicId)
@@ -1288,6 +1388,8 @@ const handleRealtimeItemUpserted = ({ item, actorPublicId }: ItemUpsertedEvent) 
 }
 
 const handleRealtimeItemDeleted = ({ publicId, shoppingListPublicId }: ItemDeletedEvent) => {
+  // See handleRealtimeItemUpserted above — a pending optimistic change on this item wins.
+  if (isPendingEntity(publicId)) return
   if (!currentListDetails.value || shoppingListPublicId !== selectedListId.value) return
   currentListDetails.value.items = currentListDetails.value.items.filter(i => i.publicId !== publicId)
   emitBusEvent('shopping-list-item:deleted')

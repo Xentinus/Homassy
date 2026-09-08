@@ -233,7 +233,7 @@
 
       <template #footer>
         <UButton :label="$t('pages.products.details.deleteModal.cancel')" color="neutral" variant="outline" @click="closeDeleteModal" />
-        <UButton :label="$t('pages.products.details.deleteModal.confirm')" color="error" :loading="isDeleting" @click="handleDelete" />
+        <UButton :label="$t('pages.products.details.deleteModal.confirm')" color="error" @click="handleDelete" />
       </template>
     </AppDrawer>
   </div>
@@ -256,14 +256,16 @@ const props = defineProps<Props>()
 const emit = defineEmits<{
   consumed: []
   updated: []
-  deleted: []
+  /** Confirmed in the delete drawer — the parent (which owns the inventory items array) does the
+   *  actual optimistic remove + deferred DELETE. See InventoryOverviewDrawer's handleDeleteRequested. */
+  'delete-requested': []
 }>()
 
 const { t: $t } = useI18n()
 const haptics = useHaptics()
 const { formatDate } = useDateFormat()
 const { inputDateLocale } = useInputDateLocale()
-const { consumeInventoryItem, updateInventoryItem, deleteInventoryItem } = useProductsApi()
+const { consumeInventoryItem, updateInventoryItem } = useProductsApi()
 const { expirationTone } = useExpirationStatus()
 const toast = useToast()
 
@@ -288,7 +290,6 @@ const editForm = ref<{
 const isUpdating = ref(false)
 
 const isDeleteModalOpen = ref(false)
-const isDeleting = ref(false)
 
 // Swipe gestures (left = delete, right = edit); tap = consume.
 const rowEl = ref<HTMLElement | null>(null)
@@ -296,9 +297,9 @@ const rowEl = ref<HTMLElement | null>(null)
 const anyModalOpen = computed(() =>
   isConsumeModalOpen.value || isEditModalOpen.value || isDeleteModalOpen.value
 )
-const anyPending = computed(() =>
-  isConsuming.value || isUpdating.value || isDeleting.value
-)
+// Delete is now instant (optimistic — see handleDelete below), so only consume/update, which
+// still round-trip before their drawer closes, have anything to be pending on.
+const anyPending = computed(() => isConsuming.value || isUpdating.value)
 
 const swipe = useSwipeActions(rowEl, {
   onSwipeLeft: () => openDeleteModal(),
@@ -465,19 +466,9 @@ const closeDeleteModal = () => {
   isDeleteModalOpen.value = false
 }
 
-const handleDelete = async () => {
-  isDeleting.value = true
-  try {
-    const response = await deleteInventoryItem(props.item.publicId)
-    if (response.success) {
-      haptics.warning()
-      closeDeleteModal()
-      emit('deleted')
-    }
-  } catch (error) {
-    console.error('Failed to delete inventory item:', error)
-  } finally {
-    isDeleting.value = false
-  }
+const handleDelete = () => {
+  haptics.warning()
+  closeDeleteModal()
+  emit('delete-requested')
 }
 </script>
