@@ -9,6 +9,13 @@
  * the one `UndoToast` mounted in `app.vue` — shares the same queue, the same timer and the same
  * clock, so a pending action started on one page is still there (and still committing on time) if
  * the user navigates before the undo window closes.
+ *
+ * The queue's replacement rule (undoQueue.ts) assumes every `commit` is an absolute write, safe to
+ * fully supersede because applying only the newer one still leaves the row correct. A relative
+ * delta (e.g. inventory "consume", which decrements rather than sets) does not fit that: replacing
+ * it would silently drop the older delta's server round-trip while the UI shows both applied. Do
+ * not route a delta through `run()` — see `InventoryItemRow.vue`'s consume handler for the fuller
+ * reasoning and the pre-existing server-side race a queued delta would also widen.
  */
 import { computed, ref } from 'vue'
 import {

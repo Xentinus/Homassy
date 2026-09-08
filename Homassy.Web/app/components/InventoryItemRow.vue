@@ -374,6 +374,16 @@ const adjustQuantity = (amount: number) => {
   }
 }
 
+// Deliberately NOT routed through useUndoableAction, unlike delete/purchase elsewhere in this
+// app, and this should stay that way: delete and the purchase toggle are absolute writes
+// (idempotent, so the queue's same-entity replacement — which drops the older action's commit
+// entirely — is correct for them), but consume is a relative delta. Two queued consumes on one
+// item would each encode only their own delta, so replacing the first with the second would
+// silently drop the first decrement's server round-trip while the optimistic UI shows both
+// applied. A 5s deferral would also widen the pre-existing race in
+// ProductFunctions.ConsumeInventoryItemAsync, which recomputes the remaining quantity from a
+// freshly re-read row without re-validating it against the request — concurrent commits can
+// already drive the quantity negative even today. See useUndoableAction.ts's header comment.
 const handleConsume = async () => {
   if (!consumeQuantity.value || consumeQuantity.value <= 0) {
     toast.add({
