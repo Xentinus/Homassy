@@ -845,12 +845,6 @@
       "today": "Today"
     }
   },
-  "time": {
-    "justNow": "just now",
-    "minutesAgo": "{count} minutes ago",
-    "hoursAgo": "{count} hours ago",
-    "daysAgo": "{count} days ago"
-  },
   "errorCodes": {
     "AUTH-0001": "Authentication is required.",
     "AUTH-0002": "Invalid email address or verification code.",
@@ -965,6 +959,10 @@
       "system": "System",
       "light": "Light",
       "dark": "Dark"
+    },
+    "haptics": {
+      "label": "Haptic feedback",
+      "description": "Short vibrations on gestures and confirmations"
     },
     "editName": {
       "title": "Edit name"
@@ -2524,8 +2522,16 @@
     "torchOff": "Turn off flashlight",
     "zoomIn": "Zoom in",
     "zoomOut": "Zoom out",
+    "switchCamera": "Switch camera",
+    "states": {
+      "requesting": "Waiting for the camera",
+      "requestingHint": "Allow camera access when your browser asks.",
+      "searching": "Looking for a code",
+      "found": "Code found"
+    },
     "errors": {
       "permissionDenied": "Camera access denied. Please enable camera permissions in your settings.",
+      "permissionDeniedHint": "Allow the camera for this site in your browser settings, then try again.",
       "noCameraFound": "No camera found on this device",
       "cameraAccessFailed": "Failed to access camera. Please try again later.",
       "scanFailed": "Scan failed. Please try again.",

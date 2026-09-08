@@ -1,4 +1,4 @@
-import { ref, onUnmounted, nextTick, type Ref } from 'vue'
+import { computed, ref, onUnmounted, nextTick, type Ref } from 'vue'
 
 // Global state shared across all instances
 const isScannerOpen = ref(false)
@@ -8,6 +8,26 @@ const scanError = ref<string | null>(null)
 const detectedBarcode = ref<string | null>(null)
 const scanCallback = ref<((barcode: string) => void) | null>(null)
 const detectedCandidates = ref<string[]>([])
+
+/**
+ * What the camera itself is doing, as opposed to what the scan loop is doing.
+ * The overlay draws a different screen for each: a spinner while the browser is
+ * still deciding, the fix-it hint when permission was refused, and so on.
+ */
+export type CameraState = 'idle' | 'requesting' | 'ready' | 'denied' | 'missing' | 'failed'
+const cameraState = ref<CameraState>('idle')
+
+// A decoded value is held on screen briefly before the sheet closes, so the
+// reticle can snap onto the code and confirm what was read. Short enough not to
+// feel like latency, long enough to register.
+const SUCCESS_HOLD_MS = 450
+const successValue = ref<string | null>(null)
+let successTimer: ReturnType<typeof setTimeout> | null = null
+
+// Which camera to open, and a nonce the modal keys the stream on so a retry or a
+// camera switch remounts it (constraints are only read when the stream starts).
+const facingMode = ref<'environment' | 'user'>('environment')
+const streamNonce = ref(0)
 
 // Buffer for stable detection: tracks how many frames each barcode appeared in
 let bufferTimer: ReturnType<typeof setTimeout> | null = null
@@ -36,6 +56,7 @@ const zoomStep = ref(0.5)
  */
 export const useBarcodeScanner = () => {
   const { t } = useI18n()
+  const haptics = useHaptics()
 
   /**
    * Play success beep sound using Web Audio API
@@ -94,6 +115,9 @@ export const useBarcodeScanner = () => {
     isScanning.value = true
     scanCallback.value = onSuccess
     isPaused.value = false
+    // The browser has not handed us a track yet; @camera-on flips this to 'ready'.
+    cameraState.value = 'requesting'
+    successValue.value = null
     detectedCandidates.value = []
     candidateFrameCount.clear()
     totalFrameCount = 0
@@ -104,10 +128,16 @@ export const useBarcodeScanner = () => {
   }
 
   /**
-   * Short haptic feedback on detection (mobile only)
+   * Haptic feedback on detection — goes through the shared vocabulary so it
+   * follows the user's haptics switch and no-ops where vibration is unsupported.
    */
   const vibrateOnDetect = () => {
-    navigator.vibrate?.(100)
+    haptics.success()
+  }
+
+  /** A scan attempt that decoded nothing (or blew up) gets the failure pattern. */
+  const vibrateOnScanFailure = () => {
+    haptics.error()
   }
 
   /**
@@ -175,6 +205,32 @@ export const useBarcodeScanner = () => {
   }
 
   /**
+   * The single exit taken by every successful decode (live buffer, snapshot, or
+   * a manual pick from the multi-code list): beep, buzz, freeze the frame on the
+   * winning code so the overlay can snap its reticle onto it, then hand the value
+   * to the caller and close.
+   */
+  const finishWithBarcode = (barcode: string) => {
+    playBeep()
+    vibrateOnDetect()
+    detectedBarcode.value = barcode
+    successValue.value = barcode
+    // Freezes the stream, and keeps handleDetect from firing during the beat.
+    isPaused.value = true
+
+    // stopScanner() clears it, so take the reference before the timer runs.
+    const callback = scanCallback.value
+
+    if (successTimer) clearTimeout(successTimer)
+    successTimer = setTimeout(() => {
+      successTimer = null
+      stopScanner()
+      isScannerOpen.value = false
+      if (callback) callback(barcode)
+    }, SUCCESS_HOLD_MS)
+  }
+
+  /**
    * Commit buffered candidates: auto-select if only one, show list if multiple
    */
   const commitCandidates = () => {
@@ -192,14 +248,7 @@ export const useBarcodeScanner = () => {
     if (stableCandidates.length === 0) return
 
     if (stableCandidates.length === 1) {
-      const barcode = stableCandidates[0]!
-      playBeep()
-      vibrateOnDetect()
-      detectedBarcode.value = barcode
-      const callback = scanCallback.value
-      stopScanner()
-      isScannerOpen.value = false
-      if (callback) callback(barcode)
+      finishWithBarcode(stableCandidates[0]!)
     } else {
       // Multiple stable candidates – pause and let user choose
       isPaused.value = true
@@ -234,13 +283,7 @@ export const useBarcodeScanner = () => {
     detectedCandidates.value = []
     candidateFrameCount.clear()
     totalFrameCount = 0
-    playBeep()
-    vibrateOnDetect()
-    detectedBarcode.value = barcode
-    const callback = scanCallback.value
-    stopScanner()
-    isScannerOpen.value = false
-    if (callback) callback(barcode)
+    finishWithBarcode(barcode)
   }
 
   /**
@@ -320,19 +363,7 @@ export const useBarcodeScanner = () => {
           if (detectedCodes.length > 0) {
             if (detectedCodes.length === 1) {
               // Single result – auto-confirm
-              const barcode = detectedCodes[0]!.rawValue
-              playBeep()
-              vibrateOnDetect()
-              detectedBarcode.value = barcode
-
-              const callback = scanCallback.value
-
-              stopScanner()
-              isScannerOpen.value = false
-
-              if (callback) {
-                callback(barcode)
-              }
+              finishWithBarcode(detectedCodes[0]!.rawValue)
             } else {
               // Multiple results – let user choose
               detectedCandidates.value = [...new Set(detectedCodes.map(code => code.rawValue))]
@@ -340,6 +371,7 @@ export const useBarcodeScanner = () => {
             }
           } else {
             // No barcode found in snapshot - wait 2 seconds then resume video
+            vibrateOnScanFailure()
             setTimeout(() => {
               isPaused.value = false
               if (onUnfreeze) onUnfreeze()
@@ -348,6 +380,7 @@ export const useBarcodeScanner = () => {
         } catch (err) {
           console.error('Barcode detection error:', err)
           // Error during detection - wait 2 seconds then resume video
+          vibrateOnScanFailure()
           setTimeout(() => {
             isPaused.value = false
             if (onUnfreeze) onUnfreeze()
@@ -369,6 +402,12 @@ export const useBarcodeScanner = () => {
     isScanning.value = false
     isPaused.value = false
     scanCallback.value = null
+    cameraState.value = 'idle'
+    successValue.value = null
+    if (successTimer) {
+      clearTimeout(successTimer)
+      successTimer = null
+    }
     detectedCandidates.value = []
     candidateFrameCount.clear()
     totalFrameCount = 0
@@ -393,15 +432,68 @@ export const useBarcodeScanner = () => {
   const handleCameraError = (error: Error) => {
     if (error.name === 'NotAllowedError') {
       scanError.value = t('barcodeScanner.errors.permissionDenied')
-    } else if (error.name === 'NotFoundError') {
+      cameraState.value = 'denied'
+    } else if (error.name === 'NotFoundError' || error.name === 'OverconstrainedError') {
       scanError.value = t('barcodeScanner.errors.noCameraFound')
+      cameraState.value = 'missing'
     } else if (error.name === 'NotReadableError') {
       scanError.value = t('barcodeScanner.errors.cameraAccessFailed')
+      cameraState.value = 'failed'
     } else {
       scanError.value = error.message || t('barcodeScanner.errors.scanFailed')
+      cameraState.value = 'failed'
     }
+    haptics.error()
     isScanning.value = false
   }
+
+  /** The stream is live — called from the modal's `@camera-on`. */
+  const markCameraReady = () => {
+    cameraState.value = 'ready'
+    scanError.value = null
+    // handleCameraError turns scanning off; a retry or a camera switch that then
+    // succeeds has to turn it back on, or the detector's results are ignored.
+    if (scanCallback.value) isScanning.value = true
+  }
+
+  /**
+   * Tear the stream down and open it again. A browser will not re-prompt for a
+   * permission it has already been refused, but the user may have just changed
+   * it in site settings — and it is the only way out of a transient
+   * NotReadableError (camera held by another app).
+   */
+  const retryCamera = () => {
+    scanError.value = null
+    cameraState.value = 'requesting'
+    streamNonce.value++
+  }
+
+  /** Flip between the back and front camera; the stream remounts on the new constraints. */
+  const switchCamera = () => {
+    facingMode.value = facingMode.value === 'environment' ? 'user' : 'environment'
+    // Torch/zoom belong to the track that is about to be replaced.
+    torchEnabled.value = false
+    torchSupported.value = false
+    videoTrack = null
+    zoomLevel.value = 1
+    zoomMin.value = 1
+    zoomMax.value = 1
+    cameraState.value = 'requesting'
+    streamNonce.value++
+  }
+
+  /**
+   * The one value the overlay switches on. Camera trouble outranks everything —
+   * there is nothing to search for without a stream.
+   */
+  const scanState = computed<'requesting' | 'denied' | 'no-camera' | 'error' | 'searching' | 'found'>(() => {
+    if (cameraState.value === 'denied') return 'denied'
+    if (cameraState.value === 'missing') return 'no-camera'
+    if (cameraState.value === 'failed') return 'error'
+    if (successValue.value) return 'found'
+    if (cameraState.value === 'ready') return 'searching'
+    return 'requesting'
+  })
 
   /**
    * Open the scanner modal
@@ -448,6 +540,14 @@ export const useBarcodeScanner = () => {
     zoomMin,
     zoomMax,
     zoomStep,
-    setZoom
+    setZoom,
+    cameraState,
+    scanState,
+    successValue,
+    markCameraReady,
+    retryCamera,
+    switchCamera,
+    facingMode,
+    streamNonce
   }
 }

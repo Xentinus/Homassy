@@ -9,6 +9,7 @@ export function usePullToRefresh(
   options: { ignoreSelector?: string } = {}
 ) {
   const ignoreSelector = options.ignoreSelector ?? '[data-no-pull-refresh]'
+  const haptics = useHaptics()
 
   const pullDistance = ref(0)
   const isPulling = ref(false)
@@ -17,6 +18,8 @@ export function usePullToRefresh(
 
   let startY = 0
   let startedAtTop = false
+  // One arm-tick per gesture, not one per touchmove frame.
+  let armHapticFired = false
 
   const onTouchStart = (e: TouchEvent) => {
     if (isRefreshing.value) return
@@ -29,6 +32,7 @@ export function usePullToRefresh(
     startY = e.touches[0]!.clientY
     startedAtTop = window.scrollY === 0
     isPulling.value = false
+    armHapticFired = false
   }
 
   const onTouchMove = (e: TouchEvent) => {
@@ -49,6 +53,12 @@ export function usePullToRefresh(
     isPulling.value = damped > 4
     isReady.value = damped >= THRESHOLD * DAMPING
 
+    // Tick once as the pull arms, so the release point is felt, not guessed.
+    if (isReady.value && !armHapticFired) {
+      armHapticFired = true
+      haptics.select()
+    }
+
     if (damped > 4 && e.cancelable) {
       e.preventDefault()
     }
@@ -62,6 +72,7 @@ export function usePullToRefresh(
       isPulling.value = false
       pullDistance.value = 0
       isReady.value = false
+      haptics.tap()
 
       try {
         await onRefresh()
@@ -75,6 +86,7 @@ export function usePullToRefresh(
     }
 
     startedAtTop = false
+    armHapticFired = false
   }
 
   onMounted(() => {

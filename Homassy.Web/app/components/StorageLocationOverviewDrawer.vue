@@ -3,6 +3,7 @@
     :open="open"
     :title="location?.name"
     icon="i-lucide-warehouse"
+    :snap-points="[0.5, 1]"
     @update:open="(v) => emit('update:open', v)"
   >
     <div v-if="location" class="space-y-6">

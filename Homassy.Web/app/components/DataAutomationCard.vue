@@ -84,6 +84,7 @@ const emit = defineEmits<{
 }>()
 
 const { t } = useI18n()
+const haptics = useHaptics()
 const toast = useToast()
 const { deleteAutomation } = useAutomationApi()
 
@@ -155,6 +156,7 @@ async function handleDelete() {
   try {
     await deleteAutomation(props.automation.publicId)
     isDeleteModalOpen.value = false
+    haptics.warning()
     emit('deleted', props.automation.publicId)
   } catch (error) {
     console.error('Failed to delete automation:', error)

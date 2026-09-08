@@ -21,6 +21,8 @@ export const useSwipeActions = (
   el: Ref<HTMLElement | null>,
   options: SwipeActionsOptions
 ) => {
+  const haptics = useHaptics()
+
   const thresholdRatio = options.thresholdRatio ?? 0.4
   const minThreshold = options.minThreshold ?? 56
   const maxDragRatio = options.maxDragRatio ?? 0.6
@@ -129,7 +131,7 @@ export const useSwipeActions = (
 
     if (!hapticFired && Math.abs(offset) >= t) {
       hapticFired = true
-      navigator.vibrate?.(10)
+      haptics.select()
     }
   }
 
@@ -148,6 +150,9 @@ export const useSwipeActions = (
     translateX.value = 0
 
     if (committed.value) {
+      // A firmer tick when the action actually fires; the threshold tick above
+      // only promises "let go now and it will commit".
+      haptics.impact()
       if (offset < 0) options.onSwipeLeft?.()
       else options.onSwipeRight?.()
     }

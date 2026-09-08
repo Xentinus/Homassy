@@ -31,7 +31,7 @@
         <div class="min-w-0 flex-1">
           <div class="flex items-center justify-between gap-2">
             <span class="font-semibold text-highlighted text-sm">{{ labelFor(event.type) }}</span>
-            <span class="text-xs text-muted shrink-0">{{ formatDate(event.date) }}</span>
+            <RelativeTime :date="event.date" class="text-xs text-muted shrink-0" />
           </div>
 
           <div class="mt-1 flex flex-wrap gap-x-3 gap-y-0.5 text-xs text-muted">
@@ -71,7 +71,6 @@ withDefaults(defineProps<{
 })
 
 const { t: $t } = useI18n()
-const { formatDate } = useDateFormat()
 
 const iconFor = (type: ProductHistoryEventType): string => {
   switch (type) {

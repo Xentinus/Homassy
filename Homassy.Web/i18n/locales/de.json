@@ -845,12 +845,6 @@
       "today": "Heute"
     }
   },
-  "time": {
-    "justNow": "gerade eben",
-    "minutesAgo": "vor {count} Minuten",
-    "hoursAgo": "vor {count} Stunden",
-    "daysAgo": "vor {count} Tagen"
-  },
   "errorCodes": {
     "AUTH-0001": "Anmeldung erforderlich.",
     "AUTH-0002": "Ungültige E-Mail-Adresse oder ungültiger Bestätigungscode.",
@@ -965,6 +959,10 @@
       "system": "System",
       "light": "Hell",
       "dark": "Dunkel"
+    },
+    "haptics": {
+      "label": "Haptisches Feedback",
+      "description": "Kurze Vibrationen bei Gesten und Bestätigungen"
     },
     "editName": {
       "title": "Name bearbeiten"
@@ -2524,8 +2522,16 @@
     "torchOff": "Taschenlampe ausschalten",
     "zoomIn": "Vergrößern",
     "zoomOut": "Verkleinern",
+    "switchCamera": "Kamera wechseln",
+    "states": {
+      "requesting": "Warten auf die Kamera",
+      "requestingHint": "Erlaube den Kamerazugriff, wenn der Browser danach fragt.",
+      "searching": "Code wird gesucht",
+      "found": "Code gefunden"
+    },
     "errors": {
       "permissionDenied": "Kamerazugriff verweigert. Bitte aktivieren Sie die Kamera in Ihren Einstellungen.",
+      "permissionDeniedHint": "Erlaube die Kamera für diese Seite in den Browsereinstellungen und versuche es erneut.",
       "noCameraFound": "Keine Kamera auf diesem Gerät gefunden",
       "cameraAccessFailed": "Zugriff auf Kamera fehlgeschlagen. Bitte versuchen Sie es später erneut.",
       "scanFailed": "Scannen fehlgeschlagen. Bitte versuchen Sie es erneut.",

@@ -77,6 +77,16 @@ const props = withDefaults(defineProps<{
   closable?: boolean
   /** Force a high z-index so this drawer stacks above another drawer it opens over (nested/child overlays). */
   elevated?: boolean
+  /**
+   * Extra resting heights, as a fraction of the sheet's own height (e.g.
+   * `[0.5, 1]`). The sheet still opens full height; the lower points are where a
+   * downward drag can settle instead of closing. Below the top point the body
+   * stops scrolling and a drag anywhere in the sheet moves it.
+   *
+   * Footer-less sheets only — a footer is pinned to the bottom of the content
+   * and would be dragged off-screen with it.
+   */
+  snapPoints?: number[]
 }>(), {
   icon: undefined,
   description: undefined,
@@ -86,7 +96,8 @@ const props = withDefaults(defineProps<{
   loading: false,
   padded: true,
   closable: true,
-  elevated: false
+  elevated: false,
+  snapPoints: undefined
 })
 
 const emit = defineEmits<{
@@ -119,12 +130,14 @@ const ui = computed(() => {
   return base
 })
 
-// Drag the header down to dismiss. Native vaul dismiss stays governed by
-// `dismissible` (default false, so outside-tap / Esc don't close by accident);
-// this gesture and the ✕ button are the deliberate exits.
+// Drag the header down to dismiss (and, with `snapPoints`, to park the sheet at
+// an intermediate height). Native vaul dismiss stays governed by `dismissible`
+// (default false, so outside-tap / Esc don't close by accident); this gesture
+// and the ✕ button are the deliberate exits.
 const headerEl = ref<HTMLElement | null>(null)
 useDrawerDragToClose(headerEl, {
   onClose: () => emit('update:open', false),
-  disabled: () => !props.dragToClose || !props.closable || props.loading
+  disabled: () => !props.dragToClose || !props.closable || props.loading,
+  snapPoints: () => props.snapPoints
 })
 </script>

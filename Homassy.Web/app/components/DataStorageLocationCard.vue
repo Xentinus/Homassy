@@ -94,6 +94,7 @@ const emit = defineEmits<{
 }>()
 
 const { t } = useI18n()
+const haptics = useHaptics()
 const toast = useToast()
 const { deleteStorageLocation } = useLocationsApi()
 const { highlightText } = useSearchHighlight()
@@ -124,6 +125,7 @@ async function handleDelete() {
   try {
     await deleteStorageLocation(props.location.publicId)
     isDeleteModalOpen.value = false
+    haptics.warning()
     emit('deleted', props.location.publicId)
   } catch (error) {
     console.error('Failed to delete storage location:', error)

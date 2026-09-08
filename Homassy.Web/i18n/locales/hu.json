@@ -845,12 +845,6 @@
       "today": "Ma"
     }
   },
-  "time": {
-    "justNow": "most",
-    "minutesAgo": "{count} perce",
-    "hoursAgo": "{count} órája",
-    "daysAgo": "{count} napja"
-  },
   "errorCodes": {
     "AUTH-0001": "Bejelentkezés szükséges.",
     "AUTH-0002": "Hibás e-mail cím vagy ellenőrző kód.",
@@ -965,6 +959,10 @@
       "system": "Rendszer",
       "light": "Világos",
       "dark": "Sötét"
+    },
+    "haptics": {
+      "label": "Rezgő visszajelzés",
+      "description": "Rövid rezgés gesztusoknál és megerősítéseknél"
     },
     "editName": {
       "title": "Név szerkesztése"
@@ -2524,8 +2522,16 @@
     "torchOff": "Zseblámpa kikapcsolása",
     "zoomIn": "Közelítés",
     "zoomOut": "Távolítás",
+    "switchCamera": "Kamera váltása",
+    "states": {
+      "requesting": "Várakozás a kamerára",
+      "requestingHint": "Engedélyezd a kamerát, amikor a böngésző kéri.",
+      "searching": "Kód keresése",
+      "found": "Kód megtalálva"
+    },
     "errors": {
       "permissionDenied": "A kamera hozzáférés megtagadva. Kérjük, engedélyezd a kamerát a beállításokban.",
+      "permissionDeniedHint": "Engedélyezd a kamerát ehhez az oldalhoz a böngésző beállításaiban, majd próbáld újra.",
       "noCameraFound": "Nem található kamera az eszközön",
       "cameraAccessFailed": "Nem sikerült elérni a kamerát. Próbáld újra később.",
       "scanFailed": "A beolvasás sikertelen. Próbáld újra.",

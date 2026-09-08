@@ -84,6 +84,7 @@ const emit = defineEmits<{
 }>()
 
 const { t } = useI18n()
+const haptics = useHaptics()
 const toast = useToast()
 const { deleteShoppingList } = useShoppingListApi()
 
@@ -96,6 +97,7 @@ async function handleDelete() {
   isDeleting.value = true
   try {
     await deleteShoppingList(publicId)
+    haptics.warning()
     emit('deleted', publicId)
     emit('update:open', false)
   } catch (error) {
