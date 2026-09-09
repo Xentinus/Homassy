@@ -27,8 +27,11 @@ namespace Homassy.API.Models.User
         public Language? DefaultLanguage { get; init; }
 
         /// <summary>
-        /// Identity-colour key from the curated palette, the literal <c>"auto"</c> to clear the override
-        /// and go back to the deterministic pick, or null to leave the current value untouched.
+        /// Identity-colour key from the curated palette, a custom six-digit hex colour
+        /// (<c>#rrggbb</c>, either case — normalised to lowercase before storing; three-digit
+        /// shorthand, alpha forms, <c>rgb()</c> and bare colour names are all rejected), the literal
+        /// <c>"auto"</c> to clear the override and go back to the deterministic pick, or null to leave
+        /// the current value untouched.
         /// </summary>
         public string? IdentityColor { get; init; }
     }

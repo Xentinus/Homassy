@@ -22,11 +22,16 @@ namespace Homassy.API.Entities.User
         public string? ProfilePictureVersion { get; set; }
 
         /// <summary>
-        /// The member's chosen identity-colour key from the app's curated palette (see the web
-        /// project's <c>utils/memberColors.ts</c>), or null to use the deterministic pick derived from
-        /// <see cref="Common.BaseEntity.PublicId"/> (the owning <c>User</c>'s public id). Stored as the key, never as a hex value: the palette is what
-        /// guarantees the colour stays legible in both themes, and a free-form colour would escape it.
-        /// Lives on the profile rather than in local storage so the choice follows the user across devices.
+        /// The member's chosen identity colour: one of the app's curated palette keys (see the web
+        /// project's <c>utils/memberColors.ts</c>), a custom colour stored as a lower-cased six-digit
+        /// hex string (<c>#rrggbb</c>), or null to use the deterministic pick derived from
+        /// <see cref="Common.BaseEntity.PublicId"/> (the owning <c>User</c>'s public id). A hex value's
+        /// hue is whatever the member picked; the contrast guarantee for it comes from the web
+        /// client adjusting lightness per theme at render time (<c>resolveMemberColor</c>), not from
+        /// restricting storage to the palette. <c>[StringLength(24)]</c> already comfortably fits the
+        /// 7-character <c>#rrggbb</c> form alongside the palette keys, so no migration was needed to
+        /// accept it. Lives on the profile rather than in local storage so the choice follows the
+        /// user across devices.
         /// </summary>
         [StringLength(24)]
         public string? IdentityColor { get; set; }

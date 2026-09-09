@@ -488,8 +488,13 @@ public class UserControllerTests : IClassFixture<HomassyWebApplicationFactory>
         }
     }
 
-    [Fact]
-    public async Task UpdateUserSettings_WithUnknownIdentityColor_Returns400()
+    [Theory]
+    [InlineData("#abc")]           // three-digit shorthand
+    [InlineData("#abcdefgh")]      // eight-digit / not valid hex digits either way
+    [InlineData("rgb(1,2,3)")]     // not a hex form at all
+    [InlineData("red")]            // bare colour name
+    [InlineData("unknown")]        // not a palette key either
+    public async Task UpdateUserSettings_WithMalformedIdentityColor_Returns400(string malformed)
     {
         string? testEmail = null;
         try
@@ -501,7 +506,7 @@ public class UserControllerTests : IClassFixture<HomassyWebApplicationFactory>
 
             var request = new UpdateUserSettingsRequest
             {
-                IdentityColor = "#ff0000"
+                IdentityColor = malformed
             };
 
             // Act
@@ -511,9 +516,55 @@ public class UserControllerTests : IClassFixture<HomassyWebApplicationFactory>
             _output.WriteLine($"Status: {response.StatusCode}");
             _output.WriteLine($"Response: {responseBody}");
 
-            // Assert: a free-form colour must never reach the column - the palette is what
-            // guarantees contrast in both themes.
+            // Assert: only a palette key, "auto", or a strict #rrggbb hex may reach the column -
+            // anything else (shorthand hex, alpha hex, rgb(), a bare name, an unknown key) is a 400.
             Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        }
+        finally
+        {
+            _authHelper.ClearAuthToken();
+            if (testEmail != null)
+                await _authHelper.CleanupUserAsync(testEmail);
+        }
+    }
+
+    [Theory]
+    [InlineData("#1a2b3c", "#1a2b3c")]  // already-lowercase hex persists unchanged
+    [InlineData("#1A2B3C", "#1a2b3c")]  // uppercase hex is stored lowercased
+    [InlineData("#AbCdEf", "#abcdef")]  // mixed-case hex is stored lowercased
+    public async Task UpdateUserSettings_WithHexIdentityColor_PersistsLowercased(string submitted, string expectedStored)
+    {
+        string? testEmail = null;
+        try
+        {
+            // Arrange
+            var (email, auth) = await _authHelper.CreateAndAuthenticateUserAsync("identity-color-hex");
+            testEmail = email;
+            _authHelper.SetAuthToken(auth.AccessToken);
+
+            var request = new UpdateUserSettingsRequest
+            {
+                IdentityColor = submitted
+            };
+
+            // Act
+            var response = await _client.PutAsJsonAsync("/api/v1.0/user/settings", request);
+            var responseBody = await response.Content.ReadAsStringAsync();
+
+            _output.WriteLine($"Status: {response.StatusCode}");
+            _output.WriteLine($"Response: {responseBody}");
+
+            Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+
+            // Read the persisted row directly rather than through the cache-first profile GET, so
+            // this does not need the 5s cache-refresh wait the palette-key tests above use.
+            var userId = _factory.GetUserIdByEmail(email);
+            var (scope, context) = _factory.CreateScopedDbContext();
+            await using var _ = scope as IAsyncDisposable;
+
+            var userProfile = context.UserProfiles.FirstOrDefault(up => up.UserId == userId);
+            Assert.NotNull(userProfile);
+            Assert.Equal(expectedStored, userProfile.IdentityColor);
         }
         finally
         {

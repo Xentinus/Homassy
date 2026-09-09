@@ -13,6 +13,7 @@ using Homassy.API.Services;
 using Microsoft.EntityFrameworkCore;
 using Serilog;
 using System.Collections.Concurrent;
+using System.Text.RegularExpressions;
 
 namespace Homassy.API.Functions
 {
@@ -33,6 +34,13 @@ namespace Homassy.API.Functions
         };
 
         private const string IdentityColorAuto = "auto";
+
+        /// <summary>
+        /// Strict six-digit hex only: no three-digit shorthand, no alpha channel, no <c>rgb()</c>,
+        /// no bare names. A single canonical stored form is what keeps the web client's parsing
+        /// simple — see <c>memberColors.ts</c>'s <c>isHexColor</c>, which mirrors this pattern.
+        /// </summary>
+        private static readonly Regex IdentityColorHexPattern = new("^#[0-9a-fA-F]{6}$", RegexOptions.Compiled);
 
         public static bool Inited = false;
 
@@ -934,6 +942,12 @@ namespace Homassy.API.Functions
                     else if (IdentityColorKeys.Contains(request.IdentityColor))
                     {
                         profile.IdentityColor = request.IdentityColor;
+                    }
+                    else if (IdentityColorHexPattern.IsMatch(request.IdentityColor))
+                    {
+                        // Normalised to lowercase so the stored value always has one canonical form —
+                        // the web client compares against it directly rather than re-parsing case.
+                        profile.IdentityColor = request.IdentityColor.ToLowerInvariant();
                     }
                     else
                     {
