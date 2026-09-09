@@ -118,4 +118,57 @@ public class SeriesZeroFillTests
         Assert.Equal(result.OrderBy(p => p.Bucket).Select(p => p.Bucket), result.Select(p => p.Bucket));
         Assert.Equal(result.Count, result.Select(p => p.Bucket).Distinct().Count());
     }
+
+    /// <summary>
+    /// Fix round 1, Critical defect 1 - first consequence: a window that does not open on a Monday
+    /// must not lose its own first day's consumption. Before this fix, <c>Densify</c> snapped a
+    /// sparse point down to its ISO week's Monday <em>before</em> comparing it against
+    /// <c>[from, to]</c> - so an activity on the window's own first day (here, a Wednesday) would
+    /// snap to the Monday two days earlier, which falls before <c>from</c> itself, and get dropped
+    /// entirely: the whole first partial week's genuine consumption silently zeroed. Every week-
+    /// bucket test above this one uses a Monday as <c>from</c>, which is exactly why none of them
+    /// caught this - a Monday's own ISO-week Monday is itself, so the pre-fix snap-then-compare was
+    /// always a no-op there. This test deliberately starts off-Monday to exercise the case those
+    /// cannot.
+    /// </summary>
+    [Fact]
+    public void Densify_WeekBucketWindowNotStartingOnMonday_FirstDayActivityAppearsInFirstWeeksValue()
+    {
+        var monday = AMonday();
+        var from = monday.AddDays(2); // a Wednesday - the window's own first day, deliberately off-Monday.
+        var to = from.AddDays(29);
+        var sparse = new[] { new SeriesPoint { Bucket = from, Value = 42m } }; // activity on day 1 of the window
+
+        var result = SeriesZeroFill.Densify(sparse, from, to, SeriesBucket.Week);
+
+        // The first week bucket is still labelled with the real ISO Monday (a partial first week
+        // keeps that label rather than shifting to line up with `from` - see BuildBucketStarts's
+        // remarks) - and now correctly carries the Wednesday activity's value instead of losing it.
+        Assert.Equal(monday, result[0].Bucket);
+        Assert.Equal(42m, result[0].Value);
+    }
+
+    /// <summary>
+    /// Fix round 1, Critical defect 1 - second consequence: an activity recorded one day after the
+    /// window ends must never appear anywhere in the response, even though the UTC padding upstream
+    /// (in <c>InsightFunctions.ComputeConsumptionSeriesAsync</c>) deliberately admits it past the
+    /// raw window filter. Before this fix, that point's ISO week Monday could still fall inside
+    /// <c>[from, to]</c> whenever <c>to</c> itself is not a Sunday (as here) even though the point
+    /// itself is past <c>to</c> - so it passed straight through into the last week's bucket. This
+    /// test starts off-Monday too, for the same reason as the test above.
+    /// </summary>
+    [Fact]
+    public void Densify_WeekBucketActivityOneDayAfterWindowEnds_DoesNotAppearAnywhereInResult()
+    {
+        var monday = AMonday();
+        var from = monday.AddDays(3); // a Thursday - deliberately off-Monday too (see the test above).
+        var to = from.AddDays(29); // a Friday - not the last day of its own ISO week, which is what
+                                    // lets the leak below actually manifest against the pre-fix code.
+        var sparse = new[] { new SeriesPoint { Bucket = to.AddDays(1), Value = 999m } }; // one day past the window
+
+        var result = SeriesZeroFill.Densify(sparse, from, to, SeriesBucket.Week);
+
+        Assert.DoesNotContain(result, p => p.Value == 999m);
+        Assert.Equal(0m, result.Sum(p => p.Value)); // must not appear under any bucket, not just its own.
+    }
 }

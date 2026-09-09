@@ -4,9 +4,6 @@ using Homassy.API.Extensions;
 using Homassy.API.Models.Insights;
 using Homassy.API.Services;
 using Microsoft.EntityFrameworkCore;
-using Serilog;
-using System.Data;
-using System.Data.Common;
 
 namespace Homassy.API.Functions
 {
@@ -321,42 +318,57 @@ namespace Homassy.API.Functions
         /// </para>
         ///
         /// <para>
-        /// <b>Timezone.</b> Bucketing happens in the caller's own local calendar, not the server's
-        /// UTC: the bucket expression is <c>date_trunc(&lt;day|week&gt;, "Timestamp" AT TIME ZONE
-        /// &lt;iana&gt;)</c>, executed as raw SQL (see below for why) rather than <c>.Date</c> or a
-        /// bare UTC truncation - a UTC truncation of an activity recorded late in one viewer's
-        /// evening (already "tomorrow" server-side) would silently relabel it onto the wrong local
-        /// day for that viewer. <c>Activities.Timestamp</c> is mapped <c>timestamp with time
-        /// zone</c> (see the <c>AddActivityTracking</c> migration), so a single <c>AT TIME ZONE</c>
-        /// hop is correct here - it converts the stored instant straight to the target zone's local
-        /// wall clock; a naive (without-time-zone) column would need converting through UTC first,
-        /// or the same hop would silently reinterpret the naive value as if it were already local
-        /// to the target zone and shift it the wrong way. Week bucketing uses PostgreSQL's own
-        /// <c>date_trunc('week', ...)</c>, which is ISO-week/Monday-anchored - <see cref="SeriesZeroFill.Densify"/>'s
-        /// own Monday-snap has to (and does) agree with that, and so does the frontend's
-        /// <c>timeTicks</c> axis.
+        /// <b>Timezone and grouping (Fix round 1).</b> Bucketing happens in the caller's own local
+        /// calendar, not the server's UTC: the grouping key is
+        /// <c>TimeZoneInfo.ConvertTimeBySystemTimeZoneId(a.Timestamp, ianaTimeZoneId).Date</c> -
+        /// Npgsql's own <c>NpgsqlDateTimeMethodTranslator</c> turns that into
+        /// <c>date_trunc('day', "Timestamp" AT TIME ZONE @tz)</c>, the exact expression the previous
+        /// raw-SQL version wrote by hand (verified with <c>ToQueryString()</c> against the pinned
+        /// provider DLL - see this task's report for the captured SQL). Grouping is always by
+        /// <b>day</b> here, never by week, regardless of <paramref name="bucket"/> -
+        /// <see cref="SeriesZeroFill.Densify"/> is what folds surviving days into week buckets, and
+        /// only after trimming to <c>[from, to]</c> (see its remarks on order of operations):
+        /// grouping by week in SQL first, before that trim could run, is what previously let a
+        /// window opening mid-week silently drop its own first partial week, and let a day one day
+        /// past the window leak in under a week label that still happened to fall in range - both
+        /// fixed by moving the week fold downstream of the trim instead of into the query.
+        /// <c>Activities.Timestamp</c> is mapped <c>timestamp with time zone</c> (see the
+        /// <c>AddActivityTracking</c> migration), so a single <c>AT TIME ZONE</c> hop is correct -
+        /// it converts the stored instant straight to the target zone's local wall clock; a naive
+        /// (without-time-zone) column would need converting through UTC first, or the same hop
+        /// would silently reinterpret the naive value as if it were already local to the target
+        /// zone and shift it the wrong way.
         /// </para>
         ///
         /// <para>
-        /// <b>Raw SQL, not LINQ.</b> This provider version (<c>Npgsql.EntityFrameworkCore.PostgreSQL</c>
-        /// 10.0.0) has no <c>EF.Functions.DateTrunc</c> translation, and EF Core's own
-        /// <c>Database.SqlQuery&lt;T&gt;</c> only supports a single scalar column, not a (bucket,
-        /// value) pair - so the exact
-        /// <c>date_trunc(...)</c> expression above is issued as a hand-written, fully parameterised
-        /// command against <see cref="RelationalDatabaseFacadeExtensions.GetDbConnection"/>, read
-        /// back with a plain <see cref="DbDataReader"/>. The <c>GROUP BY</c> and <c>SUM</c> still
-        /// happen entirely in the database - only the small, already-aggregated (at most
-        /// <paramref name="days"/> rows) result set is materialised into memory, same as every
-        /// other query in this layer.
+        /// <b>LINQ over <see cref="HomassyDbContext.Activities"/>, not raw SQL (Fix round 1).</b>
+        /// The previous version reached for a hand-written <c>DbCommand</c> because this provider
+        /// version (<c>Npgsql.EntityFrameworkCore.PostgreSQL</c> 10.0.0) has no
+        /// <c>EF.Functions.DateTrunc</c> translation and no public <c>EF.Functions.AtTimeZone</c>
+        /// either - both still true - but never checked whether the plain BCL
+        /// <c>TimeZoneInfo.ConvertTimeBySystemTimeZoneId(DateTime, string)</c> is itself
+        /// translatable, which it is (see above). Going raw bypassed EF's query pipeline entirely,
+        /// which is exactly what silently dropped <see cref="HomassyDbContext.OnModelCreating"/>'s
+        /// global soft-delete filter (<c>NOT "IsDeleted"</c> - the only global filter in this
+        /// model): a hand-rolled <c>WHERE</c> clause has no way to pick that up, but an ordinary
+        /// <c>DbSet&lt;Activity&gt;</c> query does, automatically, with no extra code written for
+        /// it. This is plain LINQ, so it gets that filter back for free, and
+        /// <c>Database.SqlQuery&lt;T&gt;</c>'s single-scalar-column limit - real, but only for raw
+        /// SQL entry points - was never actually a constraint on the LINQ path used here. The
+        /// <c>GROUP BY</c> and <c>SUM</c> still happen entirely in the database - only the small,
+        /// already-aggregated (at most <paramref name="days"/> rows) result set is materialised
+        /// into memory, same as every other query in this layer.
         /// </para>
         ///
         /// <para>
-        /// <b>Window padding.</b> The SQL <c>WHERE</c> clause bounds on UTC instants, but the
-        /// caller's own local <c>[from, to]</c> window can extend up to ~14 hours past a naive UTC
-        /// cut in either direction depending on their offset - so the UTC bounds are padded a full
-        /// extra day on each side rather than risk excluding a row that is genuinely inside the
-        /// local window before it ever reaches the <c>GROUP BY</c>. <see cref="SeriesZeroFill.Densify"/>
-        /// trims anything still outside <c>[from, to]</c> after bucketing, so the padding can only
+        /// <b>Window padding.</b> The <c>WHERE</c> clause bounds on UTC instants, but the caller's
+        /// own local <c>[from, to]</c> window can extend up to ~14 hours past a naive UTC cut in
+        /// either direction depending on their offset - so the UTC bounds are padded a full extra
+        /// day on each side rather than risk excluding a row that is genuinely inside the local
+        /// window before it ever reaches the <c>GROUP BY</c>. <see cref="SeriesZeroFill.Densify"/>
+        /// trims anything still outside <c>[from, to]</c> by day, strictly before folding into a
+        /// week (see its remarks on order of operations - this is exactly what makes the padding
+        /// safe now that weeks are aggregated after trimming, not before): the padding can only
         /// ever over-fetch, never under-fetch or leak an out-of-window point into the response.
         /// </para>
         /// </summary>
@@ -370,66 +382,35 @@ namespace Homassy.API.Functions
             var fromLocalDate = toLocalDate.AddDays(-(days - 1));
 
             // Padded a full extra day either side of the naive UTC cut - see this method's
-            // "Window padding" remarks above.
-            var fromUtc = new DateTimeOffset(DateTime.UtcNow.AddDays(-(days + 1)), TimeSpan.Zero);
-            var toUtc = new DateTimeOffset(DateTime.UtcNow.AddDays(1), TimeSpan.Zero);
+            // "Window padding" remarks above. Both carry DateTimeKind.Utc (inherited from
+            // DateTime.UtcNow, which AddDays preserves) - Npgsql requires that Kind on a value
+            // bound to a `timestamptz` column such as Activities.Timestamp, or it throws rather
+            // than guessing which zone an unspecified-Kind value is meant to be in.
+            var fromUtc = DateTime.UtcNow.AddDays(-(days + 1));
+            var toUtc = DateTime.UtcNow.AddDays(1);
 
-            var bucketField = bucket == SeriesBucket.Week ? "week" : "day";
+            // Plain LINQ over context.Activities - an ordinary DbSet<Activity> query, so
+            // HomassyDbContext's global soft-delete filter applies automatically (see this
+            // method's "LINQ, not raw SQL" remarks above). Always grouped by DAY, regardless of
+            // `bucket` - see SeriesZeroFill.Densify's remarks for why week aggregation happens
+            // afterward, in C#, once the day-granular rows are trimmed to [from, to], never here.
+            var scoped = familyId.HasValue
+                ? context.Activities.Where(a => a.FamilyId == familyId)
+                : context.Activities.Where(a => a.UserId == userId);
 
-            // Column name, not a parameter value: chosen from exactly two hard-coded literals by
-            // this method's own scope decision above, never from caller input, so interpolating it
-            // straight into the command text carries no injection risk.
-            var scopeColumn = familyId.HasValue ? "FamilyId" : "UserId";
-            var scopeId = familyId ?? userId;
+            var dayTotals = await scoped
+                .Where(a => a.ActivityType == ActivityType.ProductInventoryDecrease && a.Timestamp >= fromUtc && a.Timestamp <= toUtc)
+                .GroupBy(a => TimeZoneInfo.ConvertTimeBySystemTimeZoneId(a.Timestamp, ianaTimeZoneId).Date)
+                .Select(g => new { Bucket = g.Key, Value = g.Sum(a => a.Quantity ?? 0) })
+                .ToListAsync(cancellationToken);
 
-            var sparsePoints = new List<SeriesPoint>();
-
-            await context.Database.OpenConnectionAsync(cancellationToken);
-            try
-            {
-                var connection = context.Database.GetDbConnection();
-                await using var command = connection.CreateCommand();
-                command.CommandText = $@"
-                    SELECT
-                        date_trunc(@bucketField, ""Timestamp"" AT TIME ZONE @tz) AS ""Bucket"",
-                        COALESCE(SUM(""Quantity""), 0) AS ""Value""
-                    FROM ""Activities""
-                    WHERE ""ActivityType"" = @activityType
-                      AND ""Timestamp"" >= @fromUtc
-                      AND ""Timestamp"" <= @toUtc
-                      AND ""{scopeColumn}"" = @scopeId
-                    GROUP BY 1
-                    ORDER BY 1";
-
-                AddParameter(command, "bucketField", bucketField, DbType.String);
-                AddParameter(command, "tz", ianaTimeZoneId, DbType.String);
-                AddParameter(command, "activityType", (int)ActivityType.ProductInventoryDecrease, DbType.Int32);
-                AddParameter(command, "fromUtc", fromUtc, DbType.DateTimeOffset);
-                AddParameter(command, "toUtc", toUtc, DbType.DateTimeOffset);
-                AddParameter(command, "scopeId", scopeId, DbType.Int32);
-
-                // Logged under the same Serilog category (and therefore the same
-                // EFCORE_SQL_LOGGING / Production gating - see SerilogExtensions) EF Core's own
-                // command logging uses, even though this command bypasses EF's query pipeline
-                // entirely (see this method's "Raw SQL, not LINQ" remarks) and so would otherwise
-                // never appear there.
-                Log.ForContext("SourceContext", "Microsoft.EntityFrameworkCore.Database.Command")
-                    .Information(
-                        "Executing DbCommand (raw, outside the EF Core query pipeline) [Parameters=[bucketField='{BucketField}', tz='{TimeZoneId}', activityType={ActivityType}, fromUtc={FromUtc}, toUtc={ToUtc}, scopeId={ScopeId}]]\n{CommandText}",
-                        bucketField, ianaTimeZoneId, (int)ActivityType.ProductInventoryDecrease, fromUtc, toUtc, scopeId, command.CommandText);
-
-                await using var reader = await command.ExecuteReaderAsync(cancellationToken);
-                while (await reader.ReadAsync(cancellationToken))
-                {
-                    var bucketLocal = reader.GetDateTime(0);
-                    var value = reader.GetDecimal(1);
-                    sparsePoints.Add(new SeriesPoint { Bucket = DateOnly.FromDateTime(bucketLocal), Value = value });
-                }
-            }
-            finally
-            {
-                await context.Database.CloseConnectionAsync();
-            }
+            // The DateOnly conversion happens here, client-side, after the GROUP BY/SUM have
+            // already run in the database and only the (at most `days`) aggregated rows have been
+            // materialised - never inside the query itself, which keeps the projection above
+            // identical to the shape verified against the pinned provider DLL.
+            var sparsePoints = dayTotals
+                .Select(d => new SeriesPoint { Bucket = DateOnly.FromDateTime(d.Bucket), Value = d.Value })
+                .ToList();
 
             var points = SeriesZeroFill.Densify(sparsePoints, fromLocalDate, toLocalDate, bucket);
 
@@ -439,23 +420,6 @@ namespace Homassy.API.Functions
                 Bucket = bucket,
                 TimeZoneId = ianaTimeZoneId
             };
-        }
-
-        /// <summary>
-        /// Adds one fully-typed parameter to <paramref name="command"/>. Explicit
-        /// <see cref="DbType"/> throughout except where being explicit would be actively harmful -
-        /// see <see cref="ComputeConsumptionSeriesAsync"/>'s use of <see cref="DateTimeOffset"/>
-        /// (never a bare <see cref="DateTime"/>) for the two timestamp parameters, which is what
-        /// sidesteps Npgsql's <see cref="DateTime.Kind"/>-based inference between <c>timestamp</c>
-        /// and <c>timestamptz</c> entirely rather than relying on getting that inference right.
-        /// </summary>
-        private static void AddParameter(DbCommand command, string name, object value, DbType dbType)
-        {
-            var parameter = command.CreateParameter();
-            parameter.ParameterName = name;
-            parameter.Value = value;
-            parameter.DbType = dbType;
-            command.Parameters.Add(parameter);
         }
     }
 }

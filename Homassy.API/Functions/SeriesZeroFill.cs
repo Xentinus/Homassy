@@ -2,10 +2,14 @@ namespace Homassy.API.Functions
 {
     /// <summary>
     /// The bucket granularity a consumption (or other R5 insight) time series is grouped by.
-    /// <see cref="Week"/> is always Monday-anchored (ISO week) to agree with PostgreSQL's own
-    /// <c>date_trunc('week', ...)</c>, which is what the SQL side of
-    /// <see cref="InsightFunctions.GetConsumptionSeriesAsync"/> actually groups by - see that
-    /// method's remarks for why the two must never drift apart.
+    /// <see cref="Week"/> is always Monday-anchored (ISO week), matching PostgreSQL's own
+    /// <c>date_trunc('week', ...)</c> convention - even though the SQL side of
+    /// <see cref="InsightFunctions.GetConsumptionSeriesAsync"/> itself only ever groups by day now
+    /// (see <see cref="SeriesZeroFill.Densify"/>'s remarks on order of operations - Fix round 1).
+    /// Week buckets are summed up here, in C#, from the day-granular rows the query returns, so
+    /// <see cref="SeriesZeroFill.Densify"/>'s own Monday-snap is the one place left that has to
+    /// keep agreeing with Postgres's ISO-week convention - and with the frontend's <c>timeTicks</c>,
+    /// which aligns its weekly axis to Monday specifically to match.
     /// </summary>
     public enum SeriesBucket
     {
@@ -46,22 +50,40 @@ namespace Homassy.API.Functions
         /// both ends), summing whichever <paramref name="sparse"/> points fall into each bucket
         /// and defaulting to <see langword="0"/> for a bucket <paramref name="sparse"/> has no
         /// entry for.
+        ///
+        /// <para>
+        /// <b>Fix round 1 - order of operations is fixed on purpose:</b> every <paramref name="sparse"/>
+        /// point is trimmed against <c>[from, to]</c> <em>first</em>, while it is still a plain
+        /// calendar day, and only a day that survives that trim is folded into a
+        /// <see cref="SeriesBucket.Week"/> bucket afterward. Summing into weeks before trimming
+        /// (the previous, buggy order) can only ever accept or reject a whole pre-summed week at
+        /// once: a window that opens mid-week would then lose every genuine in-window day whose
+        /// week's Monday falls before <paramref name="from"/> (silently zeroing real consumption on
+        /// the first partial week), while a day that legitimately lies just past
+        /// <paramref name="to"/> - such as one admitted by the deliberate UTC padding in
+        /// <see cref="InsightFunctions.ComputeConsumptionSeriesAsync"/> - would ride inside a week
+        /// bucket that still falls in range and leak straight through. Trimming by day first means
+        /// only in-window days are ever summed, so a partial leading or trailing week is always
+        /// exactly its in-window days - see <see cref="BuildBucketStarts"/>'s remarks for why that
+        /// partial week is correct and expected, not a bug to "fix" later.
+        /// </para>
         /// </summary>
         /// <param name="sparse">
-        /// The aggregated (already-grouped-and-summed-in-SQL) result, in any order and with at
-        /// most one entry per bucket in the normal case - though a sparse point's own
-        /// <see cref="SeriesPoint.Bucket"/> is treated as a plain calendar day even when
-        /// <paramref name="bucket"/> is <see cref="SeriesBucket.Week"/>, and is snapped down to
-        /// that day's Monday before being summed into the matching weekly point. That snap is
-        /// normally a no-op (the SQL side already groups by <c>date_trunc('week', ...)</c>, which
-        /// only ever emits Mondays), but it means a caller does not have to pre-align every point
-        /// itself, and it is what "Week bucketing snaps to Monday" is actually asserting.
+        /// The aggregated (already-grouped-and-summed-in-SQL) result - always grouped by plain
+        /// calendar day regardless of <paramref name="bucket"/> (see
+        /// <see cref="InsightFunctions.ComputeConsumptionSeriesAsync"/>'s remarks for why the query
+        /// itself never groups by week any more), in any order and with at most one entry per day
+        /// in the normal case. Every point's own <see cref="SeriesPoint.Bucket"/> is checked against
+        /// <c>[from, to]</c> <em>before</em> anything else - see this method's remarks on order of
+        /// operations - and only then, for <see cref="SeriesBucket.Week"/>, snapped down to that
+        /// day's Monday via <see cref="StartOfIsoWeek"/> and summed into the matching weekly point.
         /// </param>
         /// <param name="from">
         /// The first calendar day the returned series must cover. When <paramref name="bucket"/>
         /// is <see cref="SeriesBucket.Week"/>, the first returned point is that day's own Monday
         /// (which can fall before <paramref name="from"/> itself) - the point still represents the
-        /// week <paramref name="from"/> belongs to.
+        /// week <paramref name="from"/> belongs to, carrying only whichever of its days actually
+        /// survive the <c>&gt;= from</c> trim.
         /// </param>
         /// <param name="to">
         /// The last calendar day the returned series must cover (inclusive). Must not precede
@@ -74,10 +96,9 @@ namespace Homassy.API.Functions
         /// A list ordered ascending by <see cref="SeriesPoint.Bucket"/> with no duplicate buckets -
         /// guaranteed structurally by how the bucket sequence itself is built below, not by a
         /// separate sort/distinct pass. A <paramref name="sparse"/> point whose
-        /// <see cref="SeriesPoint.Bucket"/> falls outside <c>[from, to]</c> (after the week-snap
-        /// above, when applicable) is dropped rather than extending the returned range - the
-        /// caller asked for a window, not "the window plus whatever stray rows happened to be
-        /// there".
+        /// <see cref="SeriesPoint.Bucket"/> falls outside <c>[from, to]</c> is dropped rather than
+        /// extending the returned range - the caller asked for a window, not "the window plus
+        /// whatever stray rows happened to be there".
         /// </returns>
         public static IReadOnlyList<SeriesPoint> Densify(IEnumerable<SeriesPoint> sparse, DateOnly from, DateOnly to, SeriesBucket bucket)
         {
@@ -85,20 +106,24 @@ namespace Homassy.API.Functions
 
             var bucketStarts = BuildBucketStarts(from, to, bucket);
 
-            // however many sparse points share a bucket (there should be at most one, since the
-            // SQL side already groups by the same expression) their values are summed rather than
-            // one silently overwriting another - cheap safety net, never exercised in the normal
-            // path.
+            // Trim to [from, to] FIRST, while every point is still a plain calendar day, and only
+            // THEN fold a surviving day into its ISO week for SeriesBucket.Week - see this
+            // method's remarks above (Fix round 1) for why that order, and not the reverse, is
+            // what keeps a partial leading/trailing week correct and keeps a day just past `to`
+            // from leaking in under a week label that still happens to fall in range.
             var totals = new Dictionary<DateOnly, decimal>();
             foreach (var point in sparse)
             {
-                var snappedBucket = bucket == SeriesBucket.Week ? StartOfIsoWeek(point.Bucket) : point.Bucket;
-                if (snappedBucket < from || snappedBucket > to)
+                if (point.Bucket < from || point.Bucket > to)
                 {
                     continue; // outside the requested window - dropped, never widens it.
                 }
 
-                totals[snappedBucket] = totals.GetValueOrDefault(snappedBucket) + point.Value;
+                // however many sparse points land in the same target bucket (there should be at
+                // most one per day, since the query groups by day, but several days can share a
+                // week bucket here) their values are summed rather than one overwriting another.
+                var targetBucket = bucket == SeriesBucket.Week ? StartOfIsoWeek(point.Bucket) : point.Bucket;
+                totals[targetBucket] = totals.GetValueOrDefault(targetBucket) + point.Value;
             }
 
             return bucketStarts
@@ -113,6 +138,20 @@ namespace Homassy.API.Functions
         /// <see cref="SeriesBucket.Week"/>. Ascending and duplicate-free by construction - each
         /// step strictly advances the cursor, so no separate ordering or de-duplication is needed
         /// downstream.
+        ///
+        /// <para>
+        /// <b>A partial first (or last) week is correct and expected</b> when <paramref name="from"/>
+        /// (or <paramref name="to"/>) does not fall on a Monday - do not "fix" this by shifting the
+        /// label forward to the window's own start. If the window opens on, say, a Wednesday, that
+        /// first bucket is still labelled with the Monday that starts its ISO week, even though only
+        /// Wednesday-through-Sunday of it are actually in range: <see cref="Densify"/> only ever sums
+        /// the in-window days into it (its own remarks explain why trimming happens before the
+        /// week-fold), so the bucket's value is genuinely just those days, not a whole week's worth.
+        /// Keeping the label on the real ISO Monday - rather than moving it to line up with
+        /// <paramref name="from"/> - is what keeps every week bucket agreeing with PostgreSQL's own
+        /// Monday-anchored <c>date_trunc('week', ...)</c> and with the frontend's <c>timeTicks</c>,
+        /// which aligns its axis to Monday specifically to match.
+        /// </para>
         /// </summary>
         private static List<DateOnly> BuildBucketStarts(DateOnly from, DateOnly to, SeriesBucket bucket)
         {

@@ -196,6 +196,33 @@ public class InsightsControllerTests : IClassFixture<HomassyWebApplicationFactor
         });
         await context.SaveChangesAsync();
     }
+
+    /// <summary>
+    /// Fix round 1: the same as <see cref="AddConsumptionActivityAsync"/>, except the row is
+    /// inserted already soft-deleted (<c>IsDeleted = true</c>) - the same flag
+    /// <see cref="Homassy.API.Context.HomassyDbContext.OnModelCreating"/>'s global query filter
+    /// checks. <c>HomassyDbContext.SaveChangesAsync</c>'s own override only touches
+    /// <c>RecordChange</c> on save, never <c>IsDeleted</c>, so the row persists exactly as deleted
+    /// as it is set here - there is no separate "soft-delete this row" step to call afterward.
+    /// </summary>
+    private async Task AddSoftDeletedConsumptionActivityAsync(int userId, int? familyId, decimal quantity, DateTime timestampUtc)
+    {
+        var (scope, context) = _factory.CreateScopedDbContext();
+        await using var _ = scope as IAsyncDisposable;
+
+        context.Activities.Add(new Activity
+        {
+            UserId = userId,
+            FamilyId = familyId,
+            Timestamp = DateTime.SpecifyKind(timestampUtc, DateTimeKind.Utc),
+            ActivityType = ActivityType.ProductInventoryDecrease,
+            RecordId = 1,
+            RecordName = "Insight Test Product (soft-deleted)",
+            Quantity = quantity,
+            IsDeleted = true
+        });
+        await context.SaveChangesAsync();
+    }
     #endregion
 
     [Fact]
@@ -874,6 +901,52 @@ public class InsightsControllerTests : IClassFixture<HomassyWebApplicationFactor
                 await _authHelper.CleanupUserAsync(testEmailA);
             if (testEmailB != null)
                 await _authHelper.CleanupUserAsync(testEmailB);
+        }
+    }
+
+    /// <summary>
+    /// Fix round 1, Critical defect 2: a soft-deleted consumption activity must never be counted.
+    /// The raw SQL this endpoint used before this fix queried <c>"Activities"</c> directly, with no
+    /// <c>IsDeleted</c> check anywhere in its hand-written <c>WHERE</c> clause, so a soft-deleted
+    /// row was summed exactly like a live one. Now that the query is plain LINQ over
+    /// <c>context.Activities</c> - an ordinary <c>DbSet&lt;Activity&gt;</c> query -
+    /// <see cref="Homassy.API.Context.HomassyDbContext.OnModelCreating"/>'s global soft-delete
+    /// filter (<c>NOT "IsDeleted"</c>) applies automatically, with no extra code written for it.
+    /// </summary>
+    [Fact]
+    public async Task GetConsumptionSeries_SoftDeletedActivity_IsExcludedFromTheSeries()
+    {
+        string? testEmail = null;
+        try
+        {
+            var (email, auth) = await _authHelper.CreateAndAuthenticateUserAsync("consumption-soft-deleted");
+            testEmail = email;
+            _authHelper.SetAuthToken(auth.AccessToken);
+
+            var userId = _factory.GetUserIdByEmail(email);
+            Assert.NotNull(userId);
+
+            var instant = DateTime.SpecifyKind(DateTime.UtcNow.Date.AddDays(-2).AddHours(10), DateTimeKind.Utc);
+            await AddSoftDeletedConsumptionActivityAsync(userId!.Value, familyId: null, quantity: 42m, instant);
+
+            var response = await _client.GetAsync("/api/v1.0/insights/consumption?days=30&bucket=day");
+            var body = await response.Content.ReadAsStringAsync();
+            _output.WriteLine($"Status: {response.StatusCode}");
+            _output.WriteLine($"Response: {body}");
+
+            Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+            var content = await response.Content.ReadFromJsonAsync<ApiResponse<ConsumptionSeriesResponse>>();
+            Assert.NotNull(content?.Data);
+
+            // The whole point: the soft-deleted activity's 42 must never appear anywhere.
+            var totalConsumption = content.Data.Points.Sum(p => p.Value);
+            Assert.Equal(0m, totalConsumption);
+        }
+        finally
+        {
+            _authHelper.ClearAuthToken();
+            if (testEmail != null)
+                await _authHelper.CleanupUserAsync(testEmail);
         }
     }
 
