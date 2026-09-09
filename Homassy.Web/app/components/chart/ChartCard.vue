@@ -12,23 +12,34 @@
 
     <div class="space-y-4">
       <!-- Legend. Colour is never the only distinction: every swatch carries its own label text,
-           and the fallback table below repeats the same labels again. -->
+           and the fallback table below repeats the same labels again. Both theme variants arrive
+           as props and land as inline CSS custom properties; a static dark: utility class picks
+           between them (same pattern as ProductImage.vue's --cat-hue) — never a JS theme read,
+           which would be a hydration mismatch during SSR. -->
       <div v-if="legend.length > 0" class="flex flex-wrap gap-2">
         <UBadge v-for="entry in legend" :key="entry.key" color="neutral" variant="soft" size="sm">
           <span class="flex items-center gap-1.5">
-            <span class="h-2.5 w-2.5 shrink-0 rounded-full" :style="{ backgroundColor: entry.color }" />
+            <span
+              class="h-2.5 w-2.5 shrink-0 rounded-full bg-[var(--swatch-light)] dark:bg-[var(--swatch-dark)]"
+              :style="{ '--swatch-light': entry.colorLight, '--swatch-dark': entry.colorDark }"
+            />
             {{ entry.label }}
           </span>
         </UBadge>
       </div>
 
-      <!-- Exactly one of: the loading skeleton, the empty state, or the chart itself (default slot). -->
-      <div v-if="loading" class="h-48">
+      <!-- Exactly one of: the loading skeleton, the empty state, or the chart itself (default slot).
+           The loading and empty boxes reserve `aspectRatio` (width ÷ height) rather than a fixed
+           height, so whichever one is showing occupies exactly the box the chart's own fixed
+           viewBox will render at this card's width — swapping loading -> empty -> slot never
+           shifts the page. -->
+      <div v-if="loading" :style="{ aspectRatio }">
         <SkeletonCard :lines="0" :footer-lines="0" />
       </div>
       <div
         v-else-if="tableRows.length === 0"
-        class="flex h-48 items-center justify-center text-center text-sm text-muted"
+        class="flex items-center justify-center text-center text-sm text-muted"
+        :style="{ aspectRatio }"
       >
         {{ emptyLabel || $t('chart.noData') }}
       </div>
@@ -103,9 +114,20 @@
  * this component exists as its own file rather than being copy-pasted three times — exactly one
  * accessible fallback implementation instead of three slightly-different ones.
  *
- * Colour is a prop-in, `background-color` style-out passthrough: the `color` on each legend entry
- * already is the final CSS colour (a caller resolves it via `seriesColors()` in `~/utils/chart/series`
- * from `MEMBER_COLORS`), so this component never needs to know anything about the palette itself.
+ * Colour is a prop-in, custom-property-out passthrough: `colorLight`/`colorDark` on each legend
+ * entry already are the final CSS colours (a caller resolves both via `seriesColors()` in
+ * `~/utils/chart/series` from `MEMBER_COLORS`), so this component never needs to know anything
+ * about the palette itself. It cannot collapse the pair into one resolved string first: an inline
+ * `style` has no selector context to key a `dark:` variant off, and Tailwind's JIT cannot emit a
+ * class for a value it never saw at build time. So both variants arrive as props and are set as
+ * inline custom properties, with a static `dark:` utility class doing the theme selection — the
+ * same pattern `ProductImage.vue` uses for `--cat-hue`, and for the same reason: the colour mode is
+ * unknown during SSR, so picking one in script would be a hydration mismatch.
+ *
+ * The loading and empty states size themselves from `aspectRatio` rather than a fixed height, so
+ * whichever one is showing reserves the same box the chart itself (fixed `viewBox`, `w-full
+ * h-auto`) will render at this card's width — see that prop's own comment for the values Task 5
+ * passes.
  */
 import { ref } from 'vue'
 
@@ -113,12 +135,23 @@ interface ChartCardProps {
   title: string
   subtitle?: string
   loading?: boolean
-  /** Legend entries; empty array hides the legend. */
-  legend?: { key: string; label: string; color: string }[]
+  /**
+   * Legend entries; empty array hides the legend. Both theme variants are required — never a
+   * single resolved colour — because the swatch has to stay theme-correct without a JS theme
+   * read; see the module comment above.
+   */
+  legend?: { key: string; label: string; colorLight: string; colorDark: string }[]
   /** Rows for the accessible fallback table. Empty array renders the empty state. */
   tableRows?: { label: string; values: string[] }[]
   tableHeaders?: string[]
   emptyLabel?: string
+  /**
+   * Width ÷ height of the chart the default slot will render, so the loading and empty
+   * states reserve exactly the box the chart itself will occupy and swapping one for
+   * the other does not shift the page. Task 5 passes `1` for the donut (`viewBox="0 0 200 200"`)
+   * and `1.6` for line and bar (`viewBox="0 0 320 200"`).
+   */
+  aspectRatio?: number
 }
 
 withDefaults(defineProps<ChartCardProps>(), {
@@ -127,7 +160,8 @@ withDefaults(defineProps<ChartCardProps>(), {
   legend: () => [],
   tableRows: () => [],
   tableHeaders: () => [],
-  emptyLabel: undefined
+  emptyLabel: undefined,
+  aspectRatio: 1.6
 })
 
 /**
