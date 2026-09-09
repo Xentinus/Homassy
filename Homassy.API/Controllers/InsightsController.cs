@@ -1,5 +1,6 @@
 using Asp.Versioning;
 using Homassy.API.Context;
+using Homassy.API.Enums;
 using Homassy.API.Functions;
 using Homassy.API.Models.Common;
 using Homassy.API.Models.Insights;
@@ -38,13 +39,22 @@ public class InsightsController : ControllerBase
     /// personal items plus their family's shared items - broken down by product category.
     /// </summary>
     /// <remarks>
-    /// A caller with no user id at all gets an empty <see cref="InventoryCompositionResponse"/> -
-    /// zero slices, zero counts - rather than an error or, worse, an unscoped query that would
-    /// answer with every family's combined data. That check happens here, before
-    /// <see cref="InsightFunctions.GetInventoryCompositionAsync"/> is ever called, so a missing
-    /// user id can never reach a query. A caller with no family is different: they still have
-    /// their own personal items to show, so only the missing-user-id case short-circuits - a
-    /// missing family id is passed straight through and simply drops the family half of the union.
+    /// A caller with no user id at all gets <b>401</b>, not 200 with an empty payload. This
+    /// endpoint is <c>[Authorize]</c>, so the request did authenticate - a missing user id means
+    /// the session could not be resolved to a local user row (see
+    /// <see cref="SessionInfo.SetFromKratosSession"/>'s "doesn't exist locally yet" branch), which
+    /// is an authentication problem, not a legitimately empty dataset. Answering 200 with zeroes
+    /// would tell the client its household is empty when the server in fact does not know who is
+    /// asking. Mirrors the in-repo precedent for exactly this condition:
+    /// <see cref="UserController.SendTestPushNotification"/> / <see cref="UserController.SendTestEmail"/>.
+    /// That check happens here, before <see cref="InsightFunctions.GetInventoryCompositionAsync"/>
+    /// is ever called, so a missing user id can never reach a query.
+    /// <para>
+    /// A caller with no <em>family</em> is a different, legitimate case: they still have their own
+    /// personal items to show, so only the missing-user-id case short-circuits to an error - a
+    /// missing family id is passed straight through and simply drops the family half of the union,
+    /// still answering 200 (empty if they also have no items, populated if they do).
+    /// </para>
     /// </remarks>
     [HttpGet("inventory-composition")]
     [MapToApiVersion(1.0)]
@@ -54,7 +64,7 @@ public class InsightsController : ControllerBase
         var userId = SessionInfo.GetUserId();
         if (!userId.HasValue)
         {
-            return Ok(ApiResponse<InventoryCompositionResponse>.SuccessResponse(new InventoryCompositionResponse()));
+            return Unauthorized(ApiResponse.ErrorResponse(ErrorCodes.AuthUnauthorized));
         }
 
         var familyId = SessionInfo.GetFamilyId();

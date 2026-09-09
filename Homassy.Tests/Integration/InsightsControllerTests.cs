@@ -113,6 +113,42 @@ public class InsightsControllerTests : IClassFixture<HomassyWebApplicationFactor
         var userFunctions = scope.ServiceProvider.GetRequiredService<UserFunctions>();
         await userFunctions.RefreshUserCacheAsync(userId);
     }
+
+    /// <summary>
+    /// Deletes a user's local rows (<c>User</c>, <c>UserProfile</c>, <c>UserNotificationPreferences</c>)
+    /// directly - the same rows <see cref="Homassy.Tests.Infrastructure.HomassyWebApplicationFactory.CleanupTestUserAsync"/>
+    /// removes - but, unlike that method, never touches the mock Kratos session. Simulates a
+    /// Kratos session that is still valid (still passes <c>[Authorize]</c>) but no longer
+    /// resolves to a local user: exactly the case <c>SessionInfo.GetUserId()</c> returns null for
+    /// even though the request authenticated (see <c>SessionInfo.SetFromKratosSession</c>'s
+    /// "doesn't exist locally yet" branch). Also evicts the user from <see cref="UserFunctions"/>'s
+    /// static cache so the very next request sees the deletion instead of a stale cache hit.
+    /// </summary>
+    private async Task DeleteLocalUserRowAsync(int userId)
+    {
+        var (scope, context) = _factory.CreateScopedDbContext();
+        await using var _ = scope as IAsyncDisposable;
+
+        var user = context.Users.First(u => u.Id == userId);
+
+        var profile = context.UserProfiles.FirstOrDefault(p => p.UserId == userId);
+        if (profile != null)
+        {
+            context.UserProfiles.Remove(profile);
+        }
+
+        var notificationPrefs = context.UserNotificationPreferences.FirstOrDefault(n => n.UserId == userId);
+        if (notificationPrefs != null)
+        {
+            context.UserNotificationPreferences.Remove(notificationPrefs);
+        }
+
+        context.Users.Remove(user);
+        await context.SaveChangesAsync();
+
+        var userFunctions = scope.ServiceProvider.GetRequiredService<UserFunctions>();
+        await userFunctions.RefreshUserCacheAsync(userId);
+    }
     #endregion
 
     [Fact]
@@ -121,6 +157,60 @@ public class InsightsControllerTests : IClassFixture<HomassyWebApplicationFactor
         var response = await _client.GetAsync("/api/v1.0/insights/inventory-composition");
         _output.WriteLine($"Status: {response.StatusCode}");
         Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
+    }
+
+    /// <summary>
+    /// Fix round 2: a request that authenticates - a valid Kratos session, so <c>[Authorize]</c>
+    /// passes - but whose session cannot be resolved to a local <c>User</c> row (<c>SessionInfo.GetUserId()</c>
+    /// is null) must be 401, not 200 with an empty payload. This is an authentication problem -
+    /// the server does not know who is asking - never a legitimately empty dataset. Mirrors the
+    /// in-repo precedent for exactly this condition: <c>UserController.SendTestPushNotification</c>
+    /// / <c>SendTestEmail</c>.
+    /// </summary>
+    /// <remarks>
+    /// Not to be confused with <see cref="GetInventoryComposition_UserWithNoFamily_ReturnsEmptyResultNotAnErrorOrGlobalCount"/>
+    /// or <see cref="GetInventoryComposition_UserWithNoFamilyButOwnItems_ReturnsOwnPersonalComposition"/>:
+    /// both of those callers have a valid, resolvable user id and simply no family - a
+    /// legitimately empty (or personal-items-only) result that must keep returning 200. Only a
+    /// null <em>user</em> id becomes 401.
+    /// </remarks>
+    [Fact]
+    public async Task GetInventoryComposition_SessionWithNoLocalUser_ReturnsUnauthorized()
+    {
+        string? kratosIdentityId = null;
+        try
+        {
+            var (email, auth) = await _authHelper.CreateAndAuthenticateUserAsync("insight-no-local-user");
+            kratosIdentityId = auth.AccessToken.Replace("mock-session-", "");
+            _authHelper.SetAuthToken(auth.AccessToken);
+
+            var userId = _factory.GetUserIdByEmail(email);
+            Assert.NotNull(userId);
+
+            // Deletes the local User row (and its dependents) but deliberately leaves the mock
+            // Kratos session registered - see DeleteLocalUserRowAsync's doc comment for why this
+            // reproduces "authenticated, but no resolvable user id" rather than "unauthenticated"
+            // (already covered by GetInventoryComposition_WithoutToken_ReturnsUnauthorized above).
+            await DeleteLocalUserRowAsync(userId!.Value);
+
+            var response = await _client.GetAsync("/api/v1.0/insights/inventory-composition");
+            var body = await response.Content.ReadAsStringAsync();
+            _output.WriteLine($"Status: {response.StatusCode}");
+            _output.WriteLine($"Response: {body}");
+
+            Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
+        }
+        finally
+        {
+            _authHelper.ClearAuthToken();
+
+            // The User row is already gone at this point, so CleanupUserAsync(email) - which
+            // looks the user up by email in the database - could not find it to clear its mock
+            // Kratos session. Clear the session directly instead, the same way
+            // HomassyWebApplicationFactory.CleanupTestUserAsync would have.
+            if (kratosIdentityId != null)
+                await _factory.MockKratos.DeleteIdentitySessionsAsync(kratosIdentityId);
+        }
     }
 
     [Fact]
@@ -283,6 +373,83 @@ public class InsightsControllerTests : IClassFixture<HomassyWebApplicationFactor
             Assert.True(content.Data.OtherCount > 0, "Expected a non-zero OtherCount for the categories past the top 8");
             Assert.Equal(categories.Length, content.Data.TotalCount);
             Assert.Equal(categories.Length, content.Data.Slices.Sum(s => s.Count) + content.Data.OtherCount);
+        }
+        finally
+        {
+            _authHelper.ClearAuthToken();
+            if (testEmail != null)
+                await _authHelper.CleanupUserAsync(testEmail);
+        }
+    }
+
+    /// <summary>
+    /// Fix round 2: the "two different Others" bug. Before this fix, when the explicit
+    /// <see cref="ProductCategory.Other"/> category ranked in the top 8 by count, it appeared as
+    /// its own entry in <see cref="InventoryCompositionResponse.Slices"/> <em>and</em>
+    /// <see cref="InventoryCompositionResponse.OtherCount"/> stayed whatever the top-8 overflow
+    /// summed to - two different things both meaning "other" in the same payload, even though the
+    /// <c>Slices.Sum + OtherCount == TotalCount</c> invariant still held (the arithmetic was never
+    /// wrong, only the shape). This test builds exactly that situation: 8 distinct non-Other
+    /// categories with 1 item each, plus a substantially larger explicit-<see cref="ProductCategory.Other"/>
+    /// bucket that would out-rank every one of them on count alone - so before the fix, it would
+    /// have claimed a top-8 slice instead of folding into <see cref="InventoryCompositionResponse.OtherCount"/>.
+    /// </summary>
+    [Fact]
+    public async Task GetInventoryComposition_ExplicitOtherCategoryRanksInTopEight_FoldsIntoOtherCountNotItsOwnSlice()
+    {
+        string? testEmail = null;
+        try
+        {
+            var (email, auth) = await _authHelper.CreateAndAuthenticateUserAsync("insight-other-fold");
+            testEmail = email;
+            _authHelper.SetAuthToken(auth.AccessToken);
+
+            await CreateFamilyAsync("Insight Family Other Fold");
+
+            // 8 distinct non-Other categories, 1 item each.
+            var nonOtherCategories = new[]
+            {
+                ProductCategory.Grain, ProductCategory.Bread, ProductCategory.CerealAndBreakfast,
+                ProductCategory.Pasta, ProductCategory.Rice, ProductCategory.Flour,
+                ProductCategory.Sugar, ProductCategory.Salt
+            };
+            foreach (var category in nonOtherCategories)
+            {
+                var productId = await CreateProductAsync(category, "other-fold");
+                await AddSharedInventoryItemAsync(productId);
+            }
+
+            // A substantial explicit-Other bucket - enough to out-rank every category above on
+            // count alone, so under the pre-fix behaviour it would have claimed a top-8 slice of
+            // its own instead of folding into OtherCount.
+            var otherProductId = await CreateProductAsync(ProductCategory.Other, "other-fold");
+            for (var i = 0; i < 5; i++)
+            {
+                await AddSharedInventoryItemAsync(otherProductId);
+            }
+
+            var response = await _client.GetAsync("/api/v1.0/insights/inventory-composition");
+            var body = await response.Content.ReadAsStringAsync();
+            _output.WriteLine($"Status: {response.StatusCode}");
+            _output.WriteLine($"Response: {body}");
+
+            Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+
+            var content = await response.Content.ReadFromJsonAsync<ApiResponse<InventoryCompositionResponse>>();
+            Assert.NotNull(content?.Data);
+
+            // The bug this proves fixed: Slices must never contain an Other entry, no matter how
+            // large its count is relative to everything else.
+            Assert.DoesNotContain(content.Data.Slices, s => s.Category == ProductCategory.Other);
+
+            // OtherCount must include the explicit-Other items, not just top-8 overflow - and
+            // here there is no overflow at all, since exactly 8 non-Other categories exist.
+            Assert.Equal(13, content.Data.TotalCount); // 8 x 1 + 5
+            Assert.Equal(8, content.Data.Slices.Count);
+            Assert.Equal(5, content.Data.OtherCount);
+
+            // The invariant this fix must preserve.
+            Assert.Equal(content.Data.TotalCount, content.Data.Slices.Sum(s => s.Count) + content.Data.OtherCount);
         }
         finally
         {

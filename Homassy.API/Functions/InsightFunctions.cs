@@ -20,9 +20,12 @@ namespace Homassy.API.Functions
     public class InsightFunctions
     {
         /// <summary>
-        /// How many of the family's largest categories become their own <see cref="CompositionSlice"/>;
-        /// every category past this rank is folded into <see cref="InventoryCompositionResponse.OtherCount"/>
-        /// instead, so the chart this feeds never has to render (and label) more slices than a legend can hold.
+        /// How many of the family's largest non-<see cref="ProductCategory.Other"/> categories
+        /// become their own <see cref="CompositionSlice"/>; every one of those categories past
+        /// this rank is folded into <see cref="InventoryCompositionResponse.OtherCount"/> instead,
+        /// so the chart this feeds never has to render (and label) more slices than a legend can
+        /// hold. <see cref="ProductCategory.Other"/> itself is never ranked against this cap - see
+        /// <see cref="InventoryCompositionResponse.OtherCount"/>'s XML doc.
         /// </summary>
         private const int MaxSlices = 8;
 
@@ -130,15 +133,30 @@ namespace Homassy.API.Functions
 
             var totalCount = categoryCounts.Sum(c => c.Count);
 
-            // Only this small, already-aggregated list (at most one row per distinct category the
-            // family actually uses) is ever materialised - ordering/Take/Skip below run over that,
-            // never over the underlying inventory rows.
+            // ProductCategory.Other is never ranked for a slice of its own, no matter how large
+            // its count is - it is pulled out here and folded straight into OtherCount below,
+            // alongside the top-N overflow, whether it got there as an explicit category or via
+            // the null-Category fold in the GroupBy key above. See
+            // InventoryCompositionResponse.OtherCount's XML doc for the full reasoning: without
+            // this, a response could carry both a Slices entry for Other AND a non-zero
+            // OtherCount - two different things both claiming to mean "other".
+            var explicitOtherCount = categoryCounts.FirstOrDefault(c => c.Category == ProductCategory.Other)?.Count ?? 0;
+
+            // Only this small, already-aggregated list (at most one row per distinct non-Other
+            // category the caller actually uses) is ever materialised - ordering/Take/Skip below
+            // run over that, never over the underlying inventory rows.
             var ordered = categoryCounts
+                .Where(c => c.Category != ProductCategory.Other)
                 .OrderByDescending(c => c.Count)
                 .ThenBy(c => c.Category)
                 .ToList();
 
-            var otherCount = ordered.Skip(MaxSlices).Sum(c => c.Count);
+            // OtherCount is the single "not individually listed" bucket: the explicit/null-folded
+            // Other category plus every non-Other category ranked past MaxSlices. Slices' summed
+            // Count plus this always equals totalCount - see InsightsControllerTests for the
+            // assertions that prove it, including the case where Other alone would otherwise have
+            // out-ranked every top-8 slice.
+            var otherCount = explicitOtherCount + ordered.Skip(MaxSlices).Sum(c => c.Count);
 
             var slices = ordered
                 .Take(MaxSlices)
