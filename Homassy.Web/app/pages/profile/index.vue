@@ -126,6 +126,12 @@
           icon="i-lucide-activity"
           to="/activity"
         />
+        <SettingsRow
+          :label="$t('insights.title')"
+          :description="$t('insights.description')"
+          icon="i-lucide-bar-chart-3"
+          to="/insights"
+        />
       </SettingsGroup>
 
       <!-- Master data -->

@@ -1014,6 +1014,24 @@
       "seriesHeader": "Series"
     }
   },
+  "insights": {
+    "title": "Insights",
+    "description": "See charts for your stock, consumption, and spending.",
+    "composition": {
+      "title": "Inventory by category"
+    },
+    "consumption": {
+      "title": "Consumption",
+      "seriesLabel": "Consumed",
+      "last30Days": "Last 30 days",
+      "last90Days": "Last 90 days"
+    },
+    "spend": {
+      "title": "Spend by location (last 30 days)",
+      "titleWithCurrency": "Spend by location (last 30 days) · {currency}",
+      "unknownLocation": "Unknown location"
+    }
+  },
   "profile": {
     "title": "Profile",
     "settings": {

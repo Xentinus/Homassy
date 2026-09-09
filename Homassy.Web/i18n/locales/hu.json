@@ -1014,6 +1014,24 @@
       "seriesHeader": "Sorozat"
     }
   },
+  "insights": {
+    "title": "Elemzések",
+    "description": "Diagramok a készletedről, fogyasztásodról és költéseidről.",
+    "composition": {
+      "title": "Készlet kategóriánként"
+    },
+    "consumption": {
+      "title": "Fogyasztás",
+      "seriesLabel": "Elfogyasztva",
+      "last30Days": "Elmúlt 30 nap",
+      "last90Days": "Elmúlt 90 nap"
+    },
+    "spend": {
+      "title": "Költés hely szerint (elmúlt 30 nap)",
+      "titleWithCurrency": "Költés hely szerint (elmúlt 30 nap) · {currency}",
+      "unknownLocation": "Ismeretlen hely"
+    }
+  },
   "profile": {
     "title": "Profil",
     "settings": {

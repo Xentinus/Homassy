@@ -1014,6 +1014,24 @@
       "seriesHeader": "Serie"
     }
   },
+  "insights": {
+    "title": "Einblicke",
+    "description": "Diagramme zu deinem Bestand, Verbrauch und deinen Ausgaben.",
+    "composition": {
+      "title": "Bestand nach Kategorie"
+    },
+    "consumption": {
+      "title": "Verbrauch",
+      "seriesLabel": "Verbraucht",
+      "last30Days": "Letzte 30 Tage",
+      "last90Days": "Letzte 90 Tage"
+    },
+    "spend": {
+      "title": "Ausgaben nach Standort (letzte 30 Tage)",
+      "titleWithCurrency": "Ausgaben nach Standort (letzte 30 Tage) · {currency}",
+      "unknownLocation": "Unbekannter Standort"
+    }
+  },
   "profile": {
     "title": "Profil",
     "settings": {
