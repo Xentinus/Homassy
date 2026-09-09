@@ -6,6 +6,7 @@ using Homassy.API.Functions;
 using Homassy.API.Models.Common;
 using Homassy.API.Models.Family;
 using Homassy.API.Models.Insights;
+using Homassy.API.Models.Location;
 using Homassy.API.Models.Product;
 using Homassy.Tests.Infrastructure;
 using Microsoft.Extensions.DependencyInjection;
@@ -92,6 +93,68 @@ public class InsightsControllerTests : IClassFixture<HomassyWebApplicationFactor
         });
         var body = await response.Content.ReadAsStringAsync();
         Assert.True(response.StatusCode == HttpStatusCode.OK, $"Quick-add inventory item failed: {response.StatusCode} {body}");
+    }
+
+    /// <summary>
+    /// Creates a shopping location for whichever user is currently authenticated on
+    /// <see cref="_client"/> and returns its public id.
+    /// </summary>
+    private async Task<Guid> CreateShoppingLocationAsync(string name)
+    {
+        var response = await _client.PostAsJsonAsync("/api/v1.0/location/shopping", new ShoppingLocationRequest
+        {
+            Name = name
+        });
+        var body = await response.Content.ReadAsStringAsync();
+        Assert.True(response.StatusCode == HttpStatusCode.OK, $"Create shopping location failed: {response.StatusCode} {body}");
+
+        var content = await response.Content.ReadFromJsonAsync<ApiResponse<ShoppingLocationInfo>>();
+        Assert.NotNull(content?.Data);
+        return content.Data.PublicId;
+    }
+
+    /// <summary>
+    /// Resolves a shopping location's internal id from its public id, directly via the database.
+    /// <see cref="LocationSpend.ShoppingLocationId"/> deliberately carries the internal id (unlike
+    /// most of this API's DTOs, which only ever expose <c>PublicId</c>), so a test asserting on it
+    /// needs this lookup rather than the public id <see cref="CreateShoppingLocationAsync"/>
+    /// returns.
+    /// </summary>
+    private int GetShoppingLocationInternalId(Guid publicId)
+    {
+        var (scope, context) = _factory.CreateScopedDbContext();
+        using var _ = scope;
+        return context.ShoppingLocations.First(l => l.PublicId == publicId).Id;
+    }
+
+    /// <summary>
+    /// Creates an inventory item WITH purchase info (price/currency/shopping location) via the
+    /// full create endpoint - unlike <see cref="AddSharedInventoryItemAsync"/>/
+    /// <see cref="AddPersonalInventoryItemAsync"/>, which quick-add and never create a
+    /// <c>ProductPurchaseInfo</c> row at all. <c>ProductFunctions.CreateInventoryItemAsync</c>
+    /// only actually creates that row when <paramref name="price"/> or
+    /// <paramref name="shoppingLocationPublicId"/> is set (or a receipt number, which this helper
+    /// never sends) - so no spend-by-location test should call this with both left null, or it
+    /// will silently produce no purchase row to aggregate at all.
+    /// </summary>
+    private async Task CreateInventoryItemWithPurchaseAsync(
+        Guid productPublicId,
+        bool isSharedWithFamily,
+        int? price = null,
+        Currency? currency = null,
+        Guid? shoppingLocationPublicId = null)
+    {
+        var response = await _client.PostAsJsonAsync("/api/v1.0/product/inventory", new CreateInventoryItemRequest
+        {
+            ProductPublicId = productPublicId,
+            IsSharedWithFamily = isSharedWithFamily,
+            Quantity = 1,
+            Price = price,
+            Currency = currency,
+            ShoppingLocationPublicId = shoppingLocationPublicId
+        });
+        var body = await response.Content.ReadAsStringAsync();
+        Assert.True(response.StatusCode == HttpStatusCode.OK, $"Create inventory item with purchase failed: {response.StatusCode} {body}");
     }
 
     /// <summary>
@@ -1104,6 +1167,350 @@ public class InsightsControllerTests : IClassFixture<HomassyWebApplicationFactor
                 await _authHelper.CleanupUserAsync(testEmailBudapest);
             if (testEmailAuckland != null)
                 await _authHelper.CleanupUserAsync(testEmailAuckland);
+        }
+    }
+
+    [Fact]
+    public async Task GetSpendByLocation_WithoutToken_ReturnsUnauthorized()
+    {
+        var response = await _client.GetAsync("/api/v1.0/insights/spend-by-location?days=30");
+        _output.WriteLine($"Status: {response.StatusCode}");
+        Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
+    }
+
+    /// <summary>
+    /// 30 and 90 are the only supported window lengths - matches
+    /// <see cref="GetConsumptionSeries_UnsupportedWindowLength_ReturnsBadRequest"/>: an unbounded
+    /// window must never reach the query.
+    /// </summary>
+    [Fact]
+    public async Task GetSpendByLocation_UnsupportedWindowLength_ReturnsBadRequest()
+    {
+        string? testEmail = null;
+        try
+        {
+            var (email, auth) = await _authHelper.CreateAndAuthenticateUserAsync("spend-bad-days");
+            testEmail = email;
+            _authHelper.SetAuthToken(auth.AccessToken);
+
+            var response = await _client.GetAsync("/api/v1.0/insights/spend-by-location?days=365");
+            var body = await response.Content.ReadAsStringAsync();
+            _output.WriteLine($"Status: {response.StatusCode}");
+            _output.WriteLine($"Response: {body}");
+
+            Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        }
+        finally
+        {
+            _authHelper.ClearAuthToken();
+            if (testEmail != null)
+                await _authHelper.CleanupUserAsync(testEmail);
+        }
+    }
+
+    [Fact]
+    public async Task GetSpendByLocation_PurchasesAtTwoLocations_ReturnsTwoEntriesWithCorrectItemCounts()
+    {
+        string? testEmail = null;
+        try
+        {
+            var (email, auth) = await _authHelper.CreateAndAuthenticateUserAsync("spend-two-locations");
+            testEmail = email;
+            _authHelper.SetAuthToken(auth.AccessToken);
+
+            var locationAPublicId = await CreateShoppingLocationAsync("Spend Test Location A");
+            var locationBPublicId = await CreateShoppingLocationAsync("Spend Test Location B");
+            var locationAId = GetShoppingLocationInternalId(locationAPublicId);
+            var locationBId = GetShoppingLocationInternalId(locationBPublicId);
+
+            var milkProductId = await CreateProductAsync(ProductCategory.Milk, "two-loc");
+            var breadProductId = await CreateProductAsync(ProductCategory.Bread, "two-loc");
+            var cheeseProductId = await CreateProductAsync(ProductCategory.Cheese, "two-loc");
+
+            // Two purchases at location A, one at location B - all the same (default) currency,
+            // so this test is purely about location grouping and item counts. The currency-split
+            // rule has its own test below.
+            await CreateInventoryItemWithPurchaseAsync(milkProductId, isSharedWithFamily: false, price: 500, shoppingLocationPublicId: locationAPublicId);
+            await CreateInventoryItemWithPurchaseAsync(breadProductId, isSharedWithFamily: false, price: 300, shoppingLocationPublicId: locationAPublicId);
+            await CreateInventoryItemWithPurchaseAsync(cheeseProductId, isSharedWithFamily: false, price: 700, shoppingLocationPublicId: locationBPublicId);
+
+            var response = await _client.GetAsync("/api/v1.0/insights/spend-by-location?days=30");
+            var body = await response.Content.ReadAsStringAsync();
+            _output.WriteLine($"Status: {response.StatusCode}");
+            _output.WriteLine($"Response: {body}");
+
+            Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+            var content = await response.Content.ReadFromJsonAsync<ApiResponse<SpendByLocationResponse>>();
+            Assert.NotNull(content?.Data);
+
+            Assert.Equal(2, content.Data.Locations.Count);
+
+            var locationA = Assert.Single(content.Data.Locations, l => l.ShoppingLocationId == locationAId);
+            Assert.Equal("Spend Test Location A", locationA.LocationName);
+            Assert.Equal(2, locationA.ItemCount);
+            Assert.Equal(800m, locationA.SpendByCurrency[Currency.Huf]);
+
+            var locationB = Assert.Single(content.Data.Locations, l => l.ShoppingLocationId == locationBId);
+            Assert.Equal("Spend Test Location B", locationB.LocationName);
+            Assert.Equal(1, locationB.ItemCount);
+            Assert.Equal(700m, locationB.SpendByCurrency[Currency.Huf]);
+        }
+        finally
+        {
+            _authHelper.ClearAuthToken();
+            if (testEmail != null)
+                await _authHelper.CleanupUserAsync(testEmail);
+        }
+    }
+
+    /// <summary>
+    /// The no-currency-conversion rule this endpoint exists to get right: two currencies at the
+    /// same location must produce two entries in <see cref="LocationSpend.SpendByCurrency"/>,
+    /// never one summed number. This milestone never converts between currencies and never
+    /// invents a rate, so a HUF purchase and a EUR purchase at the same shop must stay two
+    /// separate figures all the way out to the response.
+    /// </summary>
+    [Fact]
+    public async Task GetSpendByLocation_TwoCurrenciesAtSameLocation_ReturnsTwoSeparateEntriesNeverSummed()
+    {
+        string? testEmail = null;
+        try
+        {
+            var (email, auth) = await _authHelper.CreateAndAuthenticateUserAsync("spend-two-currencies");
+            testEmail = email;
+            _authHelper.SetAuthToken(auth.AccessToken);
+
+            var locationPublicId = await CreateShoppingLocationAsync("Spend Test Multi-Currency Location");
+            var locationId = GetShoppingLocationInternalId(locationPublicId);
+
+            var milkProductId = await CreateProductAsync(ProductCategory.Milk, "two-currency");
+            var breadProductId = await CreateProductAsync(ProductCategory.Bread, "two-currency");
+
+            await CreateInventoryItemWithPurchaseAsync(milkProductId, isSharedWithFamily: false, price: 1000, currency: Currency.Huf, shoppingLocationPublicId: locationPublicId);
+            await CreateInventoryItemWithPurchaseAsync(breadProductId, isSharedWithFamily: false, price: 50, currency: Currency.Eur, shoppingLocationPublicId: locationPublicId);
+
+            var response = await _client.GetAsync("/api/v1.0/insights/spend-by-location?days=30");
+            var body = await response.Content.ReadAsStringAsync();
+            _output.WriteLine($"Status: {response.StatusCode}");
+            _output.WriteLine($"Response: {body}");
+
+            Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+            var content = await response.Content.ReadFromJsonAsync<ApiResponse<SpendByLocationResponse>>();
+            Assert.NotNull(content?.Data);
+
+            // Assert.Single with no predicate first, so a stray extra entry (not just a mismatch
+            // on this one) would fail the assertion too.
+            var location = Assert.Single(content.Data.Locations);
+            Assert.Equal(locationId, location.ShoppingLocationId);
+            Assert.Equal(2, location.ItemCount);
+
+            // The rule this test exists to prove: two currencies at one location are two entries,
+            // never one combined number (e.g. never a single ~1050 total filed under either
+            // currency).
+            Assert.Equal(2, location.SpendByCurrency.Count);
+            Assert.Equal(1000m, location.SpendByCurrency[Currency.Huf]);
+            Assert.Equal(50m, location.SpendByCurrency[Currency.Eur]);
+        }
+        finally
+        {
+            _authHelper.ClearAuthToken();
+            if (testEmail != null)
+                await _authHelper.CleanupUserAsync(testEmail);
+        }
+    }
+
+    /// <summary>
+    /// A purchase with no shopping location tagged must still count toward the family's total -
+    /// it lands in a single "unknown location" entry rather than being dropped. Two such
+    /// purchases are used deliberately (not one): a fixture with only one null-location purchase
+    /// could pass even if a bug split each null-location purchase into its own separate entry
+    /// instead of folding them together, since "single" and "not dropped" would be
+    /// indistinguishable with only one row. A third, ordinary purchase with a real location proves
+    /// the two buckets stay distinct rather than everything collapsing into one.
+    /// </summary>
+    [Fact]
+    public async Task GetSpendByLocation_NullShoppingLocationId_LandsInSingleUnknownLocationEntry()
+    {
+        string? testEmail = null;
+        try
+        {
+            var (email, auth) = await _authHelper.CreateAndAuthenticateUserAsync("spend-null-location");
+            testEmail = email;
+            _authHelper.SetAuthToken(auth.AccessToken);
+
+            var knownLocationPublicId = await CreateShoppingLocationAsync("Spend Test Known Location");
+
+            var milkProductId = await CreateProductAsync(ProductCategory.Milk, "null-loc");
+            var breadProductId = await CreateProductAsync(ProductCategory.Bread, "null-loc");
+            var cheeseProductId = await CreateProductAsync(ProductCategory.Cheese, "null-loc");
+
+            // Two purchases with NO shopping location - must fold into one "unknown location"
+            // entry, never dropped and never split into two separate unknown entries.
+            await CreateInventoryItemWithPurchaseAsync(milkProductId, isSharedWithFamily: false, price: 200, shoppingLocationPublicId: null);
+            await CreateInventoryItemWithPurchaseAsync(breadProductId, isSharedWithFamily: false, price: 300, shoppingLocationPublicId: null);
+
+            // Plus one purchase WITH a known location, so the test also proves the two buckets
+            // stay distinct rather than merging.
+            await CreateInventoryItemWithPurchaseAsync(cheeseProductId, isSharedWithFamily: false, price: 900, shoppingLocationPublicId: knownLocationPublicId);
+
+            var response = await _client.GetAsync("/api/v1.0/insights/spend-by-location?days=30");
+            var body = await response.Content.ReadAsStringAsync();
+            _output.WriteLine($"Status: {response.StatusCode}");
+            _output.WriteLine($"Response: {body}");
+
+            Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+            var content = await response.Content.ReadFromJsonAsync<ApiResponse<SpendByLocationResponse>>();
+            Assert.NotNull(content?.Data);
+
+            // Exactly two entries: the known location and a single unknown-location bucket -
+            // never three (two separate unknown entries) and never one (dropped entirely).
+            Assert.Equal(2, content.Data.Locations.Count);
+
+            var unknown = Assert.Single(content.Data.Locations, l => l.ShoppingLocationId == null);
+            Assert.Equal("Unknown location", unknown.LocationName);
+            Assert.Equal(2, unknown.ItemCount);
+            Assert.Equal(500m, unknown.SpendByCurrency[Currency.Huf]);
+
+            var known = Assert.Single(content.Data.Locations, l => l.ShoppingLocationId != null);
+            Assert.Equal("Spend Test Known Location", known.LocationName);
+            Assert.Equal(1, known.ItemCount);
+        }
+        finally
+        {
+            _authHelper.ClearAuthToken();
+            if (testEmail != null)
+                await _authHelper.CleanupUserAsync(testEmail);
+        }
+    }
+
+    /// <summary>
+    /// A purchase with a null <c>Price</c> must count toward <see cref="LocationSpend.ItemCount"/>
+    /// but contribute nothing to <see cref="LocationSpend.SpendByCurrency"/> - not even a
+    /// zero-value entry. The trap this fixture is built to catch:
+    /// <c>ProductFunctions.CreateInventoryItemAsync</c> defaults a purchase's <c>Currency</c> to
+    /// the user's saved default (HUF - see <c>TestAuthHelper</c>) whenever the request does not
+    /// specify one, regardless of whether a price was given - so the unpriced purchase here still
+    /// ends up with a real, non-null <c>Currency</c>. An implementation that (wrongly) decides
+    /// whether to add a <see cref="LocationSpend.SpendByCurrency"/> entry by checking "is Currency
+    /// non-null" instead of "did this group actually sum a price" would pass a lazier fixture
+    /// (e.g. one that only checks the total) but would fail the empty-dictionary assertion below,
+    /// because it would add a phantom <c>Huf: 0</c> entry for this location.
+    /// </summary>
+    [Fact]
+    public async Task GetSpendByLocation_NullPrice_CountsTowardItemCountButNotSpend()
+    {
+        string? testEmail = null;
+        try
+        {
+            var (email, auth) = await _authHelper.CreateAndAuthenticateUserAsync("spend-null-price");
+            testEmail = email;
+            _authHelper.SetAuthToken(auth.AccessToken);
+
+            // This location's ONLY purchase has no price.
+            var unpricedLocationPublicId = await CreateShoppingLocationAsync("Spend Test Unpriced Location");
+            var milkProductId = await CreateProductAsync(ProductCategory.Milk, "null-price");
+            await CreateInventoryItemWithPurchaseAsync(milkProductId, isSharedWithFamily: false, price: null, shoppingLocationPublicId: unpricedLocationPublicId);
+
+            // A second, ordinary priced location - proves ItemCount/spend are still tracked
+            // correctly elsewhere in the very same response.
+            var pricedLocationPublicId = await CreateShoppingLocationAsync("Spend Test Priced Location");
+            var breadProductId = await CreateProductAsync(ProductCategory.Bread, "null-price");
+            await CreateInventoryItemWithPurchaseAsync(breadProductId, isSharedWithFamily: false, price: 400, shoppingLocationPublicId: pricedLocationPublicId);
+
+            var unpricedLocationId = GetShoppingLocationInternalId(unpricedLocationPublicId);
+            var pricedLocationId = GetShoppingLocationInternalId(pricedLocationPublicId);
+
+            var response = await _client.GetAsync("/api/v1.0/insights/spend-by-location?days=30");
+            var body = await response.Content.ReadAsStringAsync();
+            _output.WriteLine($"Status: {response.StatusCode}");
+            _output.WriteLine($"Response: {body}");
+
+            Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+            var content = await response.Content.ReadFromJsonAsync<ApiResponse<SpendByLocationResponse>>();
+            Assert.NotNull(content?.Data);
+
+            // Exactly two locations - no stray extra entries - before picking each one apart.
+            Assert.Equal(2, content.Data.Locations.Count);
+
+            var unpriced = Assert.Single(content.Data.Locations, l => l.ShoppingLocationId == unpricedLocationId);
+            // Still counted...
+            Assert.Equal(1, unpriced.ItemCount);
+            // ...but genuinely EMPTY, not a Huf: 0 entry - see this test's summary for why that
+            // distinction is the actual point.
+            Assert.Empty(unpriced.SpendByCurrency);
+
+            var priced = Assert.Single(content.Data.Locations, l => l.ShoppingLocationId == pricedLocationId);
+            Assert.Equal(1, priced.ItemCount);
+            Assert.Equal(400m, priced.SpendByCurrency[Currency.Huf]);
+        }
+        finally
+        {
+            _authHelper.ClearAuthToken();
+            if (testEmail != null)
+                await _authHelper.CleanupUserAsync(testEmail);
+        }
+    }
+
+    /// <summary>
+    /// The cross-family isolation test every R5 insight endpoint needs (see
+    /// <see cref="GetInventoryComposition_SecondFamilysInventory_NeverAppears"/> and
+    /// <see cref="GetConsumptionSeries_SecondFamilysConsumption_NeverAppears"/>): family B's
+    /// purchase - at its own location, with a price large enough that a leak could not be
+    /// mistaken for anything else - must never appear in family A's spend-by-location breakdown.
+    /// </summary>
+    [Fact]
+    public async Task GetSpendByLocation_SecondFamilysPurchases_NeverAppear()
+    {
+        string? testEmailA = null;
+        string? testEmailB = null;
+        try
+        {
+            var (emailA, authA) = await _authHelper.CreateAndAuthenticateUserAsync("spend-fam-a");
+            testEmailA = emailA;
+            _authHelper.SetAuthToken(authA.AccessToken);
+            await CreateFamilyAsync("Spend Family A");
+
+            var locationAPublicId = await CreateShoppingLocationAsync("Spend Family A Location");
+            var locationAId = GetShoppingLocationInternalId(locationAPublicId);
+            var milkProductId = await CreateProductAsync(ProductCategory.Milk, "spend-fam-a");
+            await CreateInventoryItemWithPurchaseAsync(milkProductId, isSharedWithFamily: true, price: 300, shoppingLocationPublicId: locationAPublicId);
+
+            var (emailB, authB) = await _authHelper.CreateAndAuthenticateUserAsync("spend-fam-b");
+            testEmailB = emailB;
+            _authHelper.SetAuthToken(authB.AccessToken);
+            await CreateFamilyAsync("Spend Family B");
+
+            var locationBPublicId = await CreateShoppingLocationAsync("Spend Family B Location");
+            var meatProductId = await CreateProductAsync(ProductCategory.Meat, "spend-fam-b");
+            // A large, unmistakable price - a leak could not be confused with anything else.
+            await CreateInventoryItemWithPurchaseAsync(meatProductId, isSharedWithFamily: true, price: 999999, shoppingLocationPublicId: locationBPublicId);
+
+            _authHelper.SetAuthToken(authA.AccessToken);
+            var response = await _client.GetAsync("/api/v1.0/insights/spend-by-location?days=30");
+            var body = await response.Content.ReadAsStringAsync();
+            _output.WriteLine($"Status: {response.StatusCode}");
+            _output.WriteLine($"Response: {body}");
+
+            Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+            var content = await response.Content.ReadFromJsonAsync<ApiResponse<SpendByLocationResponse>>();
+            Assert.NotNull(content?.Data);
+
+            // Family A's own single location only - never family B's, and never a blended figure.
+            // Assert.Single with no predicate (rather than a predicate match plus a separate count
+            // check) is what actually proves isolation here: a predicate match alone would still
+            // pass even if family B's location leaked in as an extra, non-matching entry.
+            var locationA = Assert.Single(content.Data.Locations);
+            Assert.Equal(locationAId, locationA.ShoppingLocationId);
+            Assert.Equal(1, locationA.ItemCount);
+            Assert.Equal(300m, locationA.SpendByCurrency[Currency.Huf]);
+        }
+        finally
+        {
+            _authHelper.ClearAuthToken();
+            if (testEmailA != null)
+                await _authHelper.CleanupUserAsync(testEmailA);
+            if (testEmailB != null)
+                await _authHelper.CleanupUserAsync(testEmailB);
         }
     }
 }

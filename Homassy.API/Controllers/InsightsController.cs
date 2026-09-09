@@ -131,4 +131,47 @@ public class InsightsController : ControllerBase
         var series = await _insightFunctions.GetConsumptionSeriesAsync(userId.Value, familyId, days, seriesBucket, cancellationToken);
         return Ok(ApiResponse<ConsumptionSeriesResponse>.SuccessResponse(series));
     }
+
+    /// <summary>
+    /// The allowed values for <c>days</c> on <see cref="GetSpendByLocation"/> - the same closed
+    /// set <see cref="AllowedConsumptionWindowDays"/> uses on <see cref="GetConsumptionSeries"/>,
+    /// and for the identical reason: an unbounded (or merely large) window is an unbounded query.
+    /// </summary>
+    private static readonly int[] AllowedSpendByLocationWindowDays = [30, 90];
+
+    /// <summary>
+    /// The caller's purchases within the requested window, broken down by shopping location and,
+    /// per location, by currency - see <see cref="InsightFunctions.GetSpendByLocationAsync"/> for
+    /// the scope rule and the three data rules (no currency conversion, the unknown-location
+    /// fold, the null-price fold) this endpoint exists to get right.
+    /// </summary>
+    /// <remarks>
+    /// A missing user id is <b>401</b>, for exactly the reason documented on
+    /// <see cref="GetInventoryComposition"/> above - an authenticated request whose session does
+    /// not resolve to a local user is an authentication problem, not an empty-but-valid dataset.
+    /// <paramref name="days"/> is validated against <see cref="AllowedSpendByLocationWindowDays"/>
+    /// before it ever reaches a query, matching <see cref="GetConsumptionSeries"/>'s own
+    /// validation of its own window parameter.
+    /// </remarks>
+    [HttpGet("spend-by-location")]
+    [MapToApiVersion(1.0)]
+    [ProducesResponseType(typeof(ApiResponse<SpendByLocationResponse>), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    public async Task<IActionResult> GetSpendByLocation([FromQuery] int days, CancellationToken cancellationToken)
+    {
+        var userId = SessionInfo.GetUserId();
+        if (!userId.HasValue)
+        {
+            return Unauthorized(ApiResponse.ErrorResponse(ErrorCodes.AuthUnauthorized));
+        }
+
+        if (!AllowedSpendByLocationWindowDays.Contains(days))
+        {
+            return BadRequest(ApiResponse.ErrorResponse(ErrorCodes.ValidationInvalidRequest));
+        }
+
+        var familyId = SessionInfo.GetFamilyId();
+        var spend = await _insightFunctions.GetSpendByLocationAsync(userId.Value, familyId, days, cancellationToken);
+        return Ok(ApiResponse<SpendByLocationResponse>.SuccessResponse(spend));
+    }
 }

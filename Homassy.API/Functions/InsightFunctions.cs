@@ -421,5 +421,249 @@ namespace Homassy.API.Functions
                 TimeZoneId = ianaTimeZoneId
             };
         }
+
+        /// <summary>
+        /// Cache key prefix for <see cref="GetSpendByLocationAsync"/> within a family's
+        /// <see cref="FamilyInsightsCache"/> entries - endpoint-qualified for the same reason
+        /// <see cref="CompositionCacheKey"/> is (see its remarks): the cache stores values as
+        /// <see cref="object"/> and casts to whatever <c>T</c> the caller asks for, so sharing a
+        /// key with another endpoint would surface as a runtime <see cref="InvalidCastException"/>
+        /// on a hit rather than a compile error.
+        ///
+        /// <para>
+        /// The key actually used is <c>$"{SpendByLocationCacheKey}:{days}:u{userId}"</c> - always
+        /// both the window length in days and the acting user id, even when
+        /// the caller has a family. This matches <see cref="CompositionCacheKey"/>, not
+        /// <see cref="ConsumptionCacheKey"/>: <see cref="ComputeConsumptionSeriesAsync"/> can drop
+        /// the user id for a family caller only because it scopes that caller to
+        /// <c>Activity.FamilyId == familyId</c> alone - genuinely family-wide, since every
+        /// activity is stamped with the session family id unconditionally (see that method's
+        /// remarks). <see cref="ComputeSpendByLocationAsync"/> instead scopes through
+        /// <c>ProductInventoryItem</c> with the same union
+        /// <c>ProductFunctions.GetInventoryItemsByUserAndFamily</c> and
+        /// <see cref="ComputeInventoryCompositionAsync"/> use -
+        /// <c>item.UserId == userId || (familyId.HasValue &amp;&amp; item.FamilyId == familyId)</c> -
+        /// so a family caller's own personal purchases are part of their result and no other
+        /// member's. Two members of the same family therefore do not share one answer, so the
+        /// user id has to be in the key regardless of family, exactly like
+        /// <see cref="CompositionCacheKey"/> - otherwise whichever member's request misses the
+        /// cache first would have their own personal spend served to every other member for the
+        /// rest of the TTL.
+        /// </para>
+        /// </summary>
+        private const string SpendByLocationCacheKey = "spend-by-location";
+
+        private static readonly TimeSpan SpendByLocationTtl = TimeSpan.FromMinutes(5);
+
+        /// <summary>
+        /// The label <see cref="LocationSpend.LocationName"/> carries for the bucket that folds
+        /// every purchase whose <c>ShoppingLocationId</c> is <see langword="null"/> - see
+        /// <see cref="ComputeSpendByLocationAsync"/>'s remarks for why that purchase is folded
+        /// here rather than dropped, and reused as the fallback for a non-null id this method
+        /// cannot resolve to a location row (e.g. deleted after the purchase was made).
+        /// </summary>
+        private const string UnknownLocationName = "Unknown location";
+
+        /// <summary>
+        /// The caller's purchases within the last <paramref name="days"/> days, broken down by
+        /// shopping location and, within each location, by currency. Cached for
+        /// <see cref="SpendByLocationTtl"/> under <see cref="SpendByLocationCacheKey"/> - see that
+        /// constant's remarks for exactly how the key is built and why it always carries the user
+        /// id. See <see cref="ComputeSpendByLocationAsync"/> for the scope rule and the three data
+        /// rules (no currency conversion, the unknown-location fold, the null-price fold) this
+        /// endpoint exists to get right.
+        /// </summary>
+        /// <param name="userId">
+        /// The acting user. Required for the same reason as on
+        /// <see cref="GetInventoryCompositionAsync"/> - <see cref="Controllers.InsightsController"/>
+        /// short-circuits to 401 before this is ever called for a caller with no resolvable user
+        /// id - and used here as half of the scope union regardless of whether
+        /// <paramref name="familyId"/> is present.
+        /// </param>
+        /// <param name="familyId">
+        /// The caller's family, or <see langword="null"/> if they have none. Exactly like
+        /// <see cref="GetInventoryCompositionAsync"/>, a missing family id only drops the family
+        /// half of the union in <see cref="ComputeSpendByLocationAsync"/> - it never short-circuits
+        /// the result, since a family-less caller still has their own personal purchases to show.
+        /// </param>
+        /// <param name="days">
+        /// The window length in days. Bounds (30 or 90) are the controller's job to enforce, not
+        /// this method's - see <see cref="Controllers.InsightsController"/>.
+        /// </param>
+        /// <param name="cancellationToken">
+        /// Cancellation for this call's own attempt to (re)compute the value - see
+        /// <see cref="FamilyInsightsCache.GetOrAddAsync{T}"/> for why a piggybacking caller's own
+        /// token can never cancel a computation it did not win the race to start.
+        /// </param>
+        public Task<SpendByLocationResponse> GetSpendByLocationAsync(int userId, int? familyId, int days, CancellationToken cancellationToken)
+        {
+            var key = $"{SpendByLocationCacheKey}:{days}:u{userId}";
+
+            return _cache.GetOrAddAsync(
+                familyId ?? 0,
+                key,
+                SpendByLocationTtl,
+                ct => ComputeSpendByLocationAsync(userId, familyId, days, ct),
+                cancellationToken);
+        }
+
+        /// <summary>
+        /// Runs the actual aggregation on a cache miss.
+        ///
+        /// <para>
+        /// <b>Scope.</b> <c>Entities.Product.ProductPurchaseInfo</c> carries no <c>FamilyId</c> or
+        /// <c>UserId</c> of its own - it hangs off <c>Entities.Product.ProductInventoryItem</c> via
+        /// <c>ProductInventoryItemId</c>, so it is scoped through that item, exactly the way
+        /// <see cref="ComputeInventoryCompositionAsync"/> scopes inventory itself:
+        /// <c>item.UserId == userId || (familyId.HasValue &amp;&amp; item.FamilyId == familyId)</c> -
+        /// the same union <c>ProductFunctions.GetInventoryItemsByUserAndFamily</c> uses everywhere
+        /// else in the codebase. This is deliberately the union, not
+        /// <see cref="ComputeConsumptionSeriesAsync"/>'s either/or on
+        /// <c>Activity.FamilyId</c>/<c>UserId</c>: that either/or is correct there only because
+        /// every <c>ProductInventoryDecrease</c> activity is stamped with the acting user's
+        /// session family id unconditionally, so a family member's own personal-item consumption
+        /// already carries the family id and needs no union. A purchase carries no such stamp - it
+        /// is only ever reachable through the inventory item it purchased, and that item's own
+        /// <c>FamilyId</c> is genuinely <see langword="null"/> for a personal item even when its
+        /// owner has a family. So purchases follow inventory's scoping rule, not consumption's - a
+        /// family member's personal purchases must still show up in their own spend, exactly as
+        /// their personal items still show up in their own composition.
+        /// </para>
+        ///
+        /// <para>
+        /// <b>LINQ over <see cref="HomassyDbContext.ProductPurchaseInfos"/>, not raw SQL.</b> Both
+        /// <c>ProductPurchaseInfo</c> and <c>ProductInventoryItem</c> are soft-deletable (see
+        /// <see cref="HomassyDbContext.OnModelCreating"/>'s global filter), so a hand-written
+        /// command would silently drop <c>NOT "IsDeleted"</c> on both sides of the join - the exact
+        /// defect Task 8 shipped and had to be rewritten for. Plain LINQ over the <c>DbSet</c>
+        /// picks the filter up on both sides for free, with no extra code written for it.
+        /// </para>
+        ///
+        /// <para>
+        /// <b>Grouping happens in SQL, and it is what makes the two null-handling rules work.</b>
+        /// Rows are grouped by <c>(ShoppingLocationId, Currency)</c> - a nullable pair, so
+        /// PostgreSQL's own <c>GROUP BY</c> already collects every null-location purchase into a
+        /// real, counted group instead of dropping it. Per group, <c>ItemCount</c> is
+        /// <c>g.Count()</c> - every purchase in the group, unconditionally. <c>PricedCount</c> is
+        /// <c>g.Count(p =&gt; p.Price != null)</c> and is the actual signal the fold below uses to
+        /// decide whether the group has anything to report - <b>not</b> whether <c>Spend</c> has a
+        /// value: EF Core translates <c>g.Sum(p =&gt; (decimal?)p.Price)</c> to
+        /// <c>COALESCE(sum(p."Price"::numeric), 0.0)</c> (verified against the pinned provider DLL
+        /// via the captured SQL in this task's report), matching plain .NET <c>Enumerable.Sum</c>'s
+        /// own behaviour of returning <c>0</c>, never <see langword="null"/>, when there is nothing
+        /// to sum - so a group whose every purchase has a <see langword="null"/> <c>Price</c> comes
+        /// back with <c>Spend == 0m</c>, indistinguishable by nullability alone from a genuine
+        /// zero-cost purchase. <c>PricedCount</c> is what actually distinguishes "nothing to sum"
+        /// (0) from "summed to zero" (&gt;0): the fold below adds a
+        /// <see cref="LocationSpend.SpendByCurrency"/> entry only when <c>PricedCount &gt; 0</c>, so
+        /// a null-price purchase is counted in <see cref="LocationSpend.ItemCount"/> but never turns
+        /// into a zero-value currency entry. Only this small, already-aggregated result (at most
+        /// locations × currencies rows) is ever materialised - the fold into one
+        /// <see cref="LocationSpend"/> per location happens afterwards, in memory, never over the
+        /// caller's raw purchase rows.
+        /// </para>
+        ///
+        /// <para>
+        /// <b>Currency is not a reliable proxy for "has a price," either.</b>
+        /// <c>ProductFunctions.CreateInventoryItemAsync</c> defaults a purchase's <c>Currency</c>
+        /// to the user's own saved <c>Entities.User.UserProfile.DefaultCurrency</c> whenever the
+        /// request does not specify one - regardless of whether <c>Price</c> was supplied - so a
+        /// <see langword="null"/>-<c>Price</c> purchase routinely still carries a real, non-null
+        /// <c>Currency</c>. Folding a currency entry whenever a group's <c>Currency</c> is non-null
+        /// (instead of checking <c>PricedCount</c>, as above) would therefore add a phantom
+        /// zero-spend entry for most real null-price purchases, rather than correctly omitting
+        /// them - this is exactly the bug an earlier version of this method shipped (it checked
+        /// <c>Spend.HasValue</c>, which - per the <c>COALESCE</c> translation above - is
+        /// <see langword="true"/> even for an all-null-price group) until this task's own
+        /// <c>InsightsControllerTests.GetSpendByLocation_NullPrice_CountsTowardItemCountButNotSpend</c>
+        /// caught the resulting phantom <c>{Huf: 0}</c> entry.
+        /// </para>
+        ///
+        /// <para>
+        /// <b>Location names.</b> Resolved with one small follow-up query against
+        /// <see cref="HomassyDbContext.ShoppingLocations"/>, keyed by the distinct non-null
+        /// location ids the aggregation actually returned - never per-row inside the aggregation,
+        /// and never one query per location. A location id this lookup cannot resolve (e.g.
+        /// soft-deleted after the purchase was made) falls back to <see cref="UnknownLocationName"/>
+        /// too, the same label the null-<c>ShoppingLocationId</c> bucket uses, rather than
+        /// surfacing an empty name.
+        /// </para>
+        /// </summary>
+        private async Task<SpendByLocationResponse> ComputeSpendByLocationAsync(int userId, int? familyId, int days, CancellationToken cancellationToken)
+        {
+            using var context = _contextFactory.CreateForReading();
+
+            var toUtc = DateTime.UtcNow;
+            var fromUtc = toUtc.AddDays(-days);
+
+            // Non-deleted is enforced by the global soft-delete query filter on both
+            // ProductPurchaseInfo and ProductInventoryItem (see HomassyDbContext.OnModelCreating),
+            // not by an explicit IsDeleted check here - see this method's "LINQ, not raw SQL"
+            // remarks above. GroupBy and the per-group Count/Sum all happen in SQL; only the
+            // resulting (at most locations x currencies) rows are pulled into memory.
+            var rows = await context.ProductPurchaseInfos
+                .Where(p => p.PurchasedAt >= fromUtc && p.PurchasedAt <= toUtc &&
+                            (p.ProductInventoryItem.UserId == userId || (familyId.HasValue && p.ProductInventoryItem.FamilyId == familyId)))
+                .GroupBy(p => new { p.ShoppingLocationId, p.Currency })
+                .Select(g => new
+                {
+                    g.Key.ShoppingLocationId,
+                    g.Key.Currency,
+                    ItemCount = g.Count(),
+                    // The actual "does this group have anything to report" signal - see this
+                    // method's remarks on why Spend's own nullability cannot be used for that.
+                    PricedCount = g.Count(p => p.Price != null),
+                    // Cast inside the Sum, not after: keeps this a decimal aggregation today, so
+                    // Task 11's migration of Price to decimal? only removes the cast rather than
+                    // changing the shape of this query. EF Core translates this to
+                    // COALESCE(sum(...), 0.0) - see this method's remarks for why that means
+                    // PricedCount, not Spend's nullability, is what the fold below must check.
+                    Spend = g.Sum(p => (decimal?)p.Price)
+                })
+                .ToListAsync(cancellationToken);
+
+            var locationIds = rows
+                .Where(r => r.ShoppingLocationId.HasValue)
+                .Select(r => r.ShoppingLocationId!.Value)
+                .Distinct()
+                .ToList();
+
+            // One bounded follow-up lookup (distinct locations actually referenced), never a
+            // per-row query - see this method's "Location names" remarks above.
+            var locationNames = locationIds.Count > 0
+                ? await context.ShoppingLocations
+                    .Where(l => locationIds.Contains(l.Id))
+                    .Select(l => new { l.Id, l.Name })
+                    .ToDictionaryAsync(l => l.Id, l => l.Name, cancellationToken)
+                : new Dictionary<int, string>();
+
+            // Re-grouping this already-small, already-aggregated row set by ShoppingLocationId
+            // alone (never touching the database again) is the "fold the per-currency rows into
+            // the response shape afterwards" step: each location's ItemCount sums every currency
+            // sub-group's count, while SpendByCurrency only ever picks up sub-groups that actually
+            // have a priced purchase (PricedCount > 0) - see this method's remarks above for why
+            // Spend's own nullability cannot be used for that check.
+            var locations = rows
+                .GroupBy(r => r.ShoppingLocationId)
+                .Select(g => new LocationSpend
+                {
+                    ShoppingLocationId = g.Key,
+                    LocationName = g.Key.HasValue
+                        ? (locationNames.TryGetValue(g.Key.Value, out var name) ? name : UnknownLocationName)
+                        : UnknownLocationName,
+                    ItemCount = g.Sum(r => r.ItemCount),
+                    SpendByCurrency = g
+                        .Where(r => r.Currency.HasValue && r.PricedCount > 0)
+                        .ToDictionary(r => r.Currency!.Value, r => r.Spend ?? 0m)
+                })
+                .OrderByDescending(l => l.ItemCount)
+                .ThenBy(l => l.LocationName, StringComparer.Ordinal)
+                .ToList();
+
+            return new SpendByLocationResponse
+            {
+                Locations = locations
+            };
+        }
     }
 }
