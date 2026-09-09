@@ -1432,6 +1432,62 @@ public class InsightsControllerTests : IClassFixture<HomassyWebApplicationFactor
     }
 
     /// <summary>
+    /// Fix round 2: distinguishes "priced purchases totalling zero" from "no priced purchases" -
+    /// two different facts a spend chart must not conflate, and the opposite fixture from
+    /// <see cref="GetSpendByLocation_NullPrice_CountsTowardItemCountButNotSpend"/> above. The code
+    /// already gets this right by construction - <c>PricedCount</c> is
+    /// <c>count(*) FILTER (WHERE p."Price" IS NOT NULL)</c>, so an explicit <c>Price = 0</c>
+    /// purchase counts as priced - but nothing asserted it before this test: a real
+    /// <c>Price = 0</c> purchase must produce an actual <c>{Currency: 0m}</c> dictionary entry,
+    /// never the empty dictionary a null price produces.
+    /// </summary>
+    [Fact]
+    public async Task GetSpendByLocation_ZeroPricePurchase_ReturnsZeroValuedCurrencyEntryNotEmptyDictionary()
+    {
+        string? testEmail = null;
+        try
+        {
+            var (email, auth) = await _authHelper.CreateAndAuthenticateUserAsync("spend-zero-price");
+            testEmail = email;
+            _authHelper.SetAuthToken(auth.AccessToken);
+
+            var locationPublicId = await CreateShoppingLocationAsync("Spend Test Zero Price Location");
+            var milkProductId = await CreateProductAsync(ProductCategory.Milk, "zero-price");
+
+            // Price = 0, not null - CreateInventoryItemAsync's purchase-row gate
+            // (request.Price.HasValue || ...) still fires for an explicit zero, exactly like a
+            // real non-zero price would.
+            await CreateInventoryItemWithPurchaseAsync(milkProductId, isSharedWithFamily: false, price: 0, shoppingLocationPublicId: locationPublicId);
+
+            var response = await _client.GetAsync("/api/v1.0/insights/spend-by-location?days=30");
+            var body = await response.Content.ReadAsStringAsync();
+            _output.WriteLine($"Status: {response.StatusCode}");
+            _output.WriteLine($"Response: {body}");
+
+            Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+            var content = await response.Content.ReadFromJsonAsync<ApiResponse<SpendByLocationResponse>>();
+            Assert.NotNull(content?.Data);
+
+            var location = Assert.Single(content.Data.Locations);
+            Assert.Equal(locationPublicId, location.ShoppingLocationPublicId);
+            Assert.Equal(1, location.ItemCount);
+
+            // The distinction this test exists to pin down: a real Price = 0 purchase yields a
+            // genuine {Huf: 0} entry - never an empty dictionary, which is what a NULL price
+            // yields instead (see GetSpendByLocation_NullPrice_CountsTowardItemCountButNotSpend).
+            var currencyEntry = Assert.Single(location.SpendByCurrency);
+            Assert.Equal(Currency.Huf, currencyEntry.Key);
+            Assert.Equal(0m, currencyEntry.Value);
+        }
+        finally
+        {
+            _authHelper.ClearAuthToken();
+            if (testEmail != null)
+                await _authHelper.CleanupUserAsync(testEmail);
+        }
+    }
+
+    /// <summary>
     /// The cross-family isolation test every R5 insight endpoint needs (see
     /// <see cref="GetInventoryComposition_SecondFamilysInventory_NeverAppears"/> and
     /// <see cref="GetConsumptionSeries_SecondFamilysConsumption_NeverAppears"/>): family B's
@@ -1490,6 +1546,71 @@ public class InsightsControllerTests : IClassFixture<HomassyWebApplicationFactor
                 await _authHelper.CleanupUserAsync(testEmailA);
             if (testEmailB != null)
                 await _authHelper.CleanupUserAsync(testEmailB);
+        }
+    }
+
+    /// <summary>
+    /// Fix round 2: the one distinguishing behaviour of this endpoint's scope union that no
+    /// existing test pinned down. The whole reason <see cref="InsightFunctions"/> scopes
+    /// purchases through <c>item.UserId == userId || (familyId.HasValue &amp;&amp;
+    /// item.FamilyId == familyId)</c> - the same union <c>ComputeInventoryCompositionAsync</c>
+    /// uses, not <see cref="ComputeConsumptionSeriesAsync"/>'s either/or on
+    /// <c>Activity.FamilyId</c>/<c>UserId</c> - is that a family member's own personal
+    /// (non-shared) purchase must still appear in their own spend, even though they belong to a
+    /// family. <see cref="GetSpendByLocation_SecondFamilysPurchases_NeverAppear"/> above only ever
+    /// creates <c>IsSharedWithFamily: true</c> purchases for both callers, so it would pass
+    /// identically under the wrong either/or predicate
+    /// (<c>familyId.HasValue ? item.FamilyId == familyId : item.UserId == userId</c>) - under that
+    /// form, a caller with a family is scoped to <c>FamilyId == familyId</c> alone, and a personal
+    /// purchase (stamped <c>FamilyId = null</c> by <c>ProductFunctions.CreateInventoryItemAsync</c>
+    /// regardless of the owner having a family) would never match. None of the other four data
+    /// tests in this file create a family at all, so none of them exercise this branch either.
+    /// </summary>
+    [Fact]
+    public async Task GetSpendByLocation_FamilyMemberWithPersonalPurchase_StillAppearsInOwnSpend()
+    {
+        string? testEmail = null;
+        try
+        {
+            var (email, auth) = await _authHelper.CreateAndAuthenticateUserAsync("spend-personal-in-family");
+            testEmail = email;
+            _authHelper.SetAuthToken(auth.AccessToken);
+
+            // The caller DOES have a family - this is the exact case the union exists for.
+            await CreateFamilyAsync("Spend Personal In Family");
+
+            var locationPublicId = await CreateShoppingLocationAsync("Spend Test Personal-In-Family Location");
+            var milkProductId = await CreateProductAsync(ProductCategory.Milk, "personal-in-family");
+
+            // isSharedWithFamily: false - a personal purchase, stamped UserId = caller,
+            // FamilyId = null by CreateInventoryItemAsync regardless of the caller having a
+            // family. price is set so the purchase-row gate fires (see
+            // CreateInventoryItemWithPurchaseAsync's own doc comment).
+            await CreateInventoryItemWithPurchaseAsync(milkProductId, isSharedWithFamily: false, price: 600, shoppingLocationPublicId: locationPublicId);
+
+            var response = await _client.GetAsync("/api/v1.0/insights/spend-by-location?days=30");
+            var body = await response.Content.ReadAsStringAsync();
+            _output.WriteLine($"Status: {response.StatusCode}");
+            _output.WriteLine($"Response: {body}");
+
+            Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+            var content = await response.Content.ReadFromJsonAsync<ApiResponse<SpendByLocationResponse>>();
+            Assert.NotNull(content?.Data);
+
+            // The assertion this test exists for: the personal purchase must appear, even though
+            // the caller has a family. Fails under the either/or predicate, which would scope this
+            // family member to FamilyId == familyId alone and never see a FamilyId: null personal
+            // item - see this test's summary.
+            var location = Assert.Single(content.Data.Locations);
+            Assert.Equal(locationPublicId, location.ShoppingLocationPublicId);
+            Assert.Equal(1, location.ItemCount);
+            Assert.Equal(600m, location.SpendByCurrency[Currency.Huf]);
+        }
+        finally
+        {
+            _authHelper.ClearAuthToken();
+            if (testEmail != null)
+                await _authHelper.CleanupUserAsync(testEmail);
         }
     }
 }

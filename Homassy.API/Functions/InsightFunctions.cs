@@ -587,7 +587,7 @@ namespace Homassy.API.Functions
         /// <see cref="LocationSpend.ShoppingLocationPublicId"/> is exposed instead of the
         /// internal <c>ShoppingLocationId</c> this method groups and looks up by, matching this
         /// codebase's convention of never handing out an enumerable primary key from a public DTO
-        /// (see <c>BaseEntity</c>'s doc comment) - it comes from this same bounded lookup, not a
+        /// (see the "BaseEntity" section of <c>Homassy.API/Entities/CLAUDE.md</c>) - it comes from this same bounded lookup, not a
         /// second query, so resolving it costs nothing beyond the one extra column already
         /// selected here, rather than pulling location rows into memory afterwards, which would
         /// trade the convention fix for an N+1. A location id this lookup cannot resolve (e.g.

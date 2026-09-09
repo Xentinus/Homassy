@@ -17,8 +17,8 @@ namespace Homassy.API.Models.Insights
         /// The location's public id, or <see langword="null"/> for the single "unknown location"
         /// bucket every purchase with no shopping location tag folds into - never dropped, and
         /// never split across more than one such bucket. Matches this codebase's convention of
-        /// exposing <c>PublicId</c> rather than the internal primary key in public DTOs (see
-        /// <c>BaseEntity</c>'s doc comment) - deliberately nullable, unlike most other public ids
+        /// exposing <c>PublicId</c> rather than the internal primary key in public DTOs (see the
+        /// "BaseEntity" section of <c>Homassy.API/Entities/CLAUDE.md</c>) - deliberately nullable, unlike most other public ids
         /// in this API, because the "unknown location" bucket has no location row to carry one
         /// (Fix round 1: this was originally the raw internal <c>int? ShoppingLocationId</c>, a
         /// deviation from that convention the brief specified verbatim - see this task's report).
