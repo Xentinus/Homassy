@@ -236,4 +236,136 @@ public class FamilyInsightsCacheTests
         Assert.Equal(0, callCount);
     }
     #endregion
+
+    #region Sweep: CleanupExpiredEntries
+    [Fact]
+    public void CleanupExpiredEntries_ExpiredEntry_IsRemoved()
+    {
+        var cache = new FamilyInsightsCache();
+        // A negative TTL expires the instant it is written - no real-time wait needed to get an
+        // already-expired entry into the dictionary.
+        cache.Set(1, "key", TimeSpan.FromMilliseconds(-1), new Widget());
+
+        var removed = cache.CleanupExpiredEntries();
+
+        Assert.Equal(1, removed);
+        Assert.Equal(0, cache.Count);
+    }
+
+    [Fact]
+    public async Task CleanupExpiredEntries_LiveEntry_IsNotRemoved()
+    {
+        var cache = new FamilyInsightsCache();
+        var seeded = new Widget { Id = 7 };
+        cache.Set(1, "key", TimeSpan.FromMinutes(5), seeded);
+
+        var removed = cache.CleanupExpiredEntries();
+
+        Assert.Equal(0, removed);
+        Assert.Equal(1, cache.Count);
+
+        // Confirm it is not just present but still the exact seeded instance - not evicted and
+        // silently recreated.
+        var callCount = 0;
+        Task<Widget> Factory(CancellationToken ct) { Interlocked.Increment(ref callCount); return Task.FromResult(new Widget()); }
+        var result = await cache.GetOrAddAsync(1, "key", TimeSpan.FromMinutes(5), Factory, CancellationToken.None);
+
+        Assert.Same(seeded, result);
+        Assert.Equal(0, callCount);
+    }
+
+    /// <summary>
+    /// The property the brief for this fix round called out by name: a sweep racing a concurrent
+    /// <see cref="FamilyInsightsCache.GetOrAddAsync{T}"/> call that is itself replacing an expired
+    /// entry must never delete the fresh replacement. The danger window is exactly the gap between
+    /// the sweep reading a (now-expired) <c>CacheEntry</c> off the dictionary and the sweep's own
+    /// removal call for it - if a concurrent <see cref="FamilyInsightsCache.GetOrAddAsync{T}"/>
+    /// call swaps in a fresh entry inside that gap, a removal keyed on the dictionary key alone
+    /// would delete whatever is there *now* (the fresh entry), whereas a removal keyed on the
+    /// exact stale instance the sweep read is a safe no-op instead.
+    ///
+    /// <para>
+    /// That gap is only a handful of CPU instructions wide, so a single attempt is very unlikely
+    /// to land in it. Two dedicated, long-lived threads are synchronized with a two-phase
+    /// <see cref="Barrier"/> instead of <c>Task.Run</c> (whose thread-pool queuing latency
+    /// otherwise swamps a gap this small) and released together for many thousands of rounds, each
+    /// forcing the exact same expired-entry-being-replaced scenario, so that across that volume of
+    /// attempts natural CPU/OS scheduling jitter lands inside the gap - reliably enough to catch a
+    /// regression, per the same design principle
+    /// <c>GetOrAddAsync_TwentyConcurrentCallersForSameKey_RunsFactoryExactlyOnce</c> above uses.
+    /// Correctness never depends on timing either way: with the compare-and-remove
+    /// <see cref="FamilyInsightsCache.CleanupExpiredEntries"/> actually uses, the assertion below
+    /// holds for every possible interleaving, not just the ones this test happens to produce - so
+    /// this cannot flake against a correct implementation, no matter the round count.
+    /// </para>
+    ///
+    /// <para>
+    /// Confirmed to fail against a naive key-only removal (<c>_entries.TryRemove(pair.Key, out
+    /// _)</c> in place of <c>_entries.TryRemove(pair)</c>) before this test was finalized - see
+    /// the Task 6 fix-round report for the exact failure observed.
+    /// </para>
+    /// </summary>
+    [Fact]
+    public void CleanupExpiredEntries_ConcurrentWithGetOrAddAsyncReplacingAnExpiredEntry_NeverRemovesTheFreshReplacement()
+    {
+        var cache = new FamilyInsightsCache();
+        const string key = "race-key";
+        const int rounds = 20_000;
+        var barrier = new Barrier(2);
+        string? failure = null;
+
+        Task<Widget> FreshFactory(CancellationToken ct) => Task.FromResult(new Widget { Id = 1 });
+
+        // Both threads must call SignalAndWait exactly the same number of times - a Barrier
+        // deadlocks the moment one side stops showing up. An early-exit-on-failure check here
+        // would race the *other* thread's own loop-condition check right across the phase-2
+        // release (nothing keeps that other thread from having already committed to one more
+        // round by the time the first thread observes the failure), so both threads unconditionally
+        // run every round and `failure` is only inspected once, after both have finished.
+        var installerThread = new Thread(() =>
+        {
+            for (var round = 0; round < rounds; round++)
+            {
+                // Force the entry into "just expired" before the two threads are released
+                // together, so the race below is purely about whether the sweeper's read of that
+                // stale value and this replacement land on either side of the sweeper's own
+                // removal call.
+                cache.Set(1, key, TimeSpan.FromMilliseconds(-1), new Widget { Id = 0 });
+
+                barrier.SignalAndWait(); // phase 1: released together into the race
+                cache.GetOrAddAsync(1, key, TimeSpan.FromMinutes(5), FreshFactory, CancellationToken.None)
+                    .GetAwaiter().GetResult();
+                barrier.SignalAndWait(); // phase 2: this round's replacement is now fully installed
+            }
+        });
+
+        var sweeperThread = new Thread(() =>
+        {
+            for (var round = 0; round < rounds; round++)
+            {
+                barrier.SignalAndWait(); // phase 1
+                cache.CleanupExpiredEntries();
+                barrier.SignalAndWait(); // phase 2: the installer's replacement (if any) has landed
+
+                // Past phase 2, the installer's GetOrAddAsync call for this round has unconditionally
+                // completed (Barrier guarantees both sides' pre-phase work happened-before this
+                // point), so the entry must be present - a correct sweep either never touched it
+                // (already fresh by the time it looked) or removed only the stale instance it
+                // actually read, never the replacement installed after that read.
+                if (cache.Count == 0 && failure is null)
+                {
+                    failure = $"Round {round}: entry for '{key}' was missing right after the installer's " +
+                        "replacement completed - the sweep removed a fresh entry a concurrent GetOrAddAsync had just installed.";
+                }
+            }
+        });
+
+        installerThread.Start();
+        sweeperThread.Start();
+        installerThread.Join();
+        sweeperThread.Join();
+
+        Assert.Null(failure);
+    }
+    #endregion
 }

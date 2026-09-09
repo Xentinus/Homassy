@@ -55,6 +55,12 @@ public sealed class FamilyInsightsCache
     private readonly ConcurrentDictionary<(int FamilyId, string Key), CacheEntry> _entries = new();
 
     /// <summary>
+    /// The number of entries currently stored, expired or not. Exists for cleanup diagnostics and
+    /// tests that need to observe a removal directly; no cache-hit/miss path reads it.
+    /// </summary>
+    public int Count => _entries.Count;
+
+    /// <summary>
     /// Returns the cached value for (<paramref name="familyId"/>, <paramref name="key"/>) if one
     /// exists and has not yet expired; otherwise runs <paramref name="factory"/>, caches the
     /// result for <paramref name="ttl"/>, and returns it.
@@ -72,6 +78,17 @@ public sealed class FamilyInsightsCache
     /// </para>
     ///
     /// <para>
+    /// <b>A piggybacking caller's token cannot cancel the shared factory.</b> When a call joins
+    /// an entry it did not win the race to (re)create - it is handed back someone else's
+    /// already-installed or still in-flight entry - its own <paramref name="ct"/> is never
+    /// threaded into <paramref name="factory"/> and has no way to stop that shared computation
+    /// early; only the token belonging to whichever caller's attempt actually won the race to
+    /// (re)create the entry ever reaches the factory. This is deliberate: cancelling your own
+    /// wait must not be able to abort work that every other caller racing on the same key may
+    /// still need the result of.
+    /// </para>
+    ///
+    /// <para>
     /// <b>A throwing factory is never cached.</b> If <paramref name="factory"/> faults (or is
     /// cancelled), the entry it produced is removed from the dictionary before the exception is
     /// rethrown to every caller awaiting it, so the *next* call for the same key gets a fresh
@@ -86,6 +103,28 @@ public sealed class FamilyInsightsCache
     /// <see cref="object"/>-typed storage is always a plain reference cast on the way out, never a
     /// boxing allocation.
     /// </typeparam>
+    /// <param name="familyId">
+    /// The owning family. Combined with <paramref name="key"/> to form the cache key, so the same
+    /// <paramref name="key"/> string under a different family id is always a distinct entry -
+    /// see the class summary for why that isolation matters.
+    /// </param>
+    /// <param name="key">
+    /// Identifies the cached value within <paramref name="familyId"/>. Must not be
+    /// <see langword="null"/>.
+    /// </param>
+    /// <param name="ttl">
+    /// How long a freshly computed value stays valid before the next call for the same
+    /// (<paramref name="familyId"/>, <paramref name="key"/>) triggers a recompute.
+    /// </param>
+    /// <param name="factory">
+    /// Produces the value on a cache miss (missing or expired entry). Must not be
+    /// <see langword="null"/>. Invoked at most once per winning call - see "Single-flight" above.
+    /// </param>
+    /// <param name="ct">
+    /// Cancellation for this call's own attempt to (re)create the entry. Only ever reaches
+    /// <paramref name="factory"/> when this call is the one that wins the race to run it - see
+    /// "A piggybacking caller's token cannot cancel the shared factory" above.
+    /// </param>
     public async Task<T> GetOrAddAsync<T>(int familyId, string key, TimeSpan ttl, Func<CancellationToken, Task<T>> factory, CancellationToken ct) where T : class
     {
         ArgumentNullException.ThrowIfNull(key);
@@ -126,6 +165,47 @@ public sealed class FamilyInsightsCache
                 _entries.TryRemove(pair);
             }
         }
+    }
+
+    /// <summary>
+    /// Removes every entry whose TTL has already elapsed, regardless of family or key. Meant to
+    /// be called periodically by a background sweep (see
+    /// <see cref="Homassy.API.Services.Background.FamilyInsightsCacheCleanupService"/>): nothing
+    /// else in this class ever removes an entry just because it expired - <see
+    /// cref="GetOrAddAsync{T}"/> only replaces an expired entry the next time that exact
+    /// (family, key) pair is queried again, and <see cref="InvalidateFamily"/> only drops entries
+    /// for a family it was told to drop. A key that is never queried again and never invalidated
+    /// - e.g. a product nobody re-opens - would otherwise sit in this dictionary, unreclaimed,
+    /// for the rest of the process's life.
+    ///
+    /// <para>
+    /// Safe to call concurrently with <see cref="GetOrAddAsync{T}"/>, <see cref="Set{T}"/> and
+    /// <see cref="InvalidateFamily"/>. Uses the exact same compare-and-remove discipline as the
+    /// fault-path eviction in <see cref="GetOrAddAsync{T}"/>: each removal is a
+    /// <see cref="ConcurrentDictionary{TKey,TValue}.TryRemove(KeyValuePair{TKey,TValue})"/>
+    /// against the precise <see cref="CacheEntry"/> instance this sweep just read as expired,
+    /// never a plain remove-by-key. If a concurrent caller has since replaced that instance - its
+    /// own <see cref="GetOrAddAsync{T}"/> retry for the same now-expired key, or a fresh
+    /// <see cref="Set{T}"/> - the dictionary no longer holds the value this sweep captured, so the
+    /// removal is a correct no-op instead of deleting the live replacement. Deleting a live entry
+    /// a caller is relying on would be worse than leaving a dead one for one more sweep interval.
+    /// </para>
+    /// </summary>
+    /// <returns>How many expired entries this call actually removed.</returns>
+    public int CleanupExpiredEntries()
+    {
+        var now = DateTime.UtcNow;
+        var removed = 0;
+
+        foreach (var pair in _entries)
+        {
+            if (pair.Value.ExpiresAtUtc <= now && _entries.TryRemove(pair))
+            {
+                removed++;
+            }
+        }
+
+        return removed;
     }
 
     /// <summary>

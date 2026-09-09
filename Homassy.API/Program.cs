@@ -110,6 +110,10 @@ try
     // over one. See FamilyInsightsCache's own doc comment for the single-flight/isolation
     // guarantees and the process-local scope this registration implies.
     builder.Services.AddSingleton<FamilyInsightsCache>();
+    // Sweeps expired entries out of the cache above on a timer, the same way RateLimitCleanupService
+    // does for RateLimitService: nothing else ever removes an entry from FamilyInsightsCache just
+    // because it expired, so without this a key nobody queries again would never be reclaimed.
+    builder.Services.AddHostedService<FamilyInsightsCacheCleanupService>();
 
     // External calendar sync. The URL is user-supplied, so this client is deliberately the
     // most restricted one in the application.
