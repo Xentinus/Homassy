@@ -105,6 +105,12 @@ try
     builder.Services.AddSingleton<StatisticsService>();
     builder.Services.AddHostedService<StatisticsRefreshWorker>();
 
+    // Per-family TTL cache backing the R5 "Insight" aggregation endpoints. Singleton for the same
+    // reason as StatisticsService above: it is the in-memory store itself, not a per-request view
+    // over one. See FamilyInsightsCache's own doc comment for the single-flight/isolation
+    // guarantees and the process-local scope this registration implies.
+    builder.Services.AddSingleton<FamilyInsightsCache>();
+
     // External calendar sync. The URL is user-supplied, so this client is deliberately the
     // most restricted one in the application.
     ExternalUrlGuard.AllowInsecureScheme = builder.Environment.IsDevelopment();
