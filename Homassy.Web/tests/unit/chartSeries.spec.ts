@@ -13,6 +13,11 @@ describe('seriesColor', () => {
   it('is stable for the same key and index', () => {
     expect(seriesColor('Aldi', 0)).toEqual(seriesColor('Aldi', 0))
   })
+
+  it('wraps a negative index into a real palette entry instead of an out-of-bounds slot', () => {
+    const palette = new Set(MEMBER_COLORS.map(c => c.light))
+    expect(palette.has(seriesColor('whatever', -1).light)).toBe(true)
+  })
 })
 
 describe('seriesColors', () => {
