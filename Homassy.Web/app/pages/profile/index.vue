@@ -120,6 +120,12 @@
           icon="i-lucide-users"
           @select="familyOpen = true"
         />
+        <SettingsRow
+          :label="$t('activity.title')"
+          :description="$t('activity.description')"
+          icon="i-lucide-activity"
+          to="/activity"
+        />
       </SettingsGroup>
 
       <!-- Master data -->

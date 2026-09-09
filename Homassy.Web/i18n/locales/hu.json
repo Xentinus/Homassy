@@ -203,8 +203,7 @@
     "products": "Készletek",
     "shoppingLists": "Bevásárlólisták",
     "calendar": "Naptár",
-    "profile": "Profil",
-    "activity": "Tevékenység"
+    "profile": "Profil"
   },
   "fab": {
     "open": "Hozzáadás megnyitása",
@@ -959,6 +958,7 @@
   },
   "activity": {
     "title": "Családi tevékenység",
+    "description": "A család legutóbbi módosításai",
     "today": "Ma",
     "yesterday": "Tegnap",
     "aggregated": "{count} tevékenység ({type}), legutóbb: {name}",

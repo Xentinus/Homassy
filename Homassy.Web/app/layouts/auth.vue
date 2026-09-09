@@ -248,12 +248,6 @@ const navItems = computed(() => [
     icon: 'i-lucide-user',
     avatar: true,
     active: route.path.startsWith('/profile')
-  },
-  {
-    label: t('nav.activity'),
-    to: '/activity',
-    icon: 'i-lucide-activity',
-    active: route.path.startsWith('/activity')
   }
 ])
 
