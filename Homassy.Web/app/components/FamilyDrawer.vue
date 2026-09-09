@@ -58,7 +58,10 @@
 
         <div class="space-y-3">
           <div v-for="req in joinRequests" :key="req.publicId" class="flex items-center gap-3 p-3 rounded-lg bg-gray-50 dark:bg-gray-800/50">
-            <UserAvatar :src="req.profilePictureUrl" :name="req.displayName || req.name" :size="48" />
+            <!-- Not a member yet, and FamilyJoinRequestResponse carries no identityColor (there is
+                 no override to have chosen) — publicId alone still gives the deterministic ring
+                 colour rather than leaving this one avatar plain. -->
+            <UserAvatar :src="req.profilePictureUrl" :name="req.displayName || req.name" :public-id="req.publicId" :size="48" />
             <div class="flex-1 min-w-0">
               <div class="font-medium truncate">{{ req.displayName || req.name }}</div>
               <div class="text-sm text-gray-500 dark:text-gray-400">{{ t('profile.family.joinRequests.sentAt') }}: <RelativeTime :date="req.requestedAt" /></div>
@@ -86,7 +89,13 @@
         </div>
         <div class="space-y-3">
           <div v-for="member in members" :key="member.publicId" class="flex items-center gap-3 p-3 rounded-lg bg-gray-50 dark:bg-gray-800/50">
-            <UserAvatar :src="member.profilePictureUrl" :name="member.displayName || member.name" :size="48" />
+            <UserAvatar
+              :src="member.profilePictureUrl"
+              :name="member.displayName || member.name"
+              :public-id="member.publicId"
+              :identity-color="member.identityColor"
+              :size="48"
+            />
             <div class="flex-1">
               <div class="flex items-center gap-2">
                 <span class="font-medium">{{ member.displayName || member.name }}</span>

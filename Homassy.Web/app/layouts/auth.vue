@@ -57,12 +57,22 @@
 
               <div
                 v-if="item.avatar"
-                class="h-7 w-7 rounded-full border-2 border-primary-500 overflow-hidden flex items-center justify-center bg-primary-100 dark:bg-primary-900/40 shrink-0"
+                class="h-7 w-7 shrink-0"
               >
                 <!-- Avatar is auth-store driven (client-only): render on the client
-                     so SSR (user=null → "?") doesn't mismatch the hydrated initials. -->
+                     so SSR (user=null → "?") doesn't mismatch the hydrated initials. The
+                     h-7 w-7 here only reserves the same footprint pre-hydration — the ring
+                     itself is UserAvatar's own member-identity ring (publicId/identityColor),
+                     not a hardcoded border: a wrapper's own border painted every user the same
+                     colour regardless of who they were. See Item 1 of the fix branch. -->
                 <ClientOnly>
-                  <UserAvatar :src="avatarSrc" :name="avatarName" :size="24" />
+                  <UserAvatar
+                    :src="avatarSrc"
+                    :name="avatarName"
+                    :public-id="authStore.user?.publicId"
+                    :identity-color="authStore.user?.identityColor"
+                    :size="28"
+                  />
                 </ClientOnly>
               </div>
               <UIcon v-else :name="item.icon" class="h-6 w-6" />

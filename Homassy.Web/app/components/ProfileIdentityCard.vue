@@ -14,9 +14,13 @@
       class="w-full flex items-center gap-4 px-4 py-4 text-left transition-colors active:bg-elevated hover:bg-elevated/60 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500/50"
       @click="onSelect"
     >
-      <div class="border-2 border-primary-500 rounded-full p-0.5 shrink-0">
-        <UserAvatar :src="avatarSrc" :name="primaryName" :size="64" />
-      </div>
+      <UserAvatar
+        :src="avatarSrc"
+        :name="primaryName"
+        :public-id="publicId"
+        :identity-color="identityColor"
+        :size="64"
+      />
 
       <div class="flex-1 min-w-0">
         <p class="text-lg font-semibold truncate">{{ primaryName }}</p>
@@ -35,6 +39,10 @@
  * Tappable profile identity card: avatar on the left, primary name next to it
  * with the secondary (real) name underneath. Emits `select` to open the
  * "Edit profile" drawer. Mirrors the SettingsGroup/SettingsRow visual language.
+ *
+ * The avatar's ring is `UserAvatar`'s own member-identity ring (`publicId` / `identityColor`),
+ * not a wrapper here — a wrapper around its `inline-flex` box painted a non-circular (and
+ * hardcoded-colour) ring; see `UserAvatar.vue` and Item 1 of the fix branch.
  */
 withDefaults(defineProps<{
   primaryName?: string
@@ -42,11 +50,17 @@ withDefaults(defineProps<{
   /** `profilePictureUrl` from the API; the initials placeholder is derived from the name. */
   avatarSrc?: string
   loading?: boolean
+  /** The current user's stable id, for the avatar's identity ring. */
+  publicId?: string | null
+  /** The current user's chosen palette key override, or null/absent for the deterministic pick. */
+  identityColor?: string | null
 }>(), {
   primaryName: undefined,
   secondaryName: undefined,
   avatarSrc: undefined,
-  loading: false
+  loading: false,
+  publicId: undefined,
+  identityColor: undefined
 })
 
 const emit = defineEmits<{ select: [] }>()

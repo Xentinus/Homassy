@@ -8,6 +8,8 @@
         :avatar-src="avatarSrc"
         :primary-name="primaryName"
         :secondary-name="secondaryName"
+        :public-id="authStore.user?.publicId"
+        :identity-color="authStore.user?.identityColor"
         @select="openEditProfile"
       />
 
@@ -216,11 +218,17 @@
       >
         <template #body>
           <div class="space-y-6">
-            <!-- Avatar -->
+            <!-- Avatar: the ring is UserAvatar's own member-identity ring, not a wrapper
+                 (a wrapper around its inline-flex box painted a non-circular, hardcoded-colour
+                 ring — see Item 1 of the fix branch). -->
             <div class="flex flex-col items-center gap-3">
-              <div class="border-2 border-primary-500 rounded-full p-0.5">
-                <UserAvatar :src="avatarSrc" :name="primaryName" :size="96" />
-              </div>
+              <UserAvatar
+                :src="avatarSrc"
+                :name="primaryName"
+                :public-id="authStore.user?.publicId"
+                :identity-color="authStore.user?.identityColor"
+                :size="96"
+              />
               <div class="flex items-center gap-2">
                 <UButton
                   icon="i-lucide-upload"
