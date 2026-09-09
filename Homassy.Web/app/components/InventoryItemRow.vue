@@ -233,7 +233,7 @@
 
       <template #footer>
         <UButton :label="$t('pages.products.details.deleteModal.cancel')" color="neutral" variant="outline" @click="closeDeleteModal" />
-        <UButton :label="$t('pages.products.details.deleteModal.confirm')" color="error" :loading="isDeleting" @click="handleDelete" />
+        <UButton :label="$t('pages.products.details.deleteModal.confirm')" color="error" @click="handleDelete" />
       </template>
     </AppDrawer>
   </div>
@@ -256,14 +256,16 @@ const props = defineProps<Props>()
 const emit = defineEmits<{
   consumed: []
   updated: []
-  deleted: []
+  /** Confirmed in the delete drawer — the parent (which owns the inventory items array) does the
+   *  actual optimistic remove + deferred DELETE. See InventoryOverviewDrawer's handleDeleteRequested. */
+  'delete-requested': []
 }>()
 
 const { t: $t } = useI18n()
 const haptics = useHaptics()
 const { formatDate } = useDateFormat()
 const { inputDateLocale } = useInputDateLocale()
-const { consumeInventoryItem, updateInventoryItem, deleteInventoryItem } = useProductsApi()
+const { consumeInventoryItem, updateInventoryItem } = useProductsApi()
 const { expirationTone } = useExpirationStatus()
 const toast = useToast()
 
@@ -288,7 +290,6 @@ const editForm = ref<{
 const isUpdating = ref(false)
 
 const isDeleteModalOpen = ref(false)
-const isDeleting = ref(false)
 
 // Swipe gestures (left = delete, right = edit); tap = consume.
 const rowEl = ref<HTMLElement | null>(null)
@@ -296,9 +297,9 @@ const rowEl = ref<HTMLElement | null>(null)
 const anyModalOpen = computed(() =>
   isConsumeModalOpen.value || isEditModalOpen.value || isDeleteModalOpen.value
 )
-const anyPending = computed(() =>
-  isConsuming.value || isUpdating.value || isDeleting.value
-)
+// Delete is now instant (optimistic — see handleDelete below), so only consume/update, which
+// still round-trip before their drawer closes, have anything to be pending on.
+const anyPending = computed(() => isConsuming.value || isUpdating.value)
 
 const swipe = useSwipeActions(rowEl, {
   onSwipeLeft: () => openDeleteModal(),
@@ -373,6 +374,16 @@ const adjustQuantity = (amount: number) => {
   }
 }
 
+// Deliberately NOT routed through useUndoableAction, unlike delete/purchase elsewhere in this
+// app, and this should stay that way: delete and the purchase toggle are absolute writes
+// (idempotent, so the queue's same-entity replacement — which drops the older action's commit
+// entirely — is correct for them), but consume is a relative delta. Two queued consumes on one
+// item would each encode only their own delta, so replacing the first with the second would
+// silently drop the first decrement's server round-trip while the optimistic UI shows both
+// applied. A 5s deferral would also widen the pre-existing race in
+// ProductFunctions.ConsumeInventoryItemAsync, which recomputes the remaining quantity from a
+// freshly re-read row without re-validating it against the request — concurrent commits can
+// already drive the quantity negative even today. See useUndoableAction.ts's header comment.
 const handleConsume = async () => {
   if (!consumeQuantity.value || consumeQuantity.value <= 0) {
     toast.add({
@@ -465,19 +476,9 @@ const closeDeleteModal = () => {
   isDeleteModalOpen.value = false
 }
 
-const handleDelete = async () => {
-  isDeleting.value = true
-  try {
-    const response = await deleteInventoryItem(props.item.publicId)
-    if (response.success) {
-      haptics.warning()
-      closeDeleteModal()
-      emit('deleted')
-    }
-  } catch (error) {
-    console.error('Failed to delete inventory item:', error)
-  } finally {
-    isDeleting.value = false
-  }
+const handleDelete = () => {
+  haptics.warning()
+  closeDeleteModal()
+  emit('delete-requested')
 }
 </script>

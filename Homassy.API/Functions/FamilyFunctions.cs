@@ -314,7 +314,8 @@ namespace Homassy.API.Functions
                     u.Name,
                     DisplayName = u.Profile != null ? u.Profile.DisplayName : string.Empty,
                     u.LastLoginAt,
-                    PictureVersion = u.Profile != null ? u.Profile.ProfilePictureVersion : null
+                    PictureVersion = u.Profile != null ? u.Profile.ProfilePictureVersion : null,
+                    IdentityColor = u.Profile != null ? u.Profile.IdentityColor : null
                 })
                 .ToList()
                 .Select(u => new FamilyMemberResponse
@@ -324,7 +325,8 @@ namespace Homassy.API.Functions
                     DisplayName = u.DisplayName,
                     LastLoginAt = u.LastLoginAt,
                     ProfilePictureUrl = MediaUrls.ProfilePicture(u.PublicId, u.PictureVersion),
-                    IsCurrentUser = u.PublicId == currentPublicId
+                    IsCurrentUser = u.PublicId == currentPublicId,
+                    IdentityColor = u.IdentityColor
                 })
                 .ToList();
 

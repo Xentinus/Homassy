@@ -1113,6 +1113,10 @@ namespace Homassy.API.Migrations
                     b.Property<string>("Gender")
                         .HasColumnType("text");
 
+                    b.Property<string>("IdentityColor")
+                        .HasMaxLength(24)
+                        .HasColumnType("character varying(24)");
+
                     b.Property<bool>("IsDeleted")
                         .HasColumnType("boolean");
 

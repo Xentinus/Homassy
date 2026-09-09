@@ -203,7 +203,8 @@
     "products": "Készletek",
     "shoppingLists": "Bevásárlólisták",
     "calendar": "Naptár",
-    "profile": "Profil"
+    "profile": "Profil",
+    "activity": "Tevékenység"
   },
   "fab": {
     "open": "Hozzáadás megnyitása",
@@ -949,11 +950,74 @@
     "itemUpdated": "Elem sikeresen frissítve",
     "itemDeleted": "Elem sikeresen törölve",
     "restorePurchaseWarning": "Biztosan vissza szeretnéd állítani ezt a vásárlást?",
-    "restorePurchaseInventoryWarning": "Megjegyzés: Ez csak megjelöli az elemet nem vásároltként. NEM távolítja el az elemet a készletből, ha már hozzá lett adva."
+    "restorePurchaseInventoryWarning": "Megjegyzés: Ez csak megjelöli az elemet nem vásároltként. NEM távolítja el az elemet a készletből, ha már hozzá lett adva.",
+    "changedBy": "Módosította: {name}",
+    "presence": {
+      "othersHere": "Még {count} másik itt van",
+      "overflow": "+{count} további"
+    }
+  },
+  "activity": {
+    "title": "Családi tevékenység",
+    "today": "Ma",
+    "yesterday": "Tegnap",
+    "aggregated": "{count} tevékenység ({type}), legutóbb: {name}",
+    "expand": "Összes mutatása",
+    "collapse": "Összecsukás",
+    "filters": {
+      "type": "Típus",
+      "member": "Családtag",
+      "all": "Összes",
+      "allTypes": "Összes típus"
+    },
+    "empty": {
+      "title": "Még nincs tevékenység",
+      "description": "Amint valaki a családodban hozzáad, módosít vagy töröl valamit, itt fog megjelenni."
+    }
+  },
+  "realtime": {
+    "reconnecting": "Újracsatlakozás…",
+    "socketOffline": "Megszakadt a kapcsolat",
+    "deviceOffline": "Nincs internetkapcsolat",
+    "backOnline": "Újra online",
+    "updatedFlash": "Frissült, amíg offline voltál"
+  },
+  "undo": {
+    "action": "Visszavonás",
+    "collapsed": {
+      "delete": "{count} tétel törölve",
+      "purchase": "{count} tétel megvásárolva",
+      "move": "{count} tétel áthelyezve",
+      "mixed": "{count} módosítás"
+    },
+    "item": {
+      "delete": "{name} törölve",
+      "purchase": "{name} megvásárolva",
+      "restore": "{name} visszaállítva",
+      "move": "{name} áthelyezve"
+    },
+    "failed": "A módosítást nem sikerült menteni, ezért visszavontuk.",
+    "secondsLeft": "{seconds} mp"
   },
   "profile": {
     "title": "Profil",
-    "settings": "Beállítások",
+    "settings": {
+      "identityColor": {
+        "label": "Azonosító szín",
+        "description": "Kiemelőszín a gyűrűkhöz, keretekhez és naptárpontokhoz.",
+        "auto": "Automatikus",
+        "colors": {
+          "rose": "Rózsaszín",
+          "amber": "Borostyán",
+          "lime": "Limezöld",
+          "teal": "Petróleumkék",
+          "sky": "Égkék",
+          "indigo": "Indigó",
+          "violet": "Ibolya",
+          "fuchsia": "Fukszia"
+        }
+      }
+    },
     "settingsCardDescription": "Módosítsd a nyelvet, pénznemet és időzónát.",
     "name": "Név",
     "displayName": "Megjelenítendő név",

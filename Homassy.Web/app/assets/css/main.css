@@ -90,6 +90,23 @@ html {
   --bubble-ease-pop: cubic-bezier(0.34, 1.56, 0.64, 1);
   /* Decelerating curve for movement/settling — the nav/snap easing. */
   --bubble-ease-out: cubic-bezier(0.22, 1, 0.36, 1);
+
+  /* Shopping-list "changed by" flash (see .item-attribution-flash below) — how long a foreign
+     change stays highlighted on a card. The one new duration this feature needs. */
+  --attribution-flash: 1500ms;
+
+  /* RealtimeConnectionBar (see useRealtimeStatus.ts) — how long the "Back online" confirmation
+     holds before it fades via the bubble transition. Not itself a CSS animation duration (there is
+     no keyframe using it), but declared here rather than as a JS magic number so every timed
+     duration in the app has one visible home. */
+  --realtime-reconnected-hold: 2500ms;
+
+  /* UndoToast / useUndoableAction — the undo window an optimistic delete/purchase/move waits
+     before it commits for real. Mirrors UNDO_WINDOW_MS in app/utils/undoQueue.ts; like
+     --realtime-reconnected-hold above, nothing here reads it as a CSS transition/animation
+     duration (the toast's ring is a per-frame stroke-dashoffset, not a CSS-timed animation), it is
+     just declared here so this duration has the same one visible home as every other. */
+  --undo-window: 5000ms;
 }
 
 /* Page content cross-fade on navigation (the bottom nav + header stay fixed in the layout). */
@@ -178,5 +195,120 @@ html {
   .bubble-enter-from,
   .bubble-leave-to {
     transform: none;
+  }
+}
+
+/* ---------------------------------------------------------------------------
+   Shopping-list "changed by" flash — see app/pages/shopping-lists/index.vue.
+
+   ShoppingListItemCard is not touched by this feature: the page wraps each card in a thin
+   `.item-attribution-flash` div (same rounded-2xl radius, no padding of its own) and drives
+   `--member-color` on it via useMemberColor().accentStyle(). The ring below is a plain
+   (non-inset) box-shadow, which CSS always paints *outside* the wrapper's own border box — so it
+   reads as a glow around the card rather than being hidden behind the card's own opaque
+   background, without needing to touch that component. Only the shadow's spread animates (not
+   its colour), so there is no colour-to-transparent interpolation to worry about across engines.
+
+   `.item-attribution-label` is the small "changed by <name>" pill the same wrapper renders
+   absolutely-positioned over the top of the card; it fades in/out in lockstep with the ring using
+   the same --attribution-flash duration. The member colour there is only ever the small dot in
+   front of the name (an accent, per the app's colour rule) — the pill itself stays a neutral,
+   theme-invariant dark scrim so arbitrary member hues never become the pill's own fill or text
+   colour.
+--------------------------------------------------------------------------- */
+.item-attribution-flash {
+  /* forwards: hold the 100% (no-shadow) state once the animation ends rather than snapping back
+     to the unanimated base style — otherwise the ring can flicker visible again for a frame if
+     this finishes a tick before the page's ATTRIBUTION_FLASH_MS timeout removes the class. */
+  animation: item-attribution-ring var(--attribution-flash) ease-out forwards;
+}
+
+@keyframes item-attribution-ring {
+  0% { box-shadow: 0 0 0 0 var(--member-color); }
+  12% { box-shadow: 0 0 0 4px var(--member-color); }
+  100% { box-shadow: 0 0 0 0 var(--member-color); }
+}
+
+.item-attribution-label {
+  position: absolute;
+  top: 0.5rem;
+  left: 50%;
+  z-index: 5;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  max-width: calc(100% - 1rem);
+  padding: 0.25rem 0.625rem;
+  border-radius: 9999px;
+  background: rgb(17 24 39 / 0.82);
+  color: #fff;
+  font-size: 0.6875rem;
+  font-weight: 600;
+  line-height: 1.2;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  pointer-events: none;
+  /* forwards: same reasoning as .item-attribution-flash above — hold the faded-out end state
+     instead of a base opacity: 1 that would otherwise flash back for a frame. */
+  animation: item-attribution-label var(--attribution-flash) ease-out forwards;
+}
+
+.item-attribution-dot {
+  width: 0.5rem;
+  height: 0.5rem;
+  border-radius: 9999px;
+  background: var(--member-color);
+  flex-shrink: 0;
+}
+
+@keyframes item-attribution-label {
+  0% { opacity: 0; transform: translate(-50%, -4px); }
+  10% { opacity: 1; transform: translate(-50%, 0); }
+  80% { opacity: 1; transform: translate(-50%, 0); }
+  100% { opacity: 0; transform: translate(-50%, 0); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  /* The motion goes, not the information: both stay statically visible for the same duration
+     (the page's ATTRIBUTION_FLASH_MS clears them either way) instead of fading. */
+  .item-attribution-flash {
+    animation: none;
+    box-shadow: 0 0 0 4px var(--member-color);
+  }
+
+  .item-attribution-label {
+    animation: none;
+    opacity: 1;
+    transform: translate(-50%, 0);
+  }
+}
+
+/* ---------------------------------------------------------------------------
+   Realtime "row updated" flash — see app/pages/products/index.vue and
+   app/pages/shopping-lists/index.vue. Both re-fetch their snapshot on a socket reconnect; each
+   diffs the incoming data against what was on screen right before the fetch (by entity public id)
+   and applies this class to whichever rows actually changed.
+
+   Deliberately NOT .item-attribution-flash: that ring is tinted per member (--member-color)
+   because it means "a person changed this". This one means "the server had newer data than what
+   was on screen" — nobody in particular did it, so the ring is a fixed, theme-aware token
+   (--ui-primary) rather than any member's hue. Reuses --attribution-flash's duration (the same
+   "a card briefly needs your eye" length) rather than adding a near-duplicate token.
+--------------------------------------------------------------------------- */
+.row-updated-flash {
+  animation: row-updated-ring var(--attribution-flash) ease-out forwards;
+}
+
+@keyframes row-updated-ring {
+  0% { box-shadow: 0 0 0 0 var(--ui-primary); }
+  12% { box-shadow: 0 0 0 4px var(--ui-primary); }
+  100% { box-shadow: 0 0 0 0 var(--ui-primary); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .row-updated-flash {
+    animation: none;
+    box-shadow: 0 0 0 4px var(--ui-primary);
   }
 }

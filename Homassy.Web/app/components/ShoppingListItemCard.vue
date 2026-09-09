@@ -304,7 +304,6 @@
         <UButton
           :label="$t('common.confirm')"
           color="success"
-          :loading="isQuickPurchasing"
           @click="confirmPurchase"
         />
       </template>
@@ -493,7 +492,6 @@
         <UButton
           :label="$t('common.delete')"
           color="error"
-          :loading="isDeleting"
           @click="handleDelete"
         />
       </template>
@@ -520,7 +518,6 @@
         <UButton
           :label="$t('common.confirm')"
           color="primary"
-          :loading="isRestoring"
           @click="handleRestorePurchase"
         />
       </template>
@@ -571,13 +568,19 @@ const isSimilarTypeHere = computed(() =>
 
 const emit = defineEmits<{
   refresh: []
-  deleted: []
+  /** Confirmed in the delete drawer — the page (which owns the items array) does the actual
+   *  optimistic remove + deferred DELETE. See shopping-lists/index.vue's handleDeleteRequested. */
+  'delete-requested': []
+  /** Confirmed in the purchase drawer, carrying the request the page will eventually send. */
+  'purchase-requested': [request: PurchaseShoppingListItemRequest]
+  /** Confirmed in the restore-purchase drawer. */
+  'restore-requested': []
 }>()
 
 const { t, locale } = useI18n()
 const haptics = useHaptics()
 const { inputDateLocale } = useInputDateLocale()
-const { purchaseShoppingListItem, restorePurchaseShoppingListItem, updateShoppingListItem, deleteShoppingListItem } = useShoppingListApi()
+const { updateShoppingListItem } = useShoppingListApi()
 const { isExpired: checkIsExpired, isExpiringWithinTwoWeeks: checkIsExpiringWithinTwoWeeks } = useExpirationCheck()
 
 // State
@@ -596,13 +599,10 @@ const lightboxImages = computed<LightboxImage[]>(() => {
   }]
 })
 const isPurchaseModalOpen = ref(false)
-const isQuickPurchasing = ref(false)
-const isRestoring = ref(false)
 const isEditModalOpen = ref(false)
 const isDeleteModalOpen = ref(false)
 const isRestoreModalOpen = ref(false)
 const isUpdating = ref(false)
-const isDeleting = ref(false)
 
 // Purchase sheet state
 const purchaseMode = ref<'all' | 'partial'>('all')
@@ -624,9 +624,9 @@ const anyModalOpen = computed(() =>
   || isRestoreModalOpen.value || isImageOverlayOpen.value
 )
 
-const anyPending = computed(() =>
-  isQuickPurchasing.value || isUpdating.value || isDeleting.value || isRestoring.value
-)
+// Delete/purchase/restore are now instant (optimistic — see the *-requested emits below), so only
+// the edit flow (which still round-trips before its drawer closes) has anything to be pending on.
+const anyPending = computed(() => isUpdating.value)
 
 const swipe = useSwipeActions(cardEl, {
   onSwipeLeft: () => openDeleteModal(),
@@ -804,31 +804,23 @@ const clampQuantity = () => {
 }
 
 // Confirm the purchase: partial (with optional kept remainder) or whole, plus purchase location.
-const confirmPurchase = async () => {
-  isQuickPurchasing.value = true
-  try {
-    const isPartial = purchaseMode.value === 'partial'
-    const selectedLocation = purchaseLocationPublicId.value
-    const request: PurchaseShoppingListItemRequest = {
-      shoppingListItemPublicId: props.item.publicId,
-      purchasedAt: new Date().toISOString(),
-      purchasedQuantity: isPartial ? purchaseQuantity.value : undefined,
-      keepRemainder: isPartial ? keepRemainder.value : undefined,
-      // Recording where you bought it is optional: only set it when a store is chosen.
-      // Never auto-clear the item's planned store from here (use the edit drawer for that).
-      shoppingLocationPublicId: selectedLocation || undefined
-    }
-    const response = await purchaseShoppingListItem(request)
-    if (response.success) {
-      haptics.success()
-      isPurchaseModalOpen.value = false
-      emit('refresh')
-    }
-  } catch (error) {
-    console.error('Failed to purchase item:', error)
-  } finally {
-    isQuickPurchasing.value = false
+// Optimistic from here — the page applies purchasedAt locally right away and defers the actual
+// request behind the undo window (see shopping-lists/index.vue's handlePurchaseRequested).
+const confirmPurchase = () => {
+  const isPartial = purchaseMode.value === 'partial'
+  const selectedLocation = purchaseLocationPublicId.value
+  const request: PurchaseShoppingListItemRequest = {
+    shoppingListItemPublicId: props.item.publicId,
+    purchasedAt: new Date().toISOString(),
+    purchasedQuantity: isPartial ? purchaseQuantity.value : undefined,
+    keepRemainder: isPartial ? keepRemainder.value : undefined,
+    // Recording where you bought it is optional: only set it when a store is chosen.
+    // Never auto-clear the item's planned store from here (use the edit drawer for that).
+    shoppingLocationPublicId: selectedLocation || undefined
   }
+  haptics.success()
+  isPurchaseModalOpen.value = false
+  emit('purchase-requested', request)
 }
 
 // Open image from sheet - close it first, then open overlay
@@ -840,20 +832,10 @@ const openImageFromModal = () => {
   }, 100)
 }
 
-const handleRestorePurchase = async () => {
-  isRestoring.value = true
-  try {
-    const response = await restorePurchaseShoppingListItem(props.item.publicId)
-    if (response.success) {
-      haptics.tap()
-      closeRestoreModal()
-      emit('refresh')
-    }
-  } catch (error) {
-    console.error('Failed to restore purchase:', error)
-  } finally {
-    isRestoring.value = false
-  }
+const handleRestorePurchase = () => {
+  haptics.tap()
+  closeRestoreModal()
+  emit('restore-requested')
 }
 
 // Edit modal methods
@@ -939,20 +921,10 @@ const closeDeleteModal = () => {
   isDeleteModalOpen.value = false
 }
 
-const handleDelete = async () => {
-  isDeleting.value = true
-  try {
-    const response = await deleteShoppingListItem(props.item.publicId)
-    if (response.success) {
-      haptics.warning()
-      closeDeleteModal()
-      emit('deleted')
-    }
-  } catch (error) {
-    console.error('Failed to delete shopping list item:', error)
-  } finally {
-    isDeleting.value = false
-  }
+const handleDelete = () => {
+  haptics.warning()
+  closeDeleteModal()
+  emit('delete-requested')
 }
 
 // Restore modal methods

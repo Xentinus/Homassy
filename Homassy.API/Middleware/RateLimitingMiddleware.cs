@@ -19,14 +19,24 @@ namespace Homassy.API.Middleware
         public const string UnmatchedEndpointKey = "unmatched";
 
         private readonly RequestDelegate _next;
+        private readonly IConfiguration _configuration;
         private static readonly JsonSerializerOptions JsonOptions = new()
         {
             PropertyNamingPolicy = JsonNamingPolicy.CamelCase
         };
 
-        public RateLimitingMiddleware(RequestDelegate next)
+        /// <remarks>
+        /// The limits come from the injected configuration rather than the process-wide
+        /// <see cref="ConfigService"/> on purpose. The limiter is the one component the whole test
+        /// suite runs through, and reading a mutable static at request time let a unit test that
+        /// installs deliberately tiny limits bleed into every integration test running in parallel —
+        /// which is exactly how a 401 assertion started seeing 429. Constructor injection makes that
+        /// impossible: <c>UseMiddleware</c> resolves this from the app's own container.
+        /// </remarks>
+        public RateLimitingMiddleware(RequestDelegate next, IConfiguration configuration)
         {
             _next = next;
+            _configuration = configuration;
         }
 
         public async Task InvokeAsync(HttpContext context)
@@ -36,8 +46,8 @@ namespace Homassy.API.Middleware
             var endpointKey = GetEndpointKey(context);
             var method = context.Request.Method;
 
-            var globalMaxAttempts = int.Parse(ConfigService.GetValue("RateLimiting:GlobalMaxAttempts") ?? "100");
-            var globalWindowMinutes = int.Parse(ConfigService.GetValue("RateLimiting:GlobalWindowMinutes") ?? "1");
+            var globalMaxAttempts = int.Parse(_configuration["RateLimiting:GlobalMaxAttempts"] ?? "100");
+            var globalWindowMinutes = int.Parse(_configuration["RateLimiting:GlobalWindowMinutes"] ?? "1");
             var globalWindow = TimeSpan.FromMinutes(globalWindowMinutes);
             var globalRateLimitKey = $"global:{clientIp}";
 
@@ -56,8 +66,8 @@ namespace Homassy.API.Middleware
                 return;
             }
 
-            var endpointMaxAttempts = int.Parse(ConfigService.GetValue("RateLimiting:EndpointMaxAttempts") ?? "30");
-            var endpointWindowMinutes = int.Parse(ConfigService.GetValue("RateLimiting:EndpointWindowMinutes") ?? "1");
+            var endpointMaxAttempts = int.Parse(_configuration["RateLimiting:EndpointMaxAttempts"] ?? "30");
+            var endpointWindowMinutes = int.Parse(_configuration["RateLimiting:EndpointWindowMinutes"] ?? "1");
             var endpointWindow = TimeSpan.FromMinutes(endpointWindowMinutes);
             var endpointRateLimitKey = $"endpoint:{endpointKey}:{clientIp}";
 

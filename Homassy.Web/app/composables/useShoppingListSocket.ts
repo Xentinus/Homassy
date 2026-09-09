@@ -3,9 +3,13 @@
  *
  * Manages a single app-wide connection to the API's `/hubs/shopping-list` hub. A client
  * "joins" the list it is viewing and receives live `ItemUpserted` / `ItemDeleted` /
- * `ListUpdated` / `ListDeleted` events for it, so the open list stays current without
- * polling or manual refresh. Writes still go through the REST endpoints; the server
- * broadcasts the resulting change to everyone in the list's group.
+ * `ListUpdated` / `ListDeleted` / `PresenceChanged` events for it, so the open list stays
+ * current without polling or manual refresh. Writes still go through the REST endpoints; the
+ * server broadcasts the resulting change to everyone in the list's group.
+ *
+ * `PresenceChanged` carries the list's full member snapshot; this composable folds it into
+ * `presentMembers` (excluding the caller) rather than handing the raw event to consumers, since
+ * presence — like the connection itself — is one app-wide truth, not a per-page subscription.
  *
  * Auth: the Kratos session cookie is sent on the WS handshake via `withCredentials`, so the
  * existing server-side session middleware authenticates the connection — no token plumbing.
@@ -14,14 +18,26 @@
  * and `joinList` returns `null` so callers can fall back to a plain REST fetch.
  */
 import * as signalR from '@microsoft/signalr'
-import type { HubEventHandler, SignalRHandler } from '~/types/realtime'
+import type { HubEventHandler, PresenceMember, SignalRHandler } from '~/types/realtime'
 import { ref } from 'vue'
 import type { DetailedShoppingListInfo } from '~/types/shoppingList'
+import { useAuthStore } from '~/stores/auth'
+import type { HubState } from '~/utils/realtimeStatus'
 
 // Module-level singletons: one connection shared across the whole app.
 let connection: signalR.HubConnection | null = null
 let startPromise: Promise<void> | null = null
 const isConnected = ref(false)
+// Same lifecycle as isConnected, but distinguishes "never opened" from "currently down" — see
+// useRealtimeStatus, which aggregates this across the three hubs into one status indicator.
+const hubState = ref<HubState>('idle')
+
+// Who else has the currently-joined list open right now (excludes the caller). Module-level,
+// alongside isConnected: the connection is an app-wide singleton, so its presence is too — every
+// consumer sees the same roster rather than each keeping its own copy. Cleared to [] whenever the
+// socket is down (see the onreconnecting/onclose wiring below): while disconnected the app does
+// not know who is there, and a stale row is worse than showing none.
+const presentMembers = ref<PresenceMember[]>([])
 
 // Track what we're currently joined to, so we can re-join after an automatic reconnect
 // (SignalR groups are connection-scoped and are lost when the connection is rebuilt).
@@ -33,6 +49,15 @@ export const useShoppingListSocket = () => {
   const isSupported = import.meta.client
   const config = useRuntimeConfig()
   const apiBase = (config.public.apiBase as string) || 'http://localhost:5226'
+
+  /**
+   * The signed-in member's own public id, so `PresenceChanged` can filter them out of
+   * `presentMembers` ("who *else* is here").
+   */
+  const currentUserPublicId = (): string | null => {
+    const auth = useAuthStore()
+    return auth.user?.publicId ?? null
+  }
 
   const getConnection = (): signalR.HubConnection | null => {
     if (!isSupported) return null
@@ -46,10 +71,24 @@ export const useShoppingListSocket = () => {
         .configureLogging(signalR.LogLevel.Warning)
         .build()
 
-      connection.onreconnecting(() => { isConnected.value = false })
-      connection.onclose(() => { isConnected.value = false })
+      connection.on('PresenceChanged', (members: PresenceMember[]) => {
+        const myPublicId = currentUserPublicId()
+        presentMembers.value = members.filter(m => m.publicId !== myPublicId)
+      })
+
+      connection.onreconnecting(() => {
+        isConnected.value = false
+        hubState.value = 'reconnecting'
+        presentMembers.value = []
+      })
+      connection.onclose(() => {
+        isConnected.value = false
+        hubState.value = 'closed'
+        presentMembers.value = []
+      })
       connection.onreconnected(() => {
         isConnected.value = true
+        hubState.value = 'connected'
         // Re-sync: let consumers reload the snapshot (which re-joins the group). If no
         // consumer registered, best-effort re-join so we keep receiving events.
         if (reconnectedCallbacks.length > 0) {
@@ -71,7 +110,7 @@ export const useShoppingListSocket = () => {
 
     if (!startPromise) {
       startPromise = conn.start()
-        .then(() => { isConnected.value = true })
+        .then(() => { isConnected.value = true; hubState.value = 'connected' })
         .catch((error) => { startPromise = null; throw error })
     }
 
@@ -132,6 +171,8 @@ export const useShoppingListSocket = () => {
   return {
     isSupported,
     isConnected,
+    hubState,
+    presentMembers,
     ensureConnected,
     joinList,
     leaveList,

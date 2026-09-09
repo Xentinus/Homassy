@@ -732,6 +732,7 @@ namespace Homassy.API.Functions
                 throw new UserNotFoundException("User not found");
             }
 
+            var actorPublicId = SessionInfo.GetPublicId();
             var shoppingList = GetShoppingListByPublicId(request.ShoppingListPublicId);
             if (shoppingList == null)
             {
@@ -828,7 +829,7 @@ namespace Homassy.API.Functions
                 }
 
                 // Notify everyone viewing this list of the new item.
-                await _runtime.ShoppingList.ItemUpsertedAsync(shoppingList.PublicId, BuildItemInfo(shoppingListItem, shoppingList), cancellationToken);
+                await _runtime.ShoppingList.ItemUpsertedAsync(shoppingList.PublicId, BuildItemInfo(shoppingListItem, shoppingList), cancellationToken, actorPublicId);
 
                 return new ShoppingListItemInfo
                 {
@@ -862,6 +863,7 @@ namespace Homassy.API.Functions
                 throw new UserNotFoundException("User not found");
             }
 
+            var actorPublicId = SessionInfo.GetPublicId();
             var shoppingListItem = GetShoppingListItemByPublicId(publicId);
             if (shoppingListItem == null)
             {
@@ -1009,7 +1011,7 @@ namespace Homassy.API.Functions
                     }
 
                     // Notify everyone viewing this list of the change.
-                    await _runtime.ShoppingList.ItemUpsertedAsync(shoppingList.PublicId, BuildItemInfo(trackedItem, shoppingList), cancellationToken);
+                    await _runtime.ShoppingList.ItemUpsertedAsync(shoppingList.PublicId, BuildItemInfo(trackedItem, shoppingList), cancellationToken, actorPublicId);
                 }
 
                 return new ShoppingListItemInfo
@@ -1044,6 +1046,7 @@ namespace Homassy.API.Functions
                 throw new UserNotFoundException("User not found");
             }
 
+            var actorPublicId = SessionInfo.GetPublicId();
             var shoppingListItem = GetShoppingListItemByPublicId(publicId);
             if (shoppingListItem == null)
             {
@@ -1108,7 +1111,7 @@ namespace Homassy.API.Functions
                 }
 
                 // Notify everyone viewing this list that the item was removed.
-                await _runtime.ShoppingList.ItemDeletedAsync(shoppingList.PublicId, shoppingListItem.PublicId, cancellationToken);
+                await _runtime.ShoppingList.ItemDeletedAsync(shoppingList.PublicId, shoppingListItem.PublicId, cancellationToken, actorPublicId);
             }
             catch (Exception ex)
             {
@@ -1127,6 +1130,7 @@ namespace Homassy.API.Functions
                 throw new UserNotFoundException("User not found");
             }
 
+            var actorPublicId = SessionInfo.GetPublicId();
             var shoppingListItem = GetShoppingListItemByPublicId(request.ShoppingListItemPublicId);
             if (shoppingListItem == null)
             {
@@ -1202,7 +1206,7 @@ namespace Homassy.API.Functions
                         DueAt = trackedShoppingListItem.DueAt
                     };
 
-                    await _runtime.ShoppingList.ItemUpsertedAsync(shoppingList.PublicId, BuildItemInfo(trackedShoppingListItem, shoppingList), cancellationToken);
+                    await _runtime.ShoppingList.ItemUpsertedAsync(shoppingList.PublicId, BuildItemInfo(trackedShoppingListItem, shoppingList), cancellationToken, actorPublicId);
 
                     return customItemInfo;
                 }
@@ -1307,7 +1311,7 @@ namespace Homassy.API.Functions
                     DueAt = trackedShoppingListItem.DueAt
                 };
 
-                await _runtime.ShoppingList.ItemUpsertedAsync(shoppingList.PublicId, BuildItemInfo(trackedShoppingListItem, shoppingList), cancellationToken);
+                await _runtime.ShoppingList.ItemUpsertedAsync(shoppingList.PublicId, BuildItemInfo(trackedShoppingListItem, shoppingList), cancellationToken, actorPublicId);
 
                 return shoppingListItemInfo;
             }
@@ -1328,6 +1332,7 @@ namespace Homassy.API.Functions
                 throw new UserNotFoundException("User not found");
             }
 
+            var actorPublicId = SessionInfo.GetPublicId();
             var shoppingListItem = GetShoppingListItemByPublicId(publicId);
             if (shoppingListItem == null)
             {
@@ -1409,7 +1414,7 @@ namespace Homassy.API.Functions
                     DueAt = trackedShoppingListItem.DueAt
                 };
 
-                await _runtime.ShoppingList.ItemUpsertedAsync(shoppingList.PublicId, BuildItemInfo(trackedShoppingListItem, shoppingList), cancellationToken);
+                await _runtime.ShoppingList.ItemUpsertedAsync(shoppingList.PublicId, BuildItemInfo(trackedShoppingListItem, shoppingList), cancellationToken, actorPublicId);
 
                 return shoppingListItemInfo;
             }
@@ -1430,6 +1435,7 @@ namespace Homassy.API.Functions
                 throw new UserNotFoundException("User not found");
             }
 
+            var actorPublicId = SessionInfo.GetPublicId();
             var shoppingListItem = GetShoppingListItemByPublicId(request.ShoppingListItemPublicId);
             if (shoppingListItem == null)
             {
@@ -1529,7 +1535,7 @@ namespace Homassy.API.Functions
                 // Refresh cache
                 await RefreshShoppingListItemCacheAsync(shoppingListItem.Id, cancellationToken);
 
-                await _runtime.ShoppingList.ItemUpsertedAsync(shoppingList.PublicId, BuildItemInfo(trackedShoppingListItem, shoppingList), cancellationToken);
+                await _runtime.ShoppingList.ItemUpsertedAsync(shoppingList.PublicId, BuildItemInfo(trackedShoppingListItem, shoppingList), cancellationToken, actorPublicId);
 
                 return new ShoppingListItemInfo
                 {
@@ -1563,6 +1569,7 @@ namespace Homassy.API.Functions
                 throw new UserNotFoundException("User not found");
             }
 
+            var actorPublicId = SessionInfo.GetPublicId();
             var shoppingListItem = GetShoppingListItemByPublicId(publicId);
             if (shoppingListItem == null)
             {
@@ -1644,7 +1651,7 @@ namespace Homassy.API.Functions
                     DueAt = trackedShoppingListItem.DueAt
                 };
 
-                await _runtime.ShoppingList.ItemUpsertedAsync(shoppingList.PublicId, BuildItemInfo(trackedShoppingListItem, shoppingList), cancellationToken);
+                await _runtime.ShoppingList.ItemUpsertedAsync(shoppingList.PublicId, BuildItemInfo(trackedShoppingListItem, shoppingList), cancellationToken, actorPublicId);
 
                 return shoppingListItemInfo;
             }
@@ -1665,6 +1672,7 @@ namespace Homassy.API.Functions
                 throw new UserNotFoundException("User not found");
             }
 
+            var actorPublicId = SessionInfo.GetPublicId();
             var shoppingList = GetShoppingListByPublicId(request.ShoppingListPublicId);
             if (shoppingList == null)
             {
@@ -1783,7 +1791,7 @@ namespace Homassy.API.Functions
                 // Notify everyone viewing this list of each new item.
                 foreach (var sli in createdItems)
                 {
-                    await _runtime.ShoppingList.ItemUpsertedAsync(shoppingList.PublicId, BuildItemInfo(sli, shoppingList), cancellationToken);
+                    await _runtime.ShoppingList.ItemUpsertedAsync(shoppingList.PublicId, BuildItemInfo(sli, shoppingList), cancellationToken, actorPublicId);
                 }
 
                 return createdItems.Select(sli => new ShoppingListItemInfo
@@ -1824,6 +1832,7 @@ namespace Homassy.API.Functions
             }
 
             var familyId = SessionInfo.GetFamilyId();
+            var actorPublicId = SessionInfo.GetPublicId();
             var productFunctions = new ProductFunctions(_runtime);
             var deletedItems = new List<(Guid listPublicId, Guid itemPublicId)>();
 
@@ -1894,7 +1903,7 @@ namespace Homassy.API.Functions
                 // Notify everyone viewing the affected list(s) that the items were removed.
                 foreach (var (listPublicId, itemPublicId) in deletedItems)
                 {
-                    await _runtime.ShoppingList.ItemDeletedAsync(listPublicId, itemPublicId, cancellationToken);
+                    await _runtime.ShoppingList.ItemDeletedAsync(listPublicId, itemPublicId, cancellationToken, actorPublicId);
                 }
             }
             catch (Exception ex)
@@ -1920,6 +1929,7 @@ namespace Homassy.API.Functions
             }
 
             var familyId = SessionInfo.GetFamilyId();
+            var actorPublicId = SessionInfo.GetPublicId();
             var locationFunctions = new LocationFunctions(_runtime);
             var productFunctions = new ProductFunctions(_runtime);
             var userProfile = new UserFunctions(_contextFactory).GetUserProfileByUserId(userId.Value);
@@ -2066,7 +2076,7 @@ namespace Homassy.API.Functions
                 // Notify everyone viewing the affected list(s) of each purchased item.
                 foreach (var (list, item) in upsertedItems)
                 {
-                    await _runtime.ShoppingList.ItemUpsertedAsync(list.PublicId, BuildItemInfo(item, list), cancellationToken);
+                    await _runtime.ShoppingList.ItemUpsertedAsync(list.PublicId, BuildItemInfo(item, list), cancellationToken, actorPublicId);
                 }
 
                 return results;

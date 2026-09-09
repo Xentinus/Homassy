@@ -10,6 +10,8 @@
     "postinstall": "nuxt prepare",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
+    "test": "vitest run",
+    "test:watch": "vitest",
     "typecheck": "nuxt typecheck",
     "sync:product-category": "node scripts/sync-product-category.mjs"
   },
@@ -44,6 +46,7 @@
   "devDependencies": {
     "@vite-pwa/nuxt": "^1.1.0",
     "typescript": "^5.9.3",
+    "vitest": "^3.2.7",
     "vue-tsc": "^3.3.11"
   },
   "overrides": {

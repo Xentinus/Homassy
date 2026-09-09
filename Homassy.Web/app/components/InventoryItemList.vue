@@ -38,7 +38,7 @@
         :product-name="productName"
         @consumed="emit('refresh')"
         @updated="emit('refresh')"
-        @deleted="emit('refresh')"
+        @delete-requested="emit('delete-requested', item)"
       />
     </AnimatedList>
 
@@ -47,6 +47,7 @@
       v-model:open="operationsOpen"
       :items="items"
       @changed="emit('refresh')"
+      @move-requested="(payload) => emit('move-requested', payload)"
     />
   </section>
 </template>
@@ -54,6 +55,7 @@
 <script setup lang="ts">
 import { ref } from 'vue'
 import type { InventoryItemInfo } from '../types/product'
+import type { MoveRequestPayload } from './InventoryOperationsDrawer.vue'
 
 withDefaults(defineProps<{
   items?: InventoryItemInfo[]
@@ -65,6 +67,12 @@ withDefaults(defineProps<{
 
 const emit = defineEmits<{
   refresh: []
+  /** Relayed verbatim from whichever InventoryItemRow the user confirmed a delete on, or from the
+   *  operations drawer's move screen — this component only renders the list and hosts the
+   *  operations drawer, it does not own the inventory items array. See InventoryOverviewDrawer,
+   *  which does and applies both optimistically. */
+  'delete-requested': [item: InventoryItemInfo]
+  'move-requested': [payload: MoveRequestPayload]
 }>()
 
 const { t: $t } = useI18n()

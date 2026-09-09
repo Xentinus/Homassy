@@ -11,6 +11,7 @@ import type {
   UserInfo
 } from '~/types/user'
 import type {
+  ActivityTimelineResult,
   GetActivitiesRequest,
   PagedActivitiesResponse
 } from '~/types/activity'
@@ -157,6 +158,40 @@ export const useUserApi = () => {
     return await client.get<PagedActivitiesResponse>(url)
   }
 
+  /**
+   * Get one page of the cursor-paged, server-aggregated activity timeline: same-actor,
+   * same-type activities recorded close together collapse into a single entry (see
+   * `ActivityTimelineEntry`), and paging follows an opaque cursor rather than a page number.
+   * @param params - Cursor from the previous page (omit for the first page), filters and page size
+   * @returns One page of timeline entries, newest first, plus the next page's cursor
+   */
+  const getActivityTimeline = async (params?: {
+    cursor?: string
+    pageSize?: number
+    activityType?: number
+    userPublicId?: string
+  }) => {
+    const queryParams = new URLSearchParams()
+
+    if (params?.cursor !== undefined) {
+      queryParams.append('cursor', params.cursor)
+    }
+    if (params?.pageSize !== undefined) {
+      queryParams.append('pageSize', params.pageSize.toString())
+    }
+    if (params?.activityType !== undefined) {
+      queryParams.append('activityType', params.activityType.toString())
+    }
+    if (params?.userPublicId !== undefined) {
+      queryParams.append('userPublicId', params.userPublicId)
+    }
+
+    const queryString = queryParams.toString()
+    const url = queryString ? `/api/v1/User/activities/timeline?${queryString}` : '/api/v1/User/activities/timeline'
+
+    return await client.get<ActivityTimelineResult>(url)
+  }
+
   return {
     getUserProfile,
     updateUserSettings,
@@ -168,6 +203,7 @@ export const useUserApi = () => {
     sendTestPushNotification,
     sendTestEmailSummary,
     getUsersByPublicIds,
-    getActivities
+    getActivities,
+    getActivityTimeline
   }
 }

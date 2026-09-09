@@ -203,7 +203,8 @@
     "products": "Lagerbestand",
     "shoppingLists": "Einkaufslisten",
     "calendar": "Kalender",
-    "profile": "Profil"
+    "profile": "Profil",
+    "activity": "Aktivität"
   },
   "fab": {
     "open": "Hinzufügen-Menü öffnen",
@@ -949,11 +950,74 @@
     "itemUpdated": "Artikel erfolgreich aktualisiert",
     "itemDeleted": "Artikel erfolgreich gelöscht",
     "restorePurchaseWarning": "Möchten Sie diesen Kauf wirklich wiederherstellen?",
-    "restorePurchaseInventoryWarning": "Hinweis: Dies markiert nur den Artikel als nicht gekauft. Es entfernt den Artikel NICHT aus dem Inventar, wenn er bereits hinzugefügt wurde."
+    "restorePurchaseInventoryWarning": "Hinweis: Dies markiert nur den Artikel als nicht gekauft. Es entfernt den Artikel NICHT aus dem Inventar, wenn er bereits hinzugefügt wurde.",
+    "changedBy": "Geändert von {name}",
+    "presence": {
+      "othersHere": "{count} weitere Person(en) hier",
+      "overflow": "+{count} weitere"
+    }
+  },
+  "activity": {
+    "title": "Familienaktivität",
+    "today": "Heute",
+    "yesterday": "Gestern",
+    "aggregated": "1 Aktivität ({type}): {name} | {count} Aktivitäten ({type}), zuletzt: {name}",
+    "expand": "Alle anzeigen",
+    "collapse": "Einklappen",
+    "filters": {
+      "type": "Typ",
+      "member": "Mitglied",
+      "all": "Alle",
+      "allTypes": "Alle Typen"
+    },
+    "empty": {
+      "title": "Noch keine Aktivität",
+      "description": "Sobald jemand in deiner Familie etwas hinzufügt, ändert oder entfernt, erscheint es hier."
+    }
+  },
+  "realtime": {
+    "reconnecting": "Verbindung wird wiederhergestellt…",
+    "socketOffline": "Verbindung unterbrochen",
+    "deviceOffline": "Du bist offline",
+    "backOnline": "Wieder online",
+    "updatedFlash": "Aktualisiert, während du offline warst"
+  },
+  "undo": {
+    "action": "Rückgängig",
+    "collapsed": {
+      "delete": "1 Artikel entfernt | {count} Artikel entfernt",
+      "purchase": "1 Artikel gekauft | {count} Artikel gekauft",
+      "move": "1 Artikel verschoben | {count} Artikel verschoben",
+      "mixed": "1 Änderung | {count} Änderungen"
+    },
+    "item": {
+      "delete": "{name} entfernt",
+      "purchase": "{name} gekauft",
+      "restore": "{name} wiederhergestellt",
+      "move": "{name} verschoben"
+    },
+    "failed": "Die Änderung konnte nicht gespeichert werden und wurde rückgängig gemacht.",
+    "secondsLeft": "{seconds} s"
   },
   "profile": {
     "title": "Profil",
-    "settings": "Einstellungen",
+    "settings": {
+      "identityColor": {
+        "label": "Kennfarbe",
+        "description": "Akzentfarbe für Ringe, Rahmen und Kalenderpunkte.",
+        "auto": "Automatisch",
+        "colors": {
+          "rose": "Rosé",
+          "amber": "Bernstein",
+          "lime": "Limettengrün",
+          "teal": "Petrol",
+          "sky": "Himmelblau",
+          "indigo": "Indigo",
+          "violet": "Violett",
+          "fuchsia": "Fuchsia"
+        }
+      }
+    },
     "settingsCardDescription": "Ändern Sie Ihre Sprache, Währung und Zeitzone.",
     "name": "Name",
     "displayName": "Anzeigename",

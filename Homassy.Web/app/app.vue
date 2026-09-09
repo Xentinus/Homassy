@@ -38,5 +38,8 @@ useSeoMeta({
       </NuxtLayout>
     </div>
     <SplashScreen />
+    <!-- App-wide: reads the useUndoableAction() singleton directly, so it stays mounted (and a
+         pending action stays undoable) across navigation rather than living inside one page. -->
+    <UndoToast />
   </div>
 </template>

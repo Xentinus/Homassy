@@ -17,6 +17,7 @@ namespace Homassy.API.Hubs
         public const string ItemDeletedEvent = "ItemDeleted";
         public const string ListUpdatedEvent = "ListUpdated";
         public const string ListDeletedEvent = "ListDeleted";
+        public const string PresenceChangedEvent = "PresenceChanged";
 
         /// <summary>
         /// SignalR group name for a single shopping list. Shared with <see cref="ShoppingListHub"/>.
@@ -34,13 +35,17 @@ namespace Homassy.API.Hubs
             _hubContext = hubContext;
         }
 
-        /// <summary>Pushes the current (hydrated) state of an item to the list's group (covers create/update/purchase/restore).</summary>
-        public Task ItemUpsertedAsync(Guid listPublicId, ShoppingListItemInfo item, CancellationToken cancellationToken = default)
-            => SendAsync(listPublicId, ItemUpsertedEvent, item, cancellationToken);
+        /// <summary>
+        /// Pushes the current (hydrated) state of an item to the list's group (covers create/update/purchase/restore).
+        /// <paramref name="actorPublicId"/> is who made the change, so viewers can flash "changed by" without a
+        /// separate fetch; null for the rare paths that have no acting session to attribute it to.
+        /// </summary>
+        public Task ItemUpsertedAsync(Guid listPublicId, ShoppingListItemInfo item, CancellationToken cancellationToken = default, Guid? actorPublicId = null)
+            => SendAsync(listPublicId, ItemUpsertedEvent, new { item, actorPublicId }, cancellationToken);
 
-        /// <summary>Notifies the list's group that an item was removed.</summary>
-        public Task ItemDeletedAsync(Guid listPublicId, Guid itemPublicId, CancellationToken cancellationToken = default)
-            => SendAsync(listPublicId, ItemDeletedEvent, new { publicId = itemPublicId, shoppingListPublicId = listPublicId }, cancellationToken);
+        /// <summary>Notifies the list's group that an item was removed, and by whom.</summary>
+        public Task ItemDeletedAsync(Guid listPublicId, Guid itemPublicId, CancellationToken cancellationToken = default, Guid? actorPublicId = null)
+            => SendAsync(listPublicId, ItemDeletedEvent, new { publicId = itemPublicId, shoppingListPublicId = listPublicId, actorPublicId }, cancellationToken);
 
         /// <summary>Notifies the list's group that list metadata (name, color, sharing) changed.</summary>
         public Task ListUpdatedAsync(ShoppingListInfo list, CancellationToken cancellationToken = default)
@@ -49,6 +54,10 @@ namespace Homassy.API.Hubs
         /// <summary>Notifies the list's group that the list itself was deleted.</summary>
         public Task ListDeletedAsync(Guid listPublicId, CancellationToken cancellationToken = default)
             => SendAsync(listPublicId, ListDeletedEvent, new { publicId = listPublicId }, cancellationToken);
+
+        /// <summary>Pushes the list's current presence snapshot — who has it open right now — to its group.</summary>
+        public Task PresenceChangedAsync(Guid listPublicId, IReadOnlyList<PresenceMemberInfo> members, CancellationToken cancellationToken = default)
+            => SendAsync(listPublicId, PresenceChangedEvent, members, cancellationToken);
 
         private async Task SendAsync(Guid listPublicId, string eventName, object payload, CancellationToken cancellationToken)
         {
