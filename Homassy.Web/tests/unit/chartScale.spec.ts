@@ -83,4 +83,19 @@ describe('timeTicks', () => {
     }
     expect(ticks.every(isMonday)).toBe(true)
   })
+
+  it('keeps the first weekly tick at or after a window start that falls partway through a Monday', () => {
+    // Epoch day 4 (1970-01-05) is a Monday; add 12h so fromMs lands mid-Monday rather than
+    // exactly on the boundary. A day-granularity implementation that floors fromMs down to
+    // its own day before searching for Monday would answer with that same Monday's midnight
+    // — hours *before* fromMs.
+    const partwayThroughMonday = 4 * day + 12 * 60 * 60 * 1000
+    const ticks = timeTicks(partwayThroughMonday, 365 * day, 'week', 10)
+    const isMonday = (timeMs: number): boolean => {
+      const epochDay = Math.floor(timeMs / day)
+      return epochDay % 7 === 4
+    }
+    expect(ticks[0]).toBeGreaterThanOrEqual(partwayThroughMonday)
+    expect(ticks.every(isMonday)).toBe(true)
+  })
 })

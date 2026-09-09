@@ -141,6 +141,14 @@ const DAY_MS = 24 * 60 * 60 * 1000
 const WEEK_MS = 7 * DAY_MS
 
 /**
+ * Epoch day 4 (1970-01-05) is the first Monday after the epoch (1970-01-01 was a Thursday).
+ * Re-basing the millisecond axis onto this offset before dividing by `WEEK_MS` is what lets the
+ * weekly branch of `timeTicks` find Monday-aligned boundaries with the same "divide, ceil,
+ * multiply back" arithmetic the daily branch uses for midnights.
+ */
+const MONDAY_EPOCH_OFFSET_MS = 4 * DAY_MS
+
+/**
  * Maximum tick count used when a caller does not care to tune it. This is an implementer's
  * choice, not a spec value — feel free to change it if actual charts suggest a different density.
  */
@@ -173,13 +181,15 @@ export const timeTicks = (
     if (bucket === 'day') {
       return Math.ceil(fromMs / DAY_MS) * DAY_MS
     }
-    // Week: find the first Monday on or after fromMs.
-    // Epoch day 0 (1970-01-01) is Thursday, so epoch day 4 (1970-01-05) is the first Monday.
-    // Monday boundaries are days where (epochDay % 7 === 4).
-    const firstDay = Math.floor(fromMs / DAY_MS)
-    const daysToMonday = (4 - (firstDay % 7) + 7) % 7
-    const firstMondayDay = firstDay + daysToMonday
-    return firstMondayDay * DAY_MS
+    // Week: find the first Monday-midnight at or after fromMs, mirroring the day branch's
+    // "divide by the bucket size, ceil, multiply back" shape rather than flooring fromMs down
+    // to a whole day first and walking forward by days. The ceil here is load-bearing: flooring
+    // to a day discards the sub-day part of fromMs, so whenever fromMs's own day was already a
+    // Monday, that approach returned that Monday's midnight even when fromMs was, say, that
+    // Monday afternoon — a boundary *before* fromMs. Rounding up in millisecond space instead
+    // guarantees the result is always >= fromMs, just like the day branch above and like the
+    // "starts at or after the window start" contract every caller of this function relies on.
+    return MONDAY_EPOCH_OFFSET_MS + Math.ceil((fromMs - MONDAY_EPOCH_OFFSET_MS) / WEEK_MS) * WEEK_MS
   })()
 
   const boundaries: number[] = []
