@@ -999,6 +999,12 @@
     "failed": "The change couldn't be saved, so it was undone.",
     "secondsLeft": "{seconds}s"
   },
+  "chart": {
+    "showData": "Show data",
+    "hideData": "Hide data",
+    "noData": "No data available",
+    "dataTableCaption": "Chart data as a table"
+  },
   "profile": {
     "title": "Profile",
     "settings": {

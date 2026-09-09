@@ -999,6 +999,12 @@
     "failed": "A módosítást nem sikerült menteni, ezért visszavontuk.",
     "secondsLeft": "{seconds} mp"
   },
+  "chart": {
+    "showData": "Adatok megjelenítése",
+    "hideData": "Adatok elrejtése",
+    "noData": "Nincs megjeleníthető adat",
+    "dataTableCaption": "A diagram adatai táblázatban"
+  },
   "profile": {
     "title": "Profil",
     "settings": {

@@ -999,6 +999,12 @@
     "failed": "Die Änderung konnte nicht gespeichert werden und wurde rückgängig gemacht.",
     "secondsLeft": "{seconds} s"
   },
+  "chart": {
+    "showData": "Daten anzeigen",
+    "hideData": "Daten ausblenden",
+    "noData": "Keine Daten verfügbar",
+    "dataTableCaption": "Diagrammdaten als Tabelle"
+  },
   "profile": {
     "title": "Profil",
     "settings": {

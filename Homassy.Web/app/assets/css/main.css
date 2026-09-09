@@ -312,3 +312,57 @@ html {
     box-shadow: 0 0 0 4px var(--ui-primary);
   }
 }
+
+/* ---------------------------------------------------------------------------
+   Chart draw-in — see app/components/chart/ChartCard.vue and the chart components built on it
+   (LineChart / BarChart / DonutChart, R5 "Insight"). ChartCard.vue only owns these two utility
+   classes; the chart components apply them to their own SVG marks.
+
+   .chart-draw traces a line/bar stroke in via `stroke-dashoffset` — the same `pathLength="1"` trick
+   SplashScreen.vue's logo uses ("makes the dash maths independent of each path's real length"). A
+   consumer sets `--chart-draw-length` (typically `1`) as an inline custom property on the element
+   this class is applied to; this rule handles both the dasharray and the offset animation off it.
+
+   .chart-grow scales a donut arc in from its own centre. `transform-box: fill-box` is set
+   explicitly rather than left to the default — implementations have disagreed on whether an SVG
+   element's un-set transform-box resolves percentages against its own bounding box or the whole
+   viewBox — so the scale-in is centred on the arc itself regardless of where it sits in the donut's
+   viewBox.
+
+   Both reuse the shared --bubble-in duration and --bubble-ease-out curve rather than a one-off
+   value: this milestone adds no new duration or easing token, only new places that read the
+   existing ones. Both are neutralised below — the motion goes, the fully-drawn/full-size end state
+   stays, exactly like every other reduced-motion block in this file.
+--------------------------------------------------------------------------- */
+.chart-draw {
+  stroke-dasharray: var(--chart-draw-length);
+  animation: chart-draw-in var(--bubble-in) var(--bubble-ease-out) forwards;
+}
+
+@keyframes chart-draw-in {
+  from { stroke-dashoffset: var(--chart-draw-length); }
+  to { stroke-dashoffset: 0; }
+}
+
+.chart-grow {
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: chart-grow-in var(--bubble-in) var(--bubble-ease-out) forwards;
+}
+
+@keyframes chart-grow-in {
+  from { transform: scale(0); }
+  to { transform: scale(1); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .chart-draw {
+    animation: none;
+    stroke-dashoffset: 0;
+  }
+
+  .chart-grow {
+    animation: none;
+    transform: scale(1);
+  }
+}
