@@ -111,45 +111,6 @@
             </template>
           </SettingsRow>
         </ClientOnly>
-
-        <!-- Identity colour: eight palette swatches + "Automatic", current selection ringed.
-             Wrapped in ClientOnly like the theme control above — a swatch's shade follows the
-             live colour mode, which is only known client-side. Not a SettingsRow: the swatch grid
-             needs the row's full width, not just its #trailing slot. -->
-        <ClientOnly>
-          <div class="flex flex-col gap-3 px-4 py-3">
-            <div class="flex items-center gap-3">
-              <UIcon name="i-lucide-swatch-book" class="h-5 w-5 shrink-0 text-primary-500" />
-              <div class="flex-1 min-w-0">
-                <p class="font-medium">{{ $t('profile.settings.identityColor.label') }}</p>
-                <p class="text-xs text-muted">{{ $t('profile.settings.identityColor.description') }}</p>
-              </div>
-              <UIcon
-                v-if="savingIdentityColor"
-                name="i-lucide-loader-2"
-                class="h-4 w-4 shrink-0 animate-spin text-muted"
-              />
-            </div>
-            <div class="flex flex-wrap gap-2 pl-8">
-              <button
-                v-for="option in paletteOptions"
-                :key="option.value"
-                type="button"
-                class="h-7 w-7 rounded-full flex items-center justify-center transition-transform active:scale-95 disabled:opacity-50 disabled:pointer-events-none"
-                :class="currentIdentityColor === option.value
-                  ? 'ring-2 ring-inset ring-primary-500'
-                  : 'ring-1 ring-inset ring-black/10 dark:ring-white/10'"
-                :style="{ backgroundColor: option.swatch }"
-                :disabled="savingIdentityColor"
-                :aria-label="option.value === 'auto' ? $t('profile.settings.identityColor.auto') : $t(`profile.settings.identityColor.colors.${option.value}`)"
-                :aria-pressed="currentIdentityColor === option.value"
-                @click="onSelectIdentityColor(option.value)"
-              >
-                <UIcon v-if="option.value === 'auto'" name="i-lucide-shuffle" class="h-3.5 w-3.5 text-white" />
-              </button>
-            </div>
-          </div>
-        </ClientOnly>
       </SettingsGroup>
 
       <!-- Family -->
@@ -205,15 +166,15 @@
         @save="onSavePreference"
       />
 
-      <!-- Edit profile bottom sheet: avatar + name / display name -->
+      <!-- Edit profile bottom sheet: avatar + name / display name + identity colour -->
       <SettingsEditDrawer
         :open="nameDrawerOpen"
         :title="$t('profile.editProfile.title')"
         icon="i-lucide-user"
-        :loading="savingName"
+        :loading="savingProfile"
         :save-disabled="!nameForm.name.trim()"
         @update:open="(v) => nameDrawerOpen = v"
-        @save="onSaveName"
+        @save="onSaveProfile"
         @cancel="nameDrawerOpen = false"
       >
         <template #body>
@@ -259,6 +220,42 @@
                 <UInput v-model="nameForm.displayName" :placeholder="$t('profile.displayName')" class="w-full" />
               </div>
             </div>
+
+            <!-- Identity colour: eight palette swatches + "Automatic", draft selection ringed.
+                 Local drawer state, seeded from the store each time this drawer opens (see
+                 openEditProfile) and applied together with name/display name only on Save — a
+                 tap here just changes the draft, it never fires a request on its own. Wrapped in
+                 ClientOnly like the theme control on the Preferences group — a swatch's shade
+                 follows the live colour mode, which is only known client-side. -->
+            <ClientOnly>
+              <div class="flex flex-col gap-3">
+                <div class="flex items-center gap-3">
+                  <UIcon name="i-lucide-swatch-book" class="h-5 w-5 shrink-0 text-primary-500" />
+                  <div class="flex-1 min-w-0">
+                    <p class="font-medium">{{ $t('profile.settings.identityColor.label') }}</p>
+                    <p class="text-xs text-muted">{{ $t('profile.settings.identityColor.description') }}</p>
+                  </div>
+                </div>
+                <div class="flex flex-wrap gap-2 pl-8">
+                  <button
+                    v-for="option in paletteOptions"
+                    :key="option.value"
+                    type="button"
+                    class="h-7 w-7 rounded-full flex items-center justify-center transition-transform active:scale-95 disabled:opacity-50 disabled:pointer-events-none"
+                    :class="draftIdentityColor === option.value
+                      ? 'ring-2 ring-inset ring-primary-500'
+                      : 'ring-1 ring-inset ring-black/10 dark:ring-white/10'"
+                    :style="{ backgroundColor: option.swatch }"
+                    :disabled="savingProfile"
+                    :aria-label="option.value === 'auto' ? $t('profile.settings.identityColor.auto') : $t(`profile.settings.identityColor.colors.${option.value}`)"
+                    :aria-pressed="draftIdentityColor === option.value"
+                    @click="draftIdentityColor = option.value"
+                  >
+                    <UIcon v-if="option.value === 'auto'" name="i-lucide-shuffle" class="h-3.5 w-3.5 text-white" />
+                  </button>
+                </div>
+              </div>
+            </ClientOnly>
           </div>
         </template>
       </SettingsEditDrawer>
@@ -309,8 +306,7 @@ const {
   isLoadingOptions,
   loadSelectOptions,
   savePreference,
-  saveIdentityColor,
-  saveName
+  saveProfile
 } = useUserPreferences()
 const { paletteOptions } = useMemberColor()
 
@@ -396,52 +392,44 @@ async function onSavePreference(value: string) {
   }
 }
 
-// --- Identity colour ---------------------------------------------------------
-const savingIdentityColor = ref(false)
-
-// Narrows the store's free-form string down to a known palette key, same fallback
-// `resolveMemberColor` itself uses for an unrecognised or absent value.
-const currentIdentityColor = computed<MemberColorKey | 'auto'>(() => {
-  const value = authStore.user?.identityColor
-  return isMemberColorKey(value) ? value : 'auto'
-})
-
-async function onSelectIdentityColor(value: MemberColorKey | 'auto') {
-  if (value === currentIdentityColor.value) return
-  savingIdentityColor.value = true
-  try {
-    await saveIdentityColor(value)
-  } finally {
-    savingIdentityColor.value = false
-  }
-}
-
 // --- Account sub-surface drawers -------------------------------------------
 const securityOpen = ref(false)
 const notificationsOpen = ref(false)
 const familyOpen = ref(false)
 
-// --- Edit profile drawer (avatar + name) -----------------------------------
+// --- Edit profile drawer (avatar + name + identity colour) -----------------
 const nameDrawerOpen = ref(false)
-const savingName = ref(false)
+const savingProfile = ref(false)
 const nameForm = ref({ name: '', displayName: '' })
+// Draft only: seeded from the store below each time the drawer opens, applied together with
+// name/display name on Save (see saveProfile), and discarded on cancel by virtue of never being
+// read again before the next open reseeds it.
+const draftIdentityColor = ref<MemberColorKey | 'auto'>('auto')
 
 function openEditProfile() {
   nameForm.value = {
     name: authStore.user?.name || '',
     displayName: authStore.user?.displayName || ''
   }
+  // Narrows the store's free-form string down to a known palette key, same fallback
+  // `resolveMemberColor` itself uses for an unrecognised or absent value.
+  const storedColor = authStore.user?.identityColor
+  draftIdentityColor.value = isMemberColorKey(storedColor) ? storedColor : 'auto'
   nameDrawerOpen.value = true
 }
 
-async function onSaveName() {
+async function onSaveProfile() {
   if (!nameForm.value.name.trim()) return
-  savingName.value = true
+  savingProfile.value = true
   try {
-    const ok = await saveName(nameForm.value.name.trim(), nameForm.value.displayName.trim())
+    const ok = await saveProfile(
+      nameForm.value.name.trim(),
+      nameForm.value.displayName.trim(),
+      draftIdentityColor.value
+    )
     if (ok) nameDrawerOpen.value = false
   } finally {
-    savingName.value = false
+    savingProfile.value = false
   }
 }
 
