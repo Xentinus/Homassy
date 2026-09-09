@@ -77,7 +77,10 @@ export const bandScale = (
 // shared by every off-the-shelf charting library — reimplemented here rather than pulled in as a
 // dependency for what is a dozen lines of arithmetic.
 
-/** Tick count used when a caller does not care to tune it. */
+/**
+ * Tick count used when a caller does not care to tune it. This is an implementer's choice, not a
+ * spec value — feel free to change it if actual charts suggest a different density.
+ */
 const DEFAULT_TICK_COUNT = 5
 
 /**
@@ -137,19 +140,23 @@ export const niceTicks = (min: number, max: number, count: number = DEFAULT_TICK
 const DAY_MS = 24 * 60 * 60 * 1000
 const WEEK_MS = 7 * DAY_MS
 
-/** Tick count used when a caller does not care to tune it. */
+/**
+ * Maximum tick count used when a caller does not care to tune it. This is an implementer's
+ * choice, not a spec value — feel free to change it if actual charts suggest a different density.
+ */
 const DEFAULT_MAX_TICKS = 8
 
 /**
  * Evenly spaced timestamps on real day/week boundaries within [fromMs, toMs], thinned to at most
  * `maxTicks` entries.
  *
- * Boundaries are multiples of the bucket size since the Unix epoch (1970-01-01T00:00:00Z), not a
- * calendar week starting on Monday or Sunday — the epoch itself falls on a Thursday, so 'week'
- * boundaries land on Thursdays. That is a deliberate trade-off: it keeps this function pure
- * millisecond arithmetic with no `Date` object and no locale/timezone dependency, matching the
- * rest of this module and the `node`-environment spec it runs under with no Nuxt/Vue runtime. A
- * caller that needs calendar-week alignment can shift `fromMs`/`toMs` before calling.
+ * Day boundaries are midnight (00:00:00 UTC). Week boundaries are Monday midnights, aligned to
+ * epoch day 4 (1970-01-05 is the first Monday). This alignment is essential: the backend's
+ * `date_trunc('week', ...)` in Postgres uses ISO-week (Monday-anchored), so the chart's axis
+ * ticks and the server's data buckets must align, or labels sit between data points. This keeps
+ * the function pure millisecond arithmetic with no `Date` object and no locale/timezone
+ * dependency, matching the rest of this module and the `node`-environment spec it runs under with
+ * no Nuxt/Vue runtime.
  */
 export const timeTicks = (
   fromMs: number,
@@ -159,7 +166,22 @@ export const timeTicks = (
 ): number[] => {
   const bucketMs = bucket === 'week' ? WEEK_MS : DAY_MS
 
-  const firstBoundary = Math.ceil(fromMs / bucketMs) * bucketMs
+  // Compute the first bucket boundary at or after fromMs. For days, that is straightforward:
+  // any midnight. For weeks, we must align to Monday (epoch day 4 mod 7) to match the server's
+  // date_trunc('week') which is ISO-week Monday-anchored.
+  const firstBoundary = (() => {
+    if (bucket === 'day') {
+      return Math.ceil(fromMs / DAY_MS) * DAY_MS
+    }
+    // Week: find the first Monday on or after fromMs.
+    // Epoch day 0 (1970-01-01) is Thursday, so epoch day 4 (1970-01-05) is the first Monday.
+    // Monday boundaries are days where (epochDay % 7 === 4).
+    const firstDay = Math.floor(fromMs / DAY_MS)
+    const daysToMonday = (4 - (firstDay % 7) + 7) % 7
+    const firstMondayDay = firstDay + daysToMonday
+    return firstMondayDay * DAY_MS
+  })()
+
   const boundaries: number[] = []
   for (let t = firstBoundary; t <= toMs; t += bucketMs) {
     boundaries.push(t)

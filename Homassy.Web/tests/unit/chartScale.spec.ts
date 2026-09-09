@@ -72,4 +72,15 @@ describe('timeTicks', () => {
     expect(ticks[0]).toBeGreaterThanOrEqual(day)
     expect(ticks[ticks.length - 1]!).toBeLessThanOrEqual(30 * day)
   })
+
+  it('aligns weekly boundaries to Monday', () => {
+    const ticks = timeTicks(0, 365 * day, 'week', 10)
+    // A timestamp is a Monday if its epoch day is congruent to 4 mod 7
+    // (epoch day 0 is 1970-01-01, a Thursday; day 4 is 1970-01-05, a Monday).
+    const isMonday = (timeMs: number): boolean => {
+      const epochDay = Math.floor(timeMs / day)
+      return epochDay % 7 === 4
+    }
+    expect(ticks.every(isMonday)).toBe(true)
+  })
 })
