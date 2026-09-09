@@ -2,7 +2,7 @@
  * SVG path-string builders for the hand-rolled chart layer (R5 "Insight").
  *
  * Sibling to `scale.ts` — same rules apply here: pure maths, no imports, and nothing touches
- * SVG/Vue/DOM directly. Later tasks in this milestone (`DonutChart.vue`, `LineChart.vue`) feed
+ * SVG/Vue/DOM directly. Later tasks in this milestone (`ChartDonut.vue`, `ChartLine.vue`) feed
  * scaled points into the functions below to get the `d` attribute of a `<path>`; this module never
  * renders anything itself, so a geometry bug is caught by the `node`-environment vitest spec long
  * before any chart is actually on screen (see `vitest.config.ts`).

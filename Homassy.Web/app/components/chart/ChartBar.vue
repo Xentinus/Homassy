@@ -56,7 +56,7 @@
  * until this rename).
  *
  * `bandScale` slices the y-axis into one row per bar. The x-axis needs two separate domains built
- * from the same `xTicks`, both extracted into `./barGeometry` (`barXTicks`/`barXDomain`/
+ * from the same `xTicks`, both extracted into `~/utils/chart/barGeometry` (`barXTicks`/`barXDomain`/
  * `barValueDomain`, thin wrappers around `niceTicks`) so this domain logic is unit-tested without
  * a Vue runtime — see that file's own module comment (the "why two domains" of it) and
  * `tests/unit/barGeometry.spec.ts`: `xDomain` (→ `xScale`) positions the reference gridlines and
@@ -91,7 +91,7 @@
 import { linearScale, bandScale } from '~/utils/chart/scale'
 import { seriesColors } from '~/utils/chart/series'
 import { formatCompact } from '~/utils/chart/format'
-import { barValueDomain, barXDomain, barXTicks } from './barGeometry'
+import { barValueDomain, barXDomain, barXTicks } from '~/utils/chart/barGeometry'
 
 interface ChartBarProps {
   bars: { key: string; label: string; value: number }[]
@@ -120,7 +120,7 @@ const yBand = computed(() => bandScale(props.bars.map(bar => bar.key), [PLOT.top
 const xTicks = computed<number[]>(() => barXTicks(props.bars))
 
 // The axis domain — where the reference gridlines land — follows `xTicks`' own bounds; see
-// `barXDomain`'s own comment in `./barGeometry` for why this can no longer be hardcoded at `0`.
+// `barXDomain`'s own comment in `~/utils/chart/barGeometry` for why this can no longer be hardcoded at `0`.
 const xDomain = computed<[number, number]>(() => barXDomain(xTicks.value))
 const xScale = computed(() => linearScale(xDomain.value, [PLOT.left, PLOT.width - PLOT.right]))
 

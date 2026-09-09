@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { arcPath } from '~/utils/chart/path'
-import { buildDonutSlices } from '~/components/chart/donutGeometry'
+import { buildDonutSlices } from '~/utils/chart/donutGeometry'
 
 describe('buildDonutSlices', () => {
   it('gives a single category the whole ring', () => {

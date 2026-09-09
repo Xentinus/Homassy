@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { linearScale, niceTicks } from '~/utils/chart/scale'
-import { barValueDomain, barXDomain, barXTicks } from '~/components/chart/barGeometry'
+import { barValueDomain, barXDomain, barXTicks } from '~/utils/chart/barGeometry'
 
 describe('barXTicks', () => {
   it('produces niceTicks(0, max) from the highest bar value', () => {

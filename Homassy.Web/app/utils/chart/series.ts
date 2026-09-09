@@ -7,7 +7,7 @@
  * this folder allows. Every one of those eight colours already clears 3:1 contrast against both
  * themes' card background (see that file's own comment), so reusing it here is what lets this
  * milestone add chart colour without auditing a single new hex. `ChartCard.vue` builds its legend
- * from `seriesColors`; `LineChart.vue`, `BarChart.vue` and `DonutChart.vue` colour their marks from
+ * from `seriesColors`; `ChartLine.vue`, `ChartBar.vue` and `ChartDonut.vue` colour their marks from
  * it.
  */
 

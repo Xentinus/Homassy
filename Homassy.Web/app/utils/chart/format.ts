@@ -3,7 +3,7 @@
  *
  * Sibling to `scale.ts` and `path.ts` — same rules apply here: pure functions, explicit return
  * types, no semicolons, no imports (`Intl` is a global, not a module), nothing renders anything and
- * nothing touches Vue/DOM. Later tasks (`LineChart.vue`, `BarChart.vue`, `PriceHistoryCard.vue`)
+ * nothing touches Vue/DOM. Later tasks (`ChartLine.vue`, `ChartBar.vue`, `PriceHistoryCard.vue`)
  * call these instead of touching `Intl` directly, so the memoisation and the currency fallback below
  * live in exactly one place. Exercised by the same `node`-environment vitest spec as its siblings,
  * with no Nuxt/Vue runtime (see `vitest.config.ts`).

@@ -1,18 +1,20 @@
 /**
  * Slice geometry for ChartDonut.vue (R5 "Insight", Task 5).
  *
- * Pulled out of the component into its own framework-free module for one reason: the vitest
- * harness for this milestone (`vitest.config.ts`) runs under a plain `node` environment with no
- * Vue runtime, so a `.vue` single-file component cannot be imported by a spec at all. Extracting
- * the one part of ChartDonut's own logic worth a dedicated test — turning `{ key, label, value }`
- * inputs into ring-slice angles — into a plain module makes it testable the same way
- * `~/utils/chart/{scale,path,format,series}` are: `describe`/`it` against an exported function,
- * no component mount required. See `tests/unit/donutGeometry.spec.ts`.
+ * A plain, framework-free module rather than a section of ChartDonut.vue's own `<script setup>`,
+ * because the vitest harness for this milestone (`vitest.config.ts`) runs under a plain `node`
+ * environment with no Vue runtime: a `.vue` single-file component cannot be imported by a spec at
+ * all. Extracting the one part of ChartDonut's own logic worth a dedicated test — turning
+ * `{ key, label, value }` inputs into ring-slice angles — into a plain module makes it testable the
+ * same way `~/utils/chart/{scale,path,format,series}` are: `describe`/`it` against an exported
+ * function, no component mount required. See `tests/unit/donutGeometry.spec.ts`.
  *
- * Deliberately colocated with `ChartDonut.vue` rather than added to `~/utils/chart/`: merging
- * small categories into a trailing "other" slice is a donut-specific concern (a bar or a line has
- * no analogous idea of "too thin to hit with a thumb"), not a general primitive the other two
- * chart types would ever call — unlike `arcPath`/`seriesColors`/etc., which genuinely are shared.
+ * Lives alongside those four in `~/utils/chart/` but kept as its own file rather than folded into
+ * any of them: merging small categories into a trailing "other" slice is a donut-specific concern
+ * (a bar or a line has no analogous idea of "too thin to hit with a thumb"), not a general
+ * primitive the other two chart types would ever call — unlike `arcPath`/`seriesColors`/etc., which
+ * genuinely are shared. Its sibling `barGeometry.ts` stays out of `scale.ts` for the same kind of
+ * reason: component-specific derived logic, not a shared primitive.
  *
  * Everything downstream of "which slice gets how much of the ring, in what order" — the actual
  * `<path>` via `arcPath`, the fill colour via `seriesColors` — stays in the component.

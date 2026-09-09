@@ -2,7 +2,7 @@
  * Pure geometry and axis-label maths for the hand-rolled SVG chart layer (R5 "Insight").
  *
  * Nothing in this file renders anything — no SVG, no Vue, no DOM. Later tasks in this milestone
- * (`LineChart.vue`, `BarChart.vue`) call `linearScale`/`bandScale` to turn data values into pixel
+ * (`ChartLine.vue`, `ChartBar.vue`) call `linearScale`/`bandScale` to turn data values into pixel
  * positions, and `niceTicks`/`timeTicks` to choose which values get an axis label. Kept
  * dependency-free and framework-free on purpose: this module is exercised by a `node`-environment
  * vitest spec with no Nuxt/Vue runtime (see `vitest.config.ts`), so a maths bug here is caught long

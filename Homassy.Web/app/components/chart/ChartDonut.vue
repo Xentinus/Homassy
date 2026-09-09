@@ -30,8 +30,8 @@
  * h-auto` is the entire responsive story: the ring simply scales with its container.
  *
  * Slice merging (categories under 2% collapse into a trailing "other") and the angle maths live in
- * `./donutGeometry.ts`, split out purely so that logic can be unit tested without a Vue runtime —
- * see that file's own comment. Colours come from `seriesColors()` (`~/utils/chart/series`), one
+ * `~/utils/chart/donutGeometry.ts`, split out purely so that logic can be unit tested without a Vue
+ * runtime — see that file's own comment. Colours come from `seriesColors()` (`~/utils/chart/series`), one
  * per rendered slice (including "other"), assigned by position exactly like `ChartLine` and
  * `ChartBar` do for their own marks.
  *
@@ -46,7 +46,7 @@
 import { arcPath } from '~/utils/chart/path'
 import { seriesColors } from '~/utils/chart/series'
 import { formatCompact } from '~/utils/chart/format'
-import { buildDonutSlices } from './donutGeometry'
+import { buildDonutSlices } from '~/utils/chart/donutGeometry'
 
 interface ChartDonutProps {
   slices: { key: string; label: string; value: number }[]

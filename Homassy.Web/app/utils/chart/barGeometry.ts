@@ -1,19 +1,22 @@
 /**
  * X-axis ticks and domains for ChartBar.vue (R5 "Insight", Task 5 follow-up).
  *
- * Pulled out of the component for the same reason `donutGeometry.ts` was: the vitest harness for
- * this milestone (`vitest.config.ts`) runs under a plain `node` environment with no Vue runtime, so
- * a `.vue` single-file component cannot be imported by a spec at all. `barXTicks`/`barXDomain`/
- * `barValueDomain` are the one part of ChartBar's own logic that had a bug worth a regression test,
- * so they are extracted here, `describe`/`it`-testable against exported functions, no component
- * mount required. See `tests/unit/barGeometry.spec.ts`.
+ * A plain, framework-free module rather than a section of ChartBar.vue's own `<script setup>`,
+ * because the vitest harness for this milestone (`vitest.config.ts`) runs under a plain `node`
+ * environment with no Vue runtime: a `.vue` single-file component cannot be imported by a spec at
+ * all, so any component logic worth a regression test has to live somewhere a spec can reach it.
+ * `barXTicks`/`barXDomain`/`barValueDomain` are the one part of ChartBar's own logic that had a bug
+ * worth exactly that, so they are extracted here, `describe`/`it`-testable against exported
+ * functions, no component mount required. See `tests/unit/barGeometry.spec.ts`.
  *
- * Deliberately colocated with `ChartBar.vue` rather than added to `~/utils/chart/scale.ts`: that
- * module is closed for this task (reviewed and approved as-is), and `[ticks[0], ticks[last]]` is
- * already exactly how `ChartLine.vue`'s own `yDomain` follows its `yTicks` — the bug fixed here was
- * `ChartBar`'s axis domain not following its own ticks the same way, not anything wrong in
- * `scale.ts` itself. Splitting these functions out mirrors `donutGeometry.ts`'s shape: a small,
- * component-specific pure module next to the component it serves, not a new shared primitive.
+ * Lives in `~/utils/chart/` alongside `scale.ts`/`path.ts`/`format.ts`/`series.ts` — the other pure
+ * modules of this chart layer — but kept as its own file rather than folded into `scale.ts`:
+ * `[ticks[0], ticks[last]]` is already exactly how `ChartLine.vue`'s own `yDomain` follows its
+ * `yTicks` — the bug fixed here was `ChartBar`'s axis domain not following its own ticks the same
+ * way, not anything wrong in `scale.ts`'s generic `linearScale`/`bandScale`/`niceTicks` themselves.
+ * These two functions are `ChartBar`-specific derived domains built on top of `niceTicks`, not a
+ * shared primitive `ChartLine`/`ChartDonut` would ever call — the same reason its sibling
+ * `donutGeometry.ts` stays out of `scale.ts` too.
  *
  * Two *different* domains come out of the same `ticks`, because they answer two different
  * questions, and `ChartBar.vue` needs both:
