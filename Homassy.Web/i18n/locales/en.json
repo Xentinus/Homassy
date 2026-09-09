@@ -203,8 +203,7 @@
     "products": "Inventory",
     "shoppingLists": "Shopping Lists",
     "calendar": "Calendar",
-    "profile": "Profile",
-    "activity": "Activity"
+    "profile": "Profile"
   },
   "fab": {
     "open": "Open add menu",
@@ -959,6 +958,7 @@
   },
   "activity": {
     "title": "Family Activity",
+    "description": "Recent changes across your family",
     "today": "Today",
     "yesterday": "Yesterday",
     "aggregated": "1 activity ({type}): {name} | {count} activities ({type}), most recently: {name}",
@@ -1006,6 +1006,7 @@
         "label": "Identity color",
         "description": "Accent color for rings, borders, and calendar dots.",
         "auto": "Automatic",
+        "custom": "Pick a custom color",
         "colors": {
           "rose": "Rose",
           "amber": "Amber",

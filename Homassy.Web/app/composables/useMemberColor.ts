@@ -73,7 +73,9 @@ export const useMemberColor = () => {
    */
   const paletteOptions = computed((): Array<{ value: MemberColorKey | 'auto'; swatch: string }> => [
     { value: 'auto', swatch: '#9ca3af' },
-    ...MEMBER_COLORS.map(c => ({ value: c.key, swatch: isDark() ? c.dark : c.light }))
+    // MEMBER_COLORS is the fixed eight-entry palette, never a 'custom' pick — the cast narrows
+    // back from MemberColor.key's wider type, which exists only for a resolved custom colour.
+    ...MEMBER_COLORS.map(c => ({ value: c.key as MemberColorKey, swatch: isDark() ? c.dark : c.light }))
   ])
 
   return { colorFor, ringStyle, accentStyle, gradientStyle, paletteOptions }

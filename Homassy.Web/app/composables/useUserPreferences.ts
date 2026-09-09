@@ -130,22 +130,24 @@ export const useUserPreferences = () => {
     return persist()
   }
 
-  /** Save name + display name together (mirrors the old Save-name button). */
-  async function saveName(name: string, displayName: string): Promise<boolean> {
-    authStore.applyUserPatch({ name, displayName })
-    return persist()
-  }
-
   /**
-   * Save the identity-colour override. Mirrors `savePreference`'s shape — patch the store first
-   * (every ring/border/dot reading `authStore.user?.identityColor` repaints instantly), then
-   * persist, reconciling from the backend on failure. `'auto'` clears the override; the store
-   * keeps that as `null`, same as a freshly-fetched profile that has never set one.
+   * Save name, display name and identity colour together — the profile-edit drawer's Save
+   * button persists all three fields this drawer owns in **one** request. A single combined
+   * patch + one `persist()` call, rather than calling a `saveName`-shaped function followed by
+   * a `saveIdentityColor`-shaped one, which would fire two requests and could half-apply if the
+   * first succeeded and the second failed.
+   *
+   * `identityColor` takes the drawer's local draft selection directly: `'auto'` clears the
+   * override (stored as `null`, same as a freshly-fetched profile that has never set one), and
+   * any other value is either one of the eight palette keys or a custom `#rrggbb` hex — both are
+   * passed straight through, since the API (not this composable) is what validates the form.
    */
-  async function saveIdentityColor(key: MemberColorKey | 'auto'): Promise<boolean> {
-    const next = key === 'auto' ? null : key
-    if ((authStore.user?.identityColor ?? null) === next) return true
-    authStore.applyUserPatch({ identityColor: next })
+  async function saveProfile(name: string, displayName: string, identityColor: MemberColorKey | 'auto' | string): Promise<boolean> {
+    authStore.applyUserPatch({
+      name,
+      displayName,
+      identityColor: identityColor === 'auto' ? null : identityColor
+    })
     return persist()
   }
 
@@ -158,7 +160,6 @@ export const useUserPreferences = () => {
     optionsByField,
     loadSelectOptions,
     savePreference,
-    saveIdentityColor,
-    saveName
+    saveProfile
   }
 }

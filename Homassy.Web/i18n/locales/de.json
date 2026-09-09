@@ -203,8 +203,7 @@
     "products": "Lagerbestand",
     "shoppingLists": "Einkaufslisten",
     "calendar": "Kalender",
-    "profile": "Profil",
-    "activity": "Aktivität"
+    "profile": "Profil"
   },
   "fab": {
     "open": "Hinzufügen-Menü öffnen",
@@ -959,6 +958,7 @@
   },
   "activity": {
     "title": "Familienaktivität",
+    "description": "Letzte Änderungen in deiner Familie",
     "today": "Heute",
     "yesterday": "Gestern",
     "aggregated": "1 Aktivität ({type}): {name} | {count} Aktivitäten ({type}), zuletzt: {name}",
@@ -1006,6 +1006,7 @@
         "label": "Kennfarbe",
         "description": "Akzentfarbe für Ringe, Rahmen und Kalenderpunkte.",
         "auto": "Automatisch",
+        "custom": "Eigene Farbe wählen",
         "colors": {
           "rose": "Rosé",
           "amber": "Bernstein",
