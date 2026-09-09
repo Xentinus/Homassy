@@ -1003,7 +1003,16 @@
     "showData": "Show data",
     "hideData": "Hide data",
     "noData": "No data available",
-    "dataTableCaption": "Chart data as a table"
+    "dataTableCaption": "Chart data as a table",
+    "categoryHeader": "Category",
+    "valueHeader": "Value",
+    "donut": {
+      "otherLabel": "Other",
+      "shareHeader": "Share"
+    },
+    "line": {
+      "seriesHeader": "Series"
+    }
   },
   "profile": {
     "title": "Profile",

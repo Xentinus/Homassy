@@ -1003,7 +1003,16 @@
     "showData": "Daten anzeigen",
     "hideData": "Daten ausblenden",
     "noData": "Keine Daten verfügbar",
-    "dataTableCaption": "Diagrammdaten als Tabelle"
+    "dataTableCaption": "Diagrammdaten als Tabelle",
+    "categoryHeader": "Kategorie",
+    "valueHeader": "Wert",
+    "donut": {
+      "otherLabel": "Sonstiges",
+      "shareHeader": "Anteil"
+    },
+    "line": {
+      "seriesHeader": "Serie"
+    }
   },
   "profile": {
     "title": "Profil",

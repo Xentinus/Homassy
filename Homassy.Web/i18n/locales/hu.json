@@ -1003,7 +1003,16 @@
     "showData": "Adatok megjelenítése",
     "hideData": "Adatok elrejtése",
     "noData": "Nincs megjeleníthető adat",
-    "dataTableCaption": "A diagram adatai táblázatban"
+    "dataTableCaption": "A diagram adatai táblázatban",
+    "categoryHeader": "Kategória",
+    "valueHeader": "Érték",
+    "donut": {
+      "otherLabel": "Egyéb",
+      "shareHeader": "Arány"
+    },
+    "line": {
+      "seriesHeader": "Sorozat"
+    }
   },
   "profile": {
     "title": "Profil",
