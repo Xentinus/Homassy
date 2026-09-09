@@ -315,7 +315,7 @@ html {
 
 /* ---------------------------------------------------------------------------
    Chart draw-in — see app/components/chart/ChartCard.vue and the chart components built on it
-   (LineChart / BarChart / DonutChart, R5 "Insight"). ChartCard.vue only owns these two utility
+   (ChartLine / ChartBar / ChartDonut, R5 "Insight"). ChartCard.vue only owns these two utility
    classes; the chart components apply them to their own SVG marks.
 
    .chart-draw traces a line/bar stroke in via `stroke-dashoffset` — the same `pathLength="1"` trick

@@ -44,9 +44,10 @@
  * bucketed by day or week. Wraps `ChartCard` for its header, loading/empty states and accessible
  * fallback table; this component only turns `points` into pixel geometry and axis labels.
  *
- * Auto-imported as `<ChartLineChart>`, not `<LineChart>` — see `DonutChart.vue`'s own note on why
- * (this filename does not start with `Chart`, so Nuxt's directory-prefix collapsing does not
- * apply).
+ * Filed as `ChartLine.vue`, so it auto-imports cleanly as `<ChartLine>` — see `ChartDonut.vue`'s own
+ * note on why (this filename starts with `Chart`, so Nuxt's directory-prefix collapsing applies; it
+ * was originally filed as `LineChart.vue`, which auto-imported as the stuttering `<ChartLineChart>`
+ * until this rename).
  *
  * All geometry is a `computed` over props and the two fixed margin/viewBox constants below — no
  * lifecycle hook, no measurement. `points[].t` are epoch milliseconds and are handed straight to
@@ -73,7 +74,7 @@ import { linePath } from '~/utils/chart/path'
 import { seriesColors } from '~/utils/chart/series'
 import { formatCompact, formatAxisDate } from '~/utils/chart/format'
 
-interface LineChartProps {
+interface ChartLineProps {
   series: { key: string; label: string; points: { t: number; v: number }[] }[]
   bucket: 'day' | 'week'
   title: string
@@ -81,7 +82,7 @@ interface LineChartProps {
   valueFormatter?: (v: number) => string
 }
 
-const props = defineProps<LineChartProps>()
+const props = defineProps<ChartLineProps>()
 
 const { t, locale } = useI18n()
 

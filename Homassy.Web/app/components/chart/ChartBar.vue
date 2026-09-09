@@ -50,13 +50,21 @@
  * Wraps `ChartCard` for its header, loading/empty states and accessible fallback table; this
  * component only turns `bars` into pixel geometry and decides each value label's placement.
  *
- * Auto-imported as `<ChartBarChart>`, not `<BarChart>` — see `DonutChart.vue`'s own note on why
- * (this filename does not start with `Chart`, so Nuxt's directory-prefix collapsing does not
- * apply).
+ * Filed as `ChartBar.vue`, so it auto-imports cleanly as `<ChartBar>` — see `ChartDonut.vue`'s own
+ * note on why (this filename starts with `Chart`, so Nuxt's directory-prefix collapsing applies; it
+ * was originally filed as `BarChart.vue`, which auto-imported as the stuttering `<ChartBarChart>`
+ * until this rename).
  *
- * `bandScale` slices the y-axis into one row per bar; `linearScale` maps `[0, niceTicks max]` onto
- * the x-axis, `niceTicks` also drawing the vertical reference gridlines. Everything is a `computed`
- * over props and the fixed margin/viewBox constants below — no lifecycle hook, no measurement.
+ * `bandScale` slices the y-axis into one row per bar. The x-axis needs two separate domains built
+ * from the same `xTicks`, both extracted into `./barGeometry` (`barXTicks`/`barXDomain`/
+ * `barValueDomain`, thin wrappers around `niceTicks`) so this domain logic is unit-tested without
+ * a Vue runtime — see that file's own module comment (the "why two domains" of it) and
+ * `tests/unit/barGeometry.spec.ts`: `xDomain` (→ `xScale`) positions the reference gridlines and
+ * follows `xTicks`' own first and last entry — never a hardcoded `0` — the same way `ChartLine.vue`'s
+ * `yDomain` follows its own `yTicks`; a bar's own drawn length instead goes through `barScale`,
+ * built from the always-zero-anchored `barValueDomain`, so it cannot be pulled off `PLOT.left` by
+ * the axis domain widening below zero for an all-zero bar set. Everything here is a `computed` over
+ * props and the fixed margin/viewBox constants below — no lifecycle hook, no measurement.
  *
  * Each bar is drawn as a thick `<line>`, not a `<rect>`, specifically so it can reuse `.chart-draw`
  * (`main.css`) — that class's own comment already describes it as tracing "a line/bar stroke",
@@ -64,7 +72,7 @@
  * zero baseline outward, which is what a bar chart's own entrance motion should look like anyway
  * (`.chart-grow`'s scale-from-centre, built for a donut arc, would grow a bar in both directions
  * from its middle instead). Colour is the same static-class-plus-inline-`:style` pattern
- * `ChartCard`'s swatch, `LineChart` and `DonutChart` all use — never a script-resolved colour,
+ * `ChartCard`'s swatch, `ChartLine` and `ChartDonut` all use — never a script-resolved colour,
  * since the theme is unknown during SSR. Each bar gets its own colour from `seriesColors()`
  * (`~/utils/chart/series`), the same as a donut's slices, which is what makes this component's
  * legend meaningful rather than decorative.
@@ -80,18 +88,19 @@
  * maintain. Outside the bar there is no colour to sit on top of, so the label just uses the
  * ordinary muted axis text colour.
  */
-import { linearScale, bandScale, niceTicks } from '~/utils/chart/scale'
+import { linearScale, bandScale } from '~/utils/chart/scale'
 import { seriesColors } from '~/utils/chart/series'
 import { formatCompact } from '~/utils/chart/format'
+import { barValueDomain, barXDomain, barXTicks } from './barGeometry'
 
-interface BarChartProps {
+interface ChartBarProps {
   bars: { key: string; label: string; value: number }[]
   title: string
   loading?: boolean
   valueFormatter?: (v: number) => string
 }
 
-const props = defineProps<BarChartProps>()
+const props = defineProps<ChartBarProps>()
 
 const { t, locale } = useI18n()
 
@@ -108,13 +117,18 @@ const formatValue = computed(() => props.valueFormatter ?? ((v: number) => forma
 
 const yBand = computed(() => bandScale(props.bars.map(bar => bar.key), [PLOT.top, PLOT.height - PLOT.bottom], 0.3))
 
-const xTicks = computed<number[]>(() => {
-  const max = props.bars.reduce((highest, bar) => Math.max(highest, bar.value), 0)
-  return niceTicks(0, max)
-})
+const xTicks = computed<number[]>(() => barXTicks(props.bars))
 
-const xDomain = computed<[number, number]>(() => [0, xTicks.value[xTicks.value.length - 1]!])
+// The axis domain — where the reference gridlines land — follows `xTicks`' own bounds; see
+// `barXDomain`'s own comment in `./barGeometry` for why this can no longer be hardcoded at `0`.
+const xDomain = computed<[number, number]>(() => barXDomain(xTicks.value))
 const xScale = computed(() => linearScale(xDomain.value, [PLOT.left, PLOT.width - PLOT.right]))
+
+// A bar's own drawn length is measured against a *separate*, always-zero-anchored domain —
+// `barValueDomain`, not `xDomain` — so `niceTicks` widening the axis below zero for an all-zero
+// bar set can never pull a bar's own zero point away from `PLOT.left`. The two domains (and so
+// `xScale`/`barScale`) agree exactly for every real, non-all-zero bar set.
+const barScale = computed(() => linearScale(barValueDomain(xTicks.value), [PLOT.left, PLOT.width - PLOT.right]))
 
 const xTickMarks = computed(() => xTicks.value.map(value => ({ value, x: xScale.value(value) })))
 
@@ -123,7 +137,7 @@ const colorByKey = computed(() => seriesColors(props.bars.map(bar => bar.key)))
 const barMarks = computed(() => props.bars.map((bar) => {
   const color = colorByKey.value.get(bar.key)!
   const y = yBand.value.position(bar.key) + yBand.value.bandwidth / 2
-  const endX = xScale.value(bar.value)
+  const endX = barScale.value(bar.value)
   const scaledWidth = endX - PLOT.left
   return {
     key: bar.key,

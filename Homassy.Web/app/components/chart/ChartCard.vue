@@ -108,7 +108,7 @@
 <script setup lang="ts">
 /**
  * The one shell every hand-rolled SVG chart in the "Insight" milestone sits inside (R5, issue #99).
- * `DonutChart`/`LineChart`/`BarChart` (Task 5) each wrap themselves in this, passing their own `<svg>`
+ * `ChartDonut`/`ChartLine`/`ChartBar` (Task 5) each wrap themselves in this, passing their own `<svg>`
  * into the default slot plus a `legend` and `tableRows` derived from the same data the chart itself
  * plots — so the three of them share one header idiom, one loading/empty state, and — the reason
  * this component exists as its own file rather than being copy-pasted three times — exactly one

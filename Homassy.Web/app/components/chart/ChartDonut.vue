@@ -19,10 +19,11 @@
  * split by product category. Wraps `ChartCard`, which owns the header, the loading/empty states
  * and the accessible fallback table; this component only computes the ring's geometry and colours.
  *
- * Auto-imported as `<ChartDonutChart>`, not `<DonutChart>` — this file's name does not start with
- * `Chart`, so Nuxt's directory-prefix collapsing (the reason `chart/ChartCard.vue` itself is just
- * `<ChartCard>`) does not apply here. Confirmed against this project's generated
- * `.nuxt/components.d.ts`.
+ * Filed as `ChartDonut.vue`, so it auto-imports cleanly as `<ChartDonut>` — this filename starts
+ * with `Chart`, so Nuxt's directory-prefix collapsing (the same rule that makes `chart/ChartCard.vue`
+ * itself just `<ChartCard>`) applies here too. It was originally filed as `DonutChart.vue`, which
+ * that collapsing does not fire for (the filename has to *start* with the directory name, not just
+ * contain it), so it auto-imported as the stuttering `<ChartDonutChart>` until this rename.
  *
  * Geometry is a `computed` over props alone — no lifecycle hook, no measurement of any kind — so
  * this renders identically on the server and after hydration. The fixed `viewBox` plus `w-full
@@ -31,8 +32,8 @@
  * Slice merging (categories under 2% collapse into a trailing "other") and the angle maths live in
  * `./donutGeometry.ts`, split out purely so that logic can be unit tested without a Vue runtime —
  * see that file's own comment. Colours come from `seriesColors()` (`~/utils/chart/series`), one
- * per rendered slice (including "other"), assigned by position exactly like `LineChart` and
- * `BarChart` do for their own marks.
+ * per rendered slice (including "other"), assigned by position exactly like `ChartLine` and
+ * `ChartBar` do for their own marks.
  *
  * Every slice paints its theme-correct colour the way `ChartCard`'s own swatch and
  * `ProductImage.vue`'s category placeholder do: a static `dark:` utility class picks between two
@@ -47,13 +48,13 @@ import { seriesColors } from '~/utils/chart/series'
 import { formatCompact } from '~/utils/chart/format'
 import { buildDonutSlices } from './donutGeometry'
 
-interface DonutChartProps {
+interface ChartDonutProps {
   slices: { key: string; label: string; value: number }[]
   title: string
   loading?: boolean
 }
 
-const props = defineProps<DonutChartProps>()
+const props = defineProps<ChartDonutProps>()
 
 const { t, locale } = useI18n()
 

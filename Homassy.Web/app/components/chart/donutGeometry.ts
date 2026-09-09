@@ -1,15 +1,15 @@
 /**
- * Slice geometry for DonutChart.vue (R5 "Insight", Task 5).
+ * Slice geometry for ChartDonut.vue (R5 "Insight", Task 5).
  *
  * Pulled out of the component into its own framework-free module for one reason: the vitest
  * harness for this milestone (`vitest.config.ts`) runs under a plain `node` environment with no
  * Vue runtime, so a `.vue` single-file component cannot be imported by a spec at all. Extracting
- * the one part of DonutChart's own logic worth a dedicated test — turning `{ key, label, value }`
+ * the one part of ChartDonut's own logic worth a dedicated test — turning `{ key, label, value }`
  * inputs into ring-slice angles — into a plain module makes it testable the same way
  * `~/utils/chart/{scale,path,format,series}` are: `describe`/`it` against an exported function,
  * no component mount required. See `tests/unit/donutGeometry.spec.ts`.
  *
- * Deliberately colocated with `DonutChart.vue` rather than added to `~/utils/chart/`: merging
+ * Deliberately colocated with `ChartDonut.vue` rather than added to `~/utils/chart/`: merging
  * small categories into a trailing "other" slice is a donut-specific concern (a bar or a line has
  * no analogous idea of "too thin to hit with a thumb"), not a general primitive the other two
  * chart types would ever call — unlike `arcPath`/`seriesColors`/etc., which genuinely are shared.
@@ -69,7 +69,7 @@ const OTHER_SLICE_KEY = '__other__'
  *    — the standard cumulative-pie layout, each slice picking up exactly where the last one ended.
  *
  * A non-positive total (no categories, or values summing to zero or less) has no ring to divide
- * and returns no slices; `DonutChart.vue` feeds that same emptiness into `tableRows`, which is what
+ * and returns no slices; `ChartDonut.vue` feeds that same emptiness into `tableRows`, which is what
  * actually drives `ChartCard`'s empty state.
  */
 export const buildDonutSlices = (slices: readonly DonutSliceInput[], otherLabel: string): DonutSlice[] => {
