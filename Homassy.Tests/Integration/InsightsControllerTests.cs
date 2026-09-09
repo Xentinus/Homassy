@@ -114,20 +114,6 @@ public class InsightsControllerTests : IClassFixture<HomassyWebApplicationFactor
     }
 
     /// <summary>
-    /// Resolves a shopping location's internal id from its public id, directly via the database.
-    /// <see cref="LocationSpend.ShoppingLocationId"/> deliberately carries the internal id (unlike
-    /// most of this API's DTOs, which only ever expose <c>PublicId</c>), so a test asserting on it
-    /// needs this lookup rather than the public id <see cref="CreateShoppingLocationAsync"/>
-    /// returns.
-    /// </summary>
-    private int GetShoppingLocationInternalId(Guid publicId)
-    {
-        var (scope, context) = _factory.CreateScopedDbContext();
-        using var _ = scope;
-        return context.ShoppingLocations.First(l => l.PublicId == publicId).Id;
-    }
-
-    /// <summary>
     /// Creates an inventory item WITH purchase info (price/currency/shopping location) via the
     /// full create endpoint - unlike <see cref="AddSharedInventoryItemAsync"/>/
     /// <see cref="AddPersonalInventoryItemAsync"/>, which quick-add and never create a
@@ -1220,8 +1206,6 @@ public class InsightsControllerTests : IClassFixture<HomassyWebApplicationFactor
 
             var locationAPublicId = await CreateShoppingLocationAsync("Spend Test Location A");
             var locationBPublicId = await CreateShoppingLocationAsync("Spend Test Location B");
-            var locationAId = GetShoppingLocationInternalId(locationAPublicId);
-            var locationBId = GetShoppingLocationInternalId(locationBPublicId);
 
             var milkProductId = await CreateProductAsync(ProductCategory.Milk, "two-loc");
             var breadProductId = await CreateProductAsync(ProductCategory.Bread, "two-loc");
@@ -1245,12 +1229,12 @@ public class InsightsControllerTests : IClassFixture<HomassyWebApplicationFactor
 
             Assert.Equal(2, content.Data.Locations.Count);
 
-            var locationA = Assert.Single(content.Data.Locations, l => l.ShoppingLocationId == locationAId);
+            var locationA = Assert.Single(content.Data.Locations, l => l.ShoppingLocationPublicId == locationAPublicId);
             Assert.Equal("Spend Test Location A", locationA.LocationName);
             Assert.Equal(2, locationA.ItemCount);
             Assert.Equal(800m, locationA.SpendByCurrency[Currency.Huf]);
 
-            var locationB = Assert.Single(content.Data.Locations, l => l.ShoppingLocationId == locationBId);
+            var locationB = Assert.Single(content.Data.Locations, l => l.ShoppingLocationPublicId == locationBPublicId);
             Assert.Equal("Spend Test Location B", locationB.LocationName);
             Assert.Equal(1, locationB.ItemCount);
             Assert.Equal(700m, locationB.SpendByCurrency[Currency.Huf]);
@@ -1281,7 +1265,6 @@ public class InsightsControllerTests : IClassFixture<HomassyWebApplicationFactor
             _authHelper.SetAuthToken(auth.AccessToken);
 
             var locationPublicId = await CreateShoppingLocationAsync("Spend Test Multi-Currency Location");
-            var locationId = GetShoppingLocationInternalId(locationPublicId);
 
             var milkProductId = await CreateProductAsync(ProductCategory.Milk, "two-currency");
             var breadProductId = await CreateProductAsync(ProductCategory.Bread, "two-currency");
@@ -1301,7 +1284,7 @@ public class InsightsControllerTests : IClassFixture<HomassyWebApplicationFactor
             // Assert.Single with no predicate first, so a stray extra entry (not just a mismatch
             // on this one) would fail the assertion too.
             var location = Assert.Single(content.Data.Locations);
-            Assert.Equal(locationId, location.ShoppingLocationId);
+            Assert.Equal(locationPublicId, location.ShoppingLocationPublicId);
             Assert.Equal(2, location.ItemCount);
 
             // The rule this test exists to prove: two currencies at one location are two entries,
@@ -1366,12 +1349,12 @@ public class InsightsControllerTests : IClassFixture<HomassyWebApplicationFactor
             // never three (two separate unknown entries) and never one (dropped entirely).
             Assert.Equal(2, content.Data.Locations.Count);
 
-            var unknown = Assert.Single(content.Data.Locations, l => l.ShoppingLocationId == null);
+            var unknown = Assert.Single(content.Data.Locations, l => l.ShoppingLocationPublicId == null);
             Assert.Equal("Unknown location", unknown.LocationName);
             Assert.Equal(2, unknown.ItemCount);
             Assert.Equal(500m, unknown.SpendByCurrency[Currency.Huf]);
 
-            var known = Assert.Single(content.Data.Locations, l => l.ShoppingLocationId != null);
+            var known = Assert.Single(content.Data.Locations, l => l.ShoppingLocationPublicId != null);
             Assert.Equal("Spend Test Known Location", known.LocationName);
             Assert.Equal(1, known.ItemCount);
         }
@@ -1417,9 +1400,6 @@ public class InsightsControllerTests : IClassFixture<HomassyWebApplicationFactor
             var breadProductId = await CreateProductAsync(ProductCategory.Bread, "null-price");
             await CreateInventoryItemWithPurchaseAsync(breadProductId, isSharedWithFamily: false, price: 400, shoppingLocationPublicId: pricedLocationPublicId);
 
-            var unpricedLocationId = GetShoppingLocationInternalId(unpricedLocationPublicId);
-            var pricedLocationId = GetShoppingLocationInternalId(pricedLocationPublicId);
-
             var response = await _client.GetAsync("/api/v1.0/insights/spend-by-location?days=30");
             var body = await response.Content.ReadAsStringAsync();
             _output.WriteLine($"Status: {response.StatusCode}");
@@ -1432,14 +1412,14 @@ public class InsightsControllerTests : IClassFixture<HomassyWebApplicationFactor
             // Exactly two locations - no stray extra entries - before picking each one apart.
             Assert.Equal(2, content.Data.Locations.Count);
 
-            var unpriced = Assert.Single(content.Data.Locations, l => l.ShoppingLocationId == unpricedLocationId);
+            var unpriced = Assert.Single(content.Data.Locations, l => l.ShoppingLocationPublicId == unpricedLocationPublicId);
             // Still counted...
             Assert.Equal(1, unpriced.ItemCount);
             // ...but genuinely EMPTY, not a Huf: 0 entry - see this test's summary for why that
             // distinction is the actual point.
             Assert.Empty(unpriced.SpendByCurrency);
 
-            var priced = Assert.Single(content.Data.Locations, l => l.ShoppingLocationId == pricedLocationId);
+            var priced = Assert.Single(content.Data.Locations, l => l.ShoppingLocationPublicId == pricedLocationPublicId);
             Assert.Equal(1, priced.ItemCount);
             Assert.Equal(400m, priced.SpendByCurrency[Currency.Huf]);
         }
@@ -1471,7 +1451,6 @@ public class InsightsControllerTests : IClassFixture<HomassyWebApplicationFactor
             await CreateFamilyAsync("Spend Family A");
 
             var locationAPublicId = await CreateShoppingLocationAsync("Spend Family A Location");
-            var locationAId = GetShoppingLocationInternalId(locationAPublicId);
             var milkProductId = await CreateProductAsync(ProductCategory.Milk, "spend-fam-a");
             await CreateInventoryItemWithPurchaseAsync(milkProductId, isSharedWithFamily: true, price: 300, shoppingLocationPublicId: locationAPublicId);
 
@@ -1500,7 +1479,7 @@ public class InsightsControllerTests : IClassFixture<HomassyWebApplicationFactor
             // check) is what actually proves isolation here: a predicate match alone would still
             // pass even if family B's location leaked in as an extra, non-matching entry.
             var locationA = Assert.Single(content.Data.Locations);
-            Assert.Equal(locationAId, locationA.ShoppingLocationId);
+            Assert.Equal(locationAPublicId, locationA.ShoppingLocationPublicId);
             Assert.Equal(1, locationA.ItemCount);
             Assert.Equal(300m, locationA.SpendByCurrency[Currency.Huf]);
         }

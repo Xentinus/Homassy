@@ -580,13 +580,21 @@ namespace Homassy.API.Functions
         /// </para>
         ///
         /// <para>
-        /// <b>Location names.</b> Resolved with one small follow-up query against
-        /// <see cref="HomassyDbContext.ShoppingLocations"/>, keyed by the distinct non-null
-        /// location ids the aggregation actually returned - never per-row inside the aggregation,
-        /// and never one query per location. A location id this lookup cannot resolve (e.g.
+        /// <b>Location names and public ids (Fix round 1).</b> Both are resolved together with
+        /// one small follow-up query against <see cref="HomassyDbContext.ShoppingLocations"/>,
+        /// keyed by the distinct non-null location ids the aggregation actually returned - never
+        /// per-row inside the aggregation, and never one query per location.
+        /// <see cref="LocationSpend.ShoppingLocationPublicId"/> is exposed instead of the
+        /// internal <c>ShoppingLocationId</c> this method groups and looks up by, matching this
+        /// codebase's convention of never handing out an enumerable primary key from a public DTO
+        /// (see <c>BaseEntity</c>'s doc comment) - it comes from this same bounded lookup, not a
+        /// second query, so resolving it costs nothing beyond the one extra column already
+        /// selected here, rather than pulling location rows into memory afterwards, which would
+        /// trade the convention fix for an N+1. A location id this lookup cannot resolve (e.g.
         /// soft-deleted after the purchase was made) falls back to <see cref="UnknownLocationName"/>
-        /// too, the same label the null-<c>ShoppingLocationId</c> bucket uses, rather than
-        /// surfacing an empty name.
+        /// for the name and <see langword="null"/> for the public id - the same pair of
+        /// fallbacks the null-<c>ShoppingLocationId</c> bucket itself uses, since there being no
+        /// location row means there is no public id to carry either.
         /// </para>
         /// </summary>
         private async Task<SpendByLocationResponse> ComputeSpendByLocationAsync(int userId, int? familyId, int days, CancellationToken cancellationToken)
@@ -629,32 +637,44 @@ namespace Homassy.API.Functions
                 .ToList();
 
             // One bounded follow-up lookup (distinct locations actually referenced), never a
-            // per-row query - see this method's "Location names" remarks above.
-            var locationNames = locationIds.Count > 0
+            // per-row query - see this method's "Location names and public ids" remarks above.
+            // Selects PublicId alongside Name in the same query, so LocationSpend's public id
+            // costs nothing beyond one extra projected column - never a second round trip, and
+            // never a per-row lookup.
+            var locationInfoById = locationIds.Count > 0
                 ? await context.ShoppingLocations
                     .Where(l => locationIds.Contains(l.Id))
-                    .Select(l => new { l.Id, l.Name })
-                    .ToDictionaryAsync(l => l.Id, l => l.Name, cancellationToken)
-                : new Dictionary<int, string>();
+                    .Select(l => new { l.Id, l.PublicId, l.Name })
+                    .ToDictionaryAsync(l => l.Id, l => (l.PublicId, l.Name), cancellationToken)
+                : new Dictionary<int, (Guid PublicId, string Name)>();
 
             // Re-grouping this already-small, already-aggregated row set by ShoppingLocationId
             // alone (never touching the database again) is the "fold the per-currency rows into
             // the response shape afterwards" step: each location's ItemCount sums every currency
             // sub-group's count, while SpendByCurrency only ever picks up sub-groups that actually
             // have a priced purchase (PricedCount > 0) - see this method's remarks above for why
-            // Spend's own nullability cannot be used for that check.
+            // Spend's own nullability cannot be used for that check. ShoppingLocationPublicId and
+            // LocationName both fold from the same locationInfoById lookup - null and
+            // UnknownLocationName for the null-ShoppingLocationId bucket (no location row exists
+            // to resolve at all) and, defensively, for a non-null id the lookup above could not
+            // resolve.
             var locations = rows
                 .GroupBy(r => r.ShoppingLocationId)
-                .Select(g => new LocationSpend
+                .Select(g =>
                 {
-                    ShoppingLocationId = g.Key,
-                    LocationName = g.Key.HasValue
-                        ? (locationNames.TryGetValue(g.Key.Value, out var name) ? name : UnknownLocationName)
-                        : UnknownLocationName,
-                    ItemCount = g.Sum(r => r.ItemCount),
-                    SpendByCurrency = g
-                        .Where(r => r.Currency.HasValue && r.PricedCount > 0)
-                        .ToDictionary(r => r.Currency!.Value, r => r.Spend ?? 0m)
+                    (Guid PublicId, string Name)? resolved = g.Key.HasValue && locationInfoById.TryGetValue(g.Key.Value, out var info)
+                        ? info
+                        : null;
+
+                    return new LocationSpend
+                    {
+                        ShoppingLocationPublicId = resolved?.PublicId,
+                        LocationName = resolved?.Name ?? UnknownLocationName,
+                        ItemCount = g.Sum(r => r.ItemCount),
+                        SpendByCurrency = g
+                            .Where(r => r.Currency.HasValue && r.PricedCount > 0)
+                            .ToDictionary(r => r.Currency!.Value, r => r.Spend ?? 0m)
+                    };
                 })
                 .OrderByDescending(l => l.ItemCount)
                 .ThenBy(l => l.LocationName, StringComparer.Ordinal)

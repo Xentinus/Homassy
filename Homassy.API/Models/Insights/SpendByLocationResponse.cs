@@ -1,27 +1,34 @@
+using Homassy.API.Controllers;
 using Homassy.API.Enums;
+using Homassy.API.Functions;
 
 namespace Homassy.API.Models.Insights
 {
     /// <summary>
     /// One shopping location's purchases within the requested window, as returned by
     /// <see cref="SpendByLocationResponse"/>. See
-    /// <see cref="Functions.InsightFunctions.GetSpendByLocationAsync"/> for the scope rule and
-    /// <see cref="Functions.InsightFunctions"/>'s private <c>ComputeSpendByLocationAsync</c> for
+    /// <see cref="InsightFunctions.GetSpendByLocationAsync"/> for the scope rule and
+    /// <see cref="InsightFunctions"/>'s private <c>ComputeSpendByLocationAsync</c> for
     /// exactly how the three data rules below are enforced.
     /// </summary>
     public record LocationSpend
     {
         /// <summary>
-        /// The location's internal id, or <see langword="null"/> for the single "unknown
-        /// location" bucket every purchase with no <c>ShoppingLocationId</c> tag folds into -
-        /// never dropped, and never split across more than one such bucket.
+        /// The location's public id, or <see langword="null"/> for the single "unknown location"
+        /// bucket every purchase with no shopping location tag folds into - never dropped, and
+        /// never split across more than one such bucket. Matches this codebase's convention of
+        /// exposing <c>PublicId</c> rather than the internal primary key in public DTOs (see
+        /// <c>BaseEntity</c>'s doc comment) - deliberately nullable, unlike most other public ids
+        /// in this API, because the "unknown location" bucket has no location row to carry one
+        /// (Fix round 1: this was originally the raw internal <c>int? ShoppingLocationId</c>, a
+        /// deviation from that convention the brief specified verbatim - see this task's report).
         /// </summary>
-        public int? ShoppingLocationId { get; init; }
+        public Guid? ShoppingLocationPublicId { get; init; }
 
         /// <summary>
         /// The location's display name, or a fixed "unknown location" label when
-        /// <see cref="ShoppingLocationId"/> is <see langword="null"/> (or, defensively, when a
-        /// non-null id can no longer be resolved to a location row).
+        /// <see cref="ShoppingLocationPublicId"/> is <see langword="null"/> (or, defensively,
+        /// when a non-null id can no longer be resolved to a location row).
         /// </summary>
         public string LocationName { get; init; } = "";
 
@@ -45,10 +52,10 @@ namespace Homassy.API.Models.Insights
 
     /// <summary>
     /// The caller's purchases within the requested window, broken down by shopping location - see
-    /// <see cref="Functions.InsightFunctions.GetSpendByLocationAsync"/> for the scope rule (the
+    /// <see cref="InsightFunctions.GetSpendByLocationAsync"/> for the scope rule (the
     /// same personal-plus-family union <see cref="Functions.ProductFunctions.GetInventoryItemsByUserAndFamily"/>
     /// uses) and the window-length validation performed by
-    /// <see cref="Controllers.InsightsController.GetSpendByLocation"/>.
+    /// <see cref="InsightsController.GetSpendByLocation"/>.
     /// </summary>
     public record SpendByLocationResponse
     {
