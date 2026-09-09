@@ -1006,6 +1006,7 @@
         "label": "Azonosító szín",
         "description": "Kiemelőszín a gyűrűkhöz, keretekhez és naptárpontokhoz.",
         "auto": "Automatikus",
+        "custom": "Egyéni szín kiválasztása",
         "colors": {
           "rose": "Rózsaszín",
           "amber": "Borostyán",

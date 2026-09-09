@@ -1006,6 +1006,7 @@
         "label": "Kennfarbe",
         "description": "Akzentfarbe für Ringe, Rahmen und Kalenderpunkte.",
         "auto": "Automatisch",
+        "custom": "Eigene Farbe wählen",
         "colors": {
           "rose": "Rosé",
           "amber": "Bernstein",

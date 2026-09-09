@@ -227,12 +227,13 @@
               </div>
             </div>
 
-            <!-- Identity colour: eight palette swatches + "Automatic", draft selection ringed.
-                 Local drawer state, seeded from the store each time this drawer opens (see
-                 openEditProfile) and applied together with name/display name only on Save — a
-                 tap here just changes the draft, it never fires a request on its own. Wrapped in
-                 ClientOnly like the theme control on the Preferences group — a swatch's shade
-                 follows the live colour mode, which is only known client-side. -->
+            <!-- Identity colour: eight palette swatches + "Automatic" + a custom hex picker, draft
+                 selection ringed. Local drawer state, seeded from the store each time this drawer
+                 opens (see openEditProfile) and applied together with name/display name only on
+                 Save — a tap here (or a pick from the custom colour picker) just changes the
+                 draft, it never fires a request on its own. Wrapped in ClientOnly like the theme
+                 control on the Preferences group — a swatch's shade (and the custom swatch's
+                 resolved fill) follows the live colour mode, which is only known client-side. -->
             <ClientOnly>
               <div class="flex flex-col gap-3">
                 <div class="flex items-center gap-3">
@@ -259,6 +260,30 @@
                   >
                     <UIcon v-if="option.value === 'auto'" name="i-lucide-shuffle" class="h-3.5 w-3.5 text-white" />
                   </button>
+
+                  <!-- Ninth control: a custom hex pick alongside the eight presets + Automatic.
+                       The swatch's own fill is the resolved (theme-adjusted) variant, never the
+                       raw pick, so it never shows a colour the ring would not actually get. Picking
+                       one here — like tapping any preset above — only changes the draft; Save is
+                       still what persists it. -->
+                  <UPopover>
+                    <button
+                      type="button"
+                      class="h-7 w-7 rounded-full flex items-center justify-center transition-transform active:scale-95 disabled:opacity-50 disabled:pointer-events-none"
+                      :class="isCustomIdentityDraft
+                        ? 'ring-2 ring-inset ring-primary-500'
+                        : 'ring-1 ring-inset ring-black/10 dark:ring-white/10 bg-elevated'"
+                      :style="isCustomIdentityDraft ? { backgroundColor: customIdentitySwatchColor } : undefined"
+                      :disabled="savingProfile"
+                      :aria-label="$t('profile.settings.identityColor.custom')"
+                      :aria-pressed="isCustomIdentityDraft"
+                    >
+                      <UIcon v-if="!isCustomIdentityDraft" name="i-lucide-palette" class="h-3.5 w-3.5 text-muted" />
+                    </button>
+                    <template #content>
+                      <UColorPicker v-model="customIdentityColorDraft" class="p-2" :disabled="savingProfile" />
+                    </template>
+                  </UPopover>
                 </div>
               </div>
             </ClientOnly>
@@ -286,7 +311,7 @@ import ImageCropper from '~/components/ImageCropper.vue'
 import imageCompression from 'browser-image-compression'
 import { extractBase64 } from '~/composables/useImageCrop'
 import type { VersionInfo } from '~/types/version'
-import { isMemberColorKey, type MemberColorKey } from '~/utils/memberColors'
+import { isHexColor, isMemberColorKey, type MemberColorKey } from '~/utils/memberColors'
 
 definePageMeta({ layout: 'auth', middleware: 'auth' })
 
@@ -314,7 +339,7 @@ const {
   savePreference,
   saveProfile
 } = useUserPreferences()
-const { paletteOptions } = useMemberColor()
+const { paletteOptions, colorFor } = useMemberColor()
 
 // Start true on both server and client so the initial (hydrated) render matches;
 // flip to false only after mount, when the auth store is guaranteed populated.
@@ -410,17 +435,54 @@ const nameForm = ref({ name: '', displayName: '' })
 // Draft only: seeded from the store below each time the drawer opens, applied together with
 // name/display name on Save (see saveProfile), and discarded on cancel by virtue of never being
 // read again before the next open reseeds it.
-const draftIdentityColor = ref<MemberColorKey | 'auto'>('auto')
+const draftIdentityColor = ref<MemberColorKey | 'auto' | string>('auto')
+
+/** Whether the draft is currently a custom hex rather than a palette key or "auto". */
+const isCustomIdentityDraft = computed(() => isHexColor(draftIdentityColor.value))
+
+// Starting point the custom picker shows before the member has dragged anything — never a
+// palette key or "auto", which the picker's own colour parsing cannot make sense of.
+const CUSTOM_COLOR_SEED = '#3b82f6'
+
+/**
+ * The custom picker's own v-model: the draft's hex when it already is one (so re-opening the
+ * popover on an existing custom pick shows exactly that colour, per the "re-edit their choice"
+ * requirement), otherwise the seed above. Picking a colour writes straight back into
+ * `draftIdentityColor` — the same "just changes the draft" contract every preset swatch below
+ * follows — so choosing a custom colour never fires a request on its own either.
+ */
+const customIdentityColorDraft = computed<string>({
+  get: () => isHexColor(draftIdentityColor.value) ? draftIdentityColor.value : CUSTOM_COLOR_SEED,
+  set: (value: string) => { draftIdentityColor.value = value }
+})
+
+/**
+ * The custom swatch's own fill: the resolved (theme-adjusted) variant, never the raw pick —
+ * otherwise the preview would lie about what the ring will actually look like once saved. Only
+ * meaningful while the draft is a custom hex; the button falls back to a neutral, unfilled look
+ * otherwise (see the template).
+ */
+const customIdentitySwatchColor = computed(() => {
+  if (!isCustomIdentityDraft.value) return undefined
+  const resolved = colorFor(authStore.user?.publicId ?? '', draftIdentityColor.value)
+  return colorMode.value === 'dark' ? resolved.dark : resolved.light
+})
 
 function openEditProfile() {
   nameForm.value = {
     name: authStore.user?.name || '',
     displayName: authStore.user?.displayName || ''
   }
-  // Narrows the store's free-form string down to a known palette key, same fallback
-  // `resolveMemberColor` itself uses for an unrecognised or absent value.
+  // Narrows the store's free-form string down to a known palette key or a valid custom hex, same
+  // fallback `resolveMemberColor` itself uses for an unrecognised or absent value.
   const storedColor = authStore.user?.identityColor
-  draftIdentityColor.value = isMemberColorKey(storedColor) ? storedColor : 'auto'
+  if (isMemberColorKey(storedColor)) {
+    draftIdentityColor.value = storedColor
+  } else if (isHexColor(storedColor)) {
+    draftIdentityColor.value = storedColor
+  } else {
+    draftIdentityColor.value = 'auto'
+  }
   nameDrawerOpen.value = true
 }
 

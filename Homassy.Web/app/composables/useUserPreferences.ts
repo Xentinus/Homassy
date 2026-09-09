@@ -138,10 +138,11 @@ export const useUserPreferences = () => {
    * first succeeded and the second failed.
    *
    * `identityColor` takes the drawer's local draft selection directly: `'auto'` clears the
-   * override (stored as `null`, same as a freshly-fetched profile that has never set one), any
-   * other value is one of the eight palette keys.
+   * override (stored as `null`, same as a freshly-fetched profile that has never set one), and
+   * any other value is either one of the eight palette keys or a custom `#rrggbb` hex — both are
+   * passed straight through, since the API (not this composable) is what validates the form.
    */
-  async function saveProfile(name: string, displayName: string, identityColor: MemberColorKey | 'auto'): Promise<boolean> {
+  async function saveProfile(name: string, displayName: string, identityColor: MemberColorKey | 'auto' | string): Promise<boolean> {
     authStore.applyUserPatch({
       name,
       displayName,

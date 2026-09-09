@@ -1006,6 +1006,7 @@
         "label": "Identity color",
         "description": "Accent color for rings, borders, and calendar dots.",
         "auto": "Automatic",
+        "custom": "Pick a custom color",
         "colors": {
           "rose": "Rose",
           "amber": "Amber",
