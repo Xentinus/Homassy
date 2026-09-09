@@ -27,11 +27,29 @@ namespace Homassy.API.Functions
         private const int MaxSlices = 8;
 
         /// <summary>
-        /// Cache key for <see cref="GetInventoryCompositionAsync"/> within a family's
+        /// Cache key prefix for <see cref="GetInventoryCompositionAsync"/> within a family's
         /// <see cref="FamilyInsightsCache"/> entries. Endpoint-qualified and never a bare parameter
         /// string: the cache stores values as <see cref="object"/> and casts to whatever <c>T</c> the
         /// caller asks for, so two endpoints sharing a key under one family would surface as a runtime
         /// <see cref="InvalidCastException"/> on a cache hit rather than a compile error.
+        ///
+        /// <para>
+        /// The key actually used is <c>$"{CompositionCacheKey}:u{userId}"</c> - this prefix plus the
+        /// acting user's id, never the prefix alone. The cached result depends on the user, not only
+        /// the family: it is the union of the user's own personal inventory items and their family's
+        /// shared items (see <see cref="ComputeInventoryCompositionAsync"/>), the same scoping every
+        /// other inventory query in the codebase uses. <see cref="FamilyInsightsCache"/> only keys on
+        /// (family, key), so without the user id folded into the key, two members of the same family
+        /// would share one cache entry - whichever member's request happened to miss the cache first
+        /// would have their own personal items served to every other member of the family for the
+        /// rest of the TTL. That is a data leak between family members, not merely a stale-answer bug.
+        /// </para>
+        ///
+        /// <para>
+        /// <b>General rule for every insight endpoint that follows this pattern</b> (Tasks 8, 9, 19,
+        /// 20): every input the computed result depends on must appear in the cache key - the family
+        /// id alone is only ever enough when the result truly depends on nothing else.
+        /// </para>
         /// </summary>
         private const string CompositionCacheKey = "composition";
 
@@ -47,37 +65,55 @@ namespace Homassy.API.Functions
         }
 
         /// <summary>
-        /// The family's current inventory, broken down by product category. Cached per family for
-        /// 5 minutes under <see cref="CompositionCacheKey"/> - see <see cref="FamilyInsightsCache"/>
-        /// for the single-flight and per-family isolation guarantees that cache provides.
+        /// The acting user's current inventory - their own personal items plus their family's
+        /// shared items - broken down by product category. Cached for 5 minutes under a key
+        /// derived from <see cref="CompositionCacheKey"/> - see its remarks for why the user id
+        /// has to be part of that key - and see <see cref="FamilyInsightsCache"/> for the
+        /// single-flight guarantees the cache itself provides.
         /// </summary>
+        /// <param name="userId">
+        /// The acting user. Required - callers with no user id must never reach this method, since
+        /// the result would be meaningless without one; see <see cref="Controllers.InsightsController"/>,
+        /// which short-circuits to an empty response before any query runs in that case, rather
+        /// than passing a sentinel value here.
+        /// </param>
         /// <param name="familyId">
-        /// The caller's family. Callers with no family must never reach this method - see
-        /// <see cref="Controllers.InsightsController"/>, which short-circuits to an empty response
-        /// before any query runs rather than passing a sentinel value here.
+        /// The caller's family, or <see langword="null"/> if they have none. Unlike
+        /// <paramref name="userId"/>, a missing family id is not a short-circuit case: it simply
+        /// drops the family half of the union in <see cref="ComputeInventoryCompositionAsync"/>,
+        /// so a caller with no family still sees their own personal items.
         /// </param>
         /// <param name="cancellationToken">
         /// Cancellation for this call's own attempt to (re)compute the value. Only reaches the
         /// underlying query when this call is the one that wins the cache's single-flight race -
         /// see <see cref="FamilyInsightsCache.GetOrAddAsync{T}"/>.
         /// </param>
-        public Task<InventoryCompositionResponse> GetInventoryCompositionAsync(int familyId, CancellationToken cancellationToken)
+        public Task<InventoryCompositionResponse> GetInventoryCompositionAsync(int userId, int? familyId, CancellationToken cancellationToken)
         {
+            // The family bucket collapses every family-less caller to 0, but that can never
+            // collide two users' entries: the per-user suffix on the key itself already makes the
+            // full (familyBucket, key) pair unique per user, with or without a family.
             return _cache.GetOrAddAsync(
-                familyId,
-                CompositionCacheKey,
+                familyId ?? 0,
+                $"{CompositionCacheKey}:u{userId}",
                 CompositionTtl,
-                ct => ComputeInventoryCompositionAsync(familyId, ct),
+                ct => ComputeInventoryCompositionAsync(userId, familyId, ct),
                 cancellationToken);
         }
 
         /// <summary>
-        /// Runs the actual aggregation on a cache miss. The grouping and the per-category count both
-        /// happen in SQL - a single <c>GROUP BY</c> round trip - never by pulling the family's
+        /// Runs the actual aggregation on a cache miss. Scopes inventory items the same way every
+        /// other inventory query in the codebase does (e.g.
+        /// <c>ProductFunctions.GetInventoryItemsByUserAndFamily</c>): the union of the caller's own
+        /// personal items and their family's shared items, never family-shared items alone - a
+        /// family-only filter would plot a different set of items than the member's own inventory
+        /// list shows them, with a total that disagrees, and would wrongly come back empty for a
+        /// member who has personal items but no family. The grouping and the per-category count
+        /// both happen in SQL - a single <c>GROUP BY</c> round trip - never by pulling the caller's
         /// inventory rows into memory first and grouping them in C#, which would pass every test at
         /// this scale and fall over on a real household's worth of stock.
         /// </summary>
-        private async Task<InventoryCompositionResponse> ComputeInventoryCompositionAsync(int familyId, CancellationToken cancellationToken)
+        private async Task<InventoryCompositionResponse> ComputeInventoryCompositionAsync(int userId, int? familyId, CancellationToken cancellationToken)
         {
             using var context = _contextFactory.CreateForReading();
 
@@ -87,7 +123,7 @@ namespace Homassy.API.Functions
             // folds into ProductCategory.Other in the same GROUP BY, rather than as a second,
             // untranslatable client-side bucket.
             var categoryCounts = await context.ProductInventoryItems
-                .Where(item => item.FamilyId == familyId && !item.IsFullyConsumed)
+                .Where(item => (item.UserId == userId || (familyId.HasValue && item.FamilyId == familyId)) && !item.IsFullyConsumed)
                 .GroupBy(item => item.Product.Category ?? ProductCategory.Other)
                 .Select(group => new { Category = group.Key, Count = group.Count() })
                 .ToListAsync(cancellationToken);
