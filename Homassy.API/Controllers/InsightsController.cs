@@ -71,4 +71,64 @@ public class InsightsController : ControllerBase
         var composition = await _insightFunctions.GetInventoryCompositionAsync(userId.Value, familyId, cancellationToken);
         return Ok(ApiResponse<InventoryCompositionResponse>.SuccessResponse(composition));
     }
+
+    /// <summary>
+    /// The allowed values for <c>days</c> on <see cref="GetConsumptionSeries"/>. A closed set,
+    /// not an arbitrary upper bound: an unbounded (or merely large) window is an unbounded query
+    /// over <c>Activities</c>, and every value here has to match a real preset on the chart the
+    /// frontend renders from this - there is no in-between value a client could usefully ask for.
+    /// </summary>
+    private static readonly int[] AllowedConsumptionWindowDays = [30, 90];
+
+    /// <summary>
+    /// A dense consumption time series for the caller - see
+    /// <see cref="InsightFunctions.GetConsumptionSeriesAsync"/> for the scope rule (whole family
+    /// vs. just this caller) and the timezone bucketing this endpoint depends on getting right.
+    /// </summary>
+    /// <remarks>
+    /// A missing user id is <b>401</b>, for exactly the reason documented on
+    /// <see cref="GetInventoryComposition"/> above - an authenticated request whose session does
+    /// not resolve to a local user is an authentication problem, not an empty-but-valid dataset.
+    /// <paramref name="days"/> and <paramref name="bucket"/> are validated here, before either
+    /// ever reaches a query: <see cref="AllowedConsumptionWindowDays"/> is a closed set (never an
+    /// arbitrary caller-supplied window), and <paramref name="bucket"/> must name one of
+    /// <see cref="SeriesBucket"/>'s two values. Either failing is <b>400</b>, matching the
+    /// codebase-wide convention of a typed <see cref="ErrorCodes"/> in an <see cref="ApiResponse"/>
+    /// rather than the framework's own default model-binding error shape.
+    /// </remarks>
+    [HttpGet("consumption")]
+    [MapToApiVersion(1.0)]
+    [ProducesResponseType(typeof(ApiResponse<ConsumptionSeriesResponse>), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    public async Task<IActionResult> GetConsumptionSeries([FromQuery] int days, [FromQuery] string? bucket, CancellationToken cancellationToken)
+    {
+        var userId = SessionInfo.GetUserId();
+        if (!userId.HasValue)
+        {
+            return Unauthorized(ApiResponse.ErrorResponse(ErrorCodes.AuthUnauthorized));
+        }
+
+        if (!AllowedConsumptionWindowDays.Contains(days))
+        {
+            return BadRequest(ApiResponse.ErrorResponse(ErrorCodes.ValidationInvalidRequest));
+        }
+
+        SeriesBucket seriesBucket;
+        if (string.Equals(bucket, "day", StringComparison.OrdinalIgnoreCase))
+        {
+            seriesBucket = SeriesBucket.Day;
+        }
+        else if (string.Equals(bucket, "week", StringComparison.OrdinalIgnoreCase))
+        {
+            seriesBucket = SeriesBucket.Week;
+        }
+        else
+        {
+            return BadRequest(ApiResponse.ErrorResponse(ErrorCodes.ValidationInvalidRequest));
+        }
+
+        var familyId = SessionInfo.GetFamilyId();
+        var series = await _insightFunctions.GetConsumptionSeriesAsync(userId.Value, familyId, days, seriesBucket, cancellationToken);
+        return Ok(ApiResponse<ConsumptionSeriesResponse>.SuccessResponse(series));
+    }
 }

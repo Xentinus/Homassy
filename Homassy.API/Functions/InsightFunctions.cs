@@ -1,8 +1,12 @@
 using Homassy.API.Context;
 using Homassy.API.Enums;
+using Homassy.API.Extensions;
 using Homassy.API.Models.Insights;
 using Homassy.API.Services;
 using Microsoft.EntityFrameworkCore;
+using Serilog;
+using System.Data;
+using System.Data.Common;
 
 namespace Homassy.API.Functions
 {
@@ -174,6 +178,284 @@ namespace Homassy.API.Functions
                 OtherCount = otherCount,
                 TotalCount = totalCount
             };
+        }
+
+        /// <summary>
+        /// Cache key prefix for <see cref="GetConsumptionSeriesAsync"/> within a family's
+        /// <see cref="FamilyInsightsCache"/> entries - endpoint-qualified for the same reason
+        /// <see cref="CompositionCacheKey"/> is (see its remarks): the cache stores values as
+        /// <see cref="object"/> and casts to whatever <c>T</c> the caller asks for, so sharing a
+        /// key with another endpoint would surface as a runtime <see cref="InvalidCastException"/>
+        /// on a hit rather than a compile error.
+        ///
+        /// <para>
+        /// <b>This key is built differently depending on scope, unlike <see cref="CompositionCacheKey"/>.</b>
+        /// Every input the result actually depends on has to be in the key - <c>days</c>,
+        /// <c>bucket</c> and the resolved timezone id always are, since changing any one of them
+        /// changes the answer for the exact same caller. Whether the <em>user</em> id also has to
+        /// be in it depends on which branch of <see cref="GetConsumptionSeriesAsync"/>'s scope ran:
+        /// </para>
+        /// <list type="bullet">
+        /// <item>A caller <b>with</b> a family is scoped to <c>Activity.FamilyId == family</c>
+        /// alone (see <see cref="ComputeConsumptionSeriesAsync"/>) - genuinely family-wide, the
+        /// same answer for every current member asking with the same <c>days</c>/<c>bucket</c>/
+        /// timezone. Folding the user id into the key here would give each member their own
+        /// identical copy of the same family aggregate instead of one shared entry - still
+        /// correct, just pointless, recomputing (and separately expiring) the same query once per
+        /// member instead of once per family.</item>
+        /// <item>A caller <b>without</b> a family is scoped to <c>Activity.UserId == caller</c> -
+        /// genuinely per-user, so the key <em>must</em> carry <c>:u{userId}</c>, exactly like
+        /// <see cref="CompositionCacheKey"/> always does. Both branches still partition under
+        /// <c>familyId ?? 0</c> in <see cref="FamilyInsightsCache"/>, so every family-less caller
+        /// collapses onto the same partition 0 - the per-user suffix is what keeps them from
+        /// reading each other's series there, the same reasoning <see cref="CompositionCacheKey"/>
+        /// documents for that collapse.</item>
+        /// </list>
+        /// </summary>
+        private const string ConsumptionCacheKey = "consumption";
+
+        private static readonly TimeSpan ConsumptionTtl = TimeSpan.FromMinutes(5);
+
+        /// <summary>
+        /// A dense consumption time series - one point per <paramref name="bucket"/>-sized step
+        /// across the last <paramref name="days"/> days, bucketed in the caller's own saved
+        /// timezone. Cached under <see cref="ConsumptionCacheKey"/> for <see cref="ConsumptionTtl"/> -
+        /// see that constant's remarks for exactly how the cache key is built and why it differs
+        /// by scope.
+        /// </summary>
+        /// <param name="userId">
+        /// The acting user. Required for the same reason it is on
+        /// <see cref="GetInventoryCompositionAsync"/> - <see cref="Controllers.InsightsController"/>
+        /// short-circuits to 401 before this is ever called for a caller with no resolvable user
+        /// id - and additionally used here as the scope itself when <paramref name="familyId"/> is
+        /// <see langword="null"/> (see <see cref="ComputeConsumptionSeriesAsync"/>).
+        /// </param>
+        /// <param name="familyId">
+        /// The caller's family, or <see langword="null"/> if they have none. Unlike
+        /// <see cref="GetInventoryCompositionAsync"/> - where a missing family only drops half of
+        /// a union - this changes which column the query scopes on entirely: see
+        /// <see cref="ComputeConsumptionSeriesAsync"/>'s remarks for why "the whole family's
+        /// consumption" and "just this caller's own" are the two right answers, not a union of the
+        /// two.
+        /// </param>
+        /// <param name="days">
+        /// The window length in days. Bounds (30 or 90) are the controller's job to enforce, not
+        /// this method's - see <see cref="Controllers.InsightsController"/>.
+        /// </param>
+        /// <param name="bucket">Day or week granularity - see <see cref="SeriesBucket"/>.</param>
+        /// <param name="cancellationToken">
+        /// Cancellation for this call's own attempt to (re)compute the value - see
+        /// <see cref="FamilyInsightsCache.GetOrAddAsync{T}"/> for why a piggybacking caller's own
+        /// token can never cancel a computation it did not win the race to start.
+        /// </param>
+        public Task<ConsumptionSeriesResponse> GetConsumptionSeriesAsync(int userId, int? familyId, int days, SeriesBucket bucket, CancellationToken cancellationToken)
+        {
+            // Resolved once, up front, rather than inside the cache factory: it has to be part of
+            // the key itself (see ConsumptionCacheKey's remarks), and GetUserProfileByUserId is a
+            // cheap, cache-backed lookup (see UserFunctions), not a query worth deferring behind
+            // the cache's single-flight factory.
+            var userTimeZone = new UserFunctions(_contextFactory).GetUserProfileByUserId(userId)?.DefaultTimeZone ?? UserTimeZone.CentralEuropeStandardTime;
+            var ianaTimeZoneId = ResolveIanaTimeZoneId(userTimeZone.ToTimeZoneId());
+
+            var key = familyId.HasValue
+                ? $"{ConsumptionCacheKey}:{days}:{bucket}:{ianaTimeZoneId}"
+                : $"{ConsumptionCacheKey}:{days}:{bucket}:{ianaTimeZoneId}:u{userId}";
+
+            return _cache.GetOrAddAsync(
+                familyId ?? 0,
+                key,
+                ConsumptionTtl,
+                ct => ComputeConsumptionSeriesAsync(userId, familyId, days, bucket, ianaTimeZoneId, ct),
+                cancellationToken);
+        }
+
+        /// <summary>
+        /// Validates <paramref name="ianaTimeZoneId"/> against the runtime's own timezone database
+        /// and falls back to <c>"UTC"</c> instead of throwing when it is not recognised, rather
+        /// than let an unresolvable id reach the raw SQL in <see cref="ComputeConsumptionSeriesAsync"/>
+        /// and fail the whole request over what is, worst case, a cosmetic mislabelling of which
+        /// calendar day a bucket belongs to. <see cref="UserTimeZoneExtensions.ToTimeZoneId"/>
+        /// already defaults an unmapped <see cref="UserTimeZone"/> enum value to Budapest, so in
+        /// practice this only ever catches a genuinely foreign string reaching this method some
+        /// other way - but "genuinely foreign string" is exactly the case a raw SQL parameter must
+        /// never trust blindly.
+        /// </summary>
+        private static string ResolveIanaTimeZoneId(string ianaTimeZoneId)
+        {
+            try
+            {
+                TimeZoneInfo.FindSystemTimeZoneById(ianaTimeZoneId);
+                return ianaTimeZoneId;
+            }
+            catch (TimeZoneNotFoundException)
+            {
+                return "UTC";
+            }
+            catch (InvalidTimeZoneException)
+            {
+                return "UTC";
+            }
+        }
+
+        /// <summary>
+        /// Runs the actual aggregation on a cache miss.
+        ///
+        /// <para>
+        /// <b>Scope.</b> A caller with a family sees <c>Activity.FamilyId == familyId</c> alone -
+        /// every <see cref="ActivityType.ProductInventoryDecrease"/> recorded under that family,
+        /// regardless of which member did the consuming or whether the specific item consumed was
+        /// personal or family-shared. That is deliberate, not a simplification: every call site
+        /// that records this activity type (see <c>ProductFunctions</c>'s consume/quick-consume/
+        /// split paths) stamps it with the acting user's <em>session</em> family id
+        /// unconditionally - so a family member's own personal-item consumption already carries
+        /// the family id too, and "the whole family's consumption" is already exactly what
+        /// <c>FamilyId == familyId</c> selects, with no need to also <c>OR</c> in
+        /// <c>UserId == userId</c> the way <see cref="ComputeInventoryCompositionAsync"/> does for
+        /// inventory (where the union matters because a personal item's <c>FamilyId</c> really is
+        /// <see langword="null"/>). Unioning in <c>UserId</c> here would not add any rows a family
+        /// member's activity doesn't already carry via <c>FamilyId</c> - it would only make the
+        /// result <em>look</em> user-dependent, which is exactly the shape <see cref="ConsumptionCacheKey"/>'s
+        /// remarks explain the cache key must avoid paying for. A caller with no family has no
+        /// family id for any of their activity to carry, so they fall back to <c>UserId == userId</c> -
+        /// "their own", the only scope that means anything for them.
+        /// </para>
+        ///
+        /// <para>
+        /// <b>Timezone.</b> Bucketing happens in the caller's own local calendar, not the server's
+        /// UTC: the bucket expression is <c>date_trunc(&lt;day|week&gt;, "Timestamp" AT TIME ZONE
+        /// &lt;iana&gt;)</c>, executed as raw SQL (see below for why) rather than <c>.Date</c> or a
+        /// bare UTC truncation - a UTC truncation of an activity recorded late in one viewer's
+        /// evening (already "tomorrow" server-side) would silently relabel it onto the wrong local
+        /// day for that viewer. <c>Activities.Timestamp</c> is mapped <c>timestamp with time
+        /// zone</c> (see the <c>AddActivityTracking</c> migration), so a single <c>AT TIME ZONE</c>
+        /// hop is correct here - it converts the stored instant straight to the target zone's local
+        /// wall clock; a naive (without-time-zone) column would need converting through UTC first,
+        /// or the same hop would silently reinterpret the naive value as if it were already local
+        /// to the target zone and shift it the wrong way. Week bucketing uses PostgreSQL's own
+        /// <c>date_trunc('week', ...)</c>, which is ISO-week/Monday-anchored - <see cref="SeriesZeroFill.Densify"/>'s
+        /// own Monday-snap has to (and does) agree with that, and so does the frontend's
+        /// <c>timeTicks</c> axis.
+        /// </para>
+        ///
+        /// <para>
+        /// <b>Raw SQL, not LINQ.</b> This provider version (<c>Npgsql.EntityFrameworkCore.PostgreSQL</c>
+        /// 10.0.0) has no <c>EF.Functions.DateTrunc</c> translation, and EF Core's own
+        /// <c>Database.SqlQuery&lt;T&gt;</c> only supports a single scalar column, not a (bucket,
+        /// value) pair - so the exact
+        /// <c>date_trunc(...)</c> expression above is issued as a hand-written, fully parameterised
+        /// command against <see cref="RelationalDatabaseFacadeExtensions.GetDbConnection"/>, read
+        /// back with a plain <see cref="DbDataReader"/>. The <c>GROUP BY</c> and <c>SUM</c> still
+        /// happen entirely in the database - only the small, already-aggregated (at most
+        /// <paramref name="days"/> rows) result set is materialised into memory, same as every
+        /// other query in this layer.
+        /// </para>
+        ///
+        /// <para>
+        /// <b>Window padding.</b> The SQL <c>WHERE</c> clause bounds on UTC instants, but the
+        /// caller's own local <c>[from, to]</c> window can extend up to ~14 hours past a naive UTC
+        /// cut in either direction depending on their offset - so the UTC bounds are padded a full
+        /// extra day on each side rather than risk excluding a row that is genuinely inside the
+        /// local window before it ever reaches the <c>GROUP BY</c>. <see cref="SeriesZeroFill.Densify"/>
+        /// trims anything still outside <c>[from, to]</c> after bucketing, so the padding can only
+        /// ever over-fetch, never under-fetch or leak an out-of-window point into the response.
+        /// </para>
+        /// </summary>
+        private async Task<ConsumptionSeriesResponse> ComputeConsumptionSeriesAsync(int userId, int? familyId, int days, SeriesBucket bucket, string ianaTimeZoneId, CancellationToken cancellationToken)
+        {
+            using var context = _contextFactory.CreateForReading();
+
+            var timeZoneInfo = TimeZoneInfo.FindSystemTimeZoneById(ianaTimeZoneId); // already resolved/validated by GetConsumptionSeriesAsync.
+            var nowLocal = TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, timeZoneInfo);
+            var toLocalDate = DateOnly.FromDateTime(nowLocal);
+            var fromLocalDate = toLocalDate.AddDays(-(days - 1));
+
+            // Padded a full extra day either side of the naive UTC cut - see this method's
+            // "Window padding" remarks above.
+            var fromUtc = new DateTimeOffset(DateTime.UtcNow.AddDays(-(days + 1)), TimeSpan.Zero);
+            var toUtc = new DateTimeOffset(DateTime.UtcNow.AddDays(1), TimeSpan.Zero);
+
+            var bucketField = bucket == SeriesBucket.Week ? "week" : "day";
+
+            // Column name, not a parameter value: chosen from exactly two hard-coded literals by
+            // this method's own scope decision above, never from caller input, so interpolating it
+            // straight into the command text carries no injection risk.
+            var scopeColumn = familyId.HasValue ? "FamilyId" : "UserId";
+            var scopeId = familyId ?? userId;
+
+            var sparsePoints = new List<SeriesPoint>();
+
+            await context.Database.OpenConnectionAsync(cancellationToken);
+            try
+            {
+                var connection = context.Database.GetDbConnection();
+                await using var command = connection.CreateCommand();
+                command.CommandText = $@"
+                    SELECT
+                        date_trunc(@bucketField, ""Timestamp"" AT TIME ZONE @tz) AS ""Bucket"",
+                        COALESCE(SUM(""Quantity""), 0) AS ""Value""
+                    FROM ""Activities""
+                    WHERE ""ActivityType"" = @activityType
+                      AND ""Timestamp"" >= @fromUtc
+                      AND ""Timestamp"" <= @toUtc
+                      AND ""{scopeColumn}"" = @scopeId
+                    GROUP BY 1
+                    ORDER BY 1";
+
+                AddParameter(command, "bucketField", bucketField, DbType.String);
+                AddParameter(command, "tz", ianaTimeZoneId, DbType.String);
+                AddParameter(command, "activityType", (int)ActivityType.ProductInventoryDecrease, DbType.Int32);
+                AddParameter(command, "fromUtc", fromUtc, DbType.DateTimeOffset);
+                AddParameter(command, "toUtc", toUtc, DbType.DateTimeOffset);
+                AddParameter(command, "scopeId", scopeId, DbType.Int32);
+
+                // Logged under the same Serilog category (and therefore the same
+                // EFCORE_SQL_LOGGING / Production gating - see SerilogExtensions) EF Core's own
+                // command logging uses, even though this command bypasses EF's query pipeline
+                // entirely (see this method's "Raw SQL, not LINQ" remarks) and so would otherwise
+                // never appear there.
+                Log.ForContext("SourceContext", "Microsoft.EntityFrameworkCore.Database.Command")
+                    .Information(
+                        "Executing DbCommand (raw, outside the EF Core query pipeline) [Parameters=[bucketField='{BucketField}', tz='{TimeZoneId}', activityType={ActivityType}, fromUtc={FromUtc}, toUtc={ToUtc}, scopeId={ScopeId}]]\n{CommandText}",
+                        bucketField, ianaTimeZoneId, (int)ActivityType.ProductInventoryDecrease, fromUtc, toUtc, scopeId, command.CommandText);
+
+                await using var reader = await command.ExecuteReaderAsync(cancellationToken);
+                while (await reader.ReadAsync(cancellationToken))
+                {
+                    var bucketLocal = reader.GetDateTime(0);
+                    var value = reader.GetDecimal(1);
+                    sparsePoints.Add(new SeriesPoint { Bucket = DateOnly.FromDateTime(bucketLocal), Value = value });
+                }
+            }
+            finally
+            {
+                await context.Database.CloseConnectionAsync();
+            }
+
+            var points = SeriesZeroFill.Densify(sparsePoints, fromLocalDate, toLocalDate, bucket);
+
+            return new ConsumptionSeriesResponse
+            {
+                Points = points,
+                Bucket = bucket,
+                TimeZoneId = ianaTimeZoneId
+            };
+        }
+
+        /// <summary>
+        /// Adds one fully-typed parameter to <paramref name="command"/>. Explicit
+        /// <see cref="DbType"/> throughout except where being explicit would be actively harmful -
+        /// see <see cref="ComputeConsumptionSeriesAsync"/>'s use of <see cref="DateTimeOffset"/>
+        /// (never a bare <see cref="DateTime"/>) for the two timestamp parameters, which is what
+        /// sidesteps Npgsql's <see cref="DateTime.Kind"/>-based inference between <c>timestamp</c>
+        /// and <c>timestamptz</c> entirely rather than relying on getting that inference right.
+        /// </summary>
+        private static void AddParameter(DbCommand command, string name, object value, DbType dbType)
+        {
+            var parameter = command.CreateParameter();
+            parameter.ParameterName = name;
+            parameter.Value = value;
+            parameter.DbType = dbType;
+            command.Parameters.Add(parameter);
         }
     }
 }

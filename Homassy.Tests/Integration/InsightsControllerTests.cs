@@ -1,5 +1,6 @@
 using System.Net;
 using System.Net.Http.Json;
+using Homassy.API.Entities.Activity;
 using Homassy.API.Enums;
 using Homassy.API.Functions;
 using Homassy.API.Models.Common;
@@ -148,6 +149,52 @@ public class InsightsControllerTests : IClassFixture<HomassyWebApplicationFactor
 
         var userFunctions = scope.ServiceProvider.GetRequiredService<UserFunctions>();
         await userFunctions.RefreshUserCacheAsync(userId);
+    }
+
+    /// <summary>
+    /// Sets a user's saved timezone directly in the database, then force-refreshes
+    /// <see cref="UserFunctions"/>'s profile cache entry - mirrors <see cref="AddUserToFamilyAsync"/>
+    /// - so a same-test call right after this sees the new timezone rather than whatever
+    /// <see cref="TestAuthHelper.CreateAndAuthenticateUserAsync"/>'s default profile carries.
+    /// </summary>
+    private async Task SetUserTimeZoneAsync(int userId, UserTimeZone timeZone)
+    {
+        var (scope, context) = _factory.CreateScopedDbContext();
+        await using var _ = scope as IAsyncDisposable;
+
+        var profile = context.UserProfiles.First(p => p.UserId == userId);
+        profile.DefaultTimeZone = timeZone;
+        await context.SaveChangesAsync();
+
+        var userFunctions = scope.ServiceProvider.GetRequiredService<UserFunctions>();
+        await userFunctions.RefreshUserProfileCacheAsync(profile.Id);
+    }
+
+    /// <summary>
+    /// Inserts a <see cref="ActivityType.ProductInventoryDecrease"/> activity row directly, at an
+    /// exact caller-chosen UTC instant - the real consume endpoints always stamp
+    /// <see cref="DateTime.UtcNow"/> (see <c>ProductFunctions</c>), which gives the caller no way
+    /// to control the instant a test needs to exercise timezone bucketing. Bypasses product/
+    /// inventory setup entirely: <c>InsightFunctions.GetConsumptionSeriesAsync</c> reads
+    /// <c>Activities</c> directly and never joins to a real product or inventory item, so
+    /// <see cref="Activity.RecordId"/> here is a harmless placeholder, not a foreign key.
+    /// </summary>
+    private async Task AddConsumptionActivityAsync(int userId, int? familyId, decimal quantity, DateTime timestampUtc)
+    {
+        var (scope, context) = _factory.CreateScopedDbContext();
+        await using var _ = scope as IAsyncDisposable;
+
+        context.Activities.Add(new Activity
+        {
+            UserId = userId,
+            FamilyId = familyId,
+            Timestamp = DateTime.SpecifyKind(timestampUtc, DateTimeKind.Utc),
+            ActivityType = ActivityType.ProductInventoryDecrease,
+            RecordId = 1,
+            RecordName = "Insight Test Product",
+            Quantity = quantity
+        });
+        await context.SaveChangesAsync();
     }
     #endregion
 
@@ -641,6 +688,349 @@ public class InsightsControllerTests : IClassFixture<HomassyWebApplicationFactor
                 await _authHelper.CleanupUserAsync(testEmailA);
             if (testEmailB != null)
                 await _authHelper.CleanupUserAsync(testEmailB);
+        }
+    }
+
+    [Fact]
+    public async Task GetConsumptionSeries_WithoutToken_ReturnsUnauthorized()
+    {
+        var response = await _client.GetAsync("/api/v1.0/insights/consumption?days=30&bucket=day");
+        _output.WriteLine($"Status: {response.StatusCode}");
+        Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
+    }
+
+    /// <summary>
+    /// 30 and 90 are the only supported window lengths - an unbounded (or merely unsupported)
+    /// window must never reach the query, since that query's cost scales with it.
+    /// </summary>
+    [Fact]
+    public async Task GetConsumptionSeries_UnsupportedWindowLength_ReturnsBadRequest()
+    {
+        string? testEmail = null;
+        try
+        {
+            var (email, auth) = await _authHelper.CreateAndAuthenticateUserAsync("consumption-bad-days");
+            testEmail = email;
+            _authHelper.SetAuthToken(auth.AccessToken);
+
+            var response = await _client.GetAsync("/api/v1.0/insights/consumption?days=365&bucket=day");
+            var body = await response.Content.ReadAsStringAsync();
+            _output.WriteLine($"Status: {response.StatusCode}");
+            _output.WriteLine($"Response: {body}");
+
+            Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        }
+        finally
+        {
+            _authHelper.ClearAuthToken();
+            if (testEmail != null)
+                await _authHelper.CleanupUserAsync(testEmail);
+        }
+    }
+
+    [Fact]
+    public async Task GetConsumptionSeries_UnsupportedBucket_ReturnsBadRequest()
+    {
+        string? testEmail = null;
+        try
+        {
+            var (email, auth) = await _authHelper.CreateAndAuthenticateUserAsync("consumption-bad-bucket");
+            testEmail = email;
+            _authHelper.SetAuthToken(auth.AccessToken);
+
+            var response = await _client.GetAsync("/api/v1.0/insights/consumption?days=30&bucket=month");
+            var body = await response.Content.ReadAsStringAsync();
+            _output.WriteLine($"Status: {response.StatusCode}");
+            _output.WriteLine($"Response: {body}");
+
+            Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        }
+        finally
+        {
+            _authHelper.ClearAuthToken();
+            if (testEmail != null)
+                await _authHelper.CleanupUserAsync(testEmail);
+        }
+    }
+
+    [Fact]
+    public async Task GetConsumptionSeries_TwoDaysOfConsumptionInWindow_ReturnsDenseThirtyPointSeriesWithTwoNonZeroPoints()
+    {
+        string? testEmail = null;
+        try
+        {
+            var (email, auth) = await _authHelper.CreateAndAuthenticateUserAsync("consumption-two-days");
+            testEmail = email;
+            _authHelper.SetAuthToken(auth.AccessToken);
+
+            var userId = _factory.GetUserIdByEmail(email);
+            Assert.NotNull(userId);
+
+            // Default profile timezone is Central Europe / Budapest - see TestAuthHelper via
+            // Homassy.Tests/CLAUDE.md. Mid-day UTC instants keep the expected local date
+            // unambiguous regardless of which side of a DST transition the suite runs on.
+            var budapest = TimeZoneInfo.FindSystemTimeZoneById("Europe/Budapest");
+            var firstInstant = DateTime.SpecifyKind(DateTime.UtcNow.Date.AddDays(-3).AddHours(10), DateTimeKind.Utc);
+            var secondInstant = DateTime.SpecifyKind(DateTime.UtcNow.Date.AddDays(-10).AddHours(10), DateTimeKind.Utc);
+
+            await AddConsumptionActivityAsync(userId!.Value, familyId: null, quantity: 5m, firstInstant);
+            await AddConsumptionActivityAsync(userId!.Value, familyId: null, quantity: 8m, secondInstant);
+
+            var response = await _client.GetAsync("/api/v1.0/insights/consumption?days=30&bucket=day");
+            var body = await response.Content.ReadAsStringAsync();
+            _output.WriteLine($"Status: {response.StatusCode}");
+            _output.WriteLine($"Response: {body}");
+
+            Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+
+            var content = await response.Content.ReadFromJsonAsync<ApiResponse<ConsumptionSeriesResponse>>();
+            Assert.NotNull(content?.Data);
+
+            // Dense: 30 points regardless of only two of them being non-zero - a chart draws a
+            // flat line through the other 28 days, not a gap.
+            Assert.Equal(30, content.Data.Points.Count);
+
+            var nonZero = content.Data.Points.Where(p => p.Value != 0m).ToList();
+            Assert.Equal(2, nonZero.Count);
+
+            var expectedFirstDate = DateOnly.FromDateTime(TimeZoneInfo.ConvertTimeFromUtc(firstInstant, budapest));
+            var expectedSecondDate = DateOnly.FromDateTime(TimeZoneInfo.ConvertTimeFromUtc(secondInstant, budapest));
+
+            Assert.Equal(5m, content.Data.Points.Single(p => p.Bucket == expectedFirstDate).Value);
+            Assert.Equal(8m, content.Data.Points.Single(p => p.Bucket == expectedSecondDate).Value);
+        }
+        finally
+        {
+            _authHelper.ClearAuthToken();
+            if (testEmail != null)
+                await _authHelper.CleanupUserAsync(testEmail);
+        }
+    }
+
+    /// <summary>
+    /// The cross-family isolation test every R5 insight endpoint needs (see
+    /// <see cref="GetInventoryComposition_SecondFamilysInventory_NeverAppears"/> for the composition
+    /// endpoint's own version): family B's consumption - recorded on the very same local day, with
+    /// a value large enough that a leak could not be mistaken for anything else - must never be
+    /// summed into family A's series.
+    /// </summary>
+    [Fact]
+    public async Task GetConsumptionSeries_SecondFamilysConsumption_NeverAppears()
+    {
+        string? testEmailA = null;
+        string? testEmailB = null;
+        try
+        {
+            var (emailA, authA) = await _authHelper.CreateAndAuthenticateUserAsync("consumption-fam-a");
+            testEmailA = emailA;
+            _authHelper.SetAuthToken(authA.AccessToken);
+            await CreateFamilyAsync("Consumption Family A");
+
+            var userAId = _factory.GetUserIdByEmail(emailA);
+            Assert.NotNull(userAId);
+            int familyAId;
+            {
+                var (scope, context) = _factory.CreateScopedDbContext();
+                using var _ = scope;
+                familyAId = context.Users.First(u => u.Id == userAId!.Value).FamilyId!.Value;
+            }
+
+            var (emailB, authB) = await _authHelper.CreateAndAuthenticateUserAsync("consumption-fam-b");
+            testEmailB = emailB;
+            _authHelper.SetAuthToken(authB.AccessToken);
+            await CreateFamilyAsync("Consumption Family B");
+
+            var userBId = _factory.GetUserIdByEmail(emailB);
+            Assert.NotNull(userBId);
+            int familyBId;
+            {
+                var (scope, context) = _factory.CreateScopedDbContext();
+                using var _ = scope;
+                familyBId = context.Users.First(u => u.Id == userBId!.Value).FamilyId!.Value;
+            }
+
+            var instant = DateTime.SpecifyKind(DateTime.UtcNow.Date.AddDays(-2).AddHours(10), DateTimeKind.Utc);
+            await AddConsumptionActivityAsync(userAId!.Value, familyAId, quantity: 7m, instant);
+            await AddConsumptionActivityAsync(userBId!.Value, familyBId, quantity: 99m, instant);
+
+            _authHelper.SetAuthToken(authA.AccessToken);
+            var response = await _client.GetAsync("/api/v1.0/insights/consumption?days=30&bucket=day");
+            var body = await response.Content.ReadAsStringAsync();
+            _output.WriteLine($"Status: {response.StatusCode}");
+            _output.WriteLine($"Response: {body}");
+
+            Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+            var content = await response.Content.ReadFromJsonAsync<ApiResponse<ConsumptionSeriesResponse>>();
+            Assert.NotNull(content?.Data);
+
+            // Family A's own 7 only - never family B's 99, and never the combined 106.
+            var totalConsumption = content.Data.Points.Sum(p => p.Value);
+            Assert.Equal(7m, totalConsumption);
+        }
+        finally
+        {
+            _authHelper.ClearAuthToken();
+            if (testEmailA != null)
+                await _authHelper.CleanupUserAsync(testEmailA);
+            if (testEmailB != null)
+                await _authHelper.CleanupUserAsync(testEmailB);
+        }
+    }
+
+    /// <summary>
+    /// Exercises <c>bucket=week</c> through the real HTTP+SQL path (unlike
+    /// <c>SeriesZeroFillTests</c>' week-bucket cases, which only ever exercise
+    /// <see cref="SeriesZeroFill.Densify"/> in isolation): confirms the controller actually wires
+    /// <c>bucket=week</c> through to <c>date_trunc('week', ...)</c> and that PostgreSQL's own
+    /// week truncation is Monday-anchored end to end, not merely in the pure-function tests.
+    /// </summary>
+    /// <remarks>
+    /// The expected point count is computed independently here rather than hardcoded: how many
+    /// ISO weeks a 30-day window touches is <c>ceil(30/7) = 5</c> only for some alignments of
+    /// "today" and can be 6 for others (a window starting on a Sunday, say, spills one extra
+    /// partial week) - hardcoding 5 would make this test flake depending on which day of the week
+    /// it happens to run on. <see cref="ExpectedIsoWeekStart"/> mirrors
+    /// <c>SeriesZeroFill</c>'s own (private) Monday-snap so this test can compute the exact
+    /// expected week count itself, the same way the SUT does, rather than approximating it.
+    /// </remarks>
+    [Fact]
+    public async Task GetConsumptionSeries_WeekBucket_ReturnsMondayAnchoredWeeksSummingConsumptionCorrectly()
+    {
+        string? testEmail = null;
+        try
+        {
+            var (email, auth) = await _authHelper.CreateAndAuthenticateUserAsync("consumption-week");
+            testEmail = email;
+            _authHelper.SetAuthToken(auth.AccessToken);
+
+            var userId = _factory.GetUserIdByEmail(email);
+            Assert.NotNull(userId);
+
+            var budapest = TimeZoneInfo.FindSystemTimeZoneById("Europe/Budapest");
+            var instant = DateTime.SpecifyKind(DateTime.UtcNow.Date.AddDays(-4).AddHours(10), DateTimeKind.Utc);
+            await AddConsumptionActivityAsync(userId!.Value, familyId: null, quantity: 12m, instant);
+
+            var response = await _client.GetAsync("/api/v1.0/insights/consumption?days=30&bucket=week");
+            var body = await response.Content.ReadAsStringAsync();
+            _output.WriteLine($"Status: {response.StatusCode}");
+            _output.WriteLine($"Response: {body}");
+
+            Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+            var content = await response.Content.ReadFromJsonAsync<ApiResponse<ConsumptionSeriesResponse>>();
+            Assert.NotNull(content?.Data);
+
+            var toLocal = DateOnly.FromDateTime(TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, budapest));
+            var fromLocal = toLocal.AddDays(-29);
+            var expectedWeekCount = ((ExpectedIsoWeekStart(toLocal).DayNumber - ExpectedIsoWeekStart(fromLocal).DayNumber) / 7) + 1;
+
+            Assert.Equal(expectedWeekCount, content.Data.Points.Count);
+            Assert.All(content.Data.Points, p => Assert.Equal(DayOfWeek.Monday, p.Bucket.DayOfWeek));
+
+            var totalConsumption = content.Data.Points.Sum(p => p.Value);
+            Assert.Equal(12m, totalConsumption);
+
+            var expectedActivityWeek = ExpectedIsoWeekStart(DateOnly.FromDateTime(TimeZoneInfo.ConvertTimeFromUtc(instant, budapest)));
+            Assert.Equal(12m, content.Data.Points.Single(p => p.Bucket == expectedActivityWeek).Value);
+        }
+        finally
+        {
+            _authHelper.ClearAuthToken();
+            if (testEmail != null)
+                await _authHelper.CleanupUserAsync(testEmail);
+        }
+    }
+
+    /// <summary>
+    /// The Monday on or before <paramref name="date"/> - an independent (test-side) re-statement
+    /// of <c>SeriesZeroFill</c>'s own private <c>StartOfIsoWeek</c>, used only to compute this
+    /// test's own expected values, never to duplicate production logic into the assertion itself.
+    /// </summary>
+    private static DateOnly ExpectedIsoWeekStart(DateOnly date)
+    {
+        var mondayIndexedDayOfWeek = ((int)date.DayOfWeek + 6) % 7;
+        return date.AddDays(-mondayIndexedDayOfWeek);
+    }
+
+    /// <summary>
+    /// The regression test for the whole task: an activity recorded at the exact same UTC instant
+    /// must bucket onto a <em>different</em> local calendar day for a caller in Europe/Budapest
+    /// than for a caller in Pacific/Auckland. 18:00 UTC is chosen deliberately, not arbitrarily:
+    /// Budapest's offset (+1/+2 depending on DST) can never cross midnight from there, while
+    /// Auckland's (+12/+13) always does - so this instant is guaranteed to disagree between the
+    /// two zones regardless of which side of a DST transition either zone happens to be on when
+    /// the suite runs. (A time closer to UTC midnight, e.g. 23:30, would not do this: both zones
+    /// have a *positive* UTC offset, so anything within their offset of midnight rolls both of
+    /// them onto the same next day, proving nothing - exactly the "instant that buckets
+    /// identically in both zones" trap called out for this test.) A naive UTC truncation would put
+    /// both callers on today's UTC date, so this genuinely fails against that bug rather than
+    /// merely restating it.
+    /// </summary>
+    [Fact]
+    public async Task GetConsumptionSeries_BudapestAndAucklandCallers_BucketSameInstantOntoDifferentLocalDays()
+    {
+        string? testEmailBudapest = null;
+        string? testEmailAuckland = null;
+        try
+        {
+            var (emailBudapest, authBudapest) = await _authHelper.CreateAndAuthenticateUserAsync("consumption-tz-budapest");
+            testEmailBudapest = emailBudapest;
+            var budapestUserId = _factory.GetUserIdByEmail(emailBudapest);
+            Assert.NotNull(budapestUserId);
+            // Central Europe (Budapest) is already TestAuthHelper's default profile timezone - see
+            // Homassy.Tests/CLAUDE.md - so no explicit SetUserTimeZoneAsync call is needed here.
+
+            var (emailAuckland, authAuckland) = await _authHelper.CreateAndAuthenticateUserAsync("consumption-tz-auckland");
+            testEmailAuckland = emailAuckland;
+            var aucklandUserId = _factory.GetUserIdByEmail(emailAuckland);
+            Assert.NotNull(aucklandUserId);
+            await SetUserTimeZoneAsync(aucklandUserId!.Value, UserTimeZone.NewZealandStandardTime);
+
+            // The same absolute instant, recorded against both (family-less) callers.
+            var instant = DateTime.SpecifyKind(DateTime.UtcNow.Date.AddDays(-5).AddHours(18), DateTimeKind.Utc);
+            await AddConsumptionActivityAsync(budapestUserId!.Value, familyId: null, quantity: 3m, instant);
+            await AddConsumptionActivityAsync(aucklandUserId!.Value, familyId: null, quantity: 3m, instant);
+
+            _authHelper.SetAuthToken(authBudapest.AccessToken);
+            var responseBudapest = await _client.GetAsync("/api/v1.0/insights/consumption?days=30&bucket=day");
+            var bodyBudapest = await responseBudapest.Content.ReadAsStringAsync();
+            _output.WriteLine($"Budapest status: {responseBudapest.StatusCode}");
+            _output.WriteLine($"Budapest response: {bodyBudapest}");
+            Assert.Equal(HttpStatusCode.OK, responseBudapest.StatusCode);
+            var contentBudapest = await responseBudapest.Content.ReadFromJsonAsync<ApiResponse<ConsumptionSeriesResponse>>();
+            Assert.NotNull(contentBudapest?.Data);
+            Assert.Equal("Europe/Budapest", contentBudapest.Data.TimeZoneId);
+
+            _authHelper.SetAuthToken(authAuckland.AccessToken);
+            var responseAuckland = await _client.GetAsync("/api/v1.0/insights/consumption?days=30&bucket=day");
+            var bodyAuckland = await responseAuckland.Content.ReadAsStringAsync();
+            _output.WriteLine($"Auckland status: {responseAuckland.StatusCode}");
+            _output.WriteLine($"Auckland response: {bodyAuckland}");
+            Assert.Equal(HttpStatusCode.OK, responseAuckland.StatusCode);
+            var contentAuckland = await responseAuckland.Content.ReadFromJsonAsync<ApiResponse<ConsumptionSeriesResponse>>();
+            Assert.NotNull(contentAuckland?.Data);
+            Assert.Equal("Pacific/Auckland", contentAuckland.Data.TimeZoneId);
+
+            var budapestDay = contentBudapest.Data.Points.Single(p => p.Value != 0m).Bucket;
+            var aucklandDay = contentAuckland.Data.Points.Single(p => p.Value != 0m).Bucket;
+
+            // The actual regression assertion.
+            Assert.NotEqual(budapestDay, aucklandDay);
+
+            // Pinned to the exact independently-computed dates (via .NET's own TimeZoneInfo, a
+            // different code path than the SQL under test), not merely "different from each
+            // other" - which a bug in the opposite direction could also satisfy by accident.
+            var budapestTz = TimeZoneInfo.FindSystemTimeZoneById("Europe/Budapest");
+            var aucklandTz = TimeZoneInfo.FindSystemTimeZoneById("Pacific/Auckland");
+            Assert.Equal(DateOnly.FromDateTime(TimeZoneInfo.ConvertTimeFromUtc(instant, budapestTz)), budapestDay);
+            Assert.Equal(DateOnly.FromDateTime(TimeZoneInfo.ConvertTimeFromUtc(instant, aucklandTz)), aucklandDay);
+        }
+        finally
+        {
+            _authHelper.ClearAuthToken();
+            if (testEmailBudapest != null)
+                await _authHelper.CleanupUserAsync(testEmailBudapest);
+            if (testEmailAuckland != null)
+                await _authHelper.CleanupUserAsync(testEmailAuckland);
         }
     }
 }
