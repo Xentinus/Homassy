@@ -63,6 +63,8 @@
 import { ref, computed, watch, onMounted } from 'vue'
 import type { ConsumptionSeriesResponse, InventoryCompositionResponse, SpendByLocationResponse } from '~/types/insights'
 import { formatCurrency } from '~/utils/chart/format'
+import { buildCompositionSlices, buildSpendGroups } from '~/utils/insightsCharts'
+import type { DonutSliceItem, SpendCurrencyGroup } from '~/utils/insightsCharts'
 
 definePageMeta({ layout: 'auth' })
 
@@ -80,59 +82,25 @@ usePageHeader(() => ({
 const compositionResponse = ref<InventoryCompositionResponse | null>(null)
 const compositionLoading = ref(true)
 
-interface DonutSliceItem { key: string, label: string, value: number }
-
 /**
- * `ChartDonut` merges any slice under 2% of the total into its OWN new trailing "other" slice —
- * it cannot absorb into one already in its input (see that component's own module comment). The
- * backend's `otherCount` is already the single "not individually listed" bucket, so passing it
- * straight through as one more slice would, whenever a ranked slice is independently under 2%,
- * produce a second, separately synthesized "other" wedge alongside it — two wedges both labelled
- * "Other". This folds any ranked slice that would trip that same threshold into `otherCount`
- * itself first, so at most one "other" bucket ever reaches `ChartDonut`.
- *
- * 0.02 mirrors `OTHER_THRESHOLD_RATIO` in `~/utils/chart/donutGeometry.ts` — not exported, and
- * that file is closed for this task, so it is repeated here rather than imported. It has to
- * match that value: a looser threshold here would leave a slice `ChartDonut` still folds away on
- * its own, which is harmless (it would only fold into this page's already-merged "other" a
- * second time) but pointless; a tighter one could keep a slice out of `ChartDonut`'s own merge
- * that this page had already folded away, shrinking the ranked list for no reason.
+ * The Other-merge fold — any ranked slice under `OTHER_THRESHOLD_RATIO` of the total gets folded
+ * into the backend's `otherCount` before this reaches `ChartDonut`, so at most one "other" bucket
+ * ever reaches it — now lives in `~/utils/insightsCharts.ts` as `buildCompositionSlices`, a plain
+ * function the vitest harness can import without a Vue runtime. It imports the same
+ * `OTHER_THRESHOLD_RATIO` this page used to mirror by value, straight from `donutGeometry.ts`, so
+ * the two folds can no longer drift apart. See that module's own comment and
+ * `tests/unit/insightsCharts.spec.ts`.
  */
-const OTHER_MERGE_THRESHOLD = 0.02
-
-const buildCompositionSlices = (data: InventoryCompositionResponse): DonutSliceItem[] => {
-  const total = data.totalCount
-  if (total <= 0) return []
-
-  const kept: DonutSliceItem[] = []
-  let mergedOther = data.otherCount
-
-  for (const slice of data.slices) {
-    if (slice.count / total < OTHER_MERGE_THRESHOLD) {
-      mergedOther += slice.count
-    } else {
-      kept.push({ key: String(slice.category), label: formatProductCategory(slice.category), value: slice.count })
-    }
-  }
-
-  // Always last, so it renders as the trailing wedge whether ChartDonut keeps it as-is (its own
-  // share is >= 2%) or folds it again (by then the only "small" slice left, since every other
-  // small one was already absorbed above) — see this function's own doc comment.
-  if (mergedOther > 0) {
-    kept.push({ key: 'other', label: t('chart.donut.otherLabel'), value: mergedOther })
-  }
-
-  return kept
-}
-
 const compositionSlices = computed<DonutSliceItem[]>(() =>
-  compositionResponse.value ? buildCompositionSlices(compositionResponse.value) : [])
+  compositionResponse.value ? buildCompositionSlices(compositionResponse.value, formatProductCategory, t) : [])
 
 const loadComposition = async (): Promise<void> => {
   compositionLoading.value = true
   try {
     const response = await getInventoryComposition()
     if (response.success && response.data) compositionResponse.value = response.data
+  } catch (error) {
+    console.error('Failed to load inventory composition:', error)
   } finally {
     compositionLoading.value = false
   }
@@ -180,6 +148,8 @@ const loadConsumption = async (): Promise<void> => {
   try {
     const response = await getConsumption(consumptionDays.value, consumptionBucket.value)
     if (response.success && response.data) consumptionResponse.value = response.data
+  } catch (error) {
+    console.error('Failed to load consumption:', error)
   } finally {
     consumptionLoading.value = false
   }
@@ -197,39 +167,15 @@ const SPEND_WINDOW_DAYS = 30
 const spendResponse = ref<SpendByLocationResponse | null>(null)
 const spendLoading = ref(true)
 
-interface SpendBarItem { key: string, label: string, value: number }
-interface SpendCurrencyGroup { currencyCode: string, bars: SpendBarItem[] }
-
 /**
- * One `ChartBar` per currency actually present — never one chart mixing currencies. Spend must
- * never be summed or compared across currencies (this milestone has no exchange rate to convert
- * with), and `ChartBar` takes a single `valueFormatter` for the whole chart with no per-bar
- * context, so it has no way to format two bars in two different currencies correctly on one
- * chart anyway. A location with nothing in a given currency simply contributes no bar to that
- * currency's chart, rather than a synthesized zero — an empty `spendByCurrency` means no *priced*
- * purchases, which this milestone treats as different from a real zero.
+ * The per-currency fold — one `ChartBar` per currency actually present, spend never summed or
+ * compared across currencies, and the unknown-location label for a null
+ * `shoppingLocationPublicId` — now lives in `~/utils/insightsCharts.ts` as `buildSpendGroups`, a
+ * plain function the vitest harness can import without a Vue runtime. See that module's own
+ * comment and `tests/unit/insightsCharts.spec.ts`.
  */
-const buildSpendGroups = (data: SpendByLocationResponse): SpendCurrencyGroup[] => {
-  const currencyCodes = new Set<string>()
-  for (const location of data.locations) {
-    for (const currencyCode of Object.keys(location.spendByCurrency)) currencyCodes.add(currencyCode)
-  }
-
-  return [...currencyCodes].sort().map(currencyCode => ({
-    currencyCode,
-    bars: data.locations
-      .filter(location => location.spendByCurrency[currencyCode] !== undefined)
-      .map(location => ({
-        key: location.shoppingLocationPublicId ?? 'unknown',
-        label: location.shoppingLocationPublicId === null ? t('insights.spend.unknownLocation') : location.locationName,
-        value: location.spendByCurrency[currencyCode]!
-      }))
-      .sort((a, b) => b.value - a.value)
-  }))
-}
-
 const spendGroups = computed<SpendCurrencyGroup[]>(() =>
-  spendResponse.value ? buildSpendGroups(spendResponse.value) : [])
+  spendResponse.value ? buildSpendGroups(spendResponse.value, t) : [])
 
 // Always at least one card, even with zero purchases in the window — an empty `spendGroups`
 // would otherwise render no card at all instead of ChartCard's own empty state.
@@ -248,6 +194,8 @@ const loadSpend = async (): Promise<void> => {
   try {
     const response = await getSpendByLocation(SPEND_WINDOW_DAYS)
     if (response.success && response.data) spendResponse.value = response.data
+  } catch (error) {
+    console.error('Failed to load spend by location:', error)
   } finally {
     spendLoading.value = false
   }

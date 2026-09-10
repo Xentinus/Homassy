@@ -44,8 +44,12 @@ export interface DonutSlice {
  * drawn as their own sliver. A spec value from the task brief ("the ring never shows a sliver too
  * thin to hit with a thumb"), not an implementer's tuning knob — so, unlike `scale.ts`'s
  * `DEFAULT_TICK_COUNT`, it is not exposed as a parameter.
+ *
+ * Exported (Task 10 fix round 1): `~/utils/insightsCharts.ts`'s `buildCompositionSlices` — the
+ * /insights page's own pre-merge fold, ahead of this module's own — has to fold at this exact same
+ * ratio, and now imports it from here instead of mirroring the value.
  */
-const OTHER_THRESHOLD_RATIO = 0.02
+export const OTHER_THRESHOLD_RATIO = 0.02
 
 /**
  * Sentinel key for the merged slice. Real categories are caller data and can be anything; this
