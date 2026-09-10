@@ -424,6 +424,7 @@
       v-model:open="isAddItemModalOpen"
       :list-id="selectedListId"
       :mode="addItemMode"
+      :initial-name="sharedItemName"
     />
 
     <!-- Barcode Scanner Modal -->
@@ -589,6 +590,43 @@ const openAddItemModal = (mode: 'product' | 'custom') => {
   addItemMode.value = mode
   isAddItemModalOpen.value = true
 }
+
+// --- Share target / app-shortcut arrivals (#118) ----------------------------
+// A name parked by /share for a custom item. Read once, then cleared: it is a
+// one-time intent, and `AddShoppingListItemModal` only seeds from it on open.
+const { takeHandoffItemName } = useShareTarget()
+const sharedItemName = ref<string | undefined>(undefined)
+
+/**
+ * The mode an arriving deep link asked for but could not be given yet, because
+ * `loadShoppingLists()` had not picked a list. `openAddItemModal` refuses without
+ * one, so the intent is parked and the watcher below fires it the moment a list
+ * exists — otherwise a shortcut into a cold start would silently do nothing.
+ */
+const pendingAddItemMode = ref<'product' | 'custom' | null>(null)
+
+function requestAddItem(mode: 'product' | 'custom') {
+  if (selectedListId.value) {
+    openAddItemModal(mode)
+  } else {
+    pendingAddItemMode.value = mode
+  }
+}
+
+watch(selectedListId, (id) => {
+  if (!id || !pendingAddItemMode.value) return
+  const mode = pendingAddItemMode.value
+  pendingAddItemMode.value = null
+  openAddItemModal(mode)
+})
+
+useDeepLinkAction({
+  add: () => requestAddItem('product'),
+  'add-custom': () => {
+    sharedItemName.value = takeHandoffItemName() ?? undefined
+    requestAddItem('custom')
+  }
+})
 
 // Dynamic add-actions on the nav FAB: only when a list is selected. Two options →
 // the FAB opens a chooser (see useFabActions); each opens the wizard in a given mode.

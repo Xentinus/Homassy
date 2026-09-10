@@ -593,6 +593,12 @@ const props = defineProps<{
   open: boolean
   listId: string | null
   mode: 'product' | 'custom'
+  /**
+   * Seeds the custom-item name when the wizard opens (#118) — how a share from
+   * another app arrives as a shopping-list item. Only meaningful in `custom` mode;
+   * `product` mode picks an existing product rather than typing a name.
+   */
+  initialName?: string
 }>()
 
 const emit = defineEmits<{
@@ -916,7 +922,12 @@ const resetState = () => {
   openFoodFactsProduct.value = null
   isOpenFoodFactsModalOpen.value = false
 
-  customFormData.value = { customName: '' }
+  // `initialName` only ever seeds the custom branch — see the prop's doc comment.
+  // Capped at the 128 characters `customNameSchema` allows, so a long shared line
+  // arrives as a valid field rather than one that fails validation on sight.
+  customFormData.value = {
+    customName: props.mode === 'custom' ? (props.initialName?.trim().slice(0, 128) ?? '') : ''
+  }
 
   shoppingLocationSearchQuery.value = ''
   selectedShoppingLocationId.value = null

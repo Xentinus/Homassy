@@ -348,6 +348,9 @@ const { getDetailedProducts } = useProductsApi()
 const { isExpired: checkIsExpired, isExpiringSoon: checkIsExpiringSoon } = useExpirationCheck()
 const { t: $t, locale: $locale } = useI18n()
 const { showCameraButton } = useCameraAvailability()
+// The scanner overlay is already mounted on this page (BarcodeScannerModal); this is
+// only how the "Scan barcode" app shortcut opens it (#118).
+const { openScanner } = useBarcodeScanner()
 const inventorySocket = useInventorySocket()
 const eventBus = useEventBus()
 // Shared with InventoryOverviewDrawer / InventoryItemRow's optimistic delete + move — see
@@ -383,6 +386,15 @@ useFabActions(() => [
     handler: () => { isAddInventoryOpen.value = true }
   }
 ])
+
+// Manifest app shortcuts land here with an action already chosen (#118): "Add item"
+// and "Scan barcode" both open this page, so the shortcut has to do what the FAB and
+// the camera button would have done. `useDeepLinkAction` strips the parameter, so a
+// later back-navigation to /products does not reopen the drawer.
+useDeepLinkAction({
+  add: () => { isAddInventoryOpen.value = true },
+  scan: () => openScanner()
+})
 
 const { pullDistance, isPulling, isRefreshing, isReady } = usePullToRefresh(() => loadProducts())
 

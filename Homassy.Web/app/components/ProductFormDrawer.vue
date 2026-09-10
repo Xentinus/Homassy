@@ -7,13 +7,16 @@
     @update:open="(v) => emit('update:open', v)"
   >
     <div class="space-y-6">
-        <!-- Product image (edit only — upload needs an existing product) -->
-        <div v-if="isEdit" class="flex flex-col items-center gap-3">
+        <!-- Product image. The controls are edit-only — uploading needs an existing
+             product id — but the thumbnail also shows in create mode when a shared
+             image is waiting to be attached (#118), so the user can see what they
+             shared before they name it. -->
+        <div v-if="isEdit || pendingImage" class="flex flex-col items-center gap-3">
           <div class="h-28 w-28 rounded-xl overflow-hidden border border-default">
             <ProductImage :src="imagePreview" :category="form.category" />
           </div>
           <input ref="fileInput" type="file" accept="image/*" class="hidden" @change="handleFileSelect">
-          <div class="flex items-center gap-2 flex-wrap justify-center">
+          <div v-if="isEdit" class="flex items-center gap-2 flex-wrap justify-center">
             <UButton icon="i-lucide-upload" color="primary" variant="soft" :label="t('profile.changePhoto')" :loading="isUploadingImage" @click="fileInput?.click()" />
             <UButton v-if="!imagePreview && form.barcode" icon="i-lucide-barcode" color="primary" variant="soft" :label="t('pages.addProduct.form.imageFromBarcode')" :loading="isImportingImageFromBarcode" @click="handleImportImageFromBarcode" />
             <UButton v-if="imagePreview" icon="i-lucide-trash-2" color="error" variant="soft" :label="t('profile.removePhoto')" :loading="isDeletingImage" @click="handleDeleteProductImage" />
@@ -157,8 +160,25 @@ import { emptyProductForm, type ProductSchema } from '~/composables/useProductFo
 const props = withDefaults(defineProps<{
   open: boolean
   product?: ProductInfo | null
+  /**
+   * Seeds the name field when the drawer opens in create mode. Used by `/share` to
+   * carry a shared title/text into the form (#118); ignored when editing, where the
+   * product's own name is the only correct value.
+   */
+  initialName?: string
+  /**
+   * An image to attach to the product this drawer is about to create (#118).
+   *
+   * Uploading needs a product id, which does not exist yet, so the file is held and
+   * uploaded immediately after `createProduct` succeeds — which is why the image
+   * controls stay edit-only: in create mode there is nothing to upload *to* yet, and
+   * the thumbnail is a preview of what will be attached, not an editable field.
+   */
+  pendingImage?: File | null
 }>(), {
-  product: null
+  product: null,
+  initialName: undefined,
+  pendingImage: null
 })
 
 const emit = defineEmits<{
@@ -241,10 +261,30 @@ watch(() => props.open, (isOpen) => {
     }
     imagePreview.value = props.product.productImageUrl || undefined
   } else {
-    form.value = emptyProductForm()
+    form.value = { ...emptyProductForm(), name: props.initialName?.trim().slice(0, 128) || '' }
     imagePreview.value = undefined
+    seedPendingImagePreview()
   }
 })
+
+/**
+ * Renders `pendingImage` into `imagePreview` so a create-mode drawer shows the picture
+ * that will be attached once the product exists. `useMediaUrl` passes a `data:` URI
+ * through untouched, which is what lets the same `imagePreview` hold both a stored
+ * image's URL and this.
+ */
+function seedPendingImagePreview() {
+  const file = props.pendingImage
+  if (!file) return
+  const reader = new FileReader()
+  reader.onload = (event) => {
+    // Guard against a race: the drawer may have been closed and reopened for a
+    // different product while this read was in flight.
+    if (!props.open || props.product) return
+    imagePreview.value = event.target?.result as string
+  }
+  reader.readAsDataURL(file)
+}
 
 function handleFileSelect(event: Event) {
   const target = event.target as HTMLInputElement
@@ -426,6 +466,48 @@ function applyScannedBarcode(barcode: string) {
 }
 defineExpose({ applyScannedBarcode })
 
+/**
+ * Uploads `pendingImage` onto a product that has just been created (#118).
+ *
+ * Uses the synchronous upload endpoint rather than the job-tracked one the edit flow
+ * uses: there is no progress UI to drive here (the drawer is closing), and the same
+ * 500px / 0.5MB client-side compression the rest of the app applies keeps the request
+ * small enough that a progress bar would only ever flash.
+ *
+ * A failure is reported but does not fail the save. The product exists and is correct;
+ * losing the picture is a smaller loss than making the user re-enter the form, and the
+ * image can be added from the product's own screen.
+ */
+async function uploadPendingImage(productPublicId: string) {
+  const file = props.pendingImage
+  if (!file) return
+
+  isUploadingImage.value = true
+  try {
+    const compressed = await imageCompression(file, { maxWidthOrHeight: 500, maxSizeMB: 0.5, useWebWorker: true })
+    const base64 = await new Promise<string>((resolve, reject) => {
+      const reader = new FileReader()
+      reader.onload = () => resolve(reader.result as string)
+      reader.onerror = () => reject(reader.error ?? new Error('Failed to read the shared image'))
+      reader.readAsDataURL(compressed)
+    })
+    const pureBase64 = base64.includes(',') ? base64.split(',')[1] ?? '' : base64
+    if (!pureBase64) throw new Error('The shared image decoded to nothing')
+
+    await uploadProductImage(productPublicId, { productPublicId, imageBase64: pureBase64 })
+  } catch (error) {
+    console.error('Failed to attach the shared image:', error)
+    toast.add({
+      title: t('toast.error'),
+      description: t('share.imageAttachFailed'),
+      color: 'error',
+      icon: 'i-lucide-alert-circle'
+    })
+  } finally {
+    isUploadingImage.value = false
+  }
+}
+
 // --- Submit ------------------------------------------------------------------
 async function onSubmit(event: FormSubmitEvent<ProductSchema>) {
   const data = event.data
@@ -438,6 +520,12 @@ async function onSubmit(event: FormSubmitEvent<ProductSchema>) {
       : await createProduct(toCreateProductRequest(data), failureMessage)
 
     if (res.success && res.data) {
+      // A shared image can only be uploaded now that the product has an id (#118).
+      // Deliberately before `saved`: the parent's refetch then already sees the
+      // image, so the new card does not appear without it and then flip.
+      if (!props.product && props.pendingImage) {
+        await uploadPendingImage(res.data.publicId)
+      }
       emit('saved', res.data)
       emit('update:open', false)
     } else {

@@ -8,6 +8,7 @@ import type { LoginFlow } from '@ory/client'
 import type { PublicKeyCredentialRequestOptionsJSON } from '@simplewebauthn/browser'
 import type { KratosError } from '~/composables/useKratos'
 import * as z from 'zod'
+import { safeReturnTo } from '~/utils/shareText'
 
 definePageMeta({
   layout: 'public'
@@ -266,13 +267,9 @@ async function triggerPasskeyLogin() {
  */
 async function handleLoginSuccess() {
   console.debug('[Login] Login successful, redirecting...')
-  
-  const returnTo = route.query.return_to as string
-  if (returnTo) {
-    await router.push(returnTo)
-  } else {
-    await router.push('/calendar')
-  }
+  // `safeReturnTo` validates the destination the auth middleware carried over (#118);
+  // see that helper for why it is not just read straight out of the query.
+  await router.push(safeReturnTo(route.query.return_to))
 }
 
 /**
@@ -387,12 +384,7 @@ function goBackToEmail() {
  * (return_to URL when present, otherwise the calendar)
  */
 async function handleContinue() {
-  const returnTo = route.query.return_to as string
-  if (returnTo) {
-    await router.push(returnTo)
-  } else {
-    await router.push('/calendar')
-  }
+  await router.push(safeReturnTo(route.query.return_to))
 }
 
 /**

@@ -2717,5 +2717,22 @@
     },
     "tryAgain": "Újrapróbálás",
     "goToCalendar": "Ugrás a naptárhoz"
+  },
+  "share": {
+    "title": "Megosztva a Homassyval",
+    "chooseTitle": "Mi legyen ebből?",
+    "chooseHint": "A Homassy egy másik alkalmazásból kapta ezt. Válaszd ki, hova tartozik.",
+    "toShoppingList": "Hozzáadás a bevásárlólistához",
+    "toProduct": "Termék létrehozása",
+    "toProductNoName": "A nevét a következő lépésben adhatod meg",
+    "imageAlt": "Megosztott kép",
+    "imageOnly": "{count} megosztott kép",
+    "productCreated": "„{name}” létrehozva",
+    "imageAttachFailed": "A termék létrejött, de a megosztott képet nem sikerült hozzáadni.",
+    "empty": {
+      "title": "Nem osztottál meg semmit",
+      "description": "Ossz meg szöveget vagy képet egy másik alkalmazásból, és itt fog megjelenni.",
+      "action": "Vissza a naptárhoz"
+    }
   }
 }

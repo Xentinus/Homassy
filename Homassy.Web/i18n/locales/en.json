@@ -2717,5 +2717,22 @@
     },
     "tryAgain": "Try again",
     "goToCalendar": "Go to the calendar"
+  },
+  "share": {
+    "title": "Shared with Homassy",
+    "chooseTitle": "What should this become?",
+    "chooseHint": "Homassy received this from another app. Pick where it belongs.",
+    "toShoppingList": "Add to the shopping list",
+    "toProduct": "Create a product",
+    "toProductNoName": "You can name it in the next step",
+    "imageAlt": "Shared image",
+    "imageOnly": "{count} shared image",
+    "productCreated": "\"{name}\" created",
+    "imageAttachFailed": "The product was created, but the shared image could not be attached.",
+    "empty": {
+      "title": "Nothing was shared",
+      "description": "Share text or a picture from another app and it will show up here.",
+      "action": "Go to the calendar"
+    }
   }
 }

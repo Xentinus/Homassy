@@ -2717,5 +2717,22 @@
     },
     "tryAgain": "Erneut versuchen",
     "goToCalendar": "Zum Kalender"
+  },
+  "share": {
+    "title": "Mit Homassy geteilt",
+    "chooseTitle": "Was soll daraus werden?",
+    "chooseHint": "Homassy hat das von einer anderen App erhalten. Wähle, wohin es gehört.",
+    "toShoppingList": "Zur Einkaufsliste hinzufügen",
+    "toProduct": "Produkt anlegen",
+    "toProductNoName": "Den Namen kannst du im nächsten Schritt angeben",
+    "imageAlt": "Geteiltes Bild",
+    "imageOnly": "{count} geteiltes Bild",
+    "productCreated": "„{name}“ angelegt",
+    "imageAttachFailed": "Das Produkt wurde angelegt, aber das geteilte Bild konnte nicht angehängt werden.",
+    "empty": {
+      "title": "Es wurde nichts geteilt",
+      "description": "Teile Text oder ein Bild aus einer anderen App, dann erscheint es hier.",
+      "action": "Zum Kalender"
+    }
   }
 }
