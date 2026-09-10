@@ -1045,7 +1045,13 @@
       "title": "Bester bekannter Preis:",
       "at": "bei {shop}"
     },
-    "aboveAverage": "Mehr als du üblicherweise dafür zahlst."
+    "aboveAverage": "Mehr als du üblicherweise dafür zahlst.",
+    "estimate": {
+      "label": "Geschätzte Summe",
+      "approx": "≈ {amount}",
+      "unpriced": "{count} ohne bekannten Preis",
+      "noneKnown": "Noch keine Preise bekannt"
+    }
   },
   "profile": {
     "title": "Profil",

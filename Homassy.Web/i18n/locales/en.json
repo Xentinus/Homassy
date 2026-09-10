@@ -1045,7 +1045,13 @@
       "title": "Best known price:",
       "at": "at {shop}"
     },
-    "aboveAverage": "More than you usually pay for this."
+    "aboveAverage": "More than you usually pay for this.",
+    "estimate": {
+      "label": "Estimated total",
+      "approx": "≈ {amount}",
+      "unpriced": "{count} without a known price",
+      "noneKnown": "No prices known yet"
+    }
   },
   "profile": {
     "title": "Profile",

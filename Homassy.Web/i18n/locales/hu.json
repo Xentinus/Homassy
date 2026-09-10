@@ -1045,7 +1045,13 @@
       "title": "Legjobb ismert ár:",
       "at": "itt: {shop}"
     },
-    "aboveAverage": "A szokásosnál többet fizettél ezért."
+    "aboveAverage": "A szokásosnál többet fizettél ezért.",
+    "estimate": {
+      "label": "Becsült összeg",
+      "approx": "≈ {amount}",
+      "unpriced": "{count} db ismert ár nélkül",
+      "noneKnown": "Még nincs ismert ár"
+    }
   },
   "profile": {
     "title": "Profil",
