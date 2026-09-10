@@ -20,5 +20,23 @@ namespace Homassy.API.Models.User
 
         /// <summary>Chosen identity-colour key from the curated palette, or null for the deterministic pick.</summary>
         public string? IdentityColor { get; init; }
+
+        /// <summary>
+        /// When this user was last seen, as the server knows it - or null if it has never been
+        /// written for them (#127).
+        /// </summary>
+        /// <remarks>
+        /// Sent so a client with no last-seen of its own can still ask a meaningful "what changed
+        /// while I was away" - the first launch on a new device, which is the one case a device-local
+        /// value cannot cover. A client that has its own value prefers it: this one lags by up to a
+        /// flush interval and counts every device the user has (see
+        /// <c>Entities.User.UserProfile.LastSeenAt</c>).
+        /// <para>
+        /// It is the value <em>before</em> this request's own stamp: the stamp lives in
+        /// <see cref="Services.LastSeenTracker"/>'s memory until the next flush, so a caller reading
+        /// this at boot gets the moment they were previously here rather than "now".
+        /// </para>
+        /// </remarks>
+        public DateTime? LastSeenAt { get; init; }
     }
 }

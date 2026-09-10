@@ -973,6 +973,11 @@
     "empty": {
       "title": "No activity yet",
       "description": "Once someone in your family adds, updates, or removes something, it will show up here."
+    },
+    "away": {
+      "changes": "{count} changes since your last visit",
+      "windowNotice": "Showing what changed while you were away",
+      "showAll": "Show all"
     }
   },
   "realtime": {
@@ -998,6 +1003,82 @@
     },
     "failed": "The change couldn't be saved, so it was undone.",
     "secondsLeft": "{seconds}s"
+  },
+  "chart": {
+    "showData": "Show data",
+    "hideData": "Hide data",
+    "noData": "No data available",
+    "dataTableCaption": "Chart data as a table",
+    "categoryHeader": "Category",
+    "valueHeader": "Value",
+    "donut": {
+      "otherLabel": "Other",
+      "shareHeader": "Share"
+    },
+    "line": {
+      "seriesHeader": "Series"
+    }
+  },
+  "insights": {
+    "title": "Insights",
+    "description": "See charts for your stock, consumption, and spending.",
+    "composition": {
+      "title": "Inventory by category"
+    },
+    "consumption": {
+      "title": "Consumption",
+      "seriesLabel": "Consumed",
+      "last30Days": "Last 30 days",
+      "last90Days": "Last 90 days"
+    },
+    "spend": {
+      "title": "Spend by location (last 30 days)",
+      "titleWithCurrency": "Spend by location (last 30 days) · {currency}",
+      "unknownLocation": "Unknown location"
+    },
+    "leaderboard": {
+      "title": "Who did what",
+      "period": "{from} – {to}",
+      "empty": "Create a family to see the household leaderboard.",
+      "deltaUp": "more than last period",
+      "deltaDown": "fewer than last period",
+      "deltaLevel": "same as last period"
+    },
+    "streaks": {
+      "title": "Household streaks",
+      "noExpiry": "Nothing expired",
+      "listCleared": "Shopping list cleared",
+      "currentDays": "{count} days running",
+      "longestDays": "best: {count} days"
+    },
+    "badges": {
+      "title": "Badges",
+      "earnedCount": "{earned} of {total} earned",
+      "empty": "No badges to show yet.",
+      "earned": "Earned",
+      "justUnlocked": "Just unlocked!"
+    }
+  },
+  "price": {
+    "history": {
+      "title": "Price history",
+      "empty": "No purchases with a recorded price yet."
+    },
+    "basis": {
+      "perUnit": "Price per {unit}",
+      "packageNote": "Compared per package, not by weight or volume."
+    },
+    "best": {
+      "title": "Best known price:",
+      "at": "at {shop}"
+    },
+    "aboveAverage": "More than you usually pay for this.",
+    "estimate": {
+      "label": "Estimated total",
+      "approx": "≈ {amount}",
+      "unpriced": "{count} without a known price",
+      "noneKnown": "No prices known yet"
+    }
   },
   "profile": {
     "title": "Profile",

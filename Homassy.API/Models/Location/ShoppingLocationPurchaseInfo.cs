@@ -14,7 +14,7 @@ namespace Homassy.API.Models.Location
         public string ProductBrand { get; set; } = string.Empty;
         public decimal Quantity { get; set; }
         public Unit? Unit { get; set; }
-        public int? Price { get; set; }
+        public decimal? Price { get; set; }
         public Currency? Currency { get; set; }
         public DateTime PurchasedAt { get; set; }
     }

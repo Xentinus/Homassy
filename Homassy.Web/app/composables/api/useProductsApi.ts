@@ -26,6 +26,10 @@ import type {
   ExpirationCountResponse,
   ProductHistoryEventInfo
 } from '~/types/product'
+import type {
+  PriceHistoryResponse,
+  PriceHistoryWindowDays
+} from '~/types/insights'
 
 export const useProductsApi = () => {
   const client = useApiClient()
@@ -91,6 +95,20 @@ export const useProductsApi = () => {
   const getProductHistory = async (productPublicId: string) => {
     return await client.get<ProductHistoryEventInfo[]>(
       `/api/v1/Product/${productPublicId}/history`
+    )
+  }
+
+  /**
+   * One product's purchase price history for the caller's household (#128) — per shop, normalized
+   * to a price per canonical unit so pack sizes compare, and grouped by currency.
+   *
+   * `days` must be 90, 180 or 365; any other value is a 400. A product the household has never
+   * bought (and an unknown id) answers 200 with an empty `byCurrency` rather than a 404, so a
+   * caller renders "no price history yet" from the payload and never from an error branch.
+   */
+  const getPriceHistory = async (productPublicId: string, days: PriceHistoryWindowDays = 180) => {
+    return await client.get<PriceHistoryResponse>(
+      `/api/v1/Product/${productPublicId}/price-history?days=${days}`
     )
   }
 
@@ -330,6 +348,7 @@ export const useProductsApi = () => {
     getDetailedProducts,
     getProductDetails,
     getProductHistory,
+    getPriceHistory,
     createProduct,
     updateProduct,
     toggleFavorite,

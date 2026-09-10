@@ -89,6 +89,15 @@
         <span class="text-toned">{{ unitLabel }}</span>
       </div>
 
+      <!-- Best known price (#128) — what this household has actually paid per unit for this
+           product, and where. Absent whenever no price is known: the page never passes a
+           placeholder, so there is no "—" row implying a price of nothing. -->
+      <div v-if="bestPrice" class="flex items-center gap-2 text-xs" :title="$t('price.best.title')">
+        <UIcon name="i-lucide-tag" class="h-3.5 w-3.5 text-primary flex-shrink-0" />
+        <span class="font-bold text-highlighted tabular-nums">{{ bestPriceLabel }}</span>
+        <span class="text-toned break-words line-clamp-1">{{ bestPriceShopLabel }}</span>
+      </div>
+
       <!-- Note (if not empty) -->
       <div v-if="item.note" class="flex items-start gap-2 text-xs">
         <UIcon name="i-lucide-sticky-note" class="h-3.5 w-3.5 text-purple-600 dark:text-purple-400 mt-0.5 flex-shrink-0" />
@@ -533,6 +542,8 @@ import { ref, computed } from 'vue'
 import type { LightboxImage } from './ImageLightbox.vue'
 import type { ShoppingListItemInfo, PurchaseShoppingListItemRequest } from '../types/shoppingList'
 import type { ShoppingLocationInfo } from '../types/location'
+import type { BestKnownPrice } from '../types/insights'
+import { formatCurrency } from '~/utils/chart/format'
 import { Unit } from '../types/enums'
 import type { CalendarDate } from '@internationalized/date'
 import { CalendarDate as CalendarDateClass } from '@internationalized/date'
@@ -548,6 +559,11 @@ interface Props {
   shoppingLocations?: ShoppingLocationInfo[]
   // The store the user is currently standing at (GPS), pre-filled as the purchase location.
   currentStore?: ShoppingLocationInfo
+  // The cheapest price the household has recorded for this item's product (#128), or undefined
+  // when none is known. The page fetches every row's price in ONE request (see its own
+  // loadBestPrices) and hands the result down — this card never fetches its own, which is the
+  // difference between one round trip per list and one per row.
+  bestPrice?: BestKnownPrice
 }
 
 const props = withDefaults(defineProps<Props>(), {
@@ -555,8 +571,10 @@ const props = withDefaults(defineProps<Props>(), {
   atCurrentLocation: false,
   similarTypeAtCurrentLocation: false,
   shoppingLocations: () => [],
-  currentStore: undefined
+  currentStore: undefined,
+  bestPrice: undefined
 })
+
 
 // Highlight "buy it here" only for items still to be bought at a nearby location.
 const isHereToBuy = computed(() => props.atCurrentLocation && !props.item.purchasedAt)
@@ -578,6 +596,22 @@ const emit = defineEmits<{
 }>()
 
 const { t, locale } = useI18n()
+
+/**
+ * The amount, formatted in the currency it was actually paid in — never converted. `currency` is
+ * the API's enum name ("Huf"), which `Intl.NumberFormat` accepts as a well-formed code; see
+ * `BestKnownPrice.currency`'s own remarks in the C# record for why it is not a number.
+ */
+const bestPriceLabel = computed(() =>
+  props.bestPrice ? formatCurrency(props.bestPrice.unitPrice, props.bestPrice.currency, locale.value) : '')
+
+/** The "unknown location" bucket carries the server's English literal, so it is localized here. */
+const bestPriceShopLabel = computed(() => {
+  if (!props.bestPrice) return ''
+  return props.bestPrice.shoppingLocationPublicId === null
+    ? t('insights.spend.unknownLocation')
+    : props.bestPrice.locationName
+})
 const haptics = useHaptics()
 const { inputDateLocale } = useInputDateLocale()
 const { updateShoppingListItem } = useShoppingListApi()

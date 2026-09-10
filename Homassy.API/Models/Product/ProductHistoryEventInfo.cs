@@ -14,7 +14,7 @@ namespace Homassy.API.Models.Product
         public decimal? Quantity { get; set; }
         public decimal? RemainingQuantity { get; set; }
         public Unit? Unit { get; set; }
-        public int? Price { get; set; }
+        public decimal? Price { get; set; }
         public Currency? Currency { get; set; }
         public string? UserName { get; set; }
         public LocationInfo? Location { get; set; }

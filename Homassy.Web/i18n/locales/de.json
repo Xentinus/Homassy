@@ -973,6 +973,11 @@
     "empty": {
       "title": "Noch keine Aktivität",
       "description": "Sobald jemand in deiner Familie etwas hinzufügt, ändert oder entfernt, erscheint es hier."
+    },
+    "away": {
+      "changes": "{count} Änderungen seit deinem letzten Besuch",
+      "windowNotice": "Angezeigt wird, was während deiner Abwesenheit passiert ist",
+      "showAll": "Alle anzeigen"
     }
   },
   "realtime": {
@@ -998,6 +1003,82 @@
     },
     "failed": "Die Änderung konnte nicht gespeichert werden und wurde rückgängig gemacht.",
     "secondsLeft": "{seconds} s"
+  },
+  "chart": {
+    "showData": "Daten anzeigen",
+    "hideData": "Daten ausblenden",
+    "noData": "Keine Daten verfügbar",
+    "dataTableCaption": "Diagrammdaten als Tabelle",
+    "categoryHeader": "Kategorie",
+    "valueHeader": "Wert",
+    "donut": {
+      "otherLabel": "Sonstiges",
+      "shareHeader": "Anteil"
+    },
+    "line": {
+      "seriesHeader": "Serie"
+    }
+  },
+  "insights": {
+    "title": "Einblicke",
+    "description": "Diagramme zu deinem Bestand, Verbrauch und deinen Ausgaben.",
+    "composition": {
+      "title": "Bestand nach Kategorie"
+    },
+    "consumption": {
+      "title": "Verbrauch",
+      "seriesLabel": "Verbraucht",
+      "last30Days": "Letzte 30 Tage",
+      "last90Days": "Letzte 90 Tage"
+    },
+    "spend": {
+      "title": "Ausgaben nach Standort (letzte 30 Tage)",
+      "titleWithCurrency": "Ausgaben nach Standort (letzte 30 Tage) · {currency}",
+      "unknownLocation": "Unbekannter Standort"
+    },
+    "leaderboard": {
+      "title": "Wer was getan hat",
+      "period": "{from} – {to}",
+      "empty": "Erstelle eine Familie, um die Haushaltsrangliste zu sehen.",
+      "deltaUp": "mehr als im letzten Zeitraum",
+      "deltaDown": "weniger als im letzten Zeitraum",
+      "deltaLevel": "genauso viel wie im letzten Zeitraum"
+    },
+    "streaks": {
+      "title": "Haushalts-Serien",
+      "noExpiry": "Nichts abgelaufen",
+      "listCleared": "Einkaufsliste erledigt",
+      "currentDays": "seit {count} Tagen",
+      "longestDays": "Bestwert: {count} Tage"
+    },
+    "badges": {
+      "title": "Abzeichen",
+      "earnedCount": "{earned} von {total} erreicht",
+      "empty": "Noch keine Abzeichen vorhanden.",
+      "earned": "Erreicht",
+      "justUnlocked": "Gerade freigeschaltet!"
+    }
+  },
+  "price": {
+    "history": {
+      "title": "Preisverlauf",
+      "empty": "Noch keine Einkäufe mit erfasstem Preis."
+    },
+    "basis": {
+      "perUnit": "Preis pro {unit}",
+      "packageNote": "Verglichen pro Packung, nicht nach Gewicht oder Volumen."
+    },
+    "best": {
+      "title": "Bester bekannter Preis:",
+      "at": "bei {shop}"
+    },
+    "aboveAverage": "Mehr als du üblicherweise dafür zahlst.",
+    "estimate": {
+      "label": "Geschätzte Summe",
+      "approx": "≈ {amount}",
+      "unpriced": "{count} ohne bekannten Preis",
+      "noneKnown": "Noch keine Preise bekannt"
+    }
   },
   "profile": {
     "title": "Profil",

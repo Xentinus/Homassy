@@ -37,6 +37,14 @@
         @move-requested="handleMoveRequested"
       />
 
+      <!-- The price card goes above the stock history: the history is a log of what happened, the
+           price chart is the conclusion drawn from it, and the conclusion is what someone opening
+           this drawer before a shopping trip is actually after. -->
+      <PriceHistoryCard
+        :history="priceHistory"
+        :loading="isLoadingPriceHistory"
+      />
+
       <ProductHistoryList
         :items="history"
         :loading="isLoadingHistory"
@@ -61,6 +69,7 @@ import type {
   ProductDeletedEvent,
   ProductFavoriteChangedEvent
 } from '../types/product'
+import type { PriceHistoryResponse } from '../types/insights'
 
 interface Props {
   open: boolean
@@ -74,7 +83,7 @@ const emit = defineEmits<{
 }>()
 
 const { t: $t } = useI18n()
-const { getProductDetails, getProductHistory, toggleFavorite, deleteInventoryItem, moveInventoryItems } = useProductsApi()
+const { getProductDetails, getProductHistory, getPriceHistory, toggleFavorite, deleteInventoryItem, moveInventoryItems } = useProductsApi()
 const inventorySocket = useInventorySocket()
 const toast = useToast()
 // This drawer owns product.value.inventoryItems, so it is what applies/reverts the optimistic
@@ -85,8 +94,10 @@ const { run, isPendingEntity } = useUndoableAction()
 // State
 const product = ref<DetailedProductInfo | null>(null)
 const history = ref<ProductHistoryEventInfo[]>([])
+const priceHistory = ref<PriceHistoryResponse | null>(null)
 const isLoading = ref(false)
 const isLoadingHistory = ref(false)
+const isLoadingPriceHistory = ref(false)
 const error = ref(false)
 const isImageOverlayOpen = ref(false)
 const lightboxOrigin = ref<HTMLElement | null>(null)
@@ -163,10 +174,38 @@ const loadHistory = async () => {
   }
 }
 
-// Reload product + history together (after an inventory mutation or a realtime event).
+/**
+ * The product's purchase price history (#128). Its own request and its own loading flag, so a slow
+ * aggregation never holds up the panel and the item list above it - the price card carries its own
+ * skeleton in the box its chart will occupy.
+ *
+ * An empty response is a legitimate answer, not an error: a product nobody has bought (or bought
+ * without recording a price) answers 200 with an empty `byCurrency`, which is what the card
+ * renders its own "no priced purchases yet" message from.
+ */
+const loadPriceHistory = async () => {
+  const publicId = props.productPublicId
+  if (!publicId) return
+
+  isLoadingPriceHistory.value = true
+  try {
+    const response = await getPriceHistory(publicId)
+    priceHistory.value = response.success && response.data ? response.data : null
+  } catch (err) {
+    console.error('Failed to load price history:', err)
+    priceHistory.value = null
+  } finally {
+    isLoadingPriceHistory.value = false
+  }
+}
+
+// Reload product + history together (after an inventory mutation or a realtime event). The price
+// history joins them: a new purchase (or a corrected price) changes the chart, and the endpoint's
+// own 5-minute cache is per (user, product, window), so a refetch here is cheap when nothing moved.
 const refreshAll = () => {
   loadProductDetails()
   loadHistory()
+  loadPriceHistory()
 }
 
 // Load whenever the drawer opens for a product.
@@ -174,10 +213,12 @@ watch(() => [props.open, props.productPublicId] as const, ([isOpen, publicId]) =
   if (isOpen && publicId) {
     loadProductDetails()
     loadHistory()
+    loadPriceHistory()
   } else if (!isOpen) {
     // Reset so a stale product doesn't flash on the next open.
     product.value = null
     history.value = []
+    priceHistory.value = null
     error.value = false
   }
 })

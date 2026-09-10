@@ -303,6 +303,23 @@ namespace Homassy.API.Functions
             if (request.ActivityType.HasValue)
                 query = query.Where(a => a.ActivityType == request.ActivityType.Value);
 
+            // The optional window (#127). Applied before the visibility filter and the cursor, so
+            // it narrows the same query the unwindowed timeline uses rather than being a second
+            // code path - see ActivityTimelineRequest.Since. Exclusive at the start and inclusive
+            // at the end, matching the away delta's own window so the card's count and the
+            // timeline it links to cover exactly the same rows.
+            if (request.Since.HasValue)
+            {
+                var sinceUtc = DateTime.SpecifyKind(request.Since.Value, DateTimeKind.Utc);
+                query = query.Where(a => a.Timestamp > sinceUtc);
+            }
+
+            if (request.Until.HasValue)
+            {
+                var untilUtc = DateTime.SpecifyKind(request.Until.Value, DateTimeKind.Utc);
+                query = query.Where(a => a.Timestamp <= untilUtc);
+            }
+
             var visibilityFilteredQuery = ApplyActivityVisibilityFilter(query, userId.Value, request.UserPublicId);
             if (visibilityFilteredQuery == null)
                 return new ActivityTimelineResult { Entries = [], NextCursor = null };

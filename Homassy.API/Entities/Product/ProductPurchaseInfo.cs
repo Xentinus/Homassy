@@ -16,7 +16,7 @@ namespace Homassy.API.Entities.Product
         [Range(0.001, double.MaxValue, ErrorMessage = "Original quantity must be greater than 0")]
         public required decimal OriginalQuantity { get; set; }
 
-        public int? Price { get; set; }
+        public decimal? Price { get; set; }
 
         [EnumDataType(typeof(Currency))]
         public Currency? Currency { get; set; }

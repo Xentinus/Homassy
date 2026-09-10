@@ -115,6 +115,22 @@ namespace Homassy.API.Context
 
                 entity.HasIndex(e => e.UserId).IsUnique();
             });
+
+            // Badge earned state (#109). The unique index on (UserId, BadgeId) is the point of
+            // this configuration, not a nicety: two concurrent requests can both cross the same
+            // threshold, and a database that refuses the second insert is what makes
+            // double-granting - and therefore a second unlock celebration - impossible rather
+            // than merely unlikely. No navigation from User: badges are read by user id, and a
+            // collection on User would invite Include()ing them into every profile load.
+            modelBuilder.Entity<UserBadge>(entity =>
+            {
+                entity.HasOne(b => b.User)
+                    .WithMany()
+                    .HasForeignKey(b => b.UserId)
+                    .OnDelete(DeleteBehavior.Cascade);
+
+                entity.HasIndex(e => new { e.UserId, e.BadgeId }).IsUnique();
+            });
             #endregion
 
             #region FamilyExternalCalendar Relationships
@@ -230,6 +246,12 @@ namespace Homassy.API.Context
                 .HasForeignKey(p => p.ShoppingLocationId)
                 .OnDelete(DeleteBehavior.SetNull);
 
+            // Task 11 (#128): explicit precision, or EF picks its own default and the generated
+            // migration will not match what Step 5 of the task brief expects (numeric(18,4)).
+            modelBuilder.Entity<ProductPurchaseInfo>()
+                .Property(p => p.Price)
+                .HasPrecision(18, 4);
+
             modelBuilder.Entity<ProductInventoryItem>()
                 .HasMany(i => i.Automations)
                 .WithOne(a => a.ProductInventoryItem)
@@ -343,6 +365,7 @@ namespace Homassy.API.Context
         public DbSet<UserProfilePicture> UserProfilePictures { get; set; }
         public DbSet<UserNotificationPreferences> UserNotificationPreferences { get; set; }
         public DbSet<UserPushSubscription> UserPushSubscriptions { get; set; }
+        public DbSet<UserBadge> UserBadges { get; set; }
         public DbSet<Family> Families { get; set; }
         public DbSet<FamilyJoinRequest> FamilyJoinRequests { get; set; }
         public DbSet<FamilyExternalCalendar> FamilyExternalCalendars { get; set; }

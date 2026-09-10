@@ -849,8 +849,9 @@ namespace Homassy.API.Migrations
                     b.Property<decimal>("OriginalQuantity")
                         .HasColumnType("numeric");
 
-                    b.Property<int?>("Price")
-                        .HasColumnType("integer");
+                    b.Property<decimal?>("Price")
+                        .HasPrecision(18, 4)
+                        .HasColumnType("numeric(18,4)");
 
                     b.Property<int>("ProductInventoryItemId")
                         .HasColumnType("integer");
@@ -1036,6 +1037,45 @@ namespace Homassy.API.Migrations
                     b.ToTable("Users");
                 });
 
+            modelBuilder.Entity("Homassy.API.Entities.User.UserBadge", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("BadgeId")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)");
+
+                    b.Property<DateTime>("EarnedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<bool>("IsDeleted")
+                        .HasColumnType("boolean");
+
+                    b.Property<Guid>("PublicId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasDefaultValueSql("gen_random_uuid()");
+
+                    b.Property<string>("RecordChange")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<int>("UserId")
+                        .HasColumnType("integer");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("UserId", "BadgeId")
+                        .IsUnique();
+
+                    b.ToTable("UserBadges");
+                });
+
             modelBuilder.Entity("Homassy.API.Entities.User.UserNotificationPreferences", b =>
                 {
                     b.Property<int>("Id")
@@ -1119,6 +1159,9 @@ namespace Homassy.API.Migrations
 
                     b.Property<bool>("IsDeleted")
                         .HasColumnType("boolean");
+
+                    b.Property<DateTime?>("LastSeenAt")
+                        .HasColumnType("timestamp with time zone");
 
                     b.Property<string>("ProfilePictureVersion")
                         .HasMaxLength(32)
@@ -1414,6 +1457,17 @@ namespace Homassy.API.Migrations
                         .IsRequired();
 
                     b.Navigation("ShoppingList");
+                });
+
+            modelBuilder.Entity("Homassy.API.Entities.User.UserBadge", b =>
+                {
+                    b.HasOne("Homassy.API.Entities.User.User", "User")
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("User");
                 });
 
             modelBuilder.Entity("Homassy.API.Entities.User.UserNotificationPreferences", b =>

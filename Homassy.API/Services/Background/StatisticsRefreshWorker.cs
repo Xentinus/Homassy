@@ -31,6 +31,7 @@ public sealed class StatisticsRefreshWorker : BackgroundService
 
         // Warm the cache immediately so the first request is never served a zero response.
         await RefreshAsync(stoppingToken);
+        await PreWarmFamilyInsightsAsync(stoppingToken);
 
         while (!stoppingToken.IsCancellationRequested)
         {
@@ -43,6 +44,7 @@ public sealed class StatisticsRefreshWorker : BackgroundService
 
                 await Task.Delay(delay, stoppingToken);
                 await RefreshAsync(stoppingToken);
+                await PreWarmFamilyInsightsAsync(stoppingToken);
             }
             catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested)
             {
@@ -104,6 +106,117 @@ public sealed class StatisticsRefreshWorker : BackgroundService
             Log.Error(ex, "Statistics refresh worker: failed to calculate global statistics");
         }
     }
+
+    /// <summary>
+    /// How recently a family must have done something to be worth pre-warming. The point of the
+    /// cutoff is that the cost of this pass scales with <em>active</em> families rather than with
+    /// every family row ever created - a household that stopped using the app a year ago gains
+    /// nothing from a warm cache, and paying for it every night is how a nightly job quietly turns
+    /// into a problem.
+    /// </summary>
+    private const int ActiveFamilyWindowDays = 90;
+
+    /// <summary>
+    /// Which scoreboard window gets pre-warmed. One, not all three: the entry is keyed by window
+    /// (see <c>InsightFunctions</c>'s scoreboard key), so warming every option would multiply the
+    /// work and the memory for windows most families never open. 30 days is the endpoint's default
+    /// and by far the most requested.
+    /// </summary>
+    private const int PreWarmedScoreboardDays = 30;
+
+    /// <summary>
+    /// Pre-computes the family scoreboard for every recently-active family, so the first member to
+    /// open the insight page after the nightly refresh is not the one who pays for the
+    /// aggregation.
+    ///
+    /// <para>
+    /// <b>Wrapped in its own try/catch, and awaited after the global refresh rather than beside
+    /// it.</b> The global statistics pass has worked for releases and serves a public endpoint; a
+    /// failure in this newer, heavier pass must not be able to take it down with it. The same
+    /// reasoning applies per family inside the loop: one family whose data trips an aggregation is
+    /// logged and skipped, not allowed to abandon the rest of the sweep.
+    /// </para>
+    ///
+    /// <para>
+    /// It calls the ordinary <c>GetFamilyScoreboardAsync</c> rather than computing anything of its
+    /// own, so a warmed entry is byte-identical to what a request would have produced and there is
+    /// exactly one implementation of the aggregation to keep correct. That method writes through
+    /// <c>FamilyInsightsCache</c> itself, which is what makes this a pre-warm rather than a
+    /// throwaway computation.
+    /// </para>
+    /// </summary>
+    public async Task PreWarmFamilyInsightsAsync(CancellationToken cancellationToken)
+    {
+        var startedAt = DateTime.UtcNow;
+
+        try
+        {
+            using var scope = _scopeFactory.CreateScope();
+            var contextFactory = scope.ServiceProvider.GetRequiredService<IDbContextFactory<HomassyDbContext>>();
+            var insightFunctions = scope.ServiceProvider.GetRequiredService<Functions.InsightFunctions>();
+
+            List<ActiveFamily> activeFamilies;
+            using (var context = contextFactory.CreateForReading())
+            {
+                var activeSince = DateTime.UtcNow.AddDays(-ActiveFamilyWindowDays);
+
+                // One query for the whole sweep: the families with recent activity, each paired
+                // with one of their members. The member is needed because the aggregation resolves
+                // the timezone (and therefore the day bucketing of both streaks) from a user's own
+                // profile - so pre-warming has to warm the entry a real member would ask for, not a
+                // UTC-shaped one no request would ever hit.
+                activeFamilies = await context.Activities
+                    .Where(a => a.FamilyId != null && a.Timestamp >= activeSince)
+                    .GroupBy(a => a.FamilyId!.Value)
+                    .Select(g => new ActiveFamily(g.Key, g.Min(a => a.UserId)))
+                    .ToListAsync(cancellationToken);
+            }
+
+            if (activeFamilies.Count == 0)
+            {
+                Log.Information("Statistics refresh worker: no families active in the last {Days} days, nothing to pre-warm", ActiveFamilyWindowDays);
+                return;
+            }
+
+            var warmed = 0;
+            foreach (var family in activeFamilies)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+
+                try
+                {
+                    await insightFunctions.GetFamilyScoreboardAsync(family.UserId, family.FamilyId, PreWarmedScoreboardDays, cancellationToken);
+                    warmed++;
+                }
+                catch (OperationCanceledException)
+                {
+                    throw;
+                }
+                catch (Exception ex)
+                {
+                    Log.Warning(ex, "Statistics refresh worker: failed to pre-warm the scoreboard for family {FamilyId}", family.FamilyId);
+                }
+            }
+
+            Log.Information(
+                "Statistics refresh worker: pre-warmed {Warmed}/{Total} active family scoreboards in {Elapsed:F1}s",
+                warmed, activeFamilies.Count, (DateTime.UtcNow - startedAt).TotalSeconds);
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
+        catch (Exception ex)
+        {
+            Log.Error(ex, "Statistics refresh worker: family insight pre-warm failed");
+        }
+    }
+
+    /// <summary>
+    /// One family worth pre-warming, plus a member of it whose profile supplies the timezone the
+    /// aggregation is computed in - see <see cref="PreWarmFamilyInsightsAsync"/>.
+    /// </summary>
+    private sealed record ActiveFamily(int FamilyId, int UserId);
 
     /// <summary>
     /// Computes a <see cref="TimeSpan"/> until the next occurrence of 02:00 UTC.

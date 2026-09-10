@@ -176,6 +176,28 @@
           @action="clearAllFilters"
         />
 
+        <!-- Estimated total (#128) — from the best price the household has actually paid for each
+             product. Deliberately states the unpriced count out loud rather than quietly leaving
+             those items out: a total that silently omits three items reads as the cost of the whole
+             list, which is the one way this could actively mislead someone at the till. Several
+             currencies are several lines, never one combined figure - there is no exchange rate in
+             this milestone. -->
+        <div v-if="hasEstimate" class="mb-4 rounded-lg bg-elevated px-3 py-2">
+          <div class="flex items-center gap-2 text-sm">
+            <UIcon name="i-lucide-receipt" class="h-4 w-4 shrink-0 text-primary" />
+            <span class="font-medium text-muted">{{ $t('price.estimate.label') }}</span>
+          </div>
+          <div class="mt-1 flex flex-col gap-0.5 text-sm">
+            <span v-for="line in estimateLines" :key="line" class="font-semibold text-highlighted tabular-nums">
+              {{ line }}
+            </span>
+            <span v-if="estimateLines.length === 0" class="text-muted">{{ $t('price.estimate.noneKnown') }}</span>
+            <span v-if="listEstimate.unpricedCount > 0" class="text-muted">
+              {{ $t('price.estimate.unpriced', { count: listEstimate.unpricedCount }) }}
+            </span>
+          </div>
+        </div>
+
         <!-- "Buy here" section — the items you can pick up in the store you're standing in
              (exact store + same-type stores), pinned above the rest of the list. Rendered as
              its own grid rather than a spanning header inside one: two TransitionGroups keep
@@ -201,6 +223,7 @@
               <ShoppingListItemCard
                 :item="entry.item"
                 :search-query="searchQuery"
+                :best-price="bestPriceFor(entry.item)"
                 :at-current-location="isItemAtCurrentLocation(entry.item)"
                 :similar-type-at-current-location="isItemSimilarTypeHere(entry.item)"
                 :shopping-locations="allShoppingLocations"
@@ -237,6 +260,7 @@
             <ShoppingListItemCard
               :item="entry.item"
               :search-query="searchQuery"
+              :best-price="bestPriceFor(entry.item)"
               :at-current-location="isItemAtCurrentLocation(entry.item)"
               :similar-type-at-current-location="isItemSimilarTypeHere(entry.item)"
               :shopping-locations="allShoppingLocations"
@@ -416,6 +440,10 @@ import { SelectValueType, StoreType } from '../../types/enums'
 import { useSelectValueApi } from '../../composables/api/useSelectValueApi'
 import { useShoppingListApi } from '../../composables/api/useShoppingListApi'
 import { useLocationsApi } from '../../composables/api/useLocationsApi'
+import { useInsightsApi } from '../../composables/api/useInsightsApi'
+import type { BestKnownPrice } from '../../types/insights'
+import { estimateListTotal } from '../../utils/priceEstimate'
+import { formatCurrency } from '../../utils/chart/format'
 import { normalizeForSearch } from '../../utils/stringUtils'
 import { useCameraAvailability } from '../../composables/useCameraAvailability'
 import type { GeoPosition } from '../../composables/useGeolocation'
@@ -427,10 +455,11 @@ definePageMeta({
   middleware: 'auth'
 })
 
-const { t: $t } = useI18n()
+const { t: $t, locale } = useI18n()
 const { getSelectValues } = useSelectValueApi()
 const { getShoppingListDetails, deleteShoppingListItem, purchaseShoppingListItem, restorePurchaseShoppingListItem } = useShoppingListApi()
 const { getShoppingLocations } = useLocationsApi()
+const { getBestPrices } = useInsightsApi()
 const { showCameraButton } = useCameraAvailability()
 const { isExpired: checkIsExpired, isExpiringWithinTwoWeeks: checkIsExpiringWithinTwoWeeks } = useExpirationCheck()
 const toast = useToast()
@@ -473,6 +502,84 @@ const searchQuery = ref('')
 const showPurchased = ref(false)
 const isLoadingLists = ref(false)
 const isLoadingDetails = ref(false)
+
+// --- Best known prices + the estimated total (#128) ----------------------------------------
+//
+// One request per list, keyed by product public id — never one per row. The API asserts the
+// single-round-trip property in its own tests (PriceInsightTests); this side's part of the bargain
+// is asking once for every id on the list, which is what the watcher below does.
+
+const bestPricesByProduct = ref<Record<string, BestKnownPrice>>({})
+
+/**
+ * Every distinct product on the open list, sorted so the watcher below can compare two id sets as
+ * one string. Custom (product-less) rows carry no product to price and drop out here.
+ */
+const listProductPublicIds = computed(() => [...new Set(
+  (currentListDetails.value?.items ?? [])
+    .map(item => item.productPublicId)
+    .filter((id): id is string => !!id)
+)].sort())
+
+const loadBestPrices = async (productPublicIds: readonly string[]) => {
+  if (productPublicIds.length === 0) {
+    bestPricesByProduct.value = {}
+    return
+  }
+
+  try {
+    const response = await getBestPrices(productPublicIds)
+    // A product with no recorded price is OMITTED from the map rather than returned as null, so
+    // "no key" is the single no-price-known signal and no row can render a phantom zero.
+    bestPricesByProduct.value = response.success && response.data ? response.data : {}
+  } catch (error) {
+    // A missing estimate is a missing nicety, never a broken list: leave the map empty and let
+    // every row render exactly as it did before this feature existed.
+    console.error('Failed to load best prices:', error)
+    bestPricesByProduct.value = {}
+  }
+}
+
+// Watches the id set as a joined string rather than the array itself, so this fires when the list's
+// products actually change (switching lists, adding or removing a row, a realtime patch) and not on
+// every unrelated recompute of the details object.
+watch(
+  () => listProductPublicIds.value.join(','),
+  () => loadBestPrices(listProductPublicIds.value),
+  { immediate: true }
+)
+
+const bestPriceFor = (item: ShoppingListItemInfo): BestKnownPrice | undefined =>
+  item.productPublicId ? bestPricesByProduct.value[item.productPublicId] : undefined
+
+/**
+ * The estimate covers what is still to be bought — every non-purchased row on the list, not the
+ * filtered view. The header sits above a filtered grid, but the question it answers ("what will
+ * this shop cost") is about the list, and a total that moved with a search box would be worse than
+ * no total at all.
+ */
+const listEstimate = computed(() => estimateListTotal(
+  (currentListDetails.value?.items ?? [])
+    .filter(item => !item.purchasedAt)
+    .map((item) => {
+      const best = bestPriceFor(item)
+      return {
+        productId: item.productPublicId ?? item.publicId,
+        quantity: item.quantity,
+        bestPrice: best ? { unitPrice: best.unitPrice, currency: best.currency } : undefined
+      }
+    })
+))
+
+/** One line per currency, ordered so the lines do not reshuffle between renders. */
+const estimateLines = computed(() => Object.entries(listEstimate.value.totalsByCurrency)
+  .sort(([a], [b]) => a.localeCompare(b))
+  .map(([currency, total]) => $t('price.estimate.approx', {
+    amount: formatCurrency(total, currency, locale.value)
+  })))
+
+/** Nothing to estimate at all (an empty or fully-purchased list) shows no summary. */
+const hasEstimate = computed(() => listEstimate.value.pricedCount > 0 || listEstimate.value.unpricedCount > 0)
 
 // Add-item wizard (fullscreen modal) state.
 const isAddItemModalOpen = ref(false)

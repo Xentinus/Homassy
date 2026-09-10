@@ -88,7 +88,9 @@ try
     builder.Services.AddScoped<FamilyFunctions>();
     builder.Services.AddScoped<FamilyJoinRequestFunctions>();
     builder.Services.AddScoped<ImageFunctions>();
+    builder.Services.AddScoped<InsightFunctions>();
     builder.Services.AddScoped<LocationFunctions>();
+    builder.Services.AddScoped<PriceInsightFunctions>();
     builder.Services.AddScoped<ProductFunctions>();
     builder.Services.AddScoped<PushNotificationFunctions>();
     builder.Services.AddScoped<SelectValueFunctions>();
@@ -104,6 +106,23 @@ try
     builder.Services.AddSingleton<IProgressTrackerService, ProgressTrackerService>();
     builder.Services.AddSingleton<StatisticsService>();
     builder.Services.AddHostedService<StatisticsRefreshWorker>();
+
+    // Per-family TTL cache backing the R5 "Insight" aggregation endpoints. Singleton for the same
+    // reason as StatisticsService above: it is the in-memory store itself, not a per-request view
+    // over one. See FamilyInsightsCache's own doc comment for the single-flight/isolation
+    // guarantees and the process-local scope this registration implies.
+    builder.Services.AddSingleton<FamilyInsightsCache>();
+
+    // #127: last-seen is stamped in memory on the request path and written in batches, so the
+    // tracker is a singleton (every request writes to the same dictionary) and the flush service
+    // is the only thing that touches the column. See LastSeenTracker's own remarks for why this is
+    // not a row update per request.
+    builder.Services.AddSingleton<LastSeenTracker>();
+    builder.Services.AddHostedService<LastSeenFlushService>();
+    // Sweeps expired entries out of the cache above on a timer, the same way RateLimitCleanupService
+    // does for RateLimitService: nothing else ever removes an entry from FamilyInsightsCache just
+    // because it expired, so without this a key nobody queries again would never be reclaimed.
+    builder.Services.AddHostedService<FamilyInsightsCacheCleanupService>();
 
     // External calendar sync. The URL is user-supplied, so this client is deliberately the
     // most restricted one in the application.

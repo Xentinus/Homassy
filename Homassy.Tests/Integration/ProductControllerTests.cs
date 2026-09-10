@@ -761,6 +761,228 @@ public class ProductControllerTests : IClassFixture<HomassyWebApplicationFactory
     }
     #endregion
 
+    #region Purchase Price Precision Tests
+    /// <summary>
+    /// Task 11 (#128): <c>ProductPurchaseInfo.Price</c> moves from <c>int?</c> to <c>decimal?</c> so
+    /// a EUR/USD price with cents survives the round trip - matching the live bug in
+    /// <c>AddInventoryItemModal.vue:442</c>, whose <c>&lt;UInput type="number" step="0.01"&gt;</c>
+    /// already lets a user type "12.99". The request body is raw JSON, not the typed
+    /// <see cref="CreateInventoryItemRequest"/>, precisely so this test can express "12.99" even
+    /// while <c>Price</c> is still an <c>int?</c> the compiler would refuse to assign a decimal
+    /// literal to - the same reason the other deserialization-failure tests in this class
+    /// (e.g. <see cref="CreateProduct_WithCategoryAsString_ReturnsBadRequest"/>) use a raw string
+    /// body instead of the strongly-typed request. Before the fix this either 400s (JSON
+    /// deserialization of "12.99" into <c>int?</c> fails outright) or, if it were silently coerced,
+    /// would come back as 12 or 13 - never 12.99.
+    /// <para>
+    /// Fix round 1: the original version of this test asserted only on the create response, which
+    /// is built from the same in-memory entity the handler just assigned <c>Price = 12.99m</c> to -
+    /// it would pass even if the column silently mangled the stored value. It now also re-reads
+    /// through a second, separate request and, authoritatively, straight from Postgres through a
+    /// fresh <see cref="Homassy.Tests.Infrastructure.HomassyWebApplicationFactory.CreateScopedDbContext"/>.
+    /// See the inline comments at each assertion for why the second request is corroborating and the
+    /// direct DB read is the one that actually proves the storage-type change.
+    /// </para>
+    /// </summary>
+    [Fact]
+    public async Task CreateInventoryItem_PriceWithCents_RoundTripsExactlyThroughTheApi()
+    {
+        string? testEmail = null;
+        Guid? productId = null;
+        try
+        {
+            var (email, auth) = await _authHelper.CreateAndAuthenticateUserAsync("prod-price-cents");
+            testEmail = email;
+            _authHelper.SetAuthToken(auth.AccessToken);
+
+            var productRequest = new CreateProductRequest { Unit = ProductUnit.Piece, Name = "Price Precision Product", Brand = "Test Brand" };
+            var productResponse = await _client.PostAsJsonAsync("/api/v1.0/product", productRequest);
+            var productContent = await productResponse.Content.ReadFromJsonAsync<ApiResponse<ProductInfo>>();
+            productId = productContent?.Data?.PublicId;
+            Assert.NotNull(productId);
+
+            var currencyEur = (int)Currency.Eur;
+            var json = $"{{\"productPublicId\":\"{productId}\",\"quantity\":1,\"price\":12.99,\"currency\":{currencyEur}}}";
+            var response = await _client.PostAsync("/api/v1.0/product/inventory",
+                new StringContent(json, System.Text.Encoding.UTF8, "application/json"));
+            var responseBody = await response.Content.ReadAsStringAsync();
+
+            _output.WriteLine($"Status: {response.StatusCode}");
+            _output.WriteLine($"Response: {responseBody}");
+
+            Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+
+            var content = await response.Content.ReadFromJsonAsync<ApiResponse<InventoryItemInfo>>();
+            Assert.NotNull(content?.Data?.PurchaseInfo);
+            Assert.NotNull(content!.Data!.PurchaseInfo!.Price);
+            // Explicit decimal cast: keeps this line compiling both before Task 11 (Price is still
+            // int?, so a plain `12.99m` vs. int? comparison is ambiguous across Assert.Equal's
+            // overloads) and after (Price is decimal?, where the cast is a harmless no-op).
+            //
+            // This alone only proves the request was *accepted*: `content` is built by
+            // CreateInventoryItemAsync from the same tracked entity it just assigned `Price = 12.99m`
+            // to, in memory, moments after SaveChangesAsync. It would still read 12.99 here even if
+            // numeric(18,4) silently mangled the stored value, so it cannot be the test's only
+            // assertion - see the direct-to-Postgres read below, which is.
+            Assert.Equal(12.99m, (decimal)content.Data.PurchaseInfo!.Price!.Value);
+
+            // Second, separate request: re-read the item through GET .../detailed rather than the
+            // create response. Per Homassy.API/CLAUDE.md ("Cache-First Architecture"),
+            // GetPurchaseInfoByInventoryItemId/GetInventoryItemsByProductId serve straight from
+            // ProductFunctions' static in-memory caches once populated, with no DB fallback of their
+            // own - and CreateInventoryItemAsync never calls RefreshPurchaseInfoCacheAsync. The only
+            // way this item's price reaches that cache at all is the table's AFTER INSERT trigger
+            // (pg_notify("cache_changes")) waking CacheManagementService's LISTEN handler, which
+            // re-SELECTs the row from Postgres through a brand-new HomassyDbContext. So this is a
+            // genuinely separate round trip when it lands - but it is racing that background
+            // notification, so it is corroborating, not authoritative: it is skipped rather than
+            // failed if the cache had not caught up yet by the time this ran.
+            var detailedResponse = await _client.GetAsync($"/api/v1.0/product/{productId}/detailed");
+            var detailedBody = await detailedResponse.Content.ReadAsStringAsync();
+            _output.WriteLine($"Detailed (2nd request) Status: {detailedResponse.StatusCode}");
+            _output.WriteLine($"Detailed (2nd request) Response: {detailedBody}");
+            Assert.Equal(HttpStatusCode.OK, detailedResponse.StatusCode);
+
+            var detailedContent = await detailedResponse.Content.ReadFromJsonAsync<ApiResponse<DetailedProductInfo>>();
+            var reReadItem = detailedContent?.Data?.InventoryItems.FirstOrDefault(i => i.PublicId == content.Data.PublicId);
+            if (reReadItem?.PurchaseInfo?.Price is { } reReadPrice)
+            {
+                Assert.Equal(12.99m, reReadPrice);
+            }
+            else
+            {
+                _output.WriteLine("Detailed (2nd request) had not picked up the new item yet " +
+                    "(cache-refresh race, not a precision failure) - relying on the direct DB read instead.");
+            }
+
+            // Authoritative assertion: read the row Postgres actually stored, through a brand-new
+            // DbContext/connection that bypasses ProductFunctions' in-memory caches entirely. This is
+            // the one assertion in this test that numeric(18,4) truncating or rounding the value would
+            // actually fail.
+            var (dbScope, dbContext) = _factory.CreateScopedDbContext();
+            await using var _dbScope = dbScope as IAsyncDisposable;
+            var storedPurchaseInfo = dbContext.ProductPurchaseInfos.FirstOrDefault(p => p.PublicId == content.Data.PurchaseInfo!.PublicId);
+            Assert.NotNull(storedPurchaseInfo);
+            Assert.Equal(12.99m, storedPurchaseInfo!.Price);
+        }
+        finally
+        {
+            _authHelper.ClearAuthToken();
+            if (productId.HasValue)
+                await _client.DeleteAsync($"/api/v1.0/product/{productId}");
+            if (testEmail != null)
+                await _authHelper.CleanupUserAsync(testEmail);
+        }
+    }
+    #endregion
+
+    #region Split Inventory Item Price Tests
+    /// <summary>
+    /// Task 11 fix round 1 (#128): <c>SplitInventoryItemAsync</c>'s prorate step
+    /// (<c>ProductFunctions.cs</c>, "Prorate price if exists") used to be
+    /// <c>newPurchaseInfo.Price = (int)(purchaseInfo.Price.Value * ratio);</c>, truncating the
+    /// fraction off the new item's price on every split that didn't divide evenly. It now assigns
+    /// the <c>decimal</c> directly, but nothing covered that fix - this pins both halves of it:
+    /// that the fraction survives at all, and what the <c>numeric(18,4)</c> column actually does
+    /// with digits past its fourth decimal place.
+    /// <para>
+    /// 32 units for EUR 1.00, split off 1: ratio = 1/32 = 0.03125 exactly, so the prorated price
+    /// is EUR 0.03125 - a fifth decimal digit of exactly "5", the one case that actually tells
+    /// rounding and truncation apart (both agree on, say, .03123). The old <c>(int)</c> cast
+    /// collapses this to a flat 0. The fixed code keeps 0.03125 in memory; Postgres's
+    /// <c>numeric(18,4)</c> column rounds it on storage rather than truncating it, and does so
+    /// half-away-from-zero rather than banker's-rounding: the stored value is 0.0313, not the
+    /// 0.0312 either of those other two rules would produce. Confirmed independently with
+    /// <c>SELECT (2.00005)::numeric(18,4)</c> against the same Postgres 16 -> 2.0001, not 2.0000.
+    /// </para>
+    /// <para>
+    /// Asserted directly against Postgres, not the split response's own
+    /// <c>NewItem.PurchaseInfo</c>: <c>SplitInventoryItemAsync</c> builds it via
+    /// <c>GetPurchaseInfoByInventoryItemId</c>, which - like the read path exercised in
+    /// <see cref="CreateInventoryItem_PriceWithCents_RoundTripsExactlyThroughTheApi"/> - serves
+    /// straight from <c>ProductFunctions</c>' static <c>_purchaseInfoCache</c> once populated, with
+    /// no DB fallback of its own. Unlike the two <c>RefreshInventoryItemCacheAsync</c> calls the
+    /// method makes for the two inventory items themselves, it never calls
+    /// <c>RefreshPurchaseInfoCacheAsync</c> for the new item's freshly-inserted purchase-info row,
+    /// so that cache entry does not exist yet when the response is built: <c>NewItem.PurchaseInfo</c>
+    /// comes back null on every run, not just occasionally. That is a real, separate bug - reported,
+    /// not fixed, here.
+    /// </para>
+    /// </summary>
+    [Fact]
+    public async Task SplitInventoryItem_PriceDoesNotDivideEvenly_PreservesFractionAndPinsPostgresRounding()
+    {
+        string? testEmail = null;
+        Guid? productId = null;
+        try
+        {
+            var (email, auth) = await _authHelper.CreateAndAuthenticateUserAsync("prod-split-price");
+            testEmail = email;
+            _authHelper.SetAuthToken(auth.AccessToken);
+
+            var productRequest = new CreateProductRequest { Unit = ProductUnit.Piece, Name = "Split Price Product", Brand = "Test Brand" };
+            var productResponse = await _client.PostAsJsonAsync("/api/v1.0/product", productRequest);
+            var productContent = await productResponse.Content.ReadFromJsonAsync<ApiResponse<ProductInfo>>();
+            productId = productContent?.Data?.PublicId;
+            Assert.NotNull(productId);
+
+            // 32 units for a flat EUR 1.00: splitting off 1 unit gives ratio = 1/32 = 0.03125
+            // exactly, so the prorated price lands on a clean, non-repeating fifth decimal digit
+            // of "5" - the exact case that distinguishes truncation, round-half-up and
+            // round-half-to-even from one another (see the class doc comment above).
+            var createRequest = new CreateInventoryItemRequest
+            {
+                ProductPublicId = productId!.Value,
+                Quantity = 32m,
+                Price = 1.00m,
+                Currency = Currency.Eur
+            };
+            var createResponse = await _client.PostAsJsonAsync("/api/v1.0/product/inventory", createRequest);
+            Assert.Equal(HttpStatusCode.OK, createResponse.StatusCode);
+            var createContent = await createResponse.Content.ReadFromJsonAsync<ApiResponse<InventoryItemInfo>>();
+            var originalItemPublicId = createContent!.Data!.PublicId;
+
+            var splitRequest = new SplitInventoryItemRequest { Quantity = 1m };
+            var splitResponse = await _client.PostAsJsonAsync(
+                $"/api/v1.0/product/inventory/{originalItemPublicId}/split", splitRequest);
+            var splitBody = await splitResponse.Content.ReadAsStringAsync();
+            _output.WriteLine($"Status: {splitResponse.StatusCode}");
+            _output.WriteLine($"Response: {splitBody}");
+            Assert.Equal(HttpStatusCode.OK, splitResponse.StatusCode);
+
+            var splitContent = await splitResponse.Content.ReadFromJsonAsync<ApiResponse<SplitInventoryItemResponse>>();
+            Assert.NotNull(splitContent?.Data);
+            var newItemPublicId = splitContent!.Data!.NewItem.PublicId;
+
+            // Authoritative check: read what Postgres actually persisted for the new item's
+            // prorated price, through a brand-new DbContext/connection - see the class doc comment
+            // for why the split response's own NewItem.PurchaseInfo cannot be used for this.
+            var (scope, dbContext) = _factory.CreateScopedDbContext();
+            await using var _dbScope = scope as IAsyncDisposable;
+            var newItemInternalId = dbContext.ProductInventoryItems.First(i => i.PublicId == newItemPublicId).Id;
+            var newPurchaseInfo = dbContext.ProductPurchaseInfos.FirstOrDefault(p => p.ProductInventoryItemId == newItemInternalId);
+
+            Assert.NotNull(newPurchaseInfo);
+            Assert.NotNull(newPurchaseInfo!.Price);
+            // Preserves the fraction at all - the bug this test exists for. The old `(int)` cast
+            // would have stored exactly 0.
+            Assert.NotEqual(0m, newPurchaseInfo.Price!.Value);
+            // Pins Postgres's actual numeric(18,4) rounding of the exact-half fifth digit: rounds
+            // half away from zero, up to 0.0313 - neither truncated (0.0312) nor banker's-rounded
+            // to the even neighbour (also 0.0312, since 2 is even).
+            Assert.Equal(0.0313m, newPurchaseInfo.Price!.Value);
+        }
+        finally
+        {
+            _authHelper.ClearAuthToken();
+            if (productId.HasValue)
+                await _client.DeleteAsync($"/api/v1.0/product/{productId}");
+            if (testEmail != null)
+                await _authHelper.CleanupUserAsync(testEmail);
+        }
+    }
+    #endregion
+
     #region QuickAddMultipleInventoryItems Tests
     [Fact]
     public async Task QuickAddMultipleInventoryItems_WithoutToken_ReturnsUnauthorized()

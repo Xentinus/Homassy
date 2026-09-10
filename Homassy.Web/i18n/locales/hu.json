@@ -973,6 +973,11 @@
     "empty": {
       "title": "Még nincs tevékenység",
       "description": "Amint valaki a családodban hozzáad, módosít vagy töröl valamit, itt fog megjelenni."
+    },
+    "away": {
+      "changes": "{count} változás a legutóbbi látogatásod óta",
+      "windowNotice": "Csak a távollétedben történtek látszanak",
+      "showAll": "Mind"
     }
   },
   "realtime": {
@@ -998,6 +1003,82 @@
     },
     "failed": "A módosítást nem sikerült menteni, ezért visszavontuk.",
     "secondsLeft": "{seconds} mp"
+  },
+  "chart": {
+    "showData": "Adatok megjelenítése",
+    "hideData": "Adatok elrejtése",
+    "noData": "Nincs megjeleníthető adat",
+    "dataTableCaption": "A diagram adatai táblázatban",
+    "categoryHeader": "Kategória",
+    "valueHeader": "Érték",
+    "donut": {
+      "otherLabel": "Egyéb",
+      "shareHeader": "Arány"
+    },
+    "line": {
+      "seriesHeader": "Sorozat"
+    }
+  },
+  "insights": {
+    "title": "Elemzések",
+    "description": "Diagramok a készletedről, fogyasztásodról és költéseidről.",
+    "composition": {
+      "title": "Készlet kategóriánként"
+    },
+    "consumption": {
+      "title": "Fogyasztás",
+      "seriesLabel": "Elfogyasztva",
+      "last30Days": "Elmúlt 30 nap",
+      "last90Days": "Elmúlt 90 nap"
+    },
+    "spend": {
+      "title": "Költés hely szerint (elmúlt 30 nap)",
+      "titleWithCurrency": "Költés hely szerint (elmúlt 30 nap) · {currency}",
+      "unknownLocation": "Ismeretlen hely"
+    },
+    "leaderboard": {
+      "title": "Ki mit tett",
+      "period": "{from} – {to}",
+      "empty": "Hozz létre családot a háztartás ranglistájához.",
+      "deltaUp": "több, mint az előző időszakban",
+      "deltaDown": "kevesebb, mint az előző időszakban",
+      "deltaLevel": "ugyanannyi, mint az előző időszakban"
+    },
+    "streaks": {
+      "title": "Háztartási sorozatok",
+      "noExpiry": "Semmi nem járt le",
+      "listCleared": "Bevásárlólista letudva",
+      "currentDays": "{count} napja tart",
+      "longestDays": "legjobb: {count} nap"
+    },
+    "badges": {
+      "title": "Kitűzők",
+      "earnedCount": "{earned} / {total} megszerezve",
+      "empty": "Még nincs megjeleníthető kitűző.",
+      "earned": "Megszerezve",
+      "justUnlocked": "Most szerezted meg!"
+    }
+  },
+  "price": {
+    "history": {
+      "title": "Áralakulás",
+      "empty": "Még nincs rögzített árral vásárlás."
+    },
+    "basis": {
+      "perUnit": "Ár / {unit}",
+      "packageNote": "Csomagonkénti összehasonlítás, nem súly vagy térfogat szerint."
+    },
+    "best": {
+      "title": "Legjobb ismert ár:",
+      "at": "itt: {shop}"
+    },
+    "aboveAverage": "A szokásosnál többet fizettél ezért.",
+    "estimate": {
+      "label": "Becsült összeg",
+      "approx": "≈ {amount}",
+      "unpriced": "{count} db ismert ár nélkül",
+      "noneKnown": "Még nincs ismert ár"
+    }
   },
   "profile": {
     "title": "Profil",
