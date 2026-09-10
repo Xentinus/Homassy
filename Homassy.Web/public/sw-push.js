@@ -35,9 +35,34 @@ self.addEventListener('push', (event) => {
   };
 
   event.waitUntil(
-    self.registration.showNotification(data.title || 'Homassy', options)
+    Promise.all([
+      self.registration.showNotification(data.title || 'Homassy', options),
+      applyAppBadge(data.badgeCount)
+    ])
   );
 });
+
+/**
+ * Mirror the sender's count onto the installed app's icon (#130), so the badge is
+ * right without the app ever being opened. Only senders that actually know a count
+ * put `badgeCount` in the payload; a payload without one leaves whatever the app
+ * last set in place rather than guessing (an increment-per-push would drift the
+ * moment two devices received the same notification).
+ *
+ * `navigator.setAppBadge` is feature-detected, and a rejection is swallowed: it
+ * means the platform declined (not installed, no permission), which is not
+ * something a service worker can act on.
+ */
+function applyAppBadge(badgeCount) {
+  if (typeof badgeCount !== 'number' || !Number.isFinite(badgeCount)) return Promise.resolve();
+  if (!('setAppBadge' in navigator)) return Promise.resolve();
+
+  const promise = badgeCount > 0
+    ? navigator.setAppBadge(Math.floor(badgeCount))
+    : navigator.clearAppBadge();
+
+  return Promise.resolve(promise).catch(() => {});
+}
 
 self.addEventListener('notificationclick', (event) => {
   event.notification.close();

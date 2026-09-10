@@ -467,7 +467,7 @@ public sealed class ItemAutomationWorkerService : BackgroundService
             foreach (var subscription in subscriptions)
             {
                 var success = await _webPushService.SendNotificationAsync(
-                    subscription, title, body, "/profile/automation", actionTitle, cancellationToken);
+                    subscription, title, body, "/profile/automation", actionTitle, cancellationToken: cancellationToken);
 
                 if (!success)
                 {
@@ -529,7 +529,7 @@ public sealed class ItemAutomationWorkerService : BackgroundService
         foreach (var subscription in subscriptions)
         {
             var success = await _webPushService.SendNotificationAsync(
-                subscription, title, body, "/profile/automation", actionTitle, cancellationToken);
+                subscription, title, body, "/profile/automation", actionTitle, cancellationToken: cancellationToken);
 
             if (!success)
             {
@@ -567,7 +567,7 @@ public sealed class ItemAutomationWorkerService : BackgroundService
             foreach (var subscription in subscriptions)
             {
                 var success = await _webPushService.SendNotificationAsync(
-                    subscription, title, body, "/profile/automation", actionTitle, cancellationToken);
+                    subscription, title, body, "/profile/automation", actionTitle, cancellationToken: cancellationToken);
 
                 if (!success)
                 {
@@ -911,7 +911,7 @@ public sealed class ItemAutomationWorkerService : BackgroundService
             foreach (var subscription in subscriptions)
             {
                 var success = await _webPushService.SendNotificationAsync(
-                    subscription, title, body, "/profile/automation", actionTitle, cancellationToken);
+                    subscription, title, body, "/profile/automation", actionTitle, cancellationToken: cancellationToken);
 
                 if (!success)
                 {

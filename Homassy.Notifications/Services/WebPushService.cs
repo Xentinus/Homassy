@@ -29,6 +29,7 @@ public sealed class WebPushService : IWebPushService
         string body,
         string? url = null,
         string? actionTitle = null,
+        int? badgeCount = null,
         CancellationToken cancellationToken = default)
     {
         try
@@ -50,7 +51,11 @@ public sealed class WebPushService : IWebPushService
                 icon = "/apple-touch-icon-180x180.png",
                 badge = "/favicon-32x32.png",
                 url = url ?? "/",
-                actionTitle
+                actionTitle,
+                // `badge` above is the monochrome status-bar glyph; this is the number on the
+                // app icon (#130). Absent from the payload unless the sender knows a count, so
+                // the service worker can tell "set it to zero" from "leave it alone".
+                badgeCount
             });
 
             await _client.SendNotificationAsync(pushSubscription, payload, vapidDetails);

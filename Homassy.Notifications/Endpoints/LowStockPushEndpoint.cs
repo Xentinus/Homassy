@@ -47,7 +47,7 @@ public static class LowStockPushEndpoint
             foreach (var subscription in subscriptions)
             {
                 var success = await webPushService.SendNotificationAsync(
-                    subscription, title, body, "/profile/automation", actionTitle, cancellationToken);
+                    subscription, title, body, "/profile/automation", actionTitle, cancellationToken: cancellationToken);
 
                 if (!success)
                 {

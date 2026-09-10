@@ -102,7 +102,7 @@ public sealed class FamilyPushNotifier
                 foreach (var (title, body) in notifications)
                 {
                     var success = await _webPushService.SendNotificationAsync(
-                        subscription, title, body, url, actionTitle, cancellationToken);
+                        subscription, title, body, url, actionTitle, cancellationToken: cancellationToken);
 
                     if (!success)
                     {

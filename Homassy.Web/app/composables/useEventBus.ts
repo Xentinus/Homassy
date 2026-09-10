@@ -27,6 +27,8 @@ type EventBusEvents = {
   'shopping-list-item:deleted': undefined
   'shopping-list-item:purchased': undefined
   'shopping-list-item:restored': undefined
+  /** The notification preferences were saved — the app-icon badge gate has to be re-read (#130). */
+  'notification-preferences:updated': undefined
 }
 
 // Create a singleton event bus instance

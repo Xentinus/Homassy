@@ -123,6 +123,7 @@ const emit = defineEmits<{ 'update:open': [value: boolean] }>()
 
 const { t } = useI18n()
 const toast = useToast()
+const eventBus = useEventBus()
 const { getNotificationPreferences, updateNotificationPreferences, sendTestPushNotification, sendTestEmailSummary } = useUserApi()
 const { isSupported, permissionStatus, subscribe, unsubscribe, isSubscribed } = usePushNotifications()
 
@@ -216,6 +217,9 @@ async function onSave() {
 
     await updateNotificationPreferences({ ...form.value })
     original.value = { ...form.value }
+    // The app-icon badge is gated on the expiration-reminder switch (#130), so the
+    // gate has to be re-read now rather than at the next app launch.
+    eventBus.emit('notification-preferences:updated')
     emit('update:open', false)
   } catch (error) {
     console.error('Failed to save notification preferences:', error)

@@ -128,7 +128,12 @@ public sealed class PushNotificationSchedulerService : BackgroundService
         var (title, body) = PushNotificationContentService.GetWeeklyNotificationContent(userData.Language, count);
         var actionTitle = GetActionTitle(userData.Language);
 
-        await SendToSubscriptionsAsync(context, subscriptions, title, body, actionTitle, today, isWeekly: true, cancellationToken);
+        // The one notification in the app that carries a count the icon badge can show (#130):
+        // the service worker writes it onto the app icon, so a user who never opens the app still
+        // sees the right number. Only sent here — a recipient reached this far because their push
+        // preference is on, so the "respect the user's preference" rule is satisfied by
+        // construction rather than by a second check in the worker.
+        await SendToSubscriptionsAsync(context, subscriptions, title, body, actionTitle, today, isWeekly: true, badgeCount: count, cancellationToken);
     }
 
     private async Task SendToSubscriptionsAsync(
@@ -139,6 +144,7 @@ public sealed class PushNotificationSchedulerService : BackgroundService
         string actionTitle,
         DateTime today,
         bool isWeekly,
+        int? badgeCount,
         CancellationToken cancellationToken)
     {
         var hasChanges = false;
@@ -151,7 +157,7 @@ public sealed class PushNotificationSchedulerService : BackgroundService
                 continue;
 
             var success = await _webPushService.SendNotificationAsync(
-                subscription, title, body, "/products", actionTitle, cancellationToken);
+                subscription, title, body, "/products", actionTitle, badgeCount, cancellationToken);
 
             if (success)
             {

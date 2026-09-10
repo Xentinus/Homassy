@@ -108,6 +108,9 @@ const expirationCount = ref(0)
 const expiredCount = ref(0)
 const deadlineCount = ref(0)
 const { toneForLevel } = useExpirationStatus()
+// The same count this layout badges the nav with also drives the installed app's
+// icon badge and the browser tab title (#130) — one number, three surfaces.
+const { setExpirationCount, resolveIconPermission } = useAppBadge()
 
 // Shared motion tokens for the nav — keep the sliding indicator and the FAB
 // gap in lock-step so the pill tracks the items as they slide apart.
@@ -137,6 +140,7 @@ const fetchExpirationCount = async () => {
     expirationCount.value = 0
     expiredCount.value = 0
   }
+  setExpirationCount(expirationCount.value)
 }
 
 const fetchDeadlineCount = async () => {
@@ -165,9 +169,18 @@ const handleShoppingListMutation = () => {
   debouncedFetchDeadlineCount()
 }
 
+// A preferences save can turn the icon badge on or off, so re-read the gate rather
+// than waiting for the next app launch.
+const handlePreferencesUpdated = () => {
+  resolveIconPermission(true)
+}
+
 onMounted(() => {
   fetchExpirationCount()
   fetchDeadlineCount()
+  // Whether the app-icon badge is allowed at all (#130) — one read per app load.
+  resolveIconPermission()
+  eventBus.on('notification-preferences:updated', handlePreferencesUpdated)
 
   // Listen to all inventory and product mutation events
   eventBus.on('inventory:created', handleInventoryMutation)
@@ -197,6 +210,7 @@ onMounted(() => {
 
 onUnmounted(() => {
   // Clean up event listeners
+  eventBus.off('notification-preferences:updated', handlePreferencesUpdated)
   eventBus.off('inventory:created', handleInventoryMutation)
   eventBus.off('inventory:updated', handleInventoryMutation)
   eventBus.off('inventory:deleted', handleInventoryMutation)
