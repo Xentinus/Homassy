@@ -2764,7 +2764,7 @@ namespace Homassy.API.Functions
                     // Prorate price if exists
                     if (purchaseInfo.Price.HasValue)
                     {
-                        newPurchaseInfo.Price = (int)(purchaseInfo.Price.Value * ratio);
+                        newPurchaseInfo.Price = purchaseInfo.Price.Value * ratio;
                     }
 
                     context.ProductPurchaseInfos.Add(newPurchaseInfo);

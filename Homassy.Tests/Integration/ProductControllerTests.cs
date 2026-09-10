@@ -761,6 +761,67 @@ public class ProductControllerTests : IClassFixture<HomassyWebApplicationFactory
     }
     #endregion
 
+    #region Purchase Price Precision Tests
+    /// <summary>
+    /// Task 11 (#128): <c>ProductPurchaseInfo.Price</c> moves from <c>int?</c> to <c>decimal?</c> so
+    /// a EUR/USD price with cents survives the round trip - matching the live bug in
+    /// <c>AddInventoryItemModal.vue:442</c>, whose <c>&lt;UInput type="number" step="0.01"&gt;</c>
+    /// already lets a user type "12.99". The request body is raw JSON, not the typed
+    /// <see cref="CreateInventoryItemRequest"/>, precisely so this test can express "12.99" even
+    /// while <c>Price</c> is still an <c>int?</c> the compiler would refuse to assign a decimal
+    /// literal to - the same reason the other deserialization-failure tests in this class
+    /// (e.g. <see cref="CreateProduct_WithCategoryAsString_ReturnsBadRequest"/>) use a raw string
+    /// body instead of the strongly-typed request. Before the fix this either 400s (JSON
+    /// deserialization of "12.99" into <c>int?</c> fails outright) or, if it were silently coerced,
+    /// would come back as 12 or 13 - never 12.99.
+    /// </summary>
+    [Fact]
+    public async Task CreateInventoryItem_PriceWithCents_RoundTripsExactlyThroughTheApi()
+    {
+        string? testEmail = null;
+        Guid? productId = null;
+        try
+        {
+            var (email, auth) = await _authHelper.CreateAndAuthenticateUserAsync("prod-price-cents");
+            testEmail = email;
+            _authHelper.SetAuthToken(auth.AccessToken);
+
+            var productRequest = new CreateProductRequest { Unit = ProductUnit.Piece, Name = "Price Precision Product", Brand = "Test Brand" };
+            var productResponse = await _client.PostAsJsonAsync("/api/v1.0/product", productRequest);
+            var productContent = await productResponse.Content.ReadFromJsonAsync<ApiResponse<ProductInfo>>();
+            productId = productContent?.Data?.PublicId;
+            Assert.NotNull(productId);
+
+            var currencyEur = (int)Currency.Eur;
+            var json = $"{{\"productPublicId\":\"{productId}\",\"quantity\":1,\"price\":12.99,\"currency\":{currencyEur}}}";
+            var response = await _client.PostAsync("/api/v1.0/product/inventory",
+                new StringContent(json, System.Text.Encoding.UTF8, "application/json"));
+            var responseBody = await response.Content.ReadAsStringAsync();
+
+            _output.WriteLine($"Status: {response.StatusCode}");
+            _output.WriteLine($"Response: {responseBody}");
+
+            Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+
+            var content = await response.Content.ReadFromJsonAsync<ApiResponse<InventoryItemInfo>>();
+            Assert.NotNull(content?.Data?.PurchaseInfo);
+            Assert.NotNull(content!.Data!.PurchaseInfo!.Price);
+            // Explicit decimal cast: keeps this line compiling both before Task 11 (Price is still
+            // int?, so a plain `12.99m` vs. int? comparison is ambiguous across Assert.Equal's
+            // overloads) and after (Price is decimal?, where the cast is a harmless no-op).
+            Assert.Equal(12.99m, (decimal)content.Data.PurchaseInfo!.Price!.Value);
+        }
+        finally
+        {
+            _authHelper.ClearAuthToken();
+            if (productId.HasValue)
+                await _client.DeleteAsync($"/api/v1.0/product/{productId}");
+            if (testEmail != null)
+                await _authHelper.CleanupUserAsync(testEmail);
+        }
+    }
+    #endregion
+
     #region QuickAddMultipleInventoryItems Tests
     [Fact]
     public async Task QuickAddMultipleInventoryItems_WithoutToken_ReturnsUnauthorized()

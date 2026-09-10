@@ -14,7 +14,7 @@ namespace Homassy.API.Models.Product
 
         public bool? IsSharedWithFamily { get; set; }
 
-        public int? Price { get; set; }
+        public decimal? Price { get; set; }
 
         [EnumDataType(typeof(Currency))]
         public Currency? Currency { get; set; }

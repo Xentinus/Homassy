@@ -230,6 +230,12 @@ namespace Homassy.API.Context
                 .HasForeignKey(p => p.ShoppingLocationId)
                 .OnDelete(DeleteBehavior.SetNull);
 
+            // Task 11 (#128): explicit precision, or EF picks its own default and the generated
+            // migration will not match what Step 5 of the task brief expects (numeric(18,4)).
+            modelBuilder.Entity<ProductPurchaseInfo>()
+                .Property(p => p.Price)
+                .HasPrecision(18, 4);
+
             modelBuilder.Entity<ProductInventoryItem>()
                 .HasMany(i => i.Automations)
                 .WithOne(a => a.ProductInventoryItem)
