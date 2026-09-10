@@ -91,7 +91,7 @@ public sealed class FamilyJoinRequestMonitorService : BackgroundService
                     continue;
 
                 await _notifier.DispatchAsync(context, recipients,
-                    language => new[] { PushNotificationContentService.GetFamilyJoinRequestContent(language, ev.RequesterName) },
+                    [NotificationEnvelopes.FamilyJoinRequest(ev.RequesterName)],
                     "/profile/family", cancellationToken);
 
                 Log.Information("Join request notification sent to {Count} members of family {FamilyId}", recipients.Count, ev.FamilyId);
@@ -146,12 +146,7 @@ public sealed class FamilyJoinRequestMonitorService : BackgroundService
                 var approved = ev.ActivityType == ActivityType.FamilyJoinRequestApprove;
 
                 await _notifier.DispatchAsync(context, new[] { recipient },
-                    language => new[]
-                    {
-                        approved
-                            ? PushNotificationContentService.GetFamilyJoinApprovedContent(language, familyName)
-                            : PushNotificationContentService.GetFamilyJoinDeclinedContent(language, familyName)
-                    },
+                    [NotificationEnvelopes.FamilyJoinDecision(approved, familyName)],
                     "/profile/family", cancellationToken);
 
                 Log.Information("Join request {Decision} notification sent to user {UserId}",

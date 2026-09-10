@@ -311,7 +311,7 @@
 
       <!-- Account sub-surfaces as drawers -->
       <SecurityDrawer :open="securityOpen" @update:open="(v) => securityOpen = v" />
-      <NotificationsDrawer :open="notificationsOpen" @update:open="(v) => notificationsOpen = v" />
+      <NotificationSettingsDrawer :open="notificationsOpen" @update:open="(v) => notificationsOpen = v" />
       <FamilyDrawer :open="familyOpen" @update:open="(v) => familyOpen = v" />
     </div>
   </div>

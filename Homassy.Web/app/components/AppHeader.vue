@@ -84,10 +84,38 @@
           class="order-last w-full md:order-none md:w-96 lg:w-[28rem] empty:hidden"
         />
 
+        <!-- The notification bell (#116). Header chrome rather than a page action teleported
+             into `#app-header-actions` below: the inbox belongs to the app, not to whichever
+             page is open, and it has to be reachable from all of them. Client-only because the
+             unread badge is authenticated data — an SSR'd zero would be a hydration mismatch. -->
+        <ClientOnly>
+          <UChip
+            :show="unreadCount > 0"
+            :text="unreadCount > 99 ? '99+' : unreadCount"
+            color="error"
+            size="2xl"
+            class="shrink-0"
+          >
+            <UButton
+              icon="i-lucide-bell"
+              color="neutral"
+              variant="ghost"
+              :aria-label="t('notifications.title')"
+              @click="openNotifications"
+            />
+          </UChip>
+        </ClientOnly>
+
         <div id="app-header-actions" class="shrink-0 flex items-center gap-2 empty:hidden" />
       </div>
     </div>
   </header>
+
+  <!-- The inbox itself. Mounted alongside the header, so it stays open across a navigation the
+       user starts from inside it. -->
+  <ClientOnly>
+    <NotificationCenterDrawer />
+  </ClientOnly>
 </template>
 
 <script setup lang="ts">
@@ -97,6 +125,12 @@ import { useRoute } from 'vue-router'
 const { t } = useI18n()
 const route = useRoute()
 const header = usePageHeaderState()
+const {
+  unreadCount,
+  open: openNotifications,
+  refreshUnreadCount,
+  installServiceWorkerBridge
+} = useNotificationCenter()
 
 // Gate on mount to avoid an SSR/hydration mismatch: SSR and the first client
 // render both show the skeleton; after mount the committed state drives it.
@@ -139,6 +173,12 @@ function measure() {
 
 onMounted(() => {
   mounted.value = true
+
+  // The bell's badge, once per session (#116) — and the bridge that lets the service worker
+  // update it while the app is open, instead of the count going stale until the next launch.
+  refreshUnreadCount()
+  installServiceWorkerBridge()
+
   if (!import.meta.client || !headerRef.value) return
   observer = new ResizeObserver(measure)
   observer.observe(headerRef.value)

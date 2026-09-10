@@ -64,6 +64,29 @@ export const dayBucketKey = (timestamp: string, now: Date): DayBucketKey => {
   return isoDate(date)
 }
 
+/**
+ * Reformats a `YYYY-MM-DD` bucket key (the value `dayBucketKey` returns for anything older than
+ * yesterday) as a date in `locale`'s own order.
+ *
+ * By rearranging the key's own parts, **not** by feeding it back through `new Date(...)` and
+ * reading local getters: that reparse reinterprets a plain calendar date through the viewer's
+ * timezone and can show the wrong day for a negative-UTC-offset viewer, which is exactly why
+ * `useDateFormat.formatDate` is not reused here.
+ *
+ * The `'today'` / `'yesterday'` keys are *not* handled here — they are translations, and this
+ * module is deliberately framework-free. Callers translate those two and delegate the rest, which
+ * is what the activity timeline and the notification centre (#116) both do.
+ */
+export const formatDayBucketDate = (key: string, locale: string): string => {
+  const [year, month, day] = key.split('-')
+
+  switch (locale) {
+    case 'hu': return `${year}.${month}.${day}`
+    case 'de': return `${day}.${month}.${year}`
+    default: return `${day}/${month}/${year}`
+  }
+}
+
 /** One day bucket's worth of entries, in the order `groupByDay` encountered them. */
 export interface DayGroup<T> {
   key: DayBucketKey

@@ -115,4 +115,8 @@ public static class ErrorCodes
     public const string ExternalCalendarRequiresFamily = "EXTCAL-0005";
     public const string ExternalCalendarInvalidReminder = "EXTCAL-0006";
     #endregion
+
+    #region Notification Errors (NOTIF-0xxx)
+    public const string NotificationNotFound = "NOTIF-0001";
+    #endregion
 }

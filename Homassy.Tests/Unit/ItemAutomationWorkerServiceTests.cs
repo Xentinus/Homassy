@@ -265,7 +265,7 @@ public class ItemAutomationWorkerServiceTests
         var exception = Record.Exception(() =>
             new ItemAutomationWorkerService(
                 new NoOpServiceScopeFactory(),
-                new NoOpWebPushService(),
+                new FamilyPushNotifier(new NoOpWebPushService()),
                 new NoOpDbContextFactory()));
 
         Assert.Null(exception);
@@ -276,7 +276,7 @@ public class ItemAutomationWorkerServiceTests
     {
         var service = new ItemAutomationWorkerService(
             new NoOpServiceScopeFactory(),
-            new NoOpWebPushService(),
+            new FamilyPushNotifier(new NoOpWebPushService()),
             new NoOpDbContextFactory());
 
         using var cts = new CancellationTokenSource();

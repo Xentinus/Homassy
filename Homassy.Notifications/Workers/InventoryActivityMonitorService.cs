@@ -1,5 +1,6 @@
 using Homassy.API.Context;
 using Homassy.API.Enums;
+using Homassy.API.Models.Notification;
 using Homassy.Notifications.Services;
 using Microsoft.EntityFrameworkCore;
 using Serilog;
@@ -146,7 +147,7 @@ public sealed class InventoryActivityMonitorService : BackgroundService
         }
 
         await _notifier.DispatchAsync(context, recipients,
-            language => BuildInventoryNotifications(session, language),
+            BuildInventoryNotifications(session),
             "/products", cancellationToken);
 
         Log.Information(
@@ -156,22 +157,25 @@ public sealed class InventoryActivityMonitorService : BackgroundService
             session.FamilyId);
     }
 
-    private static IReadOnlyList<(string Title, string Body)> BuildInventoryNotifications(
-        InventorySession session, Language language)
+    /// <summary>
+    /// One envelope per non-zero action type in the closed session. Language-free (#116) - see the
+    /// same method on ShoppingListActivityMonitorService.
+    /// </summary>
+    private static IReadOnlyList<NotificationEnvelope> BuildInventoryNotifications(InventorySession session)
     {
-        var notifications = new List<(string Title, string Body)>(4);
+        var notifications = new List<NotificationEnvelope>(4);
 
         if (session.CreatedCount > 0)
-            notifications.Add(PushNotificationContentService.GetInventoryItemsCreatedContent(language, session.CreatedCount));
+            notifications.Add(NotificationEnvelopes.InventoryItems(NotificationType.InventoryItemsCreated, session.CreatedCount));
 
         if (session.UpdatedCount > 0)
-            notifications.Add(PushNotificationContentService.GetInventoryItemsUpdatedContent(language, session.UpdatedCount));
+            notifications.Add(NotificationEnvelopes.InventoryItems(NotificationType.InventoryItemsUpdated, session.UpdatedCount));
 
         if (session.DeletedCount > 0)
-            notifications.Add(PushNotificationContentService.GetInventoryItemsDeletedContent(language, session.DeletedCount));
+            notifications.Add(NotificationEnvelopes.InventoryItems(NotificationType.InventoryItemsDeleted, session.DeletedCount));
 
         if (session.ConsumedCount > 0)
-            notifications.Add(PushNotificationContentService.GetInventoryItemsConsumedContent(language, session.ConsumedCount));
+            notifications.Add(NotificationEnvelopes.InventoryItems(NotificationType.InventoryItemsConsumed, session.ConsumedCount));
 
         return notifications;
     }

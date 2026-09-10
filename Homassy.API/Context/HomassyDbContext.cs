@@ -131,6 +131,35 @@ namespace Homassy.API.Context
 
                 entity.HasIndex(e => new { e.UserId, e.BadgeId }).IsUnique();
             });
+
+            // The notification centre's rows (#116). No navigation from User: notifications are
+            // read by user id and paged, and a collection on User would invite Include()ing a
+            // whole inbox into every profile load.
+            modelBuilder.Entity<UserNotification>(entity =>
+            {
+                entity.HasOne(n => n.User)
+                    .WithMany()
+                    .HasForeignKey(n => n.UserId)
+                    .OnDelete(DeleteBehavior.Cascade);
+
+                // Serves the one query that matters: this user's inbox, newest first. The
+                // descending timestamp is part of the index rather than a sort afterwards
+                // because every page of every read is ordered this way.
+                entity.HasIndex(e => new { e.UserId, e.CreatedAt })
+                    .IsDescending(false, true);
+
+                // The unread count, which is fetched far more often than a page of the list is
+                // (at boot, on every push arrival, after every read). Filtered so the index only
+                // holds the rows it can answer from - an inbox is mostly read rows.
+                entity.HasIndex(e => e.UserId)
+                    .HasDatabaseName("IX_UserNotifications_Unread")
+                    .HasFilter("\"ReadAt\" IS NULL AND \"IsDeleted\" = false");
+
+                // Supports the retention sweep, which scans by age across every user.
+                entity.HasIndex(e => e.CreatedAt);
+
+                entity.Property(e => e.ParametersJson).HasColumnType("text");
+            });
             #endregion
 
             #region FamilyExternalCalendar Relationships
@@ -366,6 +395,7 @@ namespace Homassy.API.Context
         public DbSet<UserNotificationPreferences> UserNotificationPreferences { get; set; }
         public DbSet<UserPushSubscription> UserPushSubscriptions { get; set; }
         public DbSet<UserBadge> UserBadges { get; set; }
+        public DbSet<UserNotification> UserNotifications { get; set; }
         public DbSet<Family> Families { get; set; }
         public DbSet<FamilyJoinRequest> FamilyJoinRequests { get; set; }
         public DbSet<FamilyExternalCalendar> FamilyExternalCalendars { get; set; }

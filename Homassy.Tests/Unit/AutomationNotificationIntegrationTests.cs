@@ -147,7 +147,7 @@ public class AutomationNotificationIntegrationTests
         var exception = Record.Exception(() =>
             new ItemAutomationWorkerService(
                 new TestServiceScopeFactory(),
-                new TestWebPushService(),
+                new FamilyPushNotifier(new TestWebPushService()),
                 new TestDbContextFactory()));
 
         Assert.Null(exception);
@@ -158,7 +158,7 @@ public class AutomationNotificationIntegrationTests
     {
         var service = new ItemAutomationWorkerService(
             new TestServiceScopeFactory(),
-            new TestWebPushService(),
+            new FamilyPushNotifier(new TestWebPushService()),
             new TestDbContextFactory());
 
         using var cts = new CancellationTokenSource();

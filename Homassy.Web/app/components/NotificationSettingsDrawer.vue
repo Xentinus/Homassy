@@ -2,7 +2,7 @@
   <AppDrawer
     :open="open"
     :title="t('profile.notifications.title')"
-    icon="i-lucide-bell"
+    icon="i-lucide-bell-cog"
     :loading="isSaving"
     @update:open="(value) => emit('update:open', value)"
   >
@@ -89,6 +89,29 @@
             </div>
           </template>
         </div>
+
+        <!-- In-app (#116). The channel the notification centre reads; unlike the two above it
+             does not interrupt anything, which is why it is the one that defaults to on. -->
+        <div class="space-y-4">
+          <div class="flex items-center gap-3">
+            <UIcon name="i-lucide-inbox" class="text-2xl text-primary" />
+            <div>
+              <h3 class="text-md font-semibold text-gray-900 dark:text-gray-100">{{ t('profile.notifications.inAppSection') }}</h3>
+              <p class="text-xs text-gray-500 dark:text-gray-400">{{ t('profile.notifications.inAppDescription') }}</p>
+            </div>
+          </div>
+
+          <template v-if="loadingData">
+            <USkeleton class="h-12 w-full rounded-lg" />
+          </template>
+          <template v-else>
+            <div class="flex items-center justify-between">
+              <label class="text-sm font-medium">{{ t('profile.notifications.inAppNotifications') }}</label>
+              <USwitch v-model="form.inAppNotificationsEnabled" :disabled="isSaving" />
+            </div>
+            <p class="text-xs text-gray-500 dark:text-gray-400">{{ t('profile.notifications.inAppNotificationsDescription') }}</p>
+          </template>
+        </div>
       </div>
 
     <template #footer>
@@ -106,6 +129,14 @@
 </template>
 
 <script setup lang="ts">
+/**
+ * Notification **settings** — email, push and the in-app notification centre's channel.
+ *
+ * Renamed from `NotificationsDrawer` in #116, which is when the name became actively misleading:
+ * this panel has only ever held preferences and test buttons, and the thing a user reasonably
+ * expects behind "notifications" — a list of what was actually sent — now exists as
+ * `NotificationCenterDrawer`, behind the bell in the header.
+ */
 import { ref, computed, watch } from 'vue'
 import { useUserApi } from '~/composables/api/useUserApi'
 import { usePushNotifications } from '~/composables/usePushNotifications'

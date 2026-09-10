@@ -1216,7 +1216,7 @@
     "settingsPreferencesDescription": "Language, currency, and time zone settings.",
     "saveNameButton": "Save Name",
     "notifications": {
-      "title": "Notifications",
+      "title": "Notification settings",
       "cardDescription": "Manage your notification preferences, including email, push, and in-app alerts.",
       "emailSection": "Email Notifications",
       "emailDescription": "Receive updates via email about your household activities.",
@@ -1230,9 +1230,9 @@
       "pushWeeklySummary": "Weekly summary",
       "pushDailyDescription": "Get notified about important events.",
       "pushWeeklyDescription": "Receive a weekly summary of your inventory.",
-      "inAppSection": "In-App Notifications",
-      "inAppDescription": "See notifications within the app.",
-      "inAppNotifications": "In-app notifications",
+      "inAppSection": "In the app",
+      "inAppDescription": "Keep a record of what Homassy sends you, readable from the bell in the header.",
+      "inAppNotifications": "Notification centre",
       "pushNotSupported": "Push notifications are not supported in this browser.",
       "pushDenied": "Push notifications are blocked. Please enable them in your browser settings.",
       "pushPermissionRequired": "Browser permission is required for push notifications.",
@@ -1247,7 +1247,8 @@
       "testEmail": "Send Test Email Summary",
       "testEmailSent": "Test email summary sent successfully.",
       "testEmailFailed": "Failed to send test email.",
-      "pushActionOpen": "Open Homassy"
+      "pushActionOpen": "Open Homassy",
+      "inAppNotificationsDescription": "Nothing pops up — the notifications are simply kept so you can catch up on what you missed."
     },
     "allProducts": {
       "title": "All Products",
@@ -2768,6 +2769,103 @@
       "profile": {
         "title": "Your family and settings",
         "description": "Create or join a family here, and set your language, currency and notifications. You can replay this tour from here too."
+      }
+    }
+  },
+  "notifications": {
+    "title": "Notifications",
+    "unread": "Unread",
+    "unreadCount": "1 unread | {count} unread",
+    "allRead": "You are all caught up",
+    "markAllRead": "Mark all read",
+    "loadMore": "Load older",
+    "empty": {
+      "title": "Nothing here yet",
+      "description": "Notifications Homassy sends you will be kept here, so you can catch up on anything you missed."
+    },
+    "types": {
+      "unknown": {
+        "title": "Notification",
+        "body": "This notification was sent by a newer version of Homassy. Reopen the app to see it."
+      },
+      "WeeklySummary": {
+        "title": "Weekly summary",
+        "body": "No expiring products in your inventory. Have a great week! | 1 product will expire within the next 14 days. | {count} products will expire within the next 14 days."
+      },
+      "ShoppingListItemsAdded": {
+        "title": "Shopping list updated",
+        "body": "1 new item was added to the \"{listName}\" list. | {count} new items were added to the \"{listName}\" list."
+      },
+      "ShoppingListItemsEdited": {
+        "title": "Shopping list updated",
+        "body": "1 item was edited in the \"{listName}\" list. | {count} items were edited in the \"{listName}\" list."
+      },
+      "ShoppingListItemsDeleted": {
+        "title": "Shopping list updated",
+        "body": "1 item was removed from the \"{listName}\" list. | {count} items were removed from the \"{listName}\" list."
+      },
+      "ShoppingListItemsPurchased": {
+        "title": "Shopping list updated",
+        "body": "1 item from the \"{listName}\" list was marked as purchased. | {count} items from the \"{listName}\" list were marked as purchased."
+      },
+      "ShoppingListCreated": {
+        "title": "New shopping list",
+        "body": "A new \"{listName}\" shopping list was created in your family."
+      },
+      "ShoppingListDeleted": {
+        "title": "Shopping list deleted",
+        "body": "The \"{listName}\" shopping list was deleted in your family."
+      },
+      "InventoryItemsCreated": {
+        "title": "Inventory updated",
+        "body": "1 new item was added to the inventory. | {count} new items were added to the inventory."
+      },
+      "InventoryItemsUpdated": {
+        "title": "Inventory updated",
+        "body": "1 inventory item was updated. | {count} inventory items were updated."
+      },
+      "InventoryItemsDeleted": {
+        "title": "Inventory updated",
+        "body": "1 item was removed from the inventory. | {count} items were removed from the inventory."
+      },
+      "InventoryItemsConsumed": {
+        "title": "Inventory updated",
+        "body": "1 item was consumed from the inventory. | {count} items were consumed from the inventory."
+      },
+      "AutomationExecuted": {
+        "title": "Automatic consumption",
+        "body": "{quantity} {unit} of \"{productName}\" has been consumed."
+      },
+      "AutomationReminder": {
+        "title": "Usage reminder",
+        "body": "It's time to use \"{productName}\"."
+      },
+      "AutomationAddedToShoppingList": {
+        "title": "Added to shopping list",
+        "body": "{quantity} {unit} of \"{productName}\" has been added to the \"{listName}\" shopping list."
+      },
+      "LowStock": {
+        "title": "Low stock alert",
+        "body": "Stock of \"{productName}\" ({quantity}) dropped below threshold ({threshold}). Added to the \"{listName}\" shopping list."
+      },
+      "FamilyJoinRequest": {
+        "title": "New join request",
+        "body": "{requesterName} wants to join your family."
+      },
+      "FamilyJoinApproved": {
+        "title": "Join request approved",
+        "body": "You have joined the \"{familyName}\" family."
+      },
+      "FamilyJoinDeclined": {
+        "title": "Join request declined",
+        "body": "Your request to join the \"{familyName}\" family was declined."
+      },
+      "CalendarEventReminder": {
+        "title": "Calendar reminder",
+        "bodyNow": "\"{eventTitle}\" is starting now.",
+        "bodyLead": "\"{eventTitle}\" starts in {lead}.",
+        "bodyAllDayToday": "\"{eventTitle}\" is today.",
+        "bodyAllDayLead": "\"{eventTitle}\" is in {lead}."
       }
     }
   }

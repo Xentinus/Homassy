@@ -3,6 +3,7 @@ using Homassy.API.Entities.Product;
 using Homassy.API.Enums;
 using Homassy.API.Extensions;
 using Homassy.API.Functions;
+using Homassy.API.Models.Notification;
 using Homassy.Notifications.Services;
 using Microsoft.EntityFrameworkCore;
 using Serilog;
@@ -17,17 +18,30 @@ namespace Homassy.Notifications.Workers;
 public sealed class ItemAutomationWorkerService : BackgroundService
 {
     private readonly IServiceScopeFactory _scopeFactory;
-    private readonly IWebPushService _webPushService;
+    /// <summary>
+    /// Delivers this worker's notifications on both channels - push and the in-app notification
+    /// centre (#116). It replaced a direct <see cref="IWebPushService"/> here: the four automation
+    /// notifications each had their own copy of "render the text, loop the subscriptions, delete
+    /// the dead ones", and adding a second channel to four copies is how two channels drift apart.
+    /// </summary>
+    /// <remarks>
+    /// One behaviour change comes with it, and it is a fix: the old loops pushed to whatever
+    /// subscriptions existed without ever consulting
+    /// <c>UserNotificationPreferences.PushNotificationsEnabled</c>, so a user who had switched push
+    /// off still received automation pushes. The notifier resolves recipients by preference, so
+    /// they no longer do.
+    /// </remarks>
+    private readonly FamilyPushNotifier _notifier;
     private readonly IDbContextFactory<HomassyDbContext> _contextFactory;
     private readonly TimeSpan _interval = TimeSpan.FromMinutes(5);
 
     public ItemAutomationWorkerService(
         IServiceScopeFactory scopeFactory,
-        IWebPushService webPushService,
+        FamilyPushNotifier notifier,
         IDbContextFactory<HomassyDbContext> contextFactory)
     {
         _scopeFactory = scopeFactory;
-        _webPushService = webPushService;
+        _notifier = notifier;
         _contextFactory = contextFactory;
     }
 
@@ -456,29 +470,10 @@ public sealed class ItemAutomationWorkerService : BackgroundService
         if (ownerUserId == null) return;
 
         var language = await GetUserLanguageAsync(context, ownerUserId.Value, cancellationToken);
-        var subscriptions = await GetUserPushSubscriptionsAsync(context, ownerUserId.Value, cancellationToken);
 
-        if (subscriptions.Count > 0)
-        {
-            var (title, body) = PushNotificationContentService.GetShoppingListAutomationContent(
-                language, productName, quantity, unit, shoppingListName);
-            var actionTitle = GetActionTitle(language);
-
-            foreach (var subscription in subscriptions)
-            {
-                var success = await _webPushService.SendNotificationAsync(
-                    subscription, title, body, "/profile/automation", actionTitle, cancellationToken: cancellationToken);
-
-                if (!success)
-                {
-                    subscription.DeleteRecord();
-                    Log.Information("Removed invalid push subscription {Endpoint} for user {UserId}",
-                        subscription.Endpoint, ownerUserId.Value);
-                }
-            }
-
-            await context.SaveChangesAsync(cancellationToken);
-        }
+        await DeliverToOwnerAsync(context, ownerUserId.Value,
+            NotificationEnvelopes.AutomationAddedToShoppingList(productName, quantity, unit, shoppingListName),
+            cancellationToken);
 
         // Send email notification
         await SendEmailNotificationAsync(context, emailClient, ownerUserId.Value, language, productName,
@@ -519,27 +514,10 @@ public sealed class ItemAutomationWorkerService : BackgroundService
         if (ownerUserId == null) return;
 
         var language = await GetUserLanguageAsync(context, ownerUserId.Value, cancellationToken);
-        var subscriptions = await GetUserPushSubscriptionsAsync(context, ownerUserId.Value, cancellationToken);
 
-        if (subscriptions.Count == 0) return;
-
-        var (title, body) = PushNotificationContentService.GetAutomationNotificationContent(language, productName, quantity, unit);
-        var actionTitle = GetActionTitle(language);
-
-        foreach (var subscription in subscriptions)
-        {
-            var success = await _webPushService.SendNotificationAsync(
-                subscription, title, body, "/profile/automation", actionTitle, cancellationToken: cancellationToken);
-
-            if (!success)
-            {
-                subscription.DeleteRecord();
-                Log.Information("Removed invalid push subscription {Endpoint} for user {UserId}",
-                    subscription.Endpoint, ownerUserId.Value);
-            }
-        }
-
-        await context.SaveChangesAsync(cancellationToken);
+        await DeliverToOwnerAsync(context, ownerUserId.Value,
+            NotificationEnvelopes.AutomationExecuted(productName, quantity, unit),
+            cancellationToken);
 
         // Send email notification
         await SendEmailNotificationAsync(context, emailClient, ownerUserId.Value, language, productName, "auto_consume", quantity, unit, cancellationToken);
@@ -557,28 +535,10 @@ public sealed class ItemAutomationWorkerService : BackgroundService
         if (ownerUserId == null) return;
 
         var language = await GetUserLanguageAsync(context, ownerUserId.Value, cancellationToken);
-        var subscriptions = await GetUserPushSubscriptionsAsync(context, ownerUserId.Value, cancellationToken);
 
-        if (subscriptions.Count > 0)
-        {
-            var (title, body) = PushNotificationContentService.GetAutomationReminderContent(language, productName);
-            var actionTitle = GetActionTitle(language);
-
-            foreach (var subscription in subscriptions)
-            {
-                var success = await _webPushService.SendNotificationAsync(
-                    subscription, title, body, "/profile/automation", actionTitle, cancellationToken: cancellationToken);
-
-                if (!success)
-                {
-                    subscription.DeleteRecord();
-                    Log.Information("Removed invalid push subscription {Endpoint} for user {UserId}",
-                        subscription.Endpoint, ownerUserId.Value);
-                }
-            }
-
-            await context.SaveChangesAsync(cancellationToken);
-        }
+        await DeliverToOwnerAsync(context, ownerUserId.Value,
+            NotificationEnvelopes.AutomationReminder(productName),
+            cancellationToken);
 
         // Send email notification
         await SendEmailNotificationAsync(context, emailClient, ownerUserId.Value, language, productName, emailActionType, null, null, cancellationToken);
@@ -686,22 +646,26 @@ public sealed class ItemAutomationWorkerService : BackgroundService
         return profile?.DefaultLanguage ?? Language.Hungarian;
     }
 
-    private static async Task<List<API.Entities.User.UserPushSubscription>> GetUserPushSubscriptionsAsync(
+    /// <summary>
+    /// Delivers one notification to the automation's owner on whichever channels their
+    /// preferences allow (#116) - the single place all four automation notifications go through.
+    /// </summary>
+    /// <remarks>
+    /// A no-op when neither channel applies to them, which is also what makes the email below it
+    /// the only thing that happens for a user who wants email alone. The notifier owns the commit,
+    /// so this method does not save.
+    /// </remarks>
+    private async Task DeliverToOwnerAsync(
         HomassyDbContext context,
-        int userId,
+        int ownerUserId,
+        NotificationEnvelope envelope,
         CancellationToken cancellationToken)
     {
-        return await context.UserPushSubscriptions
-            .Where(s => s.UserId == userId && !s.IsDeleted)
-            .ToListAsync(cancellationToken);
-    }
+        if (await _notifier.GetRecipientAsync(context, ownerUserId, cancellationToken) is not { } recipient)
+            return;
 
-    private static string GetActionTitle(Language language) => language switch
-    {
-        Language.German => "Homassy öffnen",
-        Language.English => "Open Homassy",
-        _ => "Homassy megnyitása"
-    };
+        await _notifier.DispatchAsync(context, [recipient], [envelope], "/profile/automation", cancellationToken);
+    }
 
     #region Low Stock Automation
 
@@ -900,29 +864,10 @@ public sealed class ItemAutomationWorkerService : BackgroundService
         if (ownerUserId == null) return;
 
         var language = await GetUserLanguageAsync(context, ownerUserId.Value, cancellationToken);
-        var subscriptions = await GetUserPushSubscriptionsAsync(context, ownerUserId.Value, cancellationToken);
 
-        if (subscriptions.Count > 0)
-        {
-            var (title, body) = PushNotificationContentService.GetLowStockNotificationContent(
-                language, productName, totalStock, thresholdQuantity, shoppingListName);
-            var actionTitle = GetActionTitle(language);
-
-            foreach (var subscription in subscriptions)
-            {
-                var success = await _webPushService.SendNotificationAsync(
-                    subscription, title, body, "/profile/automation", actionTitle, cancellationToken: cancellationToken);
-
-                if (!success)
-                {
-                    subscription.DeleteRecord();
-                    Log.Information("Removed invalid push subscription {Endpoint} for user {UserId}",
-                        subscription.Endpoint, ownerUserId.Value);
-                }
-            }
-
-            await context.SaveChangesAsync(cancellationToken);
-        }
+        await DeliverToOwnerAsync(context, ownerUserId.Value,
+            NotificationEnvelopes.LowStock(productName, totalStock, thresholdQuantity, shoppingListName),
+            cancellationToken);
 
         // Send email notification
         await SendEmailNotificationAsync(context, emailClient, ownerUserId.Value, language, productName,

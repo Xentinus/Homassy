@@ -50,7 +50,13 @@ namespace Homassy.API.Infrastructure
                     .Select(t => t.GetTableName())
                     .Where(name => !string.IsNullOrEmpty(name)
                                 && name != "TableRecordChanges"
-                                && name != "__EFMigrationsHistory");
+                                && name != "__EFMigrationsHistory"
+                                // Nothing caches the notification centre's rows (see
+                                // NotificationFunctions' remarks), so a trigger here would only
+                                // add a TableRecordChanges insert and a pg_notify to every write
+                                // on the highest-volume table in the schema: one row per family
+                                // member per worker event, all of it invalidating nothing.
+                                && name != "UserNotifications");
 
                 foreach (var tableName in entityTypes)
                 {

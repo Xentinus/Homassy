@@ -12,7 +12,7 @@ public static class LowStockPushEndpoint
     public static async Task<IResult> HandleAsync(
         LowStockPushRequest request,
         HomassyDbContext context,
-        IWebPushService webPushService,
+        FamilyPushNotifier notifier,
         EmailServiceClient emailClient,
         CancellationToken cancellationToken)
     {
@@ -25,39 +25,19 @@ public static class LowStockPushEndpoint
         if (user is null)
             return Results.NotFound($"User {request.UserId} not found.");
 
-        var subscriptions = await context.UserPushSubscriptions
-            .Where(s => s.UserId == request.UserId && !s.IsDeleted)
-            .OrderByDescending(s => s.CreatedAt)
-            .ToListAsync(cancellationToken);
-
-        if (subscriptions.Count > 0)
+        // Both channels through the shared notifier (#116): the push, and the row the in-app
+        // notification centre reads. This handler used to loop the subscriptions itself, render
+        // the text and delete the dead ones - a fourth copy of code that now lives in one place.
+        //
+        // It also used to push without consulting `PushNotificationsEnabled`, so a user who had
+        // switched push off still got low-stock pushes. The notifier resolves recipients by
+        // preference, so that is fixed on the way past.
+        if (await notifier.GetRecipientAsync(context, request.UserId, cancellationToken) is { } recipient)
         {
-            var (title, body) = PushNotificationContentService.GetLowStockNotificationContent(
-                user.Language, request.ProductName, request.TotalStock, request.ThresholdQuantity, request.ShoppingListName);
-
-            var actionTitle = user.Language switch
-            {
-                Language.German => "Homassy öffnen",
-                Language.English => "Open Homassy",
-                _ => "Homassy megnyitása"
-            };
-
-            var hasChanges = false;
-
-            foreach (var subscription in subscriptions)
-            {
-                var success = await webPushService.SendNotificationAsync(
-                    subscription, title, body, "/profile/automation", actionTitle, cancellationToken: cancellationToken);
-
-                if (!success)
-                {
-                    subscription.DeleteRecord(request.UserId);
-                    hasChanges = true;
-                }
-            }
-
-            if (hasChanges)
-                await context.SaveChangesAsync(cancellationToken);
+            await notifier.DispatchAsync(context, [recipient],
+                [NotificationEnvelopes.LowStock(
+                    request.ProductName, request.TotalStock, request.ThresholdQuantity, request.ShoppingListName)],
+                "/profile/automation", cancellationToken);
         }
 
         // Send email notification

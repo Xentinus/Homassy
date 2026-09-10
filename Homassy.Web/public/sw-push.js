@@ -37,10 +37,31 @@ self.addEventListener('push', (event) => {
   event.waitUntil(
     Promise.all([
       self.registration.showNotification(data.title || 'Homassy', options),
-      applyAppBadge(data.badgeCount)
+      applyAppBadge(data.badgeCount),
+      announceToClients(data)
     ])
   );
 });
+
+/**
+ * Tell any open tab that a notification just arrived (#116), so the notification centre can
+ * prepend it and the header bell can update its unread badge without waiting for the user to
+ * reopen the app.
+ *
+ * The message carries no content: the row is already in the database, and the page fetches it.
+ * Trusting a payload assembled here would mean two descriptions of the same notification, and
+ * the one the page renders should be the one the server stored.
+ */
+function announceToClients(data) {
+  return self.clients
+    .matchAll({ type: 'window', includeUncontrolled: true })
+    .then((clientList) => {
+      for (const client of clientList) {
+        client.postMessage({ type: 'homassy:notification', url: data.url || '/' });
+      }
+    })
+    .catch(() => {});
+}
 
 /**
  * Mirror the sender's count onto the installed app's icon (#130), so the badge is

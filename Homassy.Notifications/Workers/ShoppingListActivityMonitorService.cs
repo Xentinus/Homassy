@@ -1,5 +1,6 @@
 using Homassy.API.Context;
 using Homassy.API.Enums;
+using Homassy.API.Models.Notification;
 using Homassy.Notifications.Services;
 using Microsoft.EntityFrameworkCore;
 using Serilog;
@@ -111,13 +112,11 @@ public sealed class ShoppingListActivityMonitorService : BackgroundService
                     continue;
 
                 var created = ev.ActivityType == ActivityType.ShoppingListCreate;
-                await _notifier.DispatchAsync(context, recipients, language =>
-                {
-                    var content = created
-                        ? PushNotificationContentService.GetShoppingListCreatedContent(language, ev.RecordName)
-                        : PushNotificationContentService.GetShoppingListDeletedContent(language, ev.RecordName);
-                    return new[] { content };
-                }, "/shopping-lists", cancellationToken);
+                await _notifier.DispatchAsync(context, recipients,
+                    [NotificationEnvelopes.ShoppingList(
+                        created ? NotificationType.ShoppingListCreated : NotificationType.ShoppingListDeleted,
+                        ev.RecordName)],
+                    "/shopping-lists", cancellationToken);
 
                 Log.Information(
                     "Shopping list {EventType} notification sent to {Count} users for '{ListName}'",
@@ -247,7 +246,7 @@ public sealed class ShoppingListActivityMonitorService : BackgroundService
         }
 
         await _notifier.DispatchAsync(context, recipients,
-            language => BuildItemNotifications(session, language),
+            BuildItemNotifications(session),
             "/shopping-lists", cancellationToken);
 
         Log.Information(
@@ -257,26 +256,30 @@ public sealed class ShoppingListActivityMonitorService : BackgroundService
             session.ShoppingListId);
     }
 
-    private static IReadOnlyList<(string Title, string Body)> BuildItemNotifications(
-        ShoppingListSession session, Language language)
+    /// <summary>
+    /// One envelope per non-zero action type in the closed session. Language-free (#116): the
+    /// notifier renders each envelope per recipient for the push and stores it as-is for the
+    /// inbox, so this decides only what happened, never how it is worded.
+    /// </summary>
+    private static IReadOnlyList<NotificationEnvelope> BuildItemNotifications(ShoppingListSession session)
     {
-        var notifications = new List<(string Title, string Body)>(4);
+        var notifications = new List<NotificationEnvelope>(4);
 
         if (session.AddedCount > 0)
-            notifications.Add(PushNotificationContentService.GetShoppingListItemsAddedContent(
-                language, session.ShoppingListName, session.AddedCount));
+            notifications.Add(NotificationEnvelopes.ShoppingListItems(
+                NotificationType.ShoppingListItemsAdded, session.ShoppingListName, session.AddedCount));
 
         if (session.EditedCount > 0)
-            notifications.Add(PushNotificationContentService.GetShoppingListItemsEditedContent(
-                language, session.ShoppingListName, session.EditedCount));
+            notifications.Add(NotificationEnvelopes.ShoppingListItems(
+                NotificationType.ShoppingListItemsEdited, session.ShoppingListName, session.EditedCount));
 
         if (session.DeletedCount > 0)
-            notifications.Add(PushNotificationContentService.GetShoppingListItemsDeletedContent(
-                language, session.ShoppingListName, session.DeletedCount));
+            notifications.Add(NotificationEnvelopes.ShoppingListItems(
+                NotificationType.ShoppingListItemsDeleted, session.ShoppingListName, session.DeletedCount));
 
         if (session.PurchasedCount > 0)
-            notifications.Add(PushNotificationContentService.GetShoppingListItemsPurchasedContent(
-                language, session.ShoppingListName, session.PurchasedCount));
+            notifications.Add(NotificationEnvelopes.ShoppingListItems(
+                NotificationType.ShoppingListItemsPurchased, session.ShoppingListName, session.PurchasedCount));
 
         return notifications;
     }
