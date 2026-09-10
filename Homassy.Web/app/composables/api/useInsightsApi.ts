@@ -4,9 +4,12 @@
  * `Homassy.API.Controllers.InsightsController` and `~/types/insights` for the response shapes.
  */
 import type {
+  BadgeStateResponse,
   BestKnownPrice,
   ConsumptionSeriesResponse,
+  FamilyScoreboardResponse,
   InventoryCompositionResponse,
+  ScoreboardWindowDays,
   SpendByLocationResponse
 } from '~/types/insights'
 
@@ -65,10 +68,35 @@ export const useInsightsApi = () => {
     )
   }
 
+  /**
+   * The family's scoreboard: per-member counters over the window with a comparison against the
+   * previous equally-long one, plus the household's two streaks. `days` must be 7, 30 or 90.
+   *
+   * A caller with no family gets a 200 with no members rather than an error - there is no
+   * household to rank, which is an answer, not a failure.
+   */
+  const getScoreboard = async (days: ScoreboardWindowDays) => {
+    return await client.get<FamilyScoreboardResponse>(`/api/v1/Insights/scoreboard?days=${days}`)
+  }
+
+  /**
+   * Every badge in the catalog as the caller stands with it.
+   *
+   * **Calling this has a side effect on purpose:** the server records any threshold the caller has
+   * just crossed, and `justUnlocked` is true on that one response only - which is what makes the
+   * unlock celebration fire exactly once. So this must not be called speculatively (a prefetch, a
+   * retry loop, a poll) - each call can consume an unlock the user then never sees.
+   */
+  const getBadges = async () => {
+    return await client.get<BadgeStateResponse>('/api/v1/Insights/badges')
+  }
+
   return {
     getInventoryComposition,
     getConsumption,
     getSpendByLocation,
-    getBestPrices
+    getBestPrices,
+    getScoreboard,
+    getBadges
   }
 }

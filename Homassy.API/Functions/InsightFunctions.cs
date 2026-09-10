@@ -812,14 +812,32 @@ namespace Homassy.API.Functions
         /// <see cref="MemberScore.WasteAvoided"/>; and one query per streak's day set.
         ///
         /// <para>
-        /// <b>Scope.</b> Counters read <c>Activity.FamilyId == familyId</c> alone, for the reason
-        /// <see cref="ComputeConsumptionSeriesAsync"/> documents at length: every activity is stamped
-        /// with the acting user's session family id unconditionally, so that predicate already covers
-        /// a member's personal-item actions and needs no union. The two <em>inventory</em> queries do
-        /// need the union (<c>item.FamilyId == familyId</c> or the item belongs to one of the
-        /// members), because a personal item's own <c>FamilyId</c> really is <see langword="null"/> -
-        /// the same rule <see cref="ComputeSpendByLocationAsync"/> applies to one caller, applied here
-        /// to the family's members.
+        /// <b>Scope.</b> Counters read <c>Activity.FamilyId == familyId</c> alone. The two
+        /// <em>inventory</em> queries instead need the union (<c>item.FamilyId == familyId</c> or the
+        /// item belongs to one of the members), because a personal item's own <c>FamilyId</c> really
+        /// is <see langword="null"/> - the same rule <see cref="ComputeSpendByLocationAsync"/>
+        /// applies to one caller, applied here to the family's members.
+        /// </para>
+        ///
+        /// <para>
+        /// <b>What that predicate does and does not include - checked against the recording code,
+        /// not assumed.</b> The inventory and product paths stamp an activity with the acting user's
+        /// <em>session</em> family id (see <c>ProductFunctions</c>), so a member's personal-item work
+        /// already carries the family id and is counted. The shopping-list paths do not: they stamp
+        /// <c>shoppingList.FamilyId</c> (see <c>ShoppingListFunctions</c>'s purchase paths), so a
+        /// purchase made on a member's <em>own</em> list carries no family id and is <b>not</b>
+        /// counted in <see cref="MemberScore.ListItemsPurchased"/>. <c>ListClearedStreak</c> is
+        /// consistent with that half - it only ever looks at family lists.
+        /// </para>
+        /// <para>
+        /// So the two halves of this scoreboard draw the household boundary in different places, and
+        /// they do so because of where each write happens to take its family id from rather than
+        /// because anyone chose it. Deliberately left as-is here: unioning in
+        /// <c>a.FamilyId == null &amp;&amp; memberIds.Contains(a.UserId)</c> would pull in a member's
+        /// activity from <em>before they joined the family</em> too, which is a worse wrong answer
+        /// than the current narrow one. Fixing it properly means changing what those writes record,
+        /// which is a change to the activity feed, not to this query - out of scope for R5 and
+        /// flagged rather than papered over.
         /// </para>
         ///
         /// <para>

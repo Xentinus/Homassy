@@ -1030,6 +1030,21 @@
       "title": "Költés hely szerint (elmúlt 30 nap)",
       "titleWithCurrency": "Költés hely szerint (elmúlt 30 nap) · {currency}",
       "unknownLocation": "Ismeretlen hely"
+    },
+    "leaderboard": {
+      "title": "Ki mit tett",
+      "period": "{from} – {to}",
+      "empty": "Hozz létre családot a háztartás ranglistájához.",
+      "deltaUp": "több, mint az előző időszakban",
+      "deltaDown": "kevesebb, mint az előző időszakban",
+      "deltaLevel": "ugyanannyi, mint az előző időszakban"
+    },
+    "streaks": {
+      "title": "Háztartási sorozatok",
+      "noExpiry": "Semmi nem járt le",
+      "listCleared": "Bevásárlólista letudva",
+      "currentDays": "{count} napja tart",
+      "longestDays": "legjobb: {count} nap"
     }
   },
   "price": {

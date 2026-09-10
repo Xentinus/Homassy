@@ -157,3 +157,85 @@ export interface PriceHistoryResponse {
 
 /** The windows `GET /api/v1/Product/{id}/price-history` accepts — any other value is a 400. */
 export type PriceHistoryWindowDays = 90 | 180 | 365
+
+// --- #109 scoreboard, streaks and badges ------------------------------------------------------
+
+/**
+ * One family member's contribution over the window. Every field names something they *did* —
+ * there is deliberately no deficit metric in the payload, so a client cannot render one (the API
+ * asserts that against its own serialized response).
+ */
+export interface MemberScore {
+  publicId: string
+  displayName: string
+  /** The member's R4 identity colour, or null. An accent only: ring, dot or bar fill. */
+  identityColor: string | null
+  itemsAdded: number
+  itemsConsumed: number
+  /**
+   * Shopping-list items bought. Named for what the data can attribute to a person:
+   * `ShoppingListItem` records when an item was purchased but not by whom, so per-member
+   * attribution comes from the purchase activity rows, which count items. Whole lists are
+   * reported family-wide instead, as `listClearedStreak`.
+   */
+  listItemsPurchased: number
+  /**
+   * Items this member finished before they could expire. Reported alongside the totals but not
+   * part of `currentPeriodTotal` — every one of them is also counted in `itemsConsumed`.
+   */
+  wasteAvoided: number
+  previousPeriodTotal: number
+  currentPeriodTotal: number
+}
+
+/** A household streak: the run it is on now, and the longest run inside the window. */
+export interface StreakInfo {
+  current: number
+  longest: number
+}
+
+/**
+ * The family's scoreboard. `periodStart` / `periodEnd` are plain calendar dates
+ * (`"yyyy-MM-dd"`) already resolved in the viewer's own timezone — parse them as UTC, never with
+ * the local `Date` constructor.
+ */
+export interface FamilyScoreboardResponse {
+  members: MemberScore[]
+  noExpiryStreak: StreakInfo
+  listClearedStreak: StreakInfo
+  periodStart: string
+  periodEnd: string
+}
+
+/** The windows `GET /api/v1/Insights/scoreboard` accepts — any other value is a 400. */
+export type ScoreboardWindowDays = 7 | 30 | 90
+
+/**
+ * One badge as the caller stands with it. The definition fields are copied from the server's
+ * catalog rather than referenced by id, which is what lets a client render a badge it has never
+ * heard of: `fallbackTitle` / `fallbackDescription` are the English text to use when the locale
+ * files have no translation for `titleKey` / `descriptionKey` yet.
+ */
+export interface BadgeStateDto {
+  id: string
+  /** A lucide icon id, e.g. `i-lucide-package-plus`. Named as the API names it. */
+  iconName: string
+  titleKey: string
+  descriptionKey: string
+  fallbackTitle: string
+  fallbackDescription: string
+  threshold: number
+  /** Capped at `threshold`, so a progress ring cannot overflow. */
+  progress: number
+  /** ISO-8601 instant, or null while the badge is locked. This is what "earned" means. */
+  earnedAt: string | null
+  /**
+   * True only on the response that first reports this badge as earned, so the unlock celebration
+   * fires exactly once. Every later response carries the same `earnedAt` with this false.
+   */
+  justUnlocked: boolean
+}
+
+export interface BadgeStateResponse {
+  badges: BadgeStateDto[]
+}

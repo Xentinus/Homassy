@@ -41,6 +41,22 @@
           :value-formatter="formatSpendValue(group.currencyCode)"
         />
       </div>
+
+      <!-- #109. Its own fetch and its own loading flag, like every card above it: the leaderboard
+           and the streaks come from one response, so they share one, and a slow scoreboard never
+           blanks the charts. -->
+      <InsightsLeaderboardCard
+        :members="scoreboard?.members ?? []"
+        :loading="scoreboardLoading"
+        :period-start="scoreboard?.periodStart"
+        :period-end="scoreboard?.periodEnd"
+      />
+
+      <InsightsStreakCard
+        :no-expiry="scoreboard?.noExpiryStreak ?? EMPTY_STREAK"
+        :list-cleared="scoreboard?.listClearedStreak ?? EMPTY_STREAK"
+        :loading="scoreboardLoading"
+      />
     </div>
   </div>
 </template>
@@ -61,7 +77,14 @@
  * every other page under the `auth` layout — no separate in-body heading.
  */
 import { ref, computed, watch, onMounted } from 'vue'
-import type { ConsumptionSeriesResponse, InventoryCompositionResponse, SpendByLocationResponse } from '~/types/insights'
+import type {
+  ConsumptionSeriesResponse,
+  FamilyScoreboardResponse,
+  InventoryCompositionResponse,
+  ScoreboardWindowDays,
+  SpendByLocationResponse,
+  StreakInfo
+} from '~/types/insights'
 import { formatCurrency } from '~/utils/chart/format'
 import { buildCompositionSlices, buildSpendGroups } from '~/utils/insightsCharts'
 import type { DonutSliceItem, SpendCurrencyGroup } from '~/utils/insightsCharts'
@@ -70,7 +93,7 @@ definePageMeta({ layout: 'auth' })
 
 const { t, locale } = useI18n()
 const { formatProductCategory } = useEnumLabel()
-const { getInventoryComposition, getConsumption, getSpendByLocation } = useInsightsApi()
+const { getInventoryComposition, getConsumption, getSpendByLocation, getScoreboard } = useInsightsApi()
 
 usePageHeader(() => ({
   icon: 'i-lucide-bar-chart-3',
@@ -201,11 +224,37 @@ const loadSpend = async (): Promise<void> => {
   }
 }
 
+// --- Scoreboard: leaderboard + household streaks (#109) -----------------------------------------
+
+// The window the leaderboard covers. A named constant rather than an inlined literal, and
+// deliberately without a control of its own for now: Task 22 asks for the cards, not a third
+// segmented control on a page that already has one.
+const SCOREBOARD_WINDOW_DAYS: ScoreboardWindowDays = 30
+
+/** What the streak card renders before the response lands, so it never receives undefined. */
+const EMPTY_STREAK: StreakInfo = { current: 0, longest: 0 }
+
+const scoreboard = ref<FamilyScoreboardResponse | null>(null)
+const scoreboardLoading = ref(true)
+
+const loadScoreboard = async (): Promise<void> => {
+  scoreboardLoading.value = true
+  try {
+    const response = await getScoreboard(SCOREBOARD_WINDOW_DAYS)
+    if (response.success && response.data) scoreboard.value = response.data
+  } catch (error) {
+    console.error('Failed to load the family scoreboard:', error)
+  } finally {
+    scoreboardLoading.value = false
+  }
+}
+
 // --- Initial load ---------------------------------------------------------------------------------
 
 onMounted(() => {
   void loadComposition()
   void loadConsumption()
   void loadSpend()
+  void loadScoreboard()
 })
 </script>

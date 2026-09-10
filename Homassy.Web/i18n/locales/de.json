@@ -1030,6 +1030,21 @@
       "title": "Ausgaben nach Standort (letzte 30 Tage)",
       "titleWithCurrency": "Ausgaben nach Standort (letzte 30 Tage) · {currency}",
       "unknownLocation": "Unbekannter Standort"
+    },
+    "leaderboard": {
+      "title": "Wer was getan hat",
+      "period": "{from} – {to}",
+      "empty": "Erstelle eine Familie, um die Haushaltsrangliste zu sehen.",
+      "deltaUp": "mehr als im letzten Zeitraum",
+      "deltaDown": "weniger als im letzten Zeitraum",
+      "deltaLevel": "genauso viel wie im letzten Zeitraum"
+    },
+    "streaks": {
+      "title": "Haushalts-Serien",
+      "noExpiry": "Nichts abgelaufen",
+      "listCleared": "Einkaufsliste erledigt",
+      "currentDays": "seit {count} Tagen",
+      "longestDays": "Bestwert: {count} Tage"
     }
   },
   "price": {

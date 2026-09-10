@@ -1030,6 +1030,21 @@
       "title": "Spend by location (last 30 days)",
       "titleWithCurrency": "Spend by location (last 30 days) · {currency}",
       "unknownLocation": "Unknown location"
+    },
+    "leaderboard": {
+      "title": "Who did what",
+      "period": "{from} – {to}",
+      "empty": "Create a family to see the household leaderboard.",
+      "deltaUp": "more than last period",
+      "deltaDown": "fewer than last period",
+      "deltaLevel": "same as last period"
+    },
+    "streaks": {
+      "title": "Household streaks",
+      "noExpiry": "Nothing expired",
+      "listCleared": "Shopping list cleared",
+      "currentDays": "{count} days running",
+      "longestDays": "best: {count} days"
     }
   },
   "price": {
