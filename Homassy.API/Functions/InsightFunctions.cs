@@ -1250,5 +1250,169 @@ namespace Homassy.API.Functions
         /// </summary>
         private static bool IsUniqueViolation(DbUpdateException exception) =>
             exception.InnerException is PostgresException { SqlState: PostgresErrorCodes.UniqueViolation };
+
+        /// <summary>
+        /// The furthest back an away delta will look, however old the caller's <c>since</c> is. A
+        /// window is what keeps the query bounded, and a delta over a year is not a summary anyone
+        /// reads - past a few weeks the honest answer is "a lot happened", which is what the clamp
+        /// produces.
+        /// </summary>
+        private const int MaxAwayDeltaWindowDays = 90;
+
+        /// <summary>How many actors the summary names. See <see cref="AwayDeltaResponse.TopActors"/>.</summary>
+        private const int MaxDeltaActors = 3;
+
+        /// <summary>
+        /// Household membership changes worth reporting in a delta. Kept apart from
+        /// <see cref="CountedActivityTypes"/> because these are not per-member work anyone should be
+        /// scored on - they are events the caller wants to know happened.
+        /// </summary>
+        private static readonly ActivityType[] FamilyEventActivityTypes =
+        [
+            ActivityType.FamilyJoin,
+            ActivityType.FamilyLeave,
+            ActivityType.FamilyJoinRequestApprove,
+            ActivityType.FamilyJoinRequestDecline
+        ];
+
+        /// <summary>
+        /// What changed in the household since <paramref name="since"/> - or since the caller's own
+        /// stored last-seen when they send nothing.
+        ///
+        /// <para>
+        /// <b>Deliberately not cached</b>, unlike every other aggregation here. The window starts at
+        /// a moment that is per-caller and per-visit, so a shared cache entry would essentially
+        /// never be hit - and a per-caller-per-instant key is just a dictionary that grows. Said
+        /// here because the absence of a cache next to five cached endpoints otherwise reads as an
+        /// oversight.
+        /// </para>
+        ///
+        /// <para>
+        /// <b>The window is resolved, then clamped, then echoed back.</b> A caller with no
+        /// <paramref name="since"/> falls back to <c>UserProfile.LastSeenAt</c>; a caller with
+        /// neither gets an empty delta rather than the whole history (a first-ever launch has
+        /// nothing to catch up on, and "everything that ever happened" is not a summary). A
+        /// <paramref name="since"/> in the future is a clock-skewed client, not a request for a
+        /// negative window, so it also answers empty. Anything older than
+        /// <see cref="MaxAwayDeltaWindowDays"/> is pulled forward to the clamp - and
+        /// <see cref="AwayDeltaResponse.Since"/> reports the value actually used, so a clamped
+        /// caller is never told it got the window it asked for.
+        /// </para>
+        /// </summary>
+        /// <param name="userId">
+        /// The acting user. Their own activity is <b>excluded</b> from every count and from the
+        /// actor list - see <see cref="AwayDeltaResponse"/>.
+        /// </param>
+        /// <param name="familyId">
+        /// The caller's family. <see langword="null"/> means an empty delta: with the caller's own
+        /// activity excluded there is nobody else's left to report, so there is nothing to query
+        /// for.
+        /// </param>
+        /// <param name="since">The client's own last-seen, or <see langword="null"/> to use the stored one.</param>
+        /// <param name="cancellationToken">Cancellation for the two queries.</param>
+        public async Task<AwayDeltaResponse> GetAwayDeltaAsync(int userId, int? familyId, DateTime? since, CancellationToken cancellationToken)
+        {
+            var untilUtc = DateTime.UtcNow;
+            var resolvedSince = since ?? new UserFunctions(_contextFactory).GetUserProfileByUserId(userId)?.LastSeenAt;
+
+            // No window at all, or a window that has not happened yet: nothing to report, and
+            // deliberately not "everything ever" - see this method's remarks.
+            if (!resolvedSince.HasValue || resolvedSince.Value >= untilUtc)
+            {
+                return new AwayDeltaResponse
+                {
+                    Since = resolvedSince ?? untilUtc,
+                    Until = untilUtc
+                };
+            }
+
+            var sinceUtc = DateTime.SpecifyKind(resolvedSince.Value, DateTimeKind.Utc);
+            var earliest = untilUtc.AddDays(-MaxAwayDeltaWindowDays);
+            if (sinceUtc < earliest)
+            {
+                sinceUtc = earliest;
+            }
+
+            if (!familyId.HasValue)
+            {
+                return new AwayDeltaResponse { Since = sinceUtc, Until = untilUtc };
+            }
+
+            using var context = _contextFactory.CreateForReading();
+
+            // One grouped query over the window for every counted kind AND the actor list: the rows
+            // come back per (user, type), so the counts fold one way and the actors the other. Never
+            // a query per kind, and never a query per actor.
+            var rows = await context.Activities
+                .Where(a => a.FamilyId == familyId
+                            && a.UserId != userId
+                            && a.Timestamp > sinceUtc && a.Timestamp <= untilUtc
+                            && (CountedActivityTypes.Contains(a.ActivityType) || FamilyEventActivityTypes.Contains(a.ActivityType)))
+                .GroupBy(a => new { a.UserId, a.ActivityType })
+                .Select(g => new { g.Key.UserId, g.Key.ActivityType, Count = g.Count() })
+                .ToListAsync(cancellationToken);
+
+            // Expirations are not something a member did, so they come from the inventory rather
+            // than from the activity feed - and only from the family's shared items, since another
+            // member's personal item expiring is not the caller's business (and their own expiring
+            // items are not news to them).
+            var newExpirations = await context.ProductInventoryItems
+                .CountAsync(i => i.FamilyId == familyId
+                                 && i.ExpirationAt != null
+                                 && i.ExpirationAt > sinceUtc && i.ExpirationAt <= untilUtc, cancellationToken);
+
+            var itemsAdded = rows.Where(r => r.ActivityType == ActivityType.ProductInventoryCreate).Sum(r => r.Count);
+            var itemsConsumed = rows.Where(r => r.ActivityType == ActivityType.ProductInventoryDecrease).Sum(r => r.Count);
+            var listItemsPurchased = rows
+                .Where(r => r.ActivityType is ActivityType.ShoppingListItemPurchase or ActivityType.ShoppingListItemQuickPurchase)
+                .Sum(r => r.Count);
+            var familyEvents = rows.Where(r => FamilyEventActivityTypes.Contains(r.ActivityType)).Sum(r => r.Count);
+
+            var actorIds = rows.Select(r => r.UserId).Distinct().ToList();
+            var actorNames = actorIds.Count > 0
+                ? await context.Users
+                    .Where(u => actorIds.Contains(u.Id))
+                    .Select(u => new
+                    {
+                        u.Id,
+                        u.PublicId,
+                        u.Name,
+                        ProfileDisplayName = u.Profile != null ? u.Profile.DisplayName : null
+                    })
+                    .ToDictionaryAsync(u => u.Id, cancellationToken)
+                : [];
+
+            var topActors = rows
+                .GroupBy(r => r.UserId)
+                .Select(g => new { UserId = g.Key, Count = g.Sum(r => r.Count) })
+                .OrderByDescending(actor => actor.Count)
+                // Then by name, so a tie orders the same way twice rather than following row order.
+                .ThenBy(actor => actorNames.TryGetValue(actor.UserId, out var info) ? info.Name : string.Empty, StringComparer.OrdinalIgnoreCase)
+                .Take(MaxDeltaActors)
+                .Select(actor =>
+                {
+                    actorNames.TryGetValue(actor.UserId, out var info);
+                    return new DeltaActor
+                    {
+                        PublicId = info?.PublicId ?? Guid.Empty,
+                        DisplayName = string.IsNullOrWhiteSpace(info?.ProfileDisplayName) ? info?.Name ?? "" : info.ProfileDisplayName,
+                        Count = actor.Count
+                    };
+                })
+                .ToList();
+
+            return new AwayDeltaResponse
+            {
+                ItemsAdded = itemsAdded,
+                ItemsConsumed = itemsConsumed,
+                ListItemsPurchased = listItemsPurchased,
+                NewExpirations = newExpirations,
+                FamilyEvents = familyEvents,
+                Total = itemsAdded + itemsConsumed + listItemsPurchased + newExpirations + familyEvents,
+                TopActors = topActors,
+                Since = sinceUtc,
+                Until = untilUtc
+            };
+        }
     }
 }

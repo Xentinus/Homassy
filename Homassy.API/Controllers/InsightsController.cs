@@ -219,6 +219,36 @@ public class InsightsController : ControllerBase
     }
 
     /// <summary>
+    /// What changed in the household since the caller was last here - see
+    /// <see cref="InsightFunctions.GetAwayDeltaAsync"/> for how the window is resolved, clamped and
+    /// echoed back, and for why the caller's own activity is excluded.
+    /// </summary>
+    /// <remarks>
+    /// <paramref name="since"/> is optional: without it the server falls back to the caller's stored
+    /// last-seen, and a caller with neither gets an empty delta rather than their whole history.
+    /// <para>
+    /// <b>Nothing to report is 200 with zeroes, never 204.</b> The client decides whether an empty
+    /// delta is worth rendering (it is not - the card hides itself), and a 204 would force every
+    /// caller to treat "no news" as a different shape of response than "news".
+    /// </para>
+    /// </remarks>
+    [HttpGet("delta")]
+    [MapToApiVersion(1.0)]
+    [ProducesResponseType(typeof(ApiResponse<AwayDeltaResponse>), StatusCodes.Status200OK)]
+    public async Task<IActionResult> GetAwayDelta([FromQuery] DateTime? since, CancellationToken cancellationToken)
+    {
+        var userId = SessionInfo.GetUserId();
+        if (!userId.HasValue)
+        {
+            return Unauthorized(ApiResponse.ErrorResponse(ErrorCodes.AuthUnauthorized));
+        }
+
+        var familyId = SessionInfo.GetFamilyId();
+        var delta = await _insightFunctions.GetAwayDeltaAsync(userId.Value, familyId, since, cancellationToken);
+        return Ok(ApiResponse<AwayDeltaResponse>.SuccessResponse(delta));
+    }
+
+    /// <summary>
     /// Every badge in the catalog as the caller currently stands with it - locked ones with their
     /// truthful progress, earned ones with the date they were earned. See
     /// <see cref="InsightFunctions.GetBadgeStateAsync"/> for the evaluation and for why exactly one
