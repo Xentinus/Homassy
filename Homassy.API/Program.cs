@@ -90,6 +90,7 @@ try
     builder.Services.AddScoped<ImageFunctions>();
     builder.Services.AddScoped<InsightFunctions>();
     builder.Services.AddScoped<LocationFunctions>();
+    builder.Services.AddScoped<PriceInsightFunctions>();
     builder.Services.AddScoped<ProductFunctions>();
     builder.Services.AddScoped<PushNotificationFunctions>();
     builder.Services.AddScoped<SelectValueFunctions>();

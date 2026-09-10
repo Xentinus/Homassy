@@ -1,9 +1,11 @@
 using Asp.Versioning;
+using Homassy.API.Context;
 using Homassy.API.Enums;
 using Homassy.API.Extensions;
 using Homassy.API.Functions;
 using Homassy.API.Models;
 using Homassy.API.Models.Common;
+using Homassy.API.Models.Insights;
 using Homassy.API.Models.Product;
 using Homassy.API.Models.ImageUpload;
 using Homassy.API.Services;
@@ -25,15 +27,18 @@ namespace Homassy.API.Controllers
         private readonly IProgressTrackerService _progressTrackerService;
         private readonly ProductFunctions _productFunctions;
         private readonly ImageFunctions _imageFunctions;
+        private readonly PriceInsightFunctions _priceInsightFunctions;
 
         public ProductController(
             IProgressTrackerService progressTrackerService,
             ProductFunctions productFunctions,
-            ImageFunctions imageFunctions)
+            ImageFunctions imageFunctions,
+            PriceInsightFunctions priceInsightFunctions)
         {
             _progressTrackerService = progressTrackerService;
             _productFunctions = productFunctions;
             _imageFunctions = imageFunctions;
+            _priceInsightFunctions = priceInsightFunctions;
         }
 
         #region Product
@@ -152,6 +157,60 @@ namespace Homassy.API.Controllers
             }
 
             return Ok(ApiResponse<List<ProductHistoryEventInfo>>.SuccessResponse(history));
+        }
+
+        /// <summary>
+        /// The allowed values for <c>days</c> on <see cref="GetPriceHistory"/>. A closed set, the
+        /// same way <c>InsightsController</c>'s window parameters are: an unbounded (or merely
+        /// large) window is an unbounded query, and every value here matches a real preset on the
+        /// price chart, so there is no in-between value a client could usefully ask for. Longer
+        /// than the insight charts' 30/90 on purpose - a price trend needs enough purchases of one
+        /// product to be a trend at all, and a household buys any single product far less often
+        /// than it consumes something.
+        /// </summary>
+        private static readonly int[] AllowedPriceHistoryWindowDays = [90, 180, 365];
+
+        /// <summary>
+        /// One product's purchase price history for the caller's household - per shopping location,
+        /// normalized to a price per canonical unit so pack sizes are comparable, and grouped by
+        /// currency. See <see cref="PriceInsightFunctions.GetPriceHistoryAsync"/> for the scope
+        /// rule and every rule about what is dropped, grouped or picked.
+        /// </summary>
+        /// <remarks>
+        /// Validation and the 401 follow <c>InsightsController</c>'s convention rather than the
+        /// rest of this controller's, because this is an insight endpoint that happens to hang off
+        /// the product route: <paramref name="days"/> is checked against
+        /// <see cref="AllowedPriceHistoryWindowDays"/> before it can reach a query, and a session
+        /// that does not resolve to a local user row is <b>401</b> rather than 200-with-nothing -
+        /// an authenticated request whose user id is missing is an authentication problem, not an
+        /// empty-but-valid dataset. A caller with no family is the legitimate case and passes
+        /// straight through, since their own personal purchases are still theirs to see.
+        /// <para>
+        /// A product nobody in the household has bought - and an unknown or deleted product id -
+        /// answers <b>200</b> with an empty history rather than 404. That is deliberate; see
+        /// <see cref="PriceInsightFunctions.GetPriceHistoryAsync"/>.
+        /// </para>
+        /// </remarks>
+        [HttpGet("{productPublicId:guid}/price-history")]
+        [MapToApiVersion(1.0)]
+        [ProducesResponseType(typeof(ApiResponse<PriceHistoryResponse>), StatusCodes.Status200OK)]
+        [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status400BadRequest)]
+        public async Task<IActionResult> GetPriceHistory(Guid productPublicId, [FromQuery] int days, CancellationToken cancellationToken)
+        {
+            var userId = SessionInfo.GetUserId();
+            if (!userId.HasValue)
+            {
+                return Unauthorized(ApiResponse.ErrorResponse(ErrorCodes.AuthUnauthorized));
+            }
+
+            if (!AllowedPriceHistoryWindowDays.Contains(days))
+            {
+                return BadRequest(ApiResponse.ErrorResponse(ErrorCodes.ValidationInvalidRequest));
+            }
+
+            var familyId = SessionInfo.GetFamilyId();
+            var history = await _priceInsightFunctions.GetPriceHistoryAsync(userId.Value, familyId, productPublicId, days, cancellationToken);
+            return Ok(ApiResponse<PriceHistoryResponse>.SuccessResponse(history));
         }
 
         /// <summary>
