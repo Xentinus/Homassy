@@ -248,7 +248,11 @@
           </div>
         </template>
 
-        <!-- Items Grid (everything not buyable here; the whole list away from a store) -->
+        <!-- Items Grid (everything not buyable here; the whole list away from a store).
+             The listeners here must stay identical to the "buy here" grid above: the card only
+             *requests* delete/purchase/restore, and this page owns the items array, so a card
+             whose request nobody listens for closes its confirm drawer and does nothing at all.
+             An unhandled emit is silent in Vue — neither the linter nor the typechecker sees it. -->
         <AnimatedList class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
           <div
             v-for="entry in restItemsWithAttribution"
@@ -266,7 +270,9 @@
               :shopping-locations="allShoppingLocations"
               :current-store="currentStoreForItem(entry.item)"
               @refresh="handleItemRefresh"
-              @deleted="handleItemRefresh"
+              @delete-requested="handleDeleteRequested(entry.item)"
+              @purchase-requested="(request) => handlePurchaseRequested(entry.item, request)"
+              @restore-requested="handleRestoreRequested(entry.item)"
             />
             <div v-if="entry.attribution" class="item-attribution-label">
               <span class="item-attribution-dot" :style="entry.attribution.style" />
