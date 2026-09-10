@@ -366,3 +366,72 @@ html {
     transform: scale(1);
   }
 }
+
+/* --- Badge unlock celebration (#109) ---------------------------------------------------------
+   A hand-rolled burst: a dozen absolutely-positioned spans thrown outward from the tile's centre.
+   No confetti library — this milestone adds no dependency, and a dozen spans on the app's own
+   motion tokens is both smaller and consistent with every other animation here.
+
+   Each particle takes its direction from --burst-index (twelve evenly-spaced angles, so the burst
+   is symmetric without twelve hand-written keyframes) and its timing from --bubble-out /
+   --bubble-ease-pop, the same pair the app's pop-in animations use. The animation runs once and
+   the particles end invisible, so a tile that stays on screen does not keep pulsing.
+
+   The tile itself is what fires this: the grid renders .badge-burst only for a badge that arrived
+   with justUnlocked, and the API sets that on exactly one response per badge ever — so "fires
+   once" is a server guarantee, not a CSS one. */
+.badge-burst {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.badge-burst > span {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 6px;
+  height: 6px;
+  margin: -3px 0 0 -3px;
+  border-radius: 9999px;
+  background: var(--ui-primary);
+  --burst-angle: calc(var(--burst-index, 0) * 30deg);
+  animation: badge-burst-out calc(var(--bubble-out) * 3) var(--bubble-ease-pop) forwards;
+  animation-delay: calc(var(--burst-index, 0) * 8ms);
+}
+
+@keyframes badge-burst-out {
+  from {
+    opacity: 1;
+    transform: rotate(var(--burst-angle)) translateY(0) scale(1);
+  }
+  to {
+    opacity: 0;
+    transform: rotate(var(--burst-angle)) translateY(-42px) scale(0.4);
+  }
+}
+
+/* The stamp is always in the markup for a just-unlocked badge — it is the information ("this one
+   is new"), while the burst is the decoration on top of it. Under reduced motion the burst is
+   removed outright and the stamp is all that remains, which is why the stamp is not itself
+   animated. */
+.badge-unlocked-stamp {
+  animation: badge-stamp-in var(--bubble-in) var(--bubble-ease-pop) forwards;
+}
+
+@keyframes badge-stamp-in {
+  from { opacity: 0; transform: scale(0.85); }
+  to { opacity: 1; transform: scale(1); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .badge-burst {
+    display: none;
+  }
+
+  .badge-unlocked-stamp {
+    animation: none;
+    opacity: 1;
+    transform: none;
+  }
+}

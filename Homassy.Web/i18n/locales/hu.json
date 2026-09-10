@@ -1045,6 +1045,13 @@
       "listCleared": "Bevásárlólista letudva",
       "currentDays": "{count} napja tart",
       "longestDays": "legjobb: {count} nap"
+    },
+    "badges": {
+      "title": "Kitűzők",
+      "earnedCount": "{earned} / {total} megszerezve",
+      "empty": "Még nincs megjeleníthető kitűző.",
+      "earned": "Megszerezve",
+      "justUnlocked": "Most szerezted meg!"
     }
   },
   "price": {

@@ -1045,6 +1045,13 @@
       "listCleared": "Einkaufsliste erledigt",
       "currentDays": "seit {count} Tagen",
       "longestDays": "Bestwert: {count} Tage"
+    },
+    "badges": {
+      "title": "Abzeichen",
+      "earnedCount": "{earned} von {total} erreicht",
+      "empty": "Noch keine Abzeichen vorhanden.",
+      "earned": "Erreicht",
+      "justUnlocked": "Gerade freigeschaltet!"
     }
   },
   "price": {

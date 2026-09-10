@@ -57,6 +57,10 @@
         :list-cleared="scoreboard?.listClearedStreak ?? EMPTY_STREAK"
         :loading="scoreboardLoading"
       />
+
+      <div class="md:col-span-2">
+        <InsightsBadgeGrid :badges="badges" :loading="badgesLoading" />
+      </div>
     </div>
   </div>
 </template>
@@ -78,6 +82,7 @@
  */
 import { ref, computed, watch, onMounted } from 'vue'
 import type {
+  BadgeStateDto,
   ConsumptionSeriesResponse,
   FamilyScoreboardResponse,
   InventoryCompositionResponse,
@@ -93,7 +98,7 @@ definePageMeta({ layout: 'auth' })
 
 const { t, locale } = useI18n()
 const { formatProductCategory } = useEnumLabel()
-const { getInventoryComposition, getConsumption, getSpendByLocation, getScoreboard } = useInsightsApi()
+const { getInventoryComposition, getConsumption, getSpendByLocation, getScoreboard, getBadges } = useInsightsApi()
 
 usePageHeader(() => ({
   icon: 'i-lucide-bar-chart-3',
@@ -249,6 +254,29 @@ const loadScoreboard = async (): Promise<void> => {
   }
 }
 
+// --- Badges (#109) --------------------------------------------------------------------------------
+
+const badges = ref<BadgeStateDto[]>([])
+const badgesLoading = ref(true)
+
+/**
+ * Fetched exactly once per page visit, from onMounted below — never on a watcher, a poll or a
+ * retry. The request has a side effect: the server records any threshold just crossed and reports
+ * `justUnlocked` on that one response, so a second speculative call would consume an unlock the
+ * user never gets to see.
+ */
+const loadBadges = async (): Promise<void> => {
+  badgesLoading.value = true
+  try {
+    const response = await getBadges()
+    if (response.success && response.data) badges.value = response.data.badges
+  } catch (error) {
+    console.error('Failed to load badges:', error)
+  } finally {
+    badgesLoading.value = false
+  }
+}
+
 // --- Initial load ---------------------------------------------------------------------------------
 
 onMounted(() => {
@@ -256,5 +284,6 @@ onMounted(() => {
   void loadConsumption()
   void loadSpend()
   void loadScoreboard()
+  void loadBadges()
 })
 </script>

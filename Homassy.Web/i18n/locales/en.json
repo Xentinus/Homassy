@@ -1045,6 +1045,13 @@
       "listCleared": "Shopping list cleared",
       "currentDays": "{count} days running",
       "longestDays": "best: {count} days"
+    },
+    "badges": {
+      "title": "Badges",
+      "earnedCount": "{earned} of {total} earned",
+      "empty": "No badges to show yet.",
+      "earned": "Earned",
+      "justUnlocked": "Just unlocked!"
     }
   },
   "price": {
