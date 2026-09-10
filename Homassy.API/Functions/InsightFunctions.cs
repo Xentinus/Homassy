@@ -685,5 +685,317 @@ namespace Homassy.API.Functions
                 Locations = locations
             };
         }
+
+        /// <summary>
+        /// Cache key prefix for <see cref="GetFamilyScoreboardAsync"/> - endpoint-qualified for the
+        /// same reason every other insight key is (see <see cref="CompositionCacheKey"/>).
+        ///
+        /// <para>
+        /// The key actually used is <c>$"{ScoreboardCacheKey}:{days}:{ianaTimeZoneId}"</c>, with
+        /// <b>no user id</b> - and unlike <see cref="SpendByLocationCacheKey"/> that is correct here
+        /// rather than a leak. This result is genuinely family-wide: every counter comes from
+        /// <c>Activity.FamilyId == familyId</c>, both streaks are household-wide, and every member
+        /// of the family appears in it, so two members of one family are entitled to identical
+        /// answers. The timezone is in the key because it decides the day bucketing the streaks are
+        /// scanned on (and the reported period bounds), so two members in different zones must not
+        /// share an entry.
+        /// </para>
+        /// </summary>
+        private const string ScoreboardCacheKey = "scoreboard";
+
+        /// <summary>
+        /// 15 minutes, not the nightly refresh the issue text suggested - see the spec's deviation
+        /// note. A leaderboard that only moves overnight reads as broken (a member adds five items
+        /// and their own number does not change), and this endpoint is opened deliberately rather
+        /// than on every page load, so a shorter TTL costs little. Task 21's nightly pre-warm sits
+        /// on top of this rather than replacing it.
+        /// </summary>
+        private static readonly TimeSpan ScoreboardTtl = TimeSpan.FromMinutes(15);
+
+        /// <summary>
+        /// The activity types behind <see cref="MemberScore"/>'s three counters, listed once so the
+        /// single grouped query filters on exactly the set the fold knows how to bucket - a type in
+        /// the query but not in the fold would be fetched and silently dropped.
+        /// </summary>
+        private static readonly ActivityType[] CountedActivityTypes =
+        [
+            ActivityType.ProductInventoryCreate,
+            ActivityType.ProductInventoryDecrease,
+            ActivityType.ShoppingListItemPurchase,
+            ActivityType.ShoppingListItemQuickPurchase
+        ];
+
+        /// <summary>
+        /// One row of the single grouped counter query: how many activities of one type one member
+        /// has in one of the two windows.
+        /// </summary>
+        private sealed record ActivityCountRow(int UserId, ActivityType ActivityType, bool IsCurrentPeriod, int Count);
+
+        /// <summary>
+        /// The family's scoreboard for the last <paramref name="days"/> days: per-member counters
+        /// with a comparison against the previous equally-long window, plus the household's
+        /// no-expiry and list-cleared streaks. Cached for <see cref="ScoreboardTtl"/> under
+        /// <see cref="ScoreboardCacheKey"/>.
+        /// </summary>
+        /// <param name="userId">
+        /// The acting user - used only to resolve the timezone the streaks and the period bounds are
+        /// computed in, from their own saved profile. It deliberately does <b>not</b> scope the
+        /// result: a scoreboard is the same for everyone in the family.
+        /// </param>
+        /// <param name="familyId">
+        /// The family to report on. <see langword="null"/> short-circuits to an empty scoreboard
+        /// <b>without querying or caching anything</b> - a caller with no family has no household to
+        /// rank, which is a legitimate empty answer and not an error.
+        /// </param>
+        /// <param name="days">The window length. Bounds are the controller's job to enforce.</param>
+        /// <param name="cancellationToken">Cancellation for this call's own (re)computation.</param>
+        public Task<FamilyScoreboardResponse> GetFamilyScoreboardAsync(int userId, int? familyId, int days, CancellationToken cancellationToken)
+        {
+            // Resolved up front, exactly as GetConsumptionSeriesAsync does it: the zone has to be
+            // part of the cache key, and the profile lookup is a cheap cache-backed read.
+            var userTimeZone = new UserFunctions(_contextFactory).GetUserProfileByUserId(userId)?.DefaultTimeZone ?? UserTimeZone.CentralEuropeStandardTime;
+            var ianaTimeZoneId = ResolveIanaTimeZoneId(userTimeZone.ToTimeZoneId());
+
+            if (!familyId.HasValue)
+            {
+                return Task.FromResult(EmptyScoreboard(days, ianaTimeZoneId));
+            }
+
+            var key = $"{ScoreboardCacheKey}:{days}:{ianaTimeZoneId}";
+
+            return _cache.GetOrAddAsync(
+                familyId.Value,
+                key,
+                ScoreboardTtl,
+                ct => ComputeFamilyScoreboardAsync(familyId.Value, days, ianaTimeZoneId, ct),
+                cancellationToken);
+        }
+
+        /// <summary>
+        /// The answer for a caller with no family: no members and no streaks, but the same truthful
+        /// period bounds every other answer carries, so a client can render "nothing yet" without
+        /// special-casing a payload that has no window at all.
+        /// </summary>
+        private static FamilyScoreboardResponse EmptyScoreboard(int days, string ianaTimeZoneId)
+        {
+            var (periodStart, periodEnd) = LocalPeriodBounds(days, ianaTimeZoneId);
+
+            return new FamilyScoreboardResponse
+            {
+                PeriodStart = periodStart,
+                PeriodEnd = periodEnd
+            };
+        }
+
+        /// <summary>
+        /// The window as calendar days on the caller's own clock: it ends on their local today and
+        /// spans <paramref name="days"/> days inclusive, so a 30-day window is 30 dated days rather
+        /// than 29 plus a fraction.
+        /// </summary>
+        private static (DateOnly PeriodStart, DateOnly PeriodEnd) LocalPeriodBounds(int days, string ianaTimeZoneId)
+        {
+            var timeZone = TimeZoneInfo.FindSystemTimeZoneById(ianaTimeZoneId);
+            var localToday = DateOnly.FromDateTime(TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, timeZone));
+
+            return (localToday.AddDays(-(days - 1)), localToday);
+        }
+
+        /// <summary>
+        /// Runs the actual aggregation on a cache miss - five queries, none of them per member and
+        /// none of them per counter: the family's members; <b>one</b> grouped pass over
+        /// <c>Activities</c> covering every counter <em>and</em> both periods (grouped by
+        /// <c>(UserId, ActivityType, is-in-current-window)</c>, so the previous period costs nothing
+        /// beyond a wider <c>WHERE</c>); the consumption logs behind
+        /// <see cref="MemberScore.WasteAvoided"/>; and one query per streak's day set.
+        ///
+        /// <para>
+        /// <b>Scope.</b> Counters read <c>Activity.FamilyId == familyId</c> alone, for the reason
+        /// <see cref="ComputeConsumptionSeriesAsync"/> documents at length: every activity is stamped
+        /// with the acting user's session family id unconditionally, so that predicate already covers
+        /// a member's personal-item actions and needs no union. The two <em>inventory</em> queries do
+        /// need the union (<c>item.FamilyId == familyId</c> or the item belongs to one of the
+        /// members), because a personal item's own <c>FamilyId</c> really is <see langword="null"/> -
+        /// the same rule <see cref="ComputeSpendByLocationAsync"/> applies to one caller, applied here
+        /// to the family's members.
+        /// </para>
+        ///
+        /// <para>
+        /// <b>Both streaks are scanned over the window only</b>, so <c>Longest</c> means "the longest
+        /// run inside this window", never "the longest ever". That keeps these queries bounded like
+        /// every other query in this class; an all-time longest is a different question, over the
+        /// family's whole history, and would need its own (much more cacheable) endpoint.
+        /// </para>
+        /// </summary>
+        private async Task<FamilyScoreboardResponse> ComputeFamilyScoreboardAsync(int familyId, int days, string ianaTimeZoneId, CancellationToken cancellationToken)
+        {
+            using var context = _contextFactory.CreateForReading();
+
+            var timeZone = TimeZoneInfo.FindSystemTimeZoneById(ianaTimeZoneId);
+            var toUtc = DateTime.UtcNow;
+            var fromUtc = toUtc.AddDays(-days);
+            var previousFromUtc = fromUtc.AddDays(-days);
+            var (periodStart, periodEnd) = LocalPeriodBounds(days, ianaTimeZoneId);
+
+            // Every member of the family, whether or not they did anything in the window - see
+            // FamilyScoreboardResponse.Members. UserProfile is optional on User, so the display
+            // name falls back to the User row's own name rather than to an empty string.
+            var members = await context.Users
+                .Where(u => u.FamilyId == familyId)
+                .Select(u => new
+                {
+                    u.Id,
+                    u.PublicId,
+                    u.Name,
+                    ProfileDisplayName = u.Profile != null ? u.Profile.DisplayName : null,
+                    IdentityColor = u.Profile != null ? u.Profile.IdentityColor : null
+                })
+                .ToListAsync(cancellationToken);
+
+            var memberIds = members.Select(member => member.Id).ToList();
+
+            // Every counter, for both windows, in one grouped query. The third grouping key is
+            // which window the row falls in - a plain boolean comparison PostgreSQL evaluates in
+            // the GROUP BY - so "this period" and "the one before" come back as separate rows of
+            // one result rather than as a second round trip.
+            var counterRows = await context.Activities
+                .Where(a => a.FamilyId == familyId
+                            && a.Timestamp >= previousFromUtc && a.Timestamp <= toUtc
+                            && CountedActivityTypes.Contains(a.ActivityType))
+                .GroupBy(a => new { a.UserId, a.ActivityType, IsCurrentPeriod = a.Timestamp >= fromUtc })
+                .Select(g => new ActivityCountRow(g.Key.UserId, g.Key.ActivityType, g.Key.IsCurrentPeriod, g.Count()))
+                .ToListAsync(cancellationToken);
+
+            // Waste avoided: items finished on or before their own expiration date, inside the
+            // window, attributed to whoever actually finished them. The consumption logs carry the
+            // only per-member attribution that exists (the inventory item itself records no
+            // consumer), and the winning log per item is the last one - the consume that took it to
+            // zero. Folded in memory rather than with a correlated max-per-item subquery: the row
+            // count is bounded by one family's consumption inside the window.
+            var wasteLogs = await context.ProductConsumptionLogs
+                .Where(l => l.ProductInventoryItem.IsFullyConsumed
+                            && l.ProductInventoryItem.FullyConsumedAt != null
+                            && l.ProductInventoryItem.ExpirationAt != null
+                            && l.ProductInventoryItem.FullyConsumedAt <= l.ProductInventoryItem.ExpirationAt
+                            && l.ProductInventoryItem.FullyConsumedAt >= fromUtc
+                            && l.ProductInventoryItem.FullyConsumedAt <= toUtc
+                            && (l.ProductInventoryItem.FamilyId == familyId
+                                || (l.ProductInventoryItem.UserId != null && memberIds.Contains(l.ProductInventoryItem.UserId.Value))))
+                .Select(l => new { l.ProductInventoryItemId, l.UserId, l.ConsumedAt })
+                .ToListAsync(cancellationToken);
+
+            var wasteAvoidedByUser = wasteLogs
+                .GroupBy(log => log.ProductInventoryItemId)
+                .Select(logsForItem => logsForItem.OrderByDescending(log => log.ConsumedAt).First())
+                .Where(log => log.UserId.HasValue)
+                .GroupBy(log => log.UserId!.Value)
+                .ToDictionary(group => group.Key, group => group.Count());
+
+            // The days something expired unused - the days that BREAK the no-expiry streak. An item
+            // counts as expired here when it passed its own expiration date without being finished
+            // first; one finished in time is exactly the waste-avoided case above.
+            var expirationInstants = await context.ProductInventoryItems
+                .Where(i => (i.FamilyId == familyId || (i.UserId != null && memberIds.Contains(i.UserId.Value)))
+                            && i.ExpirationAt != null
+                            && i.ExpirationAt >= fromUtc && i.ExpirationAt <= toUtc
+                            && (!i.IsFullyConsumed || i.FullyConsumedAt == null || i.FullyConsumedAt > i.ExpirationAt))
+                .Select(i => i.ExpirationAt!.Value)
+                .ToListAsync(cancellationToken);
+
+            // The days a shopping list was cleared. "Cleared" is read off the list's current state -
+            // every item on it purchased - and dated by its last purchase. That is the only
+            // definition this schema supports: there is no completion event, so a cleared list that
+            // later gains a new item stops counting and its historical clearing is forgotten. Worth
+            // knowing when reading this streak, and stated here rather than left to be discovered.
+            var clearedInstants = await context.ShoppingLists
+                .Where(l => l.FamilyId == familyId)
+                .Where(l => l.Items!.Any() && l.Items!.All(i => i.PurchasedAt != null))
+                .Select(l => l.Items!.Max(i => i.PurchasedAt))
+                .ToListAsync(cancellationToken);
+
+            var expiredDays = ToLocalDays(expirationInstants, timeZone);
+
+            // The no-expiry streak's qualifying days are the INVERSE of the expiry days: every day
+            // of the window on which nothing expired. A day with no inventory at all qualifies -
+            // nothing expired on it, which is the literal claim the streak makes.
+            var noExpiryDays = Enumerable
+                .Range(0, days)
+                .Select(offset => periodStart.AddDays(offset))
+                .Where(day => day <= periodEnd && !expiredDays.Contains(day))
+                .ToList();
+
+            var clearedDays = ToLocalDays(
+                clearedInstants
+                    .Where(instant => instant.HasValue && instant.Value >= fromUtc && instant.Value <= toUtc)
+                    .Select(instant => instant!.Value),
+                timeZone);
+
+            var noExpiryStreak = StreakCalculator.Compute(noExpiryDays, periodEnd);
+            var listClearedStreak = StreakCalculator.Compute(clearedDays, periodEnd);
+
+            var scores = members
+                .Select(member =>
+                {
+                    var itemsAdded = CountFor(counterRows, member.Id, ActivityType.ProductInventoryCreate, current: true);
+                    var itemsConsumed = CountFor(counterRows, member.Id, ActivityType.ProductInventoryDecrease, current: true);
+                    var listItemsPurchased =
+                        CountFor(counterRows, member.Id, ActivityType.ShoppingListItemPurchase, current: true)
+                        + CountFor(counterRows, member.Id, ActivityType.ShoppingListItemQuickPurchase, current: true);
+
+                    var previousPeriodTotal =
+                        CountFor(counterRows, member.Id, ActivityType.ProductInventoryCreate, current: false)
+                        + CountFor(counterRows, member.Id, ActivityType.ProductInventoryDecrease, current: false)
+                        + CountFor(counterRows, member.Id, ActivityType.ShoppingListItemPurchase, current: false)
+                        + CountFor(counterRows, member.Id, ActivityType.ShoppingListItemQuickPurchase, current: false);
+
+                    return new MemberScore
+                    {
+                        PublicId = member.PublicId,
+                        DisplayName = string.IsNullOrWhiteSpace(member.ProfileDisplayName) ? member.Name : member.ProfileDisplayName,
+                        IdentityColor = member.IdentityColor,
+                        ItemsAdded = itemsAdded,
+                        ItemsConsumed = itemsConsumed,
+                        ListItemsPurchased = listItemsPurchased,
+                        WasteAvoided = wasteAvoidedByUser.TryGetValue(member.Id, out var wasteAvoided) ? wasteAvoided : 0,
+                        CurrentPeriodTotal = itemsAdded + itemsConsumed + listItemsPurchased,
+                        PreviousPeriodTotal = previousPeriodTotal
+                    };
+                })
+                // Busiest first, then by name, so equal scores order stably instead of following
+                // whatever order the database happened to return the members in.
+                .OrderByDescending(score => score.CurrentPeriodTotal)
+                .ThenBy(score => score.DisplayName, StringComparer.OrdinalIgnoreCase)
+                .ToList();
+
+            return new FamilyScoreboardResponse
+            {
+                Members = scores,
+                NoExpiryStreak = new StreakInfo { Current = noExpiryStreak.Current, Longest = noExpiryStreak.Longest },
+                ListClearedStreak = new StreakInfo { Current = listClearedStreak.Current, Longest = listClearedStreak.Longest },
+                PeriodStart = periodStart,
+                PeriodEnd = periodEnd
+            };
+        }
+
+        /// <summary>
+        /// Turns UTC instants into the set of calendar days they fall on in
+        /// <paramref name="timeZone"/>. Converted in .NET rather than in SQL on purpose: the row
+        /// counts are already bounded by the window, and doing it here keeps the day arithmetic in
+        /// the same place the streak scan reads it from. The kind is asserted explicitly because
+        /// <see cref="TimeZoneInfo.ConvertTimeFromUtc"/> throws for a <see cref="DateTimeKind.Local"/>
+        /// input and a materialised value's kind depends on the provider.
+        /// </summary>
+        private static HashSet<DateOnly> ToLocalDays(IEnumerable<DateTime> instantsUtc, TimeZoneInfo timeZone) =>
+            instantsUtc
+                .Select(instant => DateOnly.FromDateTime(
+                    TimeZoneInfo.ConvertTimeFromUtc(DateTime.SpecifyKind(instant, DateTimeKind.Utc), timeZone)))
+                .ToHashSet();
+
+        /// <summary>
+        /// One counter out of the single grouped result: this member's rows of this type in this
+        /// window, or zero when they have none - which is the common case, and has to be a zero
+        /// rather than an absent member.
+        /// </summary>
+        private static int CountFor(IEnumerable<ActivityCountRow> rows, int userId, ActivityType activityType, bool current) =>
+            rows.FirstOrDefault(row => row.UserId == userId && row.ActivityType == activityType && row.IsCurrentPeriod == current)?.Count ?? 0;
     }
 }

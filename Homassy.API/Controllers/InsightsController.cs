@@ -178,6 +178,47 @@ public class InsightsController : ControllerBase
     }
 
     /// <summary>
+    /// The allowed values for <c>days</c> on <see cref="GetScoreboard"/> - a closed set, for the
+    /// same reason the other windows here are. 7 is offered on top of the usual 30/90 because a
+    /// leaderboard over a week is a genuinely different (and more motivating) question than one
+    /// over a quarter, which is not true of the inventory charts.
+    /// </summary>
+    private static readonly int[] AllowedScoreboardWindowDays = [7, 30, 90];
+
+    /// <summary>
+    /// The family's scoreboard: per-member counters over the window with a comparison against the
+    /// previous equally-long one, plus the household's no-expiry and list-cleared streaks. See
+    /// <see cref="InsightFunctions.GetFamilyScoreboardAsync"/> for how each number is computed.
+    /// </summary>
+    /// <remarks>
+    /// A missing user id is <b>401</b>, for the reason documented on
+    /// <see cref="GetInventoryComposition"/>. A caller with no <em>family</em> is different and
+    /// legitimate: they get <b>200</b> with an empty scoreboard, since there is no household to
+    /// rank and that is an answer rather than an error.
+    /// </remarks>
+    [HttpGet("scoreboard")]
+    [MapToApiVersion(1.0)]
+    [ProducesResponseType(typeof(ApiResponse<FamilyScoreboardResponse>), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status400BadRequest)]
+    public async Task<IActionResult> GetScoreboard([FromQuery] int days, CancellationToken cancellationToken)
+    {
+        var userId = SessionInfo.GetUserId();
+        if (!userId.HasValue)
+        {
+            return Unauthorized(ApiResponse.ErrorResponse(ErrorCodes.AuthUnauthorized));
+        }
+
+        if (!AllowedScoreboardWindowDays.Contains(days))
+        {
+            return BadRequest(ApiResponse.ErrorResponse(ErrorCodes.ValidationInvalidRequest));
+        }
+
+        var familyId = SessionInfo.GetFamilyId();
+        var scoreboard = await _insightFunctions.GetFamilyScoreboardAsync(userId.Value, familyId, days, cancellationToken);
+        return Ok(ApiResponse<FamilyScoreboardResponse>.SuccessResponse(scoreboard));
+    }
+
+    /// <summary>
     /// The cheapest price the caller's household has paid for each of the requested products -
     /// one call for a whole shopping list, never one per row. Products with no usable purchase
     /// history are <b>omitted</b> from the map rather than returned with a null value; see

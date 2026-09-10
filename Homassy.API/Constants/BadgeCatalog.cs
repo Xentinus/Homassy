@@ -14,8 +14,13 @@ namespace Homassy.API.Constants
         /// <summary>Inventory items consumed (used up rather than thrown away).</summary>
         ItemsConsumed,
 
-        /// <summary>Shopping lists cleared - every item on the list bought.</summary>
-        ListsCompleted,
+        /// <summary>
+        /// Shopping-list items bought. Named for what the data can actually attribute to a person:
+        /// <c>ShoppingListItem</c> records when an item was purchased but not by whom, so the only
+        /// per-member signal is the purchase activity row, which counts items - see
+        /// <c>MemberScore.ListItemsPurchased</c>, which carries the same rename and the same reason.
+        /// </summary>
+        ListItemsPurchased,
 
         /// <summary>Items fully consumed before their expiration date, rather than expiring unused.</summary>
         WasteAvoided,
@@ -172,36 +177,36 @@ namespace Homassy.API.Constants
 
             new BadgeDefinition
             {
-                Id = "lists-completed-5",
-                Metric = BadgeMetric.ListsCompleted,
-                Threshold = 5,
-                IconName = "i-lucide-clipboard-check",
-                TitleKey = "badges.listsCompleted5.title",
-                DescriptionKey = "badges.listsCompleted5.description",
-                FallbackTitle = "List cleared",
-                FallbackDescription = "Bought everything on 5 shopping lists."
-            },
-            new BadgeDefinition
-            {
-                Id = "lists-completed-25",
-                Metric = BadgeMetric.ListsCompleted,
+                Id = "list-items-purchased-25",
+                Metric = BadgeMetric.ListItemsPurchased,
                 Threshold = 25,
                 IconName = "i-lucide-clipboard-check",
-                TitleKey = "badges.listsCompleted25.title",
-                DescriptionKey = "badges.listsCompleted25.description",
-                FallbackTitle = "Reliable shopper",
-                FallbackDescription = "Bought everything on 25 shopping lists."
+                TitleKey = "badges.listItemsPurchased25.title",
+                DescriptionKey = "badges.listItemsPurchased25.description",
+                FallbackTitle = "On the list",
+                FallbackDescription = "Bought 25 items from the household's shopping lists."
             },
             new BadgeDefinition
             {
-                Id = "lists-completed-100",
-                Metric = BadgeMetric.ListsCompleted,
+                Id = "list-items-purchased-100",
+                Metric = BadgeMetric.ListItemsPurchased,
                 Threshold = 100,
+                IconName = "i-lucide-clipboard-check",
+                TitleKey = "badges.listItemsPurchased100.title",
+                DescriptionKey = "badges.listItemsPurchased100.description",
+                FallbackTitle = "Reliable shopper",
+                FallbackDescription = "Bought 100 items from the household's shopping lists."
+            },
+            new BadgeDefinition
+            {
+                Id = "list-items-purchased-500",
+                Metric = BadgeMetric.ListItemsPurchased,
+                Threshold = 500,
                 IconName = "i-lucide-shopping-cart",
-                TitleKey = "badges.listsCompleted100.title",
-                DescriptionKey = "badges.listsCompleted100.description",
+                TitleKey = "badges.listItemsPurchased500.title",
+                DescriptionKey = "badges.listItemsPurchased500.description",
                 FallbackTitle = "Household logistics",
-                FallbackDescription = "Bought everything on 100 shopping lists."
+                FallbackDescription = "Bought 500 items from the household's shopping lists."
             },
 
             new BadgeDefinition

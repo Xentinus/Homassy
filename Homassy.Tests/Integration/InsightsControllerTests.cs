@@ -1613,4 +1613,419 @@ public class InsightsControllerTests : IClassFixture<HomassyWebApplicationFactor
                 await _authHelper.CleanupUserAsync(testEmail);
         }
     }
+
+    #region GET /api/v1.0/insights/scoreboard
+    /// <summary>
+    /// Inserts one activity row directly, at an exact type and instant - the same reason
+    /// <see cref="AddConsumptionActivityAsync"/> exists (the real endpoints always stamp
+    /// <see cref="DateTime.UtcNow"/>, which gives a test no way to place a row in the previous
+    /// window), generalised to any <see cref="ActivityType"/> the scoreboard counts.
+    /// </summary>
+    private async Task AddActivityAsync(int userId, int? familyId, ActivityType activityType, DateTime timestampUtc)
+    {
+        var (scope, context) = _factory.CreateScopedDbContext();
+        await using var _ = scope as IAsyncDisposable;
+
+        context.Activities.Add(new Activity
+        {
+            UserId = userId,
+            FamilyId = familyId,
+            Timestamp = DateTime.SpecifyKind(timestampUtc, DateTimeKind.Utc),
+            ActivityType = activityType,
+            RecordId = 1,
+            RecordName = "Scoreboard Test Record"
+        });
+        await context.SaveChangesAsync();
+    }
+
+    /// <summary>
+    /// Creates a family-shared inventory item whose expiration has already passed and which nobody
+    /// consumed - one broken day for the no-expiry streak. Goes through the create endpoint (so the
+    /// item is scoped exactly as a real one) and then backdates the expiration directly, because
+    /// the request model accepts an expiration but the point here is a date in the past.
+    /// </summary>
+    private async Task AddExpiredSharedItemAsync(Guid productPublicId, DateTime expirationUtc)
+    {
+        var response = await _client.PostAsJsonAsync("/api/v1.0/product/inventory", new CreateInventoryItemRequest
+        {
+            ProductPublicId = productPublicId,
+            IsSharedWithFamily = true,
+            Quantity = 1,
+            ExpirationAt = DateTime.SpecifyKind(expirationUtc, DateTimeKind.Utc)
+        });
+        var body = await response.Content.ReadAsStringAsync();
+        Assert.True(response.StatusCode == HttpStatusCode.OK, $"Create expired item failed: {response.StatusCode} {body}");
+    }
+
+    private async Task<FamilyScoreboardResponse> GetScoreboardAsync(int days)
+    {
+        var response = await _client.GetAsync($"/api/v1.0/insights/scoreboard?days={days}");
+        var body = await response.Content.ReadAsStringAsync();
+        _output.WriteLine($"Status: {response.StatusCode}");
+        _output.WriteLine($"Response: {body}");
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        var content = await response.Content.ReadFromJsonAsync<ApiResponse<FamilyScoreboardResponse>>();
+        Assert.NotNull(content?.Data);
+        return content.Data;
+    }
+
+    [Fact]
+    public async Task GetScoreboard_WithoutToken_ReturnsUnauthorized()
+    {
+        var response = await _client.GetAsync("/api/v1.0/insights/scoreboard?days=30");
+        _output.WriteLine($"Status: {response.StatusCode}");
+        Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
+    }
+
+    [Theory]
+    [InlineData(0)]
+    [InlineData(14)]
+    [InlineData(365)]
+    [InlineData(-30)]
+    public async Task GetScoreboard_UnsupportedWindowLength_ReturnsBadRequest(int days)
+    {
+        string? testEmail = null;
+        try
+        {
+            var (email, auth) = await _authHelper.CreateAndAuthenticateUserAsync("scoreboard-bad-window");
+            testEmail = email;
+            _authHelper.SetAuthToken(auth.AccessToken);
+
+            var response = await _client.GetAsync($"/api/v1.0/insights/scoreboard?days={days}");
+            _output.WriteLine($"days={days} -> {response.StatusCode}");
+
+            Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        }
+        finally
+        {
+            _authHelper.ClearAuthToken();
+            if (testEmail != null)
+                await _authHelper.CleanupUserAsync(testEmail);
+        }
+    }
+
+    /// <summary>
+    /// Two members, different activity: both appear with their own counters, and the quiet one
+    /// appears with zeros rather than being left out - they are part of the household, not absent
+    /// from it. Also pins that the three counters are summed into <c>CurrentPeriodTotal</c> while
+    /// <c>WasteAvoided</c> is not (it would double-count the consumption it is a subset of).
+    /// </summary>
+    [Fact]
+    public async Task GetScoreboard_TwoMembers_ReturnsBothWithTheirOwnCountersAndZerosForTheQuietOne()
+    {
+        string? testEmailA = null;
+        string? testEmailB = null;
+        try
+        {
+            var (emailA, authA) = await _authHelper.CreateAndAuthenticateUserAsync("scoreboard-a");
+            testEmailA = emailA;
+            _authHelper.SetAuthToken(authA.AccessToken);
+            await CreateFamilyAsync("Scoreboard Family");
+
+            var userIdA = _factory.GetUserIdByEmail(emailA);
+            Assert.NotNull(userIdA);
+
+            var (scope, context) = _factory.CreateScopedDbContext();
+            var familyId = context.Users.First(u => u.Id == userIdA!.Value).FamilyId;
+            await using (scope as IAsyncDisposable) { }
+            Assert.NotNull(familyId);
+
+            var (emailB, _) = await _authHelper.CreateAndAuthenticateUserAsync("scoreboard-b");
+            testEmailB = emailB;
+            var userIdB = _factory.GetUserIdByEmail(emailB);
+            Assert.NotNull(userIdB);
+            await AddUserToFamilyAsync(userIdB!.Value, familyId!.Value);
+
+            // A adds two items, uses one up and buys one list item; B does nothing at all.
+            var now = DateTime.UtcNow;
+            await AddActivityAsync(userIdA.Value, familyId, ActivityType.ProductInventoryCreate, now.AddDays(-3));
+            await AddActivityAsync(userIdA.Value, familyId, ActivityType.ProductInventoryCreate, now.AddDays(-2));
+            await AddActivityAsync(userIdA.Value, familyId, ActivityType.ProductInventoryDecrease, now.AddDays(-2));
+            await AddActivityAsync(userIdA.Value, familyId, ActivityType.ShoppingListItemQuickPurchase, now.AddDays(-1));
+
+            _authHelper.SetAuthToken(authA.AccessToken);
+            var scoreboard = await GetScoreboardAsync(30);
+
+            Assert.Equal(2, scoreboard.Members.Count);
+
+            var scoreA = scoreboard.Members[0];
+            Assert.Equal(2, scoreA.ItemsAdded);
+            Assert.Equal(1, scoreA.ItemsConsumed);
+            Assert.Equal(1, scoreA.ListItemsPurchased);
+            Assert.Equal(4, scoreA.CurrentPeriodTotal);
+            Assert.Equal(0, scoreA.PreviousPeriodTotal);
+
+            // Busiest first, so the quiet member is last - present, with zeros, and no rank.
+            var scoreB = scoreboard.Members[1];
+            Assert.Equal(0, scoreB.ItemsAdded);
+            Assert.Equal(0, scoreB.ItemsConsumed);
+            Assert.Equal(0, scoreB.ListItemsPurchased);
+            Assert.Equal(0, scoreB.WasteAvoided);
+            Assert.Equal(0, scoreB.CurrentPeriodTotal);
+
+            // The window is reported as calendar days on the caller's own clock, inclusive.
+            Assert.Equal(29, scoreboard.PeriodEnd.DayNumber - scoreboard.PeriodStart.DayNumber);
+        }
+        finally
+        {
+            _authHelper.ClearAuthToken();
+            if (testEmailA != null)
+                await _authHelper.CleanupUserAsync(testEmailA);
+            if (testEmailB != null)
+                await _authHelper.CleanupUserAsync(testEmailB);
+        }
+    }
+
+    /// <summary>
+    /// <c>PreviousPeriodTotal</c> covers the equally-long window immediately before the current
+    /// one - not "everything older", and not part of the current total. Seeded either side of the
+    /// boundary so a query that got the arithmetic wrong in either direction fails.
+    /// </summary>
+    [Fact]
+    public async Task GetScoreboard_PreviousPeriodTotal_CoversTheEquallyLongWindowBeforeThisOne()
+    {
+        string? testEmail = null;
+        try
+        {
+            var (email, auth) = await _authHelper.CreateAndAuthenticateUserAsync("scoreboard-previous");
+            testEmail = email;
+            _authHelper.SetAuthToken(auth.AccessToken);
+            await CreateFamilyAsync("Scoreboard Previous Family");
+
+            var userId = _factory.GetUserIdByEmail(email);
+            Assert.NotNull(userId);
+
+            var (scope, context) = _factory.CreateScopedDbContext();
+            var familyId = context.Users.First(u => u.Id == userId!.Value).FamilyId;
+            await using (scope as IAsyncDisposable) { }
+
+            var now = DateTime.UtcNow;
+            // Current window (last 30 days): one item added.
+            await AddActivityAsync(userId!.Value, familyId, ActivityType.ProductInventoryCreate, now.AddDays(-5));
+            // Previous window (30-60 days ago): two.
+            await AddActivityAsync(userId.Value, familyId, ActivityType.ProductInventoryCreate, now.AddDays(-35));
+            await AddActivityAsync(userId.Value, familyId, ActivityType.ProductInventoryCreate, now.AddDays(-55));
+            // Older than both windows: must be counted nowhere.
+            await AddActivityAsync(userId.Value, familyId, ActivityType.ProductInventoryCreate, now.AddDays(-80));
+
+            var scoreboard = await GetScoreboardAsync(30);
+
+            var score = Assert.Single(scoreboard.Members);
+            Assert.Equal(1, score.ItemsAdded);
+            Assert.Equal(1, score.CurrentPeriodTotal);
+            Assert.Equal(2, score.PreviousPeriodTotal);
+        }
+        finally
+        {
+            _authHelper.ClearAuthToken();
+            if (testEmail != null)
+                await _authHelper.CleanupUserAsync(testEmail);
+        }
+    }
+
+    /// <summary>
+    /// The no-expiry streak, read off real inventory: one item expired unused two days ago, so the
+    /// current run is the two days since (yesterday and today) while the longest run in the window
+    /// is the four clean days before it. Both numbers differ, so a scan that returned the same
+    /// value for both - or ignored the break - fails.
+    /// </summary>
+    [Fact]
+    public async Task GetScoreboard_NoExpiryStreak_BreaksOnTheDaySomethingExpiredUnused()
+    {
+        string? testEmail = null;
+        try
+        {
+            var (email, auth) = await _authHelper.CreateAndAuthenticateUserAsync("scoreboard-streak");
+            testEmail = email;
+            _authHelper.SetAuthToken(auth.AccessToken);
+            await CreateFamilyAsync("Scoreboard Streak Family");
+
+            var productPublicId = await CreateProductAsync(ProductCategory.Milk, "streak");
+            // Midday, so the local-calendar day is the same day whichever way the timezone offset
+            // rounds - the streak is computed on the caller's own calendar.
+            var twoDaysAgoMidday = DateTime.UtcNow.Date.AddDays(-2).AddHours(12);
+            await AddExpiredSharedItemAsync(productPublicId, twoDaysAgoMidday);
+
+            var scoreboard = await GetScoreboardAsync(7);
+
+            Assert.Equal(2, scoreboard.NoExpiryStreak.Current);
+            Assert.Equal(4, scoreboard.NoExpiryStreak.Longest);
+        }
+        finally
+        {
+            _authHelper.ClearAuthToken();
+            if (testEmail != null)
+                await _authHelper.CleanupUserAsync(testEmail);
+        }
+    }
+
+    /// <summary>
+    /// A household with nothing expiring at all has an unbroken streak across the whole window -
+    /// the inverse-of-expiry-days rule, stated from the other side. A day with no inventory
+    /// qualifies: nothing expired on it, which is the literal claim the streak makes.
+    /// </summary>
+    [Fact]
+    public async Task GetScoreboard_NothingExpired_IsAnUnbrokenNoExpiryStreak()
+    {
+        string? testEmail = null;
+        try
+        {
+            var (email, auth) = await _authHelper.CreateAndAuthenticateUserAsync("scoreboard-clean");
+            testEmail = email;
+            _authHelper.SetAuthToken(auth.AccessToken);
+            await CreateFamilyAsync("Scoreboard Clean Family");
+
+            var scoreboard = await GetScoreboardAsync(7);
+
+            Assert.Equal(7, scoreboard.NoExpiryStreak.Current);
+            Assert.Equal(7, scoreboard.NoExpiryStreak.Longest);
+        }
+        finally
+        {
+            _authHelper.ClearAuthToken();
+            if (testEmail != null)
+                await _authHelper.CleanupUserAsync(testEmail);
+        }
+    }
+
+    /// <summary>
+    /// The scope rule: a second family's activity contributes to no counter, and its members are
+    /// not listed. <see cref="Assert.Single{T}(IEnumerable{T})"/> with no predicate is what proves
+    /// the second half - a predicate match alone would pass with the other family's member sitting
+    /// beside the caller's own.
+    /// </summary>
+    [Fact]
+    public async Task GetScoreboard_SecondFamilysActivityAndMembers_NeverAppear()
+    {
+        string? testEmailA = null;
+        string? testEmailB = null;
+        try
+        {
+            var (emailA, authA) = await _authHelper.CreateAndAuthenticateUserAsync("scoreboard-fam-a");
+            testEmailA = emailA;
+            _authHelper.SetAuthToken(authA.AccessToken);
+            await CreateFamilyAsync("Scoreboard Family A");
+
+            var userIdA = _factory.GetUserIdByEmail(emailA);
+            Assert.NotNull(userIdA);
+
+            var (scopeA, contextA) = _factory.CreateScopedDbContext();
+            var familyIdA = contextA.Users.First(u => u.Id == userIdA!.Value).FamilyId;
+            await using (scopeA as IAsyncDisposable) { }
+
+            await AddActivityAsync(userIdA!.Value, familyIdA, ActivityType.ProductInventoryCreate, DateTime.UtcNow.AddDays(-1));
+
+            var (emailB, authB) = await _authHelper.CreateAndAuthenticateUserAsync("scoreboard-fam-b");
+            testEmailB = emailB;
+            _authHelper.SetAuthToken(authB.AccessToken);
+            await CreateFamilyAsync("Scoreboard Family B");
+
+            var userIdB = _factory.GetUserIdByEmail(emailB);
+            Assert.NotNull(userIdB);
+
+            var (scopeB, contextB) = _factory.CreateScopedDbContext();
+            var familyIdB = contextB.Users.First(u => u.Id == userIdB!.Value).FamilyId;
+            await using (scopeB as IAsyncDisposable) { }
+
+            // A large, unmistakable amount of activity - a leak could not be mistaken for anything else.
+            for (var i = 0; i < 9; i++)
+            {
+                await AddActivityAsync(userIdB!.Value, familyIdB, ActivityType.ProductInventoryCreate, DateTime.UtcNow.AddDays(-1));
+            }
+
+            _authHelper.SetAuthToken(authA.AccessToken);
+            var scoreboard = await GetScoreboardAsync(30);
+
+            var score = Assert.Single(scoreboard.Members);
+            Assert.Equal(1, score.ItemsAdded);
+            Assert.Equal(1, score.CurrentPeriodTotal);
+        }
+        finally
+        {
+            _authHelper.ClearAuthToken();
+            if (testEmailA != null)
+                await _authHelper.CleanupUserAsync(testEmailA);
+            if (testEmailB != null)
+                await _authHelper.CleanupUserAsync(testEmailB);
+        }
+    }
+
+    /// <summary>
+    /// #109's copy rule, made mechanical: no field in the serialized response may name something a
+    /// member did <em>not</em> do. The point is not the wording of any one field but that no such
+    /// metric is computed at all - a client cannot render a leaderboard of failures from a payload
+    /// that has no failure in it.
+    /// </summary>
+    /// <remarks>
+    /// <c>wasteAvoided</c> is the closest call in the payload and is deliberately fine: it counts
+    /// items the member finished in time, which is something they did. The forbidden list below is
+    /// therefore about deficits specifically ("wasted", "missed", "expired") rather than about the
+    /// topic of waste.
+    /// </remarks>
+    [Fact]
+    public async Task GetScoreboard_SerializedResponse_NamesNoDeficitMetric()
+    {
+        string? testEmail = null;
+        try
+        {
+            var (email, auth) = await _authHelper.CreateAndAuthenticateUserAsync("scoreboard-copy-rule");
+            testEmail = email;
+            _authHelper.SetAuthToken(auth.AccessToken);
+            await CreateFamilyAsync("Scoreboard Copy Rule Family");
+
+            var response = await _client.GetAsync("/api/v1.0/insights/scoreboard?days=30");
+            var body = await response.Content.ReadAsStringAsync();
+            _output.WriteLine($"Response: {body}");
+            Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+
+            string[] forbidden =
+            [
+                "missed", "wasted", "expired", "inactive", "failed", "neglect",
+                "worst", "least", "behind", "unused", "lazy", "shame", "forgotten"
+            ];
+
+            foreach (var term in forbidden)
+            {
+                Assert.DoesNotContain(term, body, StringComparison.OrdinalIgnoreCase);
+            }
+        }
+        finally
+        {
+            _authHelper.ClearAuthToken();
+            if (testEmail != null)
+                await _authHelper.CleanupUserAsync(testEmail);
+        }
+    }
+
+    /// <summary>
+    /// A caller with no family gets an empty scoreboard and a 200 - there is no household to rank,
+    /// and a leaderboard of one is not a leaderboard. The period bounds are still reported, so the
+    /// client renders "nothing yet" rather than special-casing a payload with no window.
+    /// </summary>
+    [Fact]
+    public async Task GetScoreboard_UserWithNoFamily_ReturnsEmptyScoreboardNotAnError()
+    {
+        string? testEmail = null;
+        try
+        {
+            var (email, auth) = await _authHelper.CreateAndAuthenticateUserAsync("scoreboard-no-family");
+            testEmail = email;
+            _authHelper.SetAuthToken(auth.AccessToken);
+
+            var scoreboard = await GetScoreboardAsync(30);
+
+            Assert.Empty(scoreboard.Members);
+            Assert.Equal(0, scoreboard.NoExpiryStreak.Current);
+            Assert.Equal(0, scoreboard.ListClearedStreak.Current);
+            Assert.Equal(29, scoreboard.PeriodEnd.DayNumber - scoreboard.PeriodStart.DayNumber);
+        }
+        finally
+        {
+            _authHelper.ClearAuthToken();
+            if (testEmail != null)
+                await _authHelper.CleanupUserAsync(testEmail);
+        }
+    }
+    #endregion
 }
