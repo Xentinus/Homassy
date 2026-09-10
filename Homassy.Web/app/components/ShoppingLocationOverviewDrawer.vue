@@ -1,7 +1,7 @@
 <template>
   <AppDrawer
     :open="open"
-    :title="location?.name"
+    :title="location?.name ?? ''"
     icon="i-lucide-shopping-cart"
     :snap-points="[0.5, 1]"
     @update:open="(v) => emit('update:open', v)"

@@ -51,7 +51,7 @@
               :color="favoritesFilter ? 'primary' : 'neutral'"
               :variant="favoritesFilter ? 'solid' : 'outline'"
               :aria-pressed="favoritesFilter"
-              @click="favoritesFilter = !favoritesFilter"
+              @click="() => { favoritesFilter = !favoritesFilter }"
             />
             <UButton
               :label="$t('profile.allProducts.filters.withBarcode')"
@@ -61,7 +61,7 @@
               :color="barcodeFilter ? 'primary' : 'neutral'"
               :variant="barcodeFilter ? 'solid' : 'outline'"
               :aria-pressed="barcodeFilter"
-              @click="barcodeFilter = !barcodeFilter"
+              @click="() => { barcodeFilter = !barcodeFilter }"
             />
           </div>
         </div>

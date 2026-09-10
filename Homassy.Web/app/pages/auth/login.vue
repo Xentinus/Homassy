@@ -100,7 +100,7 @@ onMounted(async () => {
     // Check for errors in flow
     const errors = kratos.getFlowErrors(flow.value)
     if (errors.length > 0) {
-      error.value = errors[0]
+      error.value = errors[0] ?? null
     }
 
     // Check if passkey/WebAuthn is supported in this browser
@@ -186,7 +186,7 @@ async function triggerPasskeyLogin() {
         
         // Extract flow ID from the URL
         const flowMatch = redirectUrl.match(/[?&]flow=([^&]+)/)
-        if (flowMatch) {
+        if (flowMatch?.[1]) {
           const newFlowId = flowMatch[1]
           console.debug('[Login] Fetching redirected flow:', newFlowId)
           webauthnFlow = await kratos.getLoginFlow(newFlowId)

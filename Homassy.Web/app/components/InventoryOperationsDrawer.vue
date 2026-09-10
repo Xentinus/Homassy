@@ -108,11 +108,12 @@
           {{ $t('pages.products.details.moveModal.targetLocation') }} <span class="text-red-500">*</span>
         </label>
         <USelect
-          v-model="selectedStorageId"
+          :model-value="selectedStorageId ?? undefined"
           :items="storageOptions"
           :loading="isLoadingStorages"
           :placeholder="$t('pages.products.details.moveModal.targetLocationPlaceholder')"
           class="w-full"
+          @update:model-value="(value) => { selectedStorageId = value ?? null }"
         />
       </div>
     </div>
@@ -139,7 +140,7 @@
 
       <!-- Split footer -->
       <template v-else-if="view === 'split'">
-        <UButton :label="$t('common.previous')" color="neutral" variant="ghost" icon="i-lucide-arrow-left" @click="view = 'list'" />
+        <UButton :label="$t('common.previous')" color="neutral" variant="ghost" icon="i-lucide-arrow-left" @click="() => { view = 'list' }" />
         <UButton
           :label="$t('pages.products.details.splitModal.confirm')"
           color="primary"
@@ -152,7 +153,7 @@
 
       <!-- Move footer -->
       <template v-else-if="view === 'move'">
-        <UButton :label="$t('common.previous')" color="neutral" variant="ghost" icon="i-lucide-arrow-left" @click="view = 'list'" />
+        <UButton :label="$t('common.previous')" color="neutral" variant="ghost" icon="i-lucide-arrow-left" @click="() => { view = 'list' }" />
         <UButton
           :label="$t('pages.products.details.moveModal.move')"
           color="primary"

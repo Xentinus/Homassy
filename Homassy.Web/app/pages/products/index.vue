@@ -21,7 +21,7 @@
                   color="neutral"
                   variant="ghost"
                   :aria-label="$t('common.clear')"
-                  @click="searchQuery = ''"
+                  @click="() => { searchQuery = '' }"
                 />
               </template>
             </UInput>
@@ -34,7 +34,7 @@
               size="md"
               :aria-label="$t('pages.products.filters.toggle')"
               :aria-expanded="filtersOpen"
-              @click="filtersOpen = true"
+              @click="() => { filtersOpen = true }"
             >
               <span class="hidden sm:inline">{{ $t('pages.products.filters.toggle') }}</span>
             </UButton>
@@ -108,7 +108,7 @@
                 :color="favoritesFilter === 'favorites' ? 'primary' : 'neutral'"
                 :variant="favoritesFilter === 'favorites' ? 'solid' : 'outline'"
                 :aria-pressed="favoritesFilter === 'favorites'"
-                @click="favoritesFilter = favoritesFilter === 'favorites' ? 'all' : 'favorites'"
+                @click="() => { favoritesFilter = favoritesFilter === 'favorites' ? 'all' : 'favorites' }"
               />
               <UButton
                 :label="$t('pages.products.filterLabels.barcode')"
@@ -118,7 +118,7 @@
                 :color="barcodeFilter === 'withBarcode' ? 'primary' : 'neutral'"
                 :variant="barcodeFilter === 'withBarcode' ? 'solid' : 'outline'"
                 :aria-pressed="barcodeFilter === 'withBarcode'"
-                @click="barcodeFilter = barcodeFilter === 'withBarcode' ? 'all' : 'withBarcode'"
+                @click="() => { barcodeFilter = barcodeFilter === 'withBarcode' ? 'all' : 'withBarcode' }"
               />
             </div>
           </div>
@@ -158,7 +158,7 @@
             size="lg"
             color="primary"
             :label="$t('pages.products.filters.showResults', { count: filteredProducts.length })"
-            @click="filtersOpen = false"
+            @click="() => { filtersOpen = false }"
           />
         </div>
       </template>

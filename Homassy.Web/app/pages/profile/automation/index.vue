@@ -43,7 +43,7 @@
               :color="triggeredFilter ? 'primary' : 'neutral'"
               :variant="triggeredFilter ? 'solid' : 'outline'"
               :aria-pressed="triggeredFilter"
-              @click="triggeredFilter = !triggeredFilter"
+              @click="() => { triggeredFilter = !triggeredFilter }"
             />
           </div>
         </div>

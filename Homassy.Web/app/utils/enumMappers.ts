@@ -1,4 +1,7 @@
-import type { Language, Currency, UserTimeZone } from '~/types/enums'
+// `UserTimeZone` is a value import, not a type-only one: the timezone map below names its members
+// rather than repeating their numbers.
+import { UserTimeZone } from '~/types/enums'
+import type { Language, Currency } from '~/types/enums'
 
 /**
  * Valid Kratos timezone values (Windows-style timezone IDs)
@@ -120,39 +123,39 @@ export function currencyCodeToEnum(code: string): Currency {
  */
 export function timeZoneIdToEnum(tzId: string): UserTimeZone {
   const map: Record<string, UserTimeZone> = {
-    'UTC': 0,
-    'America/New_York': 1,
-    'America/Chicago': 2,
-    'America/Denver': 3,
-    'America/Los_Angeles': 4,
-    'America/Anchorage': 5,
-    'Pacific/Honolulu': 6,
-    'America/Halifax': 7,
-    'America/Argentina/Buenos_Aires': 8,
-    'America/Sao_Paulo': 9,
-    'Europe/London': 10,
-    'Europe/Budapest': 11,
-    'Europe/Athens': 12,
-    'Europe/Moscow': 13,
-    'Europe/Istanbul': 14,
-    'Asia/Dubai': 15,
-    'Asia/Karachi': 16,
-    'Asia/Kolkata': 17,
-    'Asia/Dhaka': 18,
-    'Asia/Shanghai': 19,
-    'Asia/Singapore': 20,
-    'Asia/Tokyo': 21,
-    'Asia/Seoul': 22,
-    'Australia/Perth': 23,
-    'Australia/Adelaide': 24,
-    'Australia/Sydney': 25,
-    'Pacific/Auckland': 26,
-    'Africa/Johannesburg': 27,
-    'Africa/Cairo': 28,
-    'Africa/Lagos': 29,
-    'Asia/Jerusalem': 30,
-    'Asia/Riyadh': 31,
-    'Asia/Tehran': 32
+    'UTC': UserTimeZone.Utc,
+    'America/New_York': UserTimeZone.EasternStandardTime,
+    'America/Chicago': UserTimeZone.CentralStandardTime,
+    'America/Denver': UserTimeZone.MountainStandardTime,
+    'America/Los_Angeles': UserTimeZone.PacificStandardTime,
+    'America/Anchorage': UserTimeZone.AlaskanStandardTime,
+    'Pacific/Honolulu': UserTimeZone.HawaiianStandardTime,
+    'America/Halifax': UserTimeZone.AtlanticStandardTime,
+    'America/Argentina/Buenos_Aires': UserTimeZone.ArgentinaStandardTime,
+    'America/Sao_Paulo': UserTimeZone.BrazilianStandardTime,
+    'Europe/London': UserTimeZone.GreenwichStandardTime,
+    'Europe/Budapest': UserTimeZone.CentralEuropeStandardTime,
+    'Europe/Athens': UserTimeZone.EasternEuropeStandardTime,
+    'Europe/Moscow': UserTimeZone.RussianStandardTime,
+    'Europe/Istanbul': UserTimeZone.TurkeyStandardTime,
+    'Asia/Dubai': UserTimeZone.ArabianStandardTime,
+    'Asia/Karachi': UserTimeZone.PakistanStandardTime,
+    'Asia/Kolkata': UserTimeZone.IndiaStandardTime,
+    'Asia/Dhaka': UserTimeZone.BangladeshStandardTime,
+    'Asia/Shanghai': UserTimeZone.ChinaStandardTime,
+    'Asia/Singapore': UserTimeZone.SingaporeStandardTime,
+    'Asia/Tokyo': UserTimeZone.TokyoStandardTime,
+    'Asia/Seoul': UserTimeZone.KoreaStandardTime,
+    'Australia/Perth': UserTimeZone.AustralianWesternStandardTime,
+    'Australia/Adelaide': UserTimeZone.AustralianCentralStandardTime,
+    'Australia/Sydney': UserTimeZone.AustralianEasternStandardTime,
+    'Pacific/Auckland': UserTimeZone.NewZealandStandardTime,
+    'Africa/Johannesburg': UserTimeZone.SouthAfricaStandardTime,
+    'Africa/Cairo': UserTimeZone.EgyptStandardTime,
+    'Africa/Lagos': UserTimeZone.WestAfricaStandardTime,
+    'Asia/Jerusalem': UserTimeZone.IsraelStandardTime,
+    'Asia/Riyadh': UserTimeZone.SaudiArabiaStandardTime,
+    'Asia/Tehran': UserTimeZone.IranStandardTime
   }
-  return map[tzId] ?? 11 // Default: Europe/Budapest
+  return map[tzId] ?? UserTimeZone.CentralEuropeStandardTime
 }

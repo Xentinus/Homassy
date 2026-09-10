@@ -1,7 +1,7 @@
 <template>
   <AppDrawer
     :open="open"
-    :title="list?.name"
+    :title="list?.name ?? ''"
     icon="i-lucide-list-checks"
     :snap-points="[0.5, 1]"
     @update:open="(v) => emit('update:open', v)"

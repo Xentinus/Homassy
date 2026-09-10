@@ -114,7 +114,9 @@ const ui = computed(() => {
   // earlier in the template. `elevated` forces this drawer above with an
   // explicit z-index so nested/child drawers always paint on top.
   const zContent = props.elevated ? ' z-[90]' : ''
-  const base = {
+  // Typed explicitly so `overlay` can be added below: inferred from the literal, `base` would
+  // have exactly the five keys it starts with and assigning a sixth is a type error.
+  const base: Record<string, string> = {
     // NOTE: `fit` is accepted for API stability but always resolves to the fixed
     // near-fullscreen height. Auto/content-height bottom drawers do not position
     // correctly in this vaul-vue / Nuxt UI version — they render below the

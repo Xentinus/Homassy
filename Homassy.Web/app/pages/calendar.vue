@@ -442,7 +442,7 @@ const setupObserver = () => {
 
   observer = new IntersectionObserver(
     (entries) => {
-      if (entries[0].isIntersecting && hasMore.value && !isLoadingMore.value) {
+      if (entries[0]?.isIntersecting && hasMore.value && !isLoadingMore.value) {
         isLoadingMore.value = true
         setTimeout(() => {
           visibleCount.value += 5

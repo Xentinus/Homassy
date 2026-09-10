@@ -419,7 +419,9 @@ export const useKratos = () => {
     return flow.ui.nodes.some(
       (node) =>
         (node.group === 'webauthn' || node.group === 'passkey') &&
-        (node.attributes.node_type === 'input' || node.attributes.node_type === 'button') &&
+        // Only 'input': Kratos's UiNodeAttributes union has no 'button' node type (a button is
+        // an input with type='button'), so the extra clause could never match.
+        node.attributes.node_type === 'input' &&
         ((node.attributes as UiNodeInputAttributes).name === 'webauthn_register_trigger' ||
          (node.attributes as UiNodeInputAttributes).name === 'passkey_register_trigger' ||
          (node.attributes as UiNodeInputAttributes).name === 'passkey_settings_register')

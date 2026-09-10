@@ -21,7 +21,7 @@
                   color="neutral"
                   variant="ghost"
                   :disabled="!isSearchEnabled"
-                  @click="searchQuery = ''"
+                  @click="() => { searchQuery = '' }"
                 />
               </template>
             </UInput>
@@ -49,7 +49,7 @@
               size="md"
               :aria-label="$t('pages.shoppingLists.filters.toggle')"
               :aria-expanded="filtersOpen"
-              @click="filtersOpen = true"
+              @click="() => { filtersOpen = true }"
             >
               <span class="hidden sm:inline">{{ $t('pages.shoppingLists.filters.toggle') }}</span>
             </UButton>
@@ -312,7 +312,7 @@
                 :color="selectedListId === list.publicId ? 'primary' : 'neutral'"
                 :variant="selectedListId === list.publicId ? 'solid' : 'outline'"
                 :aria-pressed="selectedListId === list.publicId"
-                @click="selectedListId = list.publicId"
+                @click="() => { selectedListId = list.publicId }"
               />
             </div>
             <p v-else class="text-sm text-gray-500 dark:text-gray-400">
@@ -341,7 +341,7 @@
                 :color="showPurchased ? 'primary' : 'neutral'"
                 :variant="showPurchased ? 'solid' : 'outline'"
                 :aria-pressed="showPurchased"
-                @click="showPurchased = !showPurchased"
+                @click="() => { showPurchased = !showPurchased }"
               />
               <!-- Not a filter: the auto-start preference for location tracking. -->
               <UButton
@@ -402,7 +402,7 @@
             size="lg"
             color="primary"
             :label="$t('pages.shoppingLists.filters.showResults', { count: filteredItems.length })"
-            @click="filtersOpen = false"
+            @click="() => { filtersOpen = false }"
           />
         </div>
       </template>

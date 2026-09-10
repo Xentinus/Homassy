@@ -264,7 +264,9 @@ const scanTabs = computed(() => [
   { value: 'qrcode', label: t('barcodeScanner.tabs.qrcode') }
 ])
 
-const activeFormats = computed(() =>
+// The array literal has to keep its narrow element type: vue-qrcode-reader types `formats` as
+// its own union of format names, and an inferred `string[]` does not fit it.
+const activeFormats = computed<('linear_codes' | 'matrix_codes')[]>(() =>
   scanMode.value === 'barcode' ? ['linear_codes'] : ['matrix_codes']
 )
 
@@ -523,7 +525,7 @@ const trackFunction = (detectedCodes: DetectedBarcode[], ctx: CanvasRenderingCon
   }
 }
 
-const handleTabChange = (value: string) => {
+const handleTabChange = (value: string | number) => {
   if (value === scanMode.value) return
   scanMode.value = value as 'barcode' | 'qrcode'
   // Clear any frozen state when switching tabs

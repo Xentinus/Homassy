@@ -20,7 +20,7 @@
           square
           :aria-label="t('common.filter')"
           :aria-expanded="filtersOpen"
-          @click="filtersOpen = !filtersOpen"
+          @click="() => { filtersOpen = !filtersOpen }"
         />
       </UChip>
     </div>

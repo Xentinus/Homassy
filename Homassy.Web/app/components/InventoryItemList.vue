@@ -14,7 +14,7 @@
         variant="soft"
         :aria-label="$t('pages.products.details.settingsAriaLabel')"
         :disabled="items.length === 0"
-        @click="operationsOpen = true"
+        @click="() => { operationsOpen = true }"
       />
     </div>
 

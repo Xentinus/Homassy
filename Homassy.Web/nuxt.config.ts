@@ -1,5 +1,4 @@
 // https://nuxt.com/docs/api/configuration/nuxt-config
-import process from 'node:process'
 export default defineNuxtConfig({
   compatibilityDate: '2025-07-15',
   devtools: { enabled: true },
@@ -434,7 +433,6 @@ export default defineNuxtConfig({
     defaultLocale: 'en',
     strategy: 'no_prefix',
     langDir: 'locales',
-    lazy: true,
     detectBrowserLanguage: {
       useCookie: true,
       cookieKey: 'homassy_locale',
