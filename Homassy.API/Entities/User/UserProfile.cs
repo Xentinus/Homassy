@@ -36,6 +36,24 @@ namespace Homassy.API.Entities.User
         [StringLength(24)]
         public string? IdentityColor { get; set; }
 
+        /// <summary>
+        /// When this user was last seen making an authenticated request, or <see langword="null"/>
+        /// if they have not been seen since the column existed (#127).
+        /// </summary>
+        /// <remarks>
+        /// <b>Deliberately approximate.</b> It is stamped in memory by
+        /// <see cref="Services.LastSeenTracker"/> on every authenticated request and written here in
+        /// batches every few minutes by <see cref="Services.Background.LastSeenFlushService"/> - so
+        /// this column can lag the truth by that interval, and a process that stops in between loses
+        /// its last batch. That is the trade the away-delta feature is built on: precision nobody can
+        /// perceive, in exchange for not adding a row update to the hottest path in the application.
+        /// <para>
+        /// The client keeps its own per-device last-seen in <c>localStorage</c> and prefers it; this
+        /// value exists for the one case that has none - the first launch on a new device.
+        /// </para>
+        /// </remarks>
+        public DateTime? LastSeenAt { get; set; }
+
         public DateTime? DateOfBirth { get; set; }
         public string? Gender { get; set; }
 

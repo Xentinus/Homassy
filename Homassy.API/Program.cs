@@ -112,6 +112,13 @@ try
     // over one. See FamilyInsightsCache's own doc comment for the single-flight/isolation
     // guarantees and the process-local scope this registration implies.
     builder.Services.AddSingleton<FamilyInsightsCache>();
+
+    // #127: last-seen is stamped in memory on the request path and written in batches, so the
+    // tracker is a singleton (every request writes to the same dictionary) and the flush service
+    // is the only thing that touches the column. See LastSeenTracker's own remarks for why this is
+    // not a row update per request.
+    builder.Services.AddSingleton<LastSeenTracker>();
+    builder.Services.AddHostedService<LastSeenFlushService>();
     // Sweeps expired entries out of the cache above on a timer, the same way RateLimitCleanupService
     // does for RateLimitService: nothing else ever removes an entry from FamilyInsightsCache just
     // because it expired, so without this a key nobody queries again would never be reclaimed.
