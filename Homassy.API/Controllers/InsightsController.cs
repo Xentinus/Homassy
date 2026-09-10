@@ -28,10 +28,12 @@ namespace Homassy.API.Controllers;
 public class InsightsController : ControllerBase
 {
     private readonly InsightFunctions _insightFunctions;
+    private readonly PriceInsightFunctions _priceInsightFunctions;
 
-    public InsightsController(InsightFunctions insightFunctions)
+    public InsightsController(InsightFunctions insightFunctions, PriceInsightFunctions priceInsightFunctions)
     {
         _insightFunctions = insightFunctions;
+        _priceInsightFunctions = priceInsightFunctions;
     }
 
     /// <summary>
@@ -173,5 +175,46 @@ public class InsightsController : ControllerBase
         var familyId = SessionInfo.GetFamilyId();
         var spend = await _insightFunctions.GetSpendByLocationAsync(userId.Value, familyId, days, cancellationToken);
         return Ok(ApiResponse<SpendByLocationResponse>.SuccessResponse(spend));
+    }
+
+    /// <summary>
+    /// The cheapest price the caller's household has paid for each of the requested products -
+    /// one call for a whole shopping list, never one per row. Products with no usable purchase
+    /// history are <b>omitted</b> from the map rather than returned with a null value; see
+    /// <see cref="PriceInsightFunctions.GetBestPricesAsync"/>.
+    /// </summary>
+    /// <remarks>
+    /// A <b>POST</b> for a read, because the request's payload is a list that would not fit a
+    /// query string for a long shopping list - see <see cref="BestPricesRequest"/>.
+    /// <para>
+    /// Three rejections happen before anything reaches a query: a session with no resolvable user
+    /// id is <b>401</b> (the reason is documented on <see cref="GetInventoryComposition"/>), a
+    /// malformed body is <b>400</b>, and more than
+    /// <see cref="PriceInsightFunctions.MaxBestPriceProductIds"/> ids is <b>400</b> - an unbounded
+    /// id list is an unbounded query, and truncating it silently would answer a different question
+    /// than the one asked. An <em>empty</em> list is not an error: it answers an empty map, and
+    /// does so without querying at all.
+    /// </para>
+    /// </remarks>
+    [HttpPost("best-prices")]
+    [MapToApiVersion(1.0)]
+    [ProducesResponseType(typeof(ApiResponse<IReadOnlyDictionary<Guid, BestKnownPrice>>), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status400BadRequest)]
+    public async Task<IActionResult> GetBestPrices([FromBody] BestPricesRequest request, CancellationToken cancellationToken)
+    {
+        var userId = SessionInfo.GetUserId();
+        if (!userId.HasValue)
+        {
+            return Unauthorized(ApiResponse.ErrorResponse(ErrorCodes.AuthUnauthorized));
+        }
+
+        if (!ModelState.IsValid || request.ProductPublicIds.Count > PriceInsightFunctions.MaxBestPriceProductIds)
+        {
+            return BadRequest(ApiResponse.ErrorResponse(ErrorCodes.ValidationInvalidRequest));
+        }
+
+        var familyId = SessionInfo.GetFamilyId();
+        var bestPrices = await _priceInsightFunctions.GetBestPricesAsync(userId.Value, familyId, request.ProductPublicIds, cancellationToken);
+        return Ok(ApiResponse<IReadOnlyDictionary<Guid, BestKnownPrice>>.SuccessResponse(bestPrices));
     }
 }

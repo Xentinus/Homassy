@@ -1,21 +1,29 @@
+using System.Data.Common;
 using System.Net;
 using System.Net.Http.Json;
+using Homassy.API.Context;
 using Homassy.API.Enums;
+using Homassy.API.Functions;
 using Homassy.API.Models.Common;
 using Homassy.API.Models.Family;
 using Homassy.API.Models.Insights;
 using Homassy.API.Models.Location;
 using Homassy.API.Models.Product;
+using Homassy.API.Services;
 using Homassy.Tests.Infrastructure;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Diagnostics;
+using Microsoft.Extensions.Configuration;
 using Xunit.Abstractions;
 using ProductUnit = Homassy.API.Enums.Unit;
 
 namespace Homassy.Tests.Integration;
 
 /// <summary>
-/// Integration tests for <c>GET api/v1.0/product/{productPublicId}/price-history</c> - the #128
-/// endpoint that turns a household's raw purchase rows into a comparable price per unit.
+/// Integration tests for the two #128 endpoints that turn a household's raw purchase rows into a
+/// comparable price per unit: <c>GET api/v1.0/product/{productPublicId}/price-history</c> for one
+/// product's full history, and <c>POST api/v1.0/insights/best-prices</c> for one price per product
+/// across a whole shopping list.
 /// </summary>
 /// <remarks>
 /// The single test this whole file exists for is
@@ -730,4 +738,324 @@ public class PriceInsightTests : IClassFixture<HomassyWebApplicationFactory>
                 await _authHelper.CleanupUserAsync(testEmail);
         }
     }
+
+    #region POST /api/v1.0/insights/best-prices
+    /// <summary>
+    /// Counts the database commands a piece of code issues, by intercepting them on a context of
+    /// the test's own making. This is what turns "one round trip, not one per product" from a
+    /// claim in a doc comment into something a test can fail on: a per-product loop would still
+    /// return the right answer, just N times more slowly, so no assertion over the response could
+    /// ever catch it.
+    /// </summary>
+    private sealed class CommandCountingInterceptor : DbCommandInterceptor
+    {
+        private int _count;
+
+        public int Count => Volatile.Read(ref _count);
+
+        public override InterceptionResult<DbDataReader> ReaderExecuting(
+            DbCommand command,
+            CommandEventData eventData,
+            InterceptionResult<DbDataReader> result)
+        {
+            Interlocked.Increment(ref _count);
+            return base.ReaderExecuting(command, eventData, result);
+        }
+
+        public override ValueTask<InterceptionResult<DbDataReader>> ReaderExecutingAsync(
+            DbCommand command,
+            CommandEventData eventData,
+            InterceptionResult<DbDataReader> result,
+            CancellationToken cancellationToken = default)
+        {
+            Interlocked.Increment(ref _count);
+            return base.ReaderExecutingAsync(command, eventData, result, cancellationToken);
+        }
+    }
+
+    /// <summary>
+    /// A context factory equivalent to the one the host registers (see
+    /// <see cref="TestConfiguration.DbContextFactory"/>), except every command it issues passes
+    /// through <paramref name="interceptor"/>. Used to call
+    /// <see cref="PriceInsightFunctions"/> directly - the request pipeline's own context is built
+    /// by the host and cannot have an interceptor added to it from a test.
+    /// </summary>
+    private sealed class InterceptingDbContextFactory : IDbContextFactory<HomassyDbContext>
+    {
+        private readonly DbContextOptions<HomassyDbContext> _options;
+
+        public InterceptingDbContextFactory(IInterceptor interceptor)
+        {
+            _options = new DbContextOptionsBuilder<HomassyDbContext>()
+                .UseNpgsql(TestConfiguration.Configuration.GetConnectionString("DefaultConnection"))
+                .AddInterceptors(interceptor)
+                .Options;
+        }
+
+        public HomassyDbContext CreateDbContext() => new(_options);
+    }
+
+    private async Task<IReadOnlyDictionary<Guid, BestKnownPrice>> PostBestPricesAsync(IEnumerable<Guid> productPublicIds)
+    {
+        var response = await _client.PostAsJsonAsync("/api/v1.0/insights/best-prices", new BestPricesRequest
+        {
+            ProductPublicIds = productPublicIds.ToList()
+        });
+        var body = await response.Content.ReadAsStringAsync();
+        _output.WriteLine($"Status: {response.StatusCode}");
+        _output.WriteLine($"Response: {body}");
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        var content = await response.Content.ReadFromJsonAsync<ApiResponse<Dictionary<Guid, BestKnownPrice>>>();
+        Assert.NotNull(content?.Data);
+        return content.Data;
+    }
+
+    [Fact]
+    public async Task GetBestPrices_WithoutToken_ReturnsUnauthorized()
+    {
+        var response = await _client.PostAsJsonAsync("/api/v1.0/insights/best-prices", new BestPricesRequest
+        {
+            ProductPublicIds = [Guid.NewGuid()]
+        });
+        _output.WriteLine($"Status: {response.StatusCode}");
+        Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
+    }
+
+    /// <summary>
+    /// Twenty products, three of them ever bought: the three come back and the other seventeen are
+    /// <b>absent</b> from the map - not present with a null value, which would make every consumer
+    /// check twice for the same fact.
+    /// </summary>
+    [Fact]
+    public async Task GetBestPrices_TwentyProducts_ReturnsOnlyTheOnesWithHistoryAndOmitsTheRest()
+    {
+        string? testEmail = null;
+        try
+        {
+            var (email, auth) = await _authHelper.CreateAndAuthenticateUserAsync("best-prices-batch");
+            testEmail = email;
+            _authHelper.SetAuthToken(auth.AccessToken);
+
+            var shop = await CreateShoppingLocationAsync("Best Prices Shop");
+
+            var productIds = new List<Guid>();
+            for (var i = 0; i < 20; i++)
+            {
+                productIds.Add(await CreateProductAsync(ProductCategory.Milk, ProductUnit.Liter, $"batch-{i}"));
+            }
+
+            // Only the first three are ever bought - and the third one twice, so its answer is a
+            // genuine "cheapest of several" rather than "the only one".
+            var first = await CreatePurchaseAsync(productIds[0], quantity: 1, price: 400, shoppingLocationPublicId: shop);
+            await SetPurchasedAtAsync(first, DateTime.UtcNow.AddDays(-10));
+            var second = await CreatePurchaseAsync(productIds[1], quantity: 2, price: 500, shoppingLocationPublicId: shop);
+            await SetPurchasedAtAsync(second, DateTime.UtcNow.AddDays(-9));
+            var thirdDear = await CreatePurchaseAsync(productIds[2], quantity: 1, price: 900, shoppingLocationPublicId: shop);
+            await SetPurchasedAtAsync(thirdDear, DateTime.UtcNow.AddDays(-8));
+            var thirdCheap = await CreatePurchaseAsync(productIds[2], quantity: 3, price: 900, shoppingLocationPublicId: shop);
+            await SetPurchasedAtAsync(thirdCheap, DateTime.UtcNow.AddDays(-7));
+
+            var bestPrices = await PostBestPricesAsync(productIds);
+
+            Assert.Equal(3, bestPrices.Count);
+            Assert.Equal(400m, bestPrices[productIds[0]].UnitPrice);
+            Assert.Equal(250m, bestPrices[productIds[1]].UnitPrice);
+            Assert.Equal(300m, bestPrices[productIds[2]].UnitPrice);
+            Assert.Equal("Best Prices Shop", bestPrices[productIds[2]].LocationName);
+            Assert.Equal(shop, bestPrices[productIds[2]].ShoppingLocationPublicId);
+            Assert.Equal("per-l", bestPrices[productIds[2]].SeriesKey);
+
+            // The seventeen never-bought products are omitted, not null-valued.
+            foreach (var neverBought in productIds.Skip(3))
+            {
+                Assert.False(bestPrices.ContainsKey(neverBought), $"{neverBought} has no purchase history and must be omitted");
+            }
+        }
+        finally
+        {
+            _authHelper.ClearAuthToken();
+            if (testEmail != null)
+                await _authHelper.CleanupUserAsync(testEmail);
+        }
+    }
+
+    /// <summary>
+    /// The failure this endpoint exists to prevent: a per-product loop. Twelve products with
+    /// purchase history must cost exactly <b>one</b> database round trip, not twelve - so the
+    /// aggregation is called directly, over a context that counts its own commands.
+    /// </summary>
+    [Fact]
+    public async Task GetBestPrices_WholeBatch_IssuesOneDatabaseRoundTrip()
+    {
+        string? testEmail = null;
+        try
+        {
+            var (email, auth) = await _authHelper.CreateAndAuthenticateUserAsync("best-prices-one-query");
+            testEmail = email;
+            _authHelper.SetAuthToken(auth.AccessToken);
+
+            var shop = await CreateShoppingLocationAsync("Best Prices One Query Shop");
+
+            var productIds = new List<Guid>();
+            for (var i = 0; i < 12; i++)
+            {
+                var productPublicId = await CreateProductAsync(ProductCategory.Milk, ProductUnit.Liter, $"one-query-{i}");
+                productIds.Add(productPublicId);
+                var purchase = await CreatePurchaseAsync(productPublicId, quantity: 1, price: 100 + i, shoppingLocationPublicId: shop);
+                await SetPurchasedAtAsync(purchase, DateTime.UtcNow.AddDays(-3));
+            }
+
+            var userId = _factory.GetUserIdByEmail(email);
+            Assert.NotNull(userId);
+
+            var interceptor = new CommandCountingInterceptor();
+            var functions = new PriceInsightFunctions(new InterceptingDbContextFactory(interceptor), new FamilyInsightsCache());
+
+            var bestPrices = await functions.GetBestPricesAsync(userId!.Value, familyId: null, productIds, CancellationToken.None);
+
+            Assert.Equal(12, bestPrices.Count);
+            Assert.Equal(1, interceptor.Count);
+        }
+        finally
+        {
+            _authHelper.ClearAuthToken();
+            if (testEmail != null)
+                await _authHelper.CleanupUserAsync(testEmail);
+        }
+    }
+
+    /// <summary>
+    /// An empty list is a valid request that answers an empty map - and issues <b>no</b> query at
+    /// all, which is the half of the behaviour a response assertion alone could not tell apart
+    /// from "queried and found nothing".
+    /// </summary>
+    [Fact]
+    public async Task GetBestPrices_EmptyProductIds_ReturnsEmptyMapWithoutQuerying()
+    {
+        string? testEmail = null;
+        try
+        {
+            var (email, auth) = await _authHelper.CreateAndAuthenticateUserAsync("best-prices-empty");
+            testEmail = email;
+            _authHelper.SetAuthToken(auth.AccessToken);
+
+            var overHttp = await PostBestPricesAsync([]);
+            Assert.Empty(overHttp);
+
+            var userId = _factory.GetUserIdByEmail(email);
+            Assert.NotNull(userId);
+
+            var interceptor = new CommandCountingInterceptor();
+            var functions = new PriceInsightFunctions(new InterceptingDbContextFactory(interceptor), new FamilyInsightsCache());
+
+            var direct = await functions.GetBestPricesAsync(userId!.Value, familyId: null, [], CancellationToken.None);
+
+            Assert.Empty(direct);
+            Assert.Equal(0, interceptor.Count);
+        }
+        finally
+        {
+            _authHelper.ClearAuthToken();
+            if (testEmail != null)
+                await _authHelper.CleanupUserAsync(testEmail);
+        }
+    }
+
+    /// <summary>
+    /// More ids than the cap is a 400, not a truncated answer: an unbounded id list is an
+    /// unbounded query, and quietly dropping the tail would answer a different question than the
+    /// one asked. The boundary itself is exercised too - exactly the cap is accepted.
+    /// </summary>
+    [Fact]
+    public async Task GetBestPrices_MoreIdsThanTheCap_ReturnsBadRequest()
+    {
+        string? testEmail = null;
+        try
+        {
+            var (email, auth) = await _authHelper.CreateAndAuthenticateUserAsync("best-prices-too-many");
+            testEmail = email;
+            _authHelper.SetAuthToken(auth.AccessToken);
+
+            var tooMany = Enumerable.Range(0, PriceInsightFunctions.MaxBestPriceProductIds + 1)
+                .Select(_ => Guid.NewGuid())
+                .ToList();
+
+            var response = await _client.PostAsJsonAsync("/api/v1.0/insights/best-prices", new BestPricesRequest
+            {
+                ProductPublicIds = tooMany
+            });
+            _output.WriteLine($"{tooMany.Count} ids -> {response.StatusCode}");
+            Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+
+            // Exactly at the cap is still fine - the rejection is "more than", not "as many as".
+            var atTheCap = Enumerable.Range(0, PriceInsightFunctions.MaxBestPriceProductIds)
+                .Select(_ => Guid.NewGuid())
+                .ToList();
+
+            var okResponse = await _client.PostAsJsonAsync("/api/v1.0/insights/best-prices", new BestPricesRequest
+            {
+                ProductPublicIds = atTheCap
+            });
+            _output.WriteLine($"{atTheCap.Count} ids -> {okResponse.StatusCode}");
+            Assert.Equal(HttpStatusCode.OK, okResponse.StatusCode);
+        }
+        finally
+        {
+            _authHelper.ClearAuthToken();
+            if (testEmail != null)
+                await _authHelper.CleanupUserAsync(testEmail);
+        }
+    }
+
+    /// <summary>
+    /// The scope rule again, for the batch path: another family's purchase of the same product is
+    /// dramatically cheaper, and must not become this family's best known price. A leak here would
+    /// be worse than on the chart - it would put a price on a shopping list that nobody in this
+    /// household has ever been offered.
+    /// </summary>
+    [Fact]
+    public async Task GetBestPrices_SecondFamilysPurchases_NeverContribute()
+    {
+        string? testEmailA = null;
+        string? testEmailB = null;
+        try
+        {
+            var (emailA, authA) = await _authHelper.CreateAndAuthenticateUserAsync("best-prices-fam-a");
+            testEmailA = emailA;
+            _authHelper.SetAuthToken(authA.AccessToken);
+            await CreateFamilyAsync("Best Prices Family A");
+
+            var shopA = await CreateShoppingLocationAsync("Best Prices Family A Shop");
+            var productPublicId = await CreateProductAsync(ProductCategory.Milk, ProductUnit.Liter, "best-prices-fam");
+            var purchaseA = await CreatePurchaseAsync(productPublicId, quantity: 1, price: 500, shoppingLocationPublicId: shopA, isSharedWithFamily: true);
+            await SetPurchasedAtAsync(purchaseA, DateTime.UtcNow.AddDays(-6));
+
+            var (emailB, authB) = await _authHelper.CreateAndAuthenticateUserAsync("best-prices-fam-b");
+            testEmailB = emailB;
+            _authHelper.SetAuthToken(authB.AccessToken);
+            await CreateFamilyAsync("Best Prices Family B");
+
+            var shopB = await CreateShoppingLocationAsync("Best Prices Family B Shop");
+            var purchaseB = await CreatePurchaseAsync(productPublicId, quantity: 1, price: 1, shoppingLocationPublicId: shopB, isSharedWithFamily: true);
+            await SetPurchasedAtAsync(purchaseB, DateTime.UtcNow.AddDays(-5));
+
+            _authHelper.SetAuthToken(authA.AccessToken);
+            var bestPrices = await PostBestPricesAsync([productPublicId]);
+
+            var best = Assert.Single(bestPrices);
+            Assert.Equal(productPublicId, best.Key);
+            Assert.Equal(500m, best.Value.UnitPrice);
+            Assert.Equal(shopA, best.Value.ShoppingLocationPublicId);
+        }
+        finally
+        {
+            _authHelper.ClearAuthToken();
+            if (testEmailA != null)
+                await _authHelper.CleanupUserAsync(testEmailA);
+            if (testEmailB != null)
+                await _authHelper.CleanupUserAsync(testEmailB);
+        }
+    }
+    #endregion
 }

@@ -245,6 +245,128 @@ namespace Homassy.API.Functions
         }
 
         /// <summary>
+        /// How far back <see cref="GetBestPricesAsync"/> looks. Fixed rather than caller-supplied:
+        /// the shopping list asking "what is the least I have ever paid for this" wants the whole
+        /// useful history, not a window it has to choose, and a per-call window would multiply the
+        /// number of distinct answers for no benefit to the one screen that asks. A year matches
+        /// the longest window <see cref="Controllers.ProductController.GetPriceHistory"/> offers,
+        /// so a badge on the shopping list can never claim a price the product's own chart cannot
+        /// show, and it keeps the query bounded the same way every other insight query is.
+        /// </summary>
+        private const int BestPricesWindowDays = 365;
+
+        /// <summary>
+        /// The most product ids one call may ask about - see
+        /// <see cref="Controllers.InsightsController.GetBestPrices"/>, which rejects a longer list
+        /// with 400 rather than truncating it. Comfortably above any real shopping list while
+        /// still keeping the <c>= ANY(@ids)</c> array bounded.
+        /// </summary>
+        public const int MaxBestPriceProductIds = 200;
+
+        /// <summary>
+        /// The cheapest price the caller's household has paid for each of several products, in one
+        /// round trip - the shopping list's per-row price chips and its estimated total, without a
+        /// request per row.
+        ///
+        /// <para>
+        /// <b>Products with no usable purchase history are omitted, not returned as null.</b> An
+        /// absent key says "no price known" once; a present key with a null value would make every
+        /// consumer check twice for the same thing, and would let a serialization round trip turn
+        /// "unknown" into a rendered blank chip.
+        /// </para>
+        ///
+        /// <para>
+        /// <b>Deliberately not cached</b>, unlike every other method here. The cache key would have
+        /// to cover the exact id set, which is whatever happens to be on one list at one moment -
+        /// so entries would almost never be reused, while still occupying the shared per-family
+        /// cache. The single query this runs is the cheaper answer.
+        /// </para>
+        /// </summary>
+        /// <param name="userId">The acting user - half of the scope union, as everywhere here.</param>
+        /// <param name="familyId">The caller's family, or <see langword="null"/>.</param>
+        /// <param name="productPublicIds">
+        /// The products to look up. An empty list returns an empty map <b>without querying at
+        /// all</b> - the length bound is the controller's to enforce.
+        /// </param>
+        /// <param name="cancellationToken">Cancellation for the one query.</param>
+        public async Task<IReadOnlyDictionary<Guid, BestKnownPrice>> GetBestPricesAsync(
+            int userId,
+            int? familyId,
+            IReadOnlyList<Guid> productPublicIds,
+            CancellationToken cancellationToken)
+        {
+            var distinctIds = productPublicIds.Distinct().ToList();
+            if (distinctIds.Count == 0)
+            {
+                return new Dictionary<Guid, BestKnownPrice>();
+            }
+
+            using var context = _contextFactory.CreateForReading();
+
+            var toUtc = DateTime.UtcNow;
+            var fromUtc = toUtc.AddDays(-BestPricesWindowDays);
+
+            // ONE query for the whole batch - Npgsql translates Contains over the id list to
+            // = ANY(@ids), so the number of products asked about changes the parameter, never the
+            // number of round trips. The location's name and public id are projected through the
+            // optional ShoppingLocation navigation in this same statement (a LEFT JOIN) rather
+            // than resolved by a follow-up lookup the way ComputePriceHistoryAsync does it: that
+            // method needs the location only for the groups it builds, while here every product's
+            // answer carries one, and one query is this endpoint's whole point. A soft-deleted
+            // location comes back null through the global query filter and falls back to
+            // UnknownLocationName below, exactly as an absent one does.
+            var rows = await context.ProductPurchaseInfos
+                .Where(p => distinctIds.Contains(p.ProductInventoryItem.Product.PublicId)
+                            && p.PurchasedAt >= fromUtc && p.PurchasedAt <= toUtc
+                            && p.Price != null
+                            && p.Currency != null
+                            && p.OriginalQuantity > 0
+                            && (p.ProductInventoryItem.UserId == userId || (familyId.HasValue && p.ProductInventoryItem.FamilyId == familyId)))
+                .Select(p => new
+                {
+                    ProductPublicId = p.ProductInventoryItem.Product.PublicId,
+                    p.PurchasedAt,
+                    p.Price,
+                    p.OriginalQuantity,
+                    p.ProductInventoryItem.Unit,
+                    p.Currency,
+                    p.ShoppingLocationId,
+                    LocationPublicId = (Guid?)p.ShoppingLocation!.PublicId,
+                    LocationName = (string?)p.ShoppingLocation!.Name
+                })
+                .ToListAsync(cancellationToken);
+
+            // Built from the columns the one query already returned - not a second lookup. Keyed
+            // by the internal location id purely so PickBestKnown can be shared verbatim with
+            // ComputePriceHistoryAsync instead of growing a second copy of the picking rule.
+            var locationInfoById = rows
+                .Where(r => r.ShoppingLocationId.HasValue && r.LocationPublicId.HasValue && r.LocationName != null)
+                .GroupBy(r => r.ShoppingLocationId!.Value)
+                .ToDictionary(g => g.Key, g => (g.First().LocationPublicId!.Value, g.First().LocationName!));
+
+            var result = new Dictionary<Guid, BestKnownPrice>();
+
+            foreach (var productGroup in rows.GroupBy(r => r.ProductPublicId))
+            {
+                var priced = productGroup
+                    .Select(r => ToPricedPurchase(r.PurchasedAt, r.Price, r.OriginalQuantity, r.Unit, r.Currency, r.ShoppingLocationId))
+                    .Where(p => p.HasValue)
+                    .Select(p => p!.Value)
+                    .ToList();
+
+                // Same picking rule as the product's own price history, so a chip on the shopping
+                // list and the badge on the product page can never disagree.
+                var best = PickBestKnown(priced, locationInfoById);
+                if (best != null)
+                {
+                    result[productGroup.Key] = best;
+                }
+            }
+
+            return result;
+        }
+
+        /// <summary>
         /// One purchase reduced to the shape every aggregate here is computed from: its price per
         /// canonical unit, plus the basis that price is expressed on.
         /// </summary>
@@ -403,7 +525,7 @@ namespace Homassy.API.Functions
         /// </para>
         /// </summary>
         private static BestKnownPrice? PickBestKnown(
-            IReadOnlyList<PricedPurchase> priced,
+            IEnumerable<PricedPurchase> priced,
             IReadOnlyDictionary<int, (Guid PublicId, string Name)> locationInfoById)
         {
             var winningGroup = priced
