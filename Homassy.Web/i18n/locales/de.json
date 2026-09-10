@@ -2734,5 +2734,41 @@
       "description": "Teile Text oder ein Bild aus einer anderen App, dann erscheint es hier.",
       "action": "Zum Kalender"
     }
+  },
+  "onboarding": {
+    "stepCounter": "Schritt {current} von {total}",
+    "next": "Weiter",
+    "done": "Alles klar",
+    "skip": "Überspringen",
+    "replay": {
+      "label": "Tour erneut ansehen",
+      "description": "Die Grundlagen noch einmal durchgehen"
+    },
+    "steps": {
+      "nav": {
+        "title": "So findest du dich zurecht",
+        "description": "Vier Bereiche: der Kalender, dein Bestand, die Einkaufslisten und dein Profil. Diese Leiste bleibt überall bei dir."
+      },
+      "inventory": {
+        "title": "Alles, was du zu Hause hast",
+        "description": "Hier liegt dein Bestand. Ein rotes oder gelbes Abzeichen heißt, dass etwas bald abläuft – oder es schon ist."
+      },
+      "fab": {
+        "title": "Die +-Schaltfläche",
+        "description": "Sie legt an, worum es auf der aktuellen Seite geht: hier einen Bestandsposten, auf der Einkaufslisten-Seite einen Listeneintrag."
+      },
+      "scanner": {
+        "title": "Barcode scannen",
+        "description": "Halte die Kamera auf einen Barcode und Homassy sucht das Produkt für dich – du musst den Namen nicht eintippen."
+      },
+      "lists": {
+        "title": "Geteilte Einkaufslisten",
+        "description": "Listen, die du mit deiner Familie teilst, aktualisieren sich live auf allen Geräten – hakst du etwas ab, sehen es die anderen sofort."
+      },
+      "profile": {
+        "title": "Deine Familie und die Einstellungen",
+        "description": "Hier gründest du eine Familie oder trittst einer bei und stellst Sprache, Währung und Benachrichtigungen ein. Diese Tour kannst du von hier ebenfalls neu starten."
+      }
+    }
   }
 }

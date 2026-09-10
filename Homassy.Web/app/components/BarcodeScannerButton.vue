@@ -5,6 +5,7 @@
     size="sm"
     :disabled="disabled"
     aria-label="Scan barcode with camera"
+    data-tour="scanner"
     @click="handleClick"
   />
 </template>

@@ -249,6 +249,7 @@ public class ShoppingListActivityMonitorServiceTests
             string body,
             string? url = null,
             string? actionTitle = null,
+            int? badgeCount = null,
             CancellationToken cancellationToken = default) => Task.FromResult(true);
 
         public string GetVapidPublicKey() => "test-vapid-key";

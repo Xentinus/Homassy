@@ -38,5 +38,12 @@ namespace Homassy.API.Models.User
         /// </para>
         /// </remarks>
         public DateTime? LastSeenAt { get; init; }
+
+        /// <summary>
+        /// When this user finished or skipped the first-run tour, or null if they have not (#98).
+        /// Null is what makes the client start the tour, so this has to ride on the payload the
+        /// app already fetches at boot rather than needing a request of its own.
+        /// </summary>
+        public DateTime? OnboardingCompletedAt { get; init; }
     }
 }

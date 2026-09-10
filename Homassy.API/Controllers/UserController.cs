@@ -229,6 +229,31 @@ namespace Homassy.API.Controllers
         }
 
         /// <summary>
+        /// Records that the caller finished or skipped the first-run tour, or clears the flag so
+        /// it runs again (#98).
+        /// </summary>
+        /// <remarks>
+        /// The flag itself is read back on <c>GET /auth/me</c> (<see cref="UserInfo.OnboardingCompletedAt"/>)
+        /// rather than from an endpoint of its own: the client needs it at boot, which is a payload
+        /// it already fetches.
+        /// </remarks>
+        [HttpPut("onboarding")]
+        [MapToApiVersion(1.0)]
+        [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status200OK)]
+        [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status404NotFound)]
+        public async Task<IActionResult> UpdateOnboarding([FromBody] UpdateOnboardingRequest request, CancellationToken cancellationToken)
+        {
+            if (!ModelState.IsValid)
+            {
+                return BadRequest(ApiResponse.ErrorResponse(ErrorCodes.ValidationInvalidRequest));
+            }
+
+            await _userFunctions.SetOnboardingCompletedAsync(request.Completed, cancellationToken);
+            return Ok(ApiResponse.SuccessResponse());
+        }
+
+        /// <summary>
         /// Gets multiple users by their public IDs.
         /// </summary>
         /// <param name="publicIds">Comma-separated list of user public IDs</param>

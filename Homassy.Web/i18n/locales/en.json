@@ -2734,5 +2734,41 @@
       "description": "Share text or a picture from another app and it will show up here.",
       "action": "Go to the calendar"
     }
+  },
+  "onboarding": {
+    "stepCounter": "Step {current} of {total}",
+    "next": "Next",
+    "done": "Got it",
+    "skip": "Skip",
+    "replay": {
+      "label": "Replay the tour",
+      "description": "Walk through the basics again"
+    },
+    "steps": {
+      "nav": {
+        "title": "Your way around",
+        "description": "Four places: the calendar, your inventory, the shopping lists and your profile. This bar stays with you everywhere."
+      },
+      "inventory": {
+        "title": "Everything you have at home",
+        "description": "Your inventory lives here. A red or amber badge means something is expiring soon — or already has."
+      },
+      "fab": {
+        "title": "The + button",
+        "description": "It adds whatever the page you are on is about: an item to your inventory here, an item to the list on the shopping lists page."
+      },
+      "scanner": {
+        "title": "Scan a barcode",
+        "description": "Point the camera at a barcode and Homassy looks the product up for you, so you do not have to type its name."
+      },
+      "lists": {
+        "title": "Shopping lists, shared",
+        "description": "Lists you share with your family update live on everyone's phone — tick something off and they see it straight away."
+      },
+      "profile": {
+        "title": "Your family and settings",
+        "description": "Create or join a family here, and set your language, currency and notifications. You can replay this tour from here too."
+      }
+    }
   }
 }

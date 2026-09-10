@@ -2734,5 +2734,41 @@
       "description": "Ossz meg szöveget vagy képet egy másik alkalmazásból, és itt fog megjelenni.",
       "action": "Vissza a naptárhoz"
     }
+  },
+  "onboarding": {
+    "stepCounter": "{current}. lépés / {total}",
+    "next": "Tovább",
+    "done": "Értem",
+    "skip": "Kihagyom",
+    "replay": {
+      "label": "Bemutató újraindítása",
+      "description": "Nézzük át újra az alapokat"
+    },
+    "steps": {
+      "nav": {
+        "title": "Így tudsz mozogni",
+        "description": "Négy hely: a naptár, a készleteid, a bevásárlólisták és a profilod. Ez a sáv mindenhol veled marad."
+      },
+      "inventory": {
+        "title": "Minden, ami otthon van",
+        "description": "Itt találod a készleteidet. A piros vagy borostyán jelzés azt jelenti, hogy valami hamarosan lejár – vagy már le is járt."
+      },
+      "fab": {
+        "title": "A + gomb",
+        "description": "Azt adja hozzá, amiről az adott oldal szól: itt egy készlettételt, a bevásárlólisták oldalon egy listaelemet."
+      },
+      "scanner": {
+        "title": "Vonalkód beolvasása",
+        "description": "Fordítsd a kamerát a vonalkódra, és a Homassy kikeresi a terméket – nem kell beírnod a nevét."
+      },
+      "lists": {
+        "title": "Megosztott bevásárlólisták",
+        "description": "A családdal megosztott listák élőben frissülnek mindenki telefonján – ha kipipálsz valamit, azonnal látják."
+      },
+      "profile": {
+        "title": "A családod és a beállítások",
+        "description": "Itt hozhatsz létre családot vagy csatlakozhatsz egyhez, és itt állítod be a nyelvet, a pénznemet és az értesítéseket. A bemutatót is innen indíthatod újra."
+      }
+    }
   }
 }

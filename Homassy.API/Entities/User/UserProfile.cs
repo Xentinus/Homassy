@@ -54,6 +54,23 @@ namespace Homassy.API.Entities.User
         /// </remarks>
         public DateTime? LastSeenAt { get; set; }
 
+        /// <summary>
+        /// When this user finished (or skipped) the first-run spotlight tour, or
+        /// <see langword="null"/> if they have not yet - which is what makes the tour start
+        /// (#98). Replaying the tour from the profile settings clears it back to null.
+        /// </summary>
+        /// <remarks>
+        /// On the user record rather than in <c>localStorage</c> alone so it follows the user to a
+        /// new device: the tour explains the app, not this browser, and being walked through the
+        /// bottom nav again on every new phone is the kind of thing that reads as a bug.
+        /// <para>
+        /// A timestamp rather than a bool, because "when" costs the same as "whether" and answers
+        /// a question a bool cannot - notably whether a given user saw the tour before or after a
+        /// step was added to it.
+        /// </para>
+        /// </remarks>
+        public DateTime? OnboardingCompletedAt { get; set; }
+
         public DateTime? DateOfBirth { get; set; }
         public string? Gender { get; set; }
 
