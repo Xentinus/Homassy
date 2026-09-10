@@ -113,6 +113,20 @@ The owning row keeps only `…PictureVersion` — a 16-hex-character content has
 
 It descends from `BaseEntity`, not `RecordChangeEntity`: there is nothing to soft-delete (deleting the picture deletes the row) and no cache to invalidate, so it stays out of the trigger system below.
 
+### The one table that is deliberately outside the trigger system
+
+`UserNotifications` (#116) descends from `RecordChangeEntity` like everything else, but
+`DatabaseTriggerInitializer` skips it by name. Nothing caches it - an inbox is per-user, changes
+from out-of-process workers, and is read once when the drawer opens - so a trigger would only add
+a `TableRecordChanges` insert and a `pg_notify` to every write on what is now the
+highest-volume table in the schema: one row per family member per worker event, all of it
+invalidating nothing.
+
+Its own configuration is worth reading in `OnModelCreating`: a descending
+`(UserId, CreatedAt)` index for the one query that matters, a *filtered* index on `UserId` for the
+unread count (fetched far more often than a page is, and an inbox is mostly read rows), and a
+`CreatedAt` index for the retention sweep.
+
 ### Database Trigger System
 
 PostgreSQL triggers automatically track changes for cache invalidation:

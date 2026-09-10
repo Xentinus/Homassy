@@ -28,6 +28,7 @@ Homassy.Notifications is a standalone microservice responsible for all notificat
 - **ProjectReference to Homassy.API** – Shares entities and `HomassyDbContext` directly (same pattern as `Homassy.Migrator`)
 - **Push notifications moved here** – All WebPush logic migrated from `Homassy.API`; the API proxies `/push/test` to this service
 - **Weekly email summaries** – Sends inventory expiration summaries via `Homassy.Email` every Monday at 07:00 local time
+- **Two channels from one description** – every notification is a `NotificationEnvelope` (type + parameters). `FamilyPushNotifier.DispatchAsync` renders it for the push *and* records it as a `UserNotification` row for the in-app notification centre, in the same method and the same unit of work
 
 ---
 
@@ -69,7 +70,9 @@ Homassy.Notifications/
 │   ├── IWebPushService.cs              # Push notification interface
 │   ├── WebPushService.cs               # VAPID push implementation
 │   ├── PushNotificationContentService.cs  # Localised notification text
-│   ├── FamilyPushNotifier.cs           # Shared recipient resolution + push dispatch
+│   ├── FamilyPushNotifier.cs           # Recipient resolution + dispatch on both channels
+│   ├── NotificationEnvelopes.cs        # Builds the envelope for each kind of notification
+│   ├── NotificationContentRenderer.cs  # Envelope + language → the push's title and body
 │   ├── InventoryExpirationService.cs   # Expiring/expired item queries
 │   ├── EmailServiceClient.cs           # HTTP client → Homassy.Email
 │   └── InventoryBroadcastServiceClient.cs  # HTTP client → Homassy.API internal broadcast (realtime relay)
@@ -120,6 +123,10 @@ builder.Services.AddDbContext<HomassyDbContext>(configureDbContext, optionsLifet
 | POST | `/push/test` | X-Api-Key | Send a test push to a user |
 | POST | `/push/low-stock` | X-Api-Key | Send a low-stock push (and email) to a user |
 | POST | `/email/test` | X-Api-Key | Send a test weekly summary email to a user |
+
+> The test push is deliberately **not** recorded in the notification centre: it is a diagnostic -
+> "did push reach this device" - not information about the household, and an inbox that fills up
+> with test rows tells the user nothing. It is the one notification with no `NotificationType`.
 | GET | `/health/live` | None | Liveness probe (always 200) |
 | GET | `/health/ready` | None | Readiness probe (DB + WebPush) |
 
@@ -131,6 +138,17 @@ builder.Services.AddDbContext<HomassyDbContext>(configureDbContext, optionsLifet
 - Runs every hour
 - On Mondays at 07:00 **local time**, sends weekly push summaries to eligible users
 - Uses `InventoryExpirationService` to get expiring product counts
+- Also **prunes the notification centre** past its 60-day retention window
+  (`NotificationFunctions.PruneAsync`), before the early return, so it still runs on an
+  installation with no eligible push recipients. It rides on this worker rather than getting one
+  of its own: hourly is far more often than a 60-day window needs, and the alternative was a whole
+  `BackgroundService` whose entire body is one `DELETE`
+- The weekly summary's push carries a `badgeCount` (#130), which the service worker writes onto
+  the installed app's icon, and its inbox row is recorded from the same method as its push
+- **Known limitation:** its eligibility still requires a live push subscription, because the
+  per-device `LastWeeklyNotificationSentAt` stamp is what makes it fire once and a user with no
+  subscription has no row to stamp. So an in-app-only recipient gets no weekly digest; every
+  *event-driven* notification does reach them
 
 ### ShoppingListActivityMonitorService
 - Runs every 5 minutes
