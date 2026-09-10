@@ -76,3 +76,84 @@ export interface LocationSpend {
 export interface SpendByLocationResponse {
   locations: LocationSpend[]
 }
+
+// --- #128 price history -----------------------------------------------------------------------
+//
+// Mirrors `Homassy.API/Models/Insights/PriceHistoryResponse.cs`. Two enum conventions meet here,
+// both inherited from how System.Text.Json treats them and neither chosen by this file:
+// `unit`/`canonicalUnit` are plain enum properties and arrive as **numbers** (which is what the
+// `enums.unit.*` locale keys are keyed by, so they translate directly), while `currency` and the
+// `byCurrency` keys arrive as enum **names** (`"Huf"`, `"Eur"`) — see that field's own remarks in
+// the C# record for why the currency deliberately does not come across as a number.
+
+/** One purchase, re-expressed as a price per the enclosing group's `canonicalUnit`. */
+export interface PricePoint {
+  /** ISO-8601 UTC instant. */
+  purchasedAt: string
+  unitPrice: number
+  /** The quantity as purchased (500 for a 500 g jar), paired with `unit` — not the normalized value. */
+  quantity: number
+  /** `Unit` enum value as a number — index straight into `enums.unit.*`. */
+  unit: number
+}
+
+/**
+ * One shop's purchases within one currency and one basis, plus the five statistics computed over
+ * those points alone. `shoppingLocationPublicId` is `null` for the "unknown location" bucket.
+ */
+export interface ShopPriceSeries {
+  shoppingLocationPublicId: string | null
+  locationName: string
+  /** Oldest first, so a line chart can plot them in the order it receives them. */
+  points: PricePoint[]
+  min: number
+  max: number
+  latest: number
+  average: number
+  count: number
+}
+
+/**
+ * Every purchase that is comparable with every other one in the group: one currency (the
+ * enclosing `byCurrency` key) and one basis. `normalized` is `false` for a countable basis — the
+ * prices are still comparable *inside* the group, but the label must say "per pack" rather than
+ * implying a weight comparison, which is the whole point of the flag.
+ */
+export interface PriceBasisGroup {
+  /** `"per-kg"`, `"per-l"`, `"per-pack"`, … — stable and machine-readable, never a display string. */
+  seriesKey: string
+  canonicalUnit: number
+  normalized: boolean
+  shops: ShopPriceSeries[]
+}
+
+/** The cheapest price the household has actually paid, within one currency and one basis. */
+export interface BestKnownPrice {
+  unitPrice: number
+  /** The `Currency` enum's name, e.g. `"Huf"` — a well-formed code `Intl.NumberFormat` accepts. */
+  currency: string
+  shoppingLocationPublicId: string | null
+  locationName: string
+  /** ISO-8601 UTC instant. */
+  at: string
+  seriesKey: string
+}
+
+/**
+ * One product's purchase price history for the caller's household. Currencies are kept apart and
+ * never converted — this milestone has no exchange rate — so `byCurrency` may hold more than one
+ * entry, and nothing in the response mixes two of them.
+ */
+export interface PriceHistoryResponse {
+  byCurrency: Record<string, PriceBasisGroup[]>
+  bestKnown: BestKnownPrice | null
+  /**
+   * The newest purchase's unit price over its own group's average: above 1 means "dearer than
+   * usual". Deliberately a ratio, not a boolean — the client picks the margin worth mentioning
+   * (this UI uses 1.1). `null` when the newest purchase's group holds only that one purchase.
+   */
+  latestAboveAverageRatio: number | null
+}
+
+/** The windows `GET /api/v1/Product/{id}/price-history` accepts — any other value is a 400. */
+export type PriceHistoryWindowDays = 90 | 180 | 365

@@ -1032,6 +1032,21 @@
       "unknownLocation": "Ismeretlen hely"
     }
   },
+  "price": {
+    "history": {
+      "title": "Áralakulás",
+      "empty": "Még nincs rögzített árral vásárlás."
+    },
+    "basis": {
+      "perUnit": "Ár / {unit}",
+      "packageNote": "Csomagonkénti összehasonlítás, nem súly vagy térfogat szerint."
+    },
+    "best": {
+      "title": "Legjobb ismert ár:",
+      "at": "itt: {shop}"
+    },
+    "aboveAverage": "A szokásosnál többet fizettél ezért."
+  },
   "profile": {
     "title": "Profil",
     "settings": {

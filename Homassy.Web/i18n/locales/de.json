@@ -1032,6 +1032,21 @@
       "unknownLocation": "Unbekannter Standort"
     }
   },
+  "price": {
+    "history": {
+      "title": "Preisverlauf",
+      "empty": "Noch keine Einkäufe mit erfasstem Preis."
+    },
+    "basis": {
+      "perUnit": "Preis pro {unit}",
+      "packageNote": "Verglichen pro Packung, nicht nach Gewicht oder Volumen."
+    },
+    "best": {
+      "title": "Bester bekannter Preis:",
+      "at": "bei {shop}"
+    },
+    "aboveAverage": "Mehr als du üblicherweise dafür zahlst."
+  },
   "profile": {
     "title": "Profil",
     "settings": {

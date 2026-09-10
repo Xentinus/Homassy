@@ -1,6 +1,7 @@
 using Homassy.API.Controllers;
 using Homassy.API.Enums;
 using Homassy.API.Functions;
+using System.Text.Json.Serialization;
 
 namespace Homassy.API.Models.Insights
 {
@@ -145,7 +146,23 @@ namespace Homassy.API.Models.Insights
         /// <summary>The winning <see cref="PricePoint.UnitPrice"/>.</summary>
         public decimal UnitPrice { get; init; }
 
-        /// <summary>The currency it was paid in - never converted, never blended.</summary>
+        /// <summary>
+        /// The currency it was paid in - never converted, never blended.
+        /// </summary>
+        /// <remarks>
+        /// Serialized as the enum's <b>name</b> (<c>"Huf"</c>, <c>"Eur"</c>) rather than the API's
+        /// default numeric form, for two reasons. It matches
+        /// <see cref="PriceHistoryResponse.ByCurrency"/>, whose dictionary keys are already names
+        /// (a <c>Dictionary&lt;Currency, …&gt;</c> always serializes its key that way), so one
+        /// response cannot express the same currency two different ways. And the number is not
+        /// safely interpretable on the client: <c>Homassy.Web</c>'s own <c>Currency</c> enum is a
+        /// hand-maintained three-member subset whose values have drifted out of step with this
+        /// one, so a numeric currency would be silently mis-read there. A name needs no such
+        /// table - and, being a well-formed three-letter code for every fiat currency, it goes
+        /// straight into <c>Intl.NumberFormat</c>, which is exactly what the client does with
+        /// <see cref="PriceHistoryResponse.ByCurrency"/>'s keys already.
+        /// </remarks>
+        [JsonConverter(typeof(JsonStringEnumConverter<Currency>))]
         public Currency Currency { get; init; }
 
         /// <summary>

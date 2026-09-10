@@ -1032,6 +1032,21 @@
       "unknownLocation": "Unknown location"
     }
   },
+  "price": {
+    "history": {
+      "title": "Price history",
+      "empty": "No purchases with a recorded price yet."
+    },
+    "basis": {
+      "perUnit": "Price per {unit}",
+      "packageNote": "Compared per package, not by weight or volume."
+    },
+    "best": {
+      "title": "Best known price:",
+      "at": "at {shop}"
+    },
+    "aboveAverage": "More than you usually pay for this."
+  },
   "profile": {
     "title": "Profile",
     "settings": {
