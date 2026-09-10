@@ -219,6 +219,38 @@ public class InsightsController : ControllerBase
     }
 
     /// <summary>
+    /// Every badge in the catalog as the caller currently stands with it - locked ones with their
+    /// truthful progress, earned ones with the date they were earned. See
+    /// <see cref="InsightFunctions.GetBadgeStateAsync"/> for the evaluation and for why exactly one
+    /// response per badge reports <see cref="BadgeState.JustUnlocked"/>.
+    /// </summary>
+    /// <remarks>
+    /// A <b>GET that writes</b>, which is worth being explicit about: crossing a threshold has to
+    /// be recorded the moment it is first observed, or the unlock celebration cannot fire exactly
+    /// once. The write is idempotent in effect (a unique index makes a second insert impossible)
+    /// and only ever adds - nothing here revokes a badge - so a retried request cannot double-grant
+    /// and cannot lose anything. It is deliberately not cached, for the same reason.
+    /// <para>
+    /// No <c>days</c> parameter: badges are lifetime achievements, not a window.
+    /// </para>
+    /// </remarks>
+    [HttpGet("badges")]
+    [MapToApiVersion(1.0)]
+    [ProducesResponseType(typeof(ApiResponse<BadgeStateResponse>), StatusCodes.Status200OK)]
+    public async Task<IActionResult> GetBadges(CancellationToken cancellationToken)
+    {
+        var userId = SessionInfo.GetUserId();
+        if (!userId.HasValue)
+        {
+            return Unauthorized(ApiResponse.ErrorResponse(ErrorCodes.AuthUnauthorized));
+        }
+
+        var familyId = SessionInfo.GetFamilyId();
+        var badges = await _insightFunctions.GetBadgeStateAsync(userId.Value, familyId, cancellationToken);
+        return Ok(ApiResponse<BadgeStateResponse>.SuccessResponse(badges));
+    }
+
+    /// <summary>
     /// The cheapest price the caller's household has paid for each of the requested products -
     /// one call for a whole shopping list, never one per row. Products with no usable purchase
     /// history are <b>omitted</b> from the map rather than returned with a null value; see

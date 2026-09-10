@@ -1,9 +1,12 @@
+using Homassy.API.Constants;
 using Homassy.API.Context;
 using Homassy.API.Enums;
 using Homassy.API.Extensions;
 using Homassy.API.Models.Insights;
 using Homassy.API.Services;
 using Microsoft.EntityFrameworkCore;
+using Npgsql;
+using Serilog;
 
 namespace Homassy.API.Functions
 {
@@ -997,5 +1000,237 @@ namespace Homassy.API.Functions
         /// </summary>
         private static int CountFor(IEnumerable<ActivityCountRow> rows, int userId, ActivityType activityType, bool current) =>
             rows.FirstOrDefault(row => row.UserId == userId && row.ActivityType == activityType && row.IsCurrentPeriod == current)?.Count ?? 0;
+
+        /// <summary>
+        /// How far back the streaks that badges are evaluated against are scanned. Longer than any
+        /// window the scoreboard endpoint offers, because the longest streak badge asks for a
+        /// hundred consecutive days and a 90-day window could never award it. A year is the
+        /// pragmatic ceiling: it keeps the query bounded like every other one here, and it means a
+        /// streak badge is earned on evidence from the last twelve months rather than on the
+        /// household's entire history - stated here because it is a real limit, not an accident.
+        /// </summary>
+        private const int BadgeStreakWindowDays = 365;
+
+        /// <summary>
+        /// Every badge in the catalog, evaluated against the caller's own lifetime counters and
+        /// their household's streaks - and, for any threshold they have just crossed, the
+        /// <see cref="Entities.User.UserBadge"/> row that makes the unlock durable.
+        ///
+        /// <para>
+        /// <b>This method writes, and is deliberately not cached.</b> Both follow from
+        /// <see cref="BadgeState.JustUnlocked"/> having to be true exactly once: a cached response
+        /// would either replay the celebration for the rest of the TTL or swallow it entirely,
+        /// depending on who won the cache. The evaluation is a handful of grouped counts plus the
+        /// caller's own badge rows, so there is little to save.
+        /// </para>
+        ///
+        /// <para>
+        /// <b>Counters are personal and lifetime; streaks are the household's.</b> A badge
+        /// recognises what this member has done, ever - not what they did in some window - so the
+        /// counter queries are scoped by <c>Activity.UserId</c> with no date filter at all. The two
+        /// streak metrics are household achievements (nothing expiring, the list being cleared), so
+        /// they come from <see cref="GetFamilyScoreboardAsync"/> over
+        /// <see cref="BadgeStreakWindowDays"/> - which also means a caller with no family cannot
+        /// earn them, since there is no household to have a streak.
+        /// </para>
+        ///
+        /// <para>
+        /// <b>The streak comparison uses <c>Longest</c>, not <c>Current</c>.</b> A badge is never
+        /// revoked once earned, so the question is whether the household has <em>ever</em> reached
+        /// the threshold (inside the window above), not whether they are on such a run right now.
+        /// Comparing against <c>Current</c> would make a badge that is already earned read as
+        /// locked again the day a streak breaks.
+        /// </para>
+        /// </summary>
+        /// <param name="userId">The acting user - badges belong to them personally.</param>
+        /// <param name="familyId">Their family, or <see langword="null"/> (no household streaks).</param>
+        /// <param name="cancellationToken">Cancellation for the queries and the unlock writes.</param>
+        public async Task<BadgeStateResponse> GetBadgeStateAsync(int userId, int? familyId, CancellationToken cancellationToken)
+        {
+            var progressByMetric = await ComputeBadgeProgressAsync(userId, familyId, cancellationToken);
+
+            using var readContext = _contextFactory.CreateForReading();
+            var earnedRows = await readContext.UserBadges
+                .Where(badge => badge.UserId == userId)
+                .Select(badge => new { badge.BadgeId, badge.EarnedAt })
+                .ToListAsync(cancellationToken);
+
+            // An id in the database that the catalog no longer defines is skipped rather than
+            // rendered or thrown over - see BadgeCatalog.ById. The dictionary is built from the
+            // rows, so a retired id simply never matches a definition below.
+            var earnedAtById = earnedRows
+                .GroupBy(row => row.BadgeId, StringComparer.Ordinal)
+                .ToDictionary(group => group.Key, group => group.Min(row => row.EarnedAt), StringComparer.Ordinal);
+
+            var justUnlockedIds = await GrantNewlyEarnedBadgesAsync(userId, progressByMetric, earnedAtById, cancellationToken);
+
+            var badges = BadgeCatalog.All
+                .Select(definition =>
+                {
+                    var progress = progressByMetric.TryGetValue(definition.Metric, out var value) ? value : 0;
+                    var earnedAt = earnedAtById.TryGetValue(definition.Id, out var stamp) ? stamp : (DateTime?)null;
+
+                    return new BadgeState
+                    {
+                        Id = definition.Id,
+                        IconName = definition.IconName,
+                        TitleKey = definition.TitleKey,
+                        DescriptionKey = definition.DescriptionKey,
+                        FallbackTitle = definition.FallbackTitle,
+                        FallbackDescription = definition.FallbackDescription,
+                        Threshold = definition.Threshold,
+                        // Capped, so a progress ring can be drawn as progress/threshold without a
+                        // client having to clamp it too.
+                        Progress = Math.Min(progress, definition.Threshold),
+                        EarnedAt = earnedAt,
+                        JustUnlocked = justUnlockedIds.Contains(definition.Id)
+                    };
+                })
+                .ToList();
+
+            return new BadgeStateResponse { Badges = badges };
+        }
+
+        /// <summary>
+        /// The caller's value for every <see cref="BadgeMetric"/>: three lifetime activity counts
+        /// and a lifetime waste-avoided count in two queries, plus the household's two streaks from
+        /// the (cached) scoreboard.
+        /// </summary>
+        private async Task<Dictionary<BadgeMetric, int>> ComputeBadgeProgressAsync(int userId, int? familyId, CancellationToken cancellationToken)
+        {
+            using var context = _contextFactory.CreateForReading();
+
+            // One grouped pass for every activity-backed counter, over this user's whole history.
+            // No family filter: a badge recognises what this person did, including anything they did
+            // before joining a family or after leaving one.
+            var activityCounts = await context.Activities
+                .Where(a => a.UserId == userId && CountedActivityTypes.Contains(a.ActivityType))
+                .GroupBy(a => a.ActivityType)
+                .Select(g => new { ActivityType = g.Key, Count = g.Count() })
+                .ToDictionaryAsync(row => row.ActivityType, row => row.Count, cancellationToken);
+
+            var itemsAdded = activityCounts.GetValueOrDefault(ActivityType.ProductInventoryCreate);
+            var itemsConsumed = activityCounts.GetValueOrDefault(ActivityType.ProductInventoryDecrease);
+            var listItemsPurchased =
+                activityCounts.GetValueOrDefault(ActivityType.ShoppingListItemPurchase)
+                + activityCounts.GetValueOrDefault(ActivityType.ShoppingListItemQuickPurchase);
+
+            // Waste avoided, lifetime: items this user finished on or before their expiration date.
+            // Attribution is the consumption log's own UserId, so no inventory-scope union is
+            // needed - the log records who did it, which is exactly the question.
+            var wasteAvoided = await context.ProductConsumptionLogs
+                .Where(l => l.UserId == userId
+                            && l.ProductInventoryItem.IsFullyConsumed
+                            && l.ProductInventoryItem.FullyConsumedAt != null
+                            && l.ProductInventoryItem.ExpirationAt != null
+                            && l.ProductInventoryItem.FullyConsumedAt <= l.ProductInventoryItem.ExpirationAt)
+                .Select(l => l.ProductInventoryItemId)
+                .Distinct()
+                .CountAsync(cancellationToken);
+
+            var progress = new Dictionary<BadgeMetric, int>
+            {
+                [BadgeMetric.ItemsAdded] = itemsAdded,
+                [BadgeMetric.ItemsConsumed] = itemsConsumed,
+                [BadgeMetric.ListItemsPurchased] = listItemsPurchased,
+                [BadgeMetric.WasteAvoided] = wasteAvoided,
+                [BadgeMetric.NoExpiryStreakDays] = 0,
+                [BadgeMetric.ListClearedStreakDays] = 0
+            };
+
+            if (familyId.HasValue)
+            {
+                var scoreboard = await GetFamilyScoreboardAsync(userId, familyId, BadgeStreakWindowDays, cancellationToken);
+                progress[BadgeMetric.NoExpiryStreakDays] = scoreboard.NoExpiryStreak.Longest;
+                progress[BadgeMetric.ListClearedStreakDays] = scoreboard.ListClearedStreak.Longest;
+            }
+
+            return progress;
+        }
+
+        /// <summary>
+        /// Inserts a <see cref="Entities.User.UserBadge"/> for every threshold the caller has
+        /// crossed but has no row for yet, and returns the ids that were actually written - the
+        /// exact set that may report <see cref="BadgeState.JustUnlocked"/>.
+        ///
+        /// <para>
+        /// One insert per badge rather than one <c>SaveChanges</c> for all of them, so a race on one
+        /// badge cannot discard the others: two concurrent requests can both see the same threshold
+        /// crossed, and the unique index from Task 17 is what stops the second from duplicating it.
+        /// A unique violation is therefore <b>not</b> an error here - it means the other request got
+        /// there first, so the badge is already earned and this response must not claim the unlock.
+        /// </para>
+        ///
+        /// <para>
+        /// <paramref name="earnedAtById"/> is updated in place with each successful insert, so the
+        /// caller's own projection reports the badge as earned in the same response that unlocked
+        /// it (rather than a locked tile now and an unlock on the next load).
+        /// </para>
+        /// </summary>
+        private async Task<HashSet<string>> GrantNewlyEarnedBadgesAsync(
+            int userId,
+            IReadOnlyDictionary<BadgeMetric, int> progressByMetric,
+            Dictionary<string, DateTime> earnedAtById,
+            CancellationToken cancellationToken)
+        {
+            var newlyEarned = BadgeCatalog.All
+                .Where(definition => !earnedAtById.ContainsKey(definition.Id))
+                .Where(definition => progressByMetric.GetValueOrDefault(definition.Metric) >= definition.Threshold)
+                .ToList();
+
+            var justUnlocked = new HashSet<string>(StringComparer.Ordinal);
+            if (newlyEarned.Count == 0)
+            {
+                return justUnlocked;
+            }
+
+            foreach (var definition in newlyEarned)
+            {
+                var earnedAt = DateTime.UtcNow;
+
+                using var context = _contextFactory.CreateDbContext();
+                context.UserBadges.Add(new Entities.User.UserBadge
+                {
+                    UserId = userId,
+                    BadgeId = definition.Id,
+                    EarnedAt = earnedAt
+                });
+
+                try
+                {
+                    await context.SaveChangesAsync(cancellationToken);
+                    earnedAtById[definition.Id] = earnedAt;
+                    justUnlocked.Add(definition.Id);
+                }
+                catch (DbUpdateException exception) when (IsUniqueViolation(exception))
+                {
+                    // Another request unlocked it first. Already-earned, not just-unlocked: read the
+                    // row it wrote so this response still shows the badge as earned, and leave the
+                    // celebration to whichever response actually won.
+                    Log.Information($"Badge {definition.Id} for user {userId} was already granted concurrently");
+
+                    using var readContext = _contextFactory.CreateForReading();
+                    var existing = await readContext.UserBadges
+                        .Where(badge => badge.UserId == userId && badge.BadgeId == definition.Id)
+                        .Select(badge => badge.EarnedAt)
+                        .FirstOrDefaultAsync(cancellationToken);
+
+                    if (existing != default)
+                    {
+                        earnedAtById[definition.Id] = existing;
+                    }
+                }
+            }
+
+            return justUnlocked;
+        }
+
+        /// <summary>
+        /// Whether a failed save was PostgreSQL refusing a duplicate (<c>23505</c>) rather than
+        /// anything else - narrow on purpose, so a genuine failure still surfaces instead of being
+        /// quietly read as "already earned".
+        /// </summary>
+        private static bool IsUniqueViolation(DbUpdateException exception) =>
+            exception.InnerException is PostgresException { SqlState: PostgresErrorCodes.UniqueViolation };
     }
 }
