@@ -973,6 +973,11 @@
     "empty": {
       "title": "No activity yet",
       "description": "Once someone in your family adds, updates, or removes something, it will show up here."
+    },
+    "away": {
+      "changes": "{count} changes since your last visit",
+      "windowNotice": "Showing what changed while you were away",
+      "showAll": "Show all"
     }
   },
   "realtime": {

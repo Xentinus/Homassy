@@ -973,6 +973,11 @@
     "empty": {
       "title": "Még nincs tevékenység",
       "description": "Amint valaki a családodban hozzáad, módosít vagy töröl valamit, itt fog megjelenni."
+    },
+    "away": {
+      "changes": "{count} változás a legutóbbi látogatásod óta",
+      "windowNotice": "Csak a távollétedben történtek látszanak",
+      "showAll": "Mind"
     }
   },
   "realtime": {

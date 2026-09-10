@@ -177,6 +177,13 @@
 
     <RealtimeConnectionBar class="mb-4" />
 
+    <!-- "What changed while you were away" (#127). Hosted here, on the screen the app opens to,
+         rather than in the layout: the card's lifetime should be this visit to this screen, and a
+         layout-level host would keep it on screen across every navigation for the rest of the
+         session. It renders nothing unless something actually happened while the user was away,
+         and issues no request at all for a short gap - see useAwayDelta. -->
+    <AwayDeltaCard v-if="awayDelta" :delta="awayDelta" class="mb-4" @acknowledge="acknowledgeAwayDelta" />
+
     <!-- Loading State — first load only. A pull-to-refresh, a socket reconnect
          or a filter change keeps the grid mounted (PullToRefreshIndicator gives
          the feedback); swapping it out would remount every card and replay the
@@ -299,11 +306,17 @@ import { getProductCategoryGroup, PRODUCT_CATEGORY_GROUP_ORDER } from '../../uti
 import { useCameraAvailability } from '../../composables/useCameraAvailability'
 import { useInventorySocket } from '../../composables/useInventorySocket'
 import { useEventBus } from '../../composables/useEventBus'
+import { useAwayDelta } from '../../composables/useAwayDelta'
 
 definePageMeta({
   layout: 'auth',
   middleware: 'auth'
 })
+
+// "What changed while you were away" (#127). The composable owns the gap decision, the request and
+// the stored last-seen; this page only hosts the card. Deliberately called here at setup so its
+// own onMounted hook registers - it never awaits anything on the boot path (see useAwayDelta).
+const { delta: awayDelta, acknowledge: acknowledgeAwayDelta } = useAwayDelta()
 
 /**
  * How the grid is grouped. `none` keeps the flat, urgency-ordered list this page has always had.

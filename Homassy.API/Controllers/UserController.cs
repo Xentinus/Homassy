@@ -310,6 +310,8 @@ namespace Homassy.API.Controllers
         /// <param name="cursor">Opaque cursor from a previous page's response, or omitted for the first page.</param>
         /// <param name="activityType">Optional activity type filter.</param>
         /// <param name="userPublicId">Optional single-member filter; omitted shows the caller's own activities plus their family's.</param>
+        /// <param name="since">Optional window start (exclusive) - see <see cref="Models.Activity.ActivityTimelineRequest.Since"/>.</param>
+        /// <param name="until">Optional window end (inclusive).</param>
         /// <param name="pageSize">Maximum number of entries to return.</param>
         /// <param name="cancellationToken">Cancellation token.</param>
         [HttpGet("activities/timeline")]
@@ -320,6 +322,8 @@ namespace Homassy.API.Controllers
             [FromQuery] string? cursor,
             [FromQuery] int? activityType,
             [FromQuery] Guid? userPublicId,
+            [FromQuery] DateTime? since,
+            [FromQuery] DateTime? until,
             [FromQuery] int pageSize = 30,
             CancellationToken cancellationToken = default)
         {
@@ -333,7 +337,9 @@ namespace Homassy.API.Controllers
                 Cursor = cursor,
                 PageSize = pageSize,
                 ActivityType = activityType.HasValue ? (Enums.ActivityType)activityType.Value : null,
-                UserPublicId = userPublicId
+                UserPublicId = userPublicId,
+                Since = since,
+                Until = until
             };
 
             // An undecodable cursor throws ArgumentException from GetActivityTimelineAsync, mapped

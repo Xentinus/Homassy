@@ -16,8 +16,17 @@
  * listeners are skipped in a normal browser tab.
  */
 import { useSplashScreen } from '~/composables/useSplashScreen'
+import { AWAY_GAP_MS } from '~/utils/awayGap'
 
-const RESUME_SPLASH_MS = 10 * 60 * 1000 // re-show splash after ≥10 min backgrounded
+/**
+ * Re-show the splash after ≥10 min backgrounded.
+ *
+ * The number now lives in `~/utils/awayGap` as `AWAY_GAP_MS`, imported here rather than declared
+ * twice: #127's away-delta card uses the same threshold to decide whether the user has "been
+ * away", and the splash saying "welcome back" while the card says nothing happened - or the
+ * reverse - is one disagreement seen twice. The 10-minute reasoning is documented there.
+ */
+const RESUME_SPLASH_MS = AWAY_GAP_MS
 
 export default defineNuxtPlugin(() => {
   if (import.meta.server) return

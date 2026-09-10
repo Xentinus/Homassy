@@ -973,6 +973,11 @@
     "empty": {
       "title": "Noch keine Aktivität",
       "description": "Sobald jemand in deiner Familie etwas hinzufügt, ändert oder entfernt, erscheint es hier."
+    },
+    "away": {
+      "changes": "{count} Änderungen seit deinem letzten Besuch",
+      "windowNotice": "Angezeigt wird, was während deiner Abwesenheit passiert ist",
+      "showAll": "Alle anzeigen"
     }
   },
   "realtime": {

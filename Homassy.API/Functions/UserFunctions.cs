@@ -1012,7 +1012,8 @@ namespace Homassy.API.Functions
                 TimeZone = profile.DefaultTimeZone.ToTimeZoneId(),
                 Language = profile.DefaultLanguage.ToLanguageCode(),
                 Currency = profile.DefaultCurrency.ToCurrencyCode(),
-                IdentityColor = profile.IdentityColor
+                IdentityColor = profile.IdentityColor,
+                LastSeenAt = profile.LastSeenAt
             };
 
             return userInfo;
@@ -1040,7 +1041,8 @@ namespace Homassy.API.Functions
                 TimeZone = traits.DefaultTimezone ?? "Europe/Budapest",
                 Language = traits.DefaultLanguage ?? "hu",
                 Currency = traits.DefaultCurrency ?? "HUF",
-                IdentityColor = profile?.IdentityColor
+                IdentityColor = profile?.IdentityColor,
+                LastSeenAt = profile?.LastSeenAt
             };
         }
 

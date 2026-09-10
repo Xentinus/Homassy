@@ -750,6 +750,85 @@ public class UserControllerTests : IClassFixture<HomassyWebApplicationFactory>
         }
     }
 
+    /// <summary>
+    /// The optional window (#127): <c>since</c> is exclusive, <c>until</c> is inclusive, and both
+    /// narrow the same timeline rather than switching to a different code path. This is what the
+    /// away-delta card links to, so the window it was counted over and the window the timeline
+    /// shows have to agree exactly.
+    /// </summary>
+    [Fact]
+    public async Task GetActivityTimeline_WithAWindow_ReturnsOnlyTheActivityInsideIt()
+    {
+        string? testEmail = null;
+        try
+        {
+            var (email, auth) = await _authHelper.CreateAndAuthenticateUserAsync("timeline-window");
+            testEmail = email;
+            _authHelper.SetAuthToken(auth.AccessToken);
+            var userId = _factory.GetUserIdByEmail(email)!.Value;
+
+            var since = DateTime.UtcNow.AddHours(-2);
+            var until = DateTime.UtcNow.AddHours(-1);
+
+            await SeedActivityAsync(userId, ActivityType.ProductCreate, since.AddMinutes(-30), "Before the window");
+            var inside = await SeedActivityAsync(userId, ActivityType.ProductCreate, since.AddMinutes(30), "Inside the window");
+            await SeedActivityAsync(userId, ActivityType.ProductCreate, until.AddMinutes(30), "After the window");
+
+            var query = $"since={Uri.EscapeDataString(since.ToString("O"))}&until={Uri.EscapeDataString(until.ToString("O"))}";
+            var response = await _client.GetAsync($"/api/v1.0/user/activities/timeline?pageSize=30&{query}");
+            var body = await response.Content.ReadAsStringAsync();
+            _output.WriteLine($"Status: {response.StatusCode}");
+            _output.WriteLine($"Response: {body}");
+
+            Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+            var content = await response.Content.ReadFromJsonAsync<ApiResponse<ActivityTimelineResult>>();
+            Assert.NotNull(content?.Data);
+
+            var entry = Assert.Single(content.Data.Entries);
+            Assert.Equal(inside, entry.PublicId);
+        }
+        finally
+        {
+            _authHelper.ClearAuthToken();
+            if (testEmail != null)
+                await _authHelper.CleanupUserAsync(testEmail);
+        }
+    }
+
+    /// <summary>
+    /// No window is still the whole timeline - the parameters are optional, and adding them must not
+    /// have changed what an ordinary request returns.
+    /// </summary>
+    [Fact]
+    public async Task GetActivityTimeline_WithoutAWindow_StillReturnsEverything()
+    {
+        string? testEmail = null;
+        try
+        {
+            var (email, auth) = await _authHelper.CreateAndAuthenticateUserAsync("timeline-no-window");
+            testEmail = email;
+            _authHelper.SetAuthToken(auth.AccessToken);
+            var userId = _factory.GetUserIdByEmail(email)!.Value;
+
+            var baseTime = DateTime.UtcNow.AddHours(-3);
+            await SeedActivityAsync(userId, ActivityType.ProductCreate, baseTime, "Old");
+            await SeedActivityAsync(userId, ActivityType.ProductUpdate, baseTime.AddHours(2), "Recent");
+
+            var response = await _client.GetAsync("/api/v1.0/user/activities/timeline?pageSize=30");
+            Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+
+            var content = await response.Content.ReadFromJsonAsync<ApiResponse<ActivityTimelineResult>>();
+            Assert.NotNull(content?.Data);
+            Assert.Equal(2, content.Data.Entries.Count);
+        }
+        finally
+        {
+            _authHelper.ClearAuthToken();
+            if (testEmail != null)
+                await _authHelper.CleanupUserAsync(testEmail);
+        }
+    }
+
     [Fact]
     public async Task GetActivityTimeline_FollowingTheCursor_DoesNotRepeatOrSkipEntries()
     {

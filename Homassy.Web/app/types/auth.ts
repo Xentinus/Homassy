@@ -61,6 +61,15 @@ export interface UserInfo {
    * the current value on every settings save (see that file).
    */
   identityColor?: string | null
+  /**
+   * When the server last saw this user, ISO-8601 - or absent/null when it has never been written
+   * (and always absent on the Kratos-trait-seeded object, which knows nothing about it).
+   *
+   * The away-delta feature (#127) uses it only when this device has no last-seen of its own: it
+   * lags by up to a flush interval and counts every device, so a device-local value is always the
+   * better answer. See `~/utils/awayGap`.
+   */
+  lastSeenAt?: string | null
 }
 
 // Kratos-specific types

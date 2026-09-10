@@ -38,6 +38,22 @@
       />
     </div>
 
+    <!-- Showing one window rather than everything (#127) - arrived here from the away-delta card.
+         Says so out loud and offers a way out: a timeline silently hiding older entries would read
+         as a bug, and the query string is not something anyone should have to notice. -->
+    <div v-if="hasWindow" class="mb-3 flex items-center gap-2 rounded-lg bg-elevated px-3 py-2">
+      <UIcon name="i-lucide-history" class="h-4 w-4 shrink-0 text-primary" />
+      <span class="min-w-0 flex-1 truncate text-sm text-muted">{{ t('activity.away.windowNotice') }}</span>
+      <UButton
+        size="xs"
+        color="neutral"
+        variant="ghost"
+        icon="i-lucide-x"
+        :label="t('activity.away.showAll')"
+        @click="clearWindow"
+      />
+    </div>
+
     <!-- Initial load (and every filter-triggered reload, which also empties entries first). -->
     <div v-if="isInitialLoading" class="space-y-3">
       <SkeletonCard v-for="i in 4" :key="i" :lines="2" :footer-lines="1" />
@@ -67,11 +83,22 @@
         </h2>
 
         <AnimatedList class="space-y-3 mb-4">
+          <!-- Inside a delta window every row is, by definition, something that changed while the
+               user was away - so the whole windowed list carries R4's existing "newer than what
+               was on screen" flash (.row-updated-flash in main.css) rather than a second keyframe
+               of its own. It is deliberately not applied to the unwindowed timeline, where a row
+               being present says nothing about it being new. The class is already neutralised
+               under prefers-reduced-motion where it is defined. -->
           <template v-for="entry in group.entries" :key="entry.publicId">
-            <AggregatedActivityCard v-if="entry.count > 1" :entry="entry" />
+            <AggregatedActivityCard
+              v-if="entry.count > 1"
+              :entry="entry"
+              :class="windowedRowClass"
+            />
 
             <ActivityCardShell
               v-else
+              :class="windowedRowClass"
               :user-public-id="entry.userPublicId"
               :identity-color="entry.userIdentityColor"
               :activity-type="entry.activityType"
@@ -160,6 +187,44 @@ usePageHeader(() => ({
 }))
 
 const PAGE_SIZE = 30
+
+/**
+ * The optional window (#127), read straight from this page's own query string: the away-delta card
+ * links here as `/activity?since=...&until=...` with the exact window its count was computed over.
+ *
+ * A single string (or nothing) rather than a parsed date: it is passed through to the API verbatim,
+ * so parsing it here would only create a second chance to change its meaning. A malformed value is
+ * the server's 400 to give, not this page's to guess at.
+ *
+ * Reactive on the route, so arriving at the windowed view and then clearing the window (or the
+ * card linking again with a different one) re-runs the fetch through the same reset path a filter
+ * change uses.
+ */
+const route = useRoute()
+
+const queryValue = (value: unknown): string | undefined =>
+  typeof value === 'string' && value.length > 0 ? value : undefined
+
+const windowSince = computed(() => queryValue(route.query.since))
+const windowUntil = computed(() => queryValue(route.query.until))
+
+/** True while the timeline is showing one specific window rather than everything. */
+const hasWindow = computed(() => windowSince.value !== undefined || windowUntil.value !== undefined)
+
+/**
+ * R4's existing "newer than what was on screen" flash, applied to every row of a windowed list -
+ * inside a delta window a row being present IS the news. Empty for the ordinary timeline, where
+ * presence says nothing about novelty. The class already neutralises itself under
+ * `prefers-reduced-motion` where it is defined (main.css), so there is nothing to guard here.
+ */
+const windowedRowClass = computed(() => (hasWindow.value ? 'row-updated-flash rounded-2xl' : ''))
+
+const clearWindow = (): void => {
+  const query = { ...route.query }
+  delete query.since
+  delete query.until
+  void navigateTo({ path: '/activity', query })
+}
 
 const entries = ref<ActivityTimelineEntry[]>([])
 /** `undefined` before the first page has ever resolved; `null` once the server says no more. */
@@ -259,7 +324,9 @@ const fetchPage = async (cursor: string | undefined): Promise<void> => {
       cursor,
       pageSize: PAGE_SIZE,
       activityType: typeFilter.value,
-      userPublicId: memberFilterValue.value
+      userPublicId: memberFilterValue.value,
+      since: windowSince.value,
+      until: windowUntil.value
     })
 
     // A filter change superseded this fetch while it was in flight (resetAndLoad bumped
@@ -313,7 +380,9 @@ const loadMore = (): void => {
   void fetchPage(nextCursor.value)
 }
 
-watch([typeFilter, memberFilterValue], resetAndLoad)
+// The window joins the filters: arriving from the away-delta card, changing to a different window,
+// or clearing it all go through the same reset-and-reload path a filter change does.
+watch([typeFilter, memberFilterValue, windowSince, windowUntil], resetAndLoad)
 
 // --- Infinite scroll ---------------------------------------------------------------------------
 

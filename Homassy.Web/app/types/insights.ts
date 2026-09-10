@@ -239,3 +239,33 @@ export interface BadgeStateDto {
 export interface BadgeStateResponse {
   badges: BadgeStateDto[]
 }
+
+// --- #127 away delta ---------------------------------------------------------------------------
+
+/** One of the people whose activity makes up an away delta. */
+export interface DeltaActor {
+  publicId: string
+  displayName: string
+  count: number
+}
+
+/**
+ * What changed in the household while the caller was away. The caller's own activity is excluded
+ * server-side, and `since` is the window **actually used** — the server clamps anything older than
+ * 90 days, so a client must render (and link with) this value rather than the one it asked for.
+ */
+export interface AwayDeltaResponse {
+  itemsAdded: number
+  itemsConsumed: number
+  listItemsPurchased: number
+  /** Family-shared items whose expiration fell in the window; attributed to nobody. */
+  newExpirations: number
+  familyEvents: number
+  /** The sum of the five counts, sent so every surface agrees on "N changes". */
+  total: number
+  /** At most three, busiest first. */
+  topActors: DeltaActor[]
+  /** ISO-8601 instants. */
+  since: string
+  until: string
+}

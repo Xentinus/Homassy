@@ -4,6 +4,7 @@
  * `Homassy.API.Controllers.InsightsController` and `~/types/insights` for the response shapes.
  */
 import type {
+  AwayDeltaResponse,
   BadgeStateResponse,
   BestKnownPrice,
   ConsumptionSeriesResponse,
@@ -91,12 +92,29 @@ export const useInsightsApi = () => {
     return await client.get<BadgeStateResponse>('/api/v1/Insights/badges')
   }
 
+  /**
+   * What changed in the household since the caller was last here (#127).
+   *
+   * `since` is optional: without it the server falls back to its own stored last-seen, and a
+   * caller with neither gets an empty delta rather than their whole history. Nothing to report is
+   * a 200 with zeroes, never a 204 - the client decides whether an empty delta is worth rendering
+   * (it is not).
+   *
+   * The response echoes the window actually used, which may be clamped to 90 days - link the
+   * timeline with THAT value, not the one you asked for.
+   */
+  const getAwayDelta = async (since?: string) => {
+    const query = since ? `?since=${encodeURIComponent(since)}` : ''
+    return await client.get<AwayDeltaResponse>(`/api/v1/Insights/delta${query}`)
+  }
+
   return {
     getInventoryComposition,
     getConsumption,
     getSpendByLocation,
     getBestPrices,
     getScoreboard,
-    getBadges
+    getBadges,
+    getAwayDelta
   }
 }

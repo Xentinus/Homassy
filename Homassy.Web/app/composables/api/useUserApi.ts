@@ -170,6 +170,13 @@ export const useUserApi = () => {
     pageSize?: number
     activityType?: number
     userPublicId?: string
+    /**
+     * Optional window (#127), both ISO-8601: `since` exclusive, `until` inclusive. The away-delta
+     * card links here with the exact window its count was computed over, so the list cannot
+     * disagree with the number that was tapped.
+     */
+    since?: string
+    until?: string
   }) => {
     const queryParams = new URLSearchParams()
 
@@ -184,6 +191,12 @@ export const useUserApi = () => {
     }
     if (params?.userPublicId !== undefined) {
       queryParams.append('userPublicId', params.userPublicId)
+    }
+    if (params?.since !== undefined) {
+      queryParams.append('since', params.since)
+    }
+    if (params?.until !== undefined) {
+      queryParams.append('until', params.until)
     }
 
     const queryString = queryParams.toString()
