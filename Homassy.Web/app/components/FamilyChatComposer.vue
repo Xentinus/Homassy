@@ -29,6 +29,7 @@
       class="flex-1"
       :ui="{ base: 'resize-none' }"
       @keydown="onKeyDown"
+      @blur="onBlur"
     />
 
     <UButton
@@ -53,7 +54,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, nextTick, ref } from 'vue'
+import { computed, nextTick, ref, watch } from 'vue'
 import ImageCropper from '~/components/ImageCropper.vue'
 import { base64ToBlob, blobToBase64, compressImage } from '~/composables/useImageCrop'
 
@@ -75,6 +76,8 @@ const emit = defineEmits<{
   image: [dataUrl: string, caption: string | undefined]
   /** Every keystroke while there is something to send - what #148 throttles its typing signal off. */
   typing: []
+  /** The composer was left empty - nothing is being typed any more (#148). */
+  idle: []
 }>()
 
 const { t } = useI18n()
@@ -92,17 +95,41 @@ const submit = (): void => {
 
   emit('send', draft.value.trim())
   draft.value = ''
+  emit('idle')
+}
+
+/**
+ * Leaving an empty composer means the typing is over; leaving a half-written one does not.
+ *
+ * Someone who taps away mid-sentence is still writing it, and the server flag expires on its own
+ * a few seconds later if they never come back - which is the right outcome either way.
+ */
+const onBlur = (): void => {
+  if (draft.value.trim().length === 0) emit('idle')
 }
 
 const onKeyDown = (event: KeyboardEvent): void => {
   if (event.key === 'Enter' && !event.shiftKey) {
     event.preventDefault()
     submit()
-    return
   }
-
-  if (draft.value.trim().length > 0) emit('typing')
 }
+
+/**
+ * Typing is reported from the *value*, not from keydown.
+ *
+ * At keydown time the model still holds what was there before the key, so the first character of
+ * a message would not count as typing and the last deletion would. Watching the draft also covers
+ * paste and dictation, neither of which is a keystroke.
+ */
+watch(draft, (value, previous) => {
+  if (value.trim().length > 0) {
+    emit('typing')
+  } else if (previous.trim().length > 0) {
+    // Emptied the composer: whatever was being written is not being written any more.
+    emit('idle')
+  }
+})
 
 // --- Pictures (#147) -------------------------------------------------------
 

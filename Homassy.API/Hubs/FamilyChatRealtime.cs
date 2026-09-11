@@ -23,6 +23,7 @@ namespace Homassy.API.Hubs
     {
         public const string MessageCreatedEvent = "MessageCreated";
         public const string MessageDeletedEvent = "MessageDeleted";
+        public const string TypingChangedEvent = "TypingChanged";
 
         /// <summary>
         /// SignalR group name for one family's conversation. Shared with <see cref="FamilyChatHub"/>.
@@ -59,7 +60,30 @@ namespace Homassy.API.Hubs
         public Task MessageDeletedAsync(Guid familyPublicId, Guid messagePublicId, Guid? actorPublicId = null, CancellationToken cancellationToken = default)
             => SendAsync(familyPublicId, MessageDeletedEvent, new { publicId = messagePublicId, actorPublicId }, cancellationToken);
 
-        private async Task SendAsync(Guid familyPublicId, string eventName, object payload, CancellationToken cancellationToken)
+        /// <summary>
+        /// Pushes the family's current set of typists (#148).
+        /// </summary>
+        /// <param name="familyPublicId">Which family's group to push to.</param>
+        /// <param name="members">Everyone currently typing, collapsed to one entry per person.</param>
+        /// <param name="exceptConnectionId">
+        /// The connection that caused this change, if any. A typist must never be told that they
+        /// are typing, so their own connection is excluded from the broadcast rather than left to
+        /// filter itself out.
+        /// </param>
+        /// <param name="cancellationToken">Cancellation of the originating invocation.</param>
+        public Task TypingChangedAsync(
+            Guid familyPublicId,
+            IReadOnlyList<FamilyChatTypingMember> members,
+            string? exceptConnectionId = null,
+            CancellationToken cancellationToken = default)
+            => SendAsync(familyPublicId, TypingChangedEvent, members, cancellationToken, exceptConnectionId);
+
+        private async Task SendAsync(
+            Guid familyPublicId,
+            string eventName,
+            object payload,
+            CancellationToken cancellationToken,
+            string? exceptConnectionId = null)
         {
             var hub = _hubContext;
             if (hub == null)
@@ -70,7 +94,11 @@ namespace Homassy.API.Hubs
 
             try
             {
-                await hub.Clients.Group(GroupName(familyPublicId)).SendAsync(eventName, payload, cancellationToken);
+                var clients = exceptConnectionId == null
+                    ? hub.Clients.Group(GroupName(familyPublicId))
+                    : hub.Clients.GroupExcept(GroupName(familyPublicId), exceptConnectionId);
+
+                await clients.SendAsync(eventName, payload, cancellationToken);
             }
             catch (Exception ex)
             {

@@ -120,7 +120,8 @@ The family conversation (#144) — history and the two writes that change it (al
 **Realtime (SignalR):**
 - Hub at `/hubs/family-chat` (`FamilyChatHub`, `[Authorize]`) — same Kratos-cookie-on-handshake auth as the other three hubs
 - `JoinChat()` takes **no argument**: the group is derived from the session (`family-chat:{familyPublicId}`), so a client cannot ask for somebody else's group. It answers with the newest page, so opening the panel is one round trip. `LeaveChat()` removes the connection
-- After a successful commit `FamilyChatFunctions` broadcasts through the injected `FamilyChatRealtime`: `MessageCreated` (carries the message **and the sender's own correlation id**, so an optimistically appended message is reconciled rather than rendered twice), `MessageDeleted`
+- After a successful commit `FamilyChatFunctions` broadcasts through the injected `FamilyChatRealtime`: `MessageCreated` (carries the message **and the sender's own correlation id**, so an optimistically appended message is reconciled rather than rendered twice), `MessageDeleted`, `TypingChanged`
+- `SetTyping(bool)` (#148) sets a per-connection flag with a ~5s TTL in `FamilyChatConnectionState`, the single bag holding every per-connection flag the chat has. **Every flag expires on its own**, because a closed lid or a dropped socket never sends the "stopped" call; `FamilyChatTypingSweepService` retires expired ones and broadcasts the change, which is what makes the indicator self-healing. The set is collapsed per user (two devices is one typist) and a typist is never echoed their own state (`GroupExcept`). Sending a message clears the sender's flags on the write path, not only from the client
 - Broadcast failures are logged but never break the write
 
 ### ProductController

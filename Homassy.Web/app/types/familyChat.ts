@@ -74,6 +74,12 @@ export interface FamilyChatStreamMessage extends FamilyChatMessage {
   localPreview?: string
 }
 
+/** One family member currently typing (#148) — the payload of the hub's `TypingChanged` event is a list of these. */
+export interface FamilyChatTypingMember {
+  publicId: string
+  displayName: string
+}
+
 /** The payload of the hub's `MessageCreated` event. */
 export interface FamilyChatMessageCreatedEvent {
   message: FamilyChatMessage

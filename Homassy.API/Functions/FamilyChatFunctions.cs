@@ -3,6 +3,7 @@ using Homassy.API.Context;
 using Homassy.API.Entities.Family;
 using Homassy.API.Enums;
 using Homassy.API.Exceptions;
+using Homassy.API.Hubs;
 using Homassy.API.Models.Activity;
 using Homassy.API.Models.ImageUpload;
 using Homassy.API.Models.FamilyChat;
@@ -80,12 +81,17 @@ namespace Homassy.API.Functions
         private readonly FunctionsRuntime _runtime;
         private readonly IDbContextFactory<HomassyDbContext> _contextFactory;
         private readonly IImageProcessingService _imageProcessingService;
+        private readonly FamilyChatConnectionState _connectionState;
 
-        public FamilyChatFunctions(FunctionsRuntime runtime, IImageProcessingService imageProcessingService)
+        public FamilyChatFunctions(
+            FunctionsRuntime runtime,
+            IImageProcessingService imageProcessingService,
+            FamilyChatConnectionState connectionState)
         {
             _runtime = runtime;
             _contextFactory = runtime.ContextFactory;
             _imageProcessingService = imageProcessingService;
+            _connectionState = connectionState;
         }
 
         #region Access
@@ -224,6 +230,8 @@ namespace Homassy.API.Functions
 
             var info = ToInfo(message, LoadSenders([userId]), NoImages);
 
+            await ClearTypingAsync(familyPublicId, userId, cancellationToken);
+
             // Broadcast after the commit, never before: a client that renders a message the
             // database went on to reject has no way to find out it is gone.
             await _runtime.FamilyChat.MessageCreatedAsync(familyPublicId, info, request.CorrelationId, cancellationToken);
@@ -332,6 +340,7 @@ namespace Homassy.API.Functions
             var rendition = new FamilyChatImageRendition(message.Id, version, processed.Width, processed.Height);
             var info = ToInfo(message, LoadSenders([userId]), new Dictionary<int, FamilyChatImageRendition> { [message.Id] = rendition });
 
+            await ClearTypingAsync(familyPublicId, userId, cancellationToken);
             await _runtime.FamilyChat.MessageCreatedAsync(familyPublicId, info, request.CorrelationId, cancellationToken);
 
             Log.Debug("User {UserId} sent chat image {PublicId} to family {FamilyId}", userId, message.PublicId, familyId);
@@ -422,6 +431,24 @@ namespace Homassy.API.Functions
             {
                 throw new FamilyChatRateLimitedException();
             }
+        }
+
+        /// <summary>
+        /// Clears the sender's typing flags and tells the family, after a message goes out (#148).
+        /// </summary>
+        /// <remarks>
+        /// Having said the thing, you are no longer typing it - on every device you have the chat
+        /// open on, which is why this clears by user rather than by connection. It runs from the
+        /// write path rather than relying on the client's own "stopped" call: the client sends one,
+        /// but the message is what actually ends the typing, and the two arriving out of order (or
+        /// one not arriving at all) would otherwise leave the indicator up for a full TTL after the
+        /// message it was announcing is already on screen.
+        /// </remarks>
+        private async Task ClearTypingAsync(Guid familyPublicId, int userId, CancellationToken cancellationToken)
+        {
+            _connectionState.ClearTypingForUser(userId);
+            var typing = _connectionState.TypingIn(familyPublicId, DateTime.UtcNow);
+            await _runtime.FamilyChat.TypingChangedAsync(familyPublicId, typing, cancellationToken: cancellationToken);
         }
 
         /// <summary>The image path's own allowance, separate from the text one (#147).</summary>

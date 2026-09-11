@@ -22,7 +22,8 @@
         @discard="(m) => discard(m.publicId)"
         @delete="onDelete"
       />
-      <FamilyChatComposer ref="composerRef" @send="onSend" @image="onSendImage" />
+      <FamilyChatTypingIndicator :members="typingMembers" />
+      <FamilyChatComposer ref="composerRef" @send="onSend" @image="onSendImage" @typing="notifyTyping" @idle="stopTyping" />
     </div>
   </AppDrawer>
 
@@ -64,7 +65,8 @@
           @discard="(m) => discard(m.publicId)"
           @delete="onDelete"
         />
-        <FamilyChatComposer ref="composerRef" @send="onSend" @image="onSendImage" />
+        <FamilyChatTypingIndicator :members="typingMembers" />
+        <FamilyChatComposer ref="composerRef" @send="onSend" @image="onSendImage" @typing="notifyTyping" @idle="stopTyping" />
       </div>
     </Transition>
   </Teleport>
@@ -101,6 +103,9 @@ const {
   loadingOlder,
   hasOlder,
   currentUserPublicId,
+  typingMembers,
+  notifyTyping,
+  stopTyping,
   open,
   close: leaveChat,
   loadOlder,

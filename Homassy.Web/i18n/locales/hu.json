@@ -2903,6 +2903,11 @@
     "showAll": "Mind megjelenítése a térképen ({count})"
   },
   "familyChat": {
+    "typing": {
+      "one": "{name} éppen ír…",
+      "two": "{first} és {second} éppen ír…",
+      "several": "Többen is írnak…"
+    },
     "image": {
       "open": "Kép megnyitása",
       "alt": "A családi csevegésbe küldött kép"

@@ -2903,6 +2903,11 @@
     "showAll": "Show all on the map ({count})"
   },
   "familyChat": {
+    "typing": {
+      "one": "{name} is typing…",
+      "two": "{first} and {second} are typing…",
+      "several": "Several people are typing…"
+    },
     "image": {
       "open": "Open the picture",
       "alt": "Picture sent to the family chat"

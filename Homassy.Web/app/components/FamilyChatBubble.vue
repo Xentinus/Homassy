@@ -40,6 +40,14 @@
         >
         <span v-else class="text-lg font-semibold leading-none">{{ initials }}</span>
 
+        <!-- Somebody is typing while the panel is closed (#148). A pulse rather than a name list:
+             the bubble is 56px, and "who" is what opening it answers. -->
+        <span
+          v-if="showTypingPulse"
+          class="chat-bubble-pulse pointer-events-none absolute inset-0 rounded-full ring-2 ring-primary-300"
+          aria-hidden="true"
+        />
+
         <!-- The unread badge lands here in #149. -->
         <slot name="badge" />
       </button>
@@ -79,6 +87,9 @@ const { t } = useI18n()
 const { getFamily } = useFamilyApi()
 const haptics = useHaptics()
 const { overlayOpen } = useOverlayPresence()
+// Only the typing set is read here; the bubble never joins the hub itself. While the panel has
+// never been opened this is simply empty, which is the correct "nothing to pulse about".
+const { typingMembers } = useFamilyChat()
 const {
   isDismissed,
   panelOpen,
@@ -150,6 +161,12 @@ const visible = computed(() =>
   // it there would hide the thing the panel came from (#146).
   && (!overlayOpen.value || panelOpen.value)
 )
+
+/**
+ * The typing pulse is only for the closed panel: with the panel open the dots above the composer
+ * say the same thing, with names attached.
+ */
+const showTypingPulse = computed(() => !panelOpen.value && typingMembers.value.length > 0)
 
 const initials = computed(() => {
   const words = familyName.value.trim().split(/\s+/).filter(Boolean)
@@ -525,6 +542,22 @@ watch(visible, (isVisible) => {
   transform: scale(0.7);
 }
 
+/* Somebody is typing, panel closed (#148). */
+.chat-bubble-pulse {
+  animation: chat-bubble-pulse 1.6s ease-in-out infinite;
+}
+
+@keyframes chat-bubble-pulse {
+  0%, 100% {
+    opacity: 0.15;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.8;
+    transform: scale(1.08);
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .chat-bubble-fade-enter-active,
   .chat-bubble-fade-leave-active {
@@ -534,6 +567,13 @@ watch(visible, (isVisible) => {
   .chat-bubble-fade-enter-from,
   .chat-bubble-fade-leave-to {
     transform: none;
+  }
+
+  /* A steady ring rather than a pulse: the ring still says "something is happening", without the
+     movement the user asked not to see. */
+  .chat-bubble-pulse {
+    animation: none;
+    opacity: 0.6;
   }
 }
 </style>

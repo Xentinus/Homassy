@@ -835,6 +835,16 @@ floats over the app (#145) and the panel it opens into (#146).
   client-side, then posted as base64. The optimistic bubble shows the local `data:` URL, so the
   sender sees their own photo immediately, and the box is sized from the stored dimensions so the
   stream never reflows as images load. Tapping opens the existing `ImageLightbox`.
+- **Typing is reported from the draft's value, not from keydown** — at keydown the model still
+  holds the previous value, so the first character would not count and the last deletion would;
+  watching the value also covers paste and dictation. The signal is throttled to one call every
+  ~2s while there is content, and "stopped" is sent on send, on blur with an empty composer, and
+  after ~4s of silence. None of it is load-bearing: the server flag expires by itself, so a lost
+  call costs a few seconds of stale indicator rather than a permanent one.
+- **The indicator is pinned above the composer and fades**, never expands the layout — a line that
+  pushed the message list around every couple of seconds would move what the reader is reading.
+  Three phrasings (one name, two names, "several people"), and while the panel is closed the
+  bubble carries a pulse instead: the bubble is 56px, and "who" is what opening it answers.
 - **There is no byte-level upload progress**, deliberately: the upload is one JSON POST through the
   shared API client, which reports none, and the async job pipeline that does report it costs a
   second round trip plus a poll loop. A failed picture keeps its preview, so retry re-sends the

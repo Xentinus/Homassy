@@ -86,6 +86,7 @@ try
     builder.Services.AddSingleton<ShoppingListRealtime>();
     builder.Services.AddSingleton<ShoppingListPresence>();
     builder.Services.AddSingleton<FamilyChatRealtime>();
+    builder.Services.AddSingleton<FamilyChatConnectionState>();
 
     // The cross-cutting services the Functions layer needs, as one typed parameter object.
     // See FunctionsRuntime for why it is a bundle rather than separate constructor parameters.
@@ -115,6 +116,9 @@ try
 
     builder.Services.AddHostedService<CacheManagementService>();
     builder.Services.AddHostedService<RateLimitCleanupService>();
+    // Retires expired chat typing flags and broadcasts the change (#148). Paired with
+    // FamilyChatConnectionState.TypingTtl - see the service for why its interval is not a knob.
+    builder.Services.AddHostedService<FamilyChatTypingSweepService>();
 
     builder.Services.AddSingleton<IInputSanitizationService, InputSanitizationService>();
     builder.Services.AddSingleton<IBarcodeValidationService, BarcodeValidationService>();

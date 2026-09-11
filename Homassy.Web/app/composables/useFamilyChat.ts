@@ -21,7 +21,8 @@ import type {
   FamilyChatMessage,
   FamilyChatMessageCreatedEvent,
   FamilyChatMessageDeletedEvent,
-  FamilyChatStreamMessage
+  FamilyChatStreamMessage,
+  FamilyChatTypingMember
 } from '~/types/familyChat'
 
 /** How many messages a page of history carries. The API clamps anything larger. */
@@ -36,6 +37,23 @@ const failedToLoad = ref(false)
 /** True once a join or a fetch has filled the stream, so reopening the panel does not reload it. */
 const hydrated = ref(false)
 let subscribed = false
+
+/**
+ * Who is typing right now, as the server last reported it (#148).
+ *
+ * Module-scoped with the rest of the stream, because the bubble needs it too: while the panel is
+ * closed the bubble carries a typing pulse, and that is the same fact as the dots above the
+ * composer.
+ */
+const typingMembers = ref<FamilyChatTypingMember[]>([])
+
+/** At most one `SetTyping(true)` per this many ms while the composer has content. */
+const TYPING_THROTTLE_MS = 2000
+/** Silence after which the client reports that typing has stopped. */
+const TYPING_STOP_MS = 4000
+
+let lastTypingSentAt = 0
+let typingStopTimer: ReturnType<typeof setTimeout> | null = null
 
 export const useFamilyChat = () => {
   const socket = useFamilyChatSocket()
@@ -81,10 +99,20 @@ export const useFamilyChat = () => {
     if (index >= 0) messages.value.splice(index, 1)
   }
 
+  /**
+   * The server sends the whole typing set, never a diff, so a client that missed an event still
+   * ends up correct. The caller is already excluded server-side; filtering again here covers the
+   * other half of the same rule - your *other* device typing is still you.
+   */
+  const onTypingChanged = (members: FamilyChatTypingMember[]): void => {
+    typingMembers.value = members.filter(m => m.publicId !== currentUserPublicId.value)
+  }
+
   const subscribe = (): void => {
     if (subscribed) return
     socket.on('MessageCreated', onMessageCreated)
     socket.on('MessageDeleted', onMessageDeleted)
+    socket.on('TypingChanged', onTypingChanged)
     socket.onReconnected(rejoin)
     subscribed = true
   }
@@ -93,8 +121,48 @@ export const useFamilyChat = () => {
     if (!subscribed) return
     socket.off('MessageCreated', onMessageCreated)
     socket.off('MessageDeleted', onMessageDeleted)
+    socket.off('TypingChanged', onTypingChanged)
     socket.offReconnected(rejoin)
     subscribed = false
+  }
+
+  // --- Typing (#148) -------------------------------------------------------
+
+  /**
+   * Reports that the composer has something in it, at most once every couple of seconds.
+   *
+   * Throttled rather than sent per keystroke: the server flag lasts five seconds, so a message
+   * every two keeps it alive with a fraction of the traffic - and the indicator is a hint, not a
+   * transcript. Every call also re-arms the stop timer, which is what turns "stopped typing" into
+   * something the client notices rather than something the server has to wait out.
+   */
+  const notifyTyping = (): void => {
+    const now = Date.now()
+
+    if (now - lastTypingSentAt > TYPING_THROTTLE_MS) {
+      lastTypingSentAt = now
+      void socket.invokeQuietly('SetTyping', true)
+    }
+
+    if (typingStopTimer) clearTimeout(typingStopTimer)
+    typingStopTimer = setTimeout(stopTyping, TYPING_STOP_MS)
+  }
+
+  /**
+   * Reports that typing has stopped — on send, on losing focus with an empty input, and after a
+   * few seconds of silence.
+   *
+   * Best-effort by design: the server flag expires on its own, so a call that never arrives costs
+   * a few seconds of a stale indicator rather than a permanent one.
+   */
+  const stopTyping = (): void => {
+    if (typingStopTimer) {
+      clearTimeout(typingStopTimer)
+      typingStopTimer = null
+    }
+
+    lastTypingSentAt = 0
+    void socket.invokeQuietly('SetTyping', false)
   }
 
   /**
@@ -159,6 +227,10 @@ export const useFamilyChat = () => {
 
   /** Leaves the hub group. The stream is kept, so reopening the panel is instant. */
   const close = async (): Promise<void> => {
+    // Closing the panel ends any typing this client was reporting; the server clears the flag on
+    // leave too, but saying so first means the family sees it go immediately.
+    stopTyping()
+    typingMembers.value = []
     await socket.leaveChat()
   }
 
@@ -241,6 +313,9 @@ export const useFamilyChat = () => {
     }
 
     messages.value.push(optimistic)
+    // Having sent it, this client is no longer typing it. The server clears the flag on the write
+    // path too (#148); this is the half that does not wait for the round trip.
+    stopTyping()
 
     const response = await sendMessage({ body: text, correlationId }).catch(() => null)
     const index = messages.value.findIndex(m => m.correlationId === correlationId)
@@ -374,6 +449,9 @@ export const useFamilyChat = () => {
     hasOlder,
     isConnected: socket.isConnected,
     currentUserPublicId,
+    typingMembers,
+    notifyTyping,
+    stopTyping,
     open,
     close,
     refresh,
