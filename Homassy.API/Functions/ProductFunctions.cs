@@ -454,6 +454,31 @@ namespace Homassy.API.Functions
                 .ToList();
         }
 
+        /// <summary>
+        /// Every product in the catalogue.
+        /// </summary>
+        /// <remarks>
+        /// <see cref="GetProductsByUserAndFamily"/> answers "what do I have at home" — it starts
+        /// from the inventory items, so a product nobody has stock of is not in it. This one
+        /// answers "what exists", which is what pointing at something you are out of needs.
+        /// The catalogue is global (a <see cref="Product"/> carries no owner), so there is nothing
+        /// to scope it by.
+        /// </remarks>
+        public List<Product> GetCatalogProducts()
+        {
+            if (Inited)
+            {
+                return _productCache.Values
+                    .Where(p => !p.IsDeleted)
+                    .ToList();
+            }
+
+            using var context = _contextFactory.CreateForReading();
+            return context.Products
+                .Where(p => !p.IsDeleted)
+                .ToList();
+        }
+
         public List<ProductCustomization> GetCustomizationsByUser(int userId, int? familyId)
         {
             if (Inited)

@@ -1,7 +1,9 @@
 using System.Net;
 using System.Net.Http.Json;
+using Homassy.API.Enums;
 using Homassy.API.Models.Common;
 using Homassy.API.Models.Family;
+using Homassy.API.Models.ImageUpload;
 using Homassy.Tests.Infrastructure;
 using Xunit.Abstractions;
 
@@ -412,6 +414,248 @@ public class FamilyControllerTests : IClassFixture<HomassyWebApplicationFactory>
             var members = await _client.GetFromJsonAsync<ApiResponse<List<FamilyMemberResponse>>>(
                 "/api/v1.0/family/members");
             Assert.Equal(2, members!.Data!.Count);
+        }
+        finally
+        {
+            _authHelper.ClearAuthToken();
+            if (ownerEmail != null) await _authHelper.CleanupUserAsync(ownerEmail);
+            if (joinerEmail != null) await _authHelper.CleanupUserAsync(joinerEmail);
+        }
+    }
+    #endregion
+
+    #region Family Picture Tests
+    [Fact]
+    public async Task GetFamilyPicture_WithoutToken_ReturnsUnauthorized()
+    {
+        var response = await _client.GetAsync("/api/v1.0/family/picture");
+
+        _output.WriteLine($"Status: {response.StatusCode}");
+
+        Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task UploadAndDeleteFamilyPicture_FullFlow_Succeeds()
+    {
+        string? testEmail = null;
+        try
+        {
+            var (email, auth) = await _authHelper.CreateAndAuthenticateUserAsync("family-picture");
+            testEmail = email;
+            _authHelper.SetAuthToken(auth.AccessToken);
+
+            var createResponse = await _client.PostAsJsonAsync(
+                "/api/v1.0/family/create",
+                new CreateFamilyRequest { Name = "Picture Family" });
+            Assert.Equal(HttpStatusCode.OK, createResponse.StatusCode);
+
+            // A family with no picture has nothing to serve, and says so rather than 500ing. The
+            // error code is asserted, not just the status: a 404 is equally what a missing route
+            // or a mistyped path answers.
+            var missing = await _client.GetAsync("/api/v1.0/family/picture");
+            Assert.Equal(HttpStatusCode.NotFound, missing.StatusCode);
+            Assert.Contains(ErrorCodes.FamilyNoPicture, await missing.Content.ReadAsStringAsync());
+
+            var uploadResponse = await _client.PostAsJsonAsync(
+                "/api/v1.0/family/picture",
+                new UploadFamilyPictureRequest { ImageBase64 = TestImages.PngBase64() });
+            var uploadBody = await uploadResponse.Content.ReadAsStringAsync();
+
+            _output.WriteLine($"Upload status: {uploadResponse.StatusCode}");
+            _output.WriteLine($"Upload response: {uploadBody}");
+            Assert.Equal(HttpStatusCode.OK, uploadResponse.StatusCode);
+
+            var uploaded = await uploadResponse.Content.ReadFromJsonAsync<ApiResponse<FamilyImageInfo>>();
+            Assert.NotNull(uploaded?.Data);
+            Assert.Contains("/picture?", uploaded!.Data!.FamilyPictureUrl);
+            Assert.Contains("v=", uploaded.Data.FamilyPictureUrl);
+
+            // The family payload carries the URL, never the bytes - the point of the separate
+            // table, and an assertion a base64 column would have failed.
+            var family = await _client.GetFromJsonAsync<ApiResponse<FamilyDetailsResponse>>("/api/v1.0/family");
+            var pictureUrl = family!.Data!.FamilyPictureUrl;
+            Assert.NotNull(pictureUrl);
+            Assert.Contains("v=", pictureUrl);
+
+            var imageResponse = await _client.GetAsync(pictureUrl);
+            Assert.Equal(HttpStatusCode.OK, imageResponse.StatusCode);
+            Assert.StartsWith("image/", imageResponse.Content.Headers.ContentType?.MediaType);
+            Assert.NotEmpty(await imageResponse.Content.ReadAsByteArrayAsync());
+
+            var etag = imageResponse.Headers.ETag;
+            Assert.NotNull(etag);
+            Assert.True(imageResponse.Headers.CacheControl?.Private);
+            // Answered from the thumbnail generated on upload, not by falling back to the
+            // full-size image.
+            Assert.Contains("thumb", etag!.Tag);
+
+            var conditional = new HttpRequestMessage(HttpMethod.Get, pictureUrl);
+            conditional.Headers.IfNoneMatch.Add(etag);
+            var notModified = await _client.SendAsync(conditional);
+            Assert.Equal(HttpStatusCode.NotModified, notModified.StatusCode);
+
+            // The full rendition is served by the same endpoint. Nothing in the app asks for it
+            // (MediaUrls only emits size=thumb), which is exactly why it needs a test.
+            var full = await _client.GetAsync(pictureUrl.Replace("size=thumb", "size=full"));
+            Assert.Equal(HttpStatusCode.OK, full.StatusCode);
+            Assert.Contains("full", full.Headers.ETag!.Tag);
+
+            // Replacing the picture: the second upload takes the update branch, the only one that
+            // can trip the unique index on FamilyId or leave Families.FamilyPictureVersion out of
+            // step with the stored row.
+            var replaceResponse = await _client.PostAsJsonAsync(
+                "/api/v1.0/family/picture",
+                new UploadFamilyPictureRequest { ImageBase64 = TestImages.PngBase64(80, 80) });
+            Assert.Equal(HttpStatusCode.OK, replaceResponse.StatusCode);
+
+            var replaced = await replaceResponse.Content.ReadFromJsonAsync<ApiResponse<FamilyImageInfo>>();
+            Assert.NotEqual(uploaded.Data.FamilyPictureUrl, replaced!.Data!.FamilyPictureUrl);
+
+            var afterReplace = await _client.GetFromJsonAsync<ApiResponse<FamilyDetailsResponse>>("/api/v1.0/family");
+            Assert.Equal(replaced.Data.FamilyPictureUrl, afterReplace!.Data!.FamilyPictureUrl);
+
+            // A changed picture is a changed URL, so the old ETag must no longer answer 304.
+            var staleConditional = new HttpRequestMessage(HttpMethod.Get, afterReplace.Data.FamilyPictureUrl);
+            staleConditional.Headers.IfNoneMatch.Add(etag);
+            Assert.Equal(HttpStatusCode.OK, (await _client.SendAsync(staleConditional)).StatusCode);
+
+            var deleteResponse = await _client.DeleteAsync("/api/v1.0/family/picture");
+            Assert.Equal(HttpStatusCode.OK, deleteResponse.StatusCode);
+
+            var afterDelete = await _client.GetAsync("/api/v1.0/family/picture");
+            Assert.Equal(HttpStatusCode.NotFound, afterDelete.StatusCode);
+            Assert.Contains(ErrorCodes.FamilyNoPicture, await afterDelete.Content.ReadAsStringAsync());
+
+            // Nothing left to delete: rejected rather than silently succeeding.
+            var deleteAgain = await _client.DeleteAsync("/api/v1.0/family/picture");
+            Assert.Equal(HttpStatusCode.BadRequest, deleteAgain.StatusCode);
+        }
+        finally
+        {
+            _authHelper.ClearAuthToken();
+            if (testEmail != null) await _authHelper.CleanupUserAsync(testEmail);
+        }
+    }
+
+    [Fact]
+    public async Task UploadFamilyPicture_WithoutFamily_ReturnsNotFound()
+    {
+        string? testEmail = null;
+        try
+        {
+            var (email, auth) = await _authHelper.CreateAndAuthenticateUserAsync("picture-nofamily");
+            testEmail = email;
+            _authHelper.SetAuthToken(auth.AccessToken);
+
+            var response = await _client.PostAsJsonAsync(
+                "/api/v1.0/family/picture",
+                new UploadFamilyPictureRequest { ImageBase64 = TestImages.PngBase64() });
+
+            _output.WriteLine($"Status: {response.StatusCode}");
+
+            Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
+            Assert.Contains(ErrorCodes.FamilyNotFound, await response.Content.ReadAsStringAsync());
+        }
+        finally
+        {
+            _authHelper.ClearAuthToken();
+            if (testEmail != null) await _authHelper.CleanupUserAsync(testEmail);
+        }
+    }
+
+    [Fact]
+    public async Task UploadFamilyPicture_BelowMinimumDimensions_ReturnsBadRequest()
+    {
+        string? testEmail = null;
+        try
+        {
+            var (email, auth) = await _authHelper.CreateAndAuthenticateUserAsync("picture-tiny");
+            testEmail = email;
+            _authHelper.SetAuthToken(auth.AccessToken);
+
+            await _client.PostAsJsonAsync("/api/v1.0/family/create", new CreateFamilyRequest { Name = "Tiny Family" });
+
+            // The upload path enforces 50x50 minimum dimensions, like the avatar path it shares
+            // its processing options with.
+            var response = await _client.PostAsJsonAsync(
+                "/api/v1.0/family/picture",
+                new UploadFamilyPictureRequest { ImageBase64 = TestImages.PngBase64(20, 20) });
+
+            _output.WriteLine($"Status: {response.StatusCode}");
+
+            Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        }
+        finally
+        {
+            _authHelper.ClearAuthToken();
+            if (testEmail != null) await _authHelper.CleanupUserAsync(testEmail);
+        }
+    }
+
+    /// <summary>
+    /// The picture belongs to the family, not to whoever uploaded it.
+    /// </summary>
+    /// <remarks>
+    /// Everything else in this region is one user uploading and reading back their own picture,
+    /// which would pass just as well if the endpoint keyed on the uploader. This is also what
+    /// pins the endpoint to the <c>Users</c> row's family: a second member reaching the same
+    /// bytes is the behaviour, and a caller pointing at a family they are not in is what must
+    /// not work.
+    /// </remarks>
+    [Fact]
+    public async Task GetFamilyPicture_SecondMember_SeesTheSamePicture()
+    {
+        string? ownerEmail = null;
+        string? joinerEmail = null;
+        try
+        {
+            var (email, auth) = await _authHelper.CreateAndAuthenticateUserAsync("picture-share-owner");
+            ownerEmail = email;
+            _authHelper.SetAuthToken(auth.AccessToken);
+
+            var createResponse = await _client.PostAsJsonAsync(
+                "/api/v1.0/family/create",
+                new CreateFamilyRequest { Name = "Shared Picture Family" });
+            var created = await createResponse.Content.ReadFromJsonAsync<ApiResponse<FamilyInfo>>();
+            var shareCode = created!.Data!.ShareCode;
+
+            var uploadResponse = await _client.PostAsJsonAsync(
+                "/api/v1.0/family/picture",
+                new UploadFamilyPictureRequest { ImageBase64 = TestImages.PngBase64() });
+            Assert.Equal(HttpStatusCode.OK, uploadResponse.StatusCode);
+
+            var ownerImage = await _client.GetAsync("/api/v1.0/family/picture");
+            var ownerETag = ownerImage.Headers.ETag;
+
+            // A second account, not yet in the family: it has no picture of its own to serve.
+            _authHelper.ClearAuthToken();
+            var (secondEmail, secondAuth) = await _authHelper.CreateAndAuthenticateUserAsync("picture-share-joiner");
+            joinerEmail = secondEmail;
+            _authHelper.SetAuthToken(secondAuth.AccessToken);
+
+            var beforeJoin = await _client.GetAsync("/api/v1.0/family/picture");
+            Assert.Equal(HttpStatusCode.NotFound, beforeJoin.StatusCode);
+
+            await _client.PostAsJsonAsync("/api/v1.0/family/join-requests", new JoinFamilyRequest { ShareCode = shareCode });
+
+            _authHelper.ClearAuthToken();
+            _authHelper.SetAuthToken(auth.AccessToken);
+            var pending = await _client.GetFromJsonAsync<ApiResponse<List<FamilyJoinRequestResponse>>>(
+                "/api/v1.0/family/join-requests");
+            var request = Assert.Single(pending!.Data!);
+            var approveResponse = await _client.PostAsync(
+                $"/api/v1.0/family/join-requests/{request.PublicId}/approve", null);
+            Assert.Equal(HttpStatusCode.OK, approveResponse.StatusCode);
+
+            _authHelper.ClearAuthToken();
+            _authHelper.SetAuthToken(secondAuth.AccessToken);
+
+            var afterJoin = await _client.GetAsync("/api/v1.0/family/picture");
+            _output.WriteLine($"Second member status: {afterJoin.StatusCode}");
+
+            Assert.Equal(HttpStatusCode.OK, afterJoin.StatusCode);
+            Assert.Equal(ownerETag, afterJoin.Headers.ETag);
         }
         finally
         {

@@ -102,11 +102,12 @@ Uploaded picture bytes, in a table of their own rather than as a column on the r
 ```
 UserProfilePicture  →  UserProfilePictures  (unique FK to Users, cascade delete)
 ProductImage        →  ProductImages        (unique FK to Products, cascade delete)
+FamilyPicture       →  FamilyPictures       (unique FK to Families, cascade delete)
 ```
 
 Two reasons, which are really the same reason — the bytes were part of the entity:
 
-1. The Functions layer holds whole entities in process-wide caches, so a blob column on `UserProfiles` or `Products` is a blob resident in memory for every row a family owns.
+1. The Functions layer holds whole entities in process-wide caches, so a blob column on `UserProfiles`, `Products` or `Families` is a blob resident in memory for every row a family owns.
 2. Everything that serialized the row serialized the image with it, uncacheably, in every payload.
 
 The owning row keeps only `…PictureVersion` — a 16-hex-character content hash — which is all `Constants/MediaUrls` needs to build a URL. These tables are read by the image endpoints and by nothing else, so there is deliberately **no navigation property** from `User` or `Product` to its image: a navigation is an invitation to `Include()` the bytes back into a list query.

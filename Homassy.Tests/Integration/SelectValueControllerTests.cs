@@ -3,6 +3,7 @@ using System.Net.Http.Json;
 using Homassy.API.Enums;
 using Homassy.API.Models.Common;
 using Homassy.API.Models.Location;
+using Homassy.API.Models.Product;
 using Homassy.API.Models.ShoppingList;
 using Homassy.Tests.Infrastructure;
 using Xunit.Abstractions;
@@ -29,6 +30,7 @@ public class SelectValueControllerTests : IClassFixture<HomassyWebApplicationFac
     [InlineData(SelectValueType.ShoppingLocation)]
     [InlineData(SelectValueType.StorageLocation)]
     [InlineData(SelectValueType.Product)]
+    [InlineData(SelectValueType.ProductCatalog)]
     [InlineData(SelectValueType.ProductInventoryItem)]
     [InlineData(SelectValueType.ShoppingList)]
     public async Task GetSelectValues_WithoutToken_ReturnsUnauthorized(SelectValueType type)
@@ -52,6 +54,7 @@ public class SelectValueControllerTests : IClassFixture<HomassyWebApplicationFac
     [InlineData(SelectValueType.ShoppingLocation)]
     [InlineData(SelectValueType.StorageLocation)]
     [InlineData(SelectValueType.Product)]
+    [InlineData(SelectValueType.ProductCatalog)]
     [InlineData(SelectValueType.ProductInventoryItem)]
     [InlineData(SelectValueType.ShoppingList)]
     public async Task GetSelectValues_WithToken_ReturnsOk(SelectValueType type)
@@ -470,6 +473,52 @@ public class SelectValueControllerTests : IClassFixture<HomassyWebApplicationFac
 
             // ASP.NET Core enum binding is case-insensitive by default
             Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        }
+        finally
+        {
+            _authHelper.ClearAuthToken();
+            if (testEmail != null)
+                await _authHelper.CleanupUserAsync(testEmail);
+        }
+    }
+    #endregion
+
+    #region Product catalogue
+    /// <summary>
+    /// The catalogue lists a product nobody has stock of, which is the whole difference between it
+    /// and <see cref="SelectValueType.Product"/>.
+    /// </summary>
+    /// <remarks>
+    /// Asserted with Contains rather than a count: the catalogue is global, so every other test in
+    /// the suite that creates a product changes its length.
+    /// </remarks>
+    [Fact]
+    public async Task GetSelectValues_ProductCatalog_ListsAProductWithNoStock()
+    {
+        string? testEmail = null;
+        try
+        {
+            var (email, auth) = await _authHelper.CreateAndAuthenticateUserAsync("catalog-nostock");
+            testEmail = email;
+            _authHelper.SetAuthToken(auth.AccessToken);
+
+            var name = $"Catalogue {Guid.NewGuid():N}";
+            var createResponse = await _client.PostAsJsonAsync(
+                "/api/v1.0/product",
+                new CreateProductRequest { Name = name, Brand = "Test", Unit = Homassy.API.Enums.Unit.Piece });
+            Assert.Equal(HttpStatusCode.OK, createResponse.StatusCode);
+
+            var catalogue = await _client.GetFromJsonAsync<ApiResponse<List<SelectValue>>>(
+                $"/api/v1.0/selectvalue/{(int)SelectValueType.ProductCatalog}");
+            var stockOnly = await _client.GetFromJsonAsync<ApiResponse<List<SelectValue>>>(
+                $"/api/v1.0/selectvalue/{(int)SelectValueType.Product}");
+
+            _output.WriteLine($"Catalogue entries: {catalogue!.Data!.Count}, stock entries: {stockOnly!.Data!.Count}");
+
+            Assert.Contains(catalogue.Data, s => s.Text == $"Test - {name}");
+            // The same product is absent from the stock list, which is what made a chat reference
+            // to something you are out of impossible before the catalogue existed.
+            Assert.DoesNotContain(stockOnly.Data, s => s.Text == $"Test - {name}");
         }
         finally
         {

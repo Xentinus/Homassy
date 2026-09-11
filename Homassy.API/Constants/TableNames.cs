@@ -27,6 +27,7 @@
         public const string ItemAutomations = "ItemAutomations";
         public const string ItemAutomationExecutions = "ItemAutomationExecutions";
 
+        public const string FamilyPictures = "FamilyPictures";
         public const string FamilyExternalCalendars = "FamilyExternalCalendars";
         public const string FamilyChatMessages = "FamilyChatMessages";
         public const string FamilyChatImages = "FamilyChatImages";

@@ -28,6 +28,7 @@ export const errorCodeMessages: Record<string, string> = {
   'FAMILY-0005': 'You already have a pending join request. Withdraw it before sending a new one.',
   'FAMILY-0006': 'Join request not found.',
   'FAMILY-0007': 'This join request does not belong to your family.',
+  'FAMILY-0008': 'This family has no picture.',
 
   // Product Errors (PRODUCT-0xxx)
   'PRODUCT-0001': 'Product not found.',

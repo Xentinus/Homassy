@@ -226,6 +226,19 @@ namespace Homassy.API.Context
                     .IsDescending(false, true);
             });
 
+            // The family's own picture. Same shape and same rule as UserProfilePicture: no
+            // navigation from Family, which is cached in full - a navigation is an invitation to
+            // Include() the bytes into that cache.
+            modelBuilder.Entity<FamilyPicture>(entity =>
+            {
+                entity.HasOne(p => p.Family)
+                    .WithMany()
+                    .HasForeignKey(p => p.FamilyId)
+                    .OnDelete(DeleteBehavior.Cascade);
+
+                entity.HasIndex(e => e.FamilyId).IsUnique();
+            });
+
             // Same shape as UserProfilePicture and ProductImage, and the same rule: no navigation
             // back from the message, so the history query cannot pull the bytes in with it.
             modelBuilder.Entity<FamilyChatImage>(entity =>
@@ -464,6 +477,7 @@ namespace Homassy.API.Context
         public DbSet<UserBadge> UserBadges { get; set; }
         public DbSet<UserNotification> UserNotifications { get; set; }
         public DbSet<Family> Families { get; set; }
+        public DbSet<FamilyPicture> FamilyPictures { get; set; }
         public DbSet<FamilyJoinRequest> FamilyJoinRequests { get; set; }
         public DbSet<FamilyExternalCalendar> FamilyExternalCalendars { get; set; }
         public DbSet<FamilyChatMessage> FamilyChatMessages { get; set; }

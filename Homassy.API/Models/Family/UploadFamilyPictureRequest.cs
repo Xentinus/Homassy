@@ -1,4 +1,4 @@
-﻿using System.ComponentModel.DataAnnotations;
+using System.ComponentModel.DataAnnotations;
 
 namespace Homassy.API.Models.Family
 {
@@ -6,6 +6,6 @@ namespace Homassy.API.Models.Family
     {
         [Required]
         [Base64String]
-        public required string FamilyPictureBase64 { get; init; }
+        public required string ImageBase64 { get; init; }
     }
 }

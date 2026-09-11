@@ -378,6 +378,7 @@ Easy to get wrong:
 - `ProductImage` renders `object-contain`, matching the server's bounded (not cropped) product thumbnail, so nothing is clipped off a tall bottle. `UserAvatar` is the cropped-square case.
 - The category placeholder's two theme variants are **CSS**, not a computed value: the colour mode is unknown during SSR, so branching on it in script is a hydration mismatch. The hue goes in as a `--cat-hue` custom property and light/dark lightness comes from a `dark:` variant.
 - `ProductFormDrawer` keeps a single `imagePreview` src that is the stored image's URL most of the time and a `data:` URI in the moment between cropping and the upload finishing — `useMediaUrl` passes the latter through untouched.
+- **The family picture follows the same rules** (`FamilyDetailsResponse.familyPictureUrl`): set from `FamilyDrawer`, where tapping the circle picks one file (`accept="image/*"`, camera and gallery in one control), crops it square in `ImageCropper` — the crop screen *is* the preview — compresses it client-side and posts base64. The drawer holds the cropped `data:` URL as an optimistic preview until the next fetch, for the same reason `ProductFormDrawer` does. `FamilyChatBubble` renders the same URL, so the bubble and the drawer cannot show different pictures.
 
 ---
 
@@ -715,9 +716,14 @@ mid-navigation. Client-only: during SSR the count is always 0 (the fetch is an a
 client call), so a server-rendered prefix could only ever be a hydration mismatch.
 
 `sw-push.js` sets the badge too, so the icon is right without the app being opened — but only when
-the push payload carries a `badgeCount`, and only the weekly summary sends one, being the one
-notification that knows a count. A payload without one leaves the badge alone rather than
-incrementing, which would drift the moment two devices received the same push.
+the push payload carries a `badgeCount`. Two senders know one: the weekly summary (the expiring
+count it is already about) and a family chat message, whose worker computes the recipient's own
+number server-side — unread messages plus shopping-list items due or overdue, the default pair
+this badge counts (`Homassy.Notifications/Services/AppBadgeCount.cs`). It cannot see the
+device-local switches above, so a device that turned one of those sources off carries a slightly
+high number until the app is next opened and the client recomputes. A payload without a
+`badgeCount` leaves the badge alone rather than incrementing, which would drift the moment two
+devices received the same push.
 
 ---
 
@@ -836,6 +842,14 @@ floats over the app (#145) and the panel it opens into (#146).
   in the app reads, which is what makes an attached reference valid by construction — the server
   validates against that same list and resolves its own label. Chips render under the message text,
   carry the target's *current* name, and only link when the target still resolves.
+  The product tab reads `SelectValueType.ProductCatalog`, not `SelectValueType.Product`: the latter
+  lists what the family has stock of, and the commonest thing to say about a product in a family
+  chat is "buy this" - which is exactly the product nobody has at home.
+- **The chat enums are numeric, like every other enum the API exchanges** (`FamilyChatMessageKind`,
+  `FamilyChatReferenceKind` in `app/types/enums.ts`). There is no `JsonStringEnumConverter`
+  registered on the API, so a string union reads nicely and matches nothing the server sends or
+  accepts - which is what made attaching a shop or a product fail, and image messages never render
+  as images.
 - **Optimistic send reconciles on a correlation id, never on content.** The sender receives their
   own `MessageCreated` broadcast like everyone else; the id the client generated before sending is
   echoed back, which is what stops the message rendering twice. A failed send stays on screen as a
@@ -892,6 +906,15 @@ floats over the app (#145) and the panel it opens into (#146).
   newest message is actually on screen *and* the document is visible; a panel opened in a background
   tab, or one scrolled back through history, has shown the reader nothing. The count itself always
   comes from the server (the loaded stream is one page deep) and is re-answered by every read.
+- **The count is re-read from the server whenever this client can have missed a broadcast**: on
+  mount, after an automatic reconnect (the connection was down for every message it was down for),
+  when the app returns to the foreground with the panel closed (a backgrounded tab's socket may
+  have been suspended), and when a push arrives while a tab is open. Counting arrivals locally is
+  right only while the socket is actually delivering them, and it is exactly the cases where it is
+  not that the badge is the only thing on screen.
+- The visibility listener is therefore attached by `join` (the bubble mounting) rather than by
+  `open`, and taken down by `leave` rather than by `close` - with the panel shut its job is keeping
+  the badge honest, which is when it matters most.
 - A chat notification deep-links to `/calendar?action=open-chat`; the **auth layout** consumes it
   and opens the panel over whatever page is showing, rather than navigating — the chat is a panel,
   not a route. Handled in the layout rather than through `useDeepLinkAction`, which is per page.

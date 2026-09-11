@@ -895,6 +895,7 @@
     "FAMILY-0005": "Du hast bereits eine offene Beitrittsanfrage.",
     "FAMILY-0006": "Beitrittsanfrage nicht gefunden.",
     "FAMILY-0007": "Diese Beitrittsanfrage gehört nicht zu deiner Familie.",
+    "FAMILY-0008": "Diese Familie hat kein Bild.",
     "PRODUCT-0001": "Produkt nicht gefunden.",
     "PRODUCT-0002": "Zugriff auf dieses Produkt verweigert.",
     "PRODUCT-0003": "Bestandsartikel nicht gefunden.",
@@ -1195,6 +1196,13 @@
       "lastSeen": "Zuletzt gesehen",
       "infoSection": "Familieninformationen",
       "infoDescription": "Familienname, Beschreibung und Freigabecode",
+      "picture": {
+        "add": "Familienbild hinzufügen",
+        "change": "Familienbild ändern",
+        "remove": "Bild entfernen",
+        "updated": "Familienbild aktualisiert",
+        "removed": "Familienbild entfernt"
+      },
       "joinRequests": {
         "title": "Beitrittsanfragen",
         "description": "Ausstehende Anfragen zum Beitritt zu deiner Familie",

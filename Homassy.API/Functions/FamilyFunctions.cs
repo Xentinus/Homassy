@@ -194,8 +194,7 @@ namespace Homassy.API.Functions
                 var family = new Family
                 {
                     Name = request.Name.Trim(),
-                    Description = request.Description?.Trim(),
-                    FamilyPictureBase64 = request.FamilyPictureBase64
+                    Description = request.Description?.Trim()
                 };
 
                 context.Families.Add(family);
@@ -277,7 +276,7 @@ namespace Homassy.API.Functions
                 Name = family.Name,
                 Description = family.Description,
                 ShareCode = family.ShareCode,
-                FamilyPictureBase64 = family.FamilyPictureBase64
+                FamilyPictureUrl = MediaUrls.FamilyPicture(family.FamilyPictureVersion)
             };
 
             return response;
@@ -385,99 +384,6 @@ namespace Homassy.API.Functions
             }
         }
 
-        public async Task UploadFamilyPictureAsync(string familyPictureBase64, CancellationToken cancellationToken = default)
-        {
-            if (string.IsNullOrWhiteSpace(familyPictureBase64))
-            {
-                throw new BadRequestException("Family picture data is required");
-            }
-
-            var userId = SessionInfo.GetUserId();
-            if (!userId.HasValue)
-            {
-                Log.Warning("Invalid session: User ID not found");
-                throw new UserNotFoundException("User not found");
-            }
-
-            var user = new UserFunctions(_contextFactory).GetUserById(userId.Value);
-            if (user == null || !user.FamilyId.HasValue)
-            {
-                throw new FamilyNotFoundException("You are not a member of any family");
-            }
-
-            using var context = _contextFactory.CreateDbContext();
-            await using var transaction = await context.Database.BeginTransactionAsync(cancellationToken);
-            try
-            {
-                var family = await context.Families.FindAsync(user.FamilyId, cancellationToken);
-
-                if (family == null)
-                {
-                    Log.Warning($"Family not found for familyId {user.FamilyId}");
-                    throw new FamilyNotFoundException("Family not found");
-                }
-
-                family.FamilyPictureBase64 = familyPictureBase64;
-
-                await context.SaveChangesAsync(cancellationToken);
-                await transaction.CommitAsync(cancellationToken);
-
-                Log.Information($"User {SessionInfo.GetUserId()} uploaded picture for family {user.FamilyId}");
-            }
-            catch (Exception ex)
-            {
-                await transaction.RollbackAsync(cancellationToken);
-                Log.Error($"Error uploading family picture: {ex.Message}");
-                throw;
-            }
-        }
-
-        public async Task DeleteFamilyPictureAsync(CancellationToken cancellationToken = default)
-        {
-            var userId = SessionInfo.GetUserId();
-            if (!userId.HasValue)
-            {
-                Log.Warning("Invalid session: User ID not found");
-                throw new UserNotFoundException("User not found");
-            }
-
-            var user = new UserFunctions(_contextFactory).GetUserById(userId.Value);
-            if (user == null || !user.FamilyId.HasValue)
-            {
-                throw new FamilyNotFoundException("You are not a member of any family");
-            }
-
-            using var context = _contextFactory.CreateDbContext();
-            await using var transaction = await context.Database.BeginTransactionAsync(cancellationToken);
-            try
-            {
-                var family = await context.Families.FindAsync(user.FamilyId.Value, cancellationToken);
-
-                if (family == null)
-                {
-                    Log.Warning($"Family not found for familyId {user.FamilyId.Value}");
-                    throw new FamilyNotFoundException("Family not found");
-                }
-
-                if (string.IsNullOrEmpty(family.FamilyPictureBase64))
-                {
-                    throw new BadRequestException("No family picture to delete");
-                }
-
-                family.FamilyPictureBase64 = null;
-
-                await context.SaveChangesAsync(cancellationToken);
-                await transaction.CommitAsync(cancellationToken);
-
-                Log.Information($"User {SessionInfo.GetUserId()} deleted picture for family {user.FamilyId.Value}");
-            }
-            catch (Exception ex)
-            {
-                await transaction.RollbackAsync(cancellationToken);
-                Log.Error($"Error deleting family picture: {ex.Message}");
-                throw;
-            }
-        }
         #endregion
     }
 }

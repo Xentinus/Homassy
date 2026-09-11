@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import { buildChatSections, groupBySender, type GroupableMessage } from '~/utils/familyChat'
+import { buildChatSections, groupBySender, referenceIcon, referenceRoute, type GroupableMessage } from '~/utils/familyChat'
+import type { FamilyChatReferenceKind } from '~/types/enums'
 
 /**
  * Local wall-clock timestamps, never a hardcoded `Z` string — day bucketing is done in the
@@ -99,5 +100,42 @@ describe('buildChatSections', () => {
     ], now)
 
     expect(sections[0]!.key).toBe('2026-09-03')
+  })
+})
+
+describe('reference chips', () => {
+  /**
+   * The wire values, spelled out rather than taken from the enum: the API sends numbers (there is
+   * no `JsonStringEnumConverter`), and a test that read the enum would pass just as happily if
+   * somebody renumbered it.
+   */
+  const PRODUCT = 0
+  const SHOPPING_LOCATION = 1
+  const STORAGE_LOCATION = 2
+  const SHOPPING_LIST = 3
+
+  it('gives every kind the API sends an icon of its own', () => {
+    const icons = [PRODUCT, SHOPPING_LOCATION, STORAGE_LOCATION, SHOPPING_LIST]
+      .map(kind => referenceIcon(kind))
+
+    expect(new Set(icons).size).toBe(4)
+    expect(icons).not.toContain('i-lucide-paperclip')
+  })
+
+  it('falls back to the paperclip for a kind this build does not know', () => {
+    // Reachable in normal operation: an installed PWA keeps running the bundle it was installed
+    // with, so a client can be older than the deploy that added a kind.
+    expect(referenceIcon(99 as FamilyChatReferenceKind)).toBe('i-lucide-paperclip')
+  })
+
+  it('routes a product chip to its own page and the rest to the screen that holds them', () => {
+    expect(referenceRoute(PRODUCT, 'abc')).toBe('/products/abc')
+    expect(referenceRoute(SHOPPING_LOCATION, 'abc')).toBe('/profile/shopping-locations')
+    expect(referenceRoute(STORAGE_LOCATION, 'abc')).toBe('/profile/storage-locations')
+    expect(referenceRoute(SHOPPING_LIST, 'abc')).toBe('/shopping-lists')
+  })
+
+  it('has no route for an unknown kind, so the chip stays unclickable rather than navigating nowhere', () => {
+    expect(referenceRoute(99 as FamilyChatReferenceKind, 'abc')).toBeNull()
   })
 })

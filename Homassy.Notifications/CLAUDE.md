@@ -76,7 +76,8 @@ Homassy.Notifications/
 │   ├── InventoryExpirationService.cs   # Expiring/expired item queries
 │   ├── EmailServiceClient.cs           # HTTP client → Homassy.Email
 │   ├── InventoryBroadcastServiceClient.cs  # HTTP client → Homassy.API internal broadcast (realtime relay)
-│   └── FamilyChatActivityClient.cs     # HTTP client → Homassy.API: who is watching the chat (#149)
+│   ├── FamilyChatActivityClient.cs     # HTTP client → Homassy.API: who is watching the chat (#149)
+│   └── AppBadgeCount.cs                # What a push writes onto the app icon (#130)
 └── Workers/
     ├── PushNotificationSchedulerService.cs   # Hourly, Mon 07:00 → weekly push
     ├── ShoppingListActivityMonitorService.cs  # 5 min → shopping list push
@@ -212,6 +213,13 @@ builder.Services.AddDbContext<HomassyDbContext>(configureDbContext, optionsLifet
   body; an image reads as "sent a photo" rather than leaking a link onto a lock screen. The deep
   link is `/calendar?action=open-chat` — the chat is a panel, not a route, so the link lands on a
   real page and the layout opens the panel over it (`/` would redirect and drop the query)
+- **The push carries a `badgeCount`** (`Services/AppBadgeCount.cs`), so the installed app's icon is
+  right without the app being opened - which is the whole point of a badge on a device where the
+  app is closed. It is computed per recipient from the database (unread chat messages + shopping
+  list items due or overdue), never from `burst.Count`: the burst is what one sender just wrote,
+  the badge is everything still waiting for that reader. The app's own badge is a sum of
+  device-local switches a server cannot see, so what is sent is the app's **default** pair; a
+  device that turned one off recomputes from its own switches the moment the app is opened
 
 ### ExternalCalendarReminderService
 - Runs every minute, so an "at start" reminder is not up to an hour late

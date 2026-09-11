@@ -895,6 +895,7 @@
     "FAMILY-0005": "Már van függőben lévő csatlakozási kérelmed.",
     "FAMILY-0006": "A csatlakozási kérelem nem található.",
     "FAMILY-0007": "Ez a csatlakozási kérelem nem a te családodhoz tartozik.",
+    "FAMILY-0008": "Ennek a családnak nincs képe.",
     "PRODUCT-0001": "A termék nem található.",
     "PRODUCT-0002": "Ehhez a termékhez nincs hozzáférés.",
     "PRODUCT-0003": "A készlettétel nem található.",
@@ -1195,6 +1196,13 @@
       "lastSeen": "Utoljára látva",
       "infoSection": "Család információi",
       "infoDescription": "A család neve, leírása és megosztási kódja",
+      "picture": {
+        "add": "Családi kép hozzáadása",
+        "change": "Családi kép módosítása",
+        "remove": "Kép eltávolítása",
+        "updated": "Családi kép frissítve",
+        "removed": "Családi kép eltávolítva"
+      },
       "joinRequests": {
         "title": "Belépési kérelmek",
         "description": "Várakozó kérelmek a családhoz való csatlakozásra",

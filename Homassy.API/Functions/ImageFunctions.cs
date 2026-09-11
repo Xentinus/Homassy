@@ -1,11 +1,13 @@
 using Homassy.API.Constants;
 using Homassy.API.Context;
 using Homassy.API.Entities.Common;
+using Homassy.API.Entities.Family;
 using Homassy.API.Entities.Product;
 using Homassy.API.Entities.User;
 using Homassy.API.Enums;
 using Homassy.API.Exceptions;
 using Homassy.API.Models;
+using Homassy.API.Models.Family;
 using Homassy.API.Models.ImageUpload;
 using Homassy.API.Services;
 using Microsoft.EntityFrameworkCore;
@@ -427,7 +429,189 @@ namespace Homassy.API.Functions
         }
 
         /// <summary>
-        /// Serves one rendition of a product's picture, or null when it has none.
+        /// Uploads the caller's family picture, replacing whatever it had.
+        /// </summary>
+        /// <remarks>
+        /// Processed exactly like an avatar - same bounds, same square thumbnail - because it is
+        /// rendered in the same places an avatar is: the family drawer's header and the chat
+        /// bubble.
+        /// </remarks>
+        /// <param name="request">The picture, base64-encoded.</param>
+        /// <param name="cancellationToken">Cancellation token.</param>
+        public async Task<FamilyImageInfo> UploadFamilyPictureAsync(
+            UploadFamilyPictureRequest request,
+            CancellationToken cancellationToken = default)
+        {
+            var familyId = RequireFamilyId();
+
+            var options = new ImageProcessingOptions
+            {
+                MaxWidth = 400,
+                MaxHeight = 400,
+                MinWidth = 50,
+                MinHeight = 50,
+                MaxFileSizeBytes = 2 * 1024 * 1024,
+                JpegQuality = 85,
+                AllowedFormats = [ImageFormat.Jpeg, ImageFormat.Png, ImageFormat.WebP]
+            };
+
+            var validationResult = _imageProcessingService.ValidateImage(request.ImageBase64, options);
+            if (!validationResult.IsValid)
+            {
+                throw new BadRequestException($"Image validation failed: {validationResult.ErrorMessage}");
+            }
+
+            var processedImage = await _imageProcessingService.ProcessImageAsync(request.ImageBase64, options, cancellationToken)
+                ?? throw new BadRequestException("Failed to process image");
+
+            using var context = _contextFactory.CreateDbContext();
+            await using var transaction = await context.Database.BeginTransactionAsync(cancellationToken);
+
+            try
+            {
+                var family = await context.Families.FirstOrDefaultAsync(f => f.Id == familyId, cancellationToken)
+                    ?? throw new FamilyNotFoundException("Family not found");
+
+                var picture = await context.FamilyPictures.FirstOrDefaultAsync(p => p.FamilyId == familyId, cancellationToken);
+                var version = ContentVersion(processedImage.Data);
+                var thumbnail = _imageProcessingService.CreateSquareThumbnail(processedImage.Data, ImageSizes.AvatarThumbnail);
+
+                if (picture == null)
+                {
+                    picture = new FamilyPicture
+                    {
+                        FamilyId = familyId,
+                        Data = processedImage.Data,
+                        Version = version
+                    };
+                    context.FamilyPictures.Add(picture);
+                }
+
+                Apply(picture, processedImage, thumbnail, version);
+                family.FamilyPictureVersion = version;
+
+                await context.SaveChangesAsync(cancellationToken);
+                await transaction.CommitAsync(cancellationToken);
+
+                Log.Information($"User {SessionInfo.GetUserId()} uploaded a picture for family {familyId} (version {version})");
+
+                return new FamilyImageInfo
+                {
+                    FamilyPictureUrl = MediaUrls.FamilyPicture(version)!,
+                    Format = processedImage.Format,
+                    Width = processedImage.Width,
+                    Height = processedImage.Height,
+                    FileSizeBytes = processedImage.FileSizeBytes
+                };
+            }
+            catch (Exception ex)
+            {
+                await transaction.RollbackAsync(cancellationToken);
+                Log.Error(ex, $"Failed to upload the picture for family {familyId}");
+                throw;
+            }
+        }
+
+        public async Task DeleteFamilyPictureAsync(CancellationToken cancellationToken = default)
+        {
+            var familyId = RequireFamilyId();
+
+            using var context = _contextFactory.CreateDbContext();
+            await using var transaction = await context.Database.BeginTransactionAsync(cancellationToken);
+
+            try
+            {
+                var family = await context.Families.FirstOrDefaultAsync(f => f.Id == familyId, cancellationToken)
+                    ?? throw new FamilyNotFoundException("Family not found");
+
+                var picture = await context.FamilyPictures.FirstOrDefaultAsync(p => p.FamilyId == familyId, cancellationToken);
+                if (picture == null && family.FamilyPictureVersion == null)
+                {
+                    throw new BadRequestException("No family picture to delete");
+                }
+
+                if (picture != null)
+                {
+                    context.FamilyPictures.Remove(picture);
+                }
+
+                family.FamilyPictureVersion = null;
+                await context.SaveChangesAsync(cancellationToken);
+                await transaction.CommitAsync(cancellationToken);
+
+                Log.Information($"User {SessionInfo.GetUserId()} deleted the picture of family {familyId}");
+            }
+            catch (Exception ex)
+            {
+                await transaction.RollbackAsync(cancellationToken);
+                Log.Error(ex, $"Failed to delete the picture of family {familyId}");
+                throw;
+            }
+        }
+
+        /// <summary>
+        /// Serves one rendition of the caller's family picture, or null when it has none.
+        /// </summary>
+        public async Task<StoredImageResponse?> GetFamilyPictureAsync(
+            ImageVariant variant,
+            bool acceptsWebp,
+            CancellationToken cancellationToken = default)
+        {
+            var userId = SessionInfo.GetUserId();
+            if (!userId.HasValue)
+            {
+                return null;
+            }
+
+            // The Users row, not the session's family id: see RequireFamilyId below for why a
+            // writable Kratos trait must not decide whose picture this serves.
+            var familyId = new UserFunctions(_contextFactory).GetUserById(userId.Value)?.FamilyId;
+            if (!familyId.HasValue)
+            {
+                return null;
+            }
+
+            using var context = _contextFactory.CreateForReading();
+            var picture = await context.FamilyPictures
+                .FirstOrDefaultAsync(p => p.FamilyId == familyId.Value, cancellationToken);
+
+            if (picture == null)
+            {
+                return null;
+            }
+
+            return Render(picture, variant, acceptsWebp);
+        }
+
+        /// <summary>
+        /// The caller's family id <b>as the database has it</b>, or the exception that says why
+        /// there is none.
+        /// </summary>
+        /// <remarks>
+        /// Deliberately not <c>SessionInfo.GetFamilyId()</c>: that falls back to the Kratos
+        /// identity's <c>family_id</c> trait when the local user row has none, and a trait is
+        /// something the identity's owner can write through Kratos' own settings flow. Pointing it
+        /// at a family they are not in would otherwise be enough to read, replace or delete that
+        /// family's picture. Membership is a fact about the <c>Users</c> row, so it is read from
+        /// there - the same check every other family write in this codebase makes.
+        /// </remarks>
+        private int RequireFamilyId()
+        {
+            var userId = SessionInfo.GetUserId();
+            if (!userId.HasValue)
+            {
+                Log.Warning("Invalid session: User ID not found");
+                throw new UserNotFoundException("User not found");
+            }
+
+            var user = new UserFunctions(_contextFactory).GetUserById(userId.Value);
+
+            return user?.FamilyId
+                ?? throw new FamilyNotFoundException("You are not a member of any family");
+        }
+
+        /// <summary>
+        /// Serves one rendition of a product.s picture, or null when it has none.
         /// </summary>
         /// <param name="productPublicId">The product whose picture is being asked for.</param>
         /// <param name="variant">Which stored rendition to answer with.</param>

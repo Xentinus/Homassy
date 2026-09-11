@@ -113,12 +113,19 @@ public sealed class FamilyPushNotifier
     /// however long the sends took.
     /// </para>
     /// </remarks>
+    /// <param name="badgeCounts">
+    /// What each recipient's app icon should show, keyed by user id, or null to leave every
+    /// device's badge alone. A caller that knows the number passes it (see <c>AppBadgeCount</c>);
+    /// one that does not must not guess, because the service worker writes whatever arrives and an
+    /// invented number would sit on the icon until the app is next opened.
+    /// </param>
     public async Task DispatchAsync(
         HomassyDbContext context,
         IReadOnlyList<RecipientInfo> recipients,
         IReadOnlyList<NotificationEnvelope> notifications,
         string url,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken,
+        IReadOnlyDictionary<int, int>? badgeCounts = null)
     {
         if (recipients.Count == 0 || notifications.Count == 0)
             return;
@@ -138,6 +145,9 @@ public sealed class FamilyPushNotifier
                 continue;
 
             var actionTitle = GetActionTitle(recipient.Language);
+            int? badgeCount = badgeCounts != null && badgeCounts.TryGetValue(recipient.Id, out var count)
+                ? count
+                : null;
 
             var subscriptions = await context.UserPushSubscriptions
                 .Where(s => s.UserId == recipient.Id && !s.IsDeleted)
@@ -150,7 +160,7 @@ public sealed class FamilyPushNotifier
                     var (title, body) = NotificationContentRenderer.Render(envelope, recipient.Language);
 
                     var success = await _webPushService.SendNotificationAsync(
-                        subscription, title, body, url, actionTitle, cancellationToken: cancellationToken);
+                        subscription, title, body, url, actionTitle, badgeCount, cancellationToken);
 
                     if (!success)
                     {

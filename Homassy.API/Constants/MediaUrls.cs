@@ -37,6 +37,23 @@ namespace Homassy.API.Constants
         }
 
         /// <summary>
+        /// The caller's family picture, addressed by <b>no</b> id at all.
+        /// </summary>
+        /// <remarks>
+        /// A user has one family, and whether you may see its picture is exactly the question of
+        /// whether you are in it - so the endpoint reads the family from the session and there is
+        /// nothing for an id in the path to add. The <c>v</c> hash still makes the URL
+        /// content-addressed, so a changed picture is a changed URL and leaving one family for
+        /// another cannot show the old one out of a cache.
+        /// </remarks>
+        public static string? FamilyPicture(string? version, ImageVariant variant = ImageVariant.Thumb)
+        {
+            return version == null
+                ? null
+                : $"/api/v1.0/Family/picture?size={Name(variant)}&v={version}";
+        }
+
+        /// <summary>
         /// The picture behind a chat image message (#147), addressed by the <b>message's</b> public
         /// id rather than the image row's.
         /// </summary>

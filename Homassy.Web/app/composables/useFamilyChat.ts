@@ -16,6 +16,7 @@
  *   request even left, so without something to match on they would see it twice.
  */
 import { computed, ref } from 'vue'
+import { FamilyChatMessageKind } from '~/types/enums'
 import { useAuthStore } from '~/stores/auth'
 import type {
   FamilyChatActiveMember,
@@ -314,7 +315,15 @@ export const useFamilyChat = () => {
    * still open - the panel being open is not the same as somebody looking at it.
    */
   const onVisibilityChange = (): void => {
-    if (!panelIsOpen) return
+    if (!panelIsOpen) {
+      // The panel is closed, but the app has just come back to the foreground - and while it was
+      // backgrounded the socket may have been suspended or dropped, so every `MessageCreated`
+      // that would have counted into the badge was missed. The server's count is the only one
+      // that survived that, so ask it. (Reconnecting re-joins the group but says nothing about
+      // what arrived while it was gone.)
+      if (document.visibilityState === 'visible') void refreshUnreadCount()
+      return
+    }
 
     if (document.visibilityState === 'visible') {
       setActive(true)
@@ -370,6 +379,10 @@ export const useFamilyChat = () => {
    */
   const rejoin = (): void => {
     void refresh()
+
+    // The badge counted the broadcasts this client was there for, and it was there for none of
+    // them while the connection was down. Only the server knows what arrived in the gap.
+    void refreshUnreadCount()
 
     // Per-connection state died with the old connection: the group membership, the typing flag and
     // the "actively watching" flag. Re-report what this client still believes is true, or the
@@ -465,6 +478,9 @@ export const useFamilyChat = () => {
     if (!import.meta.client) return
 
     subscribe()
+    // Attached from here, not only from `open`: the badge has to be right after the app comes
+    // back from the background whether or not the panel was ever opened.
+    attachVisibilityListener()
     if (joined) return
     if (joinPromise) return joinPromise
 
@@ -508,6 +524,7 @@ export const useFamilyChat = () => {
     joined = false
     typingMembers.value = []
     activeMembers.value = []
+    detachVisibilityListener()
     await socket.leaveChat()
   }
 
@@ -527,7 +544,9 @@ export const useFamilyChat = () => {
     setActive(false)
     stopHeartbeat()
     clearInactivityTimeout()
-    detachVisibilityListener()
+    // The visibility listener stays: with the panel closed its job is keeping the unread badge
+    // honest across a backgrounded app, which is exactly when it matters most. `leave` is what
+    // takes it down.
 
     await Promise.resolve()
   }
@@ -602,7 +621,7 @@ export const useFamilyChat = () => {
     const correlationId = newCorrelationId()
     const optimistic: FamilyChatStreamMessage = {
       publicId: correlationId,
-      kind: 'Text',
+      kind: FamilyChatMessageKind.Text,
       body: text || null,
       // Rendered from what the picker offered until the committed message replaces them with the
       // server's own labels - which is also when they stop being assumed to resolve.
@@ -664,7 +683,7 @@ export const useFamilyChat = () => {
     const correlationId = newCorrelationId()
     const optimistic: FamilyChatStreamMessage = {
       publicId: correlationId,
-      kind: 'Image',
+      kind: FamilyChatMessageKind.Image,
       body: caption?.trim() || null,
       sentAt: new Date().toISOString(),
       sender: {
@@ -715,7 +734,7 @@ export const useFamilyChat = () => {
     const index = messages.value.findIndex(m => m.publicId === message.publicId)
     if (index >= 0) messages.value.splice(index, 1)
 
-    if (message.kind === 'Image' && message.localPreview) {
+    if (message.kind === FamilyChatMessageKind.Image && message.localPreview) {
       const base64 = message.localPreview.includes(',')
         ? message.localPreview.split(',')[1]!
         : message.localPreview

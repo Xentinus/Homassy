@@ -172,6 +172,11 @@ export const useNotificationCenter = () => {
     navigator.serviceWorker.addEventListener('message', (event: MessageEvent) => {
       if (event.data?.type !== 'homassy:notification') return
       handlePushArrival()
+
+      // A push reached this device, so something happened that the socket may not have delivered -
+      // a suspended tab receives a push but no hub broadcast. The chat's own unread count is the
+      // other badge on screen, and re-reading it is one request.
+      void useFamilyChat().refreshUnreadCount()
     })
   }
 
