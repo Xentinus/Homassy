@@ -1,4 +1,23 @@
 // https://nuxt.com/docs/api/configuration/nuxt-config
+
+/**
+ * The build-time environment, for the `process.env` reads further down.
+ *
+ * Declared here rather than pulled in with `@types/node`, and rather than the
+ * `import process from 'node:process'` this file used to carry (which the typechecker rejected
+ * with TS2307, having no Node types to resolve it against).
+ *
+ * Adding `@types/node` is what you would reach for, and it is the wrong trade here: this project
+ * has no Node types in its tree, so npm has to re-resolve to add them — and npm 11 prunes the
+ * `oxc-parser` platform bindings that the committed, npm-10-generated lockfile records, which
+ * makes `npm ci` fail in CI with twenty "missing from lock file" errors. A four-line ambient
+ * declaration for the two properties this file actually touches costs nothing and cannot churn
+ * the lockfile.
+ */
+declare const process: {
+  env: Record<string, string | undefined>
+}
+
 export default defineNuxtConfig({
   compatibilityDate: '2025-07-15',
   devtools: { enabled: true },

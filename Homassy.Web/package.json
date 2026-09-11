@@ -44,7 +44,6 @@
     "vue-router": "^4.6.4"
   },
   "devDependencies": {
-    "@types/node": "22.19.4",
     "@vite-pwa/nuxt": "^1.1.0",
     "typescript": "^5.9.3",
     "vitest": "^3.2.7",
