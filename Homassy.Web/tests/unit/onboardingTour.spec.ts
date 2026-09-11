@@ -131,12 +131,56 @@ describe('spotlightLayout', () => {
 })
 
 describe('holeClipPath', () => {
+  /** The polygon's points, as `[x, y]` token pairs — `100%` kept verbatim. */
+  const points = (path: string): [string, string][] =>
+    path
+      .replace(/^polygon\(evenodd,/, '')
+      .replace(/\)$/, '')
+      .split(',')
+      .map((point) => {
+        const [x, y] = point.trim().split(/\s+/)
+        return [x!, y!] as [string, string]
+      })
+
   it('declares the even-odd rule rather than relying on winding order', () => {
     const path = holeClipPath({ x: 10, y: 20, width: 30, height: 40 })
 
-    // With the default `nonzero` the inner ring only becomes a hole if it happens to
-    // be wound the other way round — a silent dependency on point order.
     expect(path.startsWith('polygon(evenodd,')).toBe(true)
+  })
+
+  it('draws no diagonal edge, so the scrim cannot dim a wedge of the screen', () => {
+    // The bug this pins: `polygon()` is a single contour, so jumping from a viewport
+    // corner to a hole corner draws a diagonal, and even-odd over that self-intersecting
+    // shape dims a triangle rather than everything-but-the-hole. Every edge of a
+    // viewport-with-a-hole path — the bridge in and out included — is axis-aligned.
+    const path = holeClipPath({ x: 120, y: 300, width: 90, height: 60 })
+    const pts = points(path)
+
+    for (let i = 0; i < pts.length; i++) {
+      const from = pts[i]!
+      const to = pts[(i + 1) % pts.length]!
+
+      expect(
+        from[0] === to[0] || from[1] === to[1],
+        `edge ${from.join(' ')} → ${to.join(' ')} is diagonal`
+      ).toBe(true)
+    }
+  })
+
+  it('reaches the hole along a bridge that encloses no area', () => {
+    const pts = points(holeClipPath({ x: 120, y: 300, width: 90, height: 60 }))
+    const bridge = pts.filter(([x, y]) => x === '0px' && y === '300px')
+
+    // Traced out and back along the same line: two visits, zero width, invisible.
+    expect(bridge).toHaveLength(2)
+  })
+
+  it('closes the hole ring before returning to the edge', () => {
+    const pts = points(holeClipPath({ x: 120, y: 300, width: 90, height: 60 }))
+    const corner = pts.filter(([x, y]) => x === '120px' && y === '300px')
+
+    // The hole's top-left is both where the ring starts and where it ends.
+    expect(corner).toHaveLength(2)
   })
 
   it('punches the hole at the rect it was given', () => {

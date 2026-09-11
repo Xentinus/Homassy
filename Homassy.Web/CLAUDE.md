@@ -733,9 +733,19 @@ wrapper `div` or renaming a class does not break the tour.
 - **"Replay the tour"** in the profile's Preferences group clears the flag and starts it again.
 - The card prefers to sit below its hole and flips above when there is no room — the everyday case,
   since the nav is at the bottom — and clamps into the viewport rather than hanging off the edge
-  when it fits on neither side. The `clip-path` names `evenodd` instead of relying on winding
-  order, and always emits the same number of points, which is what lets the hole glide between
-  steps. Under `prefers-reduced-motion` the transitions are dropped and each step simply appears.
+  when it fits on neither side. Under `prefers-reduced-motion` the transitions are dropped and
+  each step simply appears.
+- **The cut-out's `clip-path` is one contour with a degenerate bridge, not two rings.** `polygon()`
+  draws a single closed path, so listing the viewport's corners followed by the hole's does not
+  give an outer ring and an inner one — it gives a shape with a diagonal running from the
+  viewport's bottom-left corner to the hole, and even-odd over that dims a *wedge* of the screen
+  with the highlighted element outside it. (That shipped, and is what "the tour's lighting is
+  inside out" was.) `holeClipPath` therefore runs in along the viewport's left edge at the hole's
+  top, round the hole, and back out along the same line: traced twice, the bridge encloses no area
+  and is invisible, and the hole is wound the opposite way to the rectangle so `nonzero` and
+  `evenodd` agree. The point count is constant whatever the rect, which is what lets the hole
+  glide between steps. `tests/unit/onboardingTour.spec.ts` pins it by asserting every edge is
+  axis-aligned — a diagonal edge *is* the bug.
 
 ---
 
