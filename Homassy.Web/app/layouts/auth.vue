@@ -129,7 +129,11 @@ const deadlineCount = ref(0)
 const { toneForLevel } = useExpirationStatus()
 // The same count this layout badges the nav with also drives the installed app's
 // icon badge and the browser tab title (#130) — one number, three surfaces.
-const { setExpirationCount, resolveIconPermission } = useAppBadge()
+const { setExpirationCount, setDeadlineCount, setChatUnreadCount, resolveIconPermission } = useAppBadge()
+// The chat's unread count is the third thing the badge can carry. It lives in the chat's own
+// module state (the bubble fetches it and the socket keeps it current), so the layout only has to
+// forward it - one number, whichever surface shows it.
+const { unreadCount: chatUnreadCount } = useFamilyChat()
 // First-run spotlight tour (#98). The layout is where it starts from because it is the
 // one component that outlives the tour's own navigation.
 const { maybeAutoStart } = useOnboardingTour()
@@ -175,7 +179,12 @@ const fetchDeadlineCount = async () => {
     console.error('Failed to fetch deadline count:', error)
     deadlineCount.value = 0
   }
+  setDeadlineCount(deadlineCount.value)
 }
+
+// Unread chat messages arrive over the socket rather than from a fetch, so this is a watcher
+// rather than another `fetch…` call - the badge follows the count the moment a message lands.
+watch(chatUnreadCount, (value) => { setChatUnreadCount(value) }, { immediate: true })
 
 // Debounce the fetch function with 500ms delay
 const debouncedFetchExpirationCount = useDebounceFn(fetchExpirationCount, 500)

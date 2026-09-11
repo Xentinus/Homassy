@@ -1149,6 +1149,15 @@
       "light": "Light",
       "dark": "Dark"
     },
+    "badge": {
+      "label": "App icon badge",
+      "description": "What the number on the installed app’s icon counts, on this device.",
+      "sources": {
+        "deadline": { "label": "Overdue shopping items", "description": "Items past their deadline." },
+        "chat": { "label": "Unread chat messages", "description": "Messages in the family chat you have not read." },
+        "expiration": { "label": "Expiring products", "description": "Products close to their expiry date." }
+      }
+    },
     "haptics": {
       "label": "Haptic feedback",
       "description": "Short vibrations on gestures and confirmations"

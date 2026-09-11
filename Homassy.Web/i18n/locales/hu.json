@@ -1149,6 +1149,15 @@
       "light": "Világos",
       "dark": "Sötét"
     },
+    "badge": {
+      "label": "Alkalmazásikon jelvény",
+      "description": "Mit számoljon a telepített app ikonján lévő szám ezen az eszközön.",
+      "sources": {
+        "deadline": { "label": "Lejárt bevásárlási tételek", "description": "Határidőn túli tételek." },
+        "chat": { "label": "Olvasatlan üzenetek", "description": "El nem olvasott üzenetek a családi csevegésben." },
+        "expiration": { "label": "Lejáró termékek", "description": "Szavatossági idejükhöz közeli termékek." }
+      }
+    },
     "haptics": {
       "label": "Rezgő visszajelzés",
       "description": "Rövid rezgés gesztusoknál és megerősítéseknél"

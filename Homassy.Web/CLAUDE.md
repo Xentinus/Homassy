@@ -680,9 +680,23 @@ user a login link.
 
 ## The app-icon badge and the tab title (`useAppBadge`)
 
-One number — the expiring-items count `layouts/auth.vue` already fetches for the nav badge — on
-the two surfaces that live *outside* the running page. The layout calls `setExpirationCount()`
-with exactly what it badges the nav with, so the three cannot disagree.
+One number on the two surfaces that live *outside* the running page — and that number is a **sum of
+sources the user chooses between**: overdue shopping-list items, unread family chat messages, and
+expiring products. `layouts/auth.vue` publishes all three (the first two it already fetches for the
+nav badges, the third rides on `useFamilyChat`'s unread count), so the icon, the tab title and the
+in-app badges cannot disagree about the same number.
+
+**The defaults are overdue items and unread messages, not expirations.** The first two are somebody
+waiting on you; a product that expires in ten days is a fact about the cupboard, and a permanent
+number on the home screen turns it into a nag — a badge that never reaches zero stops meaning
+anything. Each source has its own switch in the profile's Preferences group.
+
+**The switches are device-local** (`localStorage`, key `homassy_badge_sources`), like haptics and the
+theme rather than like the notification preferences: the icon badge only exists on a device the app
+is installed on, so "badge this phone with the shopping list" is a statement about the phone. The
+rows are only rendered where badging exists at all — a switch with no surface to act on is worse
+than no switch. Counts are published whether or not they currently count, so flipping a switch on
+does not have to wait for the next fetch.
 
 **The two surfaces are gated differently, on purpose:**
 
@@ -690,9 +704,10 @@ with exactly what it badges the nav with, so the three cannot disagree.
   follows the same rule the nav badge does — always shown. It is only visible to someone who
   already has the app open.
 - The **icon badge** persists on the home screen with the app closed, which makes it a
-  notification rather than page chrome. It is suppressed for a user who turned expiration
-  reminders off (`pushNotificationsEnabled`): badging someone who declined to be reminded would be
-  exactly the reminder they declined, in another place.
+  notification rather than page chrome. It is suppressed entirely for a user who turned push off
+  (`pushNotificationsEnabled`): badging someone who declined to be reminded would be exactly the
+  reminder they declined, in another place. That gate is separate from the per-source switches —
+  one says whether the badge may exist, the others say what it counts.
 
 The title goes through `useHead` from `plugins/app-badge.client.ts`, not from a page or layout — a
 `useHead` registered in a component is torn down with it, which would drop the prefix

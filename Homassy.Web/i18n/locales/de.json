@@ -1149,6 +1149,15 @@
       "light": "Hell",
       "dark": "Dunkel"
     },
+    "badge": {
+      "label": "App-Symbol-Badge",
+      "description": "Was die Zahl auf dem Symbol der installierten App auf diesem Gerät zählt.",
+      "sources": {
+        "deadline": { "label": "Überfällige Einkaufsposten", "description": "Posten, deren Frist abgelaufen ist." },
+        "chat": { "label": "Ungelesene Nachrichten", "description": "Ungelesene Nachrichten im Familienchat." },
+        "expiration": { "label": "Ablaufende Produkte", "description": "Produkte kurz vor dem Ablaufdatum." }
+      }
+    },
     "haptics": {
       "label": "Haptisches Feedback",
       "description": "Kurze Vibrationen bei Gesten und Bestätigungen"
