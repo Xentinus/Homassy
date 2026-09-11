@@ -72,6 +72,12 @@
       "showResults": "Show {count}",
       "all": "All",
       "clear": "Clear filters"
+    },
+    "unnamed": "Unnamed",
+    "reorder": {
+      "handle": "Drag to reorder",
+      "handleFor": "Move {name}",
+      "failed": "The new order could not be saved."
     }
   },
   "imageCropper": {
@@ -732,7 +738,8 @@
         "deadline": "Deadline",
         "quantity": "Quantity",
         "location": "Shopping location",
-        "properties": "Properties"
+        "properties": "Properties",
+        "order": "Order"
       },
       "menu": {
         "add": "Add List",
@@ -831,7 +838,12 @@
       "restorePurchaseInventoryWarning": "Note: This will only unmark the item as purchased. It will NOT remove the item from inventory if it was already added.",
       "noListsHint": "Create a list and start collecting what you need.",
       "noItemsInListHint": "Add the first item to this list.",
-      "noSearchResultsHint": "Try a different search term or clear the filters"
+      "noSearchResultsHint": "Try a different search term or clear the filters",
+      "order": {
+        "smart": "Smart",
+        "manual": "Manual",
+        "manualHint": "Drag the items into the order you walk the shop."
+      }
     },
     "activity": {
       "title": "Activity",
@@ -954,6 +966,20 @@
     "presence": {
       "othersHere": "{count} other(s) here",
       "overflow": "+{count} more"
+    },
+    "shoppingMode": {
+      "title": "Shopping mode",
+      "enter": "Start shopping mode",
+      "exit": "Close shopping mode",
+      "progress": "{done} of {total} done",
+      "screenAwake": "The screen stays on",
+      "hereSection": "Buy here",
+      "restSection": "The rest",
+      "doneTitle": "Everything is in the trolley",
+      "doneBody": "All {count} items are bought.",
+      "tick": "Mark {name} as bought",
+      "showDetails": "Details",
+      "hideDetails": "Hide details"
     }
   },
   "activity": {
@@ -2868,5 +2894,12 @@
         "bodyAllDayLead": "\"{eventTitle}\" is in {lead}."
       }
     }
+  },
+  "map": {
+    "unavailable": "The map could not be loaded.",
+    "cluster": "{count} locations here",
+    "youAreHere": "Your position",
+    "hide": "Hide map",
+    "showAll": "Show all on the map ({count})"
   }
 }

@@ -32,17 +32,28 @@
     <div
       ref="cardEl"
       class="relative h-full bg-default rounded-2xl border-2 p-3 cursor-pointer shadow-sm hover:shadow-lg transition-shadow duration-200 flex flex-col overflow-hidden select-none"
-      :class="cardBorderClass"
+      :class="[cardBorderClass, { 'opacity-40': dragging }]"
       :style="swipe.cardStyle.value"
       @click="handleCardClick"
     >
     <!-- Header: Title and Brand -->
     <div class="min-w-0 space-y-1">
       <!-- Product Name -->
-      <h3
-        class="text-sm font-bold break-words text-highlighted"
-        v-html="highlightText(displayName, searchQuery)"
-      />
+      <div class="flex items-start gap-2">
+        <h3
+          class="flex-1 text-sm font-bold break-words text-highlighted"
+          v-html="highlightText(displayName, searchQuery)"
+        />
+        <ReorderHandle
+          v-if="reorderable"
+          :dragging="dragging"
+          :label="$t('common.reorder.handleFor', { name: displayName })"
+          size="sm"
+          class="-mt-0.5 -mr-1 shrink-0"
+          @lift="(event) => emit('reorder-lift', event)"
+          @move="(direction) => emit('reorder-move', direction)"
+        />
+      </div>
       <!-- Brand -->
       <p
         v-if="item.product?.brand"
@@ -564,6 +575,10 @@ interface Props {
   // loadBestPrices) and hands the result down — this card never fetches its own, which is the
   // difference between one round trip per list and one per row.
   bestPrice?: BestKnownPrice
+  /** Show the drag handle (#113). Only on in the list's manual-order mode. */
+  reorderable?: boolean
+  /** True while this card is the one being dragged — it dims into a drop placeholder. */
+  dragging?: boolean
 }
 
 const props = withDefaults(defineProps<Props>(), {
@@ -572,7 +587,9 @@ const props = withDefaults(defineProps<Props>(), {
   similarTypeAtCurrentLocation: false,
   shoppingLocations: () => [],
   currentStore: undefined,
-  bestPrice: undefined
+  bestPrice: undefined,
+  reorderable: false,
+  dragging: false
 })
 
 
@@ -593,6 +610,10 @@ const emit = defineEmits<{
   'purchase-requested': [request: PurchaseShoppingListItemRequest]
   /** Confirmed in the restore-purchase drawer. */
   'restore-requested': []
+  /** The reorder handle was pressed — the page owns the items array, so it owns the drag. */
+  'reorder-lift': [event: PointerEvent]
+  /** An arrow key on the handle asked for a one-position move. */
+  'reorder-move': [direction: -1 | 1]
 }>()
 
 const { t, locale } = useI18n()

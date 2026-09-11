@@ -30,6 +30,12 @@ export interface ShoppingListItemInfo {
   quantity: number
   unit: Unit
   note?: string
+  /**
+   * Manual (aisle) position on the list. Sparse gapped integers, not a 0..n-1 index — see
+   * `Homassy.API.Functions.SparseOrdering`. Zero on every row that has never been dragged, so a
+   * list still in its original state sorts identically under every ordering mode.
+   */
+  sortOrder: number
   purchasedAt?: string
   deadlineAt?: string
   dueAt?: string
@@ -127,4 +133,10 @@ export interface PurchaseShoppingListItemRequest {
 
 export interface DeadlineCountResponse {
   totalCount: number
+}
+
+/** The ordered ids of a list's items, as the manual-order endpoint takes them. */
+export interface ReorderShoppingListItemsRequest {
+  shoppingListPublicId: string
+  itemPublicIds: string[]
 }

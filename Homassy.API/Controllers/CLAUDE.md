@@ -138,10 +138,12 @@ Manages shopping and storage locations (all endpoints require `[Authorize]`).
 | POST | `/shopping` | Create shopping location |
 | PUT | `/shopping/{publicId}` | Update shopping location |
 | DELETE | `/shopping/{publicId}` | Delete shopping location |
+| POST | `/shopping/reorder` | Set the manual order of the caller's shopping locations |
 | GET | `/storage` | Get all storage locations |
 | POST | `/storage` | Create storage location |
 | PUT | `/storage/{publicId}` | Update storage location |
 | DELETE | `/storage/{publicId}` | Delete storage location |
+| POST | `/storage/reorder` | Set the manual order of the caller's storage locations |
 
 **Key Patterns:**
 - Two location types: Shopping (stores) and Storage (home locations)
@@ -149,6 +151,7 @@ Manages shopping and storage locations (all endpoints require `[Authorize]`).
 - Family sharing via `IsSharedWithFamily` flag
 - Ownership validation for modifications
 - Shopping locations carry optional `Latitude`/`Longitude` (nullable `double`) — geocoded on the client at save time and sent in `ShoppingLocationRequest`; on update they are treated as a pair. Powers the frontend shopping-list proximity ("you are here") feature. No server-side geocoding.
+- Both kinds carry a `SortOrder` (see the manual-ordering note under ShoppingListController). Lists are returned ordered by it with the name as the tie-break, so a set of locations nobody has dragged is still alphabetical
 - Shopping locations also carry `StoreTypes` — a set of `StoreType` enum values stored as a PostgreSQL `integer[]` (Npgsql maps `List<StoreType>` → `integer[]`; no converter). A location can belong to several (e.g. OBI = `HardwareStore` + `GardenCenter`). On update a non-null (possibly empty) `StoreTypes` list replaces the set; `null` means "no change". Localized client-side only (`enums.storeType.*`); powers the shopping-list "similar store here" highlight.
 
 ### ShoppingListController
@@ -167,6 +170,7 @@ Manages shopping lists and items (all endpoints require `[Authorize]`).
 | POST | `/item` | - | Create shopping list item |
 | PUT | `/item/{publicId}` | - | Update shopping list item |
 | DELETE | `/item/{publicId}` | - | Delete shopping list item |
+| POST | `/item/reorder` | - | Set the manual (aisle) order of a list's items |
 
 **Query Parameters:**
 - `showPurchased` (bool, default: false) - Include purchased items older than 1 day
@@ -177,11 +181,12 @@ Manages shopping lists and items (all endpoints require `[Authorize]`).
 - Purchased items auto-hidden after 1 day (configurable via `showPurchased`)
 - Family sharing support
 - Shopping location assignment per item — `PUT /item/{publicId}` can reassign it (`ShoppingLocationPublicId`) or clear it (`ClearShoppingLocation: true`, needed because a null id means "no change")
+- **Manual (aisle) ordering.** Items carry a `SortOrder` and `POST /item/reorder` takes the ordered ids and writes them in one transaction. The positions are sparse gapped integers, not indices: `Functions/SparseOrdering` keeps the longest already-increasing run and rewrites only the rest, so a single drag is one row update and the whole list is renumbered only when a gap is exhausted. The response (and the broadcast) carries **only the rows that moved**. A subset of the list is accepted and ordered relative to itself; ids from another list are rejected rather than skipped, as are duplicates. Every pre-existing row is 0, so a list nobody has dragged is unaffected. The same scheme and the same helper back the location and automation reorder endpoints
 
 **Realtime (SignalR):**
 - Hub at `/hubs/shopping-list` (`ShoppingListHub`, `[Authorize]`) — the Kratos session cookie rides the WebSocket handshake, so the existing auth pipeline works unchanged
 - `JoinList(publicId, showPurchased)` joins the list's group (`shopping-list:{publicId}`) and returns the current `DetailedShoppingListInfo` snapshot via the same access-checked path as the REST endpoint; `LeaveList(publicId)` leaves the group
-- After a successful REST write, `ShoppingListFunctions` broadcasts through the injected `ShoppingListRealtime` helper: `ItemUpserted` (create/update/purchase/restore, hydrated item), `ItemDeleted`, `ListUpdated`, `ListDeleted`
+- After a successful REST write, `ShoppingListFunctions` broadcasts through the injected `ShoppingListRealtime` helper: `ItemUpserted` (create/update/purchase/restore, hydrated item), `ItemDeleted`, `ItemsReordered` (only the items whose position changed, as `{ publicId, sortOrder }`), `ListUpdated`, `ListDeleted`
 - Broadcast failures are logged but never break the HTTP write that triggered them
 
 ### HealthController
@@ -383,6 +388,7 @@ Manages item-automation rules — scheduled or threshold-driven actions on inven
 | POST | `/` | - | Create an automation rule |
 | PUT | `/{publicId}` | - | Update an automation rule (partial) |
 | DELETE | `/{publicId}` | - | Delete an automation rule (soft delete) |
+| POST | `/reorder` | - | Set the manual order of the caller's automation rules |
 | POST | `/{publicId}/execute` | - | Manually execute the rule (auto-consume or confirm a notify-only rule) |
 | GET | `/{publicId}/history` | `skip`, `take` (default 0/5) | Get execution history for the rule |
 

@@ -27,6 +27,46 @@ namespace Homassy.API.Controllers
 
         #region Shopping Locations
         /// <summary>
+        /// Sets the manual order of the caller's shopping locations from the ordered ids, in one
+        /// transaction. Returns only the locations whose position actually changed.
+        /// </summary>
+        [HttpPost("shopping/reorder")]
+        [MapToApiVersion(1.0)]
+        [ProducesResponseType(typeof(ApiResponse<List<ReorderedEntry>>), StatusCodes.Status200OK)]
+        [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status404NotFound)]
+        public async Task<IActionResult> ReorderShoppingLocations([FromBody] ReorderLocationsRequest request, CancellationToken cancellationToken)
+        {
+            if (!ModelState.IsValid)
+            {
+                return BadRequest(ApiResponse.ErrorResponse(ErrorCodes.ValidationInvalidRequest));
+            }
+
+            var moved = await _locationFunctions.ReorderShoppingLocationsAsync(request, cancellationToken);
+            return Ok(ApiResponse<List<ReorderedEntry>>.SuccessResponse(moved));
+        }
+
+        /// <summary>
+        /// Sets the manual order of the caller's storage locations — see
+        /// <see cref="ReorderShoppingLocations"/>.
+        /// </summary>
+        [HttpPost("storage/reorder")]
+        [MapToApiVersion(1.0)]
+        [ProducesResponseType(typeof(ApiResponse<List<ReorderedEntry>>), StatusCodes.Status200OK)]
+        [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status404NotFound)]
+        public async Task<IActionResult> ReorderStorageLocations([FromBody] ReorderLocationsRequest request, CancellationToken cancellationToken)
+        {
+            if (!ModelState.IsValid)
+            {
+                return BadRequest(ApiResponse.ErrorResponse(ErrorCodes.ValidationInvalidRequest));
+            }
+
+            var moved = await _locationFunctions.ReorderStorageLocationsAsync(request, cancellationToken);
+            return Ok(ApiResponse<List<ReorderedEntry>>.SuccessResponse(moved));
+        }
+
+        /// <summary>
         /// Gets all shopping locations for the current user's family with pagination support.
         /// </summary>
         [HttpGet("shopping")]

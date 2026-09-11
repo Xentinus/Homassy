@@ -64,8 +64,15 @@ export interface AutomationResponse {
   thresholdQuantity?: number
   isTriggered: boolean
   isEnabled: boolean
+  /** Manual position — sparse gapped integers, not an index. See `ShoppingListItemInfo.sortOrder`. */
+  sortOrder: number
   nextExecutionAt?: string
   lastExecutedAt?: string
+}
+
+/** The ordered ids of the caller's automation rules, as the manual-order endpoint takes them. */
+export interface ReorderAutomationsRequest {
+  automationPublicIds: string[]
 }
 
 export interface AutomationExecutionResponse {

@@ -26,6 +26,26 @@ namespace Homassy.API.Controllers
         }
 
         /// <summary>
+        /// Sets the manual order of the caller's automation rules from the ordered ids, in one
+        /// transaction. Returns only the rules whose position actually changed.
+        /// </summary>
+        [HttpPost("reorder")]
+        [MapToApiVersion(1.0)]
+        [ProducesResponseType(typeof(ApiResponse<List<ReorderedEntry>>), StatusCodes.Status200OK)]
+        [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status404NotFound)]
+        public async Task<IActionResult> ReorderAutomations([FromBody] ReorderAutomationsRequest request, CancellationToken cancellationToken)
+        {
+            if (!ModelState.IsValid)
+            {
+                return BadRequest(ApiResponse.ErrorResponse(ErrorCodes.ValidationInvalidRequest));
+            }
+
+            var moved = await _automationFunctions.ReorderAutomationsAsync(request, cancellationToken);
+            return Ok(ApiResponse<List<ReorderedEntry>>.SuccessResponse(moved));
+        }
+
+        /// <summary>
         /// Gets all automation rules for the current user and family.
         /// </summary>
         [HttpGet]

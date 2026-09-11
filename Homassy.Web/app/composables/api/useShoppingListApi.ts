@@ -17,8 +17,10 @@ import type {
   QuickPurchaseFromShoppingListItemRequest,
   QuickPurchaseMultipleShoppingListItemsRequest,
   PurchaseShoppingListItemRequest,
-  DeadlineCountResponse
+  DeadlineCountResponse,
+  ReorderShoppingListItemsRequest
 } from '~/types/shoppingList'
+import type { ReorderedEntry } from '~/types/masterData'
 
 export const useShoppingListApi = () => {
   const client = useApiClient()
@@ -242,9 +244,19 @@ export const useShoppingListApi = () => {
     )
   }
 
+  /**
+   * Writes the manual (aisle) order of a list's items from the ordered ids (#113).
+   * Resolves with only the items that actually moved — the server's ordering is sparse, so one
+   * drag normally names one item.
+   */
+  const reorderShoppingListItems = async (request: ReorderShoppingListItemsRequest) => {
+    return await client.post<ReorderedEntry[]>('/api/v1/ShoppingList/item/reorder', request)
+  }
+
   return {
     getShoppingLists,
     getShoppingListDetails,
+    reorderShoppingListItems,
     createShoppingList,
     updateShoppingList,
     deleteShoppingList,

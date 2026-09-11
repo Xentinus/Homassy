@@ -23,6 +23,13 @@ namespace Homassy.API.Entities.ShoppingList
         [StringLength(255)]
         public string? Note { get; set; }
 
+        /// <summary>
+        /// Manual (aisle) position within the list. Sparse — see <see cref="Functions.SparseOrdering"/>:
+        /// values are gapped so moving one row rewrites one row. Zero on every pre-existing row, which
+        /// leaves the list in the urgency-then-name order it had before anyone dragged anything.
+        /// </summary>
+        public int SortOrder { get; set; }
+
         public DateTime? PurchasedAt { get; set; }
         public DateTime? DeadlineAt { get; set; }
         public DateTime? DueAt { get; set; }

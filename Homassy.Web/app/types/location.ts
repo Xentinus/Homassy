@@ -9,6 +9,8 @@ export interface StorageLocationInfo {
   description?: string
   color?: string
   isFreezer: boolean
+  /** Manual position — sparse gapped integers, not an index. See `ShoppingListItemInfo.sortOrder`. */
+  sortOrder: number
   isSharedWithFamily: boolean
 }
 
@@ -26,7 +28,14 @@ export interface ShoppingLocationInfo {
   latitude?: number
   longitude?: number
   storeTypes?: StoreType[]
+  /** Manual position — sparse gapped integers, not an index. See `ShoppingListItemInfo.sortOrder`. */
+  sortOrder: number
   isSharedWithFamily: boolean
+}
+
+/** The ordered ids of the caller's locations, as both location reorder endpoints take them. */
+export interface ReorderLocationsRequest {
+  locationPublicIds: string[]
 }
 
 export interface StorageLocationRequest {

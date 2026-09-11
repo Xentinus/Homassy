@@ -1,4 +1,5 @@
 using Homassy.API.Models.Automation;
+using Homassy.API.Models.Common;
 using Homassy.API.Models.ExternalCalendar;
 using Homassy.API.Models.Location;
 using Homassy.API.Models.Product;
@@ -34,12 +35,15 @@ namespace Homassy.API.Hubs
         public const string ProductDeletedEvent = "ProductDeleted";
         public const string StorageLocationUpsertedEvent = "StorageLocationUpserted";
         public const string StorageLocationDeletedEvent = "StorageLocationDeleted";
+        public const string StorageLocationsReorderedEvent = "StorageLocationsReordered";
         public const string ShoppingLocationUpsertedEvent = "ShoppingLocationUpserted";
         public const string ShoppingLocationDeletedEvent = "ShoppingLocationDeleted";
+        public const string ShoppingLocationsReorderedEvent = "ShoppingLocationsReordered";
         public const string ShoppingListUpsertedEvent = "ShoppingListUpserted";
         public const string ShoppingListDeletedEvent = "ShoppingListDeleted";
         public const string AutomationUpsertedEvent = "AutomationUpserted";
         public const string AutomationDeletedEvent = "AutomationDeleted";
+        public const string AutomationsReorderedEvent = "AutomationsReordered";
         public const string ExternalCalendarUpsertedEvent = "ExternalCalendarUpserted";
         public const string ExternalCalendarDeletedEvent = "ExternalCalendarDeleted";
 
@@ -83,12 +87,23 @@ namespace Homassy.API.Hubs
         public Task StorageLocationDeletedAsync(int ownerUserId, int? familyId, Guid publicId, CancellationToken cancellationToken = default)
             => SendAsync(Scope(familyId, ownerUserId), StorageLocationDeletedEvent, new { publicId }, cancellationToken);
 
+        /// <summary>
+        /// The manual order changed. Carries only the rows that moved (see
+        /// <see cref="Functions.SparseOrdering"/>), so a viewer patches those positions and re-sorts.
+        /// </summary>
+        public Task StorageLocationsReorderedAsync(int ownerUserId, int? familyId, IReadOnlyList<ReorderedEntry> entries, CancellationToken cancellationToken = default)
+            => SendAsync(Scope(familyId, ownerUserId), StorageLocationsReorderedEvent, new { entries }, cancellationToken);
+
         // --- Shopping locations -------------------------------------------------
         public Task ShoppingLocationUpsertedAsync(int ownerUserId, int? familyId, ShoppingLocationInfo location, CancellationToken cancellationToken = default)
             => SendAsync(Scope(familyId, ownerUserId), ShoppingLocationUpsertedEvent, location, cancellationToken);
 
         public Task ShoppingLocationDeletedAsync(int ownerUserId, int? familyId, Guid publicId, CancellationToken cancellationToken = default)
             => SendAsync(Scope(familyId, ownerUserId), ShoppingLocationDeletedEvent, new { publicId }, cancellationToken);
+
+        /// <summary>The manual order changed — see <see cref="StorageLocationsReorderedAsync"/>.</summary>
+        public Task ShoppingLocationsReorderedAsync(int ownerUserId, int? familyId, IReadOnlyList<ReorderedEntry> entries, CancellationToken cancellationToken = default)
+            => SendAsync(Scope(familyId, ownerUserId), ShoppingLocationsReorderedEvent, new { entries }, cancellationToken);
 
         // --- Shopping lists -----------------------------------------------------
         public Task ShoppingListUpsertedAsync(int ownerUserId, int? familyId, ShoppingListInfo list, CancellationToken cancellationToken = default)
@@ -103,6 +118,10 @@ namespace Homassy.API.Hubs
 
         public Task AutomationDeletedAsync(int ownerUserId, int? familyId, Guid publicId, CancellationToken cancellationToken = default)
             => SendAsync(Scope(familyId, ownerUserId), AutomationDeletedEvent, new { publicId }, cancellationToken);
+
+        /// <summary>The manual order changed — see <see cref="StorageLocationsReorderedAsync"/>.</summary>
+        public Task AutomationsReorderedAsync(int ownerUserId, int? familyId, IReadOnlyList<ReorderedEntry> entries, CancellationToken cancellationToken = default)
+            => SendAsync(Scope(familyId, ownerUserId), AutomationsReorderedEvent, new { entries }, cancellationToken);
 
         // --- External calendars (always family-scoped) --------------------------
         public Task ExternalCalendarUpsertedAsync(int familyId, ExternalCalendarResponse calendar, CancellationToken cancellationToken = default)

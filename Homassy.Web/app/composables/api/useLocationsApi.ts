@@ -14,8 +14,10 @@ import type {
   DeleteMultipleStorageLocationsRequest,
   DeleteMultipleShoppingLocationsRequest,
   StorageLocationInventoryItemInfo,
-  ShoppingLocationPurchaseInfo
+  ShoppingLocationPurchaseInfo,
+  ReorderLocationsRequest
 } from '~/types/location'
+import type { ReorderedEntry } from '~/types/masterData'
 
 export const useLocationsApi = () => {
   const client = useApiClient()
@@ -216,9 +218,24 @@ export const useLocationsApi = () => {
     )
   }
 
+  /**
+   * Writes the manual order of the caller's storage locations from the ordered ids.
+   * Resolves with only the locations that actually moved (#113).
+   */
+  const reorderStorageLocations = async (request: ReorderLocationsRequest) => {
+    return await client.post<ReorderedEntry[]>('/api/v1/Location/storage/reorder', request)
+  }
+
+  /** The shopping-location counterpart of `reorderStorageLocations`. */
+  const reorderShoppingLocations = async (request: ReorderLocationsRequest) => {
+    return await client.post<ReorderedEntry[]>('/api/v1/Location/shopping/reorder', request)
+  }
+
   return {
     // Storage locations
     getStorageLocations,
+    reorderStorageLocations,
+    reorderShoppingLocations,
     createStorageLocation,
     updateStorageLocation,
     deleteStorageLocation,

@@ -16,6 +16,8 @@ namespace Homassy.API.Models.ShoppingList
         public decimal Quantity { get; set; }
         public Unit Unit { get; set; }
         public string? Note { get; set; }
+        /// <summary>Manual (aisle) position — see <c>ShoppingListItem.SortOrder</c>. Sparse, not an index.</summary>
+        public int SortOrder { get; set; }
         public DateTime? PurchasedAt { get; set; }
         public DateTime? DeadlineAt { get; set; }
         public DateTime? DueAt { get; set; }

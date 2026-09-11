@@ -3,6 +3,7 @@
  * useShoppingListSocket, useMasterDataSocket).
  */
 import type { HubConnection } from '@microsoft/signalr'
+import type { ReorderedEntry } from './masterData'
 import type { ShoppingListItemInfo } from './shoppingList'
 
 /**
@@ -53,5 +54,16 @@ export interface ItemUpsertedEvent {
 export interface ItemDeletedEvent {
   publicId: string
   shoppingListPublicId: string
+  actorPublicId?: string | null
+}
+
+/**
+ * `ItemsReordered` payload (`Homassy.API.Hubs.ShoppingListRealtime.ItemsReorderedAsync`). Carries
+ * only the items whose manual position actually changed, so a viewer patches those and re-sorts
+ * rather than replacing the list.
+ */
+export interface ItemsReorderedEvent {
+  shoppingListPublicId: string
+  entries: ReorderedEntry[]
   actorPublicId?: string | null
 }

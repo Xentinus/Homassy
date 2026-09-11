@@ -72,6 +72,12 @@
       "showResults": "{count} megjelenítése",
       "all": "Összes",
       "clear": "Szűrők törlése"
+    },
+    "unnamed": "Névtelen",
+    "reorder": {
+      "handle": "Húzza az átrendezéshez",
+      "handleFor": "{name} áthelyezése",
+      "failed": "Az új sorrendet nem sikerült menteni."
     }
   },
   "imageCropper": {
@@ -732,7 +738,8 @@
         "deadline": "Lejárat",
         "quantity": "Mennyiség",
         "location": "Bevásárlási hely",
-        "properties": "Tulajdonságok"
+        "properties": "Tulajdonságok",
+        "order": "Sorrend"
       },
       "menu": {
         "add": "Lista hozzáadása",
@@ -831,7 +838,12 @@
       "restorePurchaseInventoryWarning": "Megjegyzés: Ez csak megjelöli az elemet nem vásároltként. NEM távolítja el az elemet a készletből, ha már hozzá lett adva.",
       "noListsHint": "Hozz létre egy listát, és kezdd el összegyűjteni, mire van szükséged.",
       "noItemsInListHint": "Add hozzá az első tételt ehhez a listához.",
-      "noSearchResultsHint": "Próbálj meg más keresési feltételt, vagy töröld a szűrőket"
+      "noSearchResultsHint": "Próbálj meg más keresési feltételt, vagy töröld a szűrőket",
+      "order": {
+        "smart": "Okos",
+        "manual": "Kézi",
+        "manualHint": "Húzza a tételeket abba a sorrendbe, ahogy végigjárja a boltot."
+      }
     },
     "activity": {
       "title": "Tevékenység",
@@ -954,6 +966,20 @@
     "presence": {
       "othersHere": "Még {count} másik itt van",
       "overflow": "+{count} további"
+    },
+    "shoppingMode": {
+      "title": "Vásárlás mód",
+      "enter": "Vásárlás mód indítása",
+      "exit": "Vásárlás mód bezárása",
+      "progress": "{done} / {total} kész",
+      "screenAwake": "A képernyő bekapcsolva marad",
+      "hereSection": "Itt megvehető",
+      "restSection": "A többi",
+      "doneTitle": "Minden a kosárban",
+      "doneBody": "Mind a(z) {count} tétel megvan.",
+      "tick": "{name} megjelölése megvettként",
+      "showDetails": "Részletek",
+      "hideDetails": "Részletek elrejtése"
     }
   },
   "activity": {
@@ -2868,5 +2894,12 @@
         "bodyAllDayLead": "\"{eventTitle}\" {lead} múlva lesz."
       }
     }
+  },
+  "map": {
+    "unavailable": "A térképet nem sikerült betölteni.",
+    "cluster": "{count} helyszín itt",
+    "youAreHere": "Az Ön helyzete",
+    "hide": "Térkép elrejtése",
+    "showAll": "Mind megjelenítése a térképen ({count})"
   }
 }

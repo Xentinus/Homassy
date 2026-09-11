@@ -62,6 +62,13 @@ namespace Homassy.API.Entities.Product
 
         public bool IsEnabled { get; set; } = true;
 
+        /// <summary>
+        /// Manual position in the owner's automation list. Sparse — see
+        /// <see cref="Functions.SparseOrdering"/>. Zero on every pre-existing row, so a list that has
+        /// never been dragged keeps its enabled-then-next-execution order.
+        /// </summary>
+        public int SortOrder { get; set; }
+
         public DateTime? NextExecutionAt { get; set; }
 
         public DateTime? LastExecutedAt { get; set; }

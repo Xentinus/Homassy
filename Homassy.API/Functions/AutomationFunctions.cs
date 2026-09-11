@@ -216,7 +216,10 @@ namespace Homassy.API.Functions
             using var context = _contextFactory.CreateForReading();
             var automations = await context.ItemAutomations
                 .Where(a => a.UserId == userId.Value || (familyId.HasValue && a.FamilyId == familyId.Value))
-                .OrderByDescending(a => a.IsEnabled)
+                // Manual order first; rules that have never been dragged all share position 0 and keep
+                // the enabled-then-soonest order they have always had.
+                .OrderBy(a => a.SortOrder)
+                .ThenByDescending(a => a.IsEnabled)
                 .ThenBy(a => a.NextExecutionAt)
                 .ToListAsync(cancellationToken);
 
@@ -380,6 +383,9 @@ namespace Homassy.API.Functions
                     automation.ScheduledDayOfMonth,
                     userTimeZone);
             }
+
+            // New rules append to the end of the manual order.
+            automation.SortOrder = SparseOrdering.Append(await MaxAutomationSortOrderAsync(context, userId.Value, familyId, cancellationToken));
 
             context.ItemAutomations.Add(automation);
             await context.SaveChangesAsync(cancellationToken);
@@ -1093,6 +1099,7 @@ namespace Homassy.API.Functions
                 ThresholdQuantity = automation.ThresholdQuantity,
                 IsTriggered = automation.IsTriggered,
                 IsEnabled = automation.IsEnabled,
+                SortOrder = automation.SortOrder,
                 NextExecutionAt = automation.NextExecutionAt,
                 LastExecutedAt = automation.LastExecutedAt
             };
@@ -1111,6 +1118,86 @@ namespace Homassy.API.Functions
             };
         }
 
+        #endregion
+
+        #region Manual Ordering
+        /// <summary>
+        /// The highest manual position among the automation rules this caller can see — the same scope
+        /// <see cref="GetAutomationsAsync"/> lists.
+        /// </summary>
+        private static async Task<int?> MaxAutomationSortOrderAsync(HomassyDbContext context, int userId, int? familyId, CancellationToken cancellationToken)
+            => await context.ItemAutomations
+                .Where(a => a.UserId == userId || (familyId.HasValue && a.FamilyId == familyId.Value))
+                .MaxAsync(a => (int?)a.SortOrder, cancellationToken);
+
+        /// <summary>
+        /// Writes a new manual order for the caller's automation rules. See <see cref="SparseOrdering"/>
+        /// for why the full ordered id list usually costs one row write.
+        /// </summary>
+        public async Task<List<ReorderedEntry>> ReorderAutomationsAsync(ReorderAutomationsRequest request, CancellationToken cancellationToken = default)
+        {
+            var userId = SessionInfo.GetUserId();
+            if (!userId.HasValue)
+                throw new UserNotFoundException("User not found");
+
+            var familyId = SessionInfo.GetFamilyId();
+
+            if (request.AutomationPublicIds.Distinct().Count() != request.AutomationPublicIds.Count)
+            {
+                throw new BadRequestException("The requested order contains the same automation twice");
+            }
+
+            using var context = _contextFactory.CreateDbContext();
+            await using var transaction = await context.Database.BeginTransactionAsync(cancellationToken);
+
+            try
+            {
+                var automations = await context.ItemAutomations
+                    .Where(a => request.AutomationPublicIds.Contains(a.PublicId)
+                        && (a.UserId == userId.Value || (familyId.HasValue && a.FamilyId == familyId.Value)))
+                    .ToListAsync(cancellationToken);
+
+                // An unknown or foreign id is rejected rather than skipped, so the client never renders
+                // an order the server did not store.
+                if (automations.Count != request.AutomationPublicIds.Count)
+                {
+                    throw new AutomationNotFoundException("One or more automations were not found");
+                }
+
+                var byPublicId = automations.ToDictionary(a => a.PublicId);
+                var ordered = request.AutomationPublicIds.Select(id => byPublicId[id]).ToList();
+                var changes = SparseOrdering.PlanReorder(ordered.Select(a => a.SortOrder).ToList());
+
+                var moved = new List<ReorderedEntry>(changes.Count);
+                foreach (var (index, sortOrder) in changes)
+                {
+                    ordered[index].SortOrder = sortOrder;
+                    ordered[index].UpdateRecordChange(userId.Value);
+                    moved.Add(new ReorderedEntry { PublicId = ordered[index].PublicId, SortOrder = sortOrder });
+                }
+
+                if (moved.Count > 0)
+                {
+                    await context.SaveChangesAsync(cancellationToken);
+                }
+
+                await transaction.CommitAsync(cancellationToken);
+                Log.Information($"User {userId.Value} reordered automations: {moved.Count} of {ordered.Count} moved");
+
+                if (moved.Count > 0)
+                {
+                    await _runtime.MasterData.AutomationsReorderedAsync(userId.Value, familyId, moved, cancellationToken);
+                }
+
+                return moved;
+            }
+            catch (Exception ex)
+            {
+                await transaction.RollbackAsync(cancellationToken);
+                Log.Error(ex, $"Failed to reorder automations for user {userId.Value}");
+                throw;
+            }
+        }
         #endregion
     }
 }
