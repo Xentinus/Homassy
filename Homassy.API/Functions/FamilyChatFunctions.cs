@@ -363,23 +363,39 @@ namespace Homassy.API.Functions
 
             using (var context = _contextFactory.CreateDbContext())
             {
-                context.Set<FamilyChatMessage>().Add(message);
-                await context.SaveChangesAsync(cancellationToken);
-
-                if (resolved.Count > 0)
+                // One transaction over both saves. The message has to be saved first for its id -
+                // the reference rows' foreign key needs it - but a message that committed while
+                // its references did not is a message everyone else sees having silently lost the
+                // product it was pointing at, while its sender was told the send failed.
+                await using var transaction = await context.Database.BeginTransactionAsync(cancellationToken);
+                try
                 {
-                    foreach (var reference in resolved)
+                    context.Set<FamilyChatMessage>().Add(message);
+                    await context.SaveChangesAsync(cancellationToken);
+
+                    if (resolved.Count > 0)
                     {
-                        context.Set<FamilyChatMessageReference>().Add(new FamilyChatMessageReference
+                        foreach (var reference in resolved)
                         {
-                            FamilyChatMessageId = message.Id,
-                            Kind = reference.Kind,
-                            TargetPublicId = reference.PublicId,
-                            Label = reference.Label
-                        });
+                            context.Set<FamilyChatMessageReference>().Add(new FamilyChatMessageReference
+                            {
+                                FamilyChatMessageId = message.Id,
+                                Kind = reference.Kind,
+                                TargetPublicId = reference.PublicId,
+                                Label = reference.Label
+                            });
+                        }
+
+                        await context.SaveChangesAsync(cancellationToken);
                     }
 
-                    await context.SaveChangesAsync(cancellationToken);
+                    await transaction.CommitAsync(cancellationToken);
+                }
+                catch (Exception ex)
+                {
+                    await transaction.RollbackAsync(cancellationToken);
+                    Log.Error(ex, "Failed to store a chat message for family {FamilyId}", familyId);
+                    throw;
                 }
             }
 

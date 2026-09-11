@@ -17,6 +17,7 @@
         v-if="panelOpen"
         ref="cardEl"
         role="dialog"
+        tabindex="-1"
         :aria-label="t('familyChat.title')"
         class="fixed z-[60] flex flex-col overflow-hidden rounded-2xl border border-default bg-default shadow-2xl"
         :style="cardStyle"
@@ -161,14 +162,27 @@ const cardStyle = computed(() => {
   const viewportHeight = window.visualViewport?.height ?? window.innerHeight
 
   const width = Math.min(MAX_WIDTH, viewportWidth - VIEWPORT_MARGIN * 2)
-  const openDownwards = rect.top + rect.height / 2 < viewportHeight / 2
 
-  // The room between the bubble and the far edge is all the panel can have.
-  const room = openDownwards
-    ? viewportHeight - rect.bottom - ANCHOR_GAP - VIEWPORT_MARGIN
-    : rect.top - ANCHOR_GAP - VIEWPORT_MARGIN
+  // The room between the bubble and the far edge, on each side of it.
+  const roomBelow = viewportHeight - rect.bottom - ANCHOR_GAP - VIEWPORT_MARGIN
+  const roomAbove = rect.top - ANCHOR_GAP - VIEWPORT_MARGIN
 
-  const height = Math.max(MIN_HEIGHT, Math.min(MAX_HEIGHT, room))
+  // Which half the bubble is in decides the side - unless that side cannot hold a conversation
+  // and the other one holds more. A short viewport (a phone in landscape, or one with the
+  // keyboard up) is exactly where the preferred side runs out.
+  const preferDownwards = rect.top + rect.height / 2 < viewportHeight / 2
+  const preferredRoom = preferDownwards ? roomBelow : roomAbove
+  const otherRoom = preferDownwards ? roomAbove : roomBelow
+  const openDownwards = preferredRoom < MIN_HEIGHT && otherRoom > preferredRoom
+    ? !preferDownwards
+    : preferDownwards
+
+  const room = openDownwards ? roomBelow : roomAbove
+
+  // Never taller than the room it has. `MIN_HEIGHT` is the threshold for choosing a side, not a
+  // floor to render at: forcing it would push the composer off the bottom of the screen, which is
+  // the one part of a chat that always has to be reachable.
+  const height = Math.min(MAX_HEIGHT, Math.max(0, room))
   const top = openDownwards
     ? rect.bottom + ANCHOR_GAP
     : Math.max(VIEWPORT_MARGIN, rect.top - ANCHOR_GAP - height)
@@ -265,7 +279,16 @@ watch(panelOpen, async (isOpen) => {
     // The caret goes in the composer, which is what someone opening a chat is about to use - but
     // not on a touch device, where focusing the input throws up the keyboard over the
     // conversation the moment it appears.
-    if (!isMobile.value) await composerRef.value?.focus()
+    if (!isMobile.value) {
+      await composerRef.value?.focus()
+      return
+    }
+
+    // Focus still has to *enter* the dialog, or the Tab trap below has nothing to trap: it keys
+    // off `document.activeElement` being the first or last focusable inside the card, and focus
+    // left outside would simply walk through the page behind it. The card itself takes it
+    // (`tabindex="-1"`), which moves focus without opening the keyboard.
+    cardEl.value?.focus()
     return
   }
 

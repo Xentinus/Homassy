@@ -68,6 +68,18 @@ const activeMembers = ref<FamilyChatActiveMember[]>([])
 let joined = false
 let joinPromise: Promise<void> | null = null
 
+/**
+ * Bumped every time the client leaves the group.
+ *
+ * A join is two awaits deep before it can record that it succeeded, and `leave()` is
+ * fire-and-forget from the bubble's unmount - so a join in flight when the layout is torn down
+ * (a logout, an auth redirect) would otherwise resolve *after* the leave and set `joined` back to
+ * true for a group the server has already dropped this connection from. Since `joined` is
+ * module-scoped, the next mount would then skip joining entirely and the bubble would sit there
+ * silent. A join only records its result if no leave happened while it was waiting.
+ */
+let membershipGeneration = 0
+
 /** At most one `SetTyping(true)` per this many ms while the composer has content. */
 const TYPING_THROTTLE_MS = 2000
 /** Silence after which the client reports that typing has stopped. */
@@ -397,13 +409,16 @@ export const useFamilyChat = () => {
     loading.value = true
     failedToLoad.value = false
 
+    const generation = membershipGeneration
+
     try {
       // Re-joining an already-joined group is a no-op server-side, and it is what makes opening
       // the panel answer with a page that is current rather than whatever the bubble joined with.
       const page = await socket.joinChat()
 
       if (page) {
-        joined = true
+        // Same generation guard as `join`: a leave during this await means the group is gone.
+        if (generation === membershipGeneration) joined = true
         messages.value = toStreamOrder(page.items)
         olderCursor.value = page.nextCursor ?? null
         hydrated.value = true
@@ -453,10 +468,16 @@ export const useFamilyChat = () => {
     if (joined) return
     if (joinPromise) return joinPromise
 
+    const generation = membershipGeneration
+
     joinPromise = (async () => {
       try {
         const page = await socket.joinChat()
         if (!page) return
+
+        // Left while this was in flight: the server has dropped the group, so recording a join
+        // would leave this client believing it is in a group it is not.
+        if (generation !== membershipGeneration) return
 
         joined = true
         // The join answers with the newest page, so keeping it costs nothing and buys two things:
@@ -482,6 +503,8 @@ export const useFamilyChat = () => {
    * Closing the panel deliberately does **not** do this: see `close`.
    */
   const leave = async (): Promise<void> => {
+    // Bumped first, so a join already waiting on the socket cannot record itself afterwards.
+    membershipGeneration++
     joined = false
     typingMembers.value = []
     activeMembers.value = []
@@ -511,10 +534,12 @@ export const useFamilyChat = () => {
 
   /** Re-reads the newest page, keeping older pages that are already loaded out of it. */
   const refresh = async (): Promise<void> => {
+    const generation = membershipGeneration
+
     try {
       const page = await socket.joinChat()
       if (page) {
-        joined = true
+        if (generation === membershipGeneration) joined = true
         messages.value = toStreamOrder(page.items)
         olderCursor.value = page.nextCursor ?? null
         hydrated.value = true
