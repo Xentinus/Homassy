@@ -72,7 +72,16 @@ let panelIsOpen = false
 let heartbeatTimer: ReturnType<typeof setInterval> | null = null
 /** Stops counting a panel left open on a desk as somebody reading it. */
 let inactivityTimer: ReturnType<typeof setTimeout> | null = null
-let visibilityListenerAttached = false
+/**
+ * The visibility handler currently registered on `document`, if any.
+ *
+ * The handler itself is a closure over one `useFamilyChat()` call, and more than one component
+ * calls it (the panel drives the lifecycle, the bubble reads the badge). Storing the exact
+ * function that was added - rather than a boolean saying one was - is what makes
+ * `removeEventListener` able to remove it: passing a different invocation's closure would remove
+ * nothing and leave a listener reporting activity for a panel that is closed.
+ */
+let attachedVisibilityHandler: (() => void) | null = null
 
 /** Refresh interval for the active flag - comfortably inside the server's TTL. */
 const ACTIVE_HEARTBEAT_MS = 20_000
@@ -277,15 +286,15 @@ export const useFamilyChat = () => {
   }
 
   const attachVisibilityListener = (): void => {
-    if (visibilityListenerAttached || !import.meta.client) return
-    document.addEventListener('visibilitychange', onVisibilityChange)
-    visibilityListenerAttached = true
+    if (attachedVisibilityHandler || !import.meta.client) return
+    attachedVisibilityHandler = onVisibilityChange
+    document.addEventListener('visibilitychange', attachedVisibilityHandler)
   }
 
   const detachVisibilityListener = (): void => {
-    if (!visibilityListenerAttached || !import.meta.client) return
-    document.removeEventListener('visibilitychange', onVisibilityChange)
-    visibilityListenerAttached = false
+    if (!attachedVisibilityHandler || !import.meta.client) return
+    document.removeEventListener('visibilitychange', attachedVisibilityHandler)
+    attachedVisibilityHandler = null
   }
 
   /** Re-reads the unread count from the server. Never derived from the loaded stream - that is one page deep. */
