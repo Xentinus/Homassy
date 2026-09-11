@@ -237,6 +237,24 @@ namespace Homassy.API.Context
 
                 entity.HasIndex(e => e.FamilyChatMessageId).IsUnique();
             });
+
+            // Per-member read markers (#149). The unique index is the point: the marker is written
+            // from every device the member has the chat open on, and two of them racing must
+            // update one row rather than quietly create a second one that halves the unread count.
+            modelBuilder.Entity<FamilyChatReadState>(entity =>
+            {
+                entity.HasOne(r => r.User)
+                    .WithMany()
+                    .HasForeignKey(r => r.UserId)
+                    .OnDelete(DeleteBehavior.Cascade);
+
+                entity.HasOne(r => r.Family)
+                    .WithMany()
+                    .HasForeignKey(r => r.FamilyId)
+                    .OnDelete(DeleteBehavior.Cascade);
+
+                entity.HasIndex(e => new { e.UserId, e.FamilyId }).IsUnique();
+            });
             #endregion
 
             #region FamilyJoinRequest Relationships
@@ -437,6 +455,7 @@ namespace Homassy.API.Context
         public DbSet<FamilyExternalCalendar> FamilyExternalCalendars { get; set; }
         public DbSet<FamilyChatMessage> FamilyChatMessages { get; set; }
         public DbSet<FamilyChatImage> FamilyChatImages { get; set; }
+        public DbSet<FamilyChatReadState> FamilyChatReadStates { get; set; }
         public DbSet<ExternalCalendarReminderDispatch> ExternalCalendarReminderDispatches { get; set; }
         #endregion
 

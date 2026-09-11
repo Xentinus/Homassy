@@ -47,6 +47,8 @@ export interface NotificationPreferencesResponse {
   emailWeeklySummaryEnabled: boolean
   pushNotificationsEnabled: boolean
   pushWeeklySummaryEnabled: boolean
+  /** Whether family chat messages may notify this user (#149). Subordinate to `pushNotificationsEnabled`. */
+  pushFamilyChatEnabled: boolean
   inAppNotificationsEnabled: boolean
 }
 
@@ -55,6 +57,7 @@ export interface UpdateNotificationPreferencesRequest {
   emailWeeklySummaryEnabled?: boolean
   pushNotificationsEnabled?: boolean
   pushWeeklySummaryEnabled?: boolean
+  pushFamilyChatEnabled?: boolean
   inAppNotificationsEnabled?: boolean
 }
 

@@ -18,6 +18,7 @@
         :has-older="hasOlder"
         :current-user-public-id="currentUserPublicId"
         @load-older="loadOlder"
+        @seen-latest="markRead"
         @retry="retry"
         @discard="(m) => discard(m.publicId)"
         @delete="onDelete"
@@ -61,6 +62,7 @@
           :current-user-public-id="currentUserPublicId"
           class="h-[26rem]"
           @load-older="loadOlder"
+          @seen-latest="markRead"
           @retry="retry"
           @discard="(m) => discard(m.publicId)"
           @delete="onDelete"
@@ -106,6 +108,8 @@ const {
   typingMembers,
   notifyTyping,
   stopTyping,
+  markRead,
+  armInactivityTimeout,
   open,
   close: leaveChat,
   loadOlder,
@@ -193,6 +197,9 @@ const close = (): void => {
 }
 
 const onSend = async (body: string): Promise<void> => {
+  // Sending is interaction: it pushes back the "nobody is really here" timeout that stops a panel
+  // left open on a desk from swallowing notifications (#149).
+  armInactivityTimeout()
   await send(body)
   streamRef.value?.scrollToBottom()
 }

@@ -75,7 +75,8 @@ Homassy.Notifications/
 │   ├── NotificationContentRenderer.cs  # Envelope + language → the push's title and body
 │   ├── InventoryExpirationService.cs   # Expiring/expired item queries
 │   ├── EmailServiceClient.cs           # HTTP client → Homassy.Email
-│   └── InventoryBroadcastServiceClient.cs  # HTTP client → Homassy.API internal broadcast (realtime relay)
+│   ├── InventoryBroadcastServiceClient.cs  # HTTP client → Homassy.API internal broadcast (realtime relay)
+│   └── FamilyChatActivityClient.cs     # HTTP client → Homassy.API: who is watching the chat (#149)
 └── Workers/
     ├── PushNotificationSchedulerService.cs   # Hourly, Mon 07:00 → weekly push
     ├── ShoppingListActivityMonitorService.cs  # 5 min → shopping list push
@@ -83,6 +84,7 @@ Homassy.Notifications/
     ├── FamilyJoinRequestMonitorService.cs     # 1 min → family join request push
     ├── ItemAutomationWorkerService.cs         # 5 min → item automation execution
     ├── ExternalCalendarReminderService.cs     # 1 min → synced iCal event reminders
+    ├── FamilyChatNotificationService.cs       # 10 s → held, coalesced family chat push
     └── EmailWeeklySummaryService.cs           # Hourly, Mon 07:00 → weekly email
 ```
 
@@ -186,6 +188,30 @@ builder.Services.AddDbContext<HomassyDbContext>(configureDbContext, optionsLifet
 - After an `AutoConsume` commit it relays the inventory change to `Homassy.API` via
   `InventoryBroadcastServiceClient` (→ `POST /api/v1/internal/inventory/broadcast`) so connected
   Készletek grids update live; this process hosts no SignalR hub, so it cannot broadcast directly
+
+### FamilyChatNotificationService
+- Runs every 10 seconds — a chat message somebody is not there for should reach them promptly
+- **Holds bursts rather than sending them.** Messages are accumulated per (family, sender) and
+  dispatched only once that sender has been quiet for ~15s. That gives one push saying "3 new
+  messages" instead of three, and it is also what keeps the phone quiet when you open the chat two
+  seconds after a message lands: by the time the burst flushes you are active, so the notification
+  is dropped rather than cancelled
+- **Eligibility is decided at flush time, never at arrival.** A recipient is skipped if they sent
+  it, if any of their devices is flagged as actively watching, if their `LastReadAt` marker has
+  already passed the message, or if they muted chat notifications
+  (`UserNotificationPreferences.PushFamilyChatEnabled`, a flag of its own so a chatty family can
+  silence the chat without losing expiration alerts). All four can change during the window, which
+  is the point of deciding late
+- The "actively watching" flags live in the **API's** memory (that is where the hub is), so this
+  worker asks over `POST /api/v1/internal/family-chat/active-users`. That call **fails open**: an
+  unreachable API means "nobody is active", because an extra notification is a far better failure
+  than a missing one
+- The watermark is in memory, like the other activity monitors: it starts at "now" on boot, so a
+  restart forgets pending bursts rather than replaying an evening into everybody's lock screen
+- Notification content is the sender's display name as the title and a truncated preview as the
+  body; an image reads as "sent a photo" rather than leaking a link onto a lock screen. The deep
+  link is `/calendar?action=open-chat` — the chat is a panel, not a route, so the link lands on a
+  real page and the layout opens the panel over it (`/` would redirect and drop the query)
 
 ### ExternalCalendarReminderService
 - Runs every minute, so an "at start" reminder is not up to an hour late

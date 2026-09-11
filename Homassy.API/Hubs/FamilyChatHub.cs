@@ -127,6 +127,28 @@ namespace Homassy.API.Hubs
             await BroadcastTypingAsync(familyPublicId.Value);
         }
 
+        /// <summary>
+        /// Reports whether this connection is <b>actively watching</b> the conversation (#149).
+        /// </summary>
+        /// <remarks>
+        /// Being in the group is not this. The chat socket is an app-wide singleton and a
+        /// backgrounded tab keeps a WebSocket alive, so "connected" says nothing about whether
+        /// anybody is looking at the screen - which is the whole question a notification has to
+        /// answer. A member counts as active only while the panel is open and the document is
+        /// visible, and only the client knows that, so it says so explicitly and keeps saying it:
+        /// the flag carries a TTL (<see cref="FamilyChatConnectionState.ActiveTtl"/>) that a
+        /// heartbeat refreshes.
+        /// <para>
+        /// Nothing is broadcast. This is not presence - nobody is shown who is reading - it is an
+        /// input to the notification decision and nothing else.
+        /// </para>
+        /// </remarks>
+        public Task SetChatActive(bool isActive)
+        {
+            _connectionState.SetActive(Context.ConnectionId, isActive, DateTime.UtcNow);
+            return Task.CompletedTask;
+        }
+
         /// <summary>Pushes the family's current typing set, never back to the connection that changed it.</summary>
         private Task BroadcastTypingAsync(Guid familyPublicId)
         {

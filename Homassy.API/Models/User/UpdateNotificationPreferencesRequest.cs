@@ -10,6 +10,9 @@ namespace Homassy.API.Models.User
         public bool? PushNotificationsEnabled { get; init; }
         public bool? PushWeeklySummaryEnabled { get; init; }
 
+        /// <summary>Whether family chat messages may notify this user (#149).</summary>
+        public bool? PushFamilyChatEnabled { get; init; }
+
         // In-app notifications
         public bool? InAppNotificationsEnabled { get; init; }
     }

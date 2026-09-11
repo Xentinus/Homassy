@@ -55,9 +55,40 @@ const TYPING_STOP_MS = 4000
 let lastTypingSentAt = 0
 let typingStopTimer: ReturnType<typeof setTimeout> | null = null
 
+/** Unread messages, as the server counts them (#149). Drives the badge on the bubble. */
+const unreadCount = ref(0)
+
+/**
+ * Whether this client is currently telling the server it is watching the conversation (#149).
+ *
+ * Held so the state can be re-reported after a reconnect: per-connection flags die with the
+ * connection, and a rebuilt socket would otherwise leave a reader looking at the chat while the
+ * server believes nobody is.
+ */
+let reportedActive = false
+/** Whether the panel is currently open, for the visibility handler to key off. */
+let panelIsOpen = false
+/** Keeps the server's active flag alive while the panel is open and visible. */
+let heartbeatTimer: ReturnType<typeof setInterval> | null = null
+/** Stops counting a panel left open on a desk as somebody reading it. */
+let inactivityTimer: ReturnType<typeof setTimeout> | null = null
+let visibilityListenerAttached = false
+
+/** Refresh interval for the active flag - comfortably inside the server's TTL. */
+const ACTIVE_HEARTBEAT_MS = 20_000
+/** How long a panel can sit open and untouched before it stops counting as watched. */
+const ACTIVE_IDLE_MS = 5 * 60_000
+
 export const useFamilyChat = () => {
   const socket = useFamilyChatSocket()
-  const { getMessages, sendMessage, sendImageMessage, deleteMessage } = useFamilyChatApi()
+  const {
+    getMessages,
+    sendMessage,
+    sendImageMessage,
+    getUnreadCount,
+    markRead: markReadApi,
+    deleteMessage
+  } = useFamilyChatApi()
   const authStore = useAuthStore()
 
   const currentUserPublicId = computed(() => authStore.user?.publicId ?? null)
@@ -92,6 +123,12 @@ export const useFamilyChat = () => {
     if (indexOfMessage(message.publicId) >= 0) return
 
     messages.value.push(message)
+
+    // Somebody else's message, arriving while nobody is watching (the panel is closed, or the tab
+    // is in the background): the badge is the only thing that will say so until it is read.
+    if (message.sender.publicId !== currentUserPublicId.value && !reportedActive) {
+      unreadCount.value++
+    }
   }
 
   const onMessageDeleted = (event: FamilyChatMessageDeletedEvent): void => {
@@ -165,6 +202,114 @@ export const useFamilyChat = () => {
     void socket.invokeQuietly('SetTyping', false)
   }
 
+  // --- Watching and read state (#149) --------------------------------------
+
+  /**
+   * Tells the server whether this client is actually watching the conversation.
+   *
+   * "Actively watching" means the panel is open *and* the document is visible, which only the
+   * client knows: the socket is an app-wide singleton and a backgrounded tab keeps a WebSocket
+   * alive, so being connected says nothing about whether anyone is looking. Reporting this
+   * honestly is what decides whether a message notifies - so over-reporting it would swallow
+   * notifications for somebody who is not there.
+   */
+  const setActive = (isActive: boolean): void => {
+    reportedActive = isActive
+    void socket.invokeQuietly('SetChatActive', isActive)
+  }
+
+  /** Refreshes the server's TTL so a reader who is not typing or scrolling still counts. */
+  const startHeartbeat = (): void => {
+    stopHeartbeat()
+    heartbeatTimer = setInterval(() => {
+      if (!import.meta.client) return
+      // Only while the tab is visible: a heartbeat from a backgrounded tab would be the exact
+      // lie this flag exists to avoid.
+      if (document.visibilityState === 'visible') setActive(true)
+    }, ACTIVE_HEARTBEAT_MS)
+  }
+
+  const stopHeartbeat = (): void => {
+    if (heartbeatTimer) {
+      clearInterval(heartbeatTimer)
+      heartbeatTimer = null
+    }
+  }
+
+  /**
+   * Re-arms the "nobody is really here" timer.
+   *
+   * A panel left open on a desk would otherwise suppress every notification for as long as the
+   * app is running, which is the opposite of what a reader who walked away wants.
+   */
+  const armInactivityTimeout = (): void => {
+    if (inactivityTimer) clearTimeout(inactivityTimer)
+    inactivityTimer = setTimeout(() => {
+      setActive(false)
+      stopHeartbeat()
+    }, ACTIVE_IDLE_MS)
+  }
+
+  const clearInactivityTimeout = (): void => {
+    if (inactivityTimer) {
+      clearTimeout(inactivityTimer)
+      inactivityTimer = null
+    }
+  }
+
+  /**
+   * Backgrounding the tab or locking the phone flips the flag to inactive even with the panel
+   * still open - the panel being open is not the same as somebody looking at it.
+   */
+  const onVisibilityChange = (): void => {
+    if (!panelIsOpen) return
+
+    if (document.visibilityState === 'visible') {
+      setActive(true)
+      startHeartbeat()
+      armInactivityTimeout()
+      void markRead()
+    } else {
+      setActive(false)
+      stopHeartbeat()
+      clearInactivityTimeout()
+    }
+  }
+
+  const attachVisibilityListener = (): void => {
+    if (visibilityListenerAttached || !import.meta.client) return
+    document.addEventListener('visibilitychange', onVisibilityChange)
+    visibilityListenerAttached = true
+  }
+
+  const detachVisibilityListener = (): void => {
+    if (!visibilityListenerAttached || !import.meta.client) return
+    document.removeEventListener('visibilitychange', onVisibilityChange)
+    visibilityListenerAttached = false
+  }
+
+  /** Re-reads the unread count from the server. Never derived from the loaded stream - that is one page deep. */
+  const refreshUnreadCount = async (): Promise<void> => {
+    const response = await getUnreadCount().catch(() => null)
+    if (response?.success && response.data) {
+      unreadCount.value = response.data.totalCount
+    }
+  }
+
+  /**
+   * Marks the conversation read up to now.
+   *
+   * Called when the newest message is actually on screen, not on mount: a panel opened in a
+   * background tab, or one scrolled far back through history, has not shown the reader anything
+   * new, and clearing the badge there would lose the only signal that something arrived.
+   */
+  const markRead = async (): Promise<void> => {
+    const response = await markReadApi().catch(() => null)
+    if (response?.success && response.data) {
+      unreadCount.value = response.data.totalCount
+    }
+  }
+
   /**
    * Re-joins after an automatic reconnect and reloads the newest page.
    *
@@ -173,6 +318,11 @@ export const useFamilyChat = () => {
    */
   const rejoin = (): void => {
     void refresh()
+
+    // Per-connection state died with the old connection: the group membership, the typing flag and
+    // the "actively watching" flag. Re-report what this client still believes is true, or the
+    // server goes on notifying a reader who is sitting in front of the conversation.
+    if (reportedActive) setActive(true)
   }
 
   // --- Loading -------------------------------------------------------------
@@ -195,6 +345,8 @@ export const useFamilyChat = () => {
    */
   const open = async (): Promise<void> => {
     subscribe()
+    panelIsOpen = true
+    attachVisibilityListener()
 
     if (loading.value) return
     loading.value = true
@@ -222,6 +374,14 @@ export const useFamilyChat = () => {
       failedToLoad.value = !ok
     } finally {
       loading.value = false
+
+      // Reported after the join, not before it: the flag is per connection, and a connection that
+      // is not in the group yet is not watching anything.
+      if (import.meta.client && document.visibilityState === 'visible') {
+        setActive(true)
+        startHeartbeat()
+        armInactivityTimeout()
+      }
     }
   }
 
@@ -231,6 +391,13 @@ export const useFamilyChat = () => {
     // leave too, but saying so first means the family sees it go immediately.
     stopTyping()
     typingMembers.value = []
+
+    panelIsOpen = false
+    setActive(false)
+    stopHeartbeat()
+    clearInactivityTimeout()
+    detachVisibilityListener()
+
     await socket.leaveChat()
   }
 
@@ -452,6 +619,10 @@ export const useFamilyChat = () => {
     typingMembers,
     notifyTyping,
     stopTyping,
+    unreadCount,
+    refreshUnreadCount,
+    markRead,
+    armInactivityTimeout,
     open,
     close,
     refresh,

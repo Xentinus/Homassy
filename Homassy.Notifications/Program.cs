@@ -40,6 +40,7 @@ try
     builder.Services.AddScoped<InventoryExpirationService>();
     builder.Services.AddHttpClient<EmailServiceClient>();
     builder.Services.AddHttpClient<InventoryBroadcastServiceClient>();
+    builder.Services.AddHttpClient<FamilyChatActivityClient>();
 
     // Background workers
     builder.Services.AddHostedService<PushNotificationSchedulerService>();
@@ -49,6 +50,7 @@ try
     builder.Services.AddHostedService<EmailWeeklySummaryService>();
     builder.Services.AddHostedService<ItemAutomationWorkerService>();
     builder.Services.AddHostedService<ExternalCalendarReminderService>();
+    builder.Services.AddHostedService<FamilyChatNotificationService>();
 
     // Health checks
     builder.Services.AddHealthChecks()

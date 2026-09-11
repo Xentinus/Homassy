@@ -12,6 +12,7 @@
 import type {
   FamilyChatMessage,
   FamilyChatPage,
+  FamilyChatUnreadResponse,
   SendFamilyChatImageRequest,
   SendFamilyChatMessageRequest
 } from '~/types/familyChat'
@@ -60,10 +61,29 @@ export const useFamilyChatApi = () => {
     })
   }
 
+  /**
+   * How many messages the caller has not read (#149).
+   *
+   * No error toast: this is fetched at boot and after every read, neither of which the user asked
+   * for, and a toast about a badge that failed to refresh is noise about nothing they can act on.
+   */
+  const getUnreadCount = async () => {
+    return await client.get<FamilyChatUnreadResponse>('/api/v1/FamilyChat/unread-count', {
+      showErrorToast: false
+    })
+  }
+
+  /** Marks the conversation read up to now. Answers with what is left unread. */
+  const markRead = async () => {
+    return await client.post<FamilyChatUnreadResponse>('/api/v1/FamilyChat/read', {}, {
+      showErrorToast: false
+    })
+  }
+
   /** Deletes one of your own messages. */
   const deleteMessage = async (publicId: string) => {
     return await client.delete(`/api/v1/FamilyChat/messages/${publicId}`)
   }
 
-  return { getMessages, sendMessage, sendImageMessage, deleteMessage }
+  return { getMessages, sendMessage, sendImageMessage, getUnreadCount, markRead, deleteMessage }
 }

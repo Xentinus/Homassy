@@ -74,6 +74,11 @@ export interface FamilyChatStreamMessage extends FamilyChatMessage {
   localPreview?: string
 }
 
+/** How many chat messages the caller has not read (#149) — the bubble's badge. */
+export interface FamilyChatUnreadResponse {
+  totalCount: number
+}
+
 /** One family member currently typing (#148) — the payload of the hub's `TypingChanged` event is a list of these. */
 export interface FamilyChatTypingMember {
   publicId: string

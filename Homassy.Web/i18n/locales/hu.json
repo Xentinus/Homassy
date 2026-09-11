@@ -1253,7 +1253,9 @@
       "pushSection": "Push értesítések",
       "pushDescription": "Push értesítések fogadása fontos eseményekről és heti készletösszefoglalóról.",
       "pushNotifications": "Push értesítések",
-      "pushWeeklySummary": "Heti összefoglaló",
+      "pushFamilyChat": "Családi csevegés",
+    "pushFamilyChatDescription": "Értesítés az új üzenetekről, amikor éppen nem olvassa őket.",
+    "pushWeeklySummary": "Heti összefoglaló",
       "pushDailyDescription": "Értesítést kapsz fontos eseményekről.",
       "pushWeeklyDescription": "Heti összefoglalót kapsz a készletedről.",
       "inAppSection": "Az alkalmazásban",
@@ -2885,6 +2887,12 @@
       "FamilyJoinDeclined": {
         "title": "Belépési kérelem elutasítva",
         "body": "A(z) \"{familyName}\" családhoz küldött kérelmedet elutasították."
+      },
+      "FamilyChatMessages": {
+        "title": "{senderName}",
+        "body": "{preview}",
+        "bodyPhoto": "Képet küldött",
+        "bodyMany": "{count} új üzenet"
       },
       "CalendarEventReminder": {
         "title": "Naptár emlékeztető",

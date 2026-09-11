@@ -185,6 +185,91 @@ namespace Homassy.API.Functions
             };
         }
 
+        /// <summary>
+        /// How many messages the caller has not read yet (#149).
+        /// </summary>
+        /// <remarks>
+        /// Counted against the read marker rather than tracked as a number, so it cannot drift: a
+        /// message deleted after it arrived stops counting by itself, and a second device marking
+        /// the conversation read changes this answer without anything having to be decremented.
+        /// The caller's own messages never count - you have read what you just wrote.
+        /// </remarks>
+        public async Task<int> GetUnreadCountAsync(CancellationToken cancellationToken = default)
+        {
+            var (familyId, _) = RequireFamily();
+            var userId = RequireUserId();
+
+            using var context = _contextFactory.CreateForReading();
+            return await CountUnreadAsync(context, familyId, userId, cancellationToken);
+        }
+
+        private static async Task<int> CountUnreadAsync(
+            HomassyDbContext context,
+            int familyId,
+            int userId,
+            CancellationToken cancellationToken)
+        {
+            var lastReadAt = await context.Set<FamilyChatReadState>()
+                .Where(r => r.UserId == userId && r.FamilyId == familyId)
+                .Select(r => (DateTime?)r.LastReadAt)
+                .FirstOrDefaultAsync(cancellationToken);
+
+            return await context.Set<FamilyChatMessage>()
+                .Where(m => m.FamilyId == familyId
+                    && m.SenderUserId != userId
+                    && (lastReadAt == null || m.SentAt > lastReadAt))
+                .CountAsync(cancellationToken);
+        }
+
+        #endregion
+
+        #region Read state (#149)
+
+        /// <summary>
+        /// Moves the caller's read marker to now, and answers with what is left unread.
+        /// </summary>
+        /// <remarks>
+        /// Idempotent and monotonic: a marker never moves backwards, so a second device reporting
+        /// a moment that has already passed cannot un-read messages the first one had read. That
+        /// also makes this safe to call as often as the client likes, which it does - the panel
+        /// marks read on visibility rather than on mount.
+        /// <para>
+        /// Answers with the new count, the same way every mutating endpoint on the notification
+        /// centre does: the act of reading is what corrects the badge, so the client never has to
+        /// guess it or fetch it again.
+        /// </para>
+        /// </remarks>
+        public async Task<int> MarkReadAsync(CancellationToken cancellationToken = default)
+        {
+            var (familyId, _) = RequireFamily();
+            var userId = RequireUserId();
+            var now = DateTime.UtcNow;
+
+            using var context = _contextFactory.CreateDbContext();
+
+            var state = await context.Set<FamilyChatReadState>()
+                .FirstOrDefaultAsync(r => r.UserId == userId && r.FamilyId == familyId, cancellationToken);
+
+            if (state == null)
+            {
+                state = new FamilyChatReadState
+                {
+                    UserId = userId,
+                    FamilyId = familyId,
+                    LastReadAt = now
+                };
+                context.Set<FamilyChatReadState>().Add(state);
+            }
+            else if (state.LastReadAt < now)
+            {
+                state.LastReadAt = now;
+            }
+
+            await context.SaveChangesAsync(cancellationToken);
+
+            return await CountUnreadAsync(context, familyId, userId, cancellationToken);
+        }
+
         #endregion
 
         #region Writes

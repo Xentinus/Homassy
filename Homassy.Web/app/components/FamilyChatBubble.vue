@@ -48,8 +48,18 @@
           aria-hidden="true"
         />
 
-        <!-- The unread badge lands here in #149. -->
-        <slot name="badge" />
+        <!-- Unread badge (#149), in the same visual language the bottom nav uses for the
+             expiration and deadline counts - one badge vocabulary across the app. -->
+        <span
+          v-if="unreadCount > 0"
+          class="absolute -right-0.5 -top-0.5 flex h-[18px] min-w-[18px] items-center justify-center rounded-full bg-error-500 px-1 shadow-md"
+        >
+          <!-- tabular-nums: the count changes under the mounted badge as messages arrive, and
+               proportional digits would resize the pill on every change. -->
+          <span class="text-[10px] font-bold leading-none text-white tabular-nums">
+            {{ unreadCount > 99 ? '99+' : unreadCount }}
+          </span>
+        </span>
       </button>
     </Transition>
   </Teleport>
@@ -89,7 +99,7 @@ const haptics = useHaptics()
 const { overlayOpen } = useOverlayPresence()
 // Only the typing set is read here; the bubble never joins the hub itself. While the panel has
 // never been opened this is simply empty, which is the correct "nothing to pulse about".
-const { typingMembers } = useFamilyChat()
+const { typingMembers, unreadCount, refreshUnreadCount } = useFamilyChat()
 const {
   isDismissed,
   panelOpen,
@@ -511,6 +521,10 @@ onMounted(async () => {
 
   await loadFamily()
   publishAnchor()
+
+  // The badge is the only thing that says anything happened before the panel is ever opened, so
+  // the count is fetched as soon as there is a family to have one (#149).
+  if (hasFamily.value) await refreshUnreadCount()
 })
 
 onBeforeUnmount(() => {

@@ -99,6 +99,14 @@ const props = defineProps<{
 
 const emit = defineEmits<{
   loadOlder: []
+  /**
+   * The newest message is actually on screen (#149).
+   *
+   * What the panel marks as read off - never "the panel mounted". A panel opened in a background
+   * tab, or one scrolled far back through history, has shown the reader nothing new, and clearing
+   * the badge there would throw away the only signal that something arrived.
+   */
+  seenLatest: []
   retry: [message: FamilyChatStreamMessage]
   discard: [message: FamilyChatStreamMessage]
   delete: [message: FamilyChatStreamMessage]
@@ -145,6 +153,20 @@ const scrollToBottom = (smooth = false): void => {
     behavior: smooth && !prefersReducedMotion() ? 'smooth' : 'auto'
   })
   atBottom.value = true
+  reportSeenLatest()
+}
+
+/**
+ * Says the newest message is on screen - but only while the document is visible.
+ *
+ * A background tab is still "scrolled to the bottom"; nobody is looking at it, and marking the
+ * conversation read from there is exactly the silent badge-clearing this is meant to avoid.
+ */
+const reportSeenLatest = (): void => {
+  if (!import.meta.client || document.visibilityState !== 'visible') return
+  if (props.messages.length === 0) return
+
+  emit('seenLatest')
 }
 
 const prefersReducedMotion = (): boolean =>
@@ -154,7 +176,11 @@ const onScroll = (): void => {
   const el = scrollEl.value
   if (!el) return
 
+  const wasAtBottom = atBottom.value
   atBottom.value = el.scrollHeight - el.scrollTop - el.clientHeight <= BOTTOM_SLACK
+
+  // Scrolling back down to the newest message is a read, the same as having been there already.
+  if (atBottom.value && !wasAtBottom) reportSeenLatest()
 
   if (el.scrollTop > TOP_TRIGGER) return
 
@@ -204,6 +230,8 @@ watch(() => props.messages.length, async (next, previous) => {
 
   if (atBottom.value || isOwnSend) {
     await nextTick()
+    // `scrollToBottom` reports the read itself: a message that arrives while the reader is at the
+    // bottom has been seen the moment it lands.
     scrollToBottom()
   }
 })

@@ -849,6 +849,20 @@ floats over the app (#145) and the panel it opens into (#146).
   shared API client, which reports none, and the async job pipeline that does report it costs a
   second round trip plus a poll loop. A failed picture keeps its preview, so retry re-sends the
   same image rather than asking the user to find it again.
+- **"Actively watching" is reported honestly, and it is not "connected"** (#149). The socket is an
+  app-wide singleton and a backgrounded tab keeps a WebSocket alive, so the client tells the server
+  it is watching only while the panel is open *and* the document is visible: `SetChatActive(true)`
+  on open, `false` on close, `visibilitychange` either way, a heartbeat to hold the server's TTL
+  open, a re-report in `onreconnected` (per-connection state dies with the connection), and an idle
+  timeout so a panel left open on a desk stops suppressing notifications. Over-reporting it would
+  swallow notifications for somebody who is not there.
+- **The badge clears on visibility, never on mount.** `FamilyChatStream` emits `seenLatest` when the
+  newest message is actually on screen *and* the document is visible; a panel opened in a background
+  tab, or one scrolled back through history, has shown the reader nothing. The count itself always
+  comes from the server (the loaded stream is one page deep) and is re-answered by every read.
+- A chat notification deep-links to `/calendar?action=open-chat`; the **auth layout** consumes it
+  and opens the panel over whatever page is showing, rather than navigating — the chat is a panel,
+  not a route. Handled in the layout rather than through `useDeepLinkAction`, which is per page.
 
 ---
 

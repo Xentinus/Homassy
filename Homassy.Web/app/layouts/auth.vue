@@ -105,11 +105,12 @@
 
 <script setup>
 import { ref, computed, onMounted, onUnmounted, watch, nextTick } from 'vue'
-import { useRoute } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import { useDebounceFn } from '@vueuse/core'
 import { useAuthStore } from '~/stores/auth'
 
 const route = useRoute()
+const router = useRouter()
 const { t } = useI18n()
 const { getExpirationCount } = useProductsApi()
 const { getDeadlineCount } = useShoppingListApi()
@@ -381,4 +382,26 @@ const onResize = () => {
 watch(() => authStore.user?.publicId, (publicId) => {
   if (publicId) maybeAutoStart()
 })
+
+// --- Chat deep link (#149) --------------------------------------------------
+// A chat notification lands on a real page and asks for the panel to be opened *over* it: the
+// chat is a panel, not a route, and navigating somewhere would take the reader off whatever they
+// were doing. Handled in the layout rather than through `useDeepLinkAction`, which is per page —
+// the panel belongs to the layout, and the notification can land on any page.
+const { openPanel } = useFamilyChatBubble()
+
+const consumeChatDeepLink = async () => {
+  if (route.query.action !== 'open-chat') return
+
+  // Stripped first, so a back-navigation or a reload does not reopen the panel: a notification is
+  // an instruction, not a piece of page state.
+  const query = { ...route.query }
+  delete query.action
+  await router.replace({ path: route.path, query, hash: route.hash })
+
+  openPanel()
+}
+
+onMounted(consumeChatDeepLink)
+watch(() => route.query.action, () => { consumeChatDeepLink() })
 </script>

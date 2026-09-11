@@ -471,6 +471,45 @@ public static class PushNotificationContentService
         });
     }
 
+    /// <summary>
+    /// A burst of family chat messages from one sender (#149).
+    /// </summary>
+    /// <remarks>
+    /// The sender's name is the title, because on a phone that is the line a reader sees first and
+    /// "who" is the thing they want. The body is the message itself when there is one to show and
+    /// a count when there are several - never a list, which a notification has no room for.
+    /// <para>
+    /// <paramref name="preview"/> is empty for a picture, which reads as "sent a photo": a chat
+    /// image's URL would leak a link to household contents onto a lock screen, and its caption is
+    /// often absent anyway.
+    /// </para>
+    /// </remarks>
+    public static (string Title, string Body) GetFamilyChatMessagesContent(
+        Language language, string senderName, int count, string preview)
+    {
+        if (count > 1)
+        {
+            return language switch
+            {
+                Language.Hungarian => (senderName, $"{count} új üzenet"),
+                Language.German => (senderName, $"{count} neue Nachrichten"),
+                _ => (senderName, $"{count} new messages")
+            };
+        }
+
+        if (!string.IsNullOrWhiteSpace(preview))
+        {
+            return (senderName, preview);
+        }
+
+        return language switch
+        {
+            Language.Hungarian => (senderName, "Képet küldött"),
+            Language.German => (senderName, "Hat ein Foto gesendet"),
+            _ => (senderName, "Sent a photo")
+        };
+    }
+
     /// <summary>Renders a lead time in the largest whole unit it divides into (minutes → hours → days).</summary>
     private static string DescribeLeadTime(Language language, int minutes)
     {

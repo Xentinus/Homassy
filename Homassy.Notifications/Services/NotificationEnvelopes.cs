@@ -103,6 +103,23 @@ public static class NotificationEnvelopes
             ["isAllDay"] = isAllDay ? "true" : "false"
         });
 
+    /// <summary>
+    /// A burst of chat messages from one sender (#149).
+    /// </summary>
+    /// <param name="senderName">Whose messages these are - the notification's title.</param>
+    /// <param name="count">How many messages the burst carried; more than one renders as a count.</param>
+    /// <param name="preview">
+    /// The newest message's text, truncated. Empty for a picture, which renders as "sent a photo"
+    /// rather than leaking a link to it onto a lock screen.
+    /// </param>
+    public static NotificationEnvelope FamilyChatMessages(string senderName, int count, string preview)
+        => new(NotificationType.FamilyChatMessages, new Dictionary<string, string>
+        {
+            ["senderName"] = senderName,
+            ["count"] = Num(count),
+            ["preview"] = preview
+        });
+
     private static string Num(int value) => value.ToString(CultureInfo.InvariantCulture);
 
     private static string Num(decimal value) => value.ToString(CultureInfo.InvariantCulture);

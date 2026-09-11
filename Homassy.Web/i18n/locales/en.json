@@ -1253,7 +1253,9 @@
       "pushSection": "Push Notifications",
       "pushDescription": "Receive push notifications for important events and a weekly inventory summary.",
       "pushNotifications": "Push notifications",
-      "pushWeeklySummary": "Weekly summary",
+      "pushFamilyChat": "Family chat",
+    "pushFamilyChatDescription": "Be notified about new chat messages when you are not reading them.",
+    "pushWeeklySummary": "Weekly summary",
       "pushDailyDescription": "Get notified about important events.",
       "pushWeeklyDescription": "Receive a weekly summary of your inventory.",
       "inAppSection": "In the app",
@@ -2885,6 +2887,12 @@
       "FamilyJoinDeclined": {
         "title": "Join request declined",
         "body": "Your request to join the \"{familyName}\" family was declined."
+      },
+      "FamilyChatMessages": {
+        "title": "{senderName}",
+        "body": "{preview}",
+        "bodyPhoto": "Sent a photo",
+        "bodyMany": "{count} new messages"
       },
       "CalendarEventReminder": {
         "title": "Calendar reminder",

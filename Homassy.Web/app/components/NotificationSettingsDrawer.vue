@@ -74,6 +74,14 @@
                 <USwitch v-model="form.pushWeeklySummaryEnabled" :disabled="isSaving || !form.pushNotificationsEnabled" />
               </div>
               <p class="text-xs text-gray-500 dark:text-gray-400">{{ t('profile.notifications.pushWeeklyDescription') }}</p>
+              <!-- Family chat (#149). Its own switch, subordinate to the push one above it: a
+                   family that chats all evening has to be able to silence the chat without
+                   losing expiration alerts, which turning push off entirely would cost them. -->
+              <div class="flex items-center justify-between">
+                <label class="text-sm font-medium">{{ t('profile.notifications.pushFamilyChat') }}</label>
+                <USwitch v-model="form.pushFamilyChatEnabled" :disabled="isSaving || !form.pushNotificationsEnabled" />
+              </div>
+              <p class="text-xs text-gray-500 dark:text-gray-400">{{ t('profile.notifications.pushFamilyChatDescription') }}</p>
               <UButton
                 v-if="pushSubscribed && original.pushNotificationsEnabled"
                 color="primary"
@@ -146,6 +154,7 @@ interface NotificationForm {
   emailWeeklySummaryEnabled: boolean
   pushNotificationsEnabled: boolean
   pushWeeklySummaryEnabled: boolean
+  pushFamilyChatEnabled: boolean
   inAppNotificationsEnabled: boolean
 }
 
@@ -163,6 +172,7 @@ const emptyForm = (): NotificationForm => ({
   emailWeeklySummaryEnabled: false,
   pushNotificationsEnabled: false,
   pushWeeklySummaryEnabled: false,
+  pushFamilyChatEnabled: true,
   inAppNotificationsEnabled: false
 })
 
@@ -182,6 +192,7 @@ const hasChanges = computed(() => JSON.stringify(form.value) !== JSON.stringify(
 // Turning push off cascades to the weekly push summary (local buffer only).
 watch(() => form.value.pushNotificationsEnabled, (enabled) => {
   if (!enabled) form.value.pushWeeklySummaryEnabled = false
+  if (!enabled) form.value.pushFamilyChatEnabled = false
 })
 
 watch(() => props.open, async (isOpen) => {
@@ -196,6 +207,7 @@ watch(() => props.open, async (isOpen) => {
           emailWeeklySummaryEnabled: !!res.data.emailWeeklySummaryEnabled,
           pushNotificationsEnabled: !!res.data.pushNotificationsEnabled,
           pushWeeklySummaryEnabled: !!res.data.pushWeeklySummaryEnabled,
+          pushFamilyChatEnabled: res.data.pushFamilyChatEnabled !== false,
           inAppNotificationsEnabled: !!res.data.inAppNotificationsEnabled
         }
       : emptyForm()

@@ -98,6 +98,8 @@ The family conversation (#144) — history and the two writes that change it (al
 | Method | Endpoint | Query Params | Description |
 |--------|----------|--------------|-------------|
 | GET | `/messages` | `before`, `limit` | One page of the caller's family conversation, newest first |
+| GET | `/unread-count` | - | How many messages the caller has not read (#149) |
+| POST | `/read` | - | Mark the conversation read up to now; answers with the new unread count (#149) |
 | POST | `/messages` | - | Send a text message |
 | POST | `/messages/image` | - | Send a picture, with an optional caption (#147) |
 | GET | `/messages/{publicId}/image` | `size`, `v` | Serve an image message's picture as **bytes** (#147) |
@@ -115,6 +117,10 @@ The family conversation (#144) — history and the two writes that change it (al
 - The picture endpoint is addressed by the **message's** public id: whether you may see the picture is the same question as whether you may see the message, so one id answers both. It behaves exactly like the avatar and product-image endpoints (ETag, `private, max-age=1y, immutable`, `?size=thumb|full`, `Vary: Accept`). Another family's message answers **404**
 - The message row and its bytes **commit in one transaction, and the broadcast follows the commit** — otherwise a `MessageCreated` can reach clients whose image request would 404
 - Size and mime are validated *before* the bytes reach the decoder, and the image path has its own per-user rate limit (`family-chat:image:{userId}`, 8/min) — an image costs a decode and a resize, so it must not share the text allowance
+- **Read state is one marker per member per family** (`FamilyChatReadStates.LastReadAt`), never a receipt per message: it answers both "how many are unread" and "have they seen this already" at one row per person, and per-message receipts would be a promise this chat does not make. `POST /read` takes no body — "up to now" is the only thing a reader can honestly report — and the marker only moves forward, so calling it often is free
+- **The unread count is derived, never stored**, so it cannot drift: a deleted message stops counting by itself, and a second device reading the chat changes the answer without anything being decremented. Your own messages never count
+- `SetChatActive(bool)` (#149) on the hub is what decides whether a message notifies. **Being in the group is not it**: the socket is an app-wide singleton and a backgrounded tab keeps a WebSocket alive, so a member counts as active only while the panel is open *and* the document is visible, reported explicitly and kept alive by a heartbeat against `ActiveTtl`. Nothing is broadcast — this is not presence, nobody is shown who is reading
+- The notification decision runs in `Homassy.Notifications`, which cannot see those in-memory flags, so it asks over `POST /api/v1/internal/family-chat/active-users` — the same internal, api-key-authenticated path the inventory broadcast relay uses in the other direction. **It fails open**: an unreachable API means "nobody is active", so an outage costs an extra notification rather than a lost one
 - **No server-side link unfurling**, now or by accident later: fetching a user-supplied URL from the API is the SSRF class #78 closed. Rich previews would need their own issue, with an allowlist or an egress proxy
 
 **Realtime (SignalR):**

@@ -59,6 +59,40 @@ public class FamilyChatController : ControllerBase
         return Ok(ApiResponse<FamilyChatPage>.SuccessResponse(page));
     }
 
+    /// <summary>How many messages the caller has not read yet (#149).</summary>
+    /// <remarks>
+    /// Shaped like the expiration and deadline counts the bottom nav already consumes, because it
+    /// feeds the same kind of badge - here, the one on the chat bubble.
+    /// </remarks>
+    [HttpGet("unread-count")]
+    [MapToApiVersion(1.0)]
+    [ProducesResponseType(typeof(ApiResponse<FamilyChatUnreadResponse>), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status403Forbidden)]
+    public async Task<IActionResult> GetUnreadCount(CancellationToken cancellationToken)
+    {
+        var count = await _chatFunctions.GetUnreadCountAsync(cancellationToken);
+        return Ok(ApiResponse<FamilyChatUnreadResponse>.SuccessResponse(new FamilyChatUnreadResponse { TotalCount = count }));
+    }
+
+    /// <summary>
+    /// Marks the caller's family conversation read up to now, and answers with what is left (#149).
+    /// </summary>
+    /// <remarks>
+    /// No body: "read up to now" is the only thing a reader can honestly report, and a client-sent
+    /// timestamp would be a clock this server has no reason to trust. The marker only ever moves
+    /// forward, so calling this often - which the client does, on visibility rather than on mount -
+    /// costs nothing.
+    /// </remarks>
+    [HttpPost("read")]
+    [MapToApiVersion(1.0)]
+    [ProducesResponseType(typeof(ApiResponse<FamilyChatUnreadResponse>), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status403Forbidden)]
+    public async Task<IActionResult> MarkRead(CancellationToken cancellationToken)
+    {
+        var count = await _chatFunctions.MarkReadAsync(cancellationToken);
+        return Ok(ApiResponse<FamilyChatUnreadResponse>.SuccessResponse(new FamilyChatUnreadResponse { TotalCount = count }));
+    }
+
     /// <summary>Posts a text message to the caller's family conversation.</summary>
     [HttpPost("messages")]
     [MapToApiVersion(1.0)]

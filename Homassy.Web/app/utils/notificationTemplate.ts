@@ -53,6 +53,8 @@ const ICONS: Record<string, string> = {
   FamilyJoinApproved: 'i-lucide-user-check',
   FamilyJoinDeclined: 'i-lucide-user-x',
 
+  FamilyChatMessages: 'i-lucide-message-circle',
+
   CalendarEventReminder: 'i-lucide-calendar-clock'
 }
 
@@ -98,6 +100,18 @@ export function notificationTemplate(
  * translator can see them, instead of assembled from fragments in code.
  */
 function bodyKeyFor(type: string, params: Record<string, string>): string {
+  // A chat burst has two shapes and no way to express the difference in one plural form: a single
+  // picture carries no preview text at all, and "" is not something a template can branch on.
+  // Several messages are a count; a single one is its own text, or "sent a photo" when there is
+  // none - the same three-way split the push makes (#149).
+  if (type === 'FamilyChatMessages') {
+    const count = Number.parseInt(params.count ?? '1', 10)
+    if (Number.isFinite(count) && count > 1) return `${BASE}.FamilyChatMessages.bodyMany`
+    return (params.preview ?? '').length > 0
+      ? `${BASE}.FamilyChatMessages.body`
+      : `${BASE}.FamilyChatMessages.bodyPhoto`
+  }
+
   if (type !== 'CalendarEventReminder') return `${BASE}.${type}.body`
 
   const allDay = params.isAllDay === 'true'

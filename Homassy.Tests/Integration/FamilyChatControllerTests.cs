@@ -442,6 +442,131 @@ public class FamilyChatControllerTests : IClassFixture<HomassyWebApplicationFact
 
     #endregion
 
+    #region Unread and read state (#149)
+
+    [Fact]
+    public async Task GetUnreadCount_DoesNotCountYourOwnMessages()
+    {
+        string? testEmail = null;
+        try
+        {
+            var (email, auth) = await _authHelper.CreateAndAuthenticateUserAsync("chat-unread-own");
+            testEmail = email;
+            _authHelper.SetAuthToken(auth.AccessToken);
+            await CreateFamilyAsync("Own Messages Family");
+
+            await SendAsync("talking to myself");
+            await SendAsync("still talking");
+
+            var unread = await GetUnreadCountAsync();
+
+            _output.WriteLine($"Unread after own messages: {unread}");
+            Assert.Equal(0, unread);
+        }
+        finally
+        {
+            _authHelper.ClearAuthToken();
+            if (testEmail != null) await _authHelper.CleanupUserAsync(testEmail);
+        }
+    }
+
+    [Fact]
+    public async Task UnreadCount_CountsAnotherMembersMessagesAndMarkReadClearsThem()
+    {
+        string? ownerEmail = null;
+        string? memberEmail = null;
+        try
+        {
+            var (email, auth) = await _authHelper.CreateAndAuthenticateUserAsync("chat-unread-owner");
+            ownerEmail = email;
+            _authHelper.SetAuthToken(auth.AccessToken);
+            var shareCode = await CreateFamilyAsync("Unread Family");
+
+            var (secondEmail, secondAuth) = await AddFamilyMemberAsync(shareCode, auth.AccessToken, "chat-unread-member");
+            memberEmail = secondEmail;
+
+            // The new member says two things.
+            _authHelper.ClearAuthToken();
+            _authHelper.SetAuthToken(secondAuth.AccessToken);
+            await SendAsync("dinner at seven?");
+            await SendAsync("or eight");
+
+            // The owner has not read them.
+            _authHelper.ClearAuthToken();
+            _authHelper.SetAuthToken(auth.AccessToken);
+
+            var beforeRead = await GetUnreadCountAsync();
+            _output.WriteLine($"Unread before read: {beforeRead}");
+            Assert.Equal(2, beforeRead);
+
+            var afterRead = await MarkReadAsync();
+            _output.WriteLine($"Unread after read: {afterRead}");
+            Assert.Equal(0, afterRead);
+
+            // And it stays read - the marker only ever moves forward.
+            Assert.Equal(0, await GetUnreadCountAsync());
+        }
+        finally
+        {
+            _authHelper.ClearAuthToken();
+            if (ownerEmail != null) await _authHelper.CleanupUserAsync(ownerEmail);
+            if (memberEmail != null) await _authHelper.CleanupUserAsync(memberEmail);
+        }
+    }
+
+    [Fact]
+    public async Task GetUnreadCount_IgnoresAnotherFamilysMessages()
+    {
+        string? ownerEmail = null;
+        string? outsiderEmail = null;
+        try
+        {
+            var (email, auth) = await _authHelper.CreateAndAuthenticateUserAsync("chat-unread-a");
+            ownerEmail = email;
+            _authHelper.SetAuthToken(auth.AccessToken);
+            await CreateFamilyAsync("Loud Family");
+            await SendAsync("nothing to do with you");
+
+            _authHelper.ClearAuthToken();
+            var (otherEmail, otherAuth) = await _authHelper.CreateAndAuthenticateUserAsync("chat-unread-b");
+            outsiderEmail = otherEmail;
+            _authHelper.SetAuthToken(otherAuth.AccessToken);
+            await CreateFamilyAsync("Quiet Family");
+
+            Assert.Equal(0, await GetUnreadCountAsync());
+        }
+        finally
+        {
+            _authHelper.ClearAuthToken();
+            if (ownerEmail != null) await _authHelper.CleanupUserAsync(ownerEmail);
+            if (outsiderEmail != null) await _authHelper.CleanupUserAsync(outsiderEmail);
+        }
+    }
+
+    [Fact]
+    public async Task MarkRead_WithoutFamily_ReturnsForbidden()
+    {
+        string? testEmail = null;
+        try
+        {
+            var (email, auth) = await _authHelper.CreateAndAuthenticateUserAsync("chat-read-nofamily");
+            testEmail = email;
+            _authHelper.SetAuthToken(auth.AccessToken);
+
+            var response = await _client.PostAsync("/api/v1.0/familychat/read", null);
+
+            _output.WriteLine($"Status: {response.StatusCode}");
+            Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
+        }
+        finally
+        {
+            _authHelper.ClearAuthToken();
+            if (testEmail != null) await _authHelper.CleanupUserAsync(testEmail);
+        }
+    }
+
+    #endregion
+
     #region Helpers
 
     /// <summary>Creates a family for the currently authenticated caller and returns its share code.</summary>
@@ -469,6 +594,57 @@ public class FamilyChatControllerTests : IClassFixture<HomassyWebApplicationFact
         var parsed = await response.Content.ReadFromJsonAsync<ApiResponse<FamilyChatMessageInfo>>();
         Assert.NotNull(parsed?.Data);
         return parsed!.Data!;
+    }
+
+    private async Task<int> GetUnreadCountAsync()
+    {
+        var response = await _client.GetAsync("/api/v1.0/familychat/unread-count");
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+
+        var parsed = await response.Content.ReadFromJsonAsync<ApiResponse<FamilyChatUnreadResponse>>();
+        Assert.NotNull(parsed?.Data);
+        return parsed!.Data!.TotalCount;
+    }
+
+    private async Task<int> MarkReadAsync()
+    {
+        var response = await _client.PostAsync("/api/v1.0/familychat/read", null);
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+
+        var parsed = await response.Content.ReadFromJsonAsync<ApiResponse<FamilyChatUnreadResponse>>();
+        Assert.NotNull(parsed?.Data);
+        return parsed!.Data!.TotalCount;
+    }
+
+    /// <summary>
+    /// Creates a second user and walks them through the join-request flow into the family whose
+    /// share code this is, leaving the caller authenticated as nobody.
+    /// </summary>
+    private async Task<(string Email, TestAuthHelper.AuthResponse Auth)> AddFamilyMemberAsync(
+        string shareCode, string approverToken, string prefix)
+    {
+        _authHelper.ClearAuthToken();
+        var (email, auth) = await _authHelper.CreateAndAuthenticateUserAsync(prefix);
+        _authHelper.SetAuthToken(auth.AccessToken);
+
+        var joinResponse = await _client.PostAsJsonAsync(
+            "/api/v1.0/family/join-requests",
+            new JoinFamilyRequest { ShareCode = shareCode });
+        Assert.Equal(HttpStatusCode.OK, joinResponse.StatusCode);
+
+        _authHelper.ClearAuthToken();
+        _authHelper.SetAuthToken(approverToken);
+
+        var pending = await _client.GetFromJsonAsync<ApiResponse<List<FamilyJoinRequestResponse>>>(
+            "/api/v1.0/family/join-requests");
+        var request = Assert.Single(pending!.Data!);
+
+        var approveResponse = await _client.PostAsync(
+            $"/api/v1.0/family/join-requests/{request.PublicId}/approve", null);
+        Assert.Equal(HttpStatusCode.OK, approveResponse.StatusCode);
+
+        _authHelper.ClearAuthToken();
+        return (email, auth);
     }
 
     private async Task<FamilyChatMessageInfo> SendImageAsync(string? caption = null)
