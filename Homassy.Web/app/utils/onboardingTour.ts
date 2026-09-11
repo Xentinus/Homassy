@@ -148,17 +148,32 @@ export function spotlightLayout(
 /**
  * The `clip-path` for the dim layer: the whole viewport with the hole punched out.
  *
- * `evenodd` rather than relying on winding order — with the default `nonzero` the inner
- * ring has to be wound the opposite way round to become a hole, which is a silent,
- * invisible dependency on the order the points happen to be listed in.
+ * `polygon()` draws **one** closed contour, which is the whole difficulty here. Listing
+ * the viewport's four corners and then the hole's four does not give an outer ring plus
+ * an inner one; it gives a single path that runs diagonally from the viewport's
+ * bottom-left corner to the hole and back out to the top-left — and even-odd over that
+ * self-intersecting shape dims a wedge of the screen instead of everything-but-the-hole.
+ * That was the visible bug: the scrim split the app diagonally into a dark half and a
+ * lit half, with the highlighted element nowhere near the lit part (#153).
+ *
+ * So the hole is reached along a *degenerate bridge* instead: straight in along the
+ * viewport's left edge at the hole's top, round the hole, and back out along the same
+ * line. Traced twice in opposite directions, the bridge encloses no area and cannot be
+ * seen. The hole is then wound the opposite way to the viewport rectangle, so `nonzero`
+ * and `evenodd` agree on it — `evenodd` stays declared because it is the rule that makes
+ * the intent explicit, not because the shape depends on it.
  */
 export function holeClipPath(hole: Rect): string {
   const right = hole.x + hole.width
   const bottom = hole.y + hole.height
 
+  // Out along the left edge to the hole's top-left, round the hole, and back out the
+  // way we came in. The bridge is traced twice, so it encloses no area and is invisible.
   return 'polygon(evenodd,'
     + ' 0px 0px, 100% 0px, 100% 100%, 0px 100%,'
-    + ` ${hole.x}px ${hole.y}px, ${hole.x}px ${bottom}px, ${right}px ${bottom}px, ${right}px ${hole.y}px)`
+    + ` 0px ${hole.y}px, ${hole.x}px ${hole.y}px,`
+    + ` ${hole.x}px ${bottom}px, ${right}px ${bottom}px, ${right}px ${hole.y}px,`
+    + ` ${hole.x}px ${hole.y}px, 0px ${hole.y}px)`
 }
 
 function clamp(value: number, min: number, max: number): number {

@@ -12,6 +12,15 @@
  * write (offline, or a 500) does not mean the tour reopens on the next navigation; the
  * server value is what makes it stay away on a new device.
  *
+ * **The record is written when the tour is shown, not when it is finished.** Reaching
+ * the last card and pressing "Skip" are two of the three ways out; the third and by far
+ * the commonest is putting the phone down — and that one used to write nothing at all,
+ * so the tour ambushed the user from step 1 again on every single launch. What the flag
+ * gates is auto-start, and the question auto-start asks is "has this user been shown the
+ * tour", which is answered the moment the first card is on screen. A tour abandoned
+ * halfway is therefore not offered again; the profile's "Replay the tour" row is how it
+ * comes back, deliberately, on the user's own initiative.
+ *
  * All state is module-scoped: the overlay lives in the auth layout, the "replay" row
  * lives in the profile page, and both talk to the same tour.
  */
@@ -102,8 +111,8 @@ export const useOnboardingTour = () => {
   const totalSteps = computed(() => steps.length)
   const isLastStep = computed(() => stepIndex.value >= steps.length - 1)
 
-  /** True once this user has finished or skipped the tour, by either record. */
-  const isCompleted = computed(() => {
+  /** True once this user has been shown the tour, by either record. */
+  const hasSeenTour = computed(() => {
     if (authStore.user?.onboardingCompletedAt) return true
     if (!import.meta.client) return false
     try {
@@ -114,13 +123,38 @@ export const useOnboardingTour = () => {
     }
   })
 
-  function rememberLocally(done: boolean) {
+  function rememberSeenLocally() {
     if (!import.meta.client) return
     try {
-      if (done) localStorage.setItem(STORAGE_KEY, 'true')
-      else localStorage.removeItem(STORAGE_KEY)
+      localStorage.setItem(STORAGE_KEY, 'true')
     } catch {
       // Nothing to do; the server flag is the record that matters.
+    }
+  }
+
+  /**
+   * Record that this user has been shown the tour — the same-device echo first, because
+   * it cannot fail in a way worth waiting for, then the flag on the user.
+   *
+   * Idempotent: a user who already carries the timestamp needs no write, so replaying
+   * the tour is not a round-trip and finishing it is not a second one.
+   *
+   * The store is patched optimistically and the patch is **undone if the write fails**,
+   * so the next call (the end of the tour) tries again rather than believing a record
+   * that was never stored. Until then the local echo is what keeps the tour shut, which
+   * is exactly what it is for.
+   */
+  async function markSeen() {
+    rememberSeenLocally()
+    if (authStore.user?.onboardingCompletedAt) return
+
+    authStore.applyUserPatch({ onboardingCompletedAt: new Date().toISOString() })
+    try {
+      await updateOnboarding(true)
+    } catch {
+      // Offline, or the API is unreachable. `updateOnboarding` shows no toast and there
+      // is nothing here for the user to act on — the tour has been shown either way.
+      authStore.applyUserPatch({ onboardingCompletedAt: null })
     }
   }
 
@@ -169,12 +203,19 @@ export const useOnboardingTour = () => {
     targetRect.value = el ? el.getBoundingClientRect() : null
   }
 
-  /** Start (or restart) the tour from the first showable step. */
+  /**
+   * Start (or restart) the tour from the first showable step.
+   *
+   * Records "shown" here rather than at the end — see the note at the top of the file.
+   * The write is not awaited before the first card goes up: the tour is on screen the
+   * moment `isActive` flips, and a slow round-trip must not delay it.
+   */
   async function start() {
     if (!import.meta.client) return
     isActive.value = true
     stepIndex.value = 0
     targetRect.value = null
+    void markSeen()
     await showStep(0)
   }
 
@@ -188,26 +229,27 @@ export const useOnboardingTour = () => {
   }
 
   /**
-   * End the tour and record it. Skipping and finishing are the same outcome on
-   * purpose: both mean "do not show me this again", and a user who skipped has made
-   * that call just as deliberately as one who read every step.
+   * End the tour. Skipping and finishing are the same outcome on purpose: both mean "do
+   * not show me this again", and a user who skipped has made that call just as
+   * deliberately as one who read every step.
+   *
+   * `markSeen` already ran at the start, so this is normally a no-op — it is here to
+   * pick up the case where that write failed and the connection has since come back.
    */
   async function complete() {
     isActive.value = false
     targetRect.value = null
-    rememberLocally(true)
-
-    // Patch the store first so `isCompleted` is true immediately — otherwise a
-    // navigation before the request lands could re-trigger the auto-start check.
-    authStore.applyUserPatch({ onboardingCompletedAt: new Date().toISOString() })
-    await updateOnboarding(true)
+    await markSeen()
   }
 
-  /** Arm the tour again, from the profile's "Replay the tour" row. */
+  /**
+   * Replay the tour, from the profile's "Replay the tour" row.
+   *
+   * Deliberately does **not** clear the flag: the user is watching the tour now, on
+   * purpose, and arming auto-start for their next launch is not what they asked for.
+   * Clearing it would also be immediately undone by `start`.
+   */
   async function replay() {
-    rememberLocally(false)
-    authStore.applyUserPatch({ onboardingCompletedAt: null })
-    await updateOnboarding(false)
     await start()
   }
 
@@ -229,10 +271,10 @@ export const useOnboardingTour = () => {
       autoStartAttempted = false
       return
     }
-    if (isCompleted.value) return
+    if (hasSeenTour.value) return
 
     await waitForSplash()
-    if (isCompleted.value) return
+    if (hasSeenTour.value) return
     await start()
   }
 
@@ -243,7 +285,7 @@ export const useOnboardingTour = () => {
     stepNumber,
     totalSteps,
     isLastStep,
-    isCompleted,
+    hasSeenTour,
     start,
     next,
     skip: complete,

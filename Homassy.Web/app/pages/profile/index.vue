@@ -442,9 +442,10 @@ async function onSavePreference(value: string) {
 }
 
 // --- First-run tour (#98) ---------------------------------------------------
-// `replay()` clears the flag and starts the tour immediately. The tour's first step
-// targets the bottom nav, which is in the layout and therefore already on screen, so
-// there is nothing to navigate to before it can begin.
+// `replay()` starts the tour immediately, leaving the "already seen it" flag alone —
+// watching it again now is not a request to be shown it again on the next launch. The
+// first step targets the bottom nav, which is in the layout and therefore already on
+// screen, so there is nothing to navigate to before it can begin.
 const { replay: replayTour } = useOnboardingTour()
 const replayingTour = ref(false)
 

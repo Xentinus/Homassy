@@ -730,12 +730,32 @@ wrapper `div` or renaming a class does not break the tour.
   user to a new phone. It rides back on `GET /auth/me`, a payload the app already fetches at boot.
   `localStorage` (`homassy_onboarding_done`) is kept as a same-device echo: a failed write must not
   mean the tour reopens on the next navigation. Skipping and finishing record the same thing.
-- **"Replay the tour"** in the profile's Preferences group clears the flag and starts it again.
+- **The flag is written when the tour is *shown*, not when it ends.** Finishing and skipping are
+  two of the three ways out of a tour; the third — putting the phone down — is the commonest, and
+  it used to write nothing, so the tour restarted from step 1 on every launch forever. What the
+  flag gates is auto-start, whose question is "has this user been shown the tour", and that is
+  answered when the first card appears. `markSeen()` is idempotent, writes the local echo first,
+  and **reverts its optimistic store patch if the request fails** so the end of the tour retries.
+  The consequence, accepted deliberately: a tour abandoned at step 2 is not offered again, and
+  "Replay the tour" is how it comes back.
+- **"Replay the tour"** in the profile's Preferences group starts it again and deliberately leaves
+  the flag set — watching it now is not a request to be ambushed by it on the next launch. So
+  nothing in the app sends `completed: false` any more; `PUT /User/onboarding` keeps the capability.
 - The card prefers to sit below its hole and flips above when there is no room — the everyday case,
   since the nav is at the bottom — and clamps into the viewport rather than hanging off the edge
-  when it fits on neither side. The `clip-path` names `evenodd` instead of relying on winding
-  order, and always emits the same number of points, which is what lets the hole glide between
-  steps. Under `prefers-reduced-motion` the transitions are dropped and each step simply appears.
+  when it fits on neither side. Under `prefers-reduced-motion` the transitions are dropped and
+  each step simply appears.
+- **The cut-out's `clip-path` is one contour with a degenerate bridge, not two rings.** `polygon()`
+  draws a single closed path, so listing the viewport's corners followed by the hole's does not
+  give an outer ring and an inner one — it gives a shape with a diagonal running from the
+  viewport's bottom-left corner to the hole, and even-odd over that dims a *wedge* of the screen
+  with the highlighted element outside it. (That shipped, and is what "the tour's lighting is
+  inside out" was.) `holeClipPath` therefore runs in along the viewport's left edge at the hole's
+  top, round the hole, and back out along the same line: traced twice, the bridge encloses no area
+  and is invisible, and the hole is wound the opposite way to the rectangle so `nonzero` and
+  `evenodd` agree. The point count is constant whatever the rect, which is what lets the hole
+  glide between steps. `tests/unit/onboardingTour.spec.ts` pins it by asserting every edge is
+  axis-aligned — a diagonal edge *is* the bug.
 
 ---
 

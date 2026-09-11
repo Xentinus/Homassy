@@ -89,15 +89,20 @@ export const useUserApi = () => {
   }
 
   /**
-   * Record that the first-run tour was finished or skipped, or (with `false`) arm it
-   * again — the profile's "Replay the tour" row (#98).
+   * Record that the first-run tour has been shown to this user (#98) — written when the
+   * tour starts, not when it ends, so abandoning it halfway does not leave it ambushing
+   * the user on every launch. `useOnboardingTour` explains why.
+   *
+   * `false` clears the flag and arms auto-start again. Nothing in the app sends it today:
+   * "Replay the tour" runs the tour without re-arming it, which is what the user asked
+   * for by tapping the row. The endpoint keeps the capability.
    *
    * The flag is *read* back on `GET /auth/me`, not here: the client needs it at boot,
    * which is a payload it already fetches.
    *
-   * No error toast. The tour has already ended on screen by the time this is called,
-   * and the local echo in `useOnboardingTour` keeps it from reopening on this device,
-   * so a failed write is not something the user can act on.
+   * No error toast. The tour is on screen either way by the time this is called, and the
+   * local echo in `useOnboardingTour` keeps it from reopening on this device, so a failed
+   * write is not something the user can act on.
    */
   const updateOnboarding = async (completed: boolean) => {
     return await client.put('/api/v1/User/onboarding', { completed }, { showErrorToast: false })
