@@ -42,6 +42,17 @@
             :aria-pressed="locationTracking"
             @click="toggleLocation"
           />
+          <!-- Shopping mode (#131): the in-store view. Only offered while there is something left
+               to buy — the stripped screen has nothing to show for an empty list. -->
+          <UButton
+            v-if="pendingItemCount > 0"
+            icon="i-lucide-shopping-basket"
+            color="primary"
+            variant="outline"
+            size="md"
+            :aria-label="$t('shoppingList.shoppingMode.enter')"
+            @click="enterShoppingMode"
+          />
           <UChip :show="activeFilterCount > 0" :text="activeFilterCount" color="primary" size="2xl">
             <UButton
               icon="i-lucide-sliders-horizontal"
@@ -198,6 +209,47 @@
           </div>
         </div>
 
+        <!-- Manual (aisle) order (#113): one grid with drag handles, and no "buy here" split — two
+             independently-ordered sections have no meaningful drag between them, and the whole point
+             of this mode is that the order on screen is the order the user set. The smart ordering
+             below is still there; this is a mode alongside it, not a replacement. -->
+        <div v-if="isManualOrder" ref="gridEl">
+          <AnimatedList class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+            <div
+              v-for="entry in manualItemsWithAttribution"
+              :key="entry.item.publicId"
+              :data-reorder-key="entry.item.publicId"
+              class="relative rounded-2xl"
+              :class="{ 'item-attribution-flash': !!entry.attribution, 'row-updated-flash': entry.updated }"
+              :style="entry.attribution?.style"
+            >
+              <ShoppingListItemCard
+                :item="entry.item"
+                :search-query="searchQuery"
+                :best-price="bestPriceFor(entry.item)"
+                :at-current-location="isItemAtCurrentLocation(entry.item)"
+                :similar-type-at-current-location="isItemSimilarTypeHere(entry.item)"
+                :shopping-locations="allShoppingLocations"
+                :current-store="currentStoreForItem(entry.item)"
+                reorderable
+                :dragging="reorder.draggingKey.value === entry.item.publicId"
+                @refresh="handleItemRefresh"
+                @delete-requested="handleDeleteRequested(entry.item)"
+                @purchase-requested="(request) => handlePurchaseRequested(entry.item, request)"
+                @restore-requested="handleRestoreRequested(entry.item)"
+                @reorder-lift="(event) => reorder.startDrag(event, entry.item.publicId)"
+                @reorder-move="(direction) => reorder.moveByKeyboard(entry.item.publicId, direction)"
+              />
+              <div v-if="entry.attribution" class="item-attribution-label">
+                <span class="item-attribution-dot" :style="entry.attribution.style" />
+                {{ $t('shoppingList.changedBy', { name: entry.attribution.name }) }}
+              </div>
+              <span v-if="entry.updated" class="sr-only">{{ $t('realtime.updatedFlash') }}</span>
+            </div>
+          </AnimatedList>
+        </div>
+
+        <template v-else>
         <!-- "Buy here" section — the items you can pick up in the store you're standing in
              (exact store + same-type stores), pinned above the rest of the list. Rendered as
              its own grid rather than a spanning header inside one: two TransitionGroups keep
@@ -281,6 +333,7 @@
             <span v-if="entry.updated" class="sr-only">{{ $t('realtime.updatedFlash') }}</span>
           </div>
         </AnimatedList>
+        </template>
       </template>
     </div>
 
@@ -319,6 +372,17 @@
               {{ $t('pages.shoppingLists.noListsFound') }}
             </p>
           </div>
+
+          <!-- Ordering (#113). Not a filter — it decides how the open list is arranged, and is
+               remembered per list, since the aisle order of one shop says nothing about another. -->
+          <FilterChipGroup
+            v-model="sortMode"
+            :label="$t('pages.shoppingLists.filterLabels.order')"
+            :options="sortModeOptions"
+          />
+          <p v-if="isManualOrder" class="-mt-3 text-xs text-muted">
+            {{ $t('pages.shoppingLists.order.manualHint') }}
+          </p>
 
           <!-- Deadline status -->
           <FilterChipGroup
@@ -435,6 +499,24 @@
 
     <!-- Barcode Scanner Modal -->
     <BarcodeScannerModal :on-barcode-detected="handleBarcodeScanned" />
+
+    <!-- Shopping mode (#131) — the in-store view of the open list. It owns none of the data: the
+         tick it emits goes through the same optimistic purchase path as the planning card's. -->
+    <ShoppingModeView
+      v-if="isShoppingMode && currentListDetails"
+      :items="currentListDetails.items"
+      :list-name="currentListDetails.name"
+      :here-item-ids="hereItemIds"
+      :best-prices="bestPricesByProduct"
+      :attributions="attributions"
+      :current-store-public-id="currentStorePublicId"
+      @close="exitShoppingMode"
+      @purchase-requested="(item, request) => handlePurchaseRequested(item, request)"
+    >
+      <template #presence>
+        <PresenceAvatars :members="socket.presentMembers.value" />
+      </template>
+    </ShoppingModeView>
   </div>
 </template>
 
@@ -442,7 +524,7 @@
 import { ref, computed, watch, onMounted, onBeforeUnmount } from 'vue'
 import type { SelectValue } from '../../types/selectValue'
 import type { DetailedShoppingListInfo, ShoppingListItemInfo, ShoppingListInfo, PurchaseShoppingListItemRequest } from '../../types/shoppingList'
-import type { ItemDeletedEvent, ItemUpsertedEvent } from '../../types/realtime'
+import type { ItemDeletedEvent, ItemUpsertedEvent, ItemsReorderedEvent } from '../../types/realtime'
 import { SelectValueType, StoreType } from '../../types/enums'
 import { useSelectValueApi } from '../../composables/api/useSelectValueApi'
 import { useShoppingListApi } from '../../composables/api/useShoppingListApi'
@@ -464,7 +546,7 @@ definePageMeta({
 
 const { t: $t, locale } = useI18n()
 const { getSelectValues } = useSelectValueApi()
-const { getShoppingListDetails, deleteShoppingListItem, purchaseShoppingListItem, restorePurchaseShoppingListItem } = useShoppingListApi()
+const { getShoppingListDetails, deleteShoppingListItem, purchaseShoppingListItem, restorePurchaseShoppingListItem, reorderShoppingListItems } = useShoppingListApi()
 const { getShoppingLocations } = useLocationsApi()
 const { getBestPrices } = useInsightsApi()
 const { showCameraButton } = useCameraAvailability()
@@ -500,6 +582,9 @@ const { pullDistance, isPulling, isRefreshing, isReady } = usePullToRefresh(asyn
 const LAST_SELECTED_LIST_KEY = 'lastSelectedShoppingListId'
 const SHOW_PURCHASED_KEY = 'shoppingListsShowPurchased'
 const FILTERS_KEY = 'shoppingListsFilters'
+// Per list, not global: the aisle order of one shop says nothing about another, so a list dragged
+// into a route keeps its manual mode while every other list stays on the smart ordering.
+const SORT_MODES_KEY = 'shoppingListsSortModes'
 
 // State
 const allShoppingLists = ref<SelectValue[]>([])
@@ -1179,6 +1264,89 @@ const withAttribution = (items: ShoppingListItemInfo[]) =>
 const hereItemsWithAttribution = computed(() => withAttribution(hereItems.value))
 const restItemsWithAttribution = computed(() => withAttribution(restItems.value))
 
+// --- Manual (aisle) order (#113) --------------------------------------------
+// A mode alongside the smart ordering above, not a replacement for it: the urgency-then-name sort
+// is what most lists want, and the aisle order is what a list you shop the same way every week
+// wants. Which one a list uses is remembered per list.
+
+const sortModes = ref<Record<string, 'smart' | 'manual'>>({})
+
+const sortMode = computed<string>({
+  get: () => (selectedListId.value ? sortModes.value[selectedListId.value] : null) ?? 'smart',
+  set: (mode) => {
+    if (!selectedListId.value) return
+    sortModes.value = { ...sortModes.value, [selectedListId.value]: mode === 'manual' ? 'manual' : 'smart' }
+    localStorage.setItem(SORT_MODES_KEY, JSON.stringify(sortModes.value))
+  }
+})
+
+const isManualOrder = computed(() => sortMode.value === 'manual')
+
+const sortModeOptions = computed(() => [
+  { label: $t('pages.shoppingLists.order.smart'), value: 'smart' },
+  { label: $t('pages.shoppingLists.order.manual'), value: 'manual' }
+])
+
+const gridEl = ref<HTMLElement | null>(null)
+
+/** The open list's items, as the reorder composable's mutation target. */
+const listItems = computed(() => currentListDetails.value?.items ?? [])
+
+/**
+ * Which items the filters currently let through. Reuses `filteredItems` rather than restating the
+ * filter logic, so a drag under an active filter can only ever reorder rows the user can see.
+ */
+const visibleItemIds = computed(() => new Set(filteredItems.value.map(item => item.publicId)))
+
+const reorder = useReorderableList<ShoppingListItemInfo>({
+  items: listItems,
+  container: gridEl,
+  // Rows nobody has dragged all sit at sortOrder 0, so a list switched into manual order for the
+  // first time opens in the alphabetical order it was already showing rather than an arbitrary one.
+  baseSort: (a, b) => getDisplayName(a).toLowerCase().localeCompare(getDisplayName(b).toLowerCase(), 'hu'),
+  filter: item => visibleItemIds.value.has(item.publicId),
+  enabled: () => isManualOrder.value,
+  commit: (orderedIds) => {
+    const listId = selectedListId.value
+    if (!listId) return Promise.resolve(undefined)
+    return reorderShoppingListItems({ shoppingListPublicId: listId, itemPublicIds: orderedIds })
+  },
+  onFailed: (error) => {
+    console.error('Failed to reorder shopping list items:', error)
+    toast.add({ title: $t('common.error'), description: $t('common.reorder.failed'), color: 'error' })
+  }
+})
+
+const manualItemsWithAttribution = computed(() => withAttribution(reorder.orderedItems.value))
+
+// --- Shopping mode (#131) ---------------------------------------------------
+
+const shoppingMode = useShoppingMode()
+
+const pendingItemCount = computed(() =>
+  (currentListDetails.value?.items ?? []).filter(item => !item.purchasedAt).length)
+
+const isShoppingMode = computed(() => shoppingMode.isActiveFor(selectedListId.value))
+
+/** The rows shopping mode pins on top — the same "buy here" set the planning view sections off. */
+const hereItemIds = computed(() =>
+  isAtAnyStore.value
+    ? (currentListDetails.value?.items ?? []).filter(isItemBuyableHere).map(item => item.publicId)
+    : [])
+
+/** Where the user is standing, so a tick in the shop records the price against the right store. */
+const currentStorePublicId = computed(() =>
+  allShoppingLocations.value.find(l => nearbyLocationIds.value.has(l.publicId))?.publicId)
+
+const enterShoppingMode = () => {
+  if (!selectedListId.value) return
+  shoppingMode.enter(selectedListId.value)
+}
+
+// Also what the view calls when the list runs out of things to buy — it owns that timing, so the
+// completion celebration is not cut off by the page closing the screen out from under it.
+const exitShoppingMode = () => shoppingMode.exit(selectedListId.value)
+
 // The store the user is currently standing at, used to pre-fill an item's purchase location.
 // Prefers the item's own store if the user is at it, otherwise the first nearby saved store.
 const currentStoreForItem = (item: ShoppingListItemInfo): ShoppingLocationInfo | undefined => {
@@ -1550,6 +1718,15 @@ const handleRealtimeItemDeleted = ({ publicId, shoppingListPublicId }: ItemDelet
   clearAttribution(publicId)
 }
 
+// Someone else dragged a row. Only the items that actually moved are carried, so this patches those
+// positions and lets the manual order recompute — a viewer in the smart ordering is unaffected,
+// which is the point of keeping the two as separate modes.
+const handleRealtimeItemsReordered = ({ shoppingListPublicId, entries, actorPublicId }: ItemsReorderedEvent) => {
+  if (shoppingListPublicId !== selectedListId.value) return
+  reorder.applyReorderedEntries(entries)
+  for (const entry of entries) attributeChange(entry.publicId, actorPublicId)
+}
+
 const handleRealtimeListUpdated = (list: ShoppingListInfo) => {
   if (!currentListDetails.value || list.publicId !== selectedListId.value) return
   currentListDetails.value.name = list.name
@@ -1653,6 +1830,7 @@ onMounted(() => {
   // Register realtime handlers before any list is joined so no events are missed.
   socket.on('ItemUpserted', handleRealtimeItemUpserted)
   socket.on('ItemDeleted', handleRealtimeItemDeleted)
+  socket.on('ItemsReordered', handleRealtimeItemsReordered)
   socket.on('ListUpdated', handleRealtimeListUpdated)
   socket.on('ListDeleted', handleRealtimeListDeleted)
   socket.onReconnected(handleSocketReconnected)
@@ -1661,6 +1839,21 @@ onMounted(() => {
   const savedShowPurchased = localStorage.getItem(SHOW_PURCHASED_KEY)
   if (savedShowPurchased !== null) {
     showPurchased.value = savedShowPurchased === 'true'
+  }
+
+  // Restore the per-list ordering modes (whitelist-validated, same as the filters below).
+  const savedSortModes = localStorage.getItem(SORT_MODES_KEY)
+  if (savedSortModes) {
+    try {
+      const parsed = JSON.parse(savedSortModes) as Record<string, unknown>
+      const restored: Record<string, 'smart' | 'manual'> = {}
+      for (const [listId, mode] of Object.entries(parsed)) {
+        if (mode === 'smart' || mode === 'manual') restored[listId] = mode
+      }
+      sortModes.value = restored
+    } catch {
+      // Ignore malformed stored modes — every list falls back to the smart ordering.
+    }
   }
 
   // Restore the persisted filter settings (whitelist-validated)
@@ -1688,6 +1881,7 @@ onBeforeUnmount(() => {
   // connection itself stays alive for other pages / quick re-entry).
   socket.off('ItemUpserted', handleRealtimeItemUpserted)
   socket.off('ItemDeleted', handleRealtimeItemDeleted)
+  socket.off('ItemsReordered', handleRealtimeItemsReordered)
   socket.off('ListUpdated', handleRealtimeListUpdated)
   socket.off('ListDeleted', handleRealtimeListDeleted)
   socket.offReconnected(handleSocketReconnected)
