@@ -218,10 +218,21 @@ public sealed class FamilyChatNotificationService : BackgroundService
 
         var envelope = NotificationEnvelopes.FamilyChatMessages(senderName, burst.Count, burst.LastPreview);
 
+        // What each target's app icon should say once this push lands. Computed per recipient and
+        // read from the database, never derived from `burst.Count`: the burst is what this sender
+        // just wrote, while the badge is everything still waiting for that reader - including
+        // messages from somebody else and the shopping list's own deadlines.
+        var badgeCounts = new Dictionary<int, int>(targets.Count);
+        foreach (var target in targets)
+        {
+            badgeCounts[target.Id] = await AppBadgeCount.ForUserAsync(context, target.Id, familyId, cancellationToken);
+        }
+
         // The chat is a panel, not a route, so the link lands on a real page and asks the layout
         // to open the panel over it. `/calendar` is where an authenticated session lands anyway;
         // `/` would redirect there and drop the query on the way.
-        await _notifier.DispatchAsync(context, targets, [envelope], "/calendar?action=open-chat", cancellationToken);
+        await _notifier.DispatchAsync(
+            context, targets, [envelope], "/calendar?action=open-chat", cancellationToken, badgeCounts);
 
         Log.Information(
             "Notified {Count} member(s) of family {FamilyId} about {Messages} chat message(s)",

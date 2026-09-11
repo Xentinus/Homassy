@@ -315,7 +315,15 @@ export const useFamilyChat = () => {
    * still open - the panel being open is not the same as somebody looking at it.
    */
   const onVisibilityChange = (): void => {
-    if (!panelIsOpen) return
+    if (!panelIsOpen) {
+      // The panel is closed, but the app has just come back to the foreground - and while it was
+      // backgrounded the socket may have been suspended or dropped, so every `MessageCreated`
+      // that would have counted into the badge was missed. The server's count is the only one
+      // that survived that, so ask it. (Reconnecting re-joins the group but says nothing about
+      // what arrived while it was gone.)
+      if (document.visibilityState === 'visible') void refreshUnreadCount()
+      return
+    }
 
     if (document.visibilityState === 'visible') {
       setActive(true)
@@ -371,6 +379,10 @@ export const useFamilyChat = () => {
    */
   const rejoin = (): void => {
     void refresh()
+
+    // The badge counted the broadcasts this client was there for, and it was there for none of
+    // them while the connection was down. Only the server knows what arrived in the gap.
+    void refreshUnreadCount()
 
     // Per-connection state died with the old connection: the group membership, the typing flag and
     // the "actively watching" flag. Re-report what this client still believes is true, or the
@@ -466,6 +478,9 @@ export const useFamilyChat = () => {
     if (!import.meta.client) return
 
     subscribe()
+    // Attached from here, not only from `open`: the badge has to be right after the app comes
+    // back from the background whether or not the panel was ever opened.
+    attachVisibilityListener()
     if (joined) return
     if (joinPromise) return joinPromise
 
@@ -509,6 +524,7 @@ export const useFamilyChat = () => {
     joined = false
     typingMembers.value = []
     activeMembers.value = []
+    detachVisibilityListener()
     await socket.leaveChat()
   }
 
@@ -528,7 +544,9 @@ export const useFamilyChat = () => {
     setActive(false)
     stopHeartbeat()
     clearInactivityTimeout()
-    detachVisibilityListener()
+    // The visibility listener stays: with the panel closed its job is keeping the unread badge
+    // honest across a backgrounded app, which is exactly when it matters most. `leave` is what
+    // takes it down.
 
     await Promise.resolve()
   }

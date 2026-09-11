@@ -716,9 +716,14 @@ mid-navigation. Client-only: during SSR the count is always 0 (the fetch is an a
 client call), so a server-rendered prefix could only ever be a hydration mismatch.
 
 `sw-push.js` sets the badge too, so the icon is right without the app being opened — but only when
-the push payload carries a `badgeCount`, and only the weekly summary sends one, being the one
-notification that knows a count. A payload without one leaves the badge alone rather than
-incrementing, which would drift the moment two devices received the same push.
+the push payload carries a `badgeCount`. Two senders know one: the weekly summary (the expiring
+count it is already about) and a family chat message, whose worker computes the recipient's own
+number server-side — unread messages plus shopping-list items due or overdue, the default pair
+this badge counts (`Homassy.Notifications/Services/AppBadgeCount.cs`). It cannot see the
+device-local switches above, so a device that turned one of those sources off carries a slightly
+high number until the app is next opened and the client recomputes. A payload without a
+`badgeCount` leaves the badge alone rather than incrementing, which would drift the moment two
+devices received the same push.
 
 ---
 
@@ -901,6 +906,15 @@ floats over the app (#145) and the panel it opens into (#146).
   newest message is actually on screen *and* the document is visible; a panel opened in a background
   tab, or one scrolled back through history, has shown the reader nothing. The count itself always
   comes from the server (the loaded stream is one page deep) and is re-answered by every read.
+- **The count is re-read from the server whenever this client can have missed a broadcast**: on
+  mount, after an automatic reconnect (the connection was down for every message it was down for),
+  when the app returns to the foreground with the panel closed (a backgrounded tab's socket may
+  have been suspended), and when a push arrives while a tab is open. Counting arrivals locally is
+  right only while the socket is actually delivering them, and it is exactly the cases where it is
+  not that the badge is the only thing on screen.
+- The visibility listener is therefore attached by `join` (the bubble mounting) rather than by
+  `open`, and taken down by `leave` rather than by `close` - with the panel shut its job is keeping
+  the badge honest, which is when it matters most.
 - A chat notification deep-links to `/calendar?action=open-chat`; the **auth layout** consumes it
   and opens the panel over whatever page is showing, rather than navigating — the chat is a panel,
   not a route. Handled in the layout rather than through `useDeepLinkAction`, which is per page.
