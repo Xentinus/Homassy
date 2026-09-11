@@ -766,6 +766,67 @@ wrapper `div` or renaming a class does not break the tour.
 
 ---
 
+## Family chat (the bubble and the panel)
+
+The family's conversation, reachable from anywhere without a nav slot or a route: a chat head that
+floats over the app (#145) and the panel it opens into (#146).
+
+| Piece | Role |
+|---|---|
+| `app/components/FamilyChatBubble.vue` | the draggable chat head, mounted in `layouts/auth.vue` |
+| `app/composables/useFamilyChatBubble.ts` | its shared flags: dismissed-for-session, panel open, the live anchor rect |
+| `app/composables/useOverlayPresence.ts` | "is a drawer or modal open" — answered from the DOM, not a register |
+| `app/components/FamilyChatPanel.vue` | bottom sheet on mobile, anchored card on desktop |
+| `app/components/FamilyChatStream.vue` | the message list: day separators, paging, scroll behaviour |
+| `app/components/FamilyChatMessageGroup.vue` | one sender run — avatar and name once, then their messages |
+| `app/components/FamilyChatComposer.vue` | the input row (Enter sends, Shift+Enter newlines) |
+| `app/composables/useFamilyChat.ts` | the stream state, optimistic send, paging, delete |
+| `app/composables/useFamilyChatSocket.ts` | the `/hubs/family-chat` client |
+| `app/utils/familyChat.ts` | the pure grouping rules (unit-tested) |
+| `i18n/locales/*.json` → `familyChat` | all three locales |
+
+- **The bubble is teleported to `<body>`**, for the reason `NavFab` is not: `UApp` sets
+  `isolation: isolate`, and a floating surface has to paint above the app's own stacking context.
+  It is mounted in the layout so it survives navigation, and `ClientOnly` because its position
+  comes from `localStorage` and its family from an authenticated fetch — a server-rendered bubble
+  could only ever mismatch on hydration.
+- **Its gesture follows `useDrawerDragToClose`'s conventions**: `touch-action: none`, a slop
+  threshold before a press becomes a drag (so a tap is still a tap), live `transform` while
+  dragging, an explicit release easing. On release it snaps to the nearer edge; the position is
+  stored as **viewport fractions**, so rotation and resize keep it sensible, and every restore is
+  re-clamped rather than trusted.
+- **It hides itself for three different reasons**: no family (nothing to open), a drawer or modal
+  open — *except its own panel*, which on mobile is a drawer and whose handle the bubble is — and
+  dismissed this session. Dismissal is session-scoped with a settings row as the way back, because
+  the bubble is how the chat is reached at all.
+- **The morph is two different things on the two platforms, on purpose.** Desktop gets the real
+  one: the card's `transform-origin` is the bubble's live centre, so it scales out of the circle
+  that was tapped. On mobile the panel is an `AppDrawer` — which is what buys drag-down-to-close,
+  the backdrop and the focus trap for free — and vaul owns the transform on the sheet element while
+  it animates, so the morph is applied to the sheet's *contents*, anchored at the bubble's own x.
+- **Optimistic send reconciles on a correlation id, never on content.** The sender receives their
+  own `MessageCreated` broadcast like everyone else; the id the client generated before sending is
+  echoed back, which is what stops the message rendering twice. A failed send stays on screen as a
+  failed bubble with retry and discard — it holds the text the user wrote.
+- **Scroll rules follow from newest-at-the-bottom**: "load older" fires at the top and the previous
+  scroll height is restored after the prepend (otherwise the stream jumps backwards exactly as the
+  reader walks back through it), a send scrolls to the bottom, and an arriving message only does so
+  if the reader was already there — otherwise the jump-to-latest pill says something arrived.
+- **Windowing is a render cap, not a virtual scroller** (`renderLimit` in `FamilyChatStream`). What
+  hurts is a year of history mounted at once after several "load older" pages, not the rows on
+  screen; a cap keeps scroll anchoring and text selection working, which a virtualiser over
+  variable-height rows would have to reimplement.
+- **Sender colour is the family identity colour (#114)** through `useMemberColor`, never a palette
+  invented for the chat: a member is one colour everywhere, and a second scheme would make the same
+  person two different people.
+- Day separators go through the same `groupByDay` / `formatDayBucketDate` pair the activity
+  timeline and the notification centre use, so "Today" means the same thing in all three.
+- **Message text renders as text nodes, never `v-html`.** The API deliberately does not sanitize
+  the body (it would reject `<`, `>` and "5 < 10"), so this is where that safety is actually paid
+  for.
+
+---
+
 ## Notification centre (`useNotificationCenter`)
 
 The inbox behind the bell in `AppHeader`. It replaces nothing: `NotificationSettingsDrawer`

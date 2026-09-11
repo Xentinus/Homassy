@@ -2903,6 +2903,26 @@
     "showAll": "Alle auf der Karte zeigen ({count})"
   },
   "familyChat": {
+    "title": "Familienchat",
+    "composer": {
+      "placeholder": "Nachricht schreiben…",
+      "send": "Senden"
+    },
+    "stream": {
+      "beginning": "Hier beginnt Ihr Familienchat",
+      "jumpToLatest": "Zum Neuesten springen",
+      "emptyTitle": "Noch keine Nachrichten",
+      "emptyDescription": "Schreiben Sie Ihrer Familie – sie sieht es sofort."
+    },
+    "state": {
+      "pending": "Wird gesendet",
+      "failed": "Nicht gesendet",
+      "retry": "Erneut versuchen"
+    },
+    "actions": {
+      "title": "Nachricht",
+      "delete": "Nachricht löschen"
+    },
     "bubble": {
       "open": "Chat von {family} öffnen",
       "restore": {

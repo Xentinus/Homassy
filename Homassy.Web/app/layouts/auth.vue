@@ -98,6 +98,7 @@
          fetch, so a server-rendered bubble could only ever mismatch on hydration. -->
     <ClientOnly>
       <FamilyChatBubble />
+      <FamilyChatPanel />
     </ClientOnly>
   </UApp>
 </template>

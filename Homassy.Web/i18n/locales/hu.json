@@ -2903,6 +2903,26 @@
     "showAll": "Mind megjelenítése a térképen ({count})"
   },
   "familyChat": {
+    "title": "Családi csevegés",
+    "composer": {
+      "placeholder": "Írjon üzenetet…",
+      "send": "Küldés"
+    },
+    "stream": {
+      "beginning": "Itt kezdődik a családi csevegés",
+      "jumpToLatest": "Ugrás a legújabbra",
+      "emptyTitle": "Még nincs üzenet",
+      "emptyDescription": "Írjon a családjának – azonnal látni fogják."
+    },
+    "state": {
+      "pending": "Küldés folyamatban",
+      "failed": "Nem sikerült elküldeni",
+      "retry": "Újra"
+    },
+    "actions": {
+      "title": "Üzenet",
+      "delete": "Üzenet törlése"
+    },
     "bubble": {
       "open": "{family} csevegés megnyitása",
       "restore": {

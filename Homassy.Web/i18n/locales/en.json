@@ -2903,6 +2903,26 @@
     "showAll": "Show all on the map ({count})"
   },
   "familyChat": {
+    "title": "Family chat",
+    "composer": {
+      "placeholder": "Write a message…",
+      "send": "Send"
+    },
+    "stream": {
+      "beginning": "This is the beginning of your family chat",
+      "jumpToLatest": "Jump to latest",
+      "emptyTitle": "No messages yet",
+      "emptyDescription": "Say something to your family — they will see it straight away."
+    },
+    "state": {
+      "pending": "Sending",
+      "failed": "Not sent",
+      "retry": "Retry"
+    },
+    "actions": {
+      "title": "Message",
+      "delete": "Delete message"
+    },
     "bubble": {
       "open": "Open the {family} chat",
       "restore": {

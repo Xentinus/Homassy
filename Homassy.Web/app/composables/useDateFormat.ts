@@ -67,9 +67,34 @@ export const useDateFormat = () => {
     }
   }
 
+  /**
+   * Just the time of day, 24-hour, in the viewer's own timezone.
+   *
+   * The chat stream (#146) puts one of these on every message, so it has to be the short form -
+   * `formatDateTime` would repeat the date on every line of a conversation that is already under
+   * a day separator saying it once. 24-hour matches `formatDateTime` above rather than branching
+   * per locale, so the two never disagree about what o'clock it is on the same screen.
+   */
+  const formatTime = (dateString: string | undefined): string => {
+    if (!dateString) return ''
+
+    try {
+      const date = new Date(dateString)
+      if (isNaN(date.getTime())) return dateString
+
+      const hours = String(date.getHours()).padStart(2, '0')
+      const minutes = String(date.getMinutes()).padStart(2, '0')
+      return `${hours}:${minutes}`
+    } catch (error) {
+      console.error('Time formatting error:', error)
+      return dateString
+    }
+  }
+
   return {
     formatDate,
-    formatDateTime
+    formatDateTime,
+    formatTime
   }
 }
 

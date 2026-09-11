@@ -18,6 +18,7 @@
       <button
         v-if="visible"
         ref="bubbleEl"
+        data-chat-bubble
         type="button"
         :aria-label="t('familyChat.bubble.open', { family: familyName })"
         class="fixed left-0 top-0 z-[55] flex h-14 w-14 items-center justify-center overflow-hidden rounded-full bg-primary-500 text-white shadow-xl ring-2 ring-white/80 dark:ring-gray-900/80 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-primary-300"
@@ -80,6 +81,7 @@ const haptics = useHaptics()
 const { overlayOpen } = useOverlayPresence()
 const {
   isDismissed,
+  panelOpen,
   loadPosition,
   savePosition,
   dismissForSession,
@@ -140,7 +142,13 @@ const prefersReducedMotion = (): boolean =>
   import.meta.client && window.matchMedia('(prefers-reduced-motion: reduce)').matches
 
 const visible = computed(() =>
-  hasFamily.value && placed.value && !isDismissed.value && !overlayOpen.value
+  hasFamily.value
+  && placed.value
+  && !isDismissed.value
+  // A drawer or modal is open - unless it is the chat panel itself, which on mobile *is* a
+  // drawer. The bubble is that panel's handle and the anchor its morph runs out of, so hiding
+  // it there would hide the thing the panel came from (#146).
+  && (!overlayOpen.value || panelOpen.value)
 )
 
 const initials = computed(() => {
