@@ -824,6 +824,21 @@ floats over the app (#145) and the panel it opens into (#146).
 - **Message text renders as text nodes, never `v-html`.** The API deliberately does not sanitize
   the body (it would reject `<`, `>` and "5 < 10"), so this is where that safety is actually paid
   for.
+- **Links are the one piece of markup derived from user input** (`app/utils/linkify.ts`, unit
+  tested). It returns typed *segments*, never HTML, so the template still renders text nodes and
+  only the link segments become anchors — `target="_blank" rel="noopener noreferrer nofollow"`. The
+  label always shows the full host and only ever shortens the path, because a rewritten label is
+  how a spoofed link works; the concatenated segments are the original message, character for
+  character.
+- **Pictures**: picked with one `accept="image/*"` input (a phone offers camera and gallery from
+  it), cropped in the existing `ImageCropper` — the crop screen *is* the preview — compressed
+  client-side, then posted as base64. The optimistic bubble shows the local `data:` URL, so the
+  sender sees their own photo immediately, and the box is sized from the stored dimensions so the
+  stream never reflows as images load. Tapping opens the existing `ImageLightbox`.
+- **There is no byte-level upload progress**, deliberately: the upload is one JSON POST through the
+  shared API client, which reports none, and the async job pipeline that does report it costs a
+  second round trip plus a poll loop. A failed picture keeps its preview, so retry re-sends the
+  same image rather than asking the user to find it again.
 
 ---
 

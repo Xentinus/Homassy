@@ -37,9 +37,49 @@
           @pointerleave="cancelLongPress"
           @contextmenu.prevent="openActions(message)"
         >
-          <!-- Rendered as a text node, never v-html: the body is user input, and the only markup
-               this app derives from it is the link handling in #147. -->
-          <p class="whitespace-pre-wrap break-words">{{ message.body }}</p>
+          <!-- A picture (#147). The box is reserved from the stored dimensions before the bytes
+               arrive, so the stream does not reflow as images load. -->
+          <button
+            v-if="message.kind === 'Image' && imageSrc(message)"
+            type="button"
+            class="relative -mx-1 -mt-1 mb-1 block overflow-hidden rounded-xl"
+            :style="{ aspectRatio: aspectRatio(message), width: '15rem', maxWidth: '100%' }"
+            :aria-label="t('familyChat.image.open')"
+            @click="openImage(message)"
+          >
+            <img
+              :src="imageSrc(message)!"
+              :alt="message.body || t('familyChat.image.alt')"
+              class="h-full w-full object-cover"
+              crossorigin="use-credentials"
+              loading="lazy"
+            >
+
+            <!-- The upload has no byte-level progress (see useFamilyChat.sendImage); what this
+                 says is "this one is still on its way", which is the part that matters. -->
+            <span
+              v-if="message.sendState === 'pending'"
+              class="absolute inset-0 flex items-center justify-center bg-black/40"
+            >
+              <UIcon name="i-lucide-loader-circle" class="h-6 w-6 animate-spin text-white" />
+            </span>
+          </button>
+
+          <!-- Rendered as text nodes and anchors, never v-html: the body is user input, and a
+               link is the only markup this app derives from it (#147). -->
+          <p v-if="message.body" class="whitespace-pre-wrap break-words">
+            <template v-for="(segment, index) in segmentsOf(message.body)" :key="index">
+              <a
+                v-if="segment.type === 'link'"
+                :href="segment.href"
+                target="_blank"
+                rel="noopener noreferrer nofollow"
+                class="underline underline-offset-2"
+                :title="segment.href"
+              >{{ segment.label }}</a>
+              <template v-else>{{ segment.value }}</template>
+            </template>
+          </p>
 
           <div
             class="mt-0.5 flex items-center justify-end gap-1 text-[10px] leading-none"
@@ -75,6 +115,15 @@
     </div>
   </div>
 
+  <!-- The app's existing viewer, which is where pinch-zoom and the open/close transition already
+       live. One image at a time: a chat is not a gallery, and the picture the reader tapped is
+       the one they meant. -->
+  <ImageLightbox
+    v-model:open="lightboxOpen"
+    :images="lightboxImages"
+    :origin="lightboxOrigin"
+  />
+
   <UModal v-model:open="actionsOpen" :title="t('familyChat.actions.title')">
     <template #body>
       <div class="space-y-2">
@@ -97,8 +146,10 @@
 
 <script setup lang="ts">
 import { computed, ref } from 'vue'
+import ImageLightbox, { type LightboxImage } from '~/components/ImageLightbox.vue'
 import type { FamilyChatStreamMessage } from '~/types/familyChat'
 import type { SenderRun } from '~/utils/familyChat'
+import { linkifySegments, type ChatTextSegment } from '~/utils/linkify'
 
 /**
  * One sender run in the chat stream (#146): the avatar and name once, then that person's
@@ -129,10 +180,14 @@ const LONG_PRESS_MS = 450
 const { t } = useI18n()
 const { formatTime } = useDateFormat()
 const { accentStyle } = useMemberColor()
+const { mediaUrl } = useMediaUrl()
 const haptics = useHaptics()
 
 const actionsOpen = ref(false)
 const actionTarget = ref<FamilyChatStreamMessage | null>(null)
+const lightboxOpen = ref(false)
+const lightboxImages = ref<LightboxImage[]>([])
+const lightboxOrigin = ref<HTMLElement | null>(null)
 let longPressTimer: ReturnType<typeof setTimeout> | null = null
 
 const sender = computed(() => props.run.messages[0]!.sender)
@@ -157,6 +212,48 @@ const bubbleClass = (message: FamilyChatStreamMessage): string => {
   }
 
   return 'bg-elevated text-default rounded-bl-sm border-l-2'
+}
+
+// --- Pictures and links (#147) ---------------------------------------------
+
+/** Message text split into plain and link segments. Never HTML — see `utils/linkify`. */
+const segmentsOf = (body: string): ChatTextSegment[] => linkifySegments(body)
+
+/**
+ * What to draw for an image message: the uploaded thumbnail, or - while it is still uploading -
+ * the local preview the sender picked, so their own photo is on screen immediately.
+ */
+const imageSrc = (message: FamilyChatStreamMessage): string | null => {
+  if (message.localPreview) return message.localPreview
+  // `mediaUrl` answers undefined for a path it cannot resolve; the lightbox and the template
+  // both speak null, so it is normalised here rather than in three call sites.
+  return message.imageUrl ? (mediaUrl(message.imageUrl) ?? null) : null
+}
+
+/**
+ * The picture's own shape, so its box is the right size before the bytes arrive.
+ *
+ * A message with no stored dimensions (an optimistic row, whose picture has not been through the
+ * server yet) falls back to 4:3 rather than collapsing to nothing - the box is replaced by the
+ * real one as soon as the committed message lands.
+ */
+const aspectRatio = (message: FamilyChatStreamMessage): string => {
+  if (message.imageWidth && message.imageHeight) {
+    return `${message.imageWidth} / ${message.imageHeight}`
+  }
+  return '4 / 3'
+}
+
+const openImage = (message: FamilyChatStreamMessage): void => {
+  const full = message.imageFullUrl ? mediaUrl(message.imageFullUrl) : imageSrc(message)
+  if (!full) return
+
+  lightboxImages.value = [{
+    thumb: imageSrc(message),
+    full,
+    alt: message.body || null
+  }]
+  lightboxOpen.value = true
 }
 
 // --- Message actions -------------------------------------------------------

@@ -39,7 +39,7 @@ let subscribed = false
 
 export const useFamilyChat = () => {
   const socket = useFamilyChatSocket()
-  const { getMessages, sendMessage, deleteMessage } = useFamilyChatApi()
+  const { getMessages, sendMessage, sendImageMessage, deleteMessage } = useFamilyChatApi()
   const authStore = useAuthStore()
 
   const currentUserPublicId = computed(() => authStore.user?.publicId ?? null)
@@ -261,13 +261,83 @@ export const useFamilyChat = () => {
     return true
   }
 
-  /** Re-sends a failed message, in place. */
+  /**
+   * Appends a picture optimistically and uploads it (#147).
+   *
+   * The optimistic row carries the local `data:` URL the picker produced, so the sender sees
+   * their own photo immediately instead of a grey box for the length of the upload. It is
+   * replaced wholesale by the committed message, which carries an image *URL* — that is the
+   * moment the base64 stops being held in memory.
+   *
+   * There is no byte-level progress bar: the upload is one JSON POST through the shared API
+   * client, which reports none. The pictures are resized and compressed on this side before they
+   * are sent, so the wait is short enough that a spinner on the bubble says as much as a bar
+   * would; the async job pipeline that *does* report progress (`/image/upload-async`) costs a
+   * second round trip and a poll loop, which is the wrong trade for a chat photo.
+   */
+  const sendImage = async (imageBase64: string, previewDataUrl: string, caption?: string): Promise<boolean> => {
+    const correlationId = newCorrelationId()
+    const optimistic: FamilyChatStreamMessage = {
+      publicId: correlationId,
+      kind: 'Image',
+      body: caption?.trim() || null,
+      sentAt: new Date().toISOString(),
+      sender: {
+        publicId: currentUserPublicId.value ?? '',
+        displayName: authStore.user?.displayName || authStore.user?.name || '',
+        profilePictureUrl: authStore.user?.profilePictureUrl ?? null,
+        identityColor: authStore.user?.identityColor ?? null
+      },
+      sendState: 'pending',
+      correlationId,
+      localPreview: previewDataUrl
+    }
+
+    messages.value.push(optimistic)
+
+    const response = await sendImageMessage({
+      imageBase64,
+      caption: caption?.trim() || undefined,
+      correlationId
+    }).catch(() => null)
+
+    const index = messages.value.findIndex(m => m.correlationId === correlationId)
+
+    if (!response?.success || !response.data) {
+      // Kept, with its preview, so "retry" can send the same picture rather than asking the user
+      // to find it again.
+      if (index >= 0) messages.value[index] = { ...messages.value[index]!, sendState: 'failed' }
+      return false
+    }
+
+    if (index >= 0) {
+      messages.value[index] = { ...response.data, sendState: 'sent', correlationId }
+    }
+
+    return true
+  }
+
+  /**
+   * Re-sends a failed message, in place.
+   *
+   * A failed picture is re-sent from the preview it is still showing - that data URL is the
+   * cropped image itself, which is why the failed row keeps it rather than asking the sender to
+   * find the photo again.
+   */
   const retry = async (message: FamilyChatStreamMessage): Promise<boolean> => {
-    if (message.sendState !== 'failed' || !message.body) return false
+    if (message.sendState !== 'failed') return false
 
     const index = messages.value.findIndex(m => m.publicId === message.publicId)
     if (index >= 0) messages.value.splice(index, 1)
 
+    if (message.kind === 'Image' && message.localPreview) {
+      const base64 = message.localPreview.includes(',')
+        ? message.localPreview.split(',')[1]!
+        : message.localPreview
+      return await sendImage(base64, message.localPreview, message.body ?? undefined)
+    }
+
+    if (!message.body) return false
     return await send(message.body)
   }
 
@@ -309,6 +379,7 @@ export const useFamilyChat = () => {
     refresh,
     loadOlder,
     send,
+    sendImage,
     retry,
     remove,
     discard,

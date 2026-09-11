@@ -4,6 +4,7 @@ using Homassy.API.Entities.Family;
 using Homassy.API.Enums;
 using Homassy.API.Exceptions;
 using Homassy.API.Models.Activity;
+using Homassy.API.Models.ImageUpload;
 using Homassy.API.Models.FamilyChat;
 using Homassy.API.Services;
 using Microsoft.EntityFrameworkCore;
@@ -51,15 +52,40 @@ namespace Homassy.API.Functions
         /// </remarks>
         public const int SendMaxPerWindow = 40;
 
+        /// <summary>
+        /// Pictures one user may send per <see cref="RateWindow"/> (#147).
+        /// </summary>
+        /// <remarks>
+        /// Its own bucket, far lower than the text one: an image costs a decode, a resize and a
+        /// few hundred kilobytes of storage, so the two paths must not share an allowance - a
+        /// chatty evening would otherwise spend the budget that stops an upload loop.
+        /// </remarks>
+        public const int ImageMaxPerWindow = 8;
+
+        /// <summary>
+        /// Largest picture the chat accepts, before decoding (#147).
+        /// </summary>
+        /// <remarks>
+        /// Checked against the base64's decoded length *before* the bytes are handed to the image
+        /// decoder, which is the point: a decoder is the expensive, attackable part, and the size
+        /// of the payload is knowable without running it.
+        /// </remarks>
+        public const long MaxImageBytes = 8 * 1024 * 1024;
+
+        /// <summary>Longest caption an image message may carry.</summary>
+        public const int MaxCaptionLength = 500;
+
         private static readonly TimeSpan RateWindow = TimeSpan.FromMinutes(1);
 
         private readonly FunctionsRuntime _runtime;
         private readonly IDbContextFactory<HomassyDbContext> _contextFactory;
+        private readonly IImageProcessingService _imageProcessingService;
 
-        public FamilyChatFunctions(FunctionsRuntime runtime)
+        public FamilyChatFunctions(FunctionsRuntime runtime, IImageProcessingService imageProcessingService)
         {
             _runtime = runtime;
             _contextFactory = runtime.ContextFactory;
+            _imageProcessingService = imageProcessingService;
         }
 
         #region Access
@@ -142,10 +168,11 @@ namespace Homassy.API.Functions
 
             var last = rows.Count > 0 ? rows[^1] : null;
             var senders = LoadSenders(rows.Select(r => r.SenderUserId));
+            var images = await LoadImageRenditionsAsync(context, rows, cancellationToken);
 
             return new FamilyChatPage
             {
-                Items = rows.Select(r => ToInfo(r, senders)).ToList(),
+                Items = rows.Select(r => ToInfo(r, senders, images)).ToList(),
                 NextCursor = hasMore && last != null
                     ? ActivityCursor.Encode(last.SentAt, last.PublicId)
                     : null
@@ -195,7 +222,7 @@ namespace Homassy.API.Functions
                 await context.SaveChangesAsync(cancellationToken);
             }
 
-            var info = ToInfo(message, LoadSenders([userId]));
+            var info = ToInfo(message, LoadSenders([userId]), NoImages);
 
             // Broadcast after the commit, never before: a client that renders a message the
             // database went on to reject has no way to find out it is gone.
@@ -203,6 +230,146 @@ namespace Homassy.API.Functions
 
             Log.Debug("User {UserId} sent chat message {PublicId} to family {FamilyId}", userId, message.PublicId, familyId);
             return info;
+        }
+
+        /// <summary>
+        /// Posts a picture to the caller's family conversation and broadcasts it (#147).
+        /// </summary>
+        /// <remarks>
+        /// The message row and its bytes are committed in one transaction, and the broadcast comes
+        /// after that commit. That ordering is the whole reason this is one method rather than a
+        /// message send followed by an upload: a <c>MessageCreated</c> whose picture is not stored
+        /// yet is a message every client renders with an image that 404s.
+        /// <para>
+        /// The stored bytes are a resized rendition plus a thumbnail, never the camera's original -
+        /// a modern phone photo is several megabytes, and a conversation would accumulate them
+        /// forever. <c>IImageProcessingService</c> also strips EXIF on the way through, which for a
+        /// chat matters more than anywhere else in this app: a photo taken at home carries the
+        /// coordinates of the house.
+        /// </para>
+        /// </remarks>
+        public async Task<FamilyChatMessageInfo> SendImageMessageAsync(
+            SendFamilyChatImageRequest request,
+            CancellationToken cancellationToken = default)
+        {
+            var (familyId, familyPublicId) = RequireFamily();
+            var userId = RequireUserId();
+
+            RequireImageAllowance(userId);
+
+            var caption = request.Caption?.Trim();
+            if (caption?.Length > MaxCaptionLength)
+            {
+                throw new FamilyChatMessageInvalidException($"A caption cannot be longer than {MaxCaptionLength} characters");
+            }
+
+            var options = new ImageProcessingOptions
+            {
+                MaxWidth = 1600,
+                MaxHeight = 1600,
+                MinWidth = 16,
+                MinHeight = 16,
+                MaxFileSizeBytes = MaxImageBytes,
+                JpegQuality = 80,
+                AllowedFormats = [ImageFormat.Jpeg, ImageFormat.Png, ImageFormat.WebP]
+            };
+
+            // Size and type are checked before anything decodes the bytes: validation here reads
+            // the magic number and the declared length, and only a payload that passes reaches the
+            // decoder.
+            var validation = _imageProcessingService.ValidateImage(request.ImageBase64, options);
+            if (!validation.IsValid)
+            {
+                throw new FamilyChatMessageInvalidException($"Image validation failed: {validation.ErrorMessage}");
+            }
+
+            var processed = await _imageProcessingService.ProcessImageAsync(request.ImageBase64, options, cancellationToken)
+                ?? throw new FamilyChatMessageInvalidException("Failed to process image");
+
+            var version = ImageFunctions.ContentVersion(processed.Data);
+            var thumbnail = _imageProcessingService.CreateBoundedThumbnail(processed.Data, ImageSizes.ChatThumbnail);
+
+            var message = new FamilyChatMessage
+            {
+                FamilyId = familyId,
+                SenderUserId = userId,
+                Kind = FamilyChatMessageKind.Image,
+                Body = string.IsNullOrEmpty(caption) ? null : caption,
+                SentAt = DateTime.UtcNow
+            };
+
+            using (var context = _contextFactory.CreateDbContext())
+            {
+                await using var transaction = await context.Database.BeginTransactionAsync(cancellationToken);
+                try
+                {
+                    context.Set<FamilyChatMessage>().Add(message);
+                    // Saved first, for its id: the image row's foreign key needs it, and one
+                    // transaction still makes the pair atomic.
+                    await context.SaveChangesAsync(cancellationToken);
+
+                    var image = new FamilyChatImage
+                    {
+                        FamilyChatMessageId = message.Id,
+                        Data = processed.Data,
+                        Version = version
+                    };
+
+                    ImageFunctions.Apply(image, processed, thumbnail, version);
+                    context.Set<FamilyChatImage>().Add(image);
+
+                    await context.SaveChangesAsync(cancellationToken);
+                    await transaction.CommitAsync(cancellationToken);
+                }
+                catch (Exception ex)
+                {
+                    await transaction.RollbackAsync(cancellationToken);
+                    Log.Error(ex, "Failed to store a chat image for family {FamilyId}", familyId);
+                    throw;
+                }
+            }
+
+            var rendition = new FamilyChatImageRendition(message.Id, version, processed.Width, processed.Height);
+            var info = ToInfo(message, LoadSenders([userId]), new Dictionary<int, FamilyChatImageRendition> { [message.Id] = rendition });
+
+            await _runtime.FamilyChat.MessageCreatedAsync(familyPublicId, info, request.CorrelationId, cancellationToken);
+
+            Log.Debug("User {UserId} sent chat image {PublicId} to family {FamilyId}", userId, message.PublicId, familyId);
+            return info;
+        }
+
+        /// <summary>
+        /// The bytes behind an image message, ready to be written to the response (#147).
+        /// </summary>
+        /// <remarks>
+        /// Addressed by the <b>message's</b> public id, because whether you may see this picture is
+        /// entirely the question of whether you may see that message - and the family scope on the
+        /// query is what answers it. A message in another family reads as missing, not as
+        /// forbidden: the two are indistinguishable to a caller here for the same reason they are
+        /// on <see cref="DeleteMessageAsync"/>.
+        /// <para>
+        /// The rendition itself - thumbnail or full, WebP or a JPEG transcode, and the ETag that
+        /// tells them apart - is <see cref="ImageFunctions.Render(IImageProcessingService, Entities.Common.StoredImageEntity, ImageVariant, bool)"/>'s, shared rather than written
+        /// again here.
+        /// </para>
+        /// </remarks>
+        public async Task<StoredImageResponse?> GetMessageImageAsync(
+            Guid messagePublicId,
+            ImageVariant variant,
+            bool acceptsWebp,
+            CancellationToken cancellationToken = default)
+        {
+            var (familyId, _) = RequireFamily();
+
+            using var context = _contextFactory.CreateForReading();
+
+            var image = await context.Set<FamilyChatImage>()
+                .Where(i => i.Message.PublicId == messagePublicId && i.Message.FamilyId == familyId)
+                .FirstOrDefaultAsync(cancellationToken);
+
+            return image == null
+                ? null
+                : ImageFunctions.Render(_imageProcessingService, image, variant, acceptsWebp);
         }
 
         /// <summary>
@@ -257,6 +424,49 @@ namespace Homassy.API.Functions
             }
         }
 
+        /// <summary>The image path's own allowance, separate from the text one (#147).</summary>
+        private static void RequireImageAllowance(int userId)
+        {
+            if (RateLimitService.IsRateLimited($"family-chat:image:{userId}", ImageMaxPerWindow, RateWindow))
+            {
+                throw new FamilyChatRateLimitedException("You are sending pictures too quickly");
+            }
+        }
+
+        /// <summary>
+        /// The stored-image version and shape of every image message on a page, keyed by message id,
+        /// so the rows can carry cacheable picture URLs (#147).
+        /// </summary>
+        /// <remarks>
+        /// Only the version and the dimensions are read, never the bytes. That is the whole point
+        /// of the separate table: listing a conversation must not load its pictures. The dimensions
+        /// ride along so the client can reserve the image's box before the bytes arrive and the
+        /// stream does not reflow as they load.
+        /// </remarks>
+        private static async Task<Dictionary<int, FamilyChatImageRendition>> LoadImageRenditionsAsync(
+            HomassyDbContext context,
+            IReadOnlyCollection<FamilyChatMessage> messages,
+            CancellationToken cancellationToken)
+        {
+            var imageMessageIds = messages
+                .Where(m => m.Kind == FamilyChatMessageKind.Image)
+                .Select(m => m.Id)
+                .ToList();
+
+            if (imageMessageIds.Count == 0) return [];
+
+            return await context.Set<FamilyChatImage>()
+                .Where(i => imageMessageIds.Contains(i.FamilyChatMessageId))
+                .Select(i => new FamilyChatImageRendition(i.FamilyChatMessageId, i.Version, i.Width, i.Height))
+                .ToDictionaryAsync(i => i.MessageId, cancellationToken);
+        }
+
+        /// <summary>What a stored image row contributes to a message payload: a version and a shape.</summary>
+        private sealed record FamilyChatImageRendition(int MessageId, string Version, int Width, int Height);
+
+        /// <summary>The empty rendition map, for the paths that project a message known to be text.</summary>
+        private static readonly Dictionary<int, FamilyChatImageRendition> NoImages = [];
+
         /// <summary>
         /// Sender display data for a set of internal user ids, keyed by id.
         /// </summary>
@@ -290,9 +500,11 @@ namespace Homassy.API.Functions
 
         private static FamilyChatMessageInfo ToInfo(
             FamilyChatMessage message,
-            IReadOnlyDictionary<int, FamilyChatSenderInfo> senders)
+            IReadOnlyDictionary<int, FamilyChatSenderInfo> senders,
+            IReadOnlyDictionary<int, FamilyChatImageRendition> images)
         {
             senders.TryGetValue(message.SenderUserId, out var sender);
+            images.TryGetValue(message.Id, out var image);
 
             return new FamilyChatMessageInfo
             {
@@ -303,7 +515,11 @@ namespace Homassy.API.Functions
                 EditedAt = message.EditedAt,
                 // A sender who cannot be resolved (a member deleted outright) still leaves a
                 // readable message rather than taking the whole page down with it.
-                Sender = sender ?? new FamilyChatSenderInfo()
+                Sender = sender ?? new FamilyChatSenderInfo(),
+                ImageUrl = image == null ? null : MediaUrls.FamilyChatImage(message.PublicId, image.Version),
+                ImageFullUrl = image == null ? null : MediaUrls.FamilyChatImage(message.PublicId, image.Version, ImageVariant.Full),
+                ImageWidth = image?.Width,
+                ImageHeight = image?.Height
             };
         }
 

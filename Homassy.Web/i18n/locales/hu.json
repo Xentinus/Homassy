@@ -2903,8 +2903,13 @@
     "showAll": "Mind megjelenítése a térképen ({count})"
   },
   "familyChat": {
+    "image": {
+      "open": "Kép megnyitása",
+      "alt": "A családi csevegésbe küldött kép"
+    },
     "title": "Családi csevegés",
     "composer": {
+      "attach": "Kép csatolása",
       "placeholder": "Írjon üzenetet…",
       "send": "Küldés"
     },

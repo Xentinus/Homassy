@@ -2,8 +2,11 @@ using System.Net;
 using System.Net.Http.Json;
 using Homassy.API.Models.Common;
 using Homassy.API.Models.Family;
+using Homassy.API.Enums;
 using Homassy.API.Models.FamilyChat;
 using Homassy.Tests.Infrastructure;
+using SixLabors.ImageSharp;
+using SixLabors.ImageSharp.PixelFormats;
 using Xunit.Abstractions;
 
 namespace Homassy.Tests.Integration;
@@ -335,6 +338,110 @@ public class FamilyChatControllerTests : IClassFixture<HomassyWebApplicationFact
 
     #endregion
 
+    #region Pictures (#147)
+
+    [Fact]
+    public async Task SendImageMessage_ValidPicture_AnswersWithImageUrlsAndNoBytes()
+    {
+        string? testEmail = null;
+        try
+        {
+            var (email, auth) = await _authHelper.CreateAndAuthenticateUserAsync("chat-image");
+            testEmail = email;
+            _authHelper.SetAuthToken(auth.AccessToken);
+            await CreateFamilyAsync("Picture Family");
+
+            var response = await _client.PostAsJsonAsync(
+                "/api/v1.0/familychat/messages/image",
+                new SendFamilyChatImageRequest { ImageBase64 = CreatePngBase64(), Caption = "the shelf" });
+
+            var body = await response.Content.ReadAsStringAsync();
+            _output.WriteLine($"Status: {response.StatusCode}");
+            Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+
+            var parsed = await response.Content.ReadFromJsonAsync<ApiResponse<FamilyChatMessageInfo>>();
+            var message = parsed!.Data!;
+
+            Assert.Equal(FamilyChatMessageKind.Image, message.Kind);
+            Assert.Equal("the shelf", message.Body);
+            Assert.NotNull(message.ImageUrl);
+            Assert.NotNull(message.ImageFullUrl);
+            Assert.True(message.ImageWidth > 0);
+            Assert.True(message.ImageHeight > 0);
+
+            // The whole point of the separate image table: the payload carries a path, and the
+            // bytes are nowhere in it.
+            Assert.DoesNotContain("imageBase64", body, StringComparison.OrdinalIgnoreCase);
+        }
+        finally
+        {
+            _authHelper.ClearAuthToken();
+            if (testEmail != null) await _authHelper.CleanupUserAsync(testEmail);
+        }
+    }
+
+    [Fact]
+    public async Task GetMessageImage_OwnFamily_ServesTheBytesWithCachingHeaders()
+    {
+        string? testEmail = null;
+        try
+        {
+            var (email, auth) = await _authHelper.CreateAndAuthenticateUserAsync("chat-image-get");
+            testEmail = email;
+            _authHelper.SetAuthToken(auth.AccessToken);
+            await CreateFamilyAsync("Serving Family");
+
+            var sent = await SendImageAsync();
+
+            var response = await _client.GetAsync($"/api/v1.0/familychat/messages/{sent.PublicId}/image");
+
+            _output.WriteLine($"Status: {response.StatusCode}, type: {response.Content.Headers.ContentType}");
+            Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+            Assert.NotNull(response.Headers.ETag);
+            Assert.Contains("immutable", response.Headers.CacheControl?.ToString() ?? string.Empty);
+            Assert.True((await response.Content.ReadAsByteArrayAsync()).Length > 0);
+        }
+        finally
+        {
+            _authHelper.ClearAuthToken();
+            if (testEmail != null) await _authHelper.CleanupUserAsync(testEmail);
+        }
+    }
+
+    [Fact]
+    public async Task GetMessageImage_AnotherFamilysMessage_ReturnsNotFound()
+    {
+        string? ownerEmail = null;
+        string? outsiderEmail = null;
+        try
+        {
+            var (email, auth) = await _authHelper.CreateAndAuthenticateUserAsync("chat-image-owner");
+            ownerEmail = email;
+            _authHelper.SetAuthToken(auth.AccessToken);
+            await CreateFamilyAsync("Private Picture Family");
+            var sent = await SendImageAsync();
+
+            _authHelper.ClearAuthToken();
+            var (otherEmail, otherAuth) = await _authHelper.CreateAndAuthenticateUserAsync("chat-image-outsider");
+            outsiderEmail = otherEmail;
+            _authHelper.SetAuthToken(otherAuth.AccessToken);
+            await CreateFamilyAsync("Nosy Family");
+
+            var response = await _client.GetAsync($"/api/v1.0/familychat/messages/{sent.PublicId}/image");
+
+            _output.WriteLine($"Status: {response.StatusCode}");
+            Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
+        }
+        finally
+        {
+            _authHelper.ClearAuthToken();
+            if (ownerEmail != null) await _authHelper.CleanupUserAsync(ownerEmail);
+            if (outsiderEmail != null) await _authHelper.CleanupUserAsync(outsiderEmail);
+        }
+    }
+
+    #endregion
+
     #region Helpers
 
     /// <summary>Creates a family for the currently authenticated caller and returns its share code.</summary>
@@ -362,6 +469,28 @@ public class FamilyChatControllerTests : IClassFixture<HomassyWebApplicationFact
         var parsed = await response.Content.ReadFromJsonAsync<ApiResponse<FamilyChatMessageInfo>>();
         Assert.NotNull(parsed?.Data);
         return parsed!.Data!;
+    }
+
+    private async Task<FamilyChatMessageInfo> SendImageAsync(string? caption = null)
+    {
+        var response = await _client.PostAsJsonAsync(
+            "/api/v1.0/familychat/messages/image",
+            new SendFamilyChatImageRequest { ImageBase64 = CreatePngBase64(), Caption = caption });
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+
+        var parsed = await response.Content.ReadFromJsonAsync<ApiResponse<FamilyChatMessageInfo>>();
+        Assert.NotNull(parsed?.Data);
+        return parsed!.Data!;
+    }
+
+    /// <summary>A real, decodable PNG — the upload path runs it through the image decoder.</summary>
+    private static string CreatePngBase64(int width = 64, int height = 48)
+    {
+        using var image = new Image<Rgba32>(width, height);
+        using var stream = new MemoryStream();
+        image.SaveAsPng(stream);
+        return Convert.ToBase64String(stream.ToArray());
     }
 
     private async Task<FamilyChatPage> GetPageAsync(string? before = null, int? limit = null)

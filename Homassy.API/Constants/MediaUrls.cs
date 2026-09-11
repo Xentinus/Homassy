@@ -36,6 +36,22 @@ namespace Homassy.API.Constants
                 : $"/api/v1.0/Product/{publicId}/image?size={Name(variant)}&v={version}";
         }
 
+        /// <summary>
+        /// The picture behind a chat image message (#147), addressed by the <b>message's</b> public
+        /// id rather than the image row's.
+        /// </summary>
+        /// <remarks>
+        /// The message id is what a client already has (it is in the payload it just rendered), and
+        /// it is what the access check needs anyway: whether you may see this picture is entirely a
+        /// question of whether you may see the message it belongs to.
+        /// </remarks>
+        public static string? FamilyChatImage(Guid messagePublicId, string? version, ImageVariant variant = ImageVariant.Thumb)
+        {
+            return version == null
+                ? null
+                : $"/api/v1.0/FamilyChat/messages/{messagePublicId}/image?size={Name(variant)}&v={version}";
+        }
+
         private static string Name(ImageVariant variant) => variant == ImageVariant.Thumb ? "thumb" : "full";
     }
 }

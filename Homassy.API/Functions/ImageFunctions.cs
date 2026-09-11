@@ -479,7 +479,7 @@ namespace Homassy.API.Functions
         /// <remarks>
         /// A separate write context, deliberately: the caller is on a read context, and this is a
         /// cache fill, not part of answering the request. If it fails the request still succeeds —
-        /// <see cref="Render"/> falls back to the full-size bytes.
+        /// <see cref="Render(StoredImageEntity, ImageVariant, bool)"/> falls back to the full-size bytes.
         /// </remarks>
         private async Task BackfillThumbnailAsync<TImage>(
             Func<HomassyDbContext, DbSet<TImage>> table,
@@ -520,6 +520,24 @@ namespace Homassy.API.Functions
         /// Picks the bytes to answer with, negotiating the encoding, and builds the ETag.
         /// </summary>
         private StoredImageResponse? Render(StoredImageEntity picture, ImageVariant variant, bool acceptsWebp)
+            => Render(_imageProcessingService, picture, variant, acceptsWebp);
+
+        /// <summary>
+        /// <see cref="Render(StoredImageEntity, ImageVariant, bool)"/>, with the processing service
+        /// passed in rather than taken from the instance.
+        /// </summary>
+        /// <remarks>
+        /// Static and <c>internal</c> so the other Functions classes that own a stored image can
+        /// answer identically without routing their read through this class. Today that is
+        /// <see cref="FamilyChatFunctions"/> (#147): a chat picture's access check is "may you see
+        /// the message", which belongs to the chat, while the ETag, the thumbnail fallback and the
+        /// WebP negotiation belong here and must not be written twice.
+        /// </remarks>
+        internal static StoredImageResponse? Render(
+            IImageProcessingService imageProcessingService,
+            StoredImageEntity picture,
+            ImageVariant variant,
+            bool acceptsWebp)
         {
             var wantsThumb = variant == ImageVariant.Thumb && picture.ThumbnailData != null;
             var data = wantsThumb ? picture.ThumbnailData! : picture.Data;
@@ -531,7 +549,7 @@ namespace Homassy.API.Functions
 
             if (format == ImageFormat.WebP && !acceptsWebp)
             {
-                var jpeg = _imageProcessingService.TranscodeToJpeg(data);
+                var jpeg = imageProcessingService.TranscodeToJpeg(data);
                 if (jpeg == null)
                 {
                     return null;
@@ -554,7 +572,7 @@ namespace Homassy.API.Functions
         /// Copies a freshly processed image (and its thumbnail, if one could be made) onto a
         /// stored-image row.
         /// </summary>
-        private static void Apply(StoredImageEntity picture, ProcessedImage image, ProcessedImage? thumbnail, string version)
+        internal static void Apply(StoredImageEntity picture, ProcessedImage image, ProcessedImage? thumbnail, string version)
         {
             picture.Data = image.Data;
             picture.Format = image.Format;
@@ -575,7 +593,7 @@ namespace Homassy.API.Functions
         /// every client's cache. 64 bits is far more than enough to tell two of a user's own
         /// pictures apart — this is a cache key, not a security boundary.
         /// </remarks>
-        private static string ContentVersion(byte[] data)
+        internal static string ContentVersion(byte[] data)
         {
             var hash = System.Security.Cryptography.SHA256.HashData(data);
             return Convert.ToHexStringLower(hash.AsSpan(0, 8));

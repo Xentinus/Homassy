@@ -99,6 +99,8 @@ The family conversation (#144) — history and the two writes that change it (al
 |--------|----------|--------------|-------------|
 | GET | `/messages` | `before`, `limit` | One page of the caller's family conversation, newest first |
 | POST | `/messages` | - | Send a text message |
+| POST | `/messages/image` | - | Send a picture, with an optional caption (#147) |
+| GET | `/messages/{publicId}/image` | `size`, `v` | Serve an image message's picture as **bytes** (#147) |
 | DELETE | `/messages/{publicId}` | - | Delete one of your own messages (soft delete) |
 
 **Key Patterns:**
@@ -109,6 +111,11 @@ The family conversation (#144) — history and the two writes that change it (al
 - **Rate limited per user**, not per IP, inside the Functions layer (`family-chat:send:{userId}`, 40/min). A family behind one NAT shares an IP bucket, so the middleware's route-template limit can only throttle the household. Answers **429** `FAMILYCHAT-0004`. Inherits the process-local scope of `RateLimitService` — see #82
 - Messages are **not** wired into the trigger-based cache: that cache is for slow-changing master data, and `DatabaseTriggerInitializer` skips `FamilyChatMessages` by name for the same reason it skips `UserNotifications`
 - Sender payloads carry the public id, display name, avatar **URL** and identity colour — never the avatar bytes (a page is hundreds of rows) and never the internal user id
+- **Pictures are served, not embedded** (#147). Bytes live in `FamilyChatImages`, a `StoredImageEntity` table keyed to the message; the message payload carries `imageUrl` / `imageFullUrl` plus the stored dimensions (so the client can reserve the box before the bytes arrive). The upload is base64 in, like every other upload here; what is deliberately *not* base64 is the answer
+- The picture endpoint is addressed by the **message's** public id: whether you may see the picture is the same question as whether you may see the message, so one id answers both. It behaves exactly like the avatar and product-image endpoints (ETag, `private, max-age=1y, immutable`, `?size=thumb|full`, `Vary: Accept`). Another family's message answers **404**
+- The message row and its bytes **commit in one transaction, and the broadcast follows the commit** — otherwise a `MessageCreated` can reach clients whose image request would 404
+- Size and mime are validated *before* the bytes reach the decoder, and the image path has its own per-user rate limit (`family-chat:image:{userId}`, 8/min) — an image costs a decode and a resize, so it must not share the text allowance
+- **No server-side link unfurling**, now or by accident later: fetching a user-supplied URL from the API is the SSRF class #78 closed. Rich previews would need their own issue, with an allowlist or an egress proxy
 
 **Realtime (SignalR):**
 - Hub at `/hubs/family-chat` (`FamilyChatHub`, `[Authorize]`) — same Kratos-cookie-on-handshake auth as the other three hubs

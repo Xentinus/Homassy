@@ -2,6 +2,7 @@ using Asp.Versioning;
 using Homassy.API.Enums;
 using Homassy.API.Functions;
 using Homassy.API.Models.Common;
+using Homassy.API.Extensions;
 using Homassy.API.Models.FamilyChat;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -76,6 +77,63 @@ public class FamilyChatController : ControllerBase
 
         var message = await _chatFunctions.SendMessageAsync(request, cancellationToken);
         return Ok(ApiResponse<FamilyChatMessageInfo>.SuccessResponse(message));
+    }
+
+    /// <summary>Posts a picture to the caller's family conversation (#147).</summary>
+    /// <remarks>
+    /// The message and its bytes commit together and the broadcast follows the commit, so no
+    /// client ever renders a message whose image 404s.
+    /// </remarks>
+    [HttpPost("messages/image")]
+    [MapToApiVersion(1.0)]
+    [ProducesResponseType(typeof(ApiResponse<FamilyChatMessageInfo>), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status429TooManyRequests)]
+    public async Task<IActionResult> SendImageMessage(
+        [FromBody] SendFamilyChatImageRequest request,
+        CancellationToken cancellationToken)
+    {
+        if (!ModelState.IsValid)
+        {
+            return BadRequest(ApiResponse.ErrorResponse(ErrorCodes.ValidationInvalidRequest));
+        }
+
+        var message = await _chatFunctions.SendImageMessageAsync(request, cancellationToken);
+        return Ok(ApiResponse<FamilyChatMessageInfo>.SuccessResponse(message));
+    }
+
+    /// <summary>
+    /// Serves an image message's picture as image bytes (#147).
+    /// </summary>
+    /// <remarks>
+    /// Behaves exactly like the avatar and product-image endpoints - ETag, a year-long private
+    /// cache lifetime, `?size=thumb|full`, `?v=` for versioning and `Vary: Accept` for the WebP /
+    /// JPEG negotiation. Read `UserController`'s notes for why those rules are what they are.
+    /// <para>
+    /// Addressed by the message's public id: whether you may see the picture is the same question
+    /// as whether you may see the message, so one id answers both. A message in another family is
+    /// a 404 here.
+    /// </para>
+    /// </remarks>
+    [HttpGet("messages/{publicId:guid}/image")]
+    [MapToApiVersion(1.0)]
+    [ProducesResponseType(typeof(FileContentResult), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status304NotModified)]
+    [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> GetMessageImage(
+        Guid publicId,
+        [FromQuery] ImageVariant size = ImageVariant.Thumb,
+        CancellationToken cancellationToken = default)
+    {
+        var image = await _chatFunctions.GetMessageImageAsync(publicId, size, this.AcceptsWebp(), cancellationToken);
+
+        if (image == null)
+        {
+            return NotFound(ApiResponse.ErrorResponse(ErrorCodes.FamilyChatMessageNotFound));
+        }
+
+        return this.CacheableImage(image);
     }
 
     /// <summary>

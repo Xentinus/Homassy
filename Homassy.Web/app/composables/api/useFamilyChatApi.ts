@@ -9,7 +9,12 @@
  * Separate from `useFamilyApi`, which manages the family as a thing (members, share code,
  * picture). A conversation is content.
  */
-import type { FamilyChatMessage, FamilyChatPage, SendFamilyChatMessageRequest } from '~/types/familyChat'
+import type {
+  FamilyChatMessage,
+  FamilyChatPage,
+  SendFamilyChatImageRequest,
+  SendFamilyChatMessageRequest
+} from '~/types/familyChat'
 
 export const useFamilyChatApi = () => {
   const client = useApiClient()
@@ -43,10 +48,22 @@ export const useFamilyChatApi = () => {
     })
   }
 
+  /**
+   * Sends a picture, with an optional caption (#147).
+   *
+   * Base64 in, a message with an image **URL** out — the bytes never come back in a payload. Same
+   * no-toast rule as the text path: the failure belongs on the message bubble.
+   */
+  const sendImageMessage = async (request: SendFamilyChatImageRequest) => {
+    return await client.post<FamilyChatMessage>('/api/v1/FamilyChat/messages/image', request, {
+      showErrorToast: false
+    })
+  }
+
   /** Deletes one of your own messages. */
   const deleteMessage = async (publicId: string) => {
     return await client.delete(`/api/v1/FamilyChat/messages/${publicId}`)
   }
 
-  return { getMessages, sendMessage, deleteMessage }
+  return { getMessages, sendMessage, sendImageMessage, deleteMessage }
 }

@@ -22,7 +22,7 @@
         @discard="(m) => discard(m.publicId)"
         @delete="onDelete"
       />
-      <FamilyChatComposer ref="composerRef" @send="onSend" />
+      <FamilyChatComposer ref="composerRef" @send="onSend" @image="onSendImage" />
     </div>
   </AppDrawer>
 
@@ -64,7 +64,7 @@
           @discard="(m) => discard(m.publicId)"
           @delete="onDelete"
         />
-        <FamilyChatComposer ref="composerRef" @send="onSend" />
+        <FamilyChatComposer ref="composerRef" @send="onSend" @image="onSendImage" />
       </div>
     </Transition>
   </Teleport>
@@ -105,6 +105,7 @@ const {
   close: leaveChat,
   loadOlder,
   send,
+  sendImage,
   retry,
   remove,
   discard
@@ -188,6 +189,17 @@ const close = (): void => {
 
 const onSend = async (body: string): Promise<void> => {
   await send(body)
+  streamRef.value?.scrollToBottom()
+}
+
+/**
+ * The composer hands over a cropped `data:` URL; the API wants the base64 payload on its own, and
+ * the stream wants the whole URL as its preview - so the split happens here rather than in either
+ * of them.
+ */
+const onSendImage = async (dataUrl: string, caption?: string): Promise<void> => {
+  const base64 = dataUrl.includes(',') ? dataUrl.split(',')[1]! : dataUrl
+  await sendImage(base64, dataUrl, caption)
   streamRef.value?.scrollToBottom()
 }
 

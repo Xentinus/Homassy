@@ -225,6 +225,18 @@ namespace Homassy.API.Context
                 entity.HasIndex(e => new { e.FamilyId, e.SentAt })
                     .IsDescending(false, true);
             });
+
+            // Same shape as UserProfilePicture and ProductImage, and the same rule: no navigation
+            // back from the message, so the history query cannot pull the bytes in with it.
+            modelBuilder.Entity<FamilyChatImage>(entity =>
+            {
+                entity.HasOne(i => i.Message)
+                    .WithMany()
+                    .HasForeignKey(i => i.FamilyChatMessageId)
+                    .OnDelete(DeleteBehavior.Cascade);
+
+                entity.HasIndex(e => e.FamilyChatMessageId).IsUnique();
+            });
             #endregion
 
             #region FamilyJoinRequest Relationships
@@ -424,6 +436,7 @@ namespace Homassy.API.Context
         public DbSet<FamilyJoinRequest> FamilyJoinRequests { get; set; }
         public DbSet<FamilyExternalCalendar> FamilyExternalCalendars { get; set; }
         public DbSet<FamilyChatMessage> FamilyChatMessages { get; set; }
+        public DbSet<FamilyChatImage> FamilyChatImages { get; set; }
         public DbSet<ExternalCalendarReminderDispatch> ExternalCalendarReminderDispatches { get; set; }
         #endregion
 

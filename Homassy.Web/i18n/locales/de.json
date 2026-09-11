@@ -2903,8 +2903,13 @@
     "showAll": "Alle auf der Karte zeigen ({count})"
   },
   "familyChat": {
+    "image": {
+      "open": "Bild öffnen",
+      "alt": "In den Familienchat gesendetes Bild"
+    },
     "title": "Familienchat",
     "composer": {
+      "attach": "Bild anhängen",
       "placeholder": "Nachricht schreiben…",
       "send": "Senden"
     },

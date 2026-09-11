@@ -42,6 +42,13 @@ export interface SendFamilyChatMessageRequest {
   correlationId?: string
 }
 
+/** A picture to post to the chat (#147). */
+export interface SendFamilyChatImageRequest {
+  imageBase64: string
+  caption?: string
+  correlationId?: string
+}
+
 /**
  * Where an optimistically appended message is in its life.
  *
@@ -57,6 +64,14 @@ export interface FamilyChatStreamMessage extends FamilyChatMessage {
   sendState?: FamilyChatSendState
   /** Client-only. The id this client generated before sending, used to reconcile the broadcast. */
   correlationId?: string
+  /**
+   * Client-only. The `data:` URL of a picture still being uploaded (#147).
+   *
+   * The sender sees their own photo the moment they pick it, rather than a grey box until the
+   * round trip finishes — and it is dropped the moment the committed message arrives with a real
+   * image URL on it.
+   */
+  localPreview?: string
 }
 
 /** The payload of the hub's `MessageCreated` event. */
