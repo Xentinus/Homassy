@@ -85,6 +85,8 @@ try
     builder.Services.AddSingleton<MasterDataRealtime>();
     builder.Services.AddSingleton<ShoppingListRealtime>();
     builder.Services.AddSingleton<ShoppingListPresence>();
+    builder.Services.AddSingleton<FamilyChatRealtime>();
+    builder.Services.AddSingleton<FamilyChatConnectionState>();
 
     // The cross-cutting services the Functions layer needs, as one typed parameter object.
     // See FunctionsRuntime for why it is a bundle rather than separate constructor parameters.
@@ -98,6 +100,7 @@ try
     builder.Services.AddScoped<AutomationFunctions>();
     builder.Services.AddScoped<CalendarFunctions>();
     builder.Services.AddScoped<ExternalCalendarFunctions>();
+    builder.Services.AddScoped<FamilyChatFunctions>();
     builder.Services.AddScoped<FamilyFunctions>();
     builder.Services.AddScoped<FamilyJoinRequestFunctions>();
     builder.Services.AddScoped<ImageFunctions>();
@@ -113,6 +116,9 @@ try
 
     builder.Services.AddHostedService<CacheManagementService>();
     builder.Services.AddHostedService<RateLimitCleanupService>();
+    // Retires expired chat typing flags and broadcasts the change (#148). Paired with
+    // FamilyChatConnectionState.TypingTtl - see the service for why its interval is not a knob.
+    builder.Services.AddHostedService<FamilyChatTypingSweepService>();
 
     builder.Services.AddSingleton<IInputSanitizationService, InputSanitizationService>();
     builder.Services.AddSingleton<IBarcodeValidationService, BarcodeValidationService>();
@@ -474,6 +480,10 @@ try
 
     // Realtime Törzsadatok (master-data) channel — per-family / per-user groups joined on connect.
     app.MapHub<MasterDataHub>("/hubs/master-data").RequireCors("HomassyPolicy");
+
+    // Realtime family chat channel (#144) - one group per family, joined when the chat panel
+    // opens rather than on connect.
+    app.MapHub<FamilyChatHub>("/hubs/family-chat").RequireCors("HomassyPolicy");
 
     Log.Information("Homassy API started successfully");
 

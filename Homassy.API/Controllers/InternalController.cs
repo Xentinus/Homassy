@@ -24,11 +24,59 @@ namespace Homassy.API.Controllers
     {
         private readonly IConfiguration _configuration;
         private readonly InventoryRealtime _inventoryRealtime;
+        private readonly FamilyChatConnectionState _chatConnectionState;
 
-        public InternalController(IConfiguration configuration, InventoryRealtime inventoryRealtime)
+        public InternalController(
+            IConfiguration configuration,
+            InventoryRealtime inventoryRealtime,
+            FamilyChatConnectionState chatConnectionState)
         {
             _configuration = configuration;
             _inventoryRealtime = inventoryRealtime;
+            _chatConnectionState = chatConnectionState;
+        }
+
+        /// <summary>
+        /// Answers which of the given users is currently watching their family chat (#149).
+        /// </summary>
+        /// <remarks>
+        /// The flags live in this process's memory, because this is where the hub is; the worker
+        /// that decides whether to send a chat notification runs in <c>Homassy.Notifications</c>.
+        /// Rather than move the state, the question crosses the boundary - the same shape the
+        /// inventory broadcast relay already uses, in the other direction.
+        /// <para>
+        /// Being flagged active means the panel is open <em>and</em> the document is visible, as
+        /// reported by the client and kept alive by a heartbeat. It is not "connected": the chat
+        /// socket is an app-wide singleton and a backgrounded tab keeps a WebSocket alive.
+        /// </para>
+        /// <para>
+        /// A missing answer fails safe. With more than one API instance this one only knows its own
+        /// connections (the #68 backplane caveat), so an unseen flag means one extra notification -
+        /// never a lost one.
+        /// </para>
+        /// </remarks>
+        [HttpPost("family-chat/active-users")]
+        [MapToApiVersion(1.0)]
+        public IActionResult GetActiveChatUsers([FromBody] FamilyChatActiveUsersRequest request)
+        {
+            if (!IsAuthorized())
+            {
+                return Unauthorized(ApiResponse.ErrorResponse("Invalid API key"));
+            }
+
+            if (!ModelState.IsValid)
+            {
+                return BadRequest(ApiResponse.ErrorResponse("Invalid request"));
+            }
+
+            var now = DateTime.UtcNow;
+            var active = request.UserIds
+                .Distinct()
+                .Where(id => _chatConnectionState.IsUserActive(id, now))
+                .ToList();
+
+            return Ok(ApiResponse<FamilyChatActiveUsersResponse>.SuccessResponse(
+                new FamilyChatActiveUsersResponse { ActiveUserIds = active }));
         }
 
         /// <summary>

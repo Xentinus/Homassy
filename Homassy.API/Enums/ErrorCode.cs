@@ -116,6 +116,13 @@ public static class ErrorCodes
     public const string ExternalCalendarInvalidReminder = "EXTCAL-0006";
     #endregion
 
+    #region Family Chat Errors (FAMILYCHAT-0xxx)
+    public const string FamilyChatAccessDenied = "FAMILYCHAT-0001";
+    public const string FamilyChatMessageNotFound = "FAMILYCHAT-0002";
+    public const string FamilyChatMessageInvalid = "FAMILYCHAT-0003";
+    public const string FamilyChatRateLimited = "FAMILYCHAT-0004";
+    #endregion
+
     #region Notification Errors (NOTIF-0xxx)
     public const string NotificationNotFound = "NOTIF-0001";
     #endregion

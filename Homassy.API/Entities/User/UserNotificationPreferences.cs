@@ -18,6 +18,24 @@ namespace Homassy.API.Entities.User
         public bool PushWeeklySummaryEnabled { get; set; } = false;
 
         /// <summary>
+        /// Whether family chat messages may notify this user (#149).
+        /// </summary>
+        /// <remarks>
+        /// A flag of its own because the existing ones are inventory- and summary-oriented, and a
+        /// family that chats all evening has to be able to mute the chat <b>without</b> losing
+        /// expiration alerts - which is what turning <see cref="PushNotificationsEnabled"/> off
+        /// would cost them.
+        /// <para>
+        /// <b>Defaults to on</b>, unlike the two switches above it, and subordinate to them: this
+        /// says "chat may notify me", while <see cref="PushNotificationsEnabled"/> still decides
+        /// whether anything notifies at all. Somebody who has opted into push has opted into being
+        /// told things, and a message addressed to them personally is the least surprising of
+        /// those; the point of this flag is that it can be turned off on its own.
+        /// </para>
+        /// </remarks>
+        public bool PushFamilyChatEnabled { get; set; } = true;
+
+        /// <summary>
         /// Whether the notification centre records what the workers send to this user (#116).
         /// </summary>
         /// <remarks>

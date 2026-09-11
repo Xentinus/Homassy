@@ -113,7 +113,7 @@ The owning row keeps only `…PictureVersion` — a 16-hex-character content has
 
 It descends from `BaseEntity`, not `RecordChangeEntity`: there is nothing to soft-delete (deleting the picture deletes the row) and no cache to invalidate, so it stays out of the trigger system below.
 
-### The one table that is deliberately outside the trigger system
+### The two tables that are deliberately outside the trigger system
 
 `UserNotifications` (#116) descends from `RecordChangeEntity` like everything else, but
 `DatabaseTriggerInitializer` skips it by name. Nothing caches it - an inbox is per-user, changes
@@ -126,6 +126,13 @@ Its own configuration is worth reading in `OnModelCreating`: a descending
 `(UserId, CreatedAt)` index for the one query that matters, a *filtered* index on `UserId` for the
 unread count (fetched far more often than a page is, and an inbox is mostly read rows), and a
 `CreatedAt` index for the retention sweep.
+
+`FamilyChatMessages` (#144) is skipped by name for the same reason. A conversation is write-heavy,
+is read as one page when the chat panel opens, and is pushed onward over SignalR rather than out of
+a cache — so a trigger on it would add a `TableRecordChanges` insert and a `pg_notify` to every
+message sent, invalidating nothing. It carries one index, the descending `(FamilyId, SentAt)` pair
+every page of every read is ordered by, and no navigation from `Family`: a collection there would
+invite `Include()`ing a whole conversation into a family lookup the caches already serve.
 
 ### Database Trigger System
 

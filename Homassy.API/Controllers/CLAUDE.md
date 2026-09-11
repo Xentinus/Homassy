@@ -89,6 +89,47 @@ Manages family operations (all endpoints require `[Authorize]`).
 - **Approval-gated join requests**: joining is not immediate — a request stays `Pending` until an existing member approves or rejects it (a user may hold only one pending request at a time). Backed by `FamilyJoinRequestFunctions` and the `FamilyJoinRequest` entity.
 - Base64 image upload for family pictures
 
+### FamilyChatController
+
+The family conversation (#144) — history and the two writes that change it (all endpoints require `[Authorize]`).
+
+**Endpoints:**
+
+| Method | Endpoint | Query Params | Description |
+|--------|----------|--------------|-------------|
+| GET | `/messages` | `before`, `limit` | One page of the caller's family conversation, newest first |
+| GET | `/unread-count` | - | How many messages the caller has not read (#149) |
+| POST | `/read` | - | Mark the conversation read up to now; answers with the new unread count (#149) |
+| POST | `/messages` | - | Send a text message |
+| POST | `/messages/image` | - | Send a picture, with an optional caption (#147) |
+| GET | `/messages/{publicId}/image` | `size`, `v` | Serve an image message's picture as **bytes** (#147) |
+| DELETE | `/messages/{publicId}` | - | Delete one of your own messages (soft delete) |
+
+**Key Patterns:**
+- **No endpoint takes a family id.** `FamilyChatFunctions` resolves the caller's own family from `SessionInfo`, so the only conversation a caller can address is theirs — "a member of another family cannot read or post" is true by construction, not by a check somebody has to remember. A caller with no family gets **403** `FAMILYCHAT-0001`, the same answer as a family that is not theirs
+- **Cursor-paged on `(SentAt, PublicId)`** via the existing `Models/Activity/ActivityCursor`, reused rather than reimplemented. Messages arrive at the top *while the reader is scrolling back*, so a numeric offset would re-show or skip rows; and a burst of messages routinely shares a tick, which is why the id is half the cursor. An undecodable cursor is a **400**, never a 500
+- **Deleting is own-messages-only, and a soft delete.** Somebody else's message answers **404**, indistinguishably from one that does not exist — distinguishing them would let a caller probe which ids exist. The row stays so clients that already rendered it can be told it is gone, and so #149's read markers keep pointing at something
+- **The body deliberately skips `[SanitizedString]`.** That attribute rejects any value containing `<` or `>`; "5 < 10" and a pasted line of code are ordinary things to send your family. The safety it buys elsewhere is bought here by rendering text nodes, never `v-html` (#147)
+- **Rate limited per user**, not per IP, inside the Functions layer (`family-chat:send:{userId}`, 40/min). A family behind one NAT shares an IP bucket, so the middleware's route-template limit can only throttle the household. Answers **429** `FAMILYCHAT-0004`. Inherits the process-local scope of `RateLimitService` — see #82
+- Messages are **not** wired into the trigger-based cache: that cache is for slow-changing master data, and `DatabaseTriggerInitializer` skips `FamilyChatMessages` by name for the same reason it skips `UserNotifications`
+- Sender payloads carry the public id, display name, avatar **URL** and identity colour — never the avatar bytes (a page is hundreds of rows) and never the internal user id
+- **Pictures are served, not embedded** (#147). Bytes live in `FamilyChatImages`, a `StoredImageEntity` table keyed to the message; the message payload carries `imageUrl` / `imageFullUrl` plus the stored dimensions (so the client can reserve the box before the bytes arrive). The upload is base64 in, like every other upload here; what is deliberately *not* base64 is the answer
+- The picture endpoint is addressed by the **message's** public id: whether you may see the picture is the same question as whether you may see the message, so one id answers both. It behaves exactly like the avatar and product-image endpoints (ETag, `private, max-age=1y, immutable`, `?size=thumb|full`, `Vary: Accept`). Another family's message answers **404**
+- The message row and its bytes **commit in one transaction, and the broadcast follows the commit** — otherwise a `MessageCreated` can reach clients whose image request would 404
+- Size and mime are validated *before* the bytes reach the decoder, and the image path has its own per-user rate limit (`family-chat:image:{userId}`, 8/min) — an image costs a decode and a resize, so it must not share the text allowance
+- **Read state is one marker per member per family** (`FamilyChatReadStates.LastReadAt`), never a receipt per message: it answers both "how many are unread" and "have they seen this already" at one row per person, and per-message receipts would be a promise this chat does not make. `POST /read` takes no body — "up to now" is the only thing a reader can honestly report — and the marker only moves forward, so calling it often is free
+- **The unread count is derived, never stored**, so it cannot drift: a deleted message stops counting by itself, and a second device reading the chat changes the answer without anything being decremented. Your own messages never count
+- `SetChatActive(bool)` (#149) on the hub is what decides whether a message notifies. **Being in the group is not it**: the socket is an app-wide singleton and a backgrounded tab keeps a WebSocket alive, so a member counts as active only while the panel is open *and* the document is visible, reported explicitly and kept alive by a heartbeat against `ActiveTtl`. Nothing is broadcast — this is not presence, nobody is shown who is reading
+- The notification decision runs in `Homassy.Notifications`, which cannot see those in-memory flags, so it asks over `POST /api/v1/internal/family-chat/active-users` — the same internal, api-key-authenticated path the inventory broadcast relay uses in the other direction. **It fails open**: an unreachable API means "nobody is active", so an outage costs an extra notification rather than a lost one
+- **No server-side link unfurling**, now or by accident later: fetching a user-supplied URL from the API is the SSRF class #78 closed. Rich previews would need their own issue, with an allowlist or an egress proxy
+
+**Realtime (SignalR):**
+- Hub at `/hubs/family-chat` (`FamilyChatHub`, `[Authorize]`) — same Kratos-cookie-on-handshake auth as the other three hubs
+- `JoinChat()` takes **no argument**: the group is derived from the session (`family-chat:{familyPublicId}`), so a client cannot ask for somebody else's group. It answers with the newest page, so opening the panel is one round trip. `LeaveChat()` removes the connection
+- After a successful commit `FamilyChatFunctions` broadcasts through the injected `FamilyChatRealtime`: `MessageCreated` (carries the message **and the sender's own correlation id**, so an optimistically appended message is reconciled rather than rendered twice), `MessageDeleted`, `TypingChanged`
+- `SetTyping(bool)` (#148) sets a per-connection flag with a ~5s TTL in `FamilyChatConnectionState`, the single bag holding every per-connection flag the chat has. **Every flag expires on its own**, because a closed lid or a dropped socket never sends the "stopped" call; `FamilyChatTypingSweepService` retires expired ones and broadcasts the change, which is what makes the indicator self-healing. The set is collapsed per user (two devices is one typist) and a typist is never echoed their own state (`GroupExcept`). Sending a message clears the sender's flags on the write path, not only from the client
+- Broadcast failures are logged but never break the write
+
 ### ProductController
 
 Manages product catalog and inventory (all endpoints require `[Authorize]`).

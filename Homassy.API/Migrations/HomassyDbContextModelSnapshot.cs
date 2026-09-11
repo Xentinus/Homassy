@@ -204,6 +204,145 @@ namespace Homassy.API.Migrations
                     b.ToTable("Families");
                 });
 
+            modelBuilder.Entity("Homassy.API.Entities.Family.FamilyChatImage", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<byte[]>("Data")
+                        .IsRequired()
+                        .HasColumnType("bytea");
+
+                    b.Property<int>("FamilyChatMessageId")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("Format")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("Height")
+                        .HasColumnType("integer");
+
+                    b.Property<Guid>("PublicId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasDefaultValueSql("gen_random_uuid()");
+
+                    b.Property<byte[]>("ThumbnailData")
+                        .HasColumnType("bytea");
+
+                    b.Property<int>("ThumbnailFormat")
+                        .HasColumnType("integer");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Version")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("character varying(32)");
+
+                    b.Property<int>("Width")
+                        .HasColumnType("integer");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("FamilyChatMessageId")
+                        .IsUnique();
+
+                    b.ToTable("FamilyChatImages");
+                });
+
+            modelBuilder.Entity("Homassy.API.Entities.Family.FamilyChatMessage", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("Body")
+                        .HasMaxLength(4000)
+                        .HasColumnType("character varying(4000)");
+
+                    b.Property<DateTime?>("EditedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<int>("FamilyId")
+                        .HasColumnType("integer");
+
+                    b.Property<bool>("IsDeleted")
+                        .HasColumnType("boolean");
+
+                    b.Property<int>("Kind")
+                        .HasColumnType("integer");
+
+                    b.Property<Guid>("PublicId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasDefaultValueSql("gen_random_uuid()");
+
+                    b.Property<string>("RecordChange")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<int>("SenderUserId")
+                        .HasColumnType("integer");
+
+                    b.Property<DateTime>("SentAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("SenderUserId");
+
+                    b.HasIndex("FamilyId", "SentAt")
+                        .IsDescending(false, true);
+
+                    b.ToTable("FamilyChatMessages");
+                });
+
+            modelBuilder.Entity("Homassy.API.Entities.Family.FamilyChatReadState", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<int>("FamilyId")
+                        .HasColumnType("integer");
+
+                    b.Property<bool>("IsDeleted")
+                        .HasColumnType("boolean");
+
+                    b.Property<DateTime>("LastReadAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid>("PublicId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasDefaultValueSql("gen_random_uuid()");
+
+                    b.Property<string>("RecordChange")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<int>("UserId")
+                        .HasColumnType("integer");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("FamilyId");
+
+                    b.HasIndex("UserId", "FamilyId")
+                        .IsUnique();
+
+                    b.ToTable("FamilyChatReadStates");
+                });
+
             modelBuilder.Entity("Homassy.API.Entities.Family.FamilyExternalCalendar", b =>
                 {
                     b.Property<int>("Id")
@@ -1170,6 +1309,9 @@ namespace Homassy.API.Migrations
                         .HasColumnType("uuid")
                         .HasDefaultValueSql("gen_random_uuid()");
 
+                    b.Property<bool>("PushFamilyChatEnabled")
+                        .HasColumnType("boolean");
+
                     b.Property<bool>("PushNotificationsEnabled")
                         .HasColumnType("boolean");
 
@@ -1381,6 +1523,55 @@ namespace Homassy.API.Migrations
                         .HasForeignKey("UserId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
+                });
+
+            modelBuilder.Entity("Homassy.API.Entities.Family.FamilyChatImage", b =>
+                {
+                    b.HasOne("Homassy.API.Entities.Family.FamilyChatMessage", "Message")
+                        .WithMany()
+                        .HasForeignKey("FamilyChatMessageId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Message");
+                });
+
+            modelBuilder.Entity("Homassy.API.Entities.Family.FamilyChatMessage", b =>
+                {
+                    b.HasOne("Homassy.API.Entities.Family.Family", "Family")
+                        .WithMany()
+                        .HasForeignKey("FamilyId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("Homassy.API.Entities.User.User", "Sender")
+                        .WithMany()
+                        .HasForeignKey("SenderUserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Family");
+
+                    b.Navigation("Sender");
+                });
+
+            modelBuilder.Entity("Homassy.API.Entities.Family.FamilyChatReadState", b =>
+                {
+                    b.HasOne("Homassy.API.Entities.Family.Family", "Family")
+                        .WithMany()
+                        .HasForeignKey("FamilyId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("Homassy.API.Entities.User.User", "User")
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Family");
+
+                    b.Navigation("User");
                 });
 
             modelBuilder.Entity("Homassy.API.Entities.Family.FamilyExternalCalendar", b =>

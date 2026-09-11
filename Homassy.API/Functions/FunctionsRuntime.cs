@@ -35,13 +35,15 @@ namespace Homassy.API.Functions
             IServiceScopeFactory scopeFactory,
             InventoryRealtime inventory,
             MasterDataRealtime masterData,
-            ShoppingListRealtime shoppingList)
+            ShoppingListRealtime shoppingList,
+            FamilyChatRealtime familyChat)
         {
             ContextFactory = contextFactory;
             ScopeFactory = scopeFactory;
             Inventory = inventory;
             MasterData = masterData;
             ShoppingList = shoppingList;
+            FamilyChat = familyChat;
         }
 
         /// <summary>One context per operation; see the two rules in <c>Homassy.API/CLAUDE.md</c>.</summary>
@@ -58,5 +60,7 @@ namespace Homassy.API.Functions
         public MasterDataRealtime MasterData { get; }
 
         public ShoppingListRealtime ShoppingList { get; }
+
+        public FamilyChatRealtime FamilyChat { get; }
     }
 }

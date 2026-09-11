@@ -1253,7 +1253,9 @@
       "pushSection": "Push-Benachrichtigungen",
       "pushDescription": "Erhalten Sie Push-Benachrichtigungen über wichtige Ereignisse und eine wöchentliche Bestandsübersicht.",
       "pushNotifications": "Push-Benachrichtigungen",
-      "pushWeeklySummary": "Wöchentliche Zusammenfassung",
+      "pushFamilyChat": "Familienchat",
+    "pushFamilyChatDescription": "Über neue Nachrichten benachrichtigt werden, wenn Sie sie gerade nicht lesen.",
+    "pushWeeklySummary": "Wöchentliche Zusammenfassung",
       "pushDailyDescription": "Erhalten Sie Benachrichtigungen über wichtige Ereignisse.",
       "pushWeeklyDescription": "Erhalten Sie eine wöchentliche Zusammenfassung Ihres Bestands.",
       "inAppSection": "In der App",
@@ -2886,6 +2888,12 @@
         "title": "Beitrittsanfrage abgelehnt",
         "body": "Deine Anfrage, der Familie \"{familyName}\" beizutreten, wurde abgelehnt."
       },
+      "FamilyChatMessages": {
+        "title": "{senderName}",
+        "body": "{preview}",
+        "bodyPhoto": "Hat ein Foto gesendet",
+        "bodyMany": "{count} neue Nachrichten"
+      },
       "CalendarEventReminder": {
         "title": "Kalendererinnerung",
         "bodyNow": "\"{eventTitle}\" beginnt jetzt.",
@@ -2901,5 +2909,44 @@
     "youAreHere": "Ihr Standort",
     "hide": "Karte ausblenden",
     "showAll": "Alle auf der Karte zeigen ({count})"
+  },
+  "familyChat": {
+    "typing": {
+      "one": "{name} schreibt…",
+      "two": "{first} und {second} schreiben…",
+      "several": "Mehrere Personen schreiben…"
+    },
+    "image": {
+      "open": "Bild öffnen",
+      "alt": "In den Familienchat gesendetes Bild"
+    },
+    "title": "Familienchat",
+    "composer": {
+      "attach": "Bild anhängen",
+      "placeholder": "Nachricht schreiben…",
+      "send": "Senden"
+    },
+    "stream": {
+      "beginning": "Hier beginnt Ihr Familienchat",
+      "jumpToLatest": "Zum Neuesten springen",
+      "emptyTitle": "Noch keine Nachrichten",
+      "emptyDescription": "Schreiben Sie Ihrer Familie – sie sieht es sofort."
+    },
+    "state": {
+      "pending": "Wird gesendet",
+      "failed": "Nicht gesendet",
+      "retry": "Erneut versuchen"
+    },
+    "actions": {
+      "title": "Nachricht",
+      "delete": "Nachricht löschen"
+    },
+    "bubble": {
+      "open": "Chat von {family} öffnen",
+      "restore": {
+        "label": "Chat-Blase anzeigen",
+        "description": "Die ausgeblendete Familienchat-Blase zurückholen"
+      }
+    }
   }
 }

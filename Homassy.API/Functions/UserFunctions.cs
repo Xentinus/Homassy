@@ -1096,6 +1096,7 @@ namespace Homassy.API.Functions
                     EmailWeeklySummaryEnabled = true,
                     PushNotificationsEnabled = true,
                     PushWeeklySummaryEnabled = true,
+                    PushFamilyChatEnabled = true,
                     InAppNotificationsEnabled = true
                 };
 
@@ -1340,6 +1341,7 @@ namespace Homassy.API.Functions
                 EmailWeeklySummaryEnabled = prefs.EmailWeeklySummaryEnabled,
                 PushNotificationsEnabled = prefs.PushNotificationsEnabled,
                 PushWeeklySummaryEnabled = prefs.PushWeeklySummaryEnabled,
+                PushFamilyChatEnabled = prefs.PushFamilyChatEnabled,
                 InAppNotificationsEnabled = prefs.InAppNotificationsEnabled
             };
 
@@ -1387,6 +1389,11 @@ namespace Homassy.API.Functions
                 if (request.PushWeeklySummaryEnabled.HasValue)
                 {
                     prefs.PushWeeklySummaryEnabled = request.PushWeeklySummaryEnabled.Value;
+                }
+
+                if (request.PushFamilyChatEnabled.HasValue)
+                {
+                    prefs.PushFamilyChatEnabled = request.PushFamilyChatEnabled.Value;
                 }
 
                 if (request.InAppNotificationsEnabled.HasValue)

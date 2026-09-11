@@ -766,6 +766,106 @@ wrapper `div` or renaming a class does not break the tour.
 
 ---
 
+## Family chat (the bubble and the panel)
+
+The family's conversation, reachable from anywhere without a nav slot or a route: a chat head that
+floats over the app (#145) and the panel it opens into (#146).
+
+| Piece | Role |
+|---|---|
+| `app/components/FamilyChatBubble.vue` | the draggable chat head, mounted in `layouts/auth.vue` |
+| `app/composables/useFamilyChatBubble.ts` | its shared flags: dismissed-for-session, panel open, the live anchor rect |
+| `app/composables/useOverlayPresence.ts` | "is a drawer or modal open" — answered from the DOM, not a register |
+| `app/components/FamilyChatPanel.vue` | bottom sheet on mobile, anchored card on desktop |
+| `app/components/FamilyChatStream.vue` | the message list: day separators, paging, scroll behaviour |
+| `app/components/FamilyChatMessageGroup.vue` | one sender run — avatar and name once, then their messages |
+| `app/components/FamilyChatComposer.vue` | the input row (Enter sends, Shift+Enter newlines) |
+| `app/composables/useFamilyChat.ts` | the stream state, optimistic send, paging, delete |
+| `app/composables/useFamilyChatSocket.ts` | the `/hubs/family-chat` client |
+| `app/utils/familyChat.ts` | the pure grouping rules (unit-tested) |
+| `i18n/locales/*.json` → `familyChat` | all three locales |
+
+- **The bubble is teleported to `<body>`**, for the reason `NavFab` is not: `UApp` sets
+  `isolation: isolate`, and a floating surface has to paint above the app's own stacking context.
+  It is mounted in the layout so it survives navigation, and `ClientOnly` because its position
+  comes from `localStorage` and its family from an authenticated fetch — a server-rendered bubble
+  could only ever mismatch on hydration.
+- **Its gesture follows `useDrawerDragToClose`'s conventions**: `touch-action: none`, a slop
+  threshold before a press becomes a drag (so a tap is still a tap), live `transform` while
+  dragging, an explicit release easing. On release it snaps to the nearer edge; the position is
+  stored as **viewport fractions**, so rotation and resize keep it sensible, and every restore is
+  re-clamped rather than trusted.
+- **It hides itself for three different reasons**: no family (nothing to open), a drawer or modal
+  open — *except its own panel*, which on mobile is a drawer and whose handle the bubble is — and
+  dismissed this session. Dismissal is session-scoped with a settings row as the way back, because
+  the bubble is how the chat is reached at all.
+- **The morph is two different things on the two platforms, on purpose.** Desktop gets the real
+  one: the card's `transform-origin` is the bubble's live centre, so it scales out of the circle
+  that was tapped. On mobile the panel is an `AppDrawer` — which is what buys drag-down-to-close,
+  the backdrop and the focus trap for free — and vaul owns the transform on the sheet element while
+  it animates, so the morph is applied to the sheet's *contents*, anchored at the bubble's own x.
+- **Optimistic send reconciles on a correlation id, never on content.** The sender receives their
+  own `MessageCreated` broadcast like everyone else; the id the client generated before sending is
+  echoed back, which is what stops the message rendering twice. A failed send stays on screen as a
+  failed bubble with retry and discard — it holds the text the user wrote.
+- **Scroll rules follow from newest-at-the-bottom**: "load older" fires at the top and the previous
+  scroll height is restored after the prepend (otherwise the stream jumps backwards exactly as the
+  reader walks back through it), a send scrolls to the bottom, and an arriving message only does so
+  if the reader was already there — otherwise the jump-to-latest pill says something arrived.
+- **Windowing is a render cap, not a virtual scroller** (`renderLimit` in `FamilyChatStream`). What
+  hurts is a year of history mounted at once after several "load older" pages, not the rows on
+  screen; a cap keeps scroll anchoring and text selection working, which a virtualiser over
+  variable-height rows would have to reimplement.
+- **Sender colour is the family identity colour (#114)** through `useMemberColor`, never a palette
+  invented for the chat: a member is one colour everywhere, and a second scheme would make the same
+  person two different people.
+- Day separators go through the same `groupByDay` / `formatDayBucketDate` pair the activity
+  timeline and the notification centre use, so "Today" means the same thing in all three.
+- **Message text renders as text nodes, never `v-html`.** The API deliberately does not sanitize
+  the body (it would reject `<`, `>` and "5 < 10"), so this is where that safety is actually paid
+  for.
+- **Links are the one piece of markup derived from user input** (`app/utils/linkify.ts`, unit
+  tested). It returns typed *segments*, never HTML, so the template still renders text nodes and
+  only the link segments become anchors — `target="_blank" rel="noopener noreferrer nofollow"`. The
+  label always shows the full host and only ever shortens the path, because a rewritten label is
+  how a spoofed link works; the concatenated segments are the original message, character for
+  character.
+- **Pictures**: picked with one `accept="image/*"` input (a phone offers camera and gallery from
+  it), cropped in the existing `ImageCropper` — the crop screen *is* the preview — compressed
+  client-side, then posted as base64. The optimistic bubble shows the local `data:` URL, so the
+  sender sees their own photo immediately, and the box is sized from the stored dimensions so the
+  stream never reflows as images load. Tapping opens the existing `ImageLightbox`.
+- **Typing is reported from the draft's value, not from keydown** — at keydown the model still
+  holds the previous value, so the first character would not count and the last deletion would;
+  watching the value also covers paste and dictation. The signal is throttled to one call every
+  ~2s while there is content, and "stopped" is sent on send, on blur with an empty composer, and
+  after ~4s of silence. None of it is load-bearing: the server flag expires by itself, so a lost
+  call costs a few seconds of stale indicator rather than a permanent one.
+- **The indicator is pinned above the composer and fades**, never expands the layout — a line that
+  pushed the message list around every couple of seconds would move what the reader is reading.
+  Three phrasings (one name, two names, "several people"), and while the panel is closed the
+  bubble carries a pulse instead: the bubble is 56px, and "who" is what opening it answers.
+- **There is no byte-level upload progress**, deliberately: the upload is one JSON POST through the
+  shared API client, which reports none, and the async job pipeline that does report it costs a
+  second round trip plus a poll loop. A failed picture keeps its preview, so retry re-sends the
+  same image rather than asking the user to find it again.
+- **"Actively watching" is reported honestly, and it is not "connected"** (#149). The socket is an
+  app-wide singleton and a backgrounded tab keeps a WebSocket alive, so the client tells the server
+  it is watching only while the panel is open *and* the document is visible: `SetChatActive(true)`
+  on open, `false` on close, `visibilitychange` either way, a heartbeat to hold the server's TTL
+  open, a re-report in `onreconnected` (per-connection state dies with the connection), and an idle
+  timeout so a panel left open on a desk stops suppressing notifications. Over-reporting it would
+  swallow notifications for somebody who is not there.
+- **The badge clears on visibility, never on mount.** `FamilyChatStream` emits `seenLatest` when the
+  newest message is actually on screen *and* the document is visible; a panel opened in a background
+  tab, or one scrolled back through history, has shown the reader nothing. The count itself always
+  comes from the server (the loaded stream is one page deep) and is re-answered by every read.
+- A chat notification deep-links to `/calendar?action=open-chat`; the **auth layout** consumes it
+  and opens the panel over whatever page is showing, rather than navigating — the chat is a panel,
+  not a route. Handled in the layout rather than through `useDeepLinkAction`, which is per page.
+
+---
+
 ## Notification centre (`useNotificationCenter`)
 
 The inbox behind the bell in `AppHeader`. It replaces nothing: `NotificationSettingsDrawer`

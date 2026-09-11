@@ -203,6 +203,60 @@ namespace Homassy.API.Context
             });
             #endregion
 
+            #region FamilyChat Relationships
+            // The family conversation (#144). No navigation from Family to its messages: a chat is
+            // read one page at a time by its own query, and a collection on Family would invite
+            // Include()ing an entire conversation into a family lookup the caches already serve.
+            modelBuilder.Entity<FamilyChatMessage>(entity =>
+            {
+                entity.HasOne(m => m.Family)
+                    .WithMany()
+                    .HasForeignKey(m => m.FamilyId)
+                    .OnDelete(DeleteBehavior.Cascade);
+
+                entity.HasOne(m => m.Sender)
+                    .WithMany()
+                    .HasForeignKey(m => m.SenderUserId)
+                    .OnDelete(DeleteBehavior.Cascade);
+
+                // The one query that matters: this family's conversation, newest first. The
+                // descending timestamp is part of the index rather than a sort afterwards,
+                // because every page of every read is ordered this way.
+                entity.HasIndex(e => new { e.FamilyId, e.SentAt })
+                    .IsDescending(false, true);
+            });
+
+            // Same shape as UserProfilePicture and ProductImage, and the same rule: no navigation
+            // back from the message, so the history query cannot pull the bytes in with it.
+            modelBuilder.Entity<FamilyChatImage>(entity =>
+            {
+                entity.HasOne(i => i.Message)
+                    .WithMany()
+                    .HasForeignKey(i => i.FamilyChatMessageId)
+                    .OnDelete(DeleteBehavior.Cascade);
+
+                entity.HasIndex(e => e.FamilyChatMessageId).IsUnique();
+            });
+
+            // Per-member read markers (#149). The unique index is the point: the marker is written
+            // from every device the member has the chat open on, and two of them racing must
+            // update one row rather than quietly create a second one that halves the unread count.
+            modelBuilder.Entity<FamilyChatReadState>(entity =>
+            {
+                entity.HasOne(r => r.User)
+                    .WithMany()
+                    .HasForeignKey(r => r.UserId)
+                    .OnDelete(DeleteBehavior.Cascade);
+
+                entity.HasOne(r => r.Family)
+                    .WithMany()
+                    .HasForeignKey(r => r.FamilyId)
+                    .OnDelete(DeleteBehavior.Cascade);
+
+                entity.HasIndex(e => new { e.UserId, e.FamilyId }).IsUnique();
+            });
+            #endregion
+
             #region FamilyJoinRequest Relationships
             modelBuilder.Entity<FamilyJoinRequest>(entity =>
             {
@@ -399,6 +453,9 @@ namespace Homassy.API.Context
         public DbSet<Family> Families { get; set; }
         public DbSet<FamilyJoinRequest> FamilyJoinRequests { get; set; }
         public DbSet<FamilyExternalCalendar> FamilyExternalCalendars { get; set; }
+        public DbSet<FamilyChatMessage> FamilyChatMessages { get; set; }
+        public DbSet<FamilyChatImage> FamilyChatImages { get; set; }
+        public DbSet<FamilyChatReadState> FamilyChatReadStates { get; set; }
         public DbSet<ExternalCalendarReminderDispatch> ExternalCalendarReminderDispatches { get; set; }
         #endregion
 

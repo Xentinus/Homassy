@@ -1,6 +1,7 @@
 ﻿export * from './useCalendarApi'
 export * from './useAutomationApi'
 export * from './useErrorCodesApi'
+export * from './useFamilyChatApi'
 export * from './useFamilyApi'
 export * from './useHealthApi'
 export * from './useInsightsApi'

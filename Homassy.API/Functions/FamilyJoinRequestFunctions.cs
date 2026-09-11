@@ -226,6 +226,7 @@ namespace Homassy.API.Functions
         public async Task ApproveJoinRequestAsync(Guid publicId, CancellationToken cancellationToken = default)
         {
             var (approverId, request, context) = await LoadActionableRequestAsync(publicId, cancellationToken);
+            using var ownedContext = context;
 
             var requester = await context.Users.FirstOrDefaultAsync(u => u.Id == request.UserId, cancellationToken);
             if (requester == null)
@@ -270,6 +271,7 @@ namespace Homassy.API.Functions
         public async Task RejectJoinRequestAsync(Guid publicId, CancellationToken cancellationToken = default)
         {
             var (approverId, request, context) = await LoadActionableRequestAsync(publicId, cancellationToken);
+            using var ownedContext = context;
 
             await using var transaction = await context.Database.BeginTransactionAsync(cancellationToken);
             try
@@ -298,6 +300,20 @@ namespace Homassy.API.Functions
         /// (must be a member of the request's family). Returns the approver id, the tracked
         /// request, and its context.
         /// </summary>
+        /// <remarks>
+        /// <b>The caller owns the context and must dispose it</b> - both do, with a
+        /// <c>using</c> on what comes back. It is a write context, not a
+        /// <c>CreateForReading()</c> one, because the request and the requesting user are both
+        /// saved through it; and it is deliberately not disposed here, because a <c>using</c> in
+        /// this method would hand the caller a context that is already gone. It used to be both
+        /// of those things, which is what made approving or declining a join request answer 400
+        /// (an <c>ObjectDisposedException</c> mapped to a validation error) - so a family could
+        /// never gain a second member.
+        /// <para>
+        /// Every throw path below disposes the context on the way out, which is what the
+        /// try/catch is for: the caller's <c>using</c> never runs if this method does not return.
+        /// </para>
+        /// </remarks>
         private async Task<(int approverId, FamilyJoinRequest request, HomassyDbContext context)> LoadActionableRequestAsync(
             Guid publicId, CancellationToken cancellationToken)
         {
@@ -313,26 +329,34 @@ namespace Homassy.API.Functions
                 throw new FamilyNotFoundException("You are not a member of any family", ErrorCodes.FamilyNotMember);
             }
 
-            using var context = _contextFactory.CreateForReading();
-            var request = await context.FamilyJoinRequests
-                .FirstOrDefaultAsync(r => r.PublicId == publicId, cancellationToken);
-
-            if (request == null)
+            var context = _contextFactory.CreateDbContext();
+            try
             {
-                throw new FamilyNotFoundException("Join request not found", ErrorCodes.FamilyJoinRequestNotFound);
-            }
+                var request = await context.FamilyJoinRequests
+                    .FirstOrDefaultAsync(r => r.PublicId == publicId, cancellationToken);
 
-            if (request.FamilyId != approver.FamilyId.Value)
+                if (request == null)
+                {
+                    throw new FamilyNotFoundException("Join request not found", ErrorCodes.FamilyJoinRequestNotFound);
+                }
+
+                if (request.FamilyId != approver.FamilyId.Value)
+                {
+                    throw new BadRequestException("This join request does not belong to your family.", ErrorCodes.FamilyJoinRequestAccessDenied);
+                }
+
+                if (request.Status != FamilyJoinRequestStatus.Pending)
+                {
+                    throw new BadRequestException("This join request has already been handled.", ErrorCodes.FamilyJoinRequestNotFound);
+                }
+
+                return (userId.Value, request, context);
+            }
+            catch
             {
-                throw new BadRequestException("This join request does not belong to your family.", ErrorCodes.FamilyJoinRequestAccessDenied);
+                context.Dispose();
+                throw;
             }
-
-            if (request.Status != FamilyJoinRequestStatus.Pending)
-            {
-                throw new BadRequestException("This join request has already been handled.", ErrorCodes.FamilyJoinRequestNotFound);
-            }
-
-            return (userId.Value, request, context);
         }
 
         private static async Task<string> GetDisplayNameAsync(HomassyDbContext context, int userId, string? fallback, CancellationToken cancellationToken)

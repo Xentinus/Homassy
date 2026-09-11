@@ -83,6 +83,10 @@ public static class NotificationContentRenderer
                 => PushNotificationContentService.GetCalendarEventReminderContent(
                     language, Str(p, "eventTitle"), Int(p, "leadMinutes"), Bool(p, "isAllDay")),
 
+            NotificationType.FamilyChatMessages
+                => PushNotificationContentService.GetFamilyChatMessagesContent(
+                    language, Str(p, "senderName"), Int(p, "count"), Str(p, "preview")),
+
             // Unreachable for any envelope built in this process — every member of the enum is
             // handled above. It exists so that adding a member without adding a case here is a
             // notification that reads oddly rather than a worker that throws mid-iteration; the

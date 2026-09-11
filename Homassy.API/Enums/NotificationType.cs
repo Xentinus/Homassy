@@ -53,6 +53,12 @@ namespace Homassy.API.Enums
         FamilyJoinApproved = 41,
         FamilyJoinDeclined = 42,
 
+        /// <summary>
+        /// New messages in the family chat (#149) - one notification per sender per burst, never
+        /// one per message, which is why the parameters carry a count.
+        /// </summary>
+        FamilyChatMessages = 43,
+
         // External calendar
         CalendarEventReminder = 50
     }

@@ -24,6 +24,10 @@ export const useRealtimeStatus = () => {
   const inventorySocket = useInventorySocket()
   const masterDataSocket = useMasterDataSocket()
   const shoppingListSocket = useShoppingListSocket()
+  // The chat hub (#144) only connects while the panel is open, so it sits at 'idle' most of the
+  // time - which deriveRealtimeStatus filters out. That is exactly right: it should count towards
+  // the status indicator while somebody is reading a conversation, and not before.
+  const familyChatSocket = useFamilyChatSocket()
 
   // navigator.onLine only exists client-side; SSR defaults to true (same as "never checked yet"),
   // which is harmless since a server-rendered page never has a live hub either — the aggregate
@@ -41,7 +45,12 @@ export const useRealtimeStatus = () => {
   }
 
   const status = computed(() => deriveRealtimeStatus(
-    [inventorySocket.hubState.value, masterDataSocket.hubState.value, shoppingListSocket.hubState.value],
+    [
+      inventorySocket.hubState.value,
+      masterDataSocket.hubState.value,
+      shoppingListSocket.hubState.value,
+      familyChatSocket.hubState.value
+    ],
     online.value
   ))
 

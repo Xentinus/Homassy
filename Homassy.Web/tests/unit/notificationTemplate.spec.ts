@@ -126,3 +126,39 @@ describe('the locale files cover every notification type', () => {
     })
   }
 })
+
+describe('family chat bursts (#149)', () => {
+  it('renders several messages as a count', () => {
+    const template = notificationTemplate({
+      type: 'FamilyChatMessages',
+      parameters: { senderName: 'Anna', count: '3', preview: 'on my way' }
+    })
+
+    expect(template.bodyKey).toBe('notifications.types.FamilyChatMessages.bodyMany')
+  })
+
+  it('renders a single message as its own text', () => {
+    const template = notificationTemplate({
+      type: 'FamilyChatMessages',
+      parameters: { senderName: 'Anna', count: '1', preview: 'on my way' }
+    })
+
+    expect(template.bodyKey).toBe('notifications.types.FamilyChatMessages.body')
+  })
+
+  it('renders a picture as "sent a photo" rather than an empty line', () => {
+    // A photo carries no preview, and "" is not something a plural form can branch on - which is
+    // why this type has three body templates instead of one with plurals.
+    const template = notificationTemplate({
+      type: 'FamilyChatMessages',
+      parameters: { senderName: 'Anna', count: '1', preview: '' }
+    })
+
+    expect(template.bodyKey).toBe('notifications.types.FamilyChatMessages.bodyPhoto')
+  })
+
+  it('uses the chat icon', () => {
+    const template = notificationTemplate({ type: 'FamilyChatMessages', parameters: {} })
+    expect(template.icon).toBe('i-lucide-message-circle')
+  })
+})

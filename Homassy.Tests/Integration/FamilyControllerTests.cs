@@ -356,5 +356,69 @@ public class FamilyControllerTests : IClassFixture<HomassyWebApplicationFactory>
                 await _authHelper.CleanupUserAsync(testEmail);
         }
     }
+
+    /// <summary>
+    /// Approving a pending join request actually puts the requester in the family.
+    /// </summary>
+    /// <remarks>
+    /// Regression test. <c>LoadActionableRequestAsync</c> used to hand its callers a read-only
+    /// context that it had already disposed, so both approve and decline answered 400 and a
+    /// family could never gain a second member - which is every shared feature in the app.
+    /// </remarks>
+    [Fact]
+    public async Task ApproveJoinRequest_PendingRequest_AddsRequesterToFamily()
+    {
+        string? ownerEmail = null;
+        string? joinerEmail = null;
+        try
+        {
+            var (email, auth) = await _authHelper.CreateAndAuthenticateUserAsync("family-approve-owner");
+            ownerEmail = email;
+            _authHelper.SetAuthToken(auth.AccessToken);
+
+            var createResponse = await _client.PostAsJsonAsync(
+                "/api/v1.0/family/create",
+                new CreateFamilyRequest { Name = "Approving Family" });
+            Assert.Equal(HttpStatusCode.OK, createResponse.StatusCode);
+
+            var created = await createResponse.Content.ReadFromJsonAsync<ApiResponse<FamilyInfo>>();
+            var shareCode = created!.Data!.ShareCode;
+
+            _authHelper.ClearAuthToken();
+            var (secondEmail, secondAuth) = await _authHelper.CreateAndAuthenticateUserAsync("family-approve-joiner");
+            joinerEmail = secondEmail;
+            _authHelper.SetAuthToken(secondAuth.AccessToken);
+
+            var joinResponse = await _client.PostAsJsonAsync(
+                "/api/v1.0/family/join-requests",
+                new JoinFamilyRequest { ShareCode = shareCode });
+            Assert.Equal(HttpStatusCode.OK, joinResponse.StatusCode);
+
+            _authHelper.ClearAuthToken();
+            _authHelper.SetAuthToken(auth.AccessToken);
+
+            var pending = await _client.GetFromJsonAsync<ApiResponse<List<FamilyJoinRequestResponse>>>(
+                "/api/v1.0/family/join-requests");
+            var request = Assert.Single(pending!.Data!);
+
+            var approveResponse = await _client.PostAsync(
+                $"/api/v1.0/family/join-requests/{request.PublicId}/approve", null);
+            var approveBody = await approveResponse.Content.ReadAsStringAsync();
+
+            _output.WriteLine($"Approve status: {approveResponse.StatusCode}");
+            _output.WriteLine($"Approve response: {approveBody}");
+            Assert.Equal(HttpStatusCode.OK, approveResponse.StatusCode);
+
+            var members = await _client.GetFromJsonAsync<ApiResponse<List<FamilyMemberResponse>>>(
+                "/api/v1.0/family/members");
+            Assert.Equal(2, members!.Data!.Count);
+        }
+        finally
+        {
+            _authHelper.ClearAuthToken();
+            if (ownerEmail != null) await _authHelper.CleanupUserAsync(ownerEmail);
+            if (joinerEmail != null) await _authHelper.CleanupUserAsync(joinerEmail);
+        }
+    }
     #endregion
 }

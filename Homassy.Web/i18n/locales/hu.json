@@ -1253,7 +1253,9 @@
       "pushSection": "Push értesítések",
       "pushDescription": "Push értesítések fogadása fontos eseményekről és heti készletösszefoglalóról.",
       "pushNotifications": "Push értesítések",
-      "pushWeeklySummary": "Heti összefoglaló",
+      "pushFamilyChat": "Családi csevegés",
+    "pushFamilyChatDescription": "Értesítés az új üzenetekről, amikor éppen nem olvassa őket.",
+    "pushWeeklySummary": "Heti összefoglaló",
       "pushDailyDescription": "Értesítést kapsz fontos eseményekről.",
       "pushWeeklyDescription": "Heti összefoglalót kapsz a készletedről.",
       "inAppSection": "Az alkalmazásban",
@@ -2886,6 +2888,12 @@
         "title": "Belépési kérelem elutasítva",
         "body": "A(z) \"{familyName}\" családhoz küldött kérelmedet elutasították."
       },
+      "FamilyChatMessages": {
+        "title": "{senderName}",
+        "body": "{preview}",
+        "bodyPhoto": "Képet küldött",
+        "bodyMany": "{count} új üzenet"
+      },
       "CalendarEventReminder": {
         "title": "Naptár emlékeztető",
         "bodyNow": "\"{eventTitle}\" most kezdődik.",
@@ -2901,5 +2909,44 @@
     "youAreHere": "Az Ön helyzete",
     "hide": "Térkép elrejtése",
     "showAll": "Mind megjelenítése a térképen ({count})"
+  },
+  "familyChat": {
+    "typing": {
+      "one": "{name} éppen ír…",
+      "two": "{first} és {second} éppen ír…",
+      "several": "Többen is írnak…"
+    },
+    "image": {
+      "open": "Kép megnyitása",
+      "alt": "A családi csevegésbe küldött kép"
+    },
+    "title": "Családi csevegés",
+    "composer": {
+      "attach": "Kép csatolása",
+      "placeholder": "Írjon üzenetet…",
+      "send": "Küldés"
+    },
+    "stream": {
+      "beginning": "Itt kezdődik a családi csevegés",
+      "jumpToLatest": "Ugrás a legújabbra",
+      "emptyTitle": "Még nincs üzenet",
+      "emptyDescription": "Írjon a családjának – azonnal látni fogják."
+    },
+    "state": {
+      "pending": "Küldés folyamatban",
+      "failed": "Nem sikerült elküldeni",
+      "retry": "Újra"
+    },
+    "actions": {
+      "title": "Üzenet",
+      "delete": "Üzenet törlése"
+    },
+    "bubble": {
+      "open": "{family} csevegés megnyitása",
+      "restore": {
+        "label": "Csevegőbuborék megjelenítése",
+        "description": "Az elrejtett családi csevegőbuborék visszahozása"
+      }
+    }
   }
 }

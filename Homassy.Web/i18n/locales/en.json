@@ -1253,7 +1253,9 @@
       "pushSection": "Push Notifications",
       "pushDescription": "Receive push notifications for important events and a weekly inventory summary.",
       "pushNotifications": "Push notifications",
-      "pushWeeklySummary": "Weekly summary",
+      "pushFamilyChat": "Family chat",
+    "pushFamilyChatDescription": "Be notified about new chat messages when you are not reading them.",
+    "pushWeeklySummary": "Weekly summary",
       "pushDailyDescription": "Get notified about important events.",
       "pushWeeklyDescription": "Receive a weekly summary of your inventory.",
       "inAppSection": "In the app",
@@ -2886,6 +2888,12 @@
         "title": "Join request declined",
         "body": "Your request to join the \"{familyName}\" family was declined."
       },
+      "FamilyChatMessages": {
+        "title": "{senderName}",
+        "body": "{preview}",
+        "bodyPhoto": "Sent a photo",
+        "bodyMany": "{count} new messages"
+      },
       "CalendarEventReminder": {
         "title": "Calendar reminder",
         "bodyNow": "\"{eventTitle}\" is starting now.",
@@ -2901,5 +2909,44 @@
     "youAreHere": "Your position",
     "hide": "Hide map",
     "showAll": "Show all on the map ({count})"
+  },
+  "familyChat": {
+    "typing": {
+      "one": "{name} is typing…",
+      "two": "{first} and {second} are typing…",
+      "several": "Several people are typing…"
+    },
+    "image": {
+      "open": "Open the picture",
+      "alt": "Picture sent to the family chat"
+    },
+    "title": "Family chat",
+    "composer": {
+      "attach": "Attach a picture",
+      "placeholder": "Write a message…",
+      "send": "Send"
+    },
+    "stream": {
+      "beginning": "This is the beginning of your family chat",
+      "jumpToLatest": "Jump to latest",
+      "emptyTitle": "No messages yet",
+      "emptyDescription": "Say something to your family — they will see it straight away."
+    },
+    "state": {
+      "pending": "Sending",
+      "failed": "Not sent",
+      "retry": "Retry"
+    },
+    "actions": {
+      "title": "Message",
+      "delete": "Delete message"
+    },
+    "bubble": {
+      "open": "Open the {family} chat",
+      "restore": {
+        "label": "Show the chat bubble",
+        "description": "Bring back the family chat bubble you dismissed"
+      }
+    }
   }
 }

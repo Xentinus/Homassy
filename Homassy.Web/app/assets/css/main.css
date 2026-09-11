@@ -435,3 +435,26 @@ html {
     transform: none;
   }
 }
+
+/* ---------------------------------------------------------------------------
+   Family chat panel morph (#146) — the sheet's contents growing out of the chat
+   bubble on mobile.
+
+   Global rather than scoped to FamilyChatPanel.vue because the animation is applied from an
+   inline style (the transform-origin is the bubble's live position, which only JS knows). A
+   scoped `@keyframes` is renamed with the component's scope id, and an inline `animation`
+   naming the un-renamed keyframe would match nothing.
+
+   The desktop card's own morph is a Vue transition inside that component, where the names are
+   rewritten consistently and this problem does not arise.
+--------------------------------------------------------------------------- */
+@keyframes chat-panel-grow {
+  from {
+    opacity: 0;
+    transform: scale(0.72) translateY(16px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
