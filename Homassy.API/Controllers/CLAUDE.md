@@ -89,6 +89,33 @@ Manages family operations (all endpoints require `[Authorize]`).
 - **Approval-gated join requests**: joining is not immediate — a request stays `Pending` until an existing member approves or rejects it (a user may hold only one pending request at a time). Backed by `FamilyJoinRequestFunctions` and the `FamilyJoinRequest` entity.
 - Base64 image upload for family pictures
 
+### FamilyChatController
+
+The family conversation (#144) — history and the two writes that change it (all endpoints require `[Authorize]`).
+
+**Endpoints:**
+
+| Method | Endpoint | Query Params | Description |
+|--------|----------|--------------|-------------|
+| GET | `/messages` | `before`, `limit` | One page of the caller's family conversation, newest first |
+| POST | `/messages` | - | Send a text message |
+| DELETE | `/messages/{publicId}` | - | Delete one of your own messages (soft delete) |
+
+**Key Patterns:**
+- **No endpoint takes a family id.** `FamilyChatFunctions` resolves the caller's own family from `SessionInfo`, so the only conversation a caller can address is theirs — "a member of another family cannot read or post" is true by construction, not by a check somebody has to remember. A caller with no family gets **403** `FAMILYCHAT-0001`, the same answer as a family that is not theirs
+- **Cursor-paged on `(SentAt, PublicId)`** via the existing `Models/Activity/ActivityCursor`, reused rather than reimplemented. Messages arrive at the top *while the reader is scrolling back*, so a numeric offset would re-show or skip rows; and a burst of messages routinely shares a tick, which is why the id is half the cursor. An undecodable cursor is a **400**, never a 500
+- **Deleting is own-messages-only, and a soft delete.** Somebody else's message answers **404**, indistinguishably from one that does not exist — distinguishing them would let a caller probe which ids exist. The row stays so clients that already rendered it can be told it is gone, and so #149's read markers keep pointing at something
+- **The body deliberately skips `[SanitizedString]`.** That attribute rejects any value containing `<` or `>`; "5 < 10" and a pasted line of code are ordinary things to send your family. The safety it buys elsewhere is bought here by rendering text nodes, never `v-html` (#147)
+- **Rate limited per user**, not per IP, inside the Functions layer (`family-chat:send:{userId}`, 40/min). A family behind one NAT shares an IP bucket, so the middleware's route-template limit can only throttle the household. Answers **429** `FAMILYCHAT-0004`. Inherits the process-local scope of `RateLimitService` — see #82
+- Messages are **not** wired into the trigger-based cache: that cache is for slow-changing master data, and `DatabaseTriggerInitializer` skips `FamilyChatMessages` by name for the same reason it skips `UserNotifications`
+- Sender payloads carry the public id, display name, avatar **URL** and identity colour — never the avatar bytes (a page is hundreds of rows) and never the internal user id
+
+**Realtime (SignalR):**
+- Hub at `/hubs/family-chat` (`FamilyChatHub`, `[Authorize]`) — same Kratos-cookie-on-handshake auth as the other three hubs
+- `JoinChat()` takes **no argument**: the group is derived from the session (`family-chat:{familyPublicId}`), so a client cannot ask for somebody else's group. It answers with the newest page, so opening the panel is one round trip. `LeaveChat()` removes the connection
+- After a successful commit `FamilyChatFunctions` broadcasts through the injected `FamilyChatRealtime`: `MessageCreated` (carries the message **and the sender's own correlation id**, so an optimistically appended message is reconciled rather than rendered twice), `MessageDeleted`
+- Broadcast failures are logged but never break the write
+
 ### ProductController
 
 Manages product catalog and inventory (all endpoints require `[Authorize]`).

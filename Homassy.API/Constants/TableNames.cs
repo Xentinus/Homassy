@@ -28,5 +28,6 @@
         public const string ItemAutomationExecutions = "ItemAutomationExecutions";
 
         public const string FamilyExternalCalendars = "FamilyExternalCalendars";
+        public const string FamilyChatMessages = "FamilyChatMessages";
     }
 }

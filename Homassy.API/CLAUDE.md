@@ -54,6 +54,7 @@ Homassy.API is a home storage management system built with ASP.NET Core. The pro
 - **SignalR Realtime (Shopping Lists)**: Each shopping list is a SignalR group; clients join the list they are viewing and receive live item/list events. Writes stay on the REST endpoints — after a successful commit the Functions layer broadcasts via the injected `ShoppingListRealtime` helper
 - **Manual (Aisle) Ordering**: shopping list items, storage and shopping locations and automations each carry a `SortOrder`, written by a per-entity reorder endpoint that takes the ordered ids and commits them in one transaction. The positions are sparse gapped integers, not indices, so moving one row rewrites one row — `Functions/SparseOrdering` turns the requested order into the provably smallest set of writes and renumbers only when a gap runs out. Every pre-existing row is 0, which is why each list's previous ordering survives as the tie-break
 - **SignalR Realtime (Inventory / Készletek)**: Identity-derived groups (per-family + per-user, joined on connect) push live inventory/product events to every grid that can see the change; the Functions layer broadcasts light card-only payloads via the injected `InventoryRealtime` helper after each commit, and out-of-process automation relays through the internal broadcast endpoint
+- **SignalR Realtime (Family chat)**: One group per family, joined when the chat panel opens rather than on connect; `JoinChat()` takes no argument (the group comes from the session, so no client can ask for another family's) and answers with the newest page of history. Messages are cursor-paged on `(SentAt, PublicId)`, uncached and outside the trigger system, and every broadcast carries the sender's own correlation id so an optimistic append reconciles instead of duplicating
 
 ---
 
@@ -118,6 +119,7 @@ Homassy.API/
 │   ├── AutomationController.cs    Item-automation rule management
 │   ├── CalendarController.cs      Calendar event aggregation
 │   ├── ErrorCodesController.cs    Error code reference (public)
+│   ├── FamilyChatController.cs    Family chat: history, send, delete
 │   ├── FamilyController.cs
 │   ├── HealthController.cs
 │   ├── LocationController.cs
@@ -203,6 +205,7 @@ Homassy.API/
 │   ├── ActivityFunctions.cs       Activity feed queries
 │   ├── AutomationFunctions.cs     Item-automation CRUD, scheduling, execution, low-stock check
 │   ├── CalendarFunctions.cs       Calendar event aggregation
+│   ├── FamilyChatFunctions.cs     Family chat reads/writes + the post-commit broadcast
 │   ├── FamilyFunctions.cs
 │   ├── FamilyJoinRequestFunctions.cs  Approval-gated family join requests
 │   ├── FunctionsRuntime.cs        The layer's cross-cutting deps as one typed parameter object
@@ -223,7 +226,9 @@ Homassy.API/
 │   ├── ShoppingListHub.cs         Per-list groups; JoinList returns the current snapshot
 │   ├── ShoppingListRealtime.cs    Broadcast helper, singleton (ItemUpserted/ItemDeleted/ItemsReordered/ListUpdated/ListDeleted)
 │   ├── InventoryHub.cs            Per-family + per-user groups joined on connect; JoinInventory returns the light grid snapshot
-│   └── InventoryRealtime.cs       Broadcast helper, singleton (InventoryUpserted/InventoryDeleted/ProductUpdated/ProductFavoriteChanged/ProductDeleted)
+│   ├── InventoryRealtime.cs       Broadcast helper, singleton (InventoryUpserted/InventoryDeleted/ProductUpdated/ProductFavoriteChanged/ProductDeleted)
+│   ├── FamilyChatHub.cs           One group per family; JoinChat takes no argument and returns the newest page
+│   └── FamilyChatRealtime.cs      Broadcast helper, singleton (MessageCreated/MessageDeleted)
 ├── Infrastructure/       Infrastructure components
 │   └── DatabaseTriggerInitializer.cs
 ├── Middleware/           Custom middleware

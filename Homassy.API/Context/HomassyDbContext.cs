@@ -203,6 +203,30 @@ namespace Homassy.API.Context
             });
             #endregion
 
+            #region FamilyChat Relationships
+            // The family conversation (#144). No navigation from Family to its messages: a chat is
+            // read one page at a time by its own query, and a collection on Family would invite
+            // Include()ing an entire conversation into a family lookup the caches already serve.
+            modelBuilder.Entity<FamilyChatMessage>(entity =>
+            {
+                entity.HasOne(m => m.Family)
+                    .WithMany()
+                    .HasForeignKey(m => m.FamilyId)
+                    .OnDelete(DeleteBehavior.Cascade);
+
+                entity.HasOne(m => m.Sender)
+                    .WithMany()
+                    .HasForeignKey(m => m.SenderUserId)
+                    .OnDelete(DeleteBehavior.Cascade);
+
+                // The one query that matters: this family's conversation, newest first. The
+                // descending timestamp is part of the index rather than a sort afterwards,
+                // because every page of every read is ordered this way.
+                entity.HasIndex(e => new { e.FamilyId, e.SentAt })
+                    .IsDescending(false, true);
+            });
+            #endregion
+
             #region FamilyJoinRequest Relationships
             modelBuilder.Entity<FamilyJoinRequest>(entity =>
             {
@@ -399,6 +423,7 @@ namespace Homassy.API.Context
         public DbSet<Family> Families { get; set; }
         public DbSet<FamilyJoinRequest> FamilyJoinRequests { get; set; }
         public DbSet<FamilyExternalCalendar> FamilyExternalCalendars { get; set; }
+        public DbSet<FamilyChatMessage> FamilyChatMessages { get; set; }
         public DbSet<ExternalCalendarReminderDispatch> ExternalCalendarReminderDispatches { get; set; }
         #endregion
 

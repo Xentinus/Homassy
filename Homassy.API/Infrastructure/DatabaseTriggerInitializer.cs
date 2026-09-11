@@ -56,7 +56,12 @@ namespace Homassy.API.Infrastructure
                                 // add a TableRecordChanges insert and a pg_notify to every write
                                 // on the highest-volume table in the schema: one row per family
                                 // member per worker event, all of it invalidating nothing.
-                                && name != "UserNotifications");
+                                && name != "UserNotifications"
+                                // Same reasoning for the family chat (#144), which is the other
+                                // write-heavy table nothing caches: a conversation is read as one
+                                // page when the panel opens and pushed onward over SignalR, so a
+                                // cache-invalidation trigger on every message would be pure cost.
+                                && name != "FamilyChatMessages");
 
                 foreach (var tableName in entityTypes)
                 {
