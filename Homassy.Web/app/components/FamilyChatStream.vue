@@ -216,6 +216,14 @@ const restoreAfterPrepend = async (): Promise<void> => {
 
 watch(() => props.messages.length, async (next, previous) => {
   if (heightBeforePrepend !== null) {
+    // A page that was just fetched has to fit inside the render window, or it is loaded and then
+    // not drawn: once the conversation is longer than the cap, the window is the newest N
+    // messages and a prepended page falls outside it entirely. The reader would see the spinner
+    // stop, nothing appear, and the scroll restore compute a delta of zero. Growing the cap by
+    // exactly what arrived keeps the cap meaningful (it still bounds the *initial* render) while
+    // guaranteeing that what the reader asked for is what they get.
+    if (next > previous) renderLimit.value += next - previous
+
     await restoreAfterPrepend()
     return
   }
@@ -236,6 +244,9 @@ watch(() => props.messages.length, async (next, previous) => {
   }
 })
 
+// Covers the cheap path, where only the cap moved and no message arrived. When the cap is raised
+// by the watcher above instead, that one has already restored and cleared the anchor, so this
+// fires into `restoreAfterPrepend`'s own null guard and does nothing.
 watch(renderLimit, restoreAfterPrepend)
 
 onMounted(async () => {

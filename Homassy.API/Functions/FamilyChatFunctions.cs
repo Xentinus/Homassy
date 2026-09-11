@@ -9,6 +9,7 @@ using Homassy.API.Models.ImageUpload;
 using Homassy.API.Models.FamilyChat;
 using Homassy.API.Services;
 using Microsoft.EntityFrameworkCore;
+using Npgsql;
 using Serilog;
 
 namespace Homassy.API.Functions
@@ -252,20 +253,50 @@ namespace Homassy.API.Functions
 
             if (state == null)
             {
-                state = new FamilyChatReadState
+                context.Set<FamilyChatReadState>().Add(new FamilyChatReadState
                 {
                     UserId = userId,
                     FamilyId = familyId,
                     LastReadAt = now
-                };
-                context.Set<FamilyChatReadState>().Add(state);
-            }
-            else if (state.LastReadAt < now)
-            {
-                state.LastReadAt = now;
-            }
+                });
 
-            await context.SaveChangesAsync(cancellationToken);
+                try
+                {
+                    await context.SaveChangesAsync(cancellationToken);
+                }
+                catch (DbUpdateException exception) when (IsUniqueViolation(exception))
+                {
+                    // Another of this member's devices created the marker between the read above
+                    // and this insert - the exact race the unique index exists to refuse, and one
+                    // this feature invites: the panel marks read from every device it is open on.
+                    // Both calls mean the same thing, so the loser moves the winner's row forward
+                    // instead of failing a request that asked for something already true.
+                    Log.Debug("Chat read marker for user {UserId} in family {FamilyId} was created concurrently", userId, familyId);
+
+                    using var retryContext = _contextFactory.CreateDbContext();
+                    var existing = await retryContext.Set<FamilyChatReadState>()
+                        .FirstOrDefaultAsync(r => r.UserId == userId && r.FamilyId == familyId, cancellationToken);
+
+                    if (existing != null && existing.LastReadAt < now)
+                    {
+                        existing.LastReadAt = now;
+                        await retryContext.SaveChangesAsync(cancellationToken);
+                    }
+
+                    return await CountUnreadAsync(retryContext, familyId, userId, cancellationToken);
+                }
+            }
+            else
+            {
+                // The marker never moves backwards, so a device reporting a moment that has already
+                // passed cannot un-read messages another device had read.
+                if (state.LastReadAt < now)
+                {
+                    state.LastReadAt = now;
+                }
+
+                await context.SaveChangesAsync(cancellationToken);
+            }
 
             return await CountUnreadAsync(context, familyId, userId, cancellationToken);
         }
@@ -535,6 +566,14 @@ namespace Homassy.API.Functions
             var typing = _connectionState.TypingIn(familyPublicId, DateTime.UtcNow);
             await _runtime.FamilyChat.TypingChangedAsync(familyPublicId, typing, cancellationToken: cancellationToken);
         }
+
+        /// <summary>
+        /// Whether a failed save was PostgreSQL refusing a duplicate (<c>23505</c>) rather than
+        /// anything else - narrow on purpose, so a genuine failure still surfaces instead of being
+        /// quietly read as "somebody else wrote it first".
+        /// </summary>
+        private static bool IsUniqueViolation(DbUpdateException exception) =>
+            exception.InnerException is PostgresException { SqlState: PostgresErrorCodes.UniqueViolation };
 
         /// <summary>The image path's own allowance, separate from the text one (#147).</summary>
         private static void RequireImageAllowance(int userId)

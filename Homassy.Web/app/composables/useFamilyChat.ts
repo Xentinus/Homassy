@@ -34,7 +34,13 @@ const olderCursor = ref<string | null>(null)
 const loading = ref(false)
 const loadingOlder = ref(false)
 const failedToLoad = ref(false)
-/** True once a join or a fetch has filled the stream, so reopening the panel does not reload it. */
+/**
+ * True once a join or a fetch has actually answered.
+ *
+ * It distinguishes "never loaded" from "loaded and the conversation is empty" - the two look
+ * identical in `messages` and mean opposite things to anything rendering an empty state. It does
+ * **not** gate reloading: see `open`, which replaces the stream on purpose.
+ */
 const hydrated = ref(false)
 let subscribed = false
 
@@ -347,10 +353,15 @@ export const useFamilyChat = () => {
   }
 
   /**
-   * Opens the conversation: joins the hub and fills the stream.
+   * Opens the conversation: joins the hub and fills the stream with the newest page.
    *
-   * Safe to call again - a second open with the stream already hydrated re-joins (the group is
-   * connection-scoped) but does not refetch what is already on screen.
+   * **Reopening replaces the stream rather than merging into it**, which does mean older pages the
+   * reader had scrolled back to are dropped and have to be paged again. That is the deliberate
+   * choice: while the panel was closed this client received nothing, so an arbitrary number of
+   * messages can sit between the tail it still holds and the page it just fetched. Merging the two
+   * would splice them into one apparently continuous conversation with an invisible gap in the
+   * middle - a stream that is wrong in a way nobody can see. Re-paging is cheap; a silent gap is
+   * not recoverable.
    */
   const open = async (): Promise<void> => {
     subscribe()
