@@ -2911,6 +2911,7 @@
     "showAll": "Show all on the map ({count})"
   },
   "familyChat": {
+    "activeCount": "{count} here",
     "typing": {
       "one": "{name} is typing…",
       "two": "{first} and {second} are typing…",
@@ -2942,6 +2943,7 @@
       "delete": "Delete message"
     },
     "bubble": {
+      "openWithActive": "Open the {family} chat, {count} member(s) here now",
       "open": "Open the {family} chat",
       "restore": {
         "label": "Show the chat bubble",

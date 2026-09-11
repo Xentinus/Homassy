@@ -1,48 +1,41 @@
 <template>
-  <!-- Mobile: the app's standard bottom sheet, so drag-down closes it exactly the way every other
-       sheet does. -->
-  <AppDrawer
-    v-if="isMobile"
-    :open="panelOpen"
-    :title="t('familyChat.title')"
-    icon="i-lucide-message-circle"
-    :padded="false"
-    @update:open="onOpenChange"
-  >
-    <div class="flex h-full min-h-0 flex-col" :style="sheetMorphStyle">
-      <FamilyChatStream
-        ref="streamRef"
-        :messages="messages"
-        :loading="loading"
-        :loading-older="loadingOlder"
-        :has-older="hasOlder"
-        :current-user-public-id="currentUserPublicId"
-        @load-older="loadOlder"
-        @seen-latest="markRead"
-        @retry="retry"
-        @discard="(m) => discard(m.publicId)"
-        @delete="onDelete"
+  <Teleport to="body">
+    <!-- Tap-outside closes on touch, where there is no Esc key and no window chrome to click.
+         On a pointer device the panel stays non-modal: the page behind it is still usable, which
+         is the whole point of a chat head rather than a screen. -->
+    <Transition name="chat-scrim">
+      <div
+        v-if="panelOpen && isMobile"
+        class="fixed inset-0 z-[58] bg-black/20"
+        aria-hidden="true"
+        @click="close"
       />
-      <FamilyChatTypingIndicator :members="typingMembers" />
-      <FamilyChatComposer ref="composerRef" @send="onSend" @image="onSendImage" @typing="notifyTyping" @idle="stopTyping" />
-    </div>
-  </AppDrawer>
+    </Transition>
 
-  <!-- Desktop: a card anchored beside the bubble, morphing out of it. -->
-  <Teleport v-else to="body">
     <Transition name="chat-panel">
       <div
         v-if="panelOpen"
         ref="cardEl"
         role="dialog"
         :aria-label="t('familyChat.title')"
-        class="fixed z-[60] flex w-[min(24rem,calc(100vw-2rem))] flex-col overflow-hidden rounded-2xl border border-default bg-default shadow-2xl"
+        class="fixed z-[60] flex flex-col overflow-hidden rounded-2xl border border-default bg-default shadow-2xl"
         :style="cardStyle"
         @keydown="onCardKeyDown"
       >
-        <header class="flex items-center gap-2 border-b border-default px-4 py-3">
+        <header class="flex shrink-0 items-center gap-2 border-b border-default px-4 py-3">
           <UIcon name="i-lucide-message-circle" class="h-5 w-5 text-primary-500" />
-          <h2 class="flex-1 text-sm font-semibold">{{ t('familyChat.title') }}</h2>
+          <h2 class="flex-1 truncate text-sm font-semibold">{{ t('familyChat.title') }}</h2>
+
+          <!-- Who else is in the conversation right now. The bubble carries the same count as a
+               badge; here there is room to say what the number means. -->
+          <span
+            v-if="activeMembers.length > 0"
+            class="flex items-center gap-1 text-xs text-gray-500 dark:text-gray-400"
+          >
+            <span class="h-1.5 w-1.5 rounded-full bg-emerald-500" aria-hidden="true" />
+            {{ t('familyChat.activeCount', { count: activeMembers.length }) }}
+          </span>
+
           <UButton
             icon="i-lucide-x"
             color="neutral"
@@ -60,7 +53,7 @@
           :loading-older="loadingOlder"
           :has-older="hasOlder"
           :current-user-public-id="currentUserPublicId"
-          class="h-[26rem]"
+          class="min-h-0 flex-1"
           @load-older="loadOlder"
           @seen-latest="markRead"
           @retry="retry"
@@ -68,32 +61,40 @@
           @delete="onDelete"
         />
         <FamilyChatTypingIndicator :members="typingMembers" />
-        <FamilyChatComposer ref="composerRef" @send="onSend" @image="onSendImage" @typing="notifyTyping" @idle="stopTyping" />
+        <FamilyChatComposer
+          ref="composerRef"
+          @send="onSend"
+          @image="onSendImage"
+          @typing="notifyTyping"
+          @idle="stopTyping"
+        />
       </div>
     </Transition>
   </Teleport>
 </template>
 
 <script setup lang="ts">
-import { computed, nextTick, onBeforeUnmount, ref, watch } from 'vue'
+import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import type { FamilyChatStreamMessage } from '~/types/familyChat'
 
 /**
  * The family chat panel (#146) — the conversation the bubble opens.
  *
- * Two presentations, because the two platforms disagree about what a floating conversation is:
+ * **It comes out of the bubble, on every screen size.** The bubble snaps to its nearest corner as
+ * the panel opens (see `FamilyChatBubble.snapToCorner`), and the panel is anchored to that corner:
+ * below the bubble when it is in a top corner, above it when it is in a bottom one, with its
+ * `transform-origin` set to the bubble's own centre so it scales out of the circle that was tapped
+ * and collapses back into it on close.
  *
- * - **Mobile** is a bottom sheet through `AppDrawer`, so drag-down-to-close, the backdrop and the
- *   focus trap are the app's existing ones rather than a second implementation of each. The morph
- *   is applied to the sheet's *contents*, anchored at the bubble's own x: vaul owns the transform
- *   on the sheet element itself while it animates, so a second transform on that element would
- *   fight it, and the result reads as the panel growing out of the bubble while the sheet arrives.
- * - **Desktop** is a card anchored beside the bubble, where the full morph is available: the
- *   card's `transform-origin` is the bubble's live centre, so it scales and fades out of exactly
- *   the circle that was tapped, and collapses back into it on close.
+ * This replaced a bottom sheet on mobile. A sheet was the conventional choice and brought
+ * `AppDrawer`'s drag-to-close, backdrop and focus trap for free, but it always arrived from the
+ * bottom edge regardless of where the chat head was — so the one thing the chat head is for, being
+ * the place the conversation lives, was exactly the thing the animation denied. The trade is that
+ * Esc handling, the focus trap and tap-outside-to-close are implemented here instead of inherited.
  *
- * The bubble deliberately stays on screen while the panel is open — it is the panel's handle, and
- * the thing the morph is anchored to. `FamilyChatBubble` makes that exception explicit.
+ * Geometry is recomputed against a viewport tick rather than read once: the on-screen keyboard
+ * resizes the visual viewport without a `resize` event on some browsers, and a panel measured
+ * before the keyboard opened is a panel behind it.
  */
 
 const { t } = useI18n()
@@ -106,6 +107,7 @@ const {
   hasOlder,
   currentUserPublicId,
   typingMembers,
+  activeMembers,
   notifyTyping,
   stopTyping,
   markRead,
@@ -124,73 +126,70 @@ const cardEl = ref<HTMLElement | null>(null)
 const streamRef = ref<{ scrollToBottom: (smooth?: boolean) => void } | null>(null)
 const composerRef = ref<{ focus: () => Promise<void> } | null>(null)
 
-/** Gap between the bubble and the card anchored next to it. */
-const ANCHOR_GAP = 12
-/** Card size used for placement before it has been measured. */
-const CARD_WIDTH = 384
-const CARD_HEIGHT = 560
+/** Gap between the bubble and the panel hanging off it. */
+const ANCHOR_GAP = 10
+/** Smallest gap between the panel and any viewport edge. */
+const VIEWPORT_MARGIN = 12
+/** Widest the panel ever gets; below this it takes the viewport minus the margins. */
+const MAX_WIDTH = 384
+/** Tallest the panel ever gets, whatever room the corner leaves. */
+const MAX_HEIGHT = 560
+/** Shortest it may be squeezed to before it stops being a conversation. */
+const MIN_HEIGHT = 280
 
-const anchorCentre = computed(() => {
-  const rect = anchorRect.value
-  if (!rect) return null
-  return { x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 }
-})
+/** Bumped on anything that can move or resize the viewport, so the geometry recomputes. */
+const viewportTick = ref(0)
 
-/**
- * The sheet's contents grow from the bubble's horizontal position rather than from the middle, so
- * a bubble parked on the left opens leftwards and one on the right opens rightwards.
- */
-const sheetMorphStyle = computed(() => {
-  const centre = anchorCentre.value
-  if (!centre || !import.meta.client) return undefined
-
-  // Under reduced motion the sheet simply arrives; vaul's own slide is already suppressed by the
-  // user's setting at the browser level, and a growth animation here would put back the movement
-  // they asked not to see.
-  if (prefersReducedMotion()) return undefined
-
-  const originX = Math.round((centre.x / window.innerWidth) * 100)
-  return {
-    transformOrigin: `${originX}% 100%`,
-    animation: 'chat-panel-grow var(--bubble-in) var(--bubble-ease-pop) both'
-  }
-})
-
-const prefersReducedMotion = (): boolean =>
-  import.meta.client && window.matchMedia('(prefers-reduced-motion: reduce)').matches
+const onViewportChange = (): void => { viewportTick.value++ }
 
 /**
- * Where the desktop card sits: beside the bubble, on whichever side has room, and clamped into
- * the viewport so it is never half off-screen.
+ * Where the panel sits: hanging off the bubble's corner, clamped into the viewport.
+ *
+ * The bubble has already moved to a corner by the time this runs, so "below or above" is decided
+ * by which half of the screen it is in, and the panel's own edge lines up with the bubble's side.
  */
 const cardStyle = computed(() => {
+  // Read so the computed re-runs on resize / keyboard / orientation.
+  void viewportTick.value
+
   const rect = anchorRect.value
   if (!rect || !import.meta.client) {
-    return { right: '1.5rem', bottom: '1.5rem', transformOrigin: 'bottom right' }
+    return { right: '1rem', bottom: '1rem', width: `${MAX_WIDTH}px`, transformOrigin: 'bottom right' }
   }
 
-  const openLeft = rect.left + rect.width / 2 > window.innerWidth / 2
-  const left = openLeft
-    ? Math.max(16, rect.left - ANCHOR_GAP - CARD_WIDTH)
-    : Math.min(window.innerWidth - CARD_WIDTH - 16, rect.right + ANCHOR_GAP)
+  const viewportWidth = window.innerWidth
+  const viewportHeight = window.visualViewport?.height ?? window.innerHeight
 
-  const top = Math.min(
-    Math.max(16, rect.top + rect.height / 2 - CARD_HEIGHT / 2),
-    Math.max(16, window.innerHeight - CARD_HEIGHT - 16)
-  )
+  const width = Math.min(MAX_WIDTH, viewportWidth - VIEWPORT_MARGIN * 2)
+  const openDownwards = rect.top + rect.height / 2 < viewportHeight / 2
 
-  // The origin is the bubble's own centre expressed in the card's coordinate space, so the
-  // morph runs out of the circle rather than out of a corner near it.
+  // The room between the bubble and the far edge is all the panel can have.
+  const room = openDownwards
+    ? viewportHeight - rect.bottom - ANCHOR_GAP - VIEWPORT_MARGIN
+    : rect.top - ANCHOR_GAP - VIEWPORT_MARGIN
+
+  const height = Math.max(MIN_HEIGHT, Math.min(MAX_HEIGHT, room))
+  const top = openDownwards
+    ? rect.bottom + ANCHOR_GAP
+    : Math.max(VIEWPORT_MARGIN, rect.top - ANCHOR_GAP - height)
+
+  // Aligned to the bubble's own side, so the panel grows inwards from the corner rather than
+  // across the screen.
+  const alignLeft = rect.left + rect.width / 2 < viewportWidth / 2
+  const left = alignLeft
+    ? Math.min(rect.left, viewportWidth - width - VIEWPORT_MARGIN)
+    : Math.max(VIEWPORT_MARGIN, rect.right - width)
+
   return {
-    left: `${left}px`,
+    left: `${Math.max(VIEWPORT_MARGIN, left)}px`,
     top: `${top}px`,
+    width: `${width}px`,
+    height: `${height}px`,
+    // The bubble's centre expressed in the panel's own coordinate space, so the morph runs out of
+    // the circle rather than out of whichever corner happens to be nearest it.
     transformOrigin: `${rect.left + rect.width / 2 - left}px ${rect.top + rect.height / 2 - top}px`
   }
 })
-
-const onOpenChange = (value: boolean): void => {
-  if (!value) close()
-}
 
 const close = (): void => {
   closePanel()
@@ -220,11 +219,10 @@ const onDelete = async (message: FamilyChatStreamMessage): Promise<void> => {
 }
 
 /**
- * Esc closes and hands focus back to the bubble; Tab stays inside the card.
+ * Esc closes and hands focus back to the bubble; Tab stays inside the panel.
  *
- * The desktop card is not a modal dialog - it floats over a page that is still usable - so it
- * gets neither Reka's focus trap nor its Esc handling for free, and both are implemented here.
- * The mobile sheet needs none of this: `AppDrawer` is a real dialog and already does it.
+ * The panel is not a modal dialog - it floats over a page that is still usable - so it gets
+ * neither a focus trap nor Esc handling from anywhere else, and both are implemented here.
  */
 const onCardKeyDown = (event: KeyboardEvent): void => {
   if (event.key === 'Escape') {
@@ -264,8 +262,10 @@ watch(panelOpen, async (isOpen) => {
     await open()
     await nextTick()
     streamRef.value?.scrollToBottom()
-    // The caret goes in the composer, which is what someone opening a chat is about to use.
-    await composerRef.value?.focus()
+    // The caret goes in the composer, which is what someone opening a chat is about to use - but
+    // not on a touch device, where focusing the input throws up the keyboard over the
+    // conversation the moment it appears.
+    if (!isMobile.value) await composerRef.value?.focus()
     return
   }
 
@@ -273,7 +273,20 @@ watch(panelOpen, async (isOpen) => {
   returnFocusToBubble()
 })
 
+onMounted(() => {
+  window.addEventListener('resize', onViewportChange)
+  window.addEventListener('orientationchange', onViewportChange)
+  // The keyboard resizes the visual viewport without necessarily firing `resize` on the window.
+  window.visualViewport?.addEventListener('resize', onViewportChange)
+  window.visualViewport?.addEventListener('scroll', onViewportChange)
+})
+
 onBeforeUnmount(() => {
+  window.removeEventListener('resize', onViewportChange)
+  window.removeEventListener('orientationchange', onViewportChange)
+  window.visualViewport?.removeEventListener('resize', onViewportChange)
+  window.visualViewport?.removeEventListener('scroll', onViewportChange)
+
   if (panelOpen.value) void leaveChat()
 })
 </script>
@@ -292,6 +305,16 @@ onBeforeUnmount(() => {
   opacity: 0;
   /* Small enough to read as the circle it came from, not as a card that shrank. */
   transform: scale(0.2);
+}
+
+.chat-scrim-enter-active,
+.chat-scrim-leave-active {
+  transition: opacity var(--bubble-out) ease;
+}
+
+.chat-scrim-enter-from,
+.chat-scrim-leave-to {
+  opacity: 0;
 }
 
 @media (prefers-reduced-motion: reduce) {

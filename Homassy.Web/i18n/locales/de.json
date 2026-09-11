@@ -2911,6 +2911,7 @@
     "showAll": "Alle auf der Karte zeigen ({count})"
   },
   "familyChat": {
+    "activeCount": "{count} hier",
     "typing": {
       "one": "{name} schreibt…",
       "two": "{first} und {second} schreiben…",
@@ -2942,6 +2943,7 @@
       "delete": "Nachricht löschen"
     },
     "bubble": {
+      "openWithActive": "Chat von {family} öffnen, {count} Mitglied(er) gerade hier",
       "open": "Chat von {family} öffnen",
       "restore": {
         "label": "Chat-Blase anzeigen",

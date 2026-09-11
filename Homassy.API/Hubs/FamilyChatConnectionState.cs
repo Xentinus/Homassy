@@ -191,6 +191,36 @@ namespace Homassy.API.Hubs
         /// Any one device is enough: a laptop with the panel open must suppress the push to the
         /// phone in your pocket, because you have already seen the message.
         /// </remarks>
+        /// <summary>
+        /// Who is currently watching a family's conversation, collapsed to one entry per person.
+        /// </summary>
+        /// <remarks>
+        /// The roster behind the count on the chat bubble. Collapsed by user for the same reason
+        /// <see cref="TypingIn"/> is: somebody reading on a phone and a laptop is one person in the
+        /// conversation, and counting them twice would tell the rest of the family there is a
+        /// reader who is not there.
+        /// <para>
+        /// This is the same flag the notification decision reads, so what the bubble shows and what
+        /// suppresses a push cannot disagree: if it says two people are here, those are exactly the
+        /// two people a message will not notify.
+        /// </para>
+        /// </remarks>
+        public IReadOnlyList<FamilyChatActiveMember> ActiveIn(Guid familyPublicId, DateTime now)
+        {
+            lock (_gate)
+            {
+                return _connections.Values
+                    .Where(e => e.FamilyPublicId == familyPublicId && e.ActiveUntil > now)
+                    .GroupBy(e => e.UserPublicId)
+                    .Select(g => new FamilyChatActiveMember
+                    {
+                        PublicId = g.Key,
+                        DisplayName = g.First().DisplayName
+                    })
+                    .ToList();
+            }
+        }
+
         public bool IsUserActive(int userId, DateTime now)
         {
             lock (_gate)
@@ -220,6 +250,35 @@ namespace Homassy.API.Hubs
                     if (entry.TypingUntil is { } until && until <= now)
                     {
                         entry.TypingUntil = null;
+                        affected.Add(entry.FamilyPublicId);
+                    }
+                }
+
+                return [.. affected];
+            }
+        }
+
+        /// <summary>
+        /// The families whose watching set has just shrunk because an active flag expired.
+        /// </summary>
+        /// <remarks>
+        /// The same self-healing argument as <see cref="SweepExpiredTyping"/>, and it matters more
+        /// here than there: a stale typing flag is a line of text that reads oddly for five
+        /// seconds, while a stale active flag is a reader the rest of the family is told is present
+        /// - and, until #149's TTL expires it, one whose messages are also not being notified. The
+        /// two are the same fact, so they expire in the same sweep.
+        /// </remarks>
+        public IReadOnlyList<Guid> SweepExpiredActive(DateTime now)
+        {
+            lock (_gate)
+            {
+                var affected = new HashSet<Guid>();
+
+                foreach (var entry in _connections.Values)
+                {
+                    if (entry.ActiveUntil is { } until && until <= now)
+                    {
+                        entry.ActiveUntil = null;
                         affected.Add(entry.FamilyPublicId);
                     }
                 }

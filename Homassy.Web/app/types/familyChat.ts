@@ -79,6 +79,19 @@ export interface FamilyChatUnreadResponse {
   totalCount: number
 }
 
+/**
+ * One family member currently watching the conversation — the payload of the hub's `ActiveChanged`
+ * event is a list of these.
+ *
+ * "Watching" is the same flag that suppresses a chat notification: the panel is open and the
+ * document is visible. So the count on the bubble and the people a message will not notify are
+ * always the same set.
+ */
+export interface FamilyChatActiveMember {
+  publicId: string
+  displayName: string
+}
+
 /** One family member currently typing (#148) — the payload of the hub's `TypingChanged` event is a list of these. */
 export interface FamilyChatTypingMember {
   publicId: string

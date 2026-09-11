@@ -1,5 +1,11 @@
 <template>
-  <div ref="rootEl" class="flex items-end gap-2 border-t border-default bg-default px-3 py-2">
+  <!-- The row is sized for thumbs, not for a desktop form: 44px controls, a 16px input (anything
+       smaller makes iOS zoom the page on focus) and a bottom pad that clears the home indicator. -->
+  <div
+    ref="rootEl"
+    class="flex items-end gap-2 border-t border-default bg-default px-3 pt-3"
+    style="padding-bottom: calc(0.75rem + env(safe-area-inset-bottom, 0px))"
+  >
     <!-- One picker for camera and gallery: `accept="image/*"` on a phone offers both, and a
          separate "take a photo" button would be a second control for the same thing. -->
     <input
@@ -14,20 +20,22 @@
       icon="i-lucide-image"
       color="neutral"
       variant="ghost"
+      size="lg"
       :aria-label="t('familyChat.composer.attach')"
-      class="mb-0.5 shrink-0"
+      class="h-11 w-11 shrink-0 justify-center"
       @click="fileInput?.click()"
     />
 
     <UTextarea
       v-model="draft"
       :rows="1"
-      :maxrows="5"
+      :maxrows="6"
       autoresize
+      size="lg"
       :placeholder="t('familyChat.composer.placeholder')"
       :aria-label="t('familyChat.composer.placeholder')"
       class="flex-1"
-      :ui="{ base: 'resize-none' }"
+      :ui="{ base: 'resize-none min-h-11 py-2.5 text-base leading-6' }"
       @keydown="onKeyDown"
       @blur="onBlur"
     />
@@ -35,9 +43,10 @@
     <UButton
       icon="i-lucide-send"
       color="primary"
+      size="lg"
       :disabled="!canSend"
       :aria-label="t('familyChat.composer.send')"
-      class="mb-0.5 shrink-0"
+      class="h-11 w-11 shrink-0 justify-center"
       @click="submit"
     />
   </div>

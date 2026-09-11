@@ -2911,6 +2911,7 @@
     "showAll": "Mind megjelenítése a térképen ({count})"
   },
   "familyChat": {
+    "activeCount": "{count} jelen",
     "typing": {
       "one": "{name} éppen ír…",
       "two": "{first} és {second} éppen ír…",
@@ -2942,6 +2943,7 @@
       "delete": "Üzenet törlése"
     },
     "bubble": {
+      "openWithActive": "{family} csevegés megnyitása, most {count} tag van jelen",
       "open": "{family} csevegés megnyitása",
       "restore": {
         "label": "Csevegőbuborék megjelenítése",

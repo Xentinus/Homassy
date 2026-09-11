@@ -18,6 +18,7 @@
 import { computed, ref } from 'vue'
 import { useAuthStore } from '~/stores/auth'
 import type {
+  FamilyChatActiveMember,
   FamilyChatMessage,
   FamilyChatMessageCreatedEvent,
   FamilyChatMessageDeletedEvent,
@@ -52,6 +53,19 @@ let subscribed = false
  * composer.
  */
 const typingMembers = ref<FamilyChatTypingMember[]>([])
+
+/**
+ * Who is watching the conversation right now, excluding this client's own user.
+ *
+ * The count the bubble shows. It is the server's set, never a guess: the same flag decides whether
+ * a message notifies, so anything derived locally could tell one member that another is reading
+ * while the server is busy sending that other member a push.
+ */
+const activeMembers = ref<FamilyChatActiveMember[]>([])
+
+/** True once this client is in the family's hub group, so the bubble can join without opening the panel. */
+let joined = false
+let joinPromise: Promise<void> | null = null
 
 /** At most one `SetTyping(true)` per this many ms while the composer has content. */
 const TYPING_THROTTLE_MS = 2000
@@ -160,11 +174,20 @@ export const useFamilyChat = () => {
     typingMembers.value = members.filter(m => m.publicId !== currentUserPublicId.value)
   }
 
+  /**
+   * The server sends the whole watching set, this client included - it is part of the answer, and
+   * every client filters itself out for display rather than each being sent a different list.
+   */
+  const onActiveChanged = (members: FamilyChatActiveMember[]): void => {
+    activeMembers.value = members.filter(m => m.publicId !== currentUserPublicId.value)
+  }
+
   const subscribe = (): void => {
     if (subscribed) return
     socket.on('MessageCreated', onMessageCreated)
     socket.on('MessageDeleted', onMessageDeleted)
     socket.on('TypingChanged', onTypingChanged)
+    socket.on('ActiveChanged', onActiveChanged)
     socket.onReconnected(rejoin)
     subscribed = true
   }
@@ -174,6 +197,7 @@ export const useFamilyChat = () => {
     socket.off('MessageCreated', onMessageCreated)
     socket.off('MessageDeleted', onMessageDeleted)
     socket.off('TypingChanged', onTypingChanged)
+    socket.off('ActiveChanged', onActiveChanged)
     socket.offReconnected(rejoin)
     subscribed = false
   }
@@ -373,9 +397,12 @@ export const useFamilyChat = () => {
     failedToLoad.value = false
 
     try {
+      // Re-joining an already-joined group is a no-op server-side, and it is what makes opening
+      // the panel answer with a page that is current rather than whatever the bubble joined with.
       const page = await socket.joinChat()
 
       if (page) {
+        joined = true
         messages.value = toStreamOrder(page.items)
         olderCursor.value = page.nextCursor ?? null
         hydrated.value = true
@@ -406,11 +433,71 @@ export const useFamilyChat = () => {
   }
 
   /** Leaves the hub group. The stream is kept, so reopening the panel is instant. */
-  const close = async (): Promise<void> => {
-    // Closing the panel ends any typing this client was reporting; the server clears the flag on
-    // leave too, but saying so first means the family sees it go immediately.
-    stopTyping()
+  /**
+   * Joins the family's hub group without opening the panel.
+   *
+   * What the bubble calls on mount, and the reason the group membership outlives the panel: the
+   * bubble has to know who is watching and whether anybody is typing *while the chat is closed* -
+   * that is the whole point of showing it there. Group membership is not the same as watching
+   * (#149): joining reports nothing about attention, so this does not suppress a single
+   * notification.
+   *
+   * Idempotent, and safe to call concurrently - a second call rides the first one's promise rather
+   * than opening a second connection.
+   */
+  const join = async (): Promise<void> => {
+    if (!import.meta.client) return
+
+    subscribe()
+    if (joined) return
+    if (joinPromise) return joinPromise
+
+    joinPromise = (async () => {
+      try {
+        const page = await socket.joinChat()
+        if (!page) return
+
+        joined = true
+        // The join answers with the newest page, so keeping it costs nothing and buys two things:
+        // opening the panel is instant, and live arrivals can be counted into the unread badge
+        // from the moment the app started rather than from the first time the chat was opened.
+        messages.value = toStreamOrder(page.items)
+        olderCursor.value = page.nextCursor ?? null
+        hydrated.value = true
+      } catch {
+        // No family, or the hub refused the join. Either way there is nothing to watch, and the
+        // bubble is not rendered for a user with no family anyway.
+      } finally {
+        joinPromise = null
+      }
+    })()
+
+    return joinPromise
+  }
+
+  /**
+   * Leaves the group entirely - the bubble is going away (logout, or the layout unmounting).
+   *
+   * Closing the panel deliberately does **not** do this: see `close`.
+   */
+  const leave = async (): Promise<void> => {
+    joined = false
     typingMembers.value = []
+    activeMembers.value = []
+    await socket.leaveChat()
+  }
+
+  /**
+   * Closes the panel: stops reporting typing and watching, and stops the heartbeat.
+   *
+   * It does **not** leave the hub group. The bubble stays on screen and goes on showing who is
+   * watching and whether somebody is typing, which it can only do from inside the group - and
+   * leaving would also throw away the live `MessageCreated` events the unread badge counts.
+   */
+  const close = async (): Promise<void> => {
+    // Closing the panel ends any typing this client was reporting; saying so explicitly means the
+    // family sees the indicator go rather than waiting out the TTL.
+    stopTyping()
 
     panelIsOpen = false
     setActive(false)
@@ -418,7 +505,7 @@ export const useFamilyChat = () => {
     clearInactivityTimeout()
     detachVisibilityListener()
 
-    await socket.leaveChat()
+    await Promise.resolve()
   }
 
   /** Re-reads the newest page, keeping older pages that are already loaded out of it. */
@@ -426,6 +513,7 @@ export const useFamilyChat = () => {
     try {
       const page = await socket.joinChat()
       if (page) {
+        joined = true
         messages.value = toStreamOrder(page.items)
         olderCursor.value = page.nextCursor ?? null
         hydrated.value = true
@@ -637,8 +725,11 @@ export const useFamilyChat = () => {
     isConnected: socket.isConnected,
     currentUserPublicId,
     typingMembers,
+    activeMembers,
     notifyTyping,
     stopTyping,
+    join,
+    leave,
     unreadCount,
     refreshUnreadCount,
     markRead,
