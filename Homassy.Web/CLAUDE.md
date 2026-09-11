@@ -35,6 +35,7 @@ Homassy.Web is the **frontend application** of the Homassy platform. It is a **N
 | Barcode | vue-qrcode-reader 5.7.3 |
 | Cropper | vue-advanced-cropper 2.8.9 |
 | Calendar | vue-cal 4.10.2 |
+| Maps | maplibre-gl 6.9.0 (lazily imported — see Maps) |
 | WebAuthn | @simplewebauthn/browser 13.2.2 |
 | Date | @internationalized/date 3.10.1 |
 | Linting | @nuxt/eslint 1.12.1, eslint 9.39.2 |
@@ -80,6 +81,7 @@ Homassy.Web/
 │   │   ├── useCameraAvailability.ts
 │   │   ├── useDateFormat.ts
 │   │   ├── useDeviceDetection.ts
+│   │   ├── useDragReorder.ts   The drag gesture behind manual ordering (lift, auto-scroll, drop)
 │   │   ├── useEnumLabel.ts
 │   │   ├── useEventBus.ts
 │   │   ├── useExpirationStatus.ts  The expiration ramp: date → level → tokens (see below)
@@ -97,6 +99,9 @@ Homassy.Web/
 │   │   ├── useOnboardingTour.ts  Drives the first-run spotlight tour
 │   │   ├── usePullToRefresh.ts
 │   │   ├── usePushNotifications.ts
+│   │   ├── useReorderableList.ts  Manual order + optimistic reorder for a list of rows
+│   │   ├── useShoppingMode.ts   Which lists are mid-shop (module-scoped, not persisted)
+│   │   ├── useWakeLock.ts       Screen Wake Lock, re-acquired after backgrounding
 │   │   ├── useShoppingListSocket.ts  SignalR realtime client for shopping lists
 │   │   ├── useInventorySocket.ts  SignalR realtime client for the Készletek (inventory) grid
 │   │   ├── useShareTarget.ts   Reads (and clears) what another app shared into Homassy
@@ -162,6 +167,7 @@ Homassy.Web/
 │       ├── enumMappers.ts
 │       ├── errorCodes.ts
 │       ├── geoUtils.ts           Haversine distanceMeters + NEARBY_RADIUS_METERS
+│       ├── manualOrder.ts        The pure ordering rules behind drag-and-drop reordering
 │       └── stringUtils.ts
 ├── i18n/
 │   └── locales/
@@ -438,8 +444,9 @@ for jumping between them. `SectionIndexRail` owns the rail; the page owns the gr
   pointer move, and hides itself below `minSections` — the page passes the same constant it uses to
   widen the content gutter, so the rail overlays the gutter rather than a card.
 
-**Not done here:** the same treatment for the shopping list grouped by shop section or aisle order.
-That grouping does not exist yet — it arrives with drag-and-drop reordering in R7.
+**Not done here:** the same treatment for the shopping list. Aisle order now exists (see
+*Drag-and-drop reordering* below), but as an ordering mode rather than a grouping — there are no
+section headers to index, so there is nothing for the rail to point at.
 
 ---
 
@@ -855,6 +862,115 @@ The manifest's `background_color` takes a single value and cannot be theme-aware
 - The reticle is a DOM overlay, not canvas: vue-qrcode-reader hands the `track` callback coordinates **already mapped into element pixel space** (it sizes the tracking canvas to the wrapper's offset size and compensates for `object-fit: cover`), so a box recorded there positions a DOM element verbatim. The tracker records every code's box each frame; on success the reticle animates onto the winning one.
 - `track` draws each detected code's outline and its decoded value, with the largest one — the one the user is aiming at, and the one the stability buffer will settle on — in the primary colour and the rest dimmed. **Canvas cannot resolve `var(--ui-primary)`**: the tokens are read off the DOM with `getComputedStyle` on `@camera-on` and reused per frame. (The old code passed `rgb(var(--color-primary-500))` straight to `strokeStyle`, which the canvas silently ignored.)
 - Torch and camera-switch buttons appear only where the track supports them (`capabilities.torch`, and `useCameraAvailability().hasMultipleCameras`). Constraints are read once when a stream starts, so switching camera — and retrying after an error — bumps a nonce in the stream's `key` to force a remount. `markCameraReady()` re-arms `isScanning` on the way back up, since `handleCameraError` turned it off.
+
+---
+
+## Drag-and-drop reordering
+
+Four lists can be put in the user's own order — the shopping list's items, storage locations,
+shopping locations and automation rules. Order lives on the row as a `sortOrder` the API owns; the
+client never derives it from array position, because the rows arrive from a fetch, from a socket
+event and from local upserts and array position survives none of those.
+
+| Piece | Role |
+|---|---|
+| `app/utils/manualOrder.ts` | the pure rules: sort, plan an optimistic write, fold in an event (unit-tested) |
+| `app/composables/useDragReorder.ts` | the gesture: long-press lift, auto-scroll, drop, `Escape`, arrow keys |
+| `app/composables/useReorderableList.ts` | ties the two together with the optimistic write and its revert |
+| `app/components/ReorderHandle.vue` | the grab affordance (also the keyboard entry point) |
+| `data-reorder-key` | what the drag composable scans a container for |
+
+- **`sortOrder` is a sparse gapped integer, not an index** (see `SparseOrdering` on the API side), so
+  moving one row usually writes one row. Everything untouched holds **0**, which is why every list
+  passes a `baseSort` — that is the order it had before this feature existed, and it is what a list
+  nobody has dragged still shows.
+- **The dragged card is a `cloneNode` pinned to the viewport, not the card itself.** Every one of
+  these lists is inside `AnimatedList`, whose `TransitionGroup` animates moves by writing `transform`
+  on each child; a card following the finger through its own transform would be fighting that FLIP
+  for the same property. The real card stays in place at 40% opacity as the drop placeholder, so it
+  and its neighbours glide with the existing `--bubble-move` transition.
+- **Clustering of the gesture, not of the data:** the drop target is the row under the pointer, or
+  the nearest by centre distance — these lists are grids on wider screens, where "the row below" is
+  not a single direction.
+- **A drag under an active filter only ever sends what the user can see.** Each page hands the
+  composable a `filter` predicate, and `planOptimisticOrder` reuses the visible rows' *own* positions
+  rather than renumbering by index, so rows the filter is hiding stay where they were relative to
+  them. The API accepts that subset and documents the same caveat.
+- **Touch lifts on a long press (350 ms), the mouse lifts immediately.** A list that lifted on the
+  first pixel of a touch drag could not be scrolled. `ReorderHandle` sets `touch-action: none` in CSS
+  so it wins over the `pan-y` the surrounding card needs for its swipe gesture.
+- **Arrow keys on the handle move a row one place**, because a drag has no keyboard equivalent to
+  fall back on.
+- **Realtime:** `ItemsReordered` (shopping list) and `StorageLocationsReordered` /
+  `ShoppingLocationsReordered` / `AutomationsReordered` (master data) carry only the rows that moved.
+  They are ignored while a local drag is in progress — the finger owns the on-screen order until it
+  lifts, and the server's answer wins from there.
+- On the shopping list this is a **mode** (`sortMode`, per list, persisted in
+  `shoppingListsSortModes`), alongside the urgency-then-name ordering rather than replacing it. In
+  manual mode the "buy here" split is not rendered: dragging between two independently ordered
+  sections has no meaning, and the point of the mode is that the order on screen is the one the user
+  set.
+
+---
+
+## Shopping mode (in-store)
+
+`ShoppingModeView` + `ShoppingModeRow`, opened from the basket button on the shopping list. The
+planning view is built for deciding what to buy; this is the same list with everything removed
+except what the next thirty seconds need — what is left, how much of it, and a target big enough to
+hit while walking. Everything else is one tap away on the row.
+
+- **It owns no data.** Ticking a row emits the same `purchase-requested` the planning card emits, so
+  the page runs the identical optimistic path (and the same undo window) and the two views cannot
+  disagree about what has been written.
+- **Ordering is the aisle order with "buy here" lifted on top** — the manual order from the section
+  above, and the same proximity set the planning view sections off.
+- `useWakeLock` keeps the screen on while the mode is open. The lock is re-acquired on
+  `visibilitychange`, because backgrounding the tab releases it and nothing tells the page to ask
+  again; it is released on exit and on unmount, since a lock left held is the worst possible bug for
+  a feature whose whole point is the battery. Absent on Firefox and older iOS, where the screen
+  simply behaves normally.
+- **Which lists are mid-shop lives in `useShoppingMode`, module-scoped and deliberately not
+  persisted.** It has to survive leaving the page (answering a notification mid-shop must not drop
+  you back into the planning view) but not a reload — someone who got home to a cold start should not
+  land in a shop screen.
+- Finishing the list plays a short celebration and then closes the mode; the *view* owns that timing,
+  so the page closing the screen cannot cut it off. A list emptied by deleting rather than buying
+  closes immediately — nothing was accomplished, so there is nothing to celebrate.
+
+---
+
+## Maps (`InteractiveMap`)
+
+MapLibre GL over keyless CARTO raster basemaps, replacing the OpenStreetMap `export/embed.html`
+iframe. The iframe could draw exactly one static pin and nothing inside it could be styled, animated
+or clicked — so a multi-shop overview, clustering, or highlighting the shop you are standing next to
+were all impossible, even though the shopping list already knew the user's position.
+
+- **Lazily loaded.** Both the library and its stylesheet are imported inside `onMounted`, so a
+  session that never opens a map never pays for them. That is also why it is a component and not a
+  plugin. Its chunk and CSS are separate in the build output — check that when touching the imports.
+- **Light and dark basemap variants** (`light_all` / `dark_all`), swapped on `colorMode`. The style
+  is built inline rather than fetched: nothing to host, no extra request, and a theme swap is a
+  one-property change. A `setStyle` drops nothing but the tiles, so the markers are re-added on
+  `styledata`.
+- **Markers are DOM elements**, styled with the app's own tokens, which is what lets the "you are
+  here" ring be an ordinary CSS animation. Clustering is grid-based in screen space rather than
+  MapLibre's GeoJSON clustering, because that draws its counts as map text and would need a glyph
+  server — a second keyless third party for the sake of drawing a number. Clusters are rebuilt on
+  `moveend`/`zoomend`, not per frame: MapLibre already keeps each marker pinned while panning.
+- `LocationMap` keeps its old contract — stored coordinates preferred, Nominatim geocoding as the
+  fallback, and **nothing rendered at all** when there are neither coordinates nor a resolvable
+  address. Several screens rely on that last behaviour to decide whether a map section appears.
+- The shopping-locations page adds the multi-shop map: every shop at once, clustered, tapping a
+  marker opens the existing overview drawer, with a pulse ring on the nearest. It reads the device
+  position **only when the browser already reports permission as granted** — a list of shops is not a
+  reason to put a permission prompt in front of anyone.
+- Tiles get their own service-worker cache (`map-tiles`, 300 entries, 7 days), ahead of the generic
+  `static-assets` rule: they are `.png` and would otherwise let one panned map evict the app's icons
+  and fonts.
+- A failure to load (blocked CDN, no WebGL, offline) shows a one-line notice; the caller still has
+  the address and its "open in maps" link.
 
 ---
 

@@ -336,6 +336,21 @@ export default defineNuxtConfig({
           }
         },
         {
+          // Basemap tiles (#107). Ahead of the generic asset rule below because they are .png and
+          // would otherwise land in `static-assets`, where a single panned map can evict the app's
+          // own icons and fonts — a map is worth caching, but in a bucket of its own with a cap.
+          urlPattern: /^https:\/\/[a-z]\.basemaps\.cartocdn\.com\//,
+          handler: 'CacheFirst',
+          options: {
+            cacheName: 'map-tiles',
+            expiration: {
+              maxEntries: 300,
+              maxAgeSeconds: 604800 // 7 days
+            },
+            cacheableResponse: { statuses: [0, 200] }
+          }
+        },
+        {
           urlPattern: /^https:\/\/.*\.(js|css|woff2?|png|jpg|jpeg|svg|gif|webp|ico)$/,
           handler: 'CacheFirst',
           options: {
