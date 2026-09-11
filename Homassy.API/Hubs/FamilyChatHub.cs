@@ -105,6 +105,15 @@ namespace Homassy.API.Hubs
             // refused the conversation must never appear in anyone's typing list.
             _connectionState.Register(Context.ConnectionId, familyPublicId, userPublicId, userId, displayName);
 
+            // The joiner is not watching yet - joining the group is not reading the chat (#149) -
+            // so the set has not changed and the group needs no broadcast. What the joiner does
+            // need is the set as it stands, or their bubble would show nobody until the next time
+            // somebody else opened or closed the conversation.
+            await Clients.Caller.SendAsync(
+                FamilyChatRealtime.ActiveChangedEvent,
+                _connectionState.ActiveIn(familyPublicId, DateTime.UtcNow),
+                Context.ConnectionAborted);
+
             Log.Debug("Connection {ConnectionId} joined family chat {FamilyPublicId}", Context.ConnectionId, familyPublicId);
 
             return page;
@@ -143,10 +152,12 @@ namespace Homassy.API.Hubs
         /// input to the notification decision and nothing else.
         /// </para>
         /// </remarks>
-        public Task SetChatActive(bool isActive)
+        public async Task SetChatActive(bool isActive)
         {
-            _connectionState.SetActive(Context.ConnectionId, isActive, DateTime.UtcNow);
-            return Task.CompletedTask;
+            var familyPublicId = _connectionState.SetActive(Context.ConnectionId, isActive, DateTime.UtcNow);
+            if (familyPublicId == null) return;
+
+            await BroadcastActiveAsync(familyPublicId.Value);
         }
 
         /// <summary>Pushes the family's current typing set, never back to the connection that changed it.</summary>
@@ -154,6 +165,20 @@ namespace Homassy.API.Hubs
         {
             var typing = _connectionState.TypingIn(familyPublicId, DateTime.UtcNow);
             return _realtime.TypingChangedAsync(familyPublicId, typing, Context.ConnectionId);
+        }
+
+        /// <summary>
+        /// Pushes the family's current watching set to the whole group, the caller included.
+        /// </summary>
+        /// <remarks>
+        /// Unlike typing, the caller belongs in this answer: they have just become (or stopped
+        /// being) part of it, and a client that filters itself out for display still needs the
+        /// list to filter.
+        /// </remarks>
+        private Task BroadcastActiveAsync(Guid familyPublicId)
+        {
+            var active = _connectionState.ActiveIn(familyPublicId, DateTime.UtcNow);
+            return _realtime.ActiveChangedAsync(familyPublicId, active);
         }
 
         /// <summary>The caller's display name, for the typing list. Must be called with <see cref="SessionInfo"/> set.</summary>
@@ -180,9 +205,10 @@ namespace Homassy.API.Hubs
 
             await Groups.RemoveFromGroupAsync(Context.ConnectionId, FamilyChatRealtime.GroupName(familyPublicId.Value));
 
-            // Leaving clears this connection's typing (and #149's active) flag with it, so the
-            // family sees the indicator go rather than waiting for the TTL.
+            // Leaving clears this connection's typing and active flags with it, so the family sees
+            // both the indicator and the watching count change rather than waiting for a TTL.
             await BroadcastTypingAsync(familyPublicId.Value);
+            await BroadcastActiveAsync(familyPublicId.Value);
 
             Log.Debug("Connection {ConnectionId} left family chat {FamilyPublicId}", Context.ConnectionId, familyPublicId);
         }
@@ -204,6 +230,7 @@ namespace Homassy.API.Hubs
                 if (familyPublicId != null)
                 {
                     await BroadcastTypingAsync(familyPublicId.Value);
+                    await BroadcastActiveAsync(familyPublicId.Value);
                 }
             }
             catch (Exception ex)

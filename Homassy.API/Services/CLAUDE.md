@@ -92,17 +92,22 @@ Several hosted services run as `IHostedService` / `BackgroundService`:
 - Runs periodically to clean up stale data
 - Scoped database access per execution
 
-**6. FamilyChatTypingSweepService** _(in `Services/Background/`)_ — #148
-- Every 2s, retires expired typing flags in `FamilyChatConnectionState` and broadcasts the new set
-  to the families whose typing actually changed. A tick that finds nothing sends nothing
-- **This is what makes the indicator self-healing.** Every other way a typing flag is cleared is an
-  event — a "stopped" call, a message sent, a leave, a disconnect — and none of them is guaranteed
-  to arrive from a closed lid or a dropped socket. Without this loop an expiry would only be
-  noticed the next time something else broadcast, which for a quiet family is never
+**6. FamilyChatStateSweepService** _(in `Services/Background/`)_ — #148, #149
+- Every 2s, retires expired typing **and watching** flags in `FamilyChatConnectionState` and
+  broadcasts the new set to the families whose set actually changed. A tick that finds nothing sends
+  nothing
+- **This is what makes both indicators self-healing.** Every other way one of these flags is cleared
+  is an event — a "stopped" call, a message sent, a leave, a disconnect — and none of them is
+  guaranteed to arrive from a closed lid or a dropped socket. Without this loop an expiry would only
+  be noticed the next time something else broadcast, which for a quiet family is never: the typing
+  line would sit there, and the bubble would keep counting a reader who closed their laptop
+- One loop for both, because they are the same kind of fact expiring for the same reason. A stale
+  watching flag is the more expensive of the two: it is also a member whose messages are not being
+  notified
 - No database access at all: it touches one in-memory dictionary and the hub context
 - Its interval is deliberately **not** configuration (unlike the intervals #95 is about): it is
-  paired with `FamilyChatConnectionState.TypingTtl`, and moving one without the other only makes
-  the indicator wrong
+  paired with `FamilyChatConnectionState.TypingTtl` and `ActiveTtl`, and moving one without the
+  others only makes the indicators wrong
 
 **Registration:**
 ```csharp

@@ -35,5 +35,15 @@ namespace Homassy.API.Models.FamilyChat
         public int? ImageWidth { get; init; }
 
         public int? ImageHeight { get; init; }
+
+        /// <summary>
+        /// Things this message points at - a product, a shop, a storage place, a shopping list.
+        /// </summary>
+        /// <remarks>
+        /// Structured rather than written into the body: the label is resolved on every read, so a
+        /// renamed product reads correctly in a month-old message, and the client can render a chip
+        /// that opens the thing instead of a word that merely names it.
+        /// </remarks>
+        public IReadOnlyList<FamilyChatReferenceInfo> References { get; init; } = [];
     }
 }

@@ -31,5 +31,6 @@
         public const string FamilyChatMessages = "FamilyChatMessages";
         public const string FamilyChatImages = "FamilyChatImages";
         public const string FamilyChatReadStates = "FamilyChatReadStates";
+        public const string FamilyChatMessageReferences = "FamilyChatMessageReferences";
     }
 }

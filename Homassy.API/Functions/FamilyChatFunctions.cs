@@ -177,9 +177,18 @@ namespace Homassy.API.Functions
             var senders = LoadSenders(rows.Select(r => r.SenderUserId));
             var images = await LoadImageRenditionsAsync(context, rows, cancellationToken);
 
+            var messageIds = rows.Select(r => r.Id).ToList();
+            var referenceRows = messageIds.Count == 0
+                ? []
+                : await context.Set<FamilyChatMessageReference>()
+                    .Where(r => messageIds.Contains(r.FamilyChatMessageId))
+                    .ToListAsync(cancellationToken);
+
+            var references = HydrateReferences(referenceRows);
+
             return new FamilyChatPage
             {
-                Items = rows.Select(r => ToInfo(r, senders, images)).ToList(),
+                Items = rows.Select(r => ToInfo(r, senders, images, references)).ToList(),
                 NextCursor = hasMore && last != null
                     ? ActivityCursor.Encode(last.SentAt, last.PublicId)
                     : null
@@ -317,34 +326,83 @@ namespace Homassy.API.Functions
             var userId = RequireUserId();
 
             var body = request.Body?.Trim();
-            if (string.IsNullOrEmpty(body))
+            var requested = request.References ?? [];
+
+            // Empty is only empty when there is nothing attached either: a message that is just a
+            // product and a shop says something.
+            if (string.IsNullOrEmpty(body) && requested.Count == 0)
             {
                 throw new FamilyChatMessageInvalidException("A message cannot be empty");
             }
 
-            if (body.Length > MaxBodyLength)
+            if (body?.Length > MaxBodyLength)
             {
                 throw new FamilyChatMessageInvalidException($"A message cannot be longer than {MaxBodyLength} characters");
             }
 
+            if (requested.Count > SendFamilyChatMessageRequest.MaxReferences)
+            {
+                throw new FamilyChatMessageInvalidException(
+                    $"A message cannot point at more than {SendFamilyChatMessageRequest.MaxReferences} things");
+            }
+
             RequireSendAllowance(userId);
+
+            // Resolved before the message is written, so a reference the sender cannot actually see
+            // fails the send rather than becoming a chip nobody can open.
+            var resolved = ResolveReferences(requested);
 
             var message = new FamilyChatMessage
             {
                 FamilyId = familyId,
                 SenderUserId = userId,
                 Kind = FamilyChatMessageKind.Text,
-                Body = body,
+                Body = string.IsNullOrEmpty(body) ? null : body,
                 SentAt = DateTime.UtcNow
             };
 
             using (var context = _contextFactory.CreateDbContext())
             {
-                context.Set<FamilyChatMessage>().Add(message);
-                await context.SaveChangesAsync(cancellationToken);
+                // One transaction over both saves. The message has to be saved first for its id -
+                // the reference rows' foreign key needs it - but a message that committed while
+                // its references did not is a message everyone else sees having silently lost the
+                // product it was pointing at, while its sender was told the send failed.
+                await using var transaction = await context.Database.BeginTransactionAsync(cancellationToken);
+                try
+                {
+                    context.Set<FamilyChatMessage>().Add(message);
+                    await context.SaveChangesAsync(cancellationToken);
+
+                    if (resolved.Count > 0)
+                    {
+                        foreach (var reference in resolved)
+                        {
+                            context.Set<FamilyChatMessageReference>().Add(new FamilyChatMessageReference
+                            {
+                                FamilyChatMessageId = message.Id,
+                                Kind = reference.Kind,
+                                TargetPublicId = reference.PublicId,
+                                Label = reference.Label
+                            });
+                        }
+
+                        await context.SaveChangesAsync(cancellationToken);
+                    }
+
+                    await transaction.CommitAsync(cancellationToken);
+                }
+                catch (Exception ex)
+                {
+                    await transaction.RollbackAsync(cancellationToken);
+                    Log.Error(ex, "Failed to store a chat message for family {FamilyId}", familyId);
+                    throw;
+                }
             }
 
-            var info = ToInfo(message, LoadSenders([userId]), NoImages);
+            var info = ToInfo(message, LoadSenders([userId]), NoImages, new Dictionary<int, List<FamilyChatReferenceInfo>>
+            {
+                [message.Id] = resolved
+            });
 
             await ClearTypingAsync(familyPublicId, userId, cancellationToken);
 
@@ -454,7 +512,11 @@ namespace Homassy.API.Functions
             }
 
             var rendition = new FamilyChatImageRendition(message.Id, version, processed.Width, processed.Height);
-            var info = ToInfo(message, LoadSenders([userId]), new Dictionary<int, FamilyChatImageRendition> { [message.Id] = rendition });
+            var info = ToInfo(
+                message,
+                LoadSenders([userId]),
+                new Dictionary<int, FamilyChatImageRendition> { [message.Id] = rendition },
+                NoReferences);
 
             await ClearTypingAsync(familyPublicId, userId, cancellationToken);
             await _runtime.FamilyChat.MessageCreatedAsync(familyPublicId, info, request.CorrelationId, cancellationToken);
@@ -567,6 +629,144 @@ namespace Homassy.API.Functions
             await _runtime.FamilyChat.TypingChangedAsync(familyPublicId, typing, cancellationToken: cancellationToken);
         }
 
+        #region References
+
+        /// <summary>
+        /// Turns what the sender asked to attach into what will be stored, or refuses it.
+        /// </summary>
+        /// <remarks>
+        /// Every reference is resolved against the <see cref="SelectValueFunctions"/> list for its
+        /// kind, which is the same list the pickers everywhere else in the app read from - so a
+        /// reference is valid exactly when the sender could have picked it, and the label is the
+        /// server's own rather than the client's. A client that sends an id it was never offered
+        /// gets a 400, not a chip naming something it cannot see.
+        /// <para>
+        /// Duplicates are dropped rather than rejected: attaching the same product twice is a
+        /// fumbled tap, not an error worth failing a message over.
+        /// </para>
+        /// </remarks>
+        private List<FamilyChatReferenceInfo> ResolveReferences(IReadOnlyCollection<FamilyChatReferenceRequest> requested)
+        {
+            if (requested.Count == 0) return [];
+
+            var selectValues = new SelectValueFunctions(_runtime);
+            var byKind = new Dictionary<FamilyChatReferenceKind, Dictionary<Guid, string>>();
+            var resolved = new List<FamilyChatReferenceInfo>(requested.Count);
+            var seen = new HashSet<(FamilyChatReferenceKind, Guid)>();
+
+            foreach (var reference in requested)
+            {
+                if (!seen.Add((reference.Kind, reference.PublicId))) continue;
+
+                if (!byKind.TryGetValue(reference.Kind, out var lookup))
+                {
+                    lookup = selectValues
+                        .GetSelectValues(SelectValueTypeOf(reference.Kind))
+                        .GroupBy(v => v.PublicId)
+                        .ToDictionary(g => g.Key, g => g.First().Text);
+                    byKind[reference.Kind] = lookup;
+                }
+
+                if (!lookup.TryGetValue(reference.PublicId, out var label))
+                {
+                    throw new FamilyChatMessageInvalidException(
+                        $"No {reference.Kind} of yours with id {reference.PublicId}");
+                }
+
+                resolved.Add(new FamilyChatReferenceInfo
+                {
+                    Kind = reference.Kind,
+                    PublicId = reference.PublicId,
+                    Label = Truncate(label, MaxReferenceLabelLength),
+                    IsAvailable = true
+                });
+            }
+
+            return resolved;
+        }
+
+        /// <summary>
+        /// The references on a page of messages, keyed by message id, with every label resolved
+        /// against what <b>this reader</b> can see.
+        /// </summary>
+        /// <remarks>
+        /// The resolution is the point of storing an id at all: a product renamed last week reads
+        /// by its new name in a message from last month. A row that no longer resolves - deleted,
+        /// or belonging to a family member's own unshared thing - keeps its stored snapshot and is
+        /// marked unavailable, so the sentence still reads and the client simply does not make it a
+        /// link.
+        /// <para>
+        /// One select-value read per kind present on the page, not per reference: those lists come
+        /// out of the Functions layer's caches, and a page of chat is at most a handful of kinds.
+        /// </para>
+        /// </remarks>
+        private Dictionary<int, List<FamilyChatReferenceInfo>> HydrateReferences(
+            IReadOnlyList<FamilyChatMessageReference> rows)
+        {
+            if (rows.Count == 0) return [];
+
+            var selectValues = new SelectValueFunctions(_runtime);
+            var byKind = new Dictionary<FamilyChatReferenceKind, Dictionary<Guid, string>>();
+
+            foreach (var kind in rows.Select(r => r.Kind).Distinct())
+            {
+                byKind[kind] = selectValues
+                    .GetSelectValues(SelectValueTypeOf(kind))
+                    .GroupBy(v => v.PublicId)
+                    .ToDictionary(g => g.Key, g => g.First().Text);
+            }
+
+            var result = new Dictionary<int, List<FamilyChatReferenceInfo>>();
+
+            foreach (var row in rows)
+            {
+                var available = byKind[row.Kind].TryGetValue(row.TargetPublicId, out var current);
+
+                if (!result.TryGetValue(row.FamilyChatMessageId, out var list))
+                {
+                    list = [];
+                    result[row.FamilyChatMessageId] = list;
+                }
+
+                list.Add(new FamilyChatReferenceInfo
+                {
+                    Kind = row.Kind,
+                    PublicId = row.TargetPublicId,
+                    Label = available ? current! : row.Label,
+                    IsAvailable = available
+                });
+            }
+
+            return result;
+        }
+
+        /// <summary>
+        /// Which select-value list answers for a reference kind.
+        /// </summary>
+        /// <remarks>
+        /// The mapping is what ties a chip to the picker that produced it: both sides read the same
+        /// list, so "valid reference" and "thing the sender could pick" are the same statement.
+        /// </remarks>
+        private static SelectValueType SelectValueTypeOf(FamilyChatReferenceKind kind) => kind switch
+        {
+            FamilyChatReferenceKind.Product => SelectValueType.Product,
+            FamilyChatReferenceKind.ShoppingLocation => SelectValueType.ShoppingLocation,
+            FamilyChatReferenceKind.StorageLocation => SelectValueType.StorageLocation,
+            FamilyChatReferenceKind.ShoppingList => SelectValueType.ShoppingList,
+            _ => throw new FamilyChatMessageInvalidException($"Unsupported reference kind {kind}")
+        };
+
+        /// <summary>Longest label a stored snapshot keeps, matching the column.</summary>
+        private const int MaxReferenceLabelLength = 255;
+
+        private static string Truncate(string value, int maxLength)
+            => value.Length <= maxLength ? value : value[..maxLength];
+
+        /// <summary>The empty reference map, for the paths that project a message known to have none.</summary>
+        private static readonly Dictionary<int, List<FamilyChatReferenceInfo>> NoReferences = [];
+
+        #endregion
+
         /// <summary>
         /// Whether a failed save was PostgreSQL refusing a duplicate (<c>23505</c>) rather than
         /// anything else - narrow on purpose, so a genuine failure still surfaces instead of being
@@ -652,10 +852,12 @@ namespace Homassy.API.Functions
         private static FamilyChatMessageInfo ToInfo(
             FamilyChatMessage message,
             IReadOnlyDictionary<int, FamilyChatSenderInfo> senders,
-            IReadOnlyDictionary<int, FamilyChatImageRendition> images)
+            IReadOnlyDictionary<int, FamilyChatImageRendition> images,
+            IReadOnlyDictionary<int, List<FamilyChatReferenceInfo>> references)
         {
             senders.TryGetValue(message.SenderUserId, out var sender);
             images.TryGetValue(message.Id, out var image);
+            references.TryGetValue(message.Id, out var attached);
 
             return new FamilyChatMessageInfo
             {
@@ -670,7 +872,8 @@ namespace Homassy.API.Functions
                 ImageUrl = image == null ? null : MediaUrls.FamilyChatImage(message.PublicId, image.Version),
                 ImageFullUrl = image == null ? null : MediaUrls.FamilyChatImage(message.PublicId, image.Version, ImageVariant.Full),
                 ImageWidth = image?.Width,
-                ImageHeight = image?.Height
+                ImageHeight = image?.Height,
+                References = attached ?? []
             };
         }
 

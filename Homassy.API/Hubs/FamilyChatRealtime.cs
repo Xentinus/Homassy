@@ -24,6 +24,7 @@ namespace Homassy.API.Hubs
         public const string MessageCreatedEvent = "MessageCreated";
         public const string MessageDeletedEvent = "MessageDeleted";
         public const string TypingChangedEvent = "TypingChanged";
+        public const string ActiveChangedEvent = "ActiveChanged";
 
         /// <summary>
         /// SignalR group name for one family's conversation. Shared with <see cref="FamilyChatHub"/>.
@@ -77,6 +78,24 @@ namespace Homassy.API.Hubs
             string? exceptConnectionId = null,
             CancellationToken cancellationToken = default)
             => SendAsync(familyPublicId, TypingChangedEvent, members, cancellationToken, exceptConnectionId);
+
+        /// <summary>
+        /// Pushes the family's current set of members watching the conversation.
+        /// </summary>
+        /// <remarks>
+        /// Sent to the whole group, the caller included - unlike typing, where telling somebody
+        /// they are typing is noise. Here the sender is part of the answer: a client that has just
+        /// opened the chat wants the roster it has now joined, and every client filters itself out
+        /// for display rather than being sent a different list each.
+        /// </remarks>
+        /// <param name="familyPublicId">Which family's group to push to.</param>
+        /// <param name="members">Everyone currently watching, collapsed to one entry per person.</param>
+        /// <param name="cancellationToken">Cancellation of the originating invocation.</param>
+        public Task ActiveChangedAsync(
+            Guid familyPublicId,
+            IReadOnlyList<FamilyChatActiveMember> members,
+            CancellationToken cancellationToken = default)
+            => SendAsync(familyPublicId, ActiveChangedEvent, members, cancellationToken);
 
         private async Task SendAsync(
             Guid familyPublicId,

@@ -20,8 +20,8 @@
         ref="bubbleEl"
         data-chat-bubble
         type="button"
-        :aria-label="t('familyChat.bubble.open', { family: familyName })"
-        class="fixed left-0 top-0 z-[55] flex h-14 w-14 items-center justify-center overflow-hidden rounded-full bg-primary-500 text-white shadow-xl ring-2 ring-white/80 dark:ring-gray-900/80 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-primary-300"
+        :aria-label="bubbleLabel"
+        class="fixed left-0 top-0 z-[55] flex h-14 w-14 items-center justify-center rounded-full bg-primary-500 text-white shadow-xl ring-2 ring-white/80 dark:ring-gray-900/80 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-primary-300"
         :style="bubbleStyle"
         @pointerdown="onPointerDown"
         @pointermove="onPointerMove"
@@ -31,14 +31,19 @@
         @focus="wake"
         @blur="scheduleIdle"
       >
-        <img
-          v-if="familyPicture"
-          :src="familyPicture"
-          :alt="familyName"
-          class="h-full w-full object-cover"
-          draggable="false"
-        >
-        <span v-else class="text-lg font-semibold leading-none">{{ initials }}</span>
+        <!-- The picture is clipped to the circle here rather than on the button, because the
+             badges hang outside the button's own box: an `overflow-hidden` on the button would
+             crop exactly the corner each badge sits in. -->
+        <span class="pointer-events-none absolute inset-0 flex items-center justify-center overflow-hidden rounded-full">
+          <img
+            v-if="familyPicture"
+            :src="familyPicture"
+            :alt="familyName"
+            class="h-full w-full object-cover"
+            draggable="false"
+          >
+          <span v-else class="text-lg font-semibold leading-none">{{ initials }}</span>
+        </span>
 
         <!-- Somebody is typing while the panel is closed (#148). A pulse rather than a name list:
              the bubble is 56px, and "who" is what opening it answers. -->
@@ -48,15 +53,29 @@
           aria-hidden="true"
         />
 
+        <!-- How many other members have the chat open right now. Bottom-left, opposite the unread
+             badge: the two answer different questions ("something happened" vs "somebody is here")
+             and stacking them in one corner would read as one number. -->
+        <!-- Emerald, not `success`: this app aliases the success colour to its mocha primary
+             (`app.config.ts`), which is the bubble's own background - a "somebody is here" dot
+             painted in it would be invisible. There is no semantic token for presence green. -->
+        <span
+          v-if="activeCount > 0"
+          class="absolute -bottom-1 -left-1 z-10 flex h-5 min-w-5 items-center justify-center gap-0.5 rounded-full bg-emerald-500 px-1 shadow-md ring-2 ring-white dark:ring-gray-900"
+        >
+          <span class="h-1.5 w-1.5 rounded-full bg-white/90" aria-hidden="true" />
+          <span class="text-[10px] font-bold leading-none text-white tabular-nums">{{ activeCount }}</span>
+        </span>
+
         <!-- Unread badge (#149), in the same visual language the bottom nav uses for the
              expiration and deadline counts - one badge vocabulary across the app. -->
         <span
           v-if="unreadCount > 0"
-          class="absolute -right-0.5 -top-0.5 flex h-[18px] min-w-[18px] items-center justify-center rounded-full bg-error-500 px-1 shadow-md"
+          class="absolute -right-1 -top-1 z-10 flex h-5 min-w-5 items-center justify-center rounded-full bg-error-500 px-1 shadow-md ring-2 ring-white dark:ring-gray-900"
         >
           <!-- tabular-nums: the count changes under the mounted badge as messages arrive, and
                proportional digits would resize the pill on every change. -->
-          <span class="text-[10px] font-bold leading-none text-white tabular-nums">
+          <span class="text-[11px] font-bold leading-none text-white tabular-nums">
             {{ unreadCount > 99 ? '99+' : unreadCount }}
           </span>
         </span>
@@ -99,7 +118,14 @@ const haptics = useHaptics()
 const { overlayOpen } = useOverlayPresence()
 // Only the typing set is read here; the bubble never joins the hub itself. While the panel has
 // never been opened this is simply empty, which is the correct "nothing to pulse about".
-const { typingMembers, unreadCount, refreshUnreadCount } = useFamilyChat()
+const {
+  typingMembers,
+  activeMembers,
+  unreadCount,
+  refreshUnreadCount,
+  join: joinChat,
+  leave: leaveChat
+} = useFamilyChat()
 const {
   isDismissed,
   panelOpen,
@@ -116,6 +142,14 @@ const BUBBLE_SIZE = 56
 const EDGE_MARGIN = 12
 /** Keeps the bubble clear of the bottom nav when it is parked low. */
 const NAV_CLEARANCE = 96
+/**
+ * Keeps it clear of the persistent header when parked high.
+ *
+ * The bubble is teleported above everything, so without this it can be dropped on top of the
+ * header's own controls - and the corner it snaps to when the panel opens is a top corner half the
+ * time.
+ */
+const HEADER_CLEARANCE = 96
 /** Movement before a press becomes a drag. Below it the gesture is still a tap. */
 const DRAG_SLOP = 6
 /** How long a press has to be held before the dismiss target appears. */
@@ -178,6 +212,16 @@ const visible = computed(() =>
  */
 const showTypingPulse = computed(() => !panelOpen.value && typingMembers.value.length > 0)
 
+/** How many *other* members have the chat open. Your own reading is not news to you. */
+const activeCount = computed(() => activeMembers.value.length)
+
+/**
+ * The label carries the count, because the badge is a coloured dot to a screen reader otherwise.
+ */
+const bubbleLabel = computed(() => activeCount.value > 0
+  ? t('familyChat.bubble.openWithActive', { family: familyName.value, count: activeCount.value })
+  : t('familyChat.bubble.open', { family: familyName.value }))
+
 const initials = computed(() => {
   const words = familyName.value.trim().split(/\s+/).filter(Boolean)
   if (words.length === 0) return '?'
@@ -193,14 +237,23 @@ const nearestEdge = computed<'left' | 'right'>(() => {
   return x.value + BUBBLE_SIZE / 2 < window.innerWidth / 2 ? 'left' : 'right'
 })
 
+/**
+ * Whether the bubble is allowed to fade back and tuck itself away.
+ *
+ * Not while something is waiting to be read, and not while somebody is typing: the idle state
+ * exists to stop the bubble competing with the page, and a half-faded circle tucked under the
+ * screen edge is exactly the wrong place to put the one thing saying a message arrived.
+ */
+const canIdle = computed(() => unreadCount.value === 0 && typingMembers.value.length === 0)
+
 const idleShift = computed(() => {
-  if (!idle.value || dragging.value || prefersReducedMotion()) return 0
+  if (!idle.value || dragging.value || !canIdle.value || prefersReducedMotion()) return 0
   return nearestEdge.value === 'left' ? -IDLE_TUCK : IDLE_TUCK
 })
 
 const bubbleStyle = computed(() => ({
   transform: `translate3d(${x.value + idleShift.value}px, ${y.value}px, 0)`,
-  opacity: idle.value && !dragging.value ? IDLE_OPACITY : 1,
+  opacity: idle.value && !dragging.value && canIdle.value ? IDLE_OPACITY : 1,
   touchAction: 'none',
   transition: dragging.value
     ? 'opacity var(--bubble-out) ease'
@@ -243,7 +296,7 @@ const clamp = (nextX: number, nextY: number): { x: number, y: number } => {
   const maxX = window.innerWidth - BUBBLE_SIZE - EDGE_MARGIN - insets.right
   // The header is sticky at the top and the nav is fixed at the bottom; the bubble is allowed
   // over neither, so its travel is the strip between them.
-  const minY = EDGE_MARGIN + insets.top
+  const minY = HEADER_CLEARANCE + insets.top
   const maxY = window.innerHeight - BUBBLE_SIZE - NAV_CLEARANCE - insets.bottom
 
   return {
@@ -405,6 +458,48 @@ const isOverDropTarget = (): boolean => {
   return Math.hypot(centreX - targetX, centreY - targetY) < DROP_RADIUS
 }
 
+/**
+ * Moves the bubble to its nearest corner, which is where the panel hangs off it.
+ *
+ * Run as the panel opens. A panel anchored to a bubble parked halfway down the screen would have
+ * room for a conversation neither above nor below it; from a corner there is one long side to grow
+ * into, and the direction is decided by which half the bubble is in. The position is saved, so the
+ * bubble stays where the chat left it rather than springing back.
+ */
+const snapToCorner = (): void => {
+  const insets = readSafeAreaInsets()
+  const inTopHalf = y.value + BUBBLE_SIZE / 2 < window.innerHeight / 2
+
+  const targetX = nearestEdge.value === 'left'
+    ? EDGE_MARGIN + insets.left
+    : window.innerWidth - BUBBLE_SIZE - EDGE_MARGIN - insets.right
+
+  const targetY = inTopHalf
+    ? HEADER_CLEARANCE + insets.top
+    : window.innerHeight - BUBBLE_SIZE - NAV_CLEARANCE - insets.bottom
+
+  const settled = clamp(targetX, targetY)
+  const alreadyThere = Math.abs(settled.x - x.value) < 1 && Math.abs(settled.y - y.value) < 1
+
+  settling.value = !alreadyThere && !prefersReducedMotion()
+  x.value = settled.x
+  y.value = settled.y
+  wake()
+
+  savePosition(toFraction(settled.x, settled.y))
+
+  // The anchor is published as the corner the bubble is *going* to, not as where it is now.
+  // `publishAnchor` measures the element, and during the slide that measurement is a moving
+  // target - the panel would open against the old position and then jump. Both arrive at the same
+  // place within the same transition, so the panel grows out of the corner while the bubble slides
+  // into it.
+  setAnchorRect(new DOMRect(settled.x, settled.y, BUBBLE_SIZE, BUBBLE_SIZE))
+
+  if (settling.value) {
+    window.setTimeout(() => { settling.value = false; publishAnchor() }, 300)
+  }
+}
+
 /** Settles the bubble against whichever side it was left nearer, and remembers where that is. */
 const snapToEdge = (): void => {
   const insets = readSafeAreaInsets()
@@ -524,10 +619,23 @@ onMounted(async () => {
 
   // The badge is the only thing that says anything happened before the panel is ever opened, so
   // the count is fetched as soon as there is a family to have one (#149).
-  if (hasFamily.value) await refreshUnreadCount()
+  if (!hasFamily.value) return
+
+  await refreshUnreadCount()
+
+  // Join the hub group from the bubble, not from the panel. Everything the bubble shows about the
+  // conversation - who is watching, whether somebody is typing, a message arriving - is a live
+  // event, and a client outside the group receives none of them. Joining is not "watching": the
+  // attention flag that suppresses notifications is still only set while the panel is open and
+  // visible.
+  await joinChat()
 })
 
 onBeforeUnmount(() => {
+  // The bubble owns the group membership, so it is what gives it up - on logout, or when the
+  // authenticated layout goes away.
+  void leaveChat()
+
   if (idleTimer) clearTimeout(idleTimer)
   if (longPressTimer) clearTimeout(longPressTimer)
   window.removeEventListener('resize', onViewportChange)
@@ -539,6 +647,11 @@ onBeforeUnmount(() => {
 // moment it becomes visible again rather than whatever it was when it was hidden.
 watch(visible, (isVisible) => {
   if (isVisible) requestAnimationFrame(publishAnchor)
+})
+
+// Opening the chat takes the bubble to its nearest corner, which is where the panel hangs off it.
+watch(panelOpen, (isOpen) => {
+  if (isOpen && placed.value) snapToCorner()
 })
 
 

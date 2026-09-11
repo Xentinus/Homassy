@@ -18,9 +18,11 @@
 import { computed, ref } from 'vue'
 import { useAuthStore } from '~/stores/auth'
 import type {
+  FamilyChatActiveMember,
   FamilyChatMessage,
   FamilyChatMessageCreatedEvent,
   FamilyChatMessageDeletedEvent,
+  FamilyChatReferenceDraft,
   FamilyChatStreamMessage,
   FamilyChatTypingMember
 } from '~/types/familyChat'
@@ -52,6 +54,31 @@ let subscribed = false
  * composer.
  */
 const typingMembers = ref<FamilyChatTypingMember[]>([])
+
+/**
+ * Who is watching the conversation right now, excluding this client's own user.
+ *
+ * The count the bubble shows. It is the server's set, never a guess: the same flag decides whether
+ * a message notifies, so anything derived locally could tell one member that another is reading
+ * while the server is busy sending that other member a push.
+ */
+const activeMembers = ref<FamilyChatActiveMember[]>([])
+
+/** True once this client is in the family's hub group, so the bubble can join without opening the panel. */
+let joined = false
+let joinPromise: Promise<void> | null = null
+
+/**
+ * Bumped every time the client leaves the group.
+ *
+ * A join is two awaits deep before it can record that it succeeded, and `leave()` is
+ * fire-and-forget from the bubble's unmount - so a join in flight when the layout is torn down
+ * (a logout, an auth redirect) would otherwise resolve *after* the leave and set `joined` back to
+ * true for a group the server has already dropped this connection from. Since `joined` is
+ * module-scoped, the next mount would then skip joining entirely and the bubble would sit there
+ * silent. A join only records its result if no leave happened while it was waiting.
+ */
+let membershipGeneration = 0
 
 /** At most one `SetTyping(true)` per this many ms while the composer has content. */
 const TYPING_THROTTLE_MS = 2000
@@ -160,11 +187,20 @@ export const useFamilyChat = () => {
     typingMembers.value = members.filter(m => m.publicId !== currentUserPublicId.value)
   }
 
+  /**
+   * The server sends the whole watching set, this client included - it is part of the answer, and
+   * every client filters itself out for display rather than each being sent a different list.
+   */
+  const onActiveChanged = (members: FamilyChatActiveMember[]): void => {
+    activeMembers.value = members.filter(m => m.publicId !== currentUserPublicId.value)
+  }
+
   const subscribe = (): void => {
     if (subscribed) return
     socket.on('MessageCreated', onMessageCreated)
     socket.on('MessageDeleted', onMessageDeleted)
     socket.on('TypingChanged', onTypingChanged)
+    socket.on('ActiveChanged', onActiveChanged)
     socket.onReconnected(rejoin)
     subscribed = true
   }
@@ -174,6 +210,7 @@ export const useFamilyChat = () => {
     socket.off('MessageCreated', onMessageCreated)
     socket.off('MessageDeleted', onMessageDeleted)
     socket.off('TypingChanged', onTypingChanged)
+    socket.off('ActiveChanged', onActiveChanged)
     socket.offReconnected(rejoin)
     subscribed = false
   }
@@ -372,10 +409,16 @@ export const useFamilyChat = () => {
     loading.value = true
     failedToLoad.value = false
 
+    const generation = membershipGeneration
+
     try {
+      // Re-joining an already-joined group is a no-op server-side, and it is what makes opening
+      // the panel answer with a page that is current rather than whatever the bubble joined with.
       const page = await socket.joinChat()
 
       if (page) {
+        // Same generation guard as `join`: a leave during this await means the group is gone.
+        if (generation === membershipGeneration) joined = true
         messages.value = toStreamOrder(page.items)
         olderCursor.value = page.nextCursor ?? null
         hydrated.value = true
@@ -406,11 +449,79 @@ export const useFamilyChat = () => {
   }
 
   /** Leaves the hub group. The stream is kept, so reopening the panel is instant. */
-  const close = async (): Promise<void> => {
-    // Closing the panel ends any typing this client was reporting; the server clears the flag on
-    // leave too, but saying so first means the family sees it go immediately.
-    stopTyping()
+  /**
+   * Joins the family's hub group without opening the panel.
+   *
+   * What the bubble calls on mount, and the reason the group membership outlives the panel: the
+   * bubble has to know who is watching and whether anybody is typing *while the chat is closed* -
+   * that is the whole point of showing it there. Group membership is not the same as watching
+   * (#149): joining reports nothing about attention, so this does not suppress a single
+   * notification.
+   *
+   * Idempotent, and safe to call concurrently - a second call rides the first one's promise rather
+   * than opening a second connection.
+   */
+  const join = async (): Promise<void> => {
+    if (!import.meta.client) return
+
+    subscribe()
+    if (joined) return
+    if (joinPromise) return joinPromise
+
+    const generation = membershipGeneration
+
+    joinPromise = (async () => {
+      try {
+        const page = await socket.joinChat()
+        if (!page) return
+
+        // Left while this was in flight: the server has dropped the group, so recording a join
+        // would leave this client believing it is in a group it is not.
+        if (generation !== membershipGeneration) return
+
+        joined = true
+        // The join answers with the newest page, so keeping it costs nothing and buys two things:
+        // opening the panel is instant, and live arrivals can be counted into the unread badge
+        // from the moment the app started rather than from the first time the chat was opened.
+        messages.value = toStreamOrder(page.items)
+        olderCursor.value = page.nextCursor ?? null
+        hydrated.value = true
+      } catch {
+        // No family, or the hub refused the join. Either way there is nothing to watch, and the
+        // bubble is not rendered for a user with no family anyway.
+      } finally {
+        joinPromise = null
+      }
+    })()
+
+    return joinPromise
+  }
+
+  /**
+   * Leaves the group entirely - the bubble is going away (logout, or the layout unmounting).
+   *
+   * Closing the panel deliberately does **not** do this: see `close`.
+   */
+  const leave = async (): Promise<void> => {
+    // Bumped first, so a join already waiting on the socket cannot record itself afterwards.
+    membershipGeneration++
+    joined = false
     typingMembers.value = []
+    activeMembers.value = []
+    await socket.leaveChat()
+  }
+
+  /**
+   * Closes the panel: stops reporting typing and watching, and stops the heartbeat.
+   *
+   * It does **not** leave the hub group. The bubble stays on screen and goes on showing who is
+   * watching and whether somebody is typing, which it can only do from inside the group - and
+   * leaving would also throw away the live `MessageCreated` events the unread badge counts.
+   */
+  const close = async (): Promise<void> => {
+    // Closing the panel ends any typing this client was reporting; saying so explicitly means the
+    // family sees the indicator go rather than waiting out the TTL.
+    stopTyping()
 
     panelIsOpen = false
     setActive(false)
@@ -418,14 +529,17 @@ export const useFamilyChat = () => {
     clearInactivityTimeout()
     detachVisibilityListener()
 
-    await socket.leaveChat()
+    await Promise.resolve()
   }
 
   /** Re-reads the newest page, keeping older pages that are already loaded out of it. */
   const refresh = async (): Promise<void> => {
+    const generation = membershipGeneration
+
     try {
       const page = await socket.joinChat()
       if (page) {
+        if (generation === membershipGeneration) joined = true
         messages.value = toStreamOrder(page.items)
         olderCursor.value = page.nextCursor ?? null
         hydrated.value = true
@@ -479,15 +593,20 @@ export const useFamilyChat = () => {
    * when it is fast. The row carries a correlation id so the broadcast - which the sender also
    * receives - reconciles onto it rather than appending a duplicate.
    */
-  const send = async (body: string): Promise<boolean> => {
+  const send = async (body: string, references: FamilyChatReferenceDraft[] = []): Promise<boolean> => {
     const text = body.trim()
-    if (!text) return false
+    // Something attached is something to send: the API accepts a message with no body when it
+    // carries references, and "the shop" plus "the milk" is a complete thought.
+    if (!text && references.length === 0) return false
 
     const correlationId = newCorrelationId()
     const optimistic: FamilyChatStreamMessage = {
       publicId: correlationId,
       kind: 'Text',
-      body: text,
+      body: text || null,
+      // Rendered from what the picker offered until the committed message replaces them with the
+      // server's own labels - which is also when they stop being assumed to resolve.
+      references: references.map(r => ({ ...r, isAvailable: true })),
       sentAt: new Date().toISOString(),
       sender: {
         publicId: currentUserPublicId.value ?? '',
@@ -504,7 +623,11 @@ export const useFamilyChat = () => {
     // path too (#148); this is the half that does not wait for the round trip.
     stopTyping()
 
-    const response = await sendMessage({ body: text, correlationId }).catch(() => null)
+    const response = await sendMessage({
+      body: text || undefined,
+      references: references.map(r => ({ kind: r.kind, publicId: r.publicId })),
+      correlationId
+    }).catch(() => null)
     const index = messages.value.findIndex(m => m.correlationId === correlationId)
 
     if (!response?.success || !response.data) {
@@ -599,8 +722,10 @@ export const useFamilyChat = () => {
       return await sendImage(base64, message.localPreview, message.body ?? undefined)
     }
 
-    if (!message.body) return false
-    return await send(message.body)
+    // A failed message keeps whatever it was attached to, so retrying re-sends the whole thing
+    // rather than a sentence with its chips dropped.
+    if (!message.body && (message.references?.length ?? 0) === 0) return false
+    return await send(message.body ?? '', message.references ?? [])
   }
 
   /**
@@ -637,8 +762,11 @@ export const useFamilyChat = () => {
     isConnected: socket.isConnected,
     currentUserPublicId,
     typingMembers,
+    activeMembers,
     notifyTyping,
     stopTyping,
+    join,
+    leave,
     unreadCount,
     refreshUnreadCount,
     markRead,

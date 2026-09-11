@@ -116,9 +116,10 @@ try
 
     builder.Services.AddHostedService<CacheManagementService>();
     builder.Services.AddHostedService<RateLimitCleanupService>();
-    // Retires expired chat typing flags and broadcasts the change (#148). Paired with
+    // Retires expired chat typing and watching flags and broadcasts the change (#148, #149).
+    // Paired with
     // FamilyChatConnectionState.TypingTtl - see the service for why its interval is not a knob.
-    builder.Services.AddHostedService<FamilyChatTypingSweepService>();
+    builder.Services.AddHostedService<FamilyChatStateSweepService>();
 
     builder.Services.AddSingleton<IInputSanitizationService, InputSanitizationService>();
     builder.Services.AddSingleton<IBarcodeValidationService, BarcodeValidationService>();

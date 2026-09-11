@@ -1149,6 +1149,15 @@
       "light": "Hell",
       "dark": "Dunkel"
     },
+    "badge": {
+      "label": "App-Symbol-Badge",
+      "description": "Was die Zahl auf dem Symbol der installierten App auf diesem Gerät zählt.",
+      "sources": {
+        "deadline": { "label": "Überfällige Einkaufsposten", "description": "Posten, deren Frist abgelaufen ist." },
+        "chat": { "label": "Ungelesene Nachrichten", "description": "Ungelesene Nachrichten im Familienchat." },
+        "expiration": { "label": "Ablaufende Produkte", "description": "Produkte kurz vor dem Ablaufdatum." }
+      }
+    },
     "haptics": {
       "label": "Haptisches Feedback",
       "description": "Kurze Vibrationen bei Gesten und Bestätigungen"
@@ -2911,6 +2920,19 @@
     "showAll": "Alle auf der Karte zeigen ({count})"
   },
   "familyChat": {
+    "reference": {
+      "pickerTitle": "Etwas anhängen",
+      "pickerDescription": "Diese Nachricht auf ein Produkt, ein Geschäft, einen Lagerort oder eine Liste zeigen lassen.",
+      "empty": "Hier gibt es noch nichts anzuhängen.",
+      "remove": "{name} entfernen",
+      "kind": {
+        "product": "Produkt",
+        "shoppingLocation": "Geschäft",
+        "storageLocation": "Lagerort",
+        "shoppingList": "Einkaufsliste"
+      }
+    },
+    "activeCount": "{count} hier",
     "typing": {
       "one": "{name} schreibt…",
       "two": "{first} und {second} schreiben…",
@@ -2922,6 +2944,7 @@
     },
     "title": "Familienchat",
     "composer": {
+      "attachReference": "Produkt, Geschäft oder Liste anhängen",
       "attach": "Bild anhängen",
       "placeholder": "Nachricht schreiben…",
       "send": "Senden"
@@ -2942,6 +2965,7 @@
       "delete": "Nachricht löschen"
     },
     "bubble": {
+      "openWithActive": "Chat von {family} öffnen, {count} Mitglied(er) gerade hier",
       "open": "Chat von {family} öffnen",
       "restore": {
         "label": "Chat-Blase anzeigen",

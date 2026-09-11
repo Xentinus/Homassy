@@ -1149,6 +1149,15 @@
       "light": "Világos",
       "dark": "Sötét"
     },
+    "badge": {
+      "label": "Alkalmazásikon jelvény",
+      "description": "Mit számoljon a telepített app ikonján lévő szám ezen az eszközön.",
+      "sources": {
+        "deadline": { "label": "Lejárt bevásárlási tételek", "description": "Határidőn túli tételek." },
+        "chat": { "label": "Olvasatlan üzenetek", "description": "El nem olvasott üzenetek a családi csevegésben." },
+        "expiration": { "label": "Lejáró termékek", "description": "Szavatossági idejükhöz közeli termékek." }
+      }
+    },
     "haptics": {
       "label": "Rezgő visszajelzés",
       "description": "Rövid rezgés gesztusoknál és megerősítéseknél"
@@ -2911,6 +2920,19 @@
     "showAll": "Mind megjelenítése a térképen ({count})"
   },
   "familyChat": {
+    "reference": {
+      "pickerTitle": "Beszúrás",
+      "pickerDescription": "Az üzenet mutasson egy termékre, boltra, tárolóhelyre vagy listára.",
+      "empty": "Itt még nincs mit beszúrni.",
+      "remove": "{name} eltávolítása",
+      "kind": {
+        "product": "Termék",
+        "shoppingLocation": "Bolt",
+        "storageLocation": "Tárolóhely",
+        "shoppingList": "Bevásárlólista"
+      }
+    },
+    "activeCount": "{count} jelen",
     "typing": {
       "one": "{name} éppen ír…",
       "two": "{first} és {second} éppen ír…",
@@ -2922,6 +2944,7 @@
     },
     "title": "Családi csevegés",
     "composer": {
+      "attachReference": "Termék, bolt vagy lista beszúrása",
       "attach": "Kép csatolása",
       "placeholder": "Írjon üzenetet…",
       "send": "Küldés"
@@ -2942,6 +2965,7 @@
       "delete": "Üzenet törlése"
     },
     "bubble": {
+      "openWithActive": "{family} csevegés megnyitása, most {count} tag van jelen",
       "open": "{family} csevegés megnyitása",
       "restore": {
         "label": "Csevegőbuborék megjelenítése",

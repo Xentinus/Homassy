@@ -1149,6 +1149,15 @@
       "light": "Light",
       "dark": "Dark"
     },
+    "badge": {
+      "label": "App icon badge",
+      "description": "What the number on the installed app’s icon counts, on this device.",
+      "sources": {
+        "deadline": { "label": "Overdue shopping items", "description": "Items past their deadline." },
+        "chat": { "label": "Unread chat messages", "description": "Messages in the family chat you have not read." },
+        "expiration": { "label": "Expiring products", "description": "Products close to their expiry date." }
+      }
+    },
     "haptics": {
       "label": "Haptic feedback",
       "description": "Short vibrations on gestures and confirmations"
@@ -2911,6 +2920,19 @@
     "showAll": "Show all on the map ({count})"
   },
   "familyChat": {
+    "reference": {
+      "pickerTitle": "Attach something",
+      "pickerDescription": "Point this message at a product, a shop, a storage place or a list.",
+      "empty": "Nothing to attach here yet.",
+      "remove": "Remove {name}",
+      "kind": {
+        "product": "Product",
+        "shoppingLocation": "Shop",
+        "storageLocation": "Storage",
+        "shoppingList": "Shopping list"
+      }
+    },
+    "activeCount": "{count} here",
     "typing": {
       "one": "{name} is typing…",
       "two": "{first} and {second} are typing…",
@@ -2922,6 +2944,7 @@
     },
     "title": "Family chat",
     "composer": {
+      "attachReference": "Attach a product, shop or list",
       "attach": "Attach a picture",
       "placeholder": "Write a message…",
       "send": "Send"
@@ -2942,6 +2965,7 @@
       "delete": "Delete message"
     },
     "bubble": {
+      "openWithActive": "Open the {family} chat, {count} member(s) here now",
       "open": "Open the {family} chat",
       "restore": {
         "label": "Show the chat bubble",
