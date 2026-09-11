@@ -39,7 +39,7 @@ public static class TestPushEndpoint
         foreach (var subscription in subscriptions)
         {
             var success = await webPushService.SendNotificationAsync(
-                subscription, title, body, "/", actionTitle, cancellationToken);
+                subscription, title, body, "/", actionTitle, cancellationToken: cancellationToken);
 
             if (success)
             {

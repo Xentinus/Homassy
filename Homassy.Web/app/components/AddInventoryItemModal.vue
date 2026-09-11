@@ -71,15 +71,15 @@
             <div role="group" :aria-label="t('pages.addProduct.pick.properties')">
               <p class="text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">{{ t('pages.addProduct.pick.properties') }}</p>
               <div class="flex flex-wrap gap-2">
-                <UButton :label="t('pages.addProduct.pick.favorite')" icon="i-lucide-star" size="sm" class="rounded-full" :color="productFavoriteFilter ? 'primary' : 'neutral'" :variant="productFavoriteFilter ? 'solid' : 'outline'" :aria-pressed="productFavoriteFilter" @click="productFavoriteFilter = !productFavoriteFilter" />
-                <UButton :label="t('pages.addProduct.pick.eatable')" icon="i-lucide-utensils" size="sm" class="rounded-full" :color="productEatableFilter ? 'primary' : 'neutral'" :variant="productEatableFilter ? 'solid' : 'outline'" :aria-pressed="productEatableFilter" @click="productEatableFilter = !productEatableFilter" />
+                <UButton :label="t('pages.addProduct.pick.favorite')" icon="i-lucide-star" size="sm" class="rounded-full" :color="productFavoriteFilter ? 'primary' : 'neutral'" :variant="productFavoriteFilter ? 'solid' : 'outline'" :aria-pressed="productFavoriteFilter" @click="() => { productFavoriteFilter = !productFavoriteFilter }" />
+                <UButton :label="t('pages.addProduct.pick.eatable')" icon="i-lucide-utensils" size="sm" class="rounded-full" :color="productEatableFilter ? 'primary' : 'neutral'" :variant="productEatableFilter ? 'solid' : 'outline'" :aria-pressed="productEatableFilter" @click="() => { productEatableFilter = !productEatableFilter }" />
               </div>
             </div>
           </template>
 
           <template #chips>
-            <UButton v-if="productFavoriteFilter" :label="t('pages.addProduct.pick.favorite')" size="xs" color="primary" variant="soft" trailing-icon="i-lucide-x" class="rounded-full" @click="productFavoriteFilter = false" />
-            <UButton v-if="productEatableFilter" :label="t('pages.addProduct.pick.eatable')" size="xs" color="primary" variant="soft" trailing-icon="i-lucide-x" class="rounded-full" @click="productEatableFilter = false" />
+            <UButton v-if="productFavoriteFilter" :label="t('pages.addProduct.pick.favorite')" size="xs" color="primary" variant="soft" trailing-icon="i-lucide-x" class="rounded-full" @click="() => { productFavoriteFilter = false }" />
+            <UButton v-if="productEatableFilter" :label="t('pages.addProduct.pick.eatable')" size="xs" color="primary" variant="soft" trailing-icon="i-lucide-x" class="rounded-full" @click="() => { productEatableFilter = false }" />
           </template>
 
           <template #results>
@@ -170,15 +170,15 @@
             <div role="group" :aria-label="t('pages.addProduct.pick.properties')">
               <p class="text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">{{ t('pages.addProduct.pick.properties') }}</p>
               <div class="flex flex-wrap gap-2">
-                <UButton :label="t('pages.addProduct.pick.freezer')" icon="i-lucide-snowflake" size="sm" class="rounded-full" :color="storageFreezerFilter ? 'primary' : 'neutral'" :variant="storageFreezerFilter ? 'solid' : 'outline'" :aria-pressed="storageFreezerFilter" @click="storageFreezerFilter = !storageFreezerFilter" />
-                <UButton :label="t('pages.addProduct.pick.shared')" icon="i-lucide-users" size="sm" class="rounded-full" :color="storageSharedFilter ? 'primary' : 'neutral'" :variant="storageSharedFilter ? 'solid' : 'outline'" :aria-pressed="storageSharedFilter" @click="storageSharedFilter = !storageSharedFilter" />
+                <UButton :label="t('pages.addProduct.pick.freezer')" icon="i-lucide-snowflake" size="sm" class="rounded-full" :color="storageFreezerFilter ? 'primary' : 'neutral'" :variant="storageFreezerFilter ? 'solid' : 'outline'" :aria-pressed="storageFreezerFilter" @click="() => { storageFreezerFilter = !storageFreezerFilter }" />
+                <UButton :label="t('pages.addProduct.pick.shared')" icon="i-lucide-users" size="sm" class="rounded-full" :color="storageSharedFilter ? 'primary' : 'neutral'" :variant="storageSharedFilter ? 'solid' : 'outline'" :aria-pressed="storageSharedFilter" @click="() => { storageSharedFilter = !storageSharedFilter }" />
               </div>
             </div>
           </template>
 
           <template #chips>
-            <UButton v-if="storageFreezerFilter" :label="t('pages.addProduct.pick.freezer')" size="xs" color="primary" variant="soft" trailing-icon="i-lucide-x" class="rounded-full" @click="storageFreezerFilter = false" />
-            <UButton v-if="storageSharedFilter" :label="t('pages.addProduct.pick.shared')" size="xs" color="primary" variant="soft" trailing-icon="i-lucide-x" class="rounded-full" @click="storageSharedFilter = false" />
+            <UButton v-if="storageFreezerFilter" :label="t('pages.addProduct.pick.freezer')" size="xs" color="primary" variant="soft" trailing-icon="i-lucide-x" class="rounded-full" @click="() => { storageFreezerFilter = false }" />
+            <UButton v-if="storageSharedFilter" :label="t('pages.addProduct.pick.shared')" size="xs" color="primary" variant="soft" trailing-icon="i-lucide-x" class="rounded-full" @click="() => { storageSharedFilter = false }" />
           </template>
 
           <template #results>
@@ -237,7 +237,7 @@
                         <UColorPicker v-model="locationFormData.color" />
                       </template>
                     </UPopover>
-                    <UButton v-if="locationFormData.color" icon="i-lucide-x" color="neutral" variant="ghost" size="sm" :disabled="isCreatingLocation" @click="locationFormData.color = ''" />
+                    <UButton v-if="locationFormData.color" icon="i-lucide-x" color="neutral" variant="ghost" size="sm" :disabled="isCreatingLocation" @click="() => { locationFormData.color = '' }" />
                   </div>
                 </UFormField>
 
@@ -274,13 +274,13 @@
             />
             <div role="group" :aria-label="t('pages.addProduct.pick.properties')">
               <p class="text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">{{ t('pages.addProduct.pick.properties') }}</p>
-              <UButton :label="t('pages.addProduct.pick.shared')" icon="i-lucide-users" size="sm" class="rounded-full" :color="shoppingSharedFilter ? 'primary' : 'neutral'" :variant="shoppingSharedFilter ? 'solid' : 'outline'" :aria-pressed="shoppingSharedFilter" @click="shoppingSharedFilter = !shoppingSharedFilter" />
+              <UButton :label="t('pages.addProduct.pick.shared')" icon="i-lucide-users" size="sm" class="rounded-full" :color="shoppingSharedFilter ? 'primary' : 'neutral'" :variant="shoppingSharedFilter ? 'solid' : 'outline'" :aria-pressed="shoppingSharedFilter" @click="() => { shoppingSharedFilter = !shoppingSharedFilter }" />
             </div>
           </template>
 
           <template #chips>
-            <UButton v-if="shoppingCityFilter !== 'all'" :label="shoppingCityFilter" size="xs" color="primary" variant="soft" trailing-icon="i-lucide-x" class="rounded-full" @click="shoppingCityFilter = 'all'" />
-            <UButton v-if="shoppingSharedFilter" :label="t('pages.addProduct.pick.shared')" size="xs" color="primary" variant="soft" trailing-icon="i-lucide-x" class="rounded-full" @click="shoppingSharedFilter = false" />
+            <UButton v-if="shoppingCityFilter !== 'all'" :label="shoppingCityFilter" size="xs" color="primary" variant="soft" trailing-icon="i-lucide-x" class="rounded-full" @click="() => { shoppingCityFilter = 'all' }" />
+            <UButton v-if="shoppingSharedFilter" :label="t('pages.addProduct.pick.shared')" size="xs" color="primary" variant="soft" trailing-icon="i-lucide-x" class="rounded-full" @click="() => { shoppingSharedFilter = false }" />
           </template>
 
           <template #results>
@@ -364,7 +364,7 @@
                         <UColorPicker v-model="shoppingLocationFormData.color" />
                       </template>
                     </UPopover>
-                    <UButton v-if="shoppingLocationFormData.color" icon="i-lucide-x" color="neutral" variant="ghost" size="sm" :disabled="isCreatingShoppingLocation" @click="shoppingLocationFormData.color = ''" />
+                    <UButton v-if="shoppingLocationFormData.color" icon="i-lucide-x" color="neutral" variant="ghost" size="sm" :disabled="isCreatingShoppingLocation" @click="() => { shoppingLocationFormData.color = '' }" />
                   </div>
                 </UFormField>
 

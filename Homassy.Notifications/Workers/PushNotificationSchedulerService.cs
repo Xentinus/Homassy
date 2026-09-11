@@ -2,6 +2,7 @@
 using Homassy.API.Entities.User;
 using Homassy.API.Enums;
 using Homassy.API.Extensions;
+using Homassy.API.Functions;
 using Homassy.Notifications.Services;
 using Microsoft.EntityFrameworkCore;
 using Serilog;
@@ -54,6 +55,13 @@ public sealed class PushNotificationSchedulerService : BackgroundService
         using var scope = _scopeFactory.CreateScope();
         var context = scope.ServiceProvider.GetRequiredService<HomassyDbContext>();
         var inventoryService = scope.ServiceProvider.GetRequiredService<InventoryExpirationService>();
+
+        // The notification centre's retention sweep (#116), before the early return below so it
+        // still runs on an installation with no eligible push recipients at all. It rides on this
+        // worker rather than getting one of its own: this is the hourly notification scheduler,
+        // hourly is far more often than a 60-day window needs, and the alternative was a whole
+        // BackgroundService whose entire body is one DELETE.
+        await PruneNotificationsAsync(context, utcNow, cancellationToken);
 
         var eligibleUsers = await GetEligibleUsersAsync(context, cancellationToken);
 
@@ -128,7 +136,34 @@ public sealed class PushNotificationSchedulerService : BackgroundService
         var (title, body) = PushNotificationContentService.GetWeeklyNotificationContent(userData.Language, count);
         var actionTitle = GetActionTitle(userData.Language);
 
-        await SendToSubscriptionsAsync(context, subscriptions, title, body, actionTitle, today, isWeekly: true, cancellationToken);
+        // The inbox row for the same summary (#116), added from the same method that sends the
+        // push so the two cannot diverge. Recorded before the sends, because the send loop below is a
+        // network call per device and rows added first all share one timestamp - a batch that
+        // belongs to one event should group under one moment in the inbox.
+        //
+        // Note the eligibility above still requires a live push subscription, so a user with push
+        // switched off entirely gets no weekly-summary row. That is deliberate: the per-device
+        // `LastWeeklyNotificationSentAt` stamp is what makes this notification fire once, and a
+        // user with no subscription has no row to stamp. The weekly summary is the one periodic
+        // digest here; every event-driven notification does reach an in-app-only recipient.
+        if (userData.InAppNotificationsEnabled)
+        {
+            NotificationFunctions.Record(
+                context,
+                [userData.UserId],
+                [NotificationEnvelopes.WeeklySummary(count)],
+                "/products",
+                DateTime.UtcNow);
+
+            await context.SaveChangesAsync(cancellationToken);
+        }
+
+        // The one notification in the app that carries a count the icon badge can show (#130):
+        // the service worker writes it onto the app icon, so a user who never opens the app still
+        // sees the right number. Only sent here — a recipient reached this far because their push
+        // preference is on, so the "respect the user's preference" rule is satisfied by
+        // construction rather than by a second check in the worker.
+        await SendToSubscriptionsAsync(context, subscriptions, title, body, actionTitle, today, isWeekly: true, badgeCount: count, cancellationToken);
     }
 
     private async Task SendToSubscriptionsAsync(
@@ -139,6 +174,7 @@ public sealed class PushNotificationSchedulerService : BackgroundService
         string actionTitle,
         DateTime today,
         bool isWeekly,
+        int? badgeCount,
         CancellationToken cancellationToken)
     {
         var hasChanges = false;
@@ -151,7 +187,7 @@ public sealed class PushNotificationSchedulerService : BackgroundService
                 continue;
 
             var success = await _webPushService.SendNotificationAsync(
-                subscription, title, body, "/products", actionTitle, cancellationToken);
+                subscription, title, body, "/products", actionTitle, badgeCount, cancellationToken);
 
             if (success)
             {
@@ -183,6 +219,31 @@ public sealed class PushNotificationSchedulerService : BackgroundService
         _ => "Homassy megnyitása"
     };
 
+    /// <summary>
+    /// Drops notification-centre rows past their retention window. Never throws out of here: a
+    /// failed sweep must not stop the hour's notifications from being sent.
+    /// </summary>
+    private static async Task PruneNotificationsAsync(
+        HomassyDbContext context,
+        DateTime utcNow,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            var removed = await NotificationFunctions.PruneAsync(context, utcNow, cancellationToken);
+            if (removed > 0)
+            {
+                Log.Information(
+                    "Pruned {Count} notifications older than {Days} days",
+                    removed, NotificationFunctions.RetentionDays);
+            }
+        }
+        catch (Exception ex)
+        {
+            Log.Error(ex, "Failed to prune old notifications");
+        }
+    }
+
     private static async Task<List<EligibleUserData>> GetEligibleUsersAsync(
         HomassyDbContext context,
         CancellationToken cancellationToken)
@@ -201,7 +262,8 @@ public sealed class PushNotificationSchedulerService : BackgroundService
                 TimeZone = u.Profile != null ? u.Profile.DefaultTimeZone : UserTimeZone.CentralEuropeStandardTime,
                 Language = u.Profile != null ? u.Profile.DefaultLanguage : Language.Hungarian,
                 PushNotificationsEnabled = u.NotificationPreferences!.PushNotificationsEnabled,
-                PushWeeklySummaryEnabled = u.NotificationPreferences!.PushWeeklySummaryEnabled
+                PushWeeklySummaryEnabled = u.NotificationPreferences!.PushWeeklySummaryEnabled,
+                InAppNotificationsEnabled = u.NotificationPreferences!.InAppNotificationsEnabled
             })
             .ToListAsync(cancellationToken);
     }
@@ -215,4 +277,7 @@ internal sealed class EligibleUserData
     public Language Language { get; init; }
     public bool PushNotificationsEnabled { get; init; }
     public bool PushWeeklySummaryEnabled { get; init; }
+
+    /// <summary>Whether this user's weekly summary is also recorded in the notification centre (#116).</summary>
+    public bool InAppNotificationsEnabled { get; init; }
 }

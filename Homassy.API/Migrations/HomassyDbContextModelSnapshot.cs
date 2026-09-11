@@ -1076,6 +1076,60 @@ namespace Homassy.API.Migrations
                     b.ToTable("UserBadges");
                 });
 
+            modelBuilder.Entity("Homassy.API.Entities.User.UserNotification", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<bool>("IsDeleted")
+                        .HasColumnType("boolean");
+
+                    b.Property<string>("ParametersJson")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<Guid>("PublicId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasDefaultValueSql("gen_random_uuid()");
+
+                    b.Property<DateTime?>("ReadAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("RecordChange")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("TargetUrl")
+                        .HasMaxLength(512)
+                        .HasColumnType("character varying(512)");
+
+                    b.Property<int>("Type")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("UserId")
+                        .HasColumnType("integer");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CreatedAt");
+
+                    b.HasIndex("UserId")
+                        .HasDatabaseName("IX_UserNotifications_Unread")
+                        .HasFilter("\"ReadAt\" IS NULL AND \"IsDeleted\" = false");
+
+                    b.HasIndex("UserId", "CreatedAt")
+                        .IsDescending(false, true);
+
+                    b.ToTable("UserNotifications");
+                });
+
             modelBuilder.Entity("Homassy.API.Entities.User.UserNotificationPreferences", b =>
                 {
                     b.Property<int>("Id")
@@ -1161,6 +1215,9 @@ namespace Homassy.API.Migrations
                         .HasColumnType("boolean");
 
                     b.Property<DateTime?>("LastSeenAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTime?>("OnboardingCompletedAt")
                         .HasColumnType("timestamp with time zone");
 
                     b.Property<string>("ProfilePictureVersion")
@@ -1460,6 +1517,17 @@ namespace Homassy.API.Migrations
                 });
 
             modelBuilder.Entity("Homassy.API.Entities.User.UserBadge", b =>
+                {
+                    b.HasOne("Homassy.API.Entities.User.User", "User")
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("User");
+                });
+
+            modelBuilder.Entity("Homassy.API.Entities.User.UserNotification", b =>
                 {
                     b.HasOne("Homassy.API.Entities.User.User", "User")
                         .WithMany()

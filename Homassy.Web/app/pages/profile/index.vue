@@ -93,6 +93,18 @@
 
         <!-- Vibration is device-local and absent on iOS Safari, so the row only
              exists where the browser actually has the Vibration API. -->
+        <!-- Replay the first-run tour (#98). In Preferences rather than in a group of
+             its own: it is a preference about how the app behaves for you, and it is
+             the only way back to a tour that is otherwise shown exactly once. -->
+        <SettingsRow
+          :label="$t('onboarding.replay.label')"
+          :description="$t('onboarding.replay.description')"
+          icon="i-lucide-compass"
+          :chevron="false"
+          :loading="replayingTour"
+          @select="onReplayTour"
+        />
+
         <ClientOnly>
           <SettingsRow
             v-if="hapticsSupported"
@@ -299,7 +311,7 @@
 
       <!-- Account sub-surfaces as drawers -->
       <SecurityDrawer :open="securityOpen" @update:open="(v) => securityOpen = v" />
-      <NotificationsDrawer :open="notificationsOpen" @update:open="(v) => notificationsOpen = v" />
+      <NotificationSettingsDrawer :open="notificationsOpen" @update:open="(v) => notificationsOpen = v" />
       <FamilyDrawer :open="familyOpen" @update:open="(v) => familyOpen = v" />
     </div>
   </div>
@@ -426,6 +438,22 @@ async function onSavePreference(value: string) {
     await savePreference(field, value)
   } finally {
     savingField.value = null
+  }
+}
+
+// --- First-run tour (#98) ---------------------------------------------------
+// `replay()` clears the flag and starts the tour immediately. The tour's first step
+// targets the bottom nav, which is in the layout and therefore already on screen, so
+// there is nothing to navigate to before it can begin.
+const { replay: replayTour } = useOnboardingTour()
+const replayingTour = ref(false)
+
+async function onReplayTour() {
+  replayingTour.value = true
+  try {
+    await replayTour()
+  } finally {
+    replayingTour.value = false
   }
 }
 

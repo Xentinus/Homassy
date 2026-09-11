@@ -1013,7 +1013,8 @@ namespace Homassy.API.Functions
                 Language = profile.DefaultLanguage.ToLanguageCode(),
                 Currency = profile.DefaultCurrency.ToCurrencyCode(),
                 IdentityColor = profile.IdentityColor,
-                LastSeenAt = profile.LastSeenAt
+                LastSeenAt = profile.LastSeenAt,
+                OnboardingCompletedAt = profile.OnboardingCompletedAt
             };
 
             return userInfo;
@@ -1042,7 +1043,8 @@ namespace Homassy.API.Functions
                 Language = traits.DefaultLanguage ?? "hu",
                 Currency = traits.DefaultCurrency ?? "HUF",
                 IdentityColor = profile?.IdentityColor,
-                LastSeenAt = profile?.LastSeenAt
+                LastSeenAt = profile?.LastSeenAt,
+                OnboardingCompletedAt = profile?.OnboardingCompletedAt
             };
         }
 
@@ -1403,6 +1405,43 @@ namespace Homassy.API.Functions
                 Log.Error(ex, $"Error updating notification preferences for user {userId}");
                 throw;
             }
+        }
+        #endregion
+
+        #region Onboarding
+        /// <summary>
+        /// Records that the caller has finished or skipped the first-run tour, or - with
+        /// <paramref name="completed"/> false - clears the flag so the tour runs again (#98).
+        /// </summary>
+        /// <remarks>
+        /// Deliberately idempotent, and deliberately does not preserve an earlier timestamp when
+        /// called twice with <c>true</c>: the value the UI cares about is only "is this null", and
+        /// re-stamping is one fewer branch than reasoning about which completion counted.
+        /// </remarks>
+        public async Task SetOnboardingCompletedAsync(bool completed, CancellationToken cancellationToken = default)
+        {
+            var userId = SessionInfo.GetUserId();
+            if (!userId.HasValue)
+            {
+                Log.Warning("Invalid session: User ID not found");
+                throw new UserNotFoundException("User not found", ErrorCodes.UserNotFound);
+            }
+
+            using var context = _contextFactory.CreateDbContext();
+
+            var profile = await context.UserProfiles
+                .FirstOrDefaultAsync(p => p.UserId == userId, cancellationToken);
+
+            if (profile == null)
+            {
+                Log.Warning($"User profile not found for userId {userId}");
+                throw new UserNotFoundException("User profile not found", ErrorCodes.UserProfileNotFound);
+            }
+
+            profile.OnboardingCompletedAt = completed ? DateTime.UtcNow : null;
+            await context.SaveChangesAsync(cancellationToken);
+
+            Log.Information("User {UserId} set onboarding completed to {Completed}", userId, completed);
         }
         #endregion
     }

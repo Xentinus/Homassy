@@ -1216,7 +1216,7 @@
     "settingsPreferencesDescription": "Nyelv, pénznem és időzóna beállításai.",
     "saveNameButton": "Név mentése",
     "notifications": {
-      "title": "Értesítések",
+      "title": "Értesítési beállítások",
       "cardDescription": "Kezeld az értesítési beállításaidat, beleértve az email, push és alkalmazáson belüli értesítéseket.",
       "emailSection": "Email értesítések",
       "emailDescription": "Kapj email frissítéseket a háztartási tevékenységekről.",
@@ -1230,9 +1230,9 @@
       "pushWeeklySummary": "Heti összefoglaló",
       "pushDailyDescription": "Értesítést kapsz fontos eseményekről.",
       "pushWeeklyDescription": "Heti összefoglalót kapsz a készletedről.",
-      "inAppSection": "Alkalmazáson belüli értesítések",
-      "inAppDescription": "Értesítéseket láthatsz az alkalmazáson belül.",
-      "inAppNotifications": "Alkalmazáson belüli értesítések",
+      "inAppSection": "Az alkalmazásban",
+      "inAppDescription": "Nyilvántartás arról, amit a Homassy küld neked; a fejlécben lévő csengőnél olvasható.",
+      "inAppNotifications": "Értesítési központ",
       "pushNotSupported": "A push értesítések nem támogatottak ebben a böngészőben.",
       "pushDenied": "A push értesítések le vannak tiltva. Kérjük, engedélyezd a böngésző beállításaiban.",
       "pushPermissionRequired": "A push értesítésekhez böngésző engedélyre van szükség.",
@@ -1247,7 +1247,8 @@
       "testEmail": "Teszt összefoglaló email küldése",
       "testEmailSent": "Teszt összefoglaló email sikeresen elküldve.",
       "testEmailFailed": "Hiba a teszt email küldése során.",
-      "pushActionOpen": "Homassy megnyitása"
+      "pushActionOpen": "Homassy megnyitása",
+      "inAppNotificationsDescription": "Semmi nem ugrik fel – az értesítések csak megmaradnak, hogy utólag átnézhesd, amit lemaradtál."
     },
     "allProducts": {
       "title": "Összes termék",
@@ -2717,5 +2718,155 @@
     },
     "tryAgain": "Újrapróbálás",
     "goToCalendar": "Ugrás a naptárhoz"
+  },
+  "share": {
+    "title": "Megosztva a Homassyval",
+    "chooseTitle": "Mi legyen ebből?",
+    "chooseHint": "A Homassy egy másik alkalmazásból kapta ezt. Válaszd ki, hova tartozik.",
+    "toShoppingList": "Hozzáadás a bevásárlólistához",
+    "toProduct": "Termék létrehozása",
+    "toProductNoName": "A nevét a következő lépésben adhatod meg",
+    "imageAlt": "Megosztott kép",
+    "imageOnly": "{count} megosztott kép",
+    "productCreated": "„{name}” létrehozva",
+    "imageAttachFailed": "A termék létrejött, de a megosztott képet nem sikerült hozzáadni.",
+    "empty": {
+      "title": "Nem osztottál meg semmit",
+      "description": "Ossz meg szöveget vagy képet egy másik alkalmazásból, és itt fog megjelenni.",
+      "action": "Vissza a naptárhoz"
+    }
+  },
+  "onboarding": {
+    "stepCounter": "{current}. lépés / {total}",
+    "next": "Tovább",
+    "done": "Értem",
+    "skip": "Kihagyom",
+    "replay": {
+      "label": "Bemutató újraindítása",
+      "description": "Nézzük át újra az alapokat"
+    },
+    "steps": {
+      "nav": {
+        "title": "Így tudsz mozogni",
+        "description": "Négy hely: a naptár, a készleteid, a bevásárlólisták és a profilod. Ez a sáv mindenhol veled marad."
+      },
+      "inventory": {
+        "title": "Minden, ami otthon van",
+        "description": "Itt találod a készleteidet. A piros vagy borostyán jelzés azt jelenti, hogy valami hamarosan lejár – vagy már le is járt."
+      },
+      "fab": {
+        "title": "A + gomb",
+        "description": "Azt adja hozzá, amiről az adott oldal szól: itt egy készlettételt, a bevásárlólisták oldalon egy listaelemet."
+      },
+      "scanner": {
+        "title": "Vonalkód beolvasása",
+        "description": "Fordítsd a kamerát a vonalkódra, és a Homassy kikeresi a terméket – nem kell beírnod a nevét."
+      },
+      "lists": {
+        "title": "Megosztott bevásárlólisták",
+        "description": "A családdal megosztott listák élőben frissülnek mindenki telefonján – ha kipipálsz valamit, azonnal látják."
+      },
+      "profile": {
+        "title": "A családod és a beállítások",
+        "description": "Itt hozhatsz létre családot vagy csatlakozhatsz egyhez, és itt állítod be a nyelvet, a pénznemet és az értesítéseket. A bemutatót is innen indíthatod újra."
+      }
+    }
+  },
+  "notifications": {
+    "title": "Értesítések",
+    "unread": "Olvasatlan",
+    "unreadCount": "{count} olvasatlan",
+    "allRead": "Mindent elolvastál",
+    "markAllRead": "Mind olvasottnak jelölése",
+    "loadMore": "Korábbiak betöltése",
+    "empty": {
+      "title": "Még nincs itt semmi",
+      "description": "A Homassy értesítései itt maradnak meg, hogy utólag átnézhesd, amiről lemaradtál."
+    },
+    "types": {
+      "unknown": {
+        "title": "Értesítés",
+        "body": "Ezt az értesítést a Homassy egy újabb verziója küldte. Nyisd meg újra az alkalmazást, hogy lásd."
+      },
+      "WeeklySummary": {
+        "title": "Heti összefoglaló",
+        "body": "Nincs lejáró termék a készletedben. Szép hetet! | {count} termék fog lejárni a következő 14 napban."
+      },
+      "ShoppingListItemsAdded": {
+        "title": "Bevásárlólista frissítve",
+        "body": "{count} új elem került a(z) \"{listName}\" listához."
+      },
+      "ShoppingListItemsEdited": {
+        "title": "Bevásárlólista frissítve",
+        "body": "{count} elem módosult a(z) \"{listName}\" listában."
+      },
+      "ShoppingListItemsDeleted": {
+        "title": "Bevásárlólista frissítve",
+        "body": "{count} elem törlődött a(z) \"{listName}\" listából."
+      },
+      "ShoppingListItemsPurchased": {
+        "title": "Bevásárlólista frissítve",
+        "body": "{count} elem megvásárolva a(z) \"{listName}\" listáról."
+      },
+      "ShoppingListCreated": {
+        "title": "Új bevásárlólista",
+        "body": "Új \"{listName}\" bevásárlólista jött létre a családodban."
+      },
+      "ShoppingListDeleted": {
+        "title": "Bevásárlólista törölve",
+        "body": "A(z) \"{listName}\" bevásárlólista törlődött a családodban."
+      },
+      "InventoryItemsCreated": {
+        "title": "Készlet frissítve",
+        "body": "{count} új tétel került a készletbe."
+      },
+      "InventoryItemsUpdated": {
+        "title": "Készlet frissítve",
+        "body": "{count} készlettétel módosult."
+      },
+      "InventoryItemsDeleted": {
+        "title": "Készlet frissítve",
+        "body": "{count} tétel törlődött a készletből."
+      },
+      "InventoryItemsConsumed": {
+        "title": "Készlet frissítve",
+        "body": "{count} tétel felhasználva a készletből."
+      },
+      "AutomationExecuted": {
+        "title": "Automatikus felhasználás",
+        "body": "{quantity} {unit} felhasználva a(z) \"{productName}\" termékből."
+      },
+      "AutomationReminder": {
+        "title": "Felhasználási emlékeztető",
+        "body": "Ideje felhasználni a(z) \"{productName}\" terméket."
+      },
+      "AutomationAddedToShoppingList": {
+        "title": "Bevásárlólistához adva",
+        "body": "{quantity} {unit} \"{productName}\" hozzáadva a(z) \"{listName}\" bevásárlólistához."
+      },
+      "LowStock": {
+        "title": "Alacsony készletszint",
+        "body": "A(z) \"{productName}\" készlete ({quantity}) a küszöbérték ({threshold}) alá csökkent. Hozzáadva a(z) \"{listName}\" bevásárlólistához."
+      },
+      "FamilyJoinRequest": {
+        "title": "Új belépési kérelem",
+        "body": "{requesterName} szeretne csatlakozni a családodhoz."
+      },
+      "FamilyJoinApproved": {
+        "title": "Belépési kérelem elfogadva",
+        "body": "Csatlakoztál a(z) \"{familyName}\" családhoz."
+      },
+      "FamilyJoinDeclined": {
+        "title": "Belépési kérelem elutasítva",
+        "body": "A(z) \"{familyName}\" családhoz küldött kérelmedet elutasították."
+      },
+      "CalendarEventReminder": {
+        "title": "Naptár emlékeztető",
+        "bodyNow": "\"{eventTitle}\" most kezdődik.",
+        "bodyLead": "\"{eventTitle}\" {lead} múlva kezdődik.",
+        "bodyAllDayToday": "\"{eventTitle}\" ma van.",
+        "bodyAllDayLead": "\"{eventTitle}\" {lead} múlva lesz."
+      }
+    }
   }
 }

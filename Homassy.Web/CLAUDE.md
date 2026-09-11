@@ -58,7 +58,6 @@ Homassy.Web/
 │   ├── composables/
 │   │   ├── api/                API composables (one per controller)
 │   │   │   ├── index.ts        Re-exports all API composables
-│   │   │   ├── useAuthApi.ts
 │   │   │   ├── useProductsApi.ts
 │   │   │   ├── useShoppingListApi.ts
 │   │   │   ├── useLocationsApi.ts
@@ -69,6 +68,7 @@ Homassy.Web/
 │   │   │   ├── useProgressApi.ts
 │   │   │   ├── useAutomationApi.ts
 │   │   │   ├── useCalendarApi.ts
+│   │   │   ├── useNotificationsApi.ts  Notification centre: list, unread count, read, dismiss
 │   │   │   ├── useStatisticsApi.ts
 │   │   │   ├── useHealthApi.ts
 │   │   │   ├── useErrorCodesApi.ts
@@ -90,11 +90,16 @@ Homassy.Web/
 │   │   ├── useHaptics.ts       The app's vibration vocabulary + the user's on/off switch
 │   │   ├── useImageCrop.ts
 │   │   ├── useInputDateLocale.ts
+│   │   ├── useAppBadge.ts      The expiring-items count on the app icon + the tab title
+│   │   ├── useDeepLinkAction.ts  `?action=` → a one-shot call on the page that owns it
 │   │   ├── useMediaUrl.ts      API-relative media path → loadable URL (see Images below)
+│   │   ├── useNotificationCenter.ts  The inbox, its unread count and the drawer's open flag
+│   │   ├── useOnboardingTour.ts  Drives the first-run spotlight tour
 │   │   ├── usePullToRefresh.ts
 │   │   ├── usePushNotifications.ts
 │   │   ├── useShoppingListSocket.ts  SignalR realtime client for shopping lists
 │   │   ├── useInventorySocket.ts  SignalR realtime client for the Készletek (inventory) grid
+│   │   ├── useShareTarget.ts   Reads (and clears) what another app shared into Homassy
 │   │   ├── useSwipeActions.ts  Swipe-to-action gestures on cards (left/right + threshold commit)
 │   │   └── useWebAuthn.ts
 │   ├── layouts/
@@ -106,6 +111,7 @@ Homassy.Web/
 │   │   ├── index.vue           Root redirect
 │   │   ├── activity.vue        Activity feed
 │   │   ├── calendar.vue        Monthly calendar of expirations & shopping deadlines
+│   │   ├── share.vue           Web Share Target landing page (see PWA below)
 │   │   ├── auth/
 │   │   │   ├── login.vue
 │   │   │   ├── register.vue
@@ -135,6 +141,7 @@ Homassy.Web/
 │   │       └── add-product.vue
 │   ├── plugins/
 │   │   ├── api.ts              Provides $api ($fetch wrapper with 401 → /auth/login)
+│   │   ├── app-badge.client.ts Installs the document-title prefix (see useAppBadge)
 │   │   ├── auth.ts             On startup: loadFromCookies + setupVisibilityListener
 │   │   ├── i18n.ts
 │   │   ├── qrcode-reader.client.ts  Client-only QR code plugin
@@ -161,7 +168,10 @@ Homassy.Web/
 │       ├── en.json             English translations
 │       ├── hu.json             Hungarian translations
 │       └── de.json             German translations
-├── public/                     Static assets (icons, favicons, sw-push.js)
+├── public/                     Static assets (icons, favicons, service-worker scripts)
+│   ├── shortcuts/              Manifest app-shortcut icons (generated — see scripts/)
+│   ├── sw-push.js              Push display + app badge + the "a push arrived" page message
+│   └── sw-share.js             Answers the share target's POST navigation
 ├── Dockerfile                  Multi-stage: development / build / production
 ├── nuxt.config.ts
 ├── i18n.config.ts
@@ -268,7 +278,6 @@ One composable per API controller. All use `useApiClient` internally:
 
 | Composable | Endpoints |
 |---|---|
-| `useAuthApi` | Auth-related API helpers |
 | `useProductsApi` | Products CRUD, expiration counts |
 | `useShoppingListApi` | Shopping lists and items, deadline counts |
 | `useLocationsApi` | Storage + shopping locations |
@@ -279,6 +288,7 @@ One composable per API controller. All use `useApiClient` internally:
 | `useProgressApi` | Inventory progress |
 | `useAutomationApi` | Automation rules CRUD, enable/disable, manual execution |
 | `useCalendarApi` | Calendar events (expirations & deadlines) for a date range |
+| `useNotificationsApi` | Notification centre: paged inbox, unread count, read/dismiss |
 | `useStatisticsApi` | Global platform statistics |
 | `useHealthApi` | API health check |
 | `useErrorCodesApi` | Error code descriptions |
@@ -562,6 +572,11 @@ Used for all protected pages. Features a **fixed bottom navigation bar** with:
 
 The bottom nav shows a **red badge** for expiring products (from `getExpirationCount()`) and overdue shopping list items (from `getDeadlineCount()`). Counts are refreshed on mount and via `useEventBus`.
 
+The expiring-items count is also handed to `useAppBadge()` (see below), so the nav badge, the
+browser-tab title and the installed app's icon all show the same number. The layout is also where
+the first-run tour starts from (`maybeAutoStart()`) and where `OnboardingSpotlight` is mounted —
+it is the one component that outlives the tour's own navigation.
+
 ### `public.vue`
 
 Used for `/auth/*` pages. Minimal layout without navigation.
@@ -589,6 +604,179 @@ Language setting from the user's profile (`UserInfo.language`) is synced to the 
   - Pages: `NetworkFirst`, 1-day cache
   - Static assets: `CacheFirst`, 30-day cache
   - Push notifications: `/sw-push.js` (imported into SW)
+  - Share target: `/sw-share.js` (imported into SW)
+
+### App shortcuts
+
+Four `shortcuts` entries in the manifest — Shopping list, Add item, Scan barcode, Calendar. The
+two that are actions rather than destinations carry `?action=`, and `useDeepLinkAction` turns that
+into the drawer/FAB action on arrival:
+
+```ts
+useDeepLinkAction({
+  add: () => { isAddInventoryOpen.value = true },
+  scan: () => openScanner()
+})
+```
+
+- **It strips the parameter** (`router.replace`) before running the handler. A shortcut is an
+  instruction, not page state: without this, navigating back to the page or pulling to refresh
+  reopens the drawer.
+- **An unknown action is ignored** and still stripped. Shortcuts live in the manifest of an
+  *already installed* app, so an old install can ask for an action a new build has renamed —
+  landing on the right page with nothing open beats an error.
+- **The shopping-list arrival parks its intent** when no list is selected yet and fires it from a
+  watcher once `loadShoppingLists()` picks one. Otherwise a shortcut into a cold start races the
+  list fetch and silently does nothing.
+- Icons are generated by `scripts/generate-shortcut-icons.mjs` from the same Lucide glyphs the UI
+  uses, at 96×96 (what Android's launcher asks for) plus 192×192. The PNGs are committed; the
+  script is the record of where they came from. None of the four paths falls under
+  `navigateFallbackDenylist`.
+
+### Share target (`/share`)
+
+`share_target` is `POST` + `multipart/form-data`, because that is the only enctype that can carry
+a file — and a POST navigation cannot be answered by the page. So `public/sw-share.js` intercepts
+it, stashes the payload in a cache of its own, and `303`s to the plain `/share` route.
+
+| Piece | Role |
+|---|---|
+| `public/sw-share.js` | the `fetch` handler; one payload at a time, 12 MB cap per file |
+| `app/composables/useShareTarget.ts` | reads it — **destructively** — and materialises the files |
+| `app/pages/share.vue` | the landing page: shows what arrived, offers where it should go |
+| `app/utils/shareText.ts` | `shareNameFrom` (share → a name field) and `safeReturnTo` |
+
+- **The cache, not the URL.** A file has no query-string form, and shared text is the user's own
+  content with no business in a history entry.
+- **The read is destructive.** A share is a one-time intent; a payload that survived would replay
+  someone's photo into a fresh form on the next visit. A payload older than 10 minutes is dropped
+  unread — the cache is not a durable inbox.
+- **`/share` keeps the product case and hands off the shopping-list case** to
+  `/shopping-lists?action=add-custom`, which already owns list selection, the add-item wizard and
+  the realtime group. The product case cannot be handed over: a shared image is a `File`, which
+  cannot travel through a navigation. The name rides in a module-scoped handoff ref rather than
+  the query string.
+- `ProductFormDrawer` therefore takes a `pendingImage` and uploads it right after `createProduct`
+  succeeds — uploading needs a product id, which is also why its image *controls* stay edit-only
+  while the thumbnail now previews what is waiting.
+
+### Deep links through the auth gate
+
+The auth middleware carries `to.fullPath` over as `return_to`. The login page had always honoured
+that parameter and nothing ever sent it, so every unauthenticated launch threw the intended route
+away — fine for a bookmark, fatal for a shortcut or a share, which *is* an unauthenticated launch.
+`safeReturnTo` validates it (one leading slash, never two, never back into `/auth/`), because a
+parameter that is now written on every gated navigation is reachable by anyone who can hand the
+user a login link.
+
+---
+
+## The app-icon badge and the tab title (`useAppBadge`)
+
+One number — the expiring-items count `layouts/auth.vue` already fetches for the nav badge — on
+the two surfaces that live *outside* the running page. The layout calls `setExpirationCount()`
+with exactly what it badges the nav with, so the three cannot disagree.
+
+**The two surfaces are gated differently, on purpose:**
+
+- The **title prefix** (`(3) Homassy`) is the browser-tab equivalent of the nav badge, so it
+  follows the same rule the nav badge does — always shown. It is only visible to someone who
+  already has the app open.
+- The **icon badge** persists on the home screen with the app closed, which makes it a
+  notification rather than page chrome. It is suppressed for a user who turned expiration
+  reminders off (`pushNotificationsEnabled`): badging someone who declined to be reminded would be
+  exactly the reminder they declined, in another place.
+
+The title goes through `useHead` from `plugins/app-badge.client.ts`, not from a page or layout — a
+`useHead` registered in a component is torn down with it, which would drop the prefix
+mid-navigation. Client-only: during SSR the count is always 0 (the fetch is an authenticated
+client call), so a server-rendered prefix could only ever be a hydration mismatch.
+
+`sw-push.js` sets the badge too, so the icon is right without the app being opened — but only when
+the push payload carries a `badgeCount`, and only the weekly summary sends one, being the one
+notification that knows a count. A payload without one leaves the badge alone rather than
+incrementing, which would drift the moment two devices received the same push.
+
+---
+
+## First-run spotlight tour (`useOnboardingTour` + `OnboardingSpotlight`)
+
+Six steps through the app's own chrome rather than a slideshow: the bottom nav as a whole, the
+inventory, the `+` FAB and what it adds, the barcode scanner, shared shopping lists, and the
+profile where family and settings live. Targets are found by `data-tour` attributes, so adding a
+wrapper `div` or renaming a class does not break the tour.
+
+| Piece | Role |
+|---|---|
+| `app/utils/onboardingTour.ts` | the step list + the pure geometry (unit-tested) |
+| `app/composables/useOnboardingTour.ts` | state, navigation, target resolution, persistence |
+| `app/components/OnboardingSpotlight.vue` | the scrim, the cut-out and the tooltip card |
+| `data-tour="…"` | `nav-bar`, `nav-calendar`/`nav-products`/`nav-shopping-lists`/`nav-profile`, `fab`, `scanner` |
+
+- **Almost everything it points at is in the persistent bottom nav**, which is on screen wherever
+  the user happens to be, so exactly one navigation happens mid-tour: the FAB does not exist on
+  the calendar, and the step that explains it moves the user to the page the scanner step needs
+  anyway.
+- **A step whose target never appears is skipped** rather than dimming the screen around nothing —
+  the camera button only exists on a device with a camera. `waitForTarget` polls on animation
+  frames (an element has to be *laid out* before its rect is usable) with a `setTimeout` alongside,
+  because `requestAnimationFrame` does not fire in a hidden tab.
+- **The overlay is mounted in the auth layout, not per page**, because the tour outlives its own
+  navigation — and it is teleported to `<body>`, which is the opposite of what `NavFab` needs and
+  for the same reason: `UApp` sets `isolation: isolate`, so a body-level overlay paints above
+  everything including the nav. Exactly right for a scrim that has to dim the whole app and
+  swallow taps.
+- **Completion is `UserProfile.OnboardingCompletedAt`**, not a localStorage key, so it follows the
+  user to a new phone. It rides back on `GET /auth/me`, a payload the app already fetches at boot.
+  `localStorage` (`homassy_onboarding_done`) is kept as a same-device echo: a failed write must not
+  mean the tour reopens on the next navigation. Skipping and finishing record the same thing.
+- **"Replay the tour"** in the profile's Preferences group clears the flag and starts it again.
+- The card prefers to sit below its hole and flips above when there is no room — the everyday case,
+  since the nav is at the bottom — and clamps into the viewport rather than hanging off the edge
+  when it fits on neither side. The `clip-path` names `evenodd` instead of relying on winding
+  order, and always emits the same number of points, which is what lets the hole glide between
+  steps. Under `prefers-reduced-motion` the transitions are dropped and each step simply appears.
+
+---
+
+## Notification centre (`useNotificationCenter`)
+
+The inbox behind the bell in `AppHeader`. It replaces nothing: `NotificationSettingsDrawer`
+(renamed from `NotificationsDrawer`) is the *preferences* panel and always was, despite the name.
+
+| Piece | Role |
+|---|---|
+| `app/composables/useNotificationCenter.ts` | the list, the unread count, the drawer's open flag |
+| `app/components/NotificationCenterDrawer.vue` | day-grouped list, "mark all read", load more |
+| `app/components/NotificationRow.vue` | one row: icon, wording, relative time, swipe to dismiss |
+| `app/utils/notificationTemplate.ts` | a stored row → its i18n keys and icon (unit-tested) |
+| `i18n/locales/*.json` → `notifications.types` | one `title` + `body` pair per notification type |
+
+- **Rows carry a type and parameters, never prose.** The wording is composed at read time, so a
+  user who switches language does not find a month of another language's sentences in their inbox,
+  and fixing a typo in a notification's wording fixes it retroactively. The i18n keys are the API's
+  `NotificationType` member *names* (`notifications.types.ShoppingListItemsAdded.title`) —
+  PascalCase keys are unusual here and deliberate: the alternative, the enum's numeric value, gives
+  locale files full of `notifications.types.13.title`.
+- **An unknown type renders as "something happened, and when"** rather than a blank. That is
+  reachable in normal operation, not in theory: an installed PWA keeps running the bundle it was
+  installed with, so a client can be older than the deploy that added a type — and that row should
+  still be visible and markable.
+- **The unread count is never derived from the loaded list.** The list is one page deep and the
+  count is over the whole inbox. Every endpoint that changes read state answers with the new
+  number, and that number is what is stored.
+- **Grouped by day through the same `groupByDay`** the activity timeline uses; the locale
+  formatting half of its heading logic lives in `formatDayBucketDate` in that util, shared by both
+  feeds. One `AnimatedList` per day section — a header inside a `TransitionGroup` would join the
+  rows' FLIP animation.
+- **A push arriving while the app is open** reaches the page as a service-worker message carrying
+  no content: the row is already stored, and the page fetches it, so there is only ever one
+  description of a notification. New rows are prepended rather than replacing the list, which
+  would discard the pages the reader had already scrolled through.
+- The calendar reminder is the one type with four body templates instead of one, because its
+  wording branches on all-day and on at-the-start — the same branch the server makes when it words
+  the push. Its lead time is phrased by `reminderLeadTimeLabel`, the same helper the
+  external-calendar settings form uses.
 
 ---
 

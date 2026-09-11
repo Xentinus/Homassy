@@ -23,7 +23,7 @@
               variant="outline"
               :aria-label="$t('common.filters.toggle')"
               :aria-expanded="filtersOpen"
-              @click="filtersOpen = true"
+              @click="() => { filtersOpen = true }"
             />
           </UChip>
         </div>
@@ -77,7 +77,7 @@
             size="lg"
             color="primary"
             :label="$t('common.filters.showResults', { count: resultCount })"
-            @click="filtersOpen = false"
+            @click="() => { filtersOpen = false }"
           />
         </div>
       </template>

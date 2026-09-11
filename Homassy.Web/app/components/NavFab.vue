@@ -3,6 +3,7 @@
     <div
       v-if="fabVisible"
       ref="rootRef"
+      data-tour="fab"
       class="absolute left-1/2 top-0 z-30 -translate-x-1/2 -translate-y-1/2"
     >
     <!-- No dimming/backdrop: an overlay teleported to <body> would paint above the

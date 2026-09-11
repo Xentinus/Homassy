@@ -60,6 +60,7 @@ Homassy.Tests/
 │   ├── HttpsRedirectTests.cs              HTTPS redirect middleware tests
 │   ├── LocationControllerPaginationTests.cs  Pagination tests for locations
 │   ├── LocationControllerTests.cs            Location CRUD tests
+│   ├── NotificationControllerTests.cs        Notification centre: paging, read state, isolation
 │   ├── OpenFoodFactsControllerTests.cs       OpenFoodFacts proxy tests
 │   ├── ProductControllerPaginationTests.cs   Pagination tests for products
 │   ├── ProductControllerTests.cs             Product CRUD tests

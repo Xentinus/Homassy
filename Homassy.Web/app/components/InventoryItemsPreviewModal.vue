@@ -27,7 +27,7 @@
               {{ shoppingLocationName }}
             </span>
           </UBadge>
-          <UBadge :color="isSharedWithFamily ? 'green' : 'gray'" variant="soft" size="sm">
+          <UBadge :color="isSharedWithFamily ? 'success' : 'neutral'" variant="soft" size="sm">
             <span class="flex items-center gap-1">
               <UIcon :name="isSharedWithFamily ? 'i-lucide-users' : 'i-lucide-user'" class="h-3 w-3" />
               {{ isSharedWithFamily ? $t('common.family') : $t('common.personal') }}

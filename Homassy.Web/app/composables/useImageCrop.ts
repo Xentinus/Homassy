@@ -4,7 +4,7 @@ import imageCompression from 'browser-image-compression'
  * Extract pure base64 string (remove data:image prefix)
  */
 export function extractBase64(dataUrl: string): string {
-  return dataUrl.includes(',') ? dataUrl.split(',')[1] : dataUrl
+  return (dataUrl.includes(',') ? dataUrl.split(',')[1] : dataUrl) ?? dataUrl
 }
 
 /**

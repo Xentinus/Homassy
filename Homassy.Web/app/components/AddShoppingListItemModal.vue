@@ -63,15 +63,15 @@
               <div role="group" :aria-label="t('pages.shoppingLists.addProduct.pick.properties')">
                 <p class="text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">{{ t('pages.shoppingLists.addProduct.pick.properties') }}</p>
                 <div class="flex flex-wrap gap-2">
-                  <UButton :label="t('pages.shoppingLists.addProduct.pick.favorite')" icon="i-lucide-star" size="sm" class="rounded-full" :color="productFavoriteFilter ? 'primary' : 'neutral'" :variant="productFavoriteFilter ? 'solid' : 'outline'" :aria-pressed="productFavoriteFilter" @click="productFavoriteFilter = !productFavoriteFilter" />
-                  <UButton :label="t('pages.shoppingLists.addProduct.pick.eatable')" icon="i-lucide-utensils" size="sm" class="rounded-full" :color="productEatableFilter ? 'primary' : 'neutral'" :variant="productEatableFilter ? 'solid' : 'outline'" :aria-pressed="productEatableFilter" @click="productEatableFilter = !productEatableFilter" />
+                  <UButton :label="t('pages.shoppingLists.addProduct.pick.favorite')" icon="i-lucide-star" size="sm" class="rounded-full" :color="productFavoriteFilter ? 'primary' : 'neutral'" :variant="productFavoriteFilter ? 'solid' : 'outline'" :aria-pressed="productFavoriteFilter" @click="() => { productFavoriteFilter = !productFavoriteFilter }" />
+                  <UButton :label="t('pages.shoppingLists.addProduct.pick.eatable')" icon="i-lucide-utensils" size="sm" class="rounded-full" :color="productEatableFilter ? 'primary' : 'neutral'" :variant="productEatableFilter ? 'solid' : 'outline'" :aria-pressed="productEatableFilter" @click="() => { productEatableFilter = !productEatableFilter }" />
                 </div>
               </div>
             </template>
 
             <template #chips>
-              <UButton v-if="productFavoriteFilter" :label="t('pages.shoppingLists.addProduct.pick.favorite')" size="xs" color="primary" variant="soft" trailing-icon="i-lucide-x" class="rounded-full" @click="productFavoriteFilter = false" />
-              <UButton v-if="productEatableFilter" :label="t('pages.shoppingLists.addProduct.pick.eatable')" size="xs" color="primary" variant="soft" trailing-icon="i-lucide-x" class="rounded-full" @click="productEatableFilter = false" />
+              <UButton v-if="productFavoriteFilter" :label="t('pages.shoppingLists.addProduct.pick.favorite')" size="xs" color="primary" variant="soft" trailing-icon="i-lucide-x" class="rounded-full" @click="() => { productFavoriteFilter = false }" />
+              <UButton v-if="productEatableFilter" :label="t('pages.shoppingLists.addProduct.pick.eatable')" size="xs" color="primary" variant="soft" trailing-icon="i-lucide-x" class="rounded-full" @click="() => { productEatableFilter = false }" />
             </template>
 
             <template #results>
@@ -244,13 +244,13 @@
             />
             <div role="group" :aria-label="t('pages.shoppingLists.addProduct.pick.properties')">
               <p class="text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">{{ t('pages.shoppingLists.addProduct.pick.properties') }}</p>
-              <UButton :label="t('pages.shoppingLists.addProduct.pick.shared')" icon="i-lucide-users" size="sm" class="rounded-full" :color="locationSharedFilter ? 'primary' : 'neutral'" :variant="locationSharedFilter ? 'solid' : 'outline'" :aria-pressed="locationSharedFilter" @click="locationSharedFilter = !locationSharedFilter" />
+              <UButton :label="t('pages.shoppingLists.addProduct.pick.shared')" icon="i-lucide-users" size="sm" class="rounded-full" :color="locationSharedFilter ? 'primary' : 'neutral'" :variant="locationSharedFilter ? 'solid' : 'outline'" :aria-pressed="locationSharedFilter" @click="() => { locationSharedFilter = !locationSharedFilter }" />
             </div>
           </template>
 
           <template #chips>
-            <UButton v-if="locationCityFilter !== 'all'" :label="locationCityFilter" size="xs" color="primary" variant="soft" trailing-icon="i-lucide-x" class="rounded-full" @click="locationCityFilter = 'all'" />
-            <UButton v-if="locationSharedFilter" :label="t('pages.shoppingLists.addProduct.pick.shared')" size="xs" color="primary" variant="soft" trailing-icon="i-lucide-x" class="rounded-full" @click="locationSharedFilter = false" />
+            <UButton v-if="locationCityFilter !== 'all'" :label="locationCityFilter" size="xs" color="primary" variant="soft" trailing-icon="i-lucide-x" class="rounded-full" @click="() => { locationCityFilter = 'all' }" />
+            <UButton v-if="locationSharedFilter" :label="t('pages.shoppingLists.addProduct.pick.shared')" size="xs" color="primary" variant="soft" trailing-icon="i-lucide-x" class="rounded-full" @click="() => { locationSharedFilter = false }" />
           </template>
 
           <template #results>
@@ -404,7 +404,7 @@
                       variant="ghost"
                       size="sm"
                       :disabled="isCreatingShoppingLocation"
-                      @click="shoppingLocationFormData.color = ''"
+                      @click="() => { shoppingLocationFormData.color = '' }"
                     />
                   </div>
                 </UFormField>
@@ -558,7 +558,7 @@
             :label="t('pages.addProduct.openFoodFacts.cancel')"
             color="neutral"
             variant="outline"
-            @click="isOpenFoodFactsModalOpen = false"
+            @click="() => { isOpenFoodFactsModalOpen = false }"
           />
           <UButton
             :label="t('pages.addProduct.openFoodFacts.import')"
@@ -577,7 +577,7 @@
 <script setup lang="ts">
 import { z } from 'zod'
 import { watchDebounced } from '@vueuse/core'
-import { computed, nextTick, ref, watch, onMounted, onUnmounted } from 'vue'
+import { computed, nextTick, ref, watch, onMounted, onUnmounted, type Ref } from 'vue'
 import type { ProductInfo } from '~/types/product'
 import type { ShoppingLocationInfo, ShoppingLocationRequest } from '~/types/location'
 import type { CreateShoppingListItemRequest } from '~/types/shoppingList'
@@ -593,6 +593,12 @@ const props = defineProps<{
   open: boolean
   listId: string | null
   mode: 'product' | 'custom'
+  /**
+   * Seeds the custom-item name when the wizard opens (#118) — how a share from
+   * another app arrives as a shopping-list item. Only meaningful in `custom` mode;
+   * `product` mode picks an existing product rather than typing a name.
+   */
+  initialName?: string
 }>()
 
 const emit = defineEmits<{
@@ -775,13 +781,29 @@ const isCreatingShoppingLocation = ref(false)
 // =========================
 // Step 2: Item Details State
 // =========================
+/**
+ * The final step of the wizard.
+ *
+ * `ref(...) as Ref<ItemForm>` rather than a plain `ref`: `UnwrapRef` maps a nested class instance
+ * structurally, and the `DateValue` classes carry private fields, so the mapped type no longer
+ * matches the nominal ones `UInputDate`/`UCalendar` ask for. The cast keeps the declared type
+ * intact; runtime reactivity is identical.
+ */
+interface ItemForm {
+  quantity: number
+  unit: Unit | undefined
+  note: string
+  deadlineAt: DateValue | null
+  dueAt: DateValue | null
+}
+
 const itemFormData = ref({
   quantity: 1,
-  unit: undefined as Unit | undefined,
+  unit: undefined,
   note: '',
-  deadlineAt: null as DateValue | null,
-  dueAt: null as DateValue | null
-})
+  deadlineAt: null,
+  dueAt: null
+}) as Ref<ItemForm>
 const isCreatingItem = ref(false)
 
 // =========================
@@ -916,7 +938,12 @@ const resetState = () => {
   openFoodFactsProduct.value = null
   isOpenFoodFactsModalOpen.value = false
 
-  customFormData.value = { customName: '' }
+  // `initialName` only ever seeds the custom branch — see the prop's doc comment.
+  // Capped at the 128 characters `customNameSchema` allows, so a long shared line
+  // arrives as a valid field rather than one that fails validation on sight.
+  customFormData.value = {
+    customName: props.mode === 'custom' ? (props.initialName?.trim().slice(0, 128) ?? '') : ''
+  }
 
   shoppingLocationSearchQuery.value = ''
   selectedShoppingLocationId.value = null
@@ -1049,7 +1076,7 @@ watch(shoppingLocationSentinelRef, (sentinel) => {
   if (sentinel && typeof IntersectionObserver !== 'undefined') {
     shoppingLocationObserver = new IntersectionObserver(
       (entries) => {
-        if (entries[0].isIntersecting && !loadingMoreShoppingLocations.value) {
+        if (entries[0]?.isIntersecting && !loadingMoreShoppingLocations.value) {
           const hasMore = paginatedShoppingLocations.value.length < filteredShoppingLocations.value.length
           if (hasMore) {
             loadingMoreShoppingLocations.value = true
@@ -1175,7 +1202,7 @@ const handleSearchBarcodeScanned = (barcode: string) => {
 }
 
 // Custom Name Submit
-const onCustomNameSubmit = (event: FormSubmitEvent<typeof customNameSchema>) => {
+const onCustomNameSubmit = (event: FormSubmitEvent<z.output<typeof customNameSchema>>) => {
   customProductName.value = event.data.customName
   selectedProductId.value = null
   selectedProductUnit.value = undefined
@@ -1195,7 +1222,7 @@ const onShoppingLocationCardClick = (location: ShoppingLocationInfo) => {
   selectedShoppingLocationId.value = alreadySelected ? null : location.publicId
 }
 
-const onCreateShoppingLocation = async (event: FormSubmitEvent<typeof createShoppingLocationSchema>) => {
+const onCreateShoppingLocation = async (event: FormSubmitEvent<z.output<typeof createShoppingLocationSchema>>) => {
   isCreatingShoppingLocation.value = true
   try {
     const locationData: ShoppingLocationRequest = {
@@ -1230,7 +1257,7 @@ const onCreateShoppingLocation = async (event: FormSubmitEvent<typeof createShop
 // Step 2: Shopping List Item Handler
 // =========================
 
-const onCreateShoppingListItem = async (event: FormSubmitEvent<typeof createShoppingListItemSchema>) => {
+const onCreateShoppingListItem = async (event: FormSubmitEvent<z.output<typeof createShoppingListItemSchema>>) => {
   if (!props.listId) {
     toast.add({
       title: t('toast.error'),

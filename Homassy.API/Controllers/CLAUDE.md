@@ -38,6 +38,7 @@ Manages user profile, settings, activity, and push notifications (all endpoints 
 | DELETE | `/profile-picture` | Delete profile picture |
 | GET | `/notification` | Get notification preferences |
 | PUT | `/notification` | Update notification preferences |
+| PUT | `/onboarding` | Set or clear the first-run tour flag (`{ completed }`) |
 | GET | `/bulk` | Get multiple users by comma-separated public IDs (`?publicIds=...`) |
 | GET | `/activities` | Paginated activity history with optional filters |
 | GET | `/push/vapid-key` | Get VAPID public key for push subscription |
@@ -56,6 +57,8 @@ Manages user profile, settings, activity, and push notifications (all endpoints 
 - Async image upload returns a `jobId`; track progress via `GET /progress/{jobId}`
 - Push notifications use Web Push API (VAPID)
 - Activity feed supports pagination (`pageNumber`, `pageSize`, `returnAll`) and filtering by type/date/user
+- `PUT /onboarding` writes `UserProfile.OnboardingCompletedAt` (#98) and has no `GET` counterpart on purpose: the flag rides back on `GET /auth/me` (`UserInfo.OnboardingCompletedAt`), a payload the client already fetches at boot, so knowing whether to start the tour costs no extra request. One endpoint with a `completed` flag rather than a "complete" and a "reset" verb - finishing the tour and replaying it are the same field written two ways
+- The notification *preferences* here are settings; the notification *content* lives on its own controller (see `NotificationController` below). Conflating the two under one prefix is how the web client's `NotificationsDrawer` came to mean "the preferences panel"
 
 ### FamilyController
 
@@ -405,6 +408,41 @@ Aggregates calendar events (inventory expirations, automation executions, shoppi
 - Request body carries `StartDate` / `EndDate` (`DateOnly`); the range may not exceed 93 days (validated, else 400)
 - Dates are converted to UTC day boundaries before querying
 - Backed by `CalendarFunctions`; returns `List<CalendarEventInfo>`
+
+### NotificationController
+
+The notification centre (#116): the caller's own inbox of everything `Homassy.Notifications` has
+sent them, and its read state. Class-level `[Authorize]`.
+
+**Endpoints:**
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/` | One page of the caller's notifications, newest first (`?cursor=`, `?pageSize=`) |
+| GET | `/unread-count` | The caller's unread count |
+| POST | `/{publicId}/read` | Mark one read (idempotent) |
+| POST | `/read-all` | Mark every unread one read |
+| DELETE | `/{publicId}` | Dismiss one (a soft delete) |
+
+**Key Patterns:**
+- **Rows carry a type and parameters, never rendered text.** `NotificationInfo.Type` is the
+  `NotificationType` member's *name* (`"ShoppingListItemsAdded"`), which is the key the client looks
+  the localized template up under; the numeric value stays an implementation detail of the column.
+  So the text is composed in whatever language the reader is using when they open the inbox, and
+  fixing a notification's wording fixes it retroactively
+- **Cursor-paged**, on `(CreatedAt, PublicId)` via the existing `Models/Activity/ActivityCursor` -
+  reused rather than reimplemented, since it is a codec for exactly that pair. A worker iteration
+  writes a whole batch in one tick, and a page boundary that falls inside a tied group is what
+  makes an inbox lose or repeat rows. An undecodable cursor is a **400**, never a 500
+- **Every mutating endpoint answers with the new unread count**, so the header badge is corrected
+  by the act of acting and the client never has to guess it or re-fetch to find out
+- **Scoped to the caller by `SessionInfo.GetUserId()`, never by an id from the request.** Read
+  state is personal, and one family member must not read or dismiss another's. A row that is not
+  the caller's answers **404**, indistinguishably from one that does not exist - distinguishing
+  them would let a caller probe whether a notification id exists for somebody else
+- Rows are written by the notification workers alongside the push they send (see
+  [../../Homassy.Notifications/CLAUDE.md](../../Homassy.Notifications/CLAUDE.md)), and pruned past
+  a 60-day window by the same service
 
 ### StatisticsController
 

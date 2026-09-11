@@ -1216,7 +1216,7 @@
     "settingsPreferencesDescription": "Einstellungen für Sprache, Währung und Zeitzone.",
     "saveNameButton": "Name speichern",
     "notifications": {
-      "title": "Benachrichtigungen",
+      "title": "Benachrichtigungseinstellungen",
       "cardDescription": "Verwalten Sie Ihre Benachrichtigungseinstellungen, einschließlich E-Mail, Push und In-App-Benachrichtigungen.",
       "emailSection": "E-Mail-Benachrichtigungen",
       "emailDescription": "Erhalten Sie E-Mail-Updates über Ihre Haushaltsaktivitäten.",
@@ -1230,9 +1230,9 @@
       "pushWeeklySummary": "Wöchentliche Zusammenfassung",
       "pushDailyDescription": "Erhalten Sie Benachrichtigungen über wichtige Ereignisse.",
       "pushWeeklyDescription": "Erhalten Sie eine wöchentliche Zusammenfassung Ihres Bestands.",
-      "inAppSection": "In-App-Benachrichtigungen",
-      "inAppDescription": "Sehen Sie Benachrichtigungen innerhalb der App.",
-      "inAppNotifications": "In-App-Benachrichtigungen",
+      "inAppSection": "In der App",
+      "inAppDescription": "Ein Verlauf dessen, was Homassy dir sendet, lesbar über die Glocke in der Kopfzeile.",
+      "inAppNotifications": "Benachrichtigungszentrale",
       "pushNotSupported": "Push-Benachrichtigungen werden in diesem Browser nicht unterstützt.",
       "pushDenied": "Push-Benachrichtigungen sind blockiert. Bitte aktivieren Sie sie in Ihren Browsereinstellungen.",
       "pushPermissionRequired": "Für Push-Benachrichtigungen ist eine Browser-Berechtigung erforderlich.",
@@ -1247,7 +1247,8 @@
       "testEmail": "Test-E-Mail-Zusammenfassung senden",
       "testEmailSent": "Test-E-Mail-Zusammenfassung erfolgreich gesendet.",
       "testEmailFailed": "Fehler beim Senden der Test-E-Mail.",
-      "pushActionOpen": "Homassy öffnen"
+      "pushActionOpen": "Homassy öffnen",
+      "inAppNotificationsDescription": "Es erscheint nichts von selbst — die Benachrichtigungen werden lediglich aufbewahrt, damit du Verpasstes nachlesen kannst."
     },
     "allProducts": {
       "title": "Alle Produkte",
@@ -2717,5 +2718,155 @@
     },
     "tryAgain": "Erneut versuchen",
     "goToCalendar": "Zum Kalender"
+  },
+  "share": {
+    "title": "Mit Homassy geteilt",
+    "chooseTitle": "Was soll daraus werden?",
+    "chooseHint": "Homassy hat das von einer anderen App erhalten. Wähle, wohin es gehört.",
+    "toShoppingList": "Zur Einkaufsliste hinzufügen",
+    "toProduct": "Produkt anlegen",
+    "toProductNoName": "Den Namen kannst du im nächsten Schritt angeben",
+    "imageAlt": "Geteiltes Bild",
+    "imageOnly": "{count} geteiltes Bild",
+    "productCreated": "„{name}“ angelegt",
+    "imageAttachFailed": "Das Produkt wurde angelegt, aber das geteilte Bild konnte nicht angehängt werden.",
+    "empty": {
+      "title": "Es wurde nichts geteilt",
+      "description": "Teile Text oder ein Bild aus einer anderen App, dann erscheint es hier.",
+      "action": "Zum Kalender"
+    }
+  },
+  "onboarding": {
+    "stepCounter": "Schritt {current} von {total}",
+    "next": "Weiter",
+    "done": "Alles klar",
+    "skip": "Überspringen",
+    "replay": {
+      "label": "Tour erneut ansehen",
+      "description": "Die Grundlagen noch einmal durchgehen"
+    },
+    "steps": {
+      "nav": {
+        "title": "So findest du dich zurecht",
+        "description": "Vier Bereiche: der Kalender, dein Bestand, die Einkaufslisten und dein Profil. Diese Leiste bleibt überall bei dir."
+      },
+      "inventory": {
+        "title": "Alles, was du zu Hause hast",
+        "description": "Hier liegt dein Bestand. Ein rotes oder gelbes Abzeichen heißt, dass etwas bald abläuft – oder es schon ist."
+      },
+      "fab": {
+        "title": "Die +-Schaltfläche",
+        "description": "Sie legt an, worum es auf der aktuellen Seite geht: hier einen Bestandsposten, auf der Einkaufslisten-Seite einen Listeneintrag."
+      },
+      "scanner": {
+        "title": "Barcode scannen",
+        "description": "Halte die Kamera auf einen Barcode und Homassy sucht das Produkt für dich – du musst den Namen nicht eintippen."
+      },
+      "lists": {
+        "title": "Geteilte Einkaufslisten",
+        "description": "Listen, die du mit deiner Familie teilst, aktualisieren sich live auf allen Geräten – hakst du etwas ab, sehen es die anderen sofort."
+      },
+      "profile": {
+        "title": "Deine Familie und die Einstellungen",
+        "description": "Hier gründest du eine Familie oder trittst einer bei und stellst Sprache, Währung und Benachrichtigungen ein. Diese Tour kannst du von hier ebenfalls neu starten."
+      }
+    }
+  },
+  "notifications": {
+    "title": "Benachrichtigungen",
+    "unread": "Ungelesen",
+    "unreadCount": "1 ungelesen | {count} ungelesen",
+    "allRead": "Du bist auf dem neuesten Stand",
+    "markAllRead": "Alle als gelesen markieren",
+    "loadMore": "Ältere laden",
+    "empty": {
+      "title": "Noch nichts hier",
+      "description": "Benachrichtigungen von Homassy werden hier aufbewahrt, damit du Verpasstes nachlesen kannst."
+    },
+    "types": {
+      "unknown": {
+        "title": "Benachrichtigung",
+        "body": "Diese Benachrichtigung stammt von einer neueren Homassy-Version. Öffne die App neu, um sie zu sehen."
+      },
+      "WeeklySummary": {
+        "title": "Wochenzusammenfassung",
+        "body": "Keine ablaufenden Produkte in deinem Bestand. Schöne Woche! | 1 Produkt läuft in den nächsten 14 Tagen ab. | {count} Produkte laufen in den nächsten 14 Tagen ab."
+      },
+      "ShoppingListItemsAdded": {
+        "title": "Einkaufsliste aktualisiert",
+        "body": "1 neues Element wurde zur Liste \"{listName}\" hinzugefügt. | {count} neue Elemente wurden zur Liste \"{listName}\" hinzugefügt."
+      },
+      "ShoppingListItemsEdited": {
+        "title": "Einkaufsliste aktualisiert",
+        "body": "1 Element in der Liste \"{listName}\" wurde geändert. | {count} Elemente in der Liste \"{listName}\" wurden geändert."
+      },
+      "ShoppingListItemsDeleted": {
+        "title": "Einkaufsliste aktualisiert",
+        "body": "1 Element wurde aus der Liste \"{listName}\" entfernt. | {count} Elemente wurden aus der Liste \"{listName}\" entfernt."
+      },
+      "ShoppingListItemsPurchased": {
+        "title": "Einkaufsliste aktualisiert",
+        "body": "1 Element aus der Liste \"{listName}\" wurde gekauft. | {count} Elemente aus der Liste \"{listName}\" wurden gekauft."
+      },
+      "ShoppingListCreated": {
+        "title": "Neue Einkaufsliste",
+        "body": "Eine neue Einkaufsliste \"{listName}\" wurde in deiner Familie erstellt."
+      },
+      "ShoppingListDeleted": {
+        "title": "Einkaufsliste gelöscht",
+        "body": "Die Einkaufsliste \"{listName}\" wurde in deiner Familie gelöscht."
+      },
+      "InventoryItemsCreated": {
+        "title": "Bestand aktualisiert",
+        "body": "1 neuer Eintrag wurde zum Bestand hinzugefügt. | {count} neue Einträge wurden zum Bestand hinzugefügt."
+      },
+      "InventoryItemsUpdated": {
+        "title": "Bestand aktualisiert",
+        "body": "1 Bestandseintrag wurde geändert. | {count} Bestandseinträge wurden geändert."
+      },
+      "InventoryItemsDeleted": {
+        "title": "Bestand aktualisiert",
+        "body": "1 Eintrag wurde aus dem Bestand entfernt. | {count} Einträge wurden aus dem Bestand entfernt."
+      },
+      "InventoryItemsConsumed": {
+        "title": "Bestand aktualisiert",
+        "body": "1 Eintrag wurde aus dem Bestand verbraucht. | {count} Einträge wurden aus dem Bestand verbraucht."
+      },
+      "AutomationExecuted": {
+        "title": "Automatischer Verbrauch",
+        "body": "{quantity} {unit} von \"{productName}\" wurde verbraucht."
+      },
+      "AutomationReminder": {
+        "title": "Verbrauchserinnerung",
+        "body": "Es ist Zeit, \"{productName}\" zu verwenden."
+      },
+      "AutomationAddedToShoppingList": {
+        "title": "Zur Einkaufsliste hinzugefügt",
+        "body": "{quantity} {unit} \"{productName}\" wurde zur Einkaufsliste \"{listName}\" hinzugefügt."
+      },
+      "LowStock": {
+        "title": "Niedriger Lagerbestand",
+        "body": "Der Bestand von \"{productName}\" ({quantity}) ist unter den Schwellenwert ({threshold}) gefallen. Zur Einkaufsliste \"{listName}\" hinzugefügt."
+      },
+      "FamilyJoinRequest": {
+        "title": "Neue Beitrittsanfrage",
+        "body": "{requesterName} möchte deiner Familie beitreten."
+      },
+      "FamilyJoinApproved": {
+        "title": "Beitrittsanfrage genehmigt",
+        "body": "Du bist der Familie \"{familyName}\" beigetreten."
+      },
+      "FamilyJoinDeclined": {
+        "title": "Beitrittsanfrage abgelehnt",
+        "body": "Deine Anfrage, der Familie \"{familyName}\" beizutreten, wurde abgelehnt."
+      },
+      "CalendarEventReminder": {
+        "title": "Kalendererinnerung",
+        "bodyNow": "\"{eventTitle}\" beginnt jetzt.",
+        "bodyLead": "\"{eventTitle}\" beginnt in {lead}.",
+        "bodyAllDayToday": "\"{eventTitle}\" ist heute.",
+        "bodyAllDayLead": "\"{eventTitle}\" ist in {lead}."
+      }
+    }
   }
 }

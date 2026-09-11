@@ -171,7 +171,7 @@ import type { ActivityTimelineEntry } from '~/types/activity'
 import { ActivityType } from '~/types/activity'
 import type { FamilyMemberResponse } from '~/types/family'
 import type { ItemDeletedEvent, ItemUpsertedEvent } from '~/types/realtime'
-import { groupByDay, mergeLiveEntries, type DayBucketKey } from '~/utils/activityTimeline'
+import { formatDayBucketDate, groupByDay, mergeLiveEntries, type DayBucketKey } from '~/utils/activityTimeline'
 
 definePageMeta({ layout: 'auth' })
 
@@ -241,23 +241,16 @@ const isFetchingMore = computed(() => isFetching.value && entries.value.length >
 const dayGroups = computed(() => groupByDay(entries.value, new Date()))
 
 /**
- * `key` -> a heading. 'today'/'yesterday' are translated; anything older is already a plain
- * `YYYY-MM-DD` (see `dayBucketKey`), reformatted per locale by rearranging that string's own
- * parts -- NOT by feeding it back through `new Date(...)` and reading local getters, which would
- * reinterpret a UTC calendar date through the viewer's own timezone and could show the wrong day
- * for a negative-UTC-offset viewer (`useDateFormat.formatDate` does exactly that reparse, which is
- * why it is not reused here).
+ * `key` -> a heading. 'today'/'yesterday' are translated; anything older is a plain
+ * `YYYY-MM-DD` (see `dayBucketKey`) formatted by `formatDayBucketDate`, which the notification
+ * centre's own day headers share (#116) -- see that helper for why the key's parts are rearranged
+ * rather than reparsed as a Date.
  */
 const dayGroupHeading = (key: DayBucketKey): string => {
   if (key === 'today') return t('activity.today')
   if (key === 'yesterday') return t('activity.yesterday')
 
-  const [year, month, day] = key.split('-')
-  switch (locale.value) {
-    case 'hu': return `${year}.${month}.${day}`
-    case 'de': return `${day}.${month}.${year}`
-    default: return `${day}/${month}/${year}`
-  }
+  return formatDayBucketDate(key, locale.value)
 }
 
 // Format quantity: show integers without decimals, otherwise max 2 decimal places. Mirrors

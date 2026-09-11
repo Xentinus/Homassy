@@ -45,6 +45,7 @@ Homassy.API is a home storage management system built with ASP.NET Core. The pro
 - **Async Progress Tracking**: Long-running operations (e.g. image uploads) tracked via `ProgressTrackerService` with job IDs
 - **Push Notifications**: Web Push API (VAPID) for browser push notifications with per-user subscription management
 - **Activity Feed**: Per-family activity log tracking create/update/delete operations across entities
+- **Notification Centre**: every notification the workers send is stored per recipient as a *type plus parameters* (never rendered prose), so the text is composed in the reader's own language at read time; cursor-paged, with per-user read state and a retention window
 - **Error Code System**: Typed `ErrorCodes` enum with descriptions instead of plain string messages in all API error responses
 - **Account Lockout**: Automatic account lockout after repeated failed login attempts via `AccountLockoutService`
 - **Graceful Shutdown**: Configurable drain period before process exit, ensuring in-flight requests complete
@@ -119,6 +120,7 @@ Homassy.API/
 │   ├── FamilyController.cs
 │   ├── HealthController.cs
 │   ├── LocationController.cs
+│   ├── NotificationController.cs  Notification centre: inbox, unread count, read/dismiss
 │   ├── OpenFoodFactsController.cs
 │   ├── ProductController.cs
 │   ├── ProgressController.cs      Job progress tracking
@@ -157,6 +159,7 @@ Homassy.API/
 │   │   └── ShoppingListItem.cs
 │   └── User/
 │       ├── User.cs
+│       ├── UserNotification.cs           One delivered notification + its read state
 │       ├── UserNotificationPreferences.cs
 │       ├── UserProfile.cs
 │       ├── UserProfilePicture.cs
@@ -170,6 +173,7 @@ Homassy.API/
 │   ├── ImageVariant.cs            Which stored rendition an `?size=` query wants
 │   ├── ImageValidationError.cs
 │   ├── Language.cs
+│   ├── NotificationType.cs        What a stored notification is about
 │   ├── ProductCategory.cs
 │   ├── SelectValueType.cs
 │   ├── StoreType.cs
@@ -180,6 +184,7 @@ Homassy.API/
 │   ├── AccountLockedException.cs  429 – account temporarily locked
 │   ├── AuthException.cs           Base auth exception with StatusCode
 │   ├── LocationException.cs
+│   ├── NotificationException.cs   404 - not this caller's notification
 │   ├── ProductException.cs
 │   ├── RequestTimeoutException.cs
 │   └── ShoppingListException.cs
@@ -202,6 +207,7 @@ Homassy.API/
 │   ├── FunctionsRuntime.cs        The layer's cross-cutting deps as one typed parameter object
 │   ├── ImageFunctions.cs          Image upload/delete for products & profiles
 │   ├── LocationFunctions.cs
+│   ├── NotificationFunctions.cs   Notification centre reads/writes + the retention sweep
 │   ├── ProductFunctions.cs
 │   ├── PushNotificationFunctions.cs  Subscribe/unsubscribe/send notifications
 │   ├── SelectValueFunctions.cs
@@ -237,6 +243,7 @@ Homassy.API/
 │   ├── ImageUpload/      Image upload request/response models
 │   ├── Kratos/           Kratos session/config models
 │   ├── Location/
+│   ├── Notification/     NotificationEnvelope, NotificationInfo, NotificationPage, UnreadCountResponse
 │   ├── OpenFoodFacts/
 │   ├── Product/
 │   ├── ProgressInfo.cs   Progress tracking DTO
@@ -354,7 +361,7 @@ Which of the two constructors a class takes follows from what it needs:
 
 | Constructor | Classes | Why |
 |---|---|---|
-| `IDbContextFactory<HomassyDbContext>` | Activity, Family, FamilyJoinRequest, PushNotification, User | They need nothing but a context, and only ever construct each other — a closed set, so they also work in a host with no SignalR hubs (`Homassy.Notifications` borrows two of them) |
+| `IDbContextFactory<HomassyDbContext>` | Activity, Family, FamilyJoinRequest, Notification, PushNotification, User | They need nothing but a context, and only ever construct each other — a closed set, so they also work in a host with no SignalR hubs (`Homassy.Notifications` borrows two of them) |
 | `FunctionsRuntime` | Automation, Calendar, ExternalCalendar, Image, Location, Product, SelectValue, ShoppingList | They broadcast over SignalR, need a scope of their own, or construct a class that does |
 
 `FunctionsRuntime` is a parameter object, not a service locator: every member is a declared,
@@ -832,6 +839,7 @@ Homassy.API is a modern ASP.NET Core Web API with a unique architecture optimize
 - **Async progress tracking** for long-running jobs (image uploads) via `ProgressTrackerService` and `ProgressController`
 - **Web Push notifications** (VAPID) with per-device subscription management and scheduled sending
 - **Activity feed** per-family audit log with pagination and filtering
+- **Notification centre** per-user inbox of everything the notification workers send, stored as type + parameters and localized at read time
 - **Item automation engine** scheduled and low-stock (event-driven) actions over inventory, products, and shopping lists
 - **Approval-gated family join requests** join-by-share-code requiring an existing member's approval
 - **Global statistics** nightly-cached, public platform-wide counts

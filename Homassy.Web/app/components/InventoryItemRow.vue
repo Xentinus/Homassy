@@ -240,7 +240,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref, computed, type Ref } from 'vue'
 import type { InventoryItemInfo, ConsumeInventoryItemRequest, UpdateInventoryItemRequest } from '../types/product'
 import { Currency } from '../types/enums'
 import type { CalendarDate } from '@internationalized/date'
@@ -276,17 +276,27 @@ const isConsuming = ref(false)
 
 const isEditModalOpen = ref(false)
 const expirationDateInput = ref()
-const editForm = ref<{
+/**
+ * The edit drawer form.
+ *
+ * `ref(...) as Ref<EditForm>` rather than `ref<EditForm>(...)`: `UnwrapRef` maps a nested class
+ * instance structurally, and `CalendarDate` carries a private field, so the mapped type no longer
+ * matches the nominal class `UInputDate`/`UCalendar` ask for. The cast keeps the declared type
+ * intact; runtime reactivity is identical.
+ */
+interface EditForm {
   quantity: number | null
   expirationAt: CalendarDate | null
   price: number | null
   currency: Currency | null
-}>({
+}
+
+const editForm = ref({
   quantity: null,
   expirationAt: null,
   price: null,
   currency: null
-})
+}) as Ref<EditForm>
 const isUpdating = ref(false)
 
 const isDeleteModalOpen = ref(false)

@@ -93,7 +93,8 @@ All configuration is through environment variables in `.env`. `.env.example` doc
 - Vue 3.5 on Nuxt 4, TypeScript, Pinia for state.
 - Nuxt UI v4 components with a custom `mocha` palette.
 - i18n in English, German, and Hungarian, with browser detection and cookie persistence.
-- Installable PWA (web manifest, standalone display, service worker).
+- Installable PWA that behaves like one: home-screen shortcut menu, a Web Share Target that turns text or a picture shared from another app into a shopping-list item or a product, the expiring-items count on the app icon and in the browser tab, and a first-run spotlight tour whose "seen it" flag follows the user to a new device.
+- In-app notification centre behind the header bell: everything the notification workers send is kept per recipient with read state, grouped by day, swipe-to-dismiss, and localized at read time rather than stored as text.
 - Mobile-first, with pull-to-refresh on the main data pages (`usePullToRefresh` + `PullToRefreshIndicator`) and swipe-to-delete / swipe-to-edit on shopping-list cards (`useSwipeActions`, pointer-based with axis lock and haptics; confirm modals as a safety net).
 - SSR plus client-side rendering, camera-based barcode/QR scanning with camera-availability detection.
 

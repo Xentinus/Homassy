@@ -21,7 +21,7 @@
                   color="neutral"
                   variant="ghost"
                   :disabled="!isSearchEnabled"
-                  @click="searchQuery = ''"
+                  @click="() => { searchQuery = '' }"
                 />
               </template>
             </UInput>
@@ -49,7 +49,7 @@
               size="md"
               :aria-label="$t('pages.shoppingLists.filters.toggle')"
               :aria-expanded="filtersOpen"
-              @click="filtersOpen = true"
+              @click="() => { filtersOpen = true }"
             >
               <span class="hidden sm:inline">{{ $t('pages.shoppingLists.filters.toggle') }}</span>
             </UButton>
@@ -248,7 +248,11 @@
           </div>
         </template>
 
-        <!-- Items Grid (everything not buyable here; the whole list away from a store) -->
+        <!-- Items Grid (everything not buyable here; the whole list away from a store).
+             The listeners here must stay identical to the "buy here" grid above: the card only
+             *requests* delete/purchase/restore, and this page owns the items array, so a card
+             whose request nobody listens for closes its confirm drawer and does nothing at all.
+             An unhandled emit is silent in Vue — neither the linter nor the typechecker sees it. -->
         <AnimatedList class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
           <div
             v-for="entry in restItemsWithAttribution"
@@ -266,7 +270,9 @@
               :shopping-locations="allShoppingLocations"
               :current-store="currentStoreForItem(entry.item)"
               @refresh="handleItemRefresh"
-              @deleted="handleItemRefresh"
+              @delete-requested="handleDeleteRequested(entry.item)"
+              @purchase-requested="(request) => handlePurchaseRequested(entry.item, request)"
+              @restore-requested="handleRestoreRequested(entry.item)"
             />
             <div v-if="entry.attribution" class="item-attribution-label">
               <span class="item-attribution-dot" :style="entry.attribution.style" />
@@ -306,7 +312,7 @@
                 :color="selectedListId === list.publicId ? 'primary' : 'neutral'"
                 :variant="selectedListId === list.publicId ? 'solid' : 'outline'"
                 :aria-pressed="selectedListId === list.publicId"
-                @click="selectedListId = list.publicId"
+                @click="() => { selectedListId = list.publicId }"
               />
             </div>
             <p v-else class="text-sm text-gray-500 dark:text-gray-400">
@@ -335,7 +341,7 @@
                 :color="showPurchased ? 'primary' : 'neutral'"
                 :variant="showPurchased ? 'solid' : 'outline'"
                 :aria-pressed="showPurchased"
-                @click="showPurchased = !showPurchased"
+                @click="() => { showPurchased = !showPurchased }"
               />
               <!-- Not a filter: the auto-start preference for location tracking. -->
               <UButton
@@ -396,7 +402,7 @@
             size="lg"
             color="primary"
             :label="$t('pages.shoppingLists.filters.showResults', { count: filteredItems.length })"
-            @click="filtersOpen = false"
+            @click="() => { filtersOpen = false }"
           />
         </div>
       </template>
@@ -424,6 +430,7 @@
       v-model:open="isAddItemModalOpen"
       :list-id="selectedListId"
       :mode="addItemMode"
+      :initial-name="sharedItemName"
     />
 
     <!-- Barcode Scanner Modal -->
@@ -589,6 +596,43 @@ const openAddItemModal = (mode: 'product' | 'custom') => {
   addItemMode.value = mode
   isAddItemModalOpen.value = true
 }
+
+// --- Share target / app-shortcut arrivals (#118) ----------------------------
+// A name parked by /share for a custom item. Read once, then cleared: it is a
+// one-time intent, and `AddShoppingListItemModal` only seeds from it on open.
+const { takeHandoffItemName } = useShareTarget()
+const sharedItemName = ref<string | undefined>(undefined)
+
+/**
+ * The mode an arriving deep link asked for but could not be given yet, because
+ * `loadShoppingLists()` had not picked a list. `openAddItemModal` refuses without
+ * one, so the intent is parked and the watcher below fires it the moment a list
+ * exists — otherwise a shortcut into a cold start would silently do nothing.
+ */
+const pendingAddItemMode = ref<'product' | 'custom' | null>(null)
+
+function requestAddItem(mode: 'product' | 'custom') {
+  if (selectedListId.value) {
+    openAddItemModal(mode)
+  } else {
+    pendingAddItemMode.value = mode
+  }
+}
+
+watch(selectedListId, (id) => {
+  if (!id || !pendingAddItemMode.value) return
+  const mode = pendingAddItemMode.value
+  pendingAddItemMode.value = null
+  openAddItemModal(mode)
+})
+
+useDeepLinkAction({
+  add: () => requestAddItem('product'),
+  'add-custom': () => {
+    sharedItemName.value = takeHandoffItemName() ?? undefined
+    requestAddItem('custom')
+  }
+})
 
 // Dynamic add-actions on the nav FAB: only when a list is selected. Two options →
 // the FAB opens a chooser (see useFabActions); each opens the wizard in a given mode.

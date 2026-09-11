@@ -11,11 +11,18 @@ export const usePushNotifications = () => {
     return Notification.permission
   })
 
-  const urlBase64ToUint8Array = (base64String: string): Uint8Array => {
+  /**
+   * Decodes the VAPID public key (base64url) into the bytes `pushManager.subscribe` wants.
+   *
+   * Returns `Uint8Array<ArrayBuffer>`, not a bare `Uint8Array`: since TypeScript 5.7 the class is
+   * generic over its buffer, and the default `ArrayBufferLike` includes `SharedArrayBuffer`, which
+   * `BufferSource` does not accept. Constructing over an explicit `ArrayBuffer` is what pins it.
+   */
+  const urlBase64ToUint8Array = (base64String: string): Uint8Array<ArrayBuffer> => {
     const padding = '='.repeat((4 - (base64String.length % 4)) % 4)
     const base64 = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/')
     const rawData = window.atob(base64)
-    const outputArray = new Uint8Array(rawData.length)
+    const outputArray = new Uint8Array(new ArrayBuffer(rawData.length))
     for (let i = 0; i < rawData.length; ++i) {
       outputArray[i] = rawData.charCodeAt(i)
     }

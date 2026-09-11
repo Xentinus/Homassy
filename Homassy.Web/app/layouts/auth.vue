@@ -17,6 +17,7 @@
 
       <div
         ref="barRef"
+        data-tour="nav-bar"
         class="relative flex items-stretch gap-1 rounded-2xl border border-primary-200 dark:border-primary-800 bg-default/95 backdrop-blur shadow-lg px-2 pt-2 pb-[calc(0.5rem+env(safe-area-inset-bottom))]"
       >
         <!-- Sliding active indicator — glides between items and tracks the FAB reflow -->
@@ -36,6 +37,7 @@
           <NuxtLink
             :to="item.to"
             :data-nav-index="index"
+            :data-tour="item.tour"
             :aria-label="item.label"
             class="relative z-10 flex-1 flex flex-col items-center justify-center h-16 md:h-12 rounded-xl transition-colors duration-300 active:scale-95"
             :class="item.active ? 'text-primary-600 dark:text-primary-400 font-semibold' : 'text-gray-500 dark:text-gray-400 hover:text-primary-500'"
@@ -82,6 +84,13 @@
         </template>
       </div>
     </nav>
+
+    <!-- First-run spotlight tour (#98). Mounted here, not per page: the tour walks
+         between two pages, and an overlay owned by a page would be unmounted
+         underneath itself halfway through. It renders nothing until the tour runs. -->
+    <ClientOnly>
+      <OnboardingSpotlight />
+    </ClientOnly>
   </UApp>
 </template>
 
@@ -108,6 +117,12 @@ const expirationCount = ref(0)
 const expiredCount = ref(0)
 const deadlineCount = ref(0)
 const { toneForLevel } = useExpirationStatus()
+// The same count this layout badges the nav with also drives the installed app's
+// icon badge and the browser tab title (#130) — one number, three surfaces.
+const { setExpirationCount, resolveIconPermission } = useAppBadge()
+// First-run spotlight tour (#98). The layout is where it starts from because it is the
+// one component that outlives the tour's own navigation.
+const { maybeAutoStart } = useOnboardingTour()
 
 // Shared motion tokens for the nav — keep the sliding indicator and the FAB
 // gap in lock-step so the pill tracks the items as they slide apart.
@@ -137,6 +152,7 @@ const fetchExpirationCount = async () => {
     expirationCount.value = 0
     expiredCount.value = 0
   }
+  setExpirationCount(expirationCount.value)
 }
 
 const fetchDeadlineCount = async () => {
@@ -165,9 +181,23 @@ const handleShoppingListMutation = () => {
   debouncedFetchDeadlineCount()
 }
 
+// A preferences save can turn the icon badge on or off, so re-read the gate rather
+// than waiting for the next app launch.
+const handlePreferencesUpdated = () => {
+  resolveIconPermission(true)
+}
+
 onMounted(() => {
   fetchExpirationCount()
   fetchDeadlineCount()
+  // Whether the app-icon badge is allowed at all (#130) — one read per app load.
+  resolveIconPermission()
+  eventBus.on('notification-preferences:updated', handlePreferencesUpdated)
+
+  // First-run tour (#98). It needs the user record to know whether this user has
+  // already seen it, so it is also retried once the store fills in — the layout can
+  // mount before the Kratos session resolves.
+  maybeAutoStart()
 
   // Listen to all inventory and product mutation events
   eventBus.on('inventory:created', handleInventoryMutation)
@@ -197,6 +227,7 @@ onMounted(() => {
 
 onUnmounted(() => {
   // Clean up event listeners
+  eventBus.off('notification-preferences:updated', handlePreferencesUpdated)
   eventBus.off('inventory:created', handleInventoryMutation)
   eventBus.off('inventory:updated', handleInventoryMutation)
   eventBus.off('inventory:deleted', handleInventoryMutation)
@@ -220,12 +251,16 @@ const navItems = computed(() => [
     label: t('nav.calendar'),
     to: '/calendar',
     icon: 'i-lucide-calendar',
+    // `data-tour` targets for the first-run spotlight tour (#98). The nav is the one
+    // piece of chrome that is on screen everywhere, so most of the tour points at it.
+    tour: 'nav-calendar',
     active: route.path.startsWith('/calendar')
   },
   {
     label: t('nav.products'),
     to: '/products',
     icon: 'i-lucide-package',
+    tour: 'nav-products',
     active: route.path.startsWith('/products'),
     badge: expirationCount.value > 0 ? expirationCount.value : undefined,
     // Straight off the expiration ramp the cards use, so the badge and the cards cannot say
@@ -237,6 +272,7 @@ const navItems = computed(() => [
     label: t('nav.shoppingLists'),
     to: '/shopping-lists',
     icon: 'i-lucide-shopping-cart',
+    tour: 'nav-shopping-lists',
     active: route.path.startsWith('/shopping-lists'),
     badge: deadlineCount.value > 0 ? deadlineCount.value : undefined,
     // An overdue shopping-list item is past its date, so it takes the ramp's expired tone.
@@ -246,6 +282,7 @@ const navItems = computed(() => [
     label: t('nav.profile'),
     to: '/profile',
     icon: 'i-lucide-user',
+    tour: 'nav-profile',
     avatar: true,
     active: route.path.startsWith('/profile')
   }
@@ -329,4 +366,10 @@ const onResize = () => {
   indicatorAnimating.value = false
   measure()
 }
+
+// The layout can mount before the Kratos session resolves, in which case the tour has
+// no user record to check and declines to decide. Retry the moment there is one.
+watch(() => authStore.user?.publicId, (publicId) => {
+  if (publicId) maybeAutoStart()
+})
 </script>

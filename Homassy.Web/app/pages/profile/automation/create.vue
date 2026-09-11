@@ -268,7 +268,7 @@
             :label="t('common.next')"
             trailing-icon="i-lucide-arrow-right"
             :disabled="!isScheduleValid"
-            @click="currentStep = confirmStepIndex"
+            @click="() => { currentStep = confirmStepIndex }"
           />
         </div>
       </div>
@@ -322,7 +322,7 @@
             :label="t('common.next')"
             trailing-icon="i-lucide-arrow-right"
             :disabled="!form.thresholdQuantity || form.thresholdQuantity <= 0 || !form.addQuantity || form.addQuantity <= 0"
-            @click="currentStep = confirmStepIndex"
+            @click="() => { currentStep = confirmStepIndex }"
           />
         </div>
       </div>

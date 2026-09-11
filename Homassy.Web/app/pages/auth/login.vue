@@ -8,6 +8,7 @@ import type { LoginFlow } from '@ory/client'
 import type { PublicKeyCredentialRequestOptionsJSON } from '@simplewebauthn/browser'
 import type { KratosError } from '~/composables/useKratos'
 import * as z from 'zod'
+import { safeReturnTo } from '~/utils/shareText'
 
 definePageMeta({
   layout: 'public'
@@ -99,7 +100,7 @@ onMounted(async () => {
     // Check for errors in flow
     const errors = kratos.getFlowErrors(flow.value)
     if (errors.length > 0) {
-      error.value = errors[0]
+      error.value = errors[0] ?? null
     }
 
     // Check if passkey/WebAuthn is supported in this browser
@@ -185,7 +186,7 @@ async function triggerPasskeyLogin() {
         
         // Extract flow ID from the URL
         const flowMatch = redirectUrl.match(/[?&]flow=([^&]+)/)
-        if (flowMatch) {
+        if (flowMatch?.[1]) {
           const newFlowId = flowMatch[1]
           console.debug('[Login] Fetching redirected flow:', newFlowId)
           webauthnFlow = await kratos.getLoginFlow(newFlowId)
@@ -266,13 +267,9 @@ async function triggerPasskeyLogin() {
  */
 async function handleLoginSuccess() {
   console.debug('[Login] Login successful, redirecting...')
-  
-  const returnTo = route.query.return_to as string
-  if (returnTo) {
-    await router.push(returnTo)
-  } else {
-    await router.push('/calendar')
-  }
+  // `safeReturnTo` validates the destination the auth middleware carried over (#118);
+  // see that helper for why it is not just read straight out of the query.
+  await router.push(safeReturnTo(route.query.return_to))
 }
 
 /**
@@ -387,12 +384,7 @@ function goBackToEmail() {
  * (return_to URL when present, otherwise the calendar)
  */
 async function handleContinue() {
-  const returnTo = route.query.return_to as string
-  if (returnTo) {
-    await router.push(returnTo)
-  } else {
-    await router.push('/calendar')
-  }
+  await router.push(safeReturnTo(route.query.return_to))
 }
 
 /**

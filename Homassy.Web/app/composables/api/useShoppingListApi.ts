@@ -217,9 +217,15 @@ export const useShoppingListApi = () => {
       `/api/v1/ShoppingList/item/${publicId}/restore-purchase`
     )
 
-    // Emit event if deadline or due date is within 2 weeks
-    const hasDeadline = result.deadlineAt && isExpiringWithinTwoWeeks(result.deadlineAt)
-    const hasDueDate = result.dueAt && isExpiringWithinTwoWeeks(result.dueAt)
+    // Emit event if deadline or due date is within 2 weeks.
+    //
+    // `result.data`, not `result` — these are fields of the restored item, and `result` is the
+    // `ApiResponse` envelope around it. Read off the envelope they were always `undefined`, so
+    // the event never fired and the nav's overdue badge did not refresh after a restore. The
+    // typechecker had been reporting exactly this (four TS2339s) for as long as it had been red.
+    const item = result?.data
+    const hasDeadline = item?.deadlineAt && isExpiringWithinTwoWeeks(item.deadlineAt)
+    const hasDueDate = item?.dueAt && isExpiringWithinTwoWeeks(item.dueAt)
     if (hasDeadline || hasDueDate) {
       emit('shopping-list-item:restored')
     }

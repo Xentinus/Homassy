@@ -89,6 +89,21 @@ export const useUserApi = () => {
   }
 
   /**
+   * Record that the first-run tour was finished or skipped, or (with `false`) arm it
+   * again — the profile's "Replay the tour" row (#98).
+   *
+   * The flag is *read* back on `GET /auth/me`, not here: the client needs it at boot,
+   * which is a payload it already fetches.
+   *
+   * No error toast. The tour has already ended on screen by the time this is called,
+   * and the local echo in `useOnboardingTour` keeps it from reopening on this device,
+   * so a failed write is not something the user can act on.
+   */
+  const updateOnboarding = async (completed: boolean) => {
+    return await client.put('/api/v1/User/onboarding', { completed }, { showErrorToast: false })
+  }
+
+  /**
    * Send test push notification
    */
   const sendTestPushNotification = async () => {
@@ -213,6 +228,7 @@ export const useUserApi = () => {
     deleteProfilePicture,
     getNotificationPreferences,
     updateNotificationPreferences,
+    updateOnboarding,
     sendTestPushNotification,
     sendTestEmailSummary,
     getUsersByPublicIds,

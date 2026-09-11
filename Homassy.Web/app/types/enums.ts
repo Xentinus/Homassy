@@ -39,8 +39,59 @@ export enum Language {
   English = 2
 }
 
+/**
+ * Mirrors `Homassy.API/Enums/UserTimeZone.cs` member for member.
+ *
+ * It used to declare one member (`CentralEuropean = 0`) while `utils/enumMappers.ts` mapped 33
+ * IANA ids onto the numbers 0-32 — which is where 33 of the typechecker's errors came from, and
+ * why every value but UTC had to be written as a bare number.
+ */
 export enum UserTimeZone {
-  CentralEuropean = 0
+  Utc = 0,
+
+  // Americas
+  EasternStandardTime = 1,
+  CentralStandardTime = 2,
+  MountainStandardTime = 3,
+  PacificStandardTime = 4,
+  AlaskanStandardTime = 5,
+  HawaiianStandardTime = 6,
+  AtlanticStandardTime = 7,
+  ArgentinaStandardTime = 8,
+  BrazilianStandardTime = 9,
+
+  // Europe
+  GreenwichStandardTime = 10,
+  CentralEuropeStandardTime = 11,
+  EasternEuropeStandardTime = 12,
+  RussianStandardTime = 13,
+  TurkeyStandardTime = 14,
+
+  // Asia
+  ArabianStandardTime = 15,
+  PakistanStandardTime = 16,
+  IndiaStandardTime = 17,
+  BangladeshStandardTime = 18,
+  ChinaStandardTime = 19,
+  SingaporeStandardTime = 20,
+  TokyoStandardTime = 21,
+  KoreaStandardTime = 22,
+
+  // Australia & Pacific
+  AustralianWesternStandardTime = 23,
+  AustralianCentralStandardTime = 24,
+  AustralianEasternStandardTime = 25,
+  NewZealandStandardTime = 26,
+
+  // Africa
+  SouthAfricaStandardTime = 27,
+  EgyptStandardTime = 28,
+  WestAfricaStandardTime = 29,
+
+  // Middle East
+  IsraelStandardTime = 30,
+  SaudiArabiaStandardTime = 31,
+  IranStandardTime = 32
 }
 
 export enum ImageFormat {

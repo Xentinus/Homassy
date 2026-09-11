@@ -3,6 +3,20 @@
  * Synchronizes user language preference with i18n locale
  * Handles browser detection for anonymous users and user preference for authenticated users
  */
+
+/** The three locales `nuxt.config.ts` declares. */
+type SupportedLocale = 'en' | 'hu' | 'de'
+
+/**
+ * Narrows an arbitrary string to a configured locale.
+ *
+ * A type predicate rather than a bare `includes`: the guard was already there, but `setLocale`
+ * takes the union and an `includes` check does not narrow, so the call did not typecheck.
+ */
+function isSupportedLocale(value: string): value is SupportedLocale {
+  return value === 'en' || value === 'hu' || value === 'de'
+}
+
 export default defineNuxtPlugin({
   name: 'i18n-sync',
   dependsOn: ['i18n:plugin'],
@@ -29,7 +43,7 @@ export default defineNuxtPlugin({
       // Convert language name to locale code if needed
       const locale = localeMap[localeOrLanguage] || localeOrLanguage
       
-      if ($i18n.locale.value !== locale && ['en', 'hu', 'de'].includes(locale)) {
+      if ($i18n.locale.value !== locale && isSupportedLocale(locale)) {
         $i18n.setLocale(locale)
         localeCookie.value = locale
       }

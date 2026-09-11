@@ -5,6 +5,20 @@
 export default defineNuxtRouteMiddleware(async (to) => {
   const authStore = useAuthStore()
 
+  /**
+   * Bounce to the login page *carrying the destination* (#118, and the redirect loss
+   * described in #87). The login page has always honoured `return_to` — nothing ever
+   * sent it, so every unauthenticated launch landed on the calendar and threw the
+   * intended route away. That is fine for a bookmark and fatal for a deep link: an
+   * app-shortcut or share-target launch into a cold start *is* an unauthenticated
+   * launch, and dropping the target drops the whole point of the shortcut.
+   *
+   * `to.fullPath` is always a router-resolved same-origin path here, but it becomes a
+   * query parameter the login page pushes, so the login page validates it before
+   * using it rather than trusting the shape of whatever ends up in the URL.
+   */
+  const toLogin = () => navigateTo({ path: '/auth/login', query: { return_to: to.fullPath } })
+
   console.debug(`[Middleware] Checking auth for route: ${to.path}`)
   console.debug(`[Middleware] isAuthenticated before init: ${authStore.isAuthenticated}`)
   console.debug(`[Middleware] Running in: ${import.meta.server ? 'SSR' : 'Client'}`)
@@ -33,7 +47,7 @@ export default defineNuxtRouteMiddleware(async (to) => {
       // No valid session - redirect to login
       console.debug('[Middleware] No valid Kratos session, redirecting to login')
       authStore.clearAuthData()
-      return navigateTo('/auth/login')
+      return toLogin()
     }
 
     // Check if session is expired
@@ -44,12 +58,12 @@ export default defineNuxtRouteMiddleware(async (to) => {
         if (!refreshed) {
           console.debug('[Middleware] Session refresh failed, redirecting to login')
           authStore.clearAuthData()
-          return navigateTo('/auth/login')
+          return toLogin()
         }
       } catch (e) {
         console.error('[Middleware] Session refresh error:', e)
         authStore.clearAuthData()
-        return navigateTo('/auth/login')
+        return toLogin()
       }
     }
   }
@@ -59,7 +73,7 @@ export default defineNuxtRouteMiddleware(async (to) => {
   // Final check - must be authenticated
   if (!authStore.isAuthenticated) {
     console.debug(`[Middleware] Redirecting to login, redirect=${to.fullPath}`)
-    return navigateTo('/auth/login')
+    return toLogin()
   }
 })
 

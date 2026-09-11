@@ -198,7 +198,7 @@
                 :color="purchaseMode === 'all' ? 'primary' : 'neutral'"
                 :variant="purchaseMode === 'all' ? 'solid' : 'outline'"
                 :aria-pressed="purchaseMode === 'all'"
-                @click="purchaseMode = 'all'"
+                @click="() => { purchaseMode = 'all' }"
               />
               <UButton
                 :label="$t('shoppingList.purchase.buyPartial')"
@@ -308,7 +308,7 @@
         <UButton
           :label="$t('common.cancel')"
           variant="subtle"
-          @click="isPurchaseModalOpen = false"
+          @click="() => { isPurchaseModalOpen = false }"
         />
         <UButton
           :label="$t('common.confirm')"
@@ -538,7 +538,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref, computed, type Ref } from 'vue'
 import type { LightboxImage } from './ImageLightbox.vue'
 import type { ShoppingListItemInfo, PurchaseShoppingListItemRequest } from '../types/shoppingList'
 import type { ShoppingLocationInfo } from '../types/location'
@@ -669,7 +669,15 @@ const swipe = useSwipeActions(cardEl, {
 })
 
 // Edit form state
-const editForm = ref<{
+/**
+ * The edit drawer form.
+ *
+ * `ref(...) as Ref<EditForm>` rather than `ref<EditForm>(...)`: `UnwrapRef` maps a nested class
+ * instance structurally, and `CalendarDate` carries a private field, so the mapped type no longer
+ * matches the nominal class `UInputDate`/`UCalendar` ask for. The cast keeps the declared type
+ * intact; runtime reactivity is identical.
+ */
+interface EditForm {
   customName: string | null
   quantity: number | null
   unit: number | null
@@ -677,7 +685,9 @@ const editForm = ref<{
   dueAt: CalendarDate | null
   deadlineAt: CalendarDate | null
   shoppingLocationPublicId: string | undefined
-}>({
+}
+
+const editForm = ref({
   customName: null,
   quantity: null,
   unit: null,
@@ -685,7 +695,7 @@ const editForm = ref<{
   dueAt: null,
   deadlineAt: null,
   shoppingLocationPublicId: undefined
-})
+}) as Ref<EditForm>
 
 // Computed
 const displayName = computed(() => {

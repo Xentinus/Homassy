@@ -190,11 +190,8 @@ public sealed class ExternalCalendarReminderService : BackgroundService
             }
 
             await _notifier.DispatchAsync(context, [reminder.Recipient],
-                language =>
-                [
-                    PushNotificationContentService.GetCalendarEventReminderContent(
-                        language, reminder.Event.Title, reminder.LeadTimeMinutes, reminder.Event.IsAllDay)
-                ],
+                [NotificationEnvelopes.CalendarEventReminder(
+                    reminder.Event.Title, reminder.LeadTimeMinutes, reminder.Event.IsAllDay)],
                 "/calendar", cancellationToken);
 
             Log.Information(

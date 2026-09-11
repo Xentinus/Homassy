@@ -367,7 +367,7 @@
         :label="$t('common.cancel')"
         color="neutral"
         variant="outline"
-        @click="isEditModalOpen = false"
+        @click="() => { isEditModalOpen = false }"
       />
       <UButton
         :label="$t('common.save')"
@@ -386,7 +386,7 @@
         :label="$t('common.cancel')"
         color="neutral"
         variant="outline"
-        @click="isDeleteModalOpen = false"
+        @click="() => { isDeleteModalOpen = false }"
       />
       <UButton
         :label="$t('common.delete')"

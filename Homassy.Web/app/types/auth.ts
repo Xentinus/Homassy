@@ -70,6 +70,14 @@ export interface UserInfo {
    * better answer. See `~/utils/awayGap`.
    */
   lastSeenAt?: string | null
+  /**
+   * When this user finished or skipped the first-run spotlight tour, ISO-8601 — or null
+   * when they have not, which is what makes the tour start (#98). Absent on the
+   * Kratos-trait-seeded object, which knows nothing about it; `useOnboardingTour` treats
+   * absent the same as null and pairs it with a same-device `localStorage` echo, so a
+   * momentarily-unknown value cannot flash the tour at a returning user.
+   */
+  onboardingCompletedAt?: string | null
 }
 
 // Kratos-specific types

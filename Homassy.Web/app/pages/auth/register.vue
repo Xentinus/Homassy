@@ -5,7 +5,7 @@
  */
 import * as z from 'zod'
 import type { FormSubmitEvent } from '@nuxt/ui'
-import type { RegistrationFlow } from '@ory/client'
+import type { RegistrationFlow, UpdateRegistrationFlowBody } from '@ory/client'
 import type { KratosError } from '~/composables/useKratos'
 import { getBrowserKratosTimezone } from '~/utils/enumMappers'
 
@@ -133,7 +133,7 @@ onMounted(async () => {
     // Check for errors in flow
     const errors = kratos.getFlowErrors(flow.value)
     if (errors.length > 0) {
-      error.value = errors[0]
+      error.value = errors[0] ?? null
     }
   } catch (caught) {
     const e = caught as KratosError
@@ -286,7 +286,7 @@ async function verifyCode(event: FormSubmitEvent<CodeSchema>) {
       'traits.default_language': 'en',
       'traits.default_currency': 'EUR',
       'traits.default_timezone': getBrowserKratosTimezone()
-    })
+    } as unknown as UpdateRegistrationFlowBody)
 
     // Refresh auth state
     await authStore.refreshSession()

@@ -36,7 +36,16 @@ public class TestAuthHelper
     /// </summary>
     public async Task<(string email, AuthResponse auth)> CreateAndAuthenticateUserAsync(string testPrefix)
     {
-        var email = $"{testPrefix}-{Guid.NewGuid():N}@test.homassy.local";
+        // Lower-cased, because this helper stands in for `UserFunctions.CreateUserAsync`, which
+        // normalizes the address before storing it — so a row inserted here has to have the shape
+        // a real one does.
+        //
+        // It is also what stops the suite leaking rows into the developer's database:
+        // `CleanupTestUserAsync` looks the user up by `email.ToLowerInvariant()`, so a prefix with
+        // a capital in it (`SelectValueControllerTests` passes `$"select-{type}"`, and
+        // `SelectValueType` members are PascalCase) never matched, the delete was a silent no-op,
+        // and every full run left five more users behind. 80 had accumulated before this was found.
+        var email = $"{testPrefix}-{Guid.NewGuid():N}@test.homassy.local".ToLowerInvariant();
         var kratosIdentityId = Guid.NewGuid().ToString();
         var displayName = $"Test User {testPrefix}";
 
