@@ -21,7 +21,7 @@
         data-chat-bubble
         type="button"
         :aria-label="bubbleLabel"
-        class="fixed left-0 top-0 z-[55] flex h-14 w-14 items-center justify-center overflow-hidden rounded-full bg-primary-500 text-white shadow-xl ring-2 ring-white/80 dark:ring-gray-900/80 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-primary-300"
+        class="fixed left-0 top-0 z-[55] flex h-14 w-14 items-center justify-center rounded-full bg-primary-500 text-white shadow-xl ring-2 ring-white/80 dark:ring-gray-900/80 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-primary-300"
         :style="bubbleStyle"
         @pointerdown="onPointerDown"
         @pointermove="onPointerMove"
@@ -31,14 +31,19 @@
         @focus="wake"
         @blur="scheduleIdle"
       >
-        <img
-          v-if="familyPicture"
-          :src="familyPicture"
-          :alt="familyName"
-          class="h-full w-full object-cover"
-          draggable="false"
-        >
-        <span v-else class="text-lg font-semibold leading-none">{{ initials }}</span>
+        <!-- The picture is clipped to the circle here rather than on the button, because the
+             badges hang outside the button's own box: an `overflow-hidden` on the button would
+             crop exactly the corner each badge sits in. -->
+        <span class="pointer-events-none absolute inset-0 flex items-center justify-center overflow-hidden rounded-full">
+          <img
+            v-if="familyPicture"
+            :src="familyPicture"
+            :alt="familyName"
+            class="h-full w-full object-cover"
+            draggable="false"
+          >
+          <span v-else class="text-lg font-semibold leading-none">{{ initials }}</span>
+        </span>
 
         <!-- Somebody is typing while the panel is closed (#148). A pulse rather than a name list:
              the bubble is 56px, and "who" is what opening it answers. -->
@@ -56,7 +61,7 @@
              painted in it would be invisible. There is no semantic token for presence green. -->
         <span
           v-if="activeCount > 0"
-          class="absolute -bottom-0.5 -left-0.5 flex h-[18px] min-w-[18px] items-center justify-center gap-0.5 rounded-full bg-emerald-500 px-1 shadow-md"
+          class="absolute -bottom-1 -left-1 z-10 flex h-5 min-w-5 items-center justify-center gap-0.5 rounded-full bg-emerald-500 px-1 shadow-md ring-2 ring-white dark:ring-gray-900"
         >
           <span class="h-1.5 w-1.5 rounded-full bg-white/90" aria-hidden="true" />
           <span class="text-[10px] font-bold leading-none text-white tabular-nums">{{ activeCount }}</span>
@@ -66,11 +71,11 @@
              expiration and deadline counts - one badge vocabulary across the app. -->
         <span
           v-if="unreadCount > 0"
-          class="absolute -right-0.5 -top-0.5 flex h-[18px] min-w-[18px] items-center justify-center rounded-full bg-error-500 px-1 shadow-md"
+          class="absolute -right-1 -top-1 z-10 flex h-5 min-w-5 items-center justify-center rounded-full bg-error-500 px-1 shadow-md ring-2 ring-white dark:ring-gray-900"
         >
           <!-- tabular-nums: the count changes under the mounted badge as messages arrive, and
                proportional digits would resize the pill on every change. -->
-          <span class="text-[10px] font-bold leading-none text-white tabular-nums">
+          <span class="text-[11px] font-bold leading-none text-white tabular-nums">
             {{ unreadCount > 99 ? '99+' : unreadCount }}
           </span>
         </span>
@@ -232,14 +237,23 @@ const nearestEdge = computed<'left' | 'right'>(() => {
   return x.value + BUBBLE_SIZE / 2 < window.innerWidth / 2 ? 'left' : 'right'
 })
 
+/**
+ * Whether the bubble is allowed to fade back and tuck itself away.
+ *
+ * Not while something is waiting to be read, and not while somebody is typing: the idle state
+ * exists to stop the bubble competing with the page, and a half-faded circle tucked under the
+ * screen edge is exactly the wrong place to put the one thing saying a message arrived.
+ */
+const canIdle = computed(() => unreadCount.value === 0 && typingMembers.value.length === 0)
+
 const idleShift = computed(() => {
-  if (!idle.value || dragging.value || prefersReducedMotion()) return 0
+  if (!idle.value || dragging.value || !canIdle.value || prefersReducedMotion()) return 0
   return nearestEdge.value === 'left' ? -IDLE_TUCK : IDLE_TUCK
 })
 
 const bubbleStyle = computed(() => ({
   transform: `translate3d(${x.value + idleShift.value}px, ${y.value}px, 0)`,
-  opacity: idle.value && !dragging.value ? IDLE_OPACITY : 1,
+  opacity: idle.value && !dragging.value && canIdle.value ? IDLE_OPACITY : 1,
   touchAction: 'none',
   transition: dragging.value
     ? 'opacity var(--bubble-out) ease'
