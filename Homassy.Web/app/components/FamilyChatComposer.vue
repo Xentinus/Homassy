@@ -103,7 +103,7 @@ import ImageCropper from '~/components/ImageCropper.vue'
 import FamilyChatReferencePicker from '~/components/FamilyChatReferencePicker.vue'
 import { base64ToBlob, blobToBase64, compressImage } from '~/composables/useImageCrop'
 import type { FamilyChatReferenceDraft } from '~/types/familyChat'
-import { FamilyChatReferenceKind } from '~/types/enums'
+import { referenceIcon } from '~/utils/familyChat'
 
 /**
  * The chat's input row (#146).
@@ -141,15 +141,6 @@ const MAX_REFERENCES = 5
 
 /** What is attached but not yet sent. The label is only for the chip; the server resolves its own. */
 const pending = ref<FamilyChatReferenceDraft[]>([])
-
-const REFERENCE_ICONS: Record<FamilyChatReferenceKind, string> = {
-  [FamilyChatReferenceKind.Product]: 'i-lucide-package',
-  [FamilyChatReferenceKind.ShoppingLocation]: 'i-lucide-store',
-  [FamilyChatReferenceKind.StorageLocation]: 'i-lucide-archive',
-  [FamilyChatReferenceKind.ShoppingList]: 'i-lucide-list-checks'
-}
-
-const referenceIcon = (kind: FamilyChatReferenceKind): string => REFERENCE_ICONS[kind] ?? 'i-lucide-paperclip'
 
 // Something attached is something to send, even with nothing typed: "the shop" plus "the milk" is
 // a message, and the API accepts a body-less message that carries references.

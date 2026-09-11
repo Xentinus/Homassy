@@ -16,8 +16,14 @@ namespace Homassy.API.Migrations
             // StoredImageEntity table, the way avatars, product images and chat pictures already
             // live. The column is dropped rather than migrated: the bytes it held never went
             // through IImageProcessingService (no format, no dimensions, no thumbnail), so there
-            // is nothing SQL alone could turn into a FamilyPictures row. Nothing in the app ever
-            // wrote it - there was no upload UI - so what is dropped is an empty column.
+            // is nothing SQL alone could turn into a FamilyPictures row.
+            //
+            // Two paths did write it before this migration - creating a family with a picture in
+            // the request, and the old POST /Family/picture - and both are deleted in the same
+            // change. Neither was reachable from the app (nothing ever sent that field and there
+            // was no upload UI), so the column is expected to be empty; check before deploying if
+            // anything ever called the API directly:
+            //   SELECT count(*) FROM "Families" WHERE "FamilyPictureBase64" IS NOT NULL;
             migrationBuilder.DropColumn(
                 name: "FamilyPictureBase64",
                 table: "Families");

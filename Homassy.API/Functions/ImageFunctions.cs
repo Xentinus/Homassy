@@ -557,7 +557,15 @@ namespace Homassy.API.Functions
             bool acceptsWebp,
             CancellationToken cancellationToken = default)
         {
-            var familyId = SessionInfo.GetFamilyId();
+            var userId = SessionInfo.GetUserId();
+            if (!userId.HasValue)
+            {
+                return null;
+            }
+
+            // The Users row, not the session's family id: see RequireFamilyId below for why a
+            // writable Kratos trait must not decide whose picture this serves.
+            var familyId = new UserFunctions(_contextFactory).GetUserById(userId.Value)?.FamilyId;
             if (!familyId.HasValue)
             {
                 return null;
@@ -576,17 +584,29 @@ namespace Homassy.API.Functions
         }
 
         /// <summary>
-        /// The caller's family id, or the exception that says why there is none.
+        /// The caller's family id <b>as the database has it</b>, or the exception that says why
+        /// there is none.
         /// </summary>
-        private static int RequireFamilyId()
+        /// <remarks>
+        /// Deliberately not <c>SessionInfo.GetFamilyId()</c>: that falls back to the Kratos
+        /// identity's <c>family_id</c> trait when the local user row has none, and a trait is
+        /// something the identity's owner can write through Kratos' own settings flow. Pointing it
+        /// at a family they are not in would otherwise be enough to read, replace or delete that
+        /// family's picture. Membership is a fact about the <c>Users</c> row, so it is read from
+        /// there - the same check every other family write in this codebase makes.
+        /// </remarks>
+        private int RequireFamilyId()
         {
-            if (!SessionInfo.GetUserId().HasValue)
+            var userId = SessionInfo.GetUserId();
+            if (!userId.HasValue)
             {
                 Log.Warning("Invalid session: User ID not found");
                 throw new UserNotFoundException("User not found");
             }
 
-            return SessionInfo.GetFamilyId()
+            var user = new UserFunctions(_contextFactory).GetUserById(userId.Value);
+
+            return user?.FamilyId
                 ?? throw new FamilyNotFoundException("You are not a member of any family");
         }
 

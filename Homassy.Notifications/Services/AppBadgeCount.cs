@@ -33,13 +33,19 @@ public static class AppBadgeCount
     /// What one user's app icon should show: unread chat messages plus due or overdue
     /// shopping-list items.
     /// </summary>
+    /// <param name="lastReadAt">
+    /// The caller's chat read marker, when the caller already has it. The chat notifier loads
+    /// every marker in the family before it decides who to notify, so passing it in here saves
+    /// re-reading the same row once per recipient. Omit it and it is read.
+    /// </param>
     public static async Task<int> ForUserAsync(
         HomassyDbContext context,
         int userId,
         int? familyId,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken,
+        DateTime? lastReadAt = null)
     {
-        var unreadChat = await UnreadChatMessagesAsync(context, userId, familyId, cancellationToken);
+        var unreadChat = await UnreadChatMessagesAsync(context, userId, familyId, lastReadAt, cancellationToken);
         var deadlines = await DueShoppingListItemsAsync(context, userId, familyId, cancellationToken);
 
         return unreadChat + deadlines;
@@ -57,11 +63,12 @@ public static class AppBadgeCount
         HomassyDbContext context,
         int userId,
         int? familyId,
+        DateTime? knownLastReadAt,
         CancellationToken cancellationToken)
     {
         if (!familyId.HasValue) return 0;
 
-        var lastReadAt = await context.Set<FamilyChatReadState>()
+        var lastReadAt = knownLastReadAt ?? await context.Set<FamilyChatReadState>()
             .AsNoTracking()
             .Where(r => r.UserId == userId && r.FamilyId == familyId.Value)
             .Select(r => (DateTime?)r.LastReadAt)
@@ -79,13 +86,24 @@ public static class AppBadgeCount
     /// Unpurchased items on the user's own and their family's lists, due within the window or
     /// already past it.
     /// </summary>
+    /// <remarks>
+    /// Item for item what <c>GET /shoppinglist/item/deadline-count</c> counts, including its rule
+    /// that an item pointing at a deleted product does not count - the icon and the in-app badge
+    /// disagreeing about the same list is the one failure this class exists to avoid.
+    /// <para>
+    /// The window is expressed as <c>&lt; horizon</c> on the raw column rather than as
+    /// <c>.Date &lt;= …</c>: the two select the same rows, but a <c>date_trunc</c> over the column
+    /// can never use an index on it.
+    /// </para>
+    /// </remarks>
     private static async Task<int> DueShoppingListItemsAsync(
         HomassyDbContext context,
         int userId,
         int? familyId,
         CancellationToken cancellationToken)
     {
-        var horizon = DateTime.UtcNow.Date.AddDays(DeadlineWindowDays);
+        // The day after the last day that counts, so the whole of that day is included.
+        var horizon = DateTime.UtcNow.Date.AddDays(DeadlineWindowDays + 1);
 
         var listIds = await context.ShoppingLists
             .AsNoTracking()
@@ -95,12 +113,20 @@ public static class AppBadgeCount
 
         if (listIds.Count == 0) return 0;
 
+        var deletedProductIds = await context.Products
+            .AsNoTracking()
+            .IgnoreQueryFilters()
+            .Where(p => p.IsDeleted)
+            .Select(p => p.Id)
+            .ToListAsync(cancellationToken);
+
         return await context.ShoppingListItems
             .AsNoTracking()
             .Where(i => !i.PurchasedAt.HasValue
                 && listIds.Contains(i.ShoppingListId)
-                && ((i.DeadlineAt.HasValue && i.DeadlineAt.Value.Date <= horizon)
-                    || (i.DueAt.HasValue && i.DueAt.Value.Date <= horizon)))
+                && (i.ProductId == null || !deletedProductIds.Contains(i.ProductId.Value))
+                && ((i.DeadlineAt.HasValue && i.DeadlineAt.Value < horizon)
+                    || (i.DueAt.HasValue && i.DueAt.Value < horizon)))
             .CountAsync(cancellationToken);
     }
 }

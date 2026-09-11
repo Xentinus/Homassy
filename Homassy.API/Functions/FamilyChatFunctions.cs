@@ -660,10 +660,10 @@ namespace Homassy.API.Functions
 
                 if (!byKind.TryGetValue(reference.Kind, out var lookup))
                 {
-                    lookup = selectValues
-                        .GetSelectValues(SelectValueTypeOf(reference.Kind))
-                        .GroupBy(v => v.PublicId)
-                        .ToDictionary(g => g.Key, g => g.First().Text);
+                    lookup = LabelsFor(
+                        selectValues,
+                        reference.Kind,
+                        requested.Where(r => r.Kind == reference.Kind).Select(r => r.PublicId));
                     byKind[reference.Kind] = lookup;
                 }
 
@@ -710,10 +710,10 @@ namespace Homassy.API.Functions
 
             foreach (var kind in rows.Select(r => r.Kind).Distinct())
             {
-                byKind[kind] = selectValues
-                    .GetSelectValues(SelectValueTypeOf(kind))
-                    .GroupBy(v => v.PublicId)
-                    .ToDictionary(g => g.Key, g => g.First().Text);
+                byKind[kind] = LabelsFor(
+                    selectValues,
+                    kind,
+                    rows.Where(r => r.Kind == kind).Select(r => r.TargetPublicId));
             }
 
             var result = new Dictionary<int, List<FamilyChatReferenceInfo>>();
@@ -738,6 +738,54 @@ namespace Homassy.API.Functions
             }
 
             return result;
+        }
+
+        /// <summary>
+        /// The current label of each of <paramref name="ids"/>, for the ones that still resolve
+        /// for this caller. Ids that do not resolve are simply absent.
+        /// </summary>
+        /// <remarks>
+        /// Products are looked up one id at a time; every other kind is answered from its
+        /// select-value list.
+        /// <para>
+        /// The asymmetry is the catalogue's size. The other three lists are a household's own
+        /// shops, places and lists - tens of rows, and the list is the same object the picker
+        /// reads, so building it is nearly free. <see cref="SelectValueType.ProductCatalog"/> is
+        /// every product on the instance: materialising it, formatting a label per row and sorting
+        /// the result to answer "what is this one GUID called" is work proportional to the whole
+        /// catalogue on every page of chat history that carries a single product chip.
+        /// </para>
+        /// <para>
+        /// The labels are identical either way - both spell a product
+        /// <c>"{Brand} - {Name}"</c> - so a chip resolved here reads exactly as one resolved
+        /// through the list, and "valid reference" still means "a product that exists".
+        /// </para>
+        /// </remarks>
+        private Dictionary<Guid, string> LabelsFor(
+            SelectValueFunctions selectValues,
+            FamilyChatReferenceKind kind,
+            IEnumerable<Guid> ids)
+        {
+            if (kind != FamilyChatReferenceKind.Product)
+            {
+                return selectValues
+                    .GetSelectValues(SelectValueTypeOf(kind))
+                    .GroupBy(v => v.PublicId)
+                    .ToDictionary(g => g.Key, g => g.First().Text);
+            }
+
+            var products = new ProductFunctions(_runtime);
+            var labels = new Dictionary<Guid, string>();
+
+            foreach (var id in ids.Distinct())
+            {
+                var product = products.GetProductByPublicId(id);
+                if (product == null || product.IsDeleted) continue;
+
+                labels[id] = $"{product.Brand} - {product.Name}";
+            }
+
+            return labels;
         }
 
         /// <summary>

@@ -168,8 +168,8 @@
 import { computed, ref } from 'vue'
 import ImageLightbox, { type LightboxImage } from '~/components/ImageLightbox.vue'
 import type { FamilyChatReference, FamilyChatStreamMessage } from '~/types/familyChat'
-import { FamilyChatMessageKind, FamilyChatReferenceKind } from '~/types/enums'
-import type { SenderRun } from '~/utils/familyChat'
+import { FamilyChatMessageKind } from '~/types/enums'
+import { referenceIcon, referenceRoute, type SenderRun } from '~/utils/familyChat'
 import { linkifySegments, type ChatTextSegment } from '~/utils/linkify'
 
 /**
@@ -280,28 +280,9 @@ const openImage = (message: FamilyChatStreamMessage): void => {
 
 // --- References ------------------------------------------------------------
 
-const REFERENCE_ICONS: Record<FamilyChatReferenceKind, string> = {
-  [FamilyChatReferenceKind.Product]: 'i-lucide-package',
-  [FamilyChatReferenceKind.ShoppingLocation]: 'i-lucide-store',
-  [FamilyChatReferenceKind.StorageLocation]: 'i-lucide-archive',
-  [FamilyChatReferenceKind.ShoppingList]: 'i-lucide-list-checks'
-}
-
-/**
- * Where a chip takes you.
- *
- * Products have a page of their own; the other three live inside a list or a settings screen, so
- * the chip opens the screen that holds them rather than pretending each has its own route.
- */
-const REFERENCE_ROUTES: Record<FamilyChatReferenceKind, (publicId: string) => string> = {
-  [FamilyChatReferenceKind.Product]: publicId => `/products/${publicId}`,
-  [FamilyChatReferenceKind.ShoppingLocation]: () => '/profile/shopping-locations',
-  [FamilyChatReferenceKind.StorageLocation]: () => '/profile/storage-locations',
-  [FamilyChatReferenceKind.ShoppingList]: () => '/shopping-lists'
-}
-
-const referenceIcon = (kind: FamilyChatReferenceKind): string =>
-  REFERENCE_ICONS[kind] ?? 'i-lucide-paperclip'
+// The chip icon and route tables live in `utils/familyChat`, with the grouping rules: the
+// composer renders chips too, and two copies of a map keyed by an enum are two places to forget
+// a new kind.
 
 /**
  * Opens what a chip points at, and closes the chat on the way.
@@ -311,12 +292,12 @@ const referenceIcon = (kind: FamilyChatReferenceKind): string =>
  * thing.
  */
 const openReference = async (reference: FamilyChatReference): Promise<void> => {
-  const route = REFERENCE_ROUTES[reference.kind]
+  const route = referenceRoute(reference.kind, reference.publicId)
   if (!route) return
 
   haptics.tap()
   closePanel()
-  await navigateTo(route(reference.publicId))
+  await navigateTo(route)
 }
 
 // --- Message actions -------------------------------------------------------

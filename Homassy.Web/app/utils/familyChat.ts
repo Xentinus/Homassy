@@ -7,6 +7,7 @@
  * viewer's own local calendar, and a chat's day separators ask exactly that question.
  */
 import { groupByDay, type DayGroup } from '~/utils/activityTimeline'
+import { FamilyChatReferenceKind } from '~/types/enums'
 
 /** How close together two messages from one sender have to be to collapse into a single run. */
 export const SENDER_RUN_GAP_MINUTES = 5
@@ -105,3 +106,39 @@ export const buildChatSections = <T extends GroupableMessage>(
     runs: groupBySender(day.entries, gapMinutes)
   }))
 }
+
+/**
+ * The icon a reference chip carries, per kind.
+ *
+ * Here rather than in the two components that render chips (the stream and the composer), which
+ * each kept their own copy: two maps keyed by an enum are two places to forget a new kind, and a
+ * missing key renders the fallback paperclip silently. Keyed numerically, like the enum is on the
+ * wire.
+ */
+const REFERENCE_ICONS: Record<FamilyChatReferenceKind, string> = {
+  [FamilyChatReferenceKind.Product]: 'i-lucide-package',
+  [FamilyChatReferenceKind.ShoppingLocation]: 'i-lucide-store',
+  [FamilyChatReferenceKind.StorageLocation]: 'i-lucide-archive',
+  [FamilyChatReferenceKind.ShoppingList]: 'i-lucide-list-checks'
+}
+
+/**
+ * Where a chip takes you.
+ *
+ * Products have a page of their own; the other three live inside a list or a settings screen, so
+ * the chip lands on the screen that shows them rather than on a route that does not exist.
+ */
+const REFERENCE_ROUTES: Record<FamilyChatReferenceKind, (publicId: string) => string> = {
+  [FamilyChatReferenceKind.Product]: publicId => `/products/${publicId}`,
+  [FamilyChatReferenceKind.ShoppingLocation]: () => '/profile/shopping-locations',
+  [FamilyChatReferenceKind.StorageLocation]: () => '/profile/storage-locations',
+  [FamilyChatReferenceKind.ShoppingList]: () => '/shopping-lists'
+}
+
+/** The chip icon for a kind, or the paperclip for one this build does not know. */
+export const referenceIcon = (kind: FamilyChatReferenceKind): string =>
+  REFERENCE_ICONS[kind] ?? 'i-lucide-paperclip'
+
+/** Where a chip of this kind points, or null when this build has no route for it. */
+export const referenceRoute = (kind: FamilyChatReferenceKind, publicId: string): string | null =>
+  REFERENCE_ROUTES[kind]?.(publicId) ?? null
