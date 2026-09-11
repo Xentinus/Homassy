@@ -105,6 +105,21 @@
           @select="onReplayTour"
         />
 
+        <!-- The way back to a chat bubble that was dropped on the dismiss target (#145).
+             Only shown while it is actually dismissed: a row that does nothing is worse than
+             no row. The dismissal is per session, so this is the way back *now* rather than
+             the only one - the next launch brings it back by itself. -->
+        <ClientOnly>
+          <SettingsRow
+            v-if="chatBubbleDismissed"
+            :label="$t('familyChat.bubble.restore.label')"
+            :description="$t('familyChat.bubble.restore.description')"
+            icon="i-lucide-message-circle"
+            :chevron="false"
+            @select="onRestoreChatBubble"
+          />
+        </ClientOnly>
+
         <ClientOnly>
           <SettingsRow
             v-if="hapticsSupported"
@@ -680,5 +695,15 @@ async function onDeleteAvatar() {
 
 async function onLogout() {
   await authStore.logout()
+}
+
+// --- Family chat bubble (#145) ----------------------------------------------
+// Dropping the bubble on the dismiss target hides it for the session; this row is how it comes
+// back before the next launch does it anyway.
+const { isDismissed: chatBubbleDismissed, restore: restoreChatBubble } = useFamilyChatBubble()
+
+function onRestoreChatBubble() {
+  restoreChatBubble()
+  hapticSelect()
 }
 </script>

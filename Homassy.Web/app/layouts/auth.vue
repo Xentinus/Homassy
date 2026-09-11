@@ -91,6 +91,14 @@
     <ClientOnly>
       <OnboardingSpotlight />
     </ClientOnly>
+
+    <!-- Family chat head (#145). A sibling of the header and the nav for the same reason they
+         are here: it has to survive navigation. Client-only because there is no meaningful SSR
+         state — the position comes from localStorage and the family from an authenticated
+         fetch, so a server-rendered bubble could only ever mismatch on hydration. -->
+    <ClientOnly>
+      <FamilyChatBubble />
+    </ClientOnly>
   </UApp>
 </template>
 

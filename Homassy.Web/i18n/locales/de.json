@@ -2901,5 +2901,14 @@
     "youAreHere": "Ihr Standort",
     "hide": "Karte ausblenden",
     "showAll": "Alle auf der Karte zeigen ({count})"
+  },
+  "familyChat": {
+    "bubble": {
+      "open": "Chat von {family} öffnen",
+      "restore": {
+        "label": "Chat-Blase anzeigen",
+        "description": "Die ausgeblendete Familienchat-Blase zurückholen"
+      }
+    }
   }
 }

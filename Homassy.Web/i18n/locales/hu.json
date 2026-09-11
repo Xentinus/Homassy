@@ -2901,5 +2901,14 @@
     "youAreHere": "Az Ön helyzete",
     "hide": "Térkép elrejtése",
     "showAll": "Mind megjelenítése a térképen ({count})"
+  },
+  "familyChat": {
+    "bubble": {
+      "open": "{family} csevegés megnyitása",
+      "restore": {
+        "label": "Csevegőbuborék megjelenítése",
+        "description": "Az elrejtett családi csevegőbuborék visszahozása"
+      }
+    }
   }
 }

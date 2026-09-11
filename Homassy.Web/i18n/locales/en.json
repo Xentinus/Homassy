@@ -2901,5 +2901,14 @@
     "youAreHere": "Your position",
     "hide": "Hide map",
     "showAll": "Show all on the map ({count})"
+  },
+  "familyChat": {
+    "bubble": {
+      "open": "Open the {family} chat",
+      "restore": {
+        "label": "Show the chat bubble",
+        "description": "Bring back the family chat bubble you dismissed"
+      }
+    }
   }
 }
