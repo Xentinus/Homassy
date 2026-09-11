@@ -261,75 +261,14 @@ namespace Homassy.API.Services
             }
         }
 
-        private static async Task ProcessSingleChangeAsync(TableRecordChange change, IServiceProvider services)
-        {
-            switch (change.TableName)
-            {
-                case TableNames.Users:
-                    await services.GetRequiredService<UserFunctions>().RefreshUserCacheAsync(change.RecordId);
-                    break;
-
-                case TableNames.UserNotificationPreferences:
-                    await services.GetRequiredService<UserFunctions>().RefreshUserNotificationCacheAsync(change.RecordId);
-                    break;
-
-                case TableNames.UserProfiles:
-                    await services.GetRequiredService<UserFunctions>().RefreshUserProfileCacheAsync(change.RecordId);
-                    break;
-
-                case TableNames.Families:
-                    await services.GetRequiredService<FamilyFunctions>().RefreshCacheAsync(change.RecordId);
-                    break;
-
-                case TableNames.Products:
-                    await services.GetRequiredService<ProductFunctions>().RefreshProductCacheAsync(change.RecordId);
-                    break;
-
-                case TableNames.ProductInventoryItems:
-                    await services.GetRequiredService<ProductFunctions>().RefreshInventoryItemCacheAsync(change.RecordId);
-                    break;
-
-                case TableNames.ProductPurchaseInfos:
-                    await services.GetRequiredService<ProductFunctions>().RefreshPurchaseInfoCacheAsync(change.RecordId);
-                    break;
-
-                case TableNames.ProductConsumptionLogs:
-                    await services.GetRequiredService<ProductFunctions>().RefreshConsumptionLogsCacheAsync(change.RecordId);
-                    break;
-
-                case TableNames.ProductCustomizations:
-                    await services.GetRequiredService<ProductFunctions>().RefreshProductCustomizationCacheAsync(change.RecordId);
-                    break;
-
-                case TableNames.StorageLocations:
-                    await services.GetRequiredService<LocationFunctions>().RefreshStorageLocationCacheAsync(change.RecordId);
-                    break;
-
-                case TableNames.ShoppingLocations:
-                    await services.GetRequiredService<LocationFunctions>().RefreshShoppingLocationCacheAsync(change.RecordId);
-                    break;
-
-                case TableNames.ShoppingLists:
-                    await services.GetRequiredService<ShoppingListFunctions>().RefreshShoppingListCacheAsync(change.RecordId);
-                    break;
-
-                case TableNames.ShoppingListItems:
-                    await services.GetRequiredService<ShoppingListFunctions>().RefreshShoppingListItemCacheAsync(change.RecordId);
-                    break;
-
-                case TableNames.Activities:
-                    await services.GetRequiredService<ActivityFunctions>().RefreshActivityCacheAsync(change.RecordId);
-                    break;
-
-                case TableNames.FamilyExternalCalendars:
-                    // No in-memory cache for external calendars; data read directly from DB.
-                    Log.Debug("FamilyExternalCalendars change recorded (id: {RecordId})", change.RecordId);
-                    break;
-
-                default:
-                    Log.Warning($"Unknown table name in TableRecordChanges: {change.TableName}");
-                    break;
-            }
-        }
+        /// <remarks>
+        /// The table-to-cache mapping lives in <see cref="EntityCacheRefresher"/> because this is no
+        /// longer the only caller: <see cref="Infrastructure.Caching.CacheWriteThrough"/> applies the
+        /// same refresh in-process, on the commit that changed the row. This path remains the
+        /// cross-instance one - it is how an instance learns about a write another one made - and the
+        /// catch-up for a write-through refresh that failed.
+        /// </remarks>
+        private static Task ProcessSingleChangeAsync(TableRecordChange change, IServiceProvider services)
+            => EntityCacheRefresher.RefreshAsync(change.TableName, change.RecordId, services);
     }
 }

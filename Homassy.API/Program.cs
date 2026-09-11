@@ -4,6 +4,7 @@ using Homassy.API.Functions;
 using Homassy.API.HealthChecks;
 using Homassy.API.Hubs;
 using Homassy.API.Infrastructure;
+using Homassy.API.Infrastructure.Caching;
 using Homassy.API.Middleware;
 using Homassy.API.Models.ApplicationSettings;
 using Homassy.API.Models.HealthCheck;
@@ -57,8 +58,20 @@ try
     // The scoped registration stays for the consumers that legitimately want the ambient
     // context — startup trigger initialisation and the integration tests. Registering both
     // requires the options to be a singleton, which is what AddDbContextFactory installs.
-    Action<DbContextOptionsBuilder> configureDbContext = options =>
-        options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection"));
+    //
+    // Write-through cache refresh (see CacheWriteThrough): interceptors are the one place every
+    // write passes through, which is what keeps this off the ~110 individual save sites. Singletons,
+    // because the options they are attached to are singletons.
+    builder.Services.AddSingleton<CacheWriteThrough>();
+    builder.Services.AddSingleton<CacheWriteThroughSaveInterceptor>();
+    builder.Services.AddSingleton<CacheWriteThroughTransactionInterceptor>();
+
+    Action<IServiceProvider, DbContextOptionsBuilder> configureDbContext = (services, options) =>
+        options
+            .UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection"))
+            .AddInterceptors(
+                services.GetRequiredService<CacheWriteThroughSaveInterceptor>(),
+                services.GetRequiredService<CacheWriteThroughTransactionInterceptor>());
 
     builder.Services.AddDbContextFactory<HomassyDbContext>(configureDbContext);
     builder.Services.AddDbContext<HomassyDbContext>(configureDbContext, optionsLifetime: ServiceLifetime.Singleton);
