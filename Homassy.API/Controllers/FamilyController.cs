@@ -2,7 +2,9 @@
 using Homassy.API.Enums;
 using Homassy.API.Functions;
 using Homassy.API.Models.Common;
+using Homassy.API.Extensions;
 using Homassy.API.Models.Family;
+using Homassy.API.Models.ImageUpload;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
@@ -20,15 +22,18 @@ namespace Homassy.API.Controllers
         private readonly FamilyFunctions _familyFunctions;
         private readonly FamilyJoinRequestFunctions _familyJoinRequestFunctions;
         private readonly UserFunctions _userFunctions;
+        private readonly ImageFunctions _imageFunctions;
 
         public FamilyController(
             FamilyFunctions familyFunctions,
             FamilyJoinRequestFunctions familyJoinRequestFunctions,
-            UserFunctions userFunctions)
+            UserFunctions userFunctions,
+            ImageFunctions imageFunctions)
         {
             _familyFunctions = familyFunctions;
             _familyJoinRequestFunctions = familyJoinRequestFunctions;
             _userFunctions = userFunctions;
+            _imageFunctions = imageFunctions;
         }
 
         /// <summary>
@@ -187,11 +192,46 @@ namespace Homassy.API.Controllers
         }
 
         /// <summary>
-        /// Uploads a new family picture.
+        /// Serves the caller's family picture as image bytes.
+        /// </summary>
+        /// <remarks>
+        /// Bytes, not an <c>ApiResponse</c> envelope, for the same reasons the avatar endpoint
+        /// gives: a picture inside JSON cannot be cached by the browser or the service worker and
+        /// is re-downloaded with every payload that mentions the family.
+        /// <para>
+        /// There is no id in the path: a user has one family, so the session already names which
+        /// picture is being asked for, and being in that family is the whole access check. The
+        /// <c>v</c> query parameter is not read - it is the stored picture's content hash, present
+        /// so a changed picture is a changed URL.
+        /// </para>
+        /// </remarks>
+        /// <param name="size">Which rendition: <c>thumb</c> (default) or <c>full</c>.</param>
+        /// <param name="cancellationToken">Cancellation token.</param>
+        [HttpGet("picture")]
+        [MapToApiVersion(1.0)]
+        [ProducesResponseType(typeof(FileContentResult), StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status304NotModified)]
+        [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status404NotFound)]
+        public async Task<IActionResult> GetFamilyPicture(
+            [FromQuery] ImageVariant size = ImageVariant.Thumb,
+            CancellationToken cancellationToken = default)
+        {
+            var image = await _imageFunctions.GetFamilyPictureAsync(size, this.AcceptsWebp(), cancellationToken);
+
+            if (image == null)
+            {
+                return NotFound(ApiResponse.ErrorResponse(ErrorCodes.FamilyNoPicture));
+            }
+
+            return this.CacheableImage(image);
+        }
+
+        /// <summary>
+        /// Uploads a new family picture, replacing whatever the family had.
         /// </summary>
         [HttpPost("picture")]
         [MapToApiVersion(1.0)]
-        [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status200OK)]
+        [ProducesResponseType(typeof(ApiResponse<FamilyImageInfo>), StatusCodes.Status200OK)]
         [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status400BadRequest)]
         public async Task<IActionResult> UploadFamilyPicture([FromBody] UploadFamilyPictureRequest request, CancellationToken cancellationToken)
         {
@@ -200,8 +240,8 @@ namespace Homassy.API.Controllers
                 return BadRequest(ApiResponse.ErrorResponse(ErrorCodes.ValidationInvalidRequest));
             }
 
-            await _familyFunctions.UploadFamilyPictureAsync(request.FamilyPictureBase64, cancellationToken);
-            return Ok(ApiResponse.SuccessResponse());
+            var imageInfo = await _imageFunctions.UploadFamilyPictureAsync(request, cancellationToken);
+            return Ok(ApiResponse<FamilyImageInfo>.SuccessResponse(imageInfo));
         }
 
         /// <summary>
@@ -212,7 +252,7 @@ namespace Homassy.API.Controllers
         [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status200OK)]
         public async Task<IActionResult> DeleteFamilyPicture(CancellationToken cancellationToken)
         {
-            await _familyFunctions.DeleteFamilyPictureAsync(cancellationToken);
+            await _imageFunctions.DeleteFamilyPictureAsync(cancellationToken);
             return Ok(ApiResponse.SuccessResponse());
         }
     }

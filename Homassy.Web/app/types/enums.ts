@@ -100,6 +100,26 @@ export enum ImageFormat {
   WebP = 2
 }
 
+/**
+ * What a family chat message carries. Mirrors `Homassy.API.Enums.FamilyChatMessageKind`.
+ *
+ * Numeric, like every other enum the API exchanges: there is no `JsonStringEnumConverter`
+ * registered, so enums are numbers on the wire in both directions. A string union here reads
+ * nicely and matches nothing the server ever sends or accepts.
+ */
+export enum FamilyChatMessageKind {
+  Text = 0,
+  Image = 1
+}
+
+/** What a chat message can point at. Mirrors `Homassy.API.Enums.FamilyChatReferenceKind`. */
+export enum FamilyChatReferenceKind {
+  Product = 0,
+  ShoppingLocation = 1,
+  StorageLocation = 2,
+  ShoppingList = 3
+}
+
 export enum SelectValueType {
   ShoppingLocation = 0,
   StorageLocation = 1,
@@ -109,7 +129,9 @@ export enum SelectValueType {
   Languages = 5,
   Currencies = 6,
   TimeZones = 7,
-  ProductCategory = 8
+  ProductCategory = 8,
+  /** Every product in the catalogue, not only the ones the family has stock of. */
+  ProductCatalog = 9
 }
 
 export enum BarcodeFormat {

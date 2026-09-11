@@ -757,13 +757,13 @@ public class FamilyChatControllerTests : IClassFixture<HomassyWebApplicationFact
     }
 
     /// <summary>
-    /// Creates a product the caller can actually reference, and returns its public id.
+    /// Creates a product the caller can reference, and returns its public id.
     /// </summary>
     /// <remarks>
-    /// The inventory item is not incidental: `SelectValueType.Product` lists the products a user
-    /// has stock of, which is the same list every product picker in the app shows - and the same
-    /// list a chat reference is validated against. A product with no inventory item is in nobody's
-    /// picker, so it is not something a message can point at either.
+    /// It gets no inventory item, and that is the point: a chat reference is validated against
+    /// `SelectValueType.ProductCatalog` (everything that exists), not `SelectValueType.Product`
+    /// (what this user has stock of). Pointing at a product you are out of is the commonest
+    /// thing a family chat does with one.
     /// </remarks>
     private async Task<Guid> CreateProductAsync(string name)
     {
@@ -775,14 +775,9 @@ public class FamilyChatControllerTests : IClassFixture<HomassyWebApplicationFact
 
         var parsed = await response.Content.ReadFromJsonAsync<ApiResponse<ProductInfo>>();
         Assert.NotNull(parsed?.Data);
-        var publicId = parsed!.Data!.PublicId;
-
-        var stock = await _client.PostAsJsonAsync(
-            "/api/v1.0/product/inventory/quick",
-            new QuickAddInventoryItemRequest { ProductPublicId = publicId, Quantity = 1 });
-        Assert.Equal(HttpStatusCode.OK, stock.StatusCode);
-
-        return publicId;
+        // Deliberately no stock: a reference resolves against the whole catalogue, so a product
+        // nobody has at home is exactly the one "buy this" points at.
+        return parsed!.Data!.PublicId;
     }
 
     /// <summary>

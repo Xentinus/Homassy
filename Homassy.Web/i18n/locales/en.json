@@ -895,6 +895,7 @@
     "FAMILY-0005": "You already have a pending join request.",
     "FAMILY-0006": "Join request not found.",
     "FAMILY-0007": "This join request does not belong to your family.",
+    "FAMILY-0008": "This family has no picture.",
     "PRODUCT-0001": "Product not found.",
     "PRODUCT-0002": "Access to this product is denied.",
     "PRODUCT-0003": "Inventory item not found.",
@@ -1195,6 +1196,13 @@
       "lastSeen": "Last seen",
       "infoSection": "Family Information",
       "infoDescription": "Family name, description, and share code",
+      "picture": {
+        "add": "Add a family picture",
+        "change": "Change the family picture",
+        "remove": "Remove picture",
+        "updated": "Family picture updated",
+        "removed": "Family picture removed"
+      },
       "joinRequests": {
         "title": "Join Requests",
         "description": "Pending requests to join your family",

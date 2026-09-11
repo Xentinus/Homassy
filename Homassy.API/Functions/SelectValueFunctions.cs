@@ -35,6 +35,7 @@ namespace Homassy.API.Functions
                 SelectValueType.ShoppingLocation => GetShoppingLocationSelectValues(userId.Value, familyId),
                 SelectValueType.StorageLocation => GetStorageLocationSelectValues(userId.Value, familyId),
                 SelectValueType.Product => GetProductSelectValues(userId.Value, familyId),
+                SelectValueType.ProductCatalog => GetProductCatalogSelectValues(),
                 SelectValueType.ProductInventoryItem => GetProductInventoryItemSelectValues(userId.Value, familyId),
                 SelectValueType.ShoppingList => GetShoppingListSelectValues(userId.Value, familyId),
                 SelectValueType.Languages => GetLanguagesSelectValues(),
@@ -79,6 +80,21 @@ namespace Homassy.API.Functions
         {
             var productFunctions = new ProductFunctions(_runtime);
             var products = productFunctions.GetProductsByUserAndFamily(userId, familyId);
+
+            return products
+                .Select(p => new SelectValue
+                {
+                    PublicId = p.PublicId,
+                    Text = $"{p.Brand} - {p.Name}"
+                })
+                .OrderBy(s => s.Text)
+                .ToList();
+        }
+
+        private List<SelectValue> GetProductCatalogSelectValues()
+        {
+            var productFunctions = new ProductFunctions(_runtime);
+            var products = productFunctions.GetCatalogProducts();
 
             return products
                 .Select(p => new SelectValue

@@ -29,6 +29,7 @@ public static class ErrorCodes
     public const string FamilyJoinRequestPending = "FAMILY-0005";
     public const string FamilyJoinRequestNotFound = "FAMILY-0006";
     public const string FamilyJoinRequestAccessDenied = "FAMILY-0007";
+    public const string FamilyNoPicture = "FAMILY-0008";
     #endregion
 
     #region Product Errors (PRODUCT-0xxx)

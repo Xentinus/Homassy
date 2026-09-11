@@ -2,6 +2,7 @@ using System.Net;
 using System.Net.Http.Json;
 using Homassy.API.Models.Common;
 using Homassy.API.Models.Family;
+using Homassy.API.Models.ImageUpload;
 using Homassy.Tests.Infrastructure;
 using Xunit.Abstractions;
 
@@ -418,6 +419,113 @@ public class FamilyControllerTests : IClassFixture<HomassyWebApplicationFactory>
             _authHelper.ClearAuthToken();
             if (ownerEmail != null) await _authHelper.CleanupUserAsync(ownerEmail);
             if (joinerEmail != null) await _authHelper.CleanupUserAsync(joinerEmail);
+        }
+    }
+    #endregion
+
+    #region Family Picture Tests
+    [Fact]
+    public async Task GetFamilyPicture_WithoutToken_ReturnsUnauthorized()
+    {
+        var response = await _client.GetAsync("/api/v1.0/family/picture");
+
+        _output.WriteLine($"Status: {response.StatusCode}");
+
+        Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task UploadAndDeleteFamilyPicture_FullFlow_Succeeds()
+    {
+        string? testEmail = null;
+        try
+        {
+            var (email, auth) = await _authHelper.CreateAndAuthenticateUserAsync("family-picture");
+            testEmail = email;
+            _authHelper.SetAuthToken(auth.AccessToken);
+
+            var createResponse = await _client.PostAsJsonAsync(
+                "/api/v1.0/family/create",
+                new CreateFamilyRequest { Name = "Picture Family" });
+            Assert.Equal(HttpStatusCode.OK, createResponse.StatusCode);
+
+            // A family with no picture has nothing to serve, and says so rather than 500ing.
+            var missing = await _client.GetAsync("/api/v1.0/family/picture");
+            Assert.Equal(HttpStatusCode.NotFound, missing.StatusCode);
+
+            var uploadResponse = await _client.PostAsJsonAsync(
+                "/api/v1.0/family/picture",
+                new UploadFamilyPictureRequest { ImageBase64 = TestImages.PngBase64() });
+            var uploadBody = await uploadResponse.Content.ReadAsStringAsync();
+
+            _output.WriteLine($"Upload status: {uploadResponse.StatusCode}");
+            _output.WriteLine($"Upload response: {uploadBody}");
+            Assert.Equal(HttpStatusCode.OK, uploadResponse.StatusCode);
+
+            var uploaded = await uploadResponse.Content.ReadFromJsonAsync<ApiResponse<FamilyImageInfo>>();
+            Assert.NotNull(uploaded?.Data);
+            Assert.Contains("/picture?", uploaded!.Data!.FamilyPictureUrl);
+            Assert.Contains("v=", uploaded.Data.FamilyPictureUrl);
+
+            // The family payload carries the URL, never the bytes - the point of the separate
+            // table, and an assertion a base64 column would have failed.
+            var family = await _client.GetFromJsonAsync<ApiResponse<FamilyDetailsResponse>>("/api/v1.0/family");
+            var pictureUrl = family!.Data!.FamilyPictureUrl;
+            Assert.NotNull(pictureUrl);
+            Assert.Contains("v=", pictureUrl);
+
+            var imageResponse = await _client.GetAsync(pictureUrl);
+            Assert.Equal(HttpStatusCode.OK, imageResponse.StatusCode);
+            Assert.StartsWith("image/", imageResponse.Content.Headers.ContentType?.MediaType);
+            Assert.NotEmpty(await imageResponse.Content.ReadAsByteArrayAsync());
+
+            var etag = imageResponse.Headers.ETag;
+            Assert.NotNull(etag);
+            Assert.True(imageResponse.Headers.CacheControl?.Private);
+            // Answered from the thumbnail generated on upload, not by falling back to the
+            // full-size image.
+            Assert.Contains("thumb", etag!.Tag);
+
+            var conditional = new HttpRequestMessage(HttpMethod.Get, pictureUrl);
+            conditional.Headers.IfNoneMatch.Add(etag);
+            var notModified = await _client.SendAsync(conditional);
+            Assert.Equal(HttpStatusCode.NotModified, notModified.StatusCode);
+
+            var deleteResponse = await _client.DeleteAsync("/api/v1.0/family/picture");
+            Assert.Equal(HttpStatusCode.OK, deleteResponse.StatusCode);
+
+            var afterDelete = await _client.GetAsync("/api/v1.0/family/picture");
+            Assert.Equal(HttpStatusCode.NotFound, afterDelete.StatusCode);
+        }
+        finally
+        {
+            _authHelper.ClearAuthToken();
+            if (testEmail != null) await _authHelper.CleanupUserAsync(testEmail);
+        }
+    }
+
+    [Fact]
+    public async Task UploadFamilyPicture_WithoutFamily_ReturnsNotFound()
+    {
+        string? testEmail = null;
+        try
+        {
+            var (email, auth) = await _authHelper.CreateAndAuthenticateUserAsync("picture-nofamily");
+            testEmail = email;
+            _authHelper.SetAuthToken(auth.AccessToken);
+
+            var response = await _client.PostAsJsonAsync(
+                "/api/v1.0/family/picture",
+                new UploadFamilyPictureRequest { ImageBase64 = TestImages.PngBase64() });
+
+            _output.WriteLine($"Status: {response.StatusCode}");
+
+            Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
+        }
+        finally
+        {
+            _authHelper.ClearAuthToken();
+            if (testEmail != null) await _authHelper.CleanupUserAsync(testEmail);
         }
     }
     #endregion

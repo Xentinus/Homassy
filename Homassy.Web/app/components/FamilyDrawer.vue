@@ -26,14 +26,69 @@
         </div>
 
         <div class="flex items-center gap-4">
-          <div v-if="family.familyPictureBase64">
-            <UAvatar :src="`data:image/jpeg;base64,${family.familyPictureBase64}`" :alt="family.name" class="h-16 w-16" />
-          </div>
-          <div class="flex-1">
+          <!-- One picker for camera and gallery, like the chat composer: `accept="image/*"` on a
+               phone offers both, so a separate "take a photo" button would be a second control for
+               the same thing. -->
+          <input
+            ref="pictureInput"
+            type="file"
+            accept="image/*"
+            class="hidden"
+            @change="onPicturePicked"
+          >
+
+          <button
+            type="button"
+            class="relative h-16 w-16 shrink-0 overflow-hidden rounded-full bg-elevated ring-1 ring-default transition-opacity disabled:opacity-60"
+            :aria-label="family.familyPictureUrl ? t('profile.family.picture.change') : t('profile.family.picture.add')"
+            :disabled="isPictureBusy"
+            @click="pictureInput?.click()"
+          >
+            <img
+              v-if="familyPictureSrc"
+              :src="familyPictureSrc"
+              :alt="family.name"
+              class="h-full w-full object-cover"
+              crossorigin="use-credentials"
+            >
+            <span v-else class="flex h-full w-full items-center justify-center">
+              <UIcon name="i-lucide-house" class="text-2xl text-dimmed" />
+            </span>
+
+            <!-- The affordance lives on the picture itself: there is no second row of buttons to
+                 find, and the same tap target adds a picture and replaces one. -->
+            <span class="absolute inset-x-0 bottom-0 flex items-center justify-center bg-black/50 py-0.5">
+              <UIcon :name="isPictureBusy ? 'i-lucide-loader-circle' : 'i-lucide-camera'" class="text-sm text-white" :class="isPictureBusy ? 'animate-spin' : ''" />
+            </span>
+          </button>
+
+          <div class="flex-1 min-w-0">
             <div class="text-lg font-semibold">{{ family.name }}</div>
             <div v-if="family.description" class="text-sm text-gray-500 dark:text-gray-400">{{ family.description }}</div>
+            <UButton
+              v-if="family.familyPictureUrl"
+              color="neutral"
+              variant="link"
+              size="xs"
+              class="mt-1 px-0"
+              :disabled="isPictureBusy"
+              @click="onRemovePicture"
+            >
+              {{ t('profile.family.picture.remove') }}
+            </UButton>
           </div>
         </div>
+
+        <!-- The crop screen is also the preview, exactly as in the chat composer - there is no
+             second confirm step to build. Square, because every surface that shows the family
+             picture shows it in a circle. -->
+        <ImageCropper
+          :is-open="cropperOpen"
+          :image-src="pickedPictureSrc"
+          :default-aspect-ratio="1"
+          @close="closeCropper"
+          @cropped="onPictureCropped"
+        />
 
         <div class="pt-2">
           <div class="text-xs text-gray-500 dark:text-gray-400 mb-1">{{ t('profile.family.codeLabel') }}</div>
@@ -197,8 +252,10 @@
 </template>
 
 <script setup lang="ts">
-import { ref, watch } from 'vue'
+import { computed, ref, watch } from 'vue'
 import { useFamilyApi } from '~/composables/api/useFamilyApi'
+import ImageCropper from '~/components/ImageCropper.vue'
+import { base64ToBlob, blobToBase64, compressImage, extractBase64 } from '~/composables/useImageCrop'
 import type { FamilyDetailsResponse, FamilyMemberResponse, MyJoinRequestResponse, FamilyJoinRequestResponse } from '~/types/family'
 
 const props = defineProps<{ open: boolean }>()
@@ -214,9 +271,12 @@ const {
   cancelMyJoinRequest,
   getJoinRequests,
   approveJoinRequest,
-  rejectJoinRequest
+  rejectJoinRequest,
+  uploadFamilyPicture,
+  deleteFamilyPicture
 } = useFamilyApi()
 const { t } = useI18n()
+const { mediaUrl } = useMediaUrl()
 const toast = useToast()
 
 const family = ref<FamilyDetailsResponse | null>(null)
@@ -233,9 +293,90 @@ const familyName = ref('')
 const familyDescription = ref('')
 const shareCode = ref('')
 
+// --- Family picture --------------------------------------------------------
+
+const pictureInput = ref<HTMLInputElement | null>(null)
+const pickedPictureSrc = ref('')
+const cropperOpen = ref(false)
+const isPictureBusy = ref(false)
+/**
+ * What the picture shows right now: the freshly uploaded `data:` URL while one is in flight,
+ * otherwise the served path. The optimistic preview is what keeps the circle from going empty
+ * between the upload finishing and the family being re-fetched.
+ */
+const localPicturePreview = ref<string | null>(null)
+const familyPictureSrc = computed(() =>
+  localPicturePreview.value ?? mediaUrl(family.value?.familyPictureUrl) ?? null
+)
+
+const onPicturePicked = async (event: Event): Promise<void> => {
+  const input = event.target as HTMLInputElement
+  const file = input.files?.[0]
+  // Reset immediately, so picking the same file twice in a row still fires `change`.
+  input.value = ''
+
+  if (!file) return
+
+  pickedPictureSrc.value = await blobToBase64(file)
+  cropperOpen.value = true
+}
+
+const closeCropper = (): void => {
+  cropperOpen.value = false
+  pickedPictureSrc.value = ''
+}
+
+/**
+ * The cropper hands back a `data:` URL. It is compressed before it goes on the wire for the same
+ * reason the chat's pictures are: a phone photo is several megabytes, and the server stores a
+ * 400px rendition of it either way.
+ */
+const onPictureCropped = async (dataUrl: string): Promise<void> => {
+  closeCropper()
+  isPictureBusy.value = true
+
+  try {
+    let payload = dataUrl
+    try {
+      payload = await blobToBase64(await compressImage(await base64ToBlob(dataUrl), { maxSizePx: 800, maxSizeMB: 1 }))
+    } catch {
+      // Compression is an optimisation, not a gate: the server validates and resizes either way.
+    }
+
+    const response = await uploadFamilyPicture({ imageBase64: extractBase64(payload) })
+    if (!response.success) return
+
+    localPicturePreview.value = payload
+    if (family.value) {
+      family.value = { ...family.value, familyPictureUrl: response.data?.familyPictureUrl ?? family.value.familyPictureUrl }
+    }
+    toast.add({ title: t('profile.family.picture.updated'), color: 'success', icon: 'i-heroicons-check-circle' })
+  } finally {
+    isPictureBusy.value = false
+  }
+}
+
+const onRemovePicture = async (): Promise<void> => {
+  isPictureBusy.value = true
+  try {
+    const response = await deleteFamilyPicture()
+    if (!response.success) return
+
+    localPicturePreview.value = null
+    if (family.value) {
+      family.value = { ...family.value, familyPictureUrl: null }
+    }
+    toast.add({ title: t('profile.family.picture.removed'), color: 'success', icon: 'i-heroicons-check-circle' })
+  } finally {
+    isPictureBusy.value = false
+  }
+}
+
 
 async function fetchFamily() {
   loading.value = true
+  // A preview belongs to the family that was on screen; re-fetching may be a different one.
+  localPicturePreview.value = null
   joinRequests.value = []
   myRequest.value = null
   mode.value = null

@@ -64,9 +64,8 @@
 
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
-import { SelectValueType } from '~/types/enums'
+import { FamilyChatReferenceKind, SelectValueType } from '~/types/enums'
 import type { SelectValue } from '~/types/selectValue'
-import type { FamilyChatReferenceKind } from '~/types/familyChat'
 
 /**
  * Picks something in the app to attach to a chat message: a product, a shop, a storage place, a
@@ -94,13 +93,13 @@ const { t } = useI18n()
 const { getSelectValues } = useSelectValueApi()
 
 const KINDS: Array<{ value: FamilyChatReferenceKind, type: SelectValueType, icon: string, labelKey: string }> = [
-  { value: 'Product', type: SelectValueType.Product, icon: 'i-lucide-package', labelKey: 'familyChat.reference.kind.product' },
-  { value: 'ShoppingLocation', type: SelectValueType.ShoppingLocation, icon: 'i-lucide-store', labelKey: 'familyChat.reference.kind.shoppingLocation' },
-  { value: 'StorageLocation', type: SelectValueType.StorageLocation, icon: 'i-lucide-archive', labelKey: 'familyChat.reference.kind.storageLocation' },
-  { value: 'ShoppingList', type: SelectValueType.ShoppingList, icon: 'i-lucide-list-checks', labelKey: 'familyChat.reference.kind.shoppingList' }
+  { value: FamilyChatReferenceKind.Product, type: SelectValueType.ProductCatalog, icon: 'i-lucide-package', labelKey: 'familyChat.reference.kind.product' },
+  { value: FamilyChatReferenceKind.ShoppingLocation, type: SelectValueType.ShoppingLocation, icon: 'i-lucide-store', labelKey: 'familyChat.reference.kind.shoppingLocation' },
+  { value: FamilyChatReferenceKind.StorageLocation, type: SelectValueType.StorageLocation, icon: 'i-lucide-archive', labelKey: 'familyChat.reference.kind.storageLocation' },
+  { value: FamilyChatReferenceKind.ShoppingList, type: SelectValueType.ShoppingList, icon: 'i-lucide-list-checks', labelKey: 'familyChat.reference.kind.shoppingList' }
 ]
 
-const activeKind = ref<FamilyChatReferenceKind>('Product')
+const activeKind = ref<FamilyChatReferenceKind>(FamilyChatReferenceKind.Product)
 const search = ref('')
 const loading = ref(false)
 /** One cached list per kind — see the component's own note on why they are not re-fetched. */

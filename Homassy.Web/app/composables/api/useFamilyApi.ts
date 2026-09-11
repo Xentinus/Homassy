@@ -8,6 +8,7 @@ import type {
   UpdateFamilyRequest,
   JoinFamilyRequest,
   UploadFamilyPictureRequest,
+  FamilyImageInfo,
   FamilyMemberResponse,
   MyJoinRequestResponse,
   FamilyJoinRequestResponse
@@ -129,7 +130,7 @@ export const useFamilyApi = () => {
    * Upload family picture
    */
   const uploadFamilyPicture = async (request: UploadFamilyPictureRequest) => {
-    return await client.post(
+    return await client.post<FamilyImageInfo>(
       '/api/v1/Family/picture',
       request
     )

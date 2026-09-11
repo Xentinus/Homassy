@@ -102,7 +102,8 @@ import { computed, nextTick, ref, watch } from 'vue'
 import ImageCropper from '~/components/ImageCropper.vue'
 import FamilyChatReferencePicker from '~/components/FamilyChatReferencePicker.vue'
 import { base64ToBlob, blobToBase64, compressImage } from '~/composables/useImageCrop'
-import type { FamilyChatReferenceDraft, FamilyChatReferenceKind } from '~/types/familyChat'
+import type { FamilyChatReferenceDraft } from '~/types/familyChat'
+import { FamilyChatReferenceKind } from '~/types/enums'
 
 /**
  * The chat's input row (#146).
@@ -142,10 +143,10 @@ const MAX_REFERENCES = 5
 const pending = ref<FamilyChatReferenceDraft[]>([])
 
 const REFERENCE_ICONS: Record<FamilyChatReferenceKind, string> = {
-  Product: 'i-lucide-package',
-  ShoppingLocation: 'i-lucide-store',
-  StorageLocation: 'i-lucide-archive',
-  ShoppingList: 'i-lucide-list-checks'
+  [FamilyChatReferenceKind.Product]: 'i-lucide-package',
+  [FamilyChatReferenceKind.ShoppingLocation]: 'i-lucide-store',
+  [FamilyChatReferenceKind.StorageLocation]: 'i-lucide-archive',
+  [FamilyChatReferenceKind.ShoppingList]: 'i-lucide-list-checks'
 }
 
 const referenceIcon = (kind: FamilyChatReferenceKind): string => REFERENCE_ICONS[kind] ?? 'i-lucide-paperclip'

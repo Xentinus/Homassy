@@ -16,6 +16,7 @@
  *   request even left, so without something to match on they would see it twice.
  */
 import { computed, ref } from 'vue'
+import { FamilyChatMessageKind } from '~/types/enums'
 import { useAuthStore } from '~/stores/auth'
 import type {
   FamilyChatActiveMember,
@@ -602,7 +603,7 @@ export const useFamilyChat = () => {
     const correlationId = newCorrelationId()
     const optimistic: FamilyChatStreamMessage = {
       publicId: correlationId,
-      kind: 'Text',
+      kind: FamilyChatMessageKind.Text,
       body: text || null,
       // Rendered from what the picker offered until the committed message replaces them with the
       // server's own labels - which is also when they stop being assumed to resolve.
@@ -664,7 +665,7 @@ export const useFamilyChat = () => {
     const correlationId = newCorrelationId()
     const optimistic: FamilyChatStreamMessage = {
       publicId: correlationId,
-      kind: 'Image',
+      kind: FamilyChatMessageKind.Image,
       body: caption?.trim() || null,
       sentAt: new Date().toISOString(),
       sender: {
@@ -715,7 +716,7 @@ export const useFamilyChat = () => {
     const index = messages.value.findIndex(m => m.publicId === message.publicId)
     if (index >= 0) messages.value.splice(index, 1)
 
-    if (message.kind === 'Image' && message.localPreview) {
+    if (message.kind === FamilyChatMessageKind.Image && message.localPreview) {
       const base64 = message.localPreview.includes(',')
         ? message.localPreview.split(',')[1]!
         : message.localPreview

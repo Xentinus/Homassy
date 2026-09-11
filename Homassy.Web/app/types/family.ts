@@ -11,13 +11,13 @@ export interface FamilyDetailsResponse {
   name: string
   description?: string
   shareCode: string
-  familyPictureBase64?: string
+  /** Versioned path to the family picture, or null/absent when it has none. Never bytes. */
+  familyPictureUrl?: string | null
 }
 
 export interface CreateFamilyRequest {
   name: string
   description?: string
-  familyPictureBase64?: string
 }
 
 export interface UpdateFamilyRequest {
@@ -30,7 +30,16 @@ export interface JoinFamilyRequest {
 }
 
 export interface UploadFamilyPictureRequest {
-  familyPictureBase64: string
+  imageBase64: string
+}
+
+/** What the upload answers with: the new picture already addressed by its own version. */
+export interface FamilyImageInfo {
+  familyPictureUrl: string
+  format: number
+  width: number
+  height: number
+  fileSizeBytes: number
 }
 
 export interface FamilyMemberResponse {

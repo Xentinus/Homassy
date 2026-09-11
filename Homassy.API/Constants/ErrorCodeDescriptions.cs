@@ -33,6 +33,7 @@ public static class ErrorCodeDescriptions
         [ErrorCodes.FamilyJoinRequestPending] = "You already have a pending join request. Withdraw it before sending a new one.",
         [ErrorCodes.FamilyJoinRequestNotFound] = "Join request not found.",
         [ErrorCodes.FamilyJoinRequestAccessDenied] = "This join request does not belong to your family.",
+        [ErrorCodes.FamilyNoPicture] = "This family has no picture.",
 
         // Product Errors
         [ErrorCodes.ProductNotFound] = "Product not found.",

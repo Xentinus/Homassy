@@ -746,10 +746,15 @@ namespace Homassy.API.Functions
         /// <remarks>
         /// The mapping is what ties a chip to the picker that produced it: both sides read the same
         /// list, so "valid reference" and "thing the sender could pick" are the same statement.
+        ///
+        /// A product resolves against the whole catalogue, not against
+        /// <see cref="SelectValueType.Product"/> (what this family has stock of): the commonest
+        /// thing to say about a product in a family chat is "buy this", and that is exactly the
+        /// product nobody has at home.
         /// </remarks>
         private static SelectValueType SelectValueTypeOf(FamilyChatReferenceKind kind) => kind switch
         {
-            FamilyChatReferenceKind.Product => SelectValueType.Product,
+            FamilyChatReferenceKind.Product => SelectValueType.ProductCatalog,
             FamilyChatReferenceKind.ShoppingLocation => SelectValueType.ShoppingLocation,
             FamilyChatReferenceKind.StorageLocation => SelectValueType.StorageLocation,
             FamilyChatReferenceKind.ShoppingList => SelectValueType.ShoppingList,

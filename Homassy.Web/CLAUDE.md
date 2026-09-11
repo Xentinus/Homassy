@@ -378,6 +378,7 @@ Easy to get wrong:
 - `ProductImage` renders `object-contain`, matching the server's bounded (not cropped) product thumbnail, so nothing is clipped off a tall bottle. `UserAvatar` is the cropped-square case.
 - The category placeholder's two theme variants are **CSS**, not a computed value: the colour mode is unknown during SSR, so branching on it in script is a hydration mismatch. The hue goes in as a `--cat-hue` custom property and light/dark lightness comes from a `dark:` variant.
 - `ProductFormDrawer` keeps a single `imagePreview` src that is the stored image's URL most of the time and a `data:` URI in the moment between cropping and the upload finishing — `useMediaUrl` passes the latter through untouched.
+- **The family picture follows the same rules** (`FamilyDetailsResponse.familyPictureUrl`): set from `FamilyDrawer`, where tapping the circle picks one file (`accept="image/*"`, camera and gallery in one control), crops it square in `ImageCropper` — the crop screen *is* the preview — compresses it client-side and posts base64. The drawer holds the cropped `data:` URL as an optimistic preview until the next fetch, for the same reason `ProductFormDrawer` does. `FamilyChatBubble` renders the same URL, so the bubble and the drawer cannot show different pictures.
 
 ---
 
@@ -836,6 +837,14 @@ floats over the app (#145) and the panel it opens into (#146).
   in the app reads, which is what makes an attached reference valid by construction — the server
   validates against that same list and resolves its own label. Chips render under the message text,
   carry the target's *current* name, and only link when the target still resolves.
+  The product tab reads `SelectValueType.ProductCatalog`, not `SelectValueType.Product`: the latter
+  lists what the family has stock of, and the commonest thing to say about a product in a family
+  chat is "buy this" - which is exactly the product nobody has at home.
+- **The chat enums are numeric, like every other enum the API exchanges** (`FamilyChatMessageKind`,
+  `FamilyChatReferenceKind` in `app/types/enums.ts`). There is no `JsonStringEnumConverter`
+  registered on the API, so a string union reads nicely and matches nothing the server sends or
+  accepts - which is what made attaching a shop or a product fail, and image messages never render
+  as images.
 - **Optimistic send reconciles on a correlation id, never on content.** The sender receives their
   own `MessageCreated` broadcast like everyone else; the id the client generated before sending is
   echoed back, which is what stops the message rendering twice. A failed send stays on screen as a

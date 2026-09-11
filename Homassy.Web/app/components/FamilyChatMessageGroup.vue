@@ -40,7 +40,7 @@
           <!-- A picture (#147). The box is reserved from the stored dimensions before the bytes
                arrive, so the stream does not reflow as images load. -->
           <button
-            v-if="message.kind === 'Image' && imageSrc(message)"
+            v-if="message.kind === FamilyChatMessageKind.Image && imageSrc(message)"
             type="button"
             class="relative -mx-1 -mt-1 mb-1 block overflow-hidden rounded-xl"
             :style="{ aspectRatio: aspectRatio(message), width: '15rem', maxWidth: '100%' }"
@@ -167,7 +167,8 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
 import ImageLightbox, { type LightboxImage } from '~/components/ImageLightbox.vue'
-import type { FamilyChatReference, FamilyChatReferenceKind, FamilyChatStreamMessage } from '~/types/familyChat'
+import type { FamilyChatReference, FamilyChatStreamMessage } from '~/types/familyChat'
+import { FamilyChatMessageKind, FamilyChatReferenceKind } from '~/types/enums'
 import type { SenderRun } from '~/utils/familyChat'
 import { linkifySegments, type ChatTextSegment } from '~/utils/linkify'
 
@@ -280,10 +281,10 @@ const openImage = (message: FamilyChatStreamMessage): void => {
 // --- References ------------------------------------------------------------
 
 const REFERENCE_ICONS: Record<FamilyChatReferenceKind, string> = {
-  Product: 'i-lucide-package',
-  ShoppingLocation: 'i-lucide-store',
-  StorageLocation: 'i-lucide-archive',
-  ShoppingList: 'i-lucide-list-checks'
+  [FamilyChatReferenceKind.Product]: 'i-lucide-package',
+  [FamilyChatReferenceKind.ShoppingLocation]: 'i-lucide-store',
+  [FamilyChatReferenceKind.StorageLocation]: 'i-lucide-archive',
+  [FamilyChatReferenceKind.ShoppingList]: 'i-lucide-list-checks'
 }
 
 /**
@@ -293,10 +294,10 @@ const REFERENCE_ICONS: Record<FamilyChatReferenceKind, string> = {
  * the chip opens the screen that holds them rather than pretending each has its own route.
  */
 const REFERENCE_ROUTES: Record<FamilyChatReferenceKind, (publicId: string) => string> = {
-  Product: publicId => `/products/${publicId}`,
-  ShoppingLocation: () => '/profile/shopping-locations',
-  StorageLocation: () => '/profile/storage-locations',
-  ShoppingList: () => '/shopping-lists'
+  [FamilyChatReferenceKind.Product]: publicId => `/products/${publicId}`,
+  [FamilyChatReferenceKind.ShoppingLocation]: () => '/profile/shopping-locations',
+  [FamilyChatReferenceKind.StorageLocation]: () => '/profile/storage-locations',
+  [FamilyChatReferenceKind.ShoppingList]: () => '/shopping-lists'
 }
 
 const referenceIcon = (kind: FamilyChatReferenceKind): string =>

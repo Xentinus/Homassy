@@ -79,7 +79,8 @@ Manages family operations (all endpoints require `[Authorize]`).
 | POST | `/join-requests/{publicId}/approve` | Approve a pending join request (adds requester to family) |
 | POST | `/join-requests/{publicId}/reject` | Decline a pending join request |
 | POST | `/leave` | Leave family |
-| POST | `/picture` | Upload family picture (Base64) |
+| GET | `/picture` | Serve the caller's family picture as image **bytes** (`?size=thumb|full`, `?v=` version) |
+| POST | `/picture` | Upload family picture (Base64 in, a URL back) |
 | DELETE | `/picture` | Delete family picture |
 
 **Key Patterns:**
@@ -87,7 +88,10 @@ Manages family operations (all endpoints require `[Authorize]`).
 - Validation that user belongs to a family
 - Family share-code system for joining
 - **Approval-gated join requests**: joining is not immediate — a request stays `Pending` until an existing member approves or rejects it (a user may hold only one pending request at a time). Backed by `FamilyJoinRequestFunctions` and the `FamilyJoinRequest` entity.
-- Base64 image upload for family pictures
+- **The family picture is served, not embedded**, like avatars and product images: `FamilyDetailsResponse` carries `FamilyPictureUrl`, the bytes live in `FamilyPictures` (a `StoredImageEntity` table) and `Families` keeps only `FamilyPictureVersion`. It replaced a base64 column on `Families` - the one row the app holds in a process-wide cache in full, so the picture was resident in memory for every family and rode along in every family payload, the chat bubble's included
+- The picture endpoint takes **no id**: a user has one family, so the session names which picture is being asked for, and being in that family is the whole access check. It behaves exactly like the avatar endpoint otherwise (ETag, `private, max-age=1y, immutable`, `?size=thumb|full`, `Vary: Accept`), and a family with no picture answers **404** `FAMILY-0008`
+- Uploads go through `ImageFunctions`, not `FamilyFunctions`: validation, resizing and thumbnailing are one implementation for every picture the app stores. Processed to the avatar's bounds and square-cropped, because the family picture is rendered in circles
+- `CreateFamilyRequest` no longer takes a picture - a family is created, then given a picture, which is one path instead of two
 
 ### FamilyChatController
 
@@ -346,7 +350,8 @@ Provides dropdown/select list values for UI components (all endpoints require `[
 **Type Parameter Values:**
 - `ShoppingLocation` - User's shopping locations
 - `StorageLocation` - User's storage locations
-- `Product` - User's products
+- `Product` - Products the user has stock of
+- `ProductCatalog` - Every product in the catalogue, stock or not
 - `ProductInventoryItem` - User's inventory items
 - `ShoppingList` - User's shopping lists
 

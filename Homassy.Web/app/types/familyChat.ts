@@ -5,7 +5,9 @@
  * such, because a reader tracking a field back to the API needs to know which ones are not there.
  */
 
-export type FamilyChatMessageKind = 'Text' | 'Image'
+import type { FamilyChatMessageKind, FamilyChatReferenceKind } from '~/types/enums'
+
+export type { FamilyChatMessageKind, FamilyChatReferenceKind }
 
 /** Who sent a message — public id, a name, an avatar path and the identity colour. Never bytes, never an internal id. */
 export interface FamilyChatSender {
@@ -15,12 +17,6 @@ export interface FamilyChatSender {
   /** Chosen identity-colour palette key, or null/absent for the deterministic pick (#114). */
   identityColor?: string | null
 }
-
-/**
- * What a chat message can point at. Mirrors the API's `FamilyChatReferenceKind`, and each member
- * maps onto the `SelectValueType` the picker reads from.
- */
-export type FamilyChatReferenceKind = 'Product' | 'ShoppingLocation' | 'StorageLocation' | 'ShoppingList'
 
 /** Something a message points at, rendered as a chip under the text. */
 export interface FamilyChatReference {

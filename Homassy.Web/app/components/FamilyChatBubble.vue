@@ -40,6 +40,7 @@
             :src="familyPicture"
             :alt="familyName"
             class="h-full w-full object-cover"
+            crossorigin="use-credentials"
             draggable="false"
           >
           <span v-else class="text-lg font-semibold leading-none">{{ initials }}</span>
@@ -114,6 +115,7 @@ import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 
 const { t } = useI18n()
 const { getFamily } = useFamilyApi()
+const { mediaUrl } = useMediaUrl()
 const haptics = useHaptics()
 const { overlayOpen } = useOverlayPresence()
 // Only the typing set is read here; the bubble never joins the hub itself. While the panel has
@@ -593,9 +595,7 @@ const loadFamily = async (): Promise<void> => {
     if (response.success && response.data) {
       hasFamily.value = true
       familyName.value = response.data.name
-      familyPicture.value = response.data.familyPictureBase64
-        ? `data:image/jpeg;base64,${response.data.familyPictureBase64}`
-        : null
+      familyPicture.value = mediaUrl(response.data.familyPictureUrl) ?? null
     } else {
       // No family is the ordinary case for a new account, not a failure: there is simply no
       // conversation to float a bubble for. `getFamily` already opts out of the error toast.
