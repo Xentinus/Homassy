@@ -17,9 +17,28 @@ namespace Homassy.API.Models.FamilyChat
         /// bought here instead by how the text is rendered - as text nodes, never <c>v-html</c>,
         /// with links the only markup derived from user input (#147).
         /// </remarks>
-        [Required]
-        [StringLength(4000, MinimumLength = 1)]
-        public required string Body { get; set; }
+        /// <remarks>
+        /// Not <c>[Required]</c> any more: a message may be nothing but attached things - "the
+        /// shop" and "the milk" with no sentence around them is a complete thought in a family
+        /// chat. Emptiness is rejected in the Functions layer, where the references are also known,
+        /// rather than by an attribute that can only see this one field.
+        /// </remarks>
+        [StringLength(4000)]
+        public string? Body { get; set; }
+
+        /// <summary>
+        /// Things in the app this message points at - a product, a shop, a storage place, a list.
+        /// </summary>
+        /// <remarks>
+        /// Capped low on purpose. A handful of chips under a sentence reads as a message; twenty
+        /// reads as a form, and the cap is also what bounds the resolution work a single send can
+        /// ask the server for.
+        /// </remarks>
+        [MaxLength(MaxReferences)]
+        public List<FamilyChatReferenceRequest>? References { get; set; }
+
+        /// <summary>How many things one message may point at.</summary>
+        public const int MaxReferences = 5;
 
         /// <summary>
         /// The sender's own id for this message, echoed back on the broadcast.

@@ -799,11 +799,28 @@ floats over the app (#145) and the panel it opens into (#146).
   open — *except its own panel*, which on mobile is a drawer and whose handle the bubble is — and
   dismissed this session. Dismissal is session-scoped with a settings row as the way back, because
   the bubble is how the chat is reached at all.
-- **The morph is two different things on the two platforms, on purpose.** Desktop gets the real
-  one: the card's `transform-origin` is the bubble's live centre, so it scales out of the circle
-  that was tapped. On mobile the panel is an `AppDrawer` — which is what buys drag-down-to-close,
-  the backdrop and the focus trap for free — and vaul owns the transform on the sheet element while
-  it animates, so the morph is applied to the sheet's *contents*, anchored at the bubble's own x.
+- **The panel comes out of the bubble, on every screen size.** Opening it snaps the bubble to its
+  nearest corner and the panel hangs off that corner — below it in the top half of the screen, above
+  it in the bottom half — with `transform-origin` at the bubble's centre so it scales out of the
+  circle that was tapped. The anchor is published as the corner the bubble is *going to*, not where
+  it is: measuring an element mid-transition would open the panel against the old position and then
+  jump it. This replaced a mobile bottom sheet, which brought `AppDrawer`'s drag-to-close, backdrop
+  and focus trap for free but always arrived from the bottom edge wherever the chat head was — so
+  Esc, the focus trap and tap-outside-to-close are implemented in the panel instead of inherited.
+- **The bubble holds the hub group, not the panel.** It joins on mount and leaves on unmount;
+  closing the panel no longer leaves the group. Everything the bubble shows about the conversation —
+  the watcher count, the typing pulse, a message arriving into the unread badge — is a live event,
+  and a client outside the group receives none of them (which is why the typing pulse never fired
+  before). Joining is **not** watching: the attention flag that suppresses notifications is still
+  only set while the panel is open and visible.
+- **The watcher count is the server's set**, never derived locally: the same flag decides whether a
+  message notifies, so a locally guessed count could tell one member that another is reading while
+  the server is sending that member a push. It is green (`emerald`, not `success` — this app aliases
+  `success` to its mocha primary, which is the bubble's own background).
+- **Attaching things**: the composer's picker reads the same `SelectValue` lists every other picker
+  in the app reads, which is what makes an attached reference valid by construction — the server
+  validates against that same list and resolves its own label. Chips render under the message text,
+  carry the target's *current* name, and only link when the target still resolves.
 - **Optimistic send reconciles on a correlation id, never on content.** The sender receives their
   own `MessageCreated` broadcast like everyone else; the id the client generated before sending is
   echoed back, which is what stops the message rendering twice. A failed send stays on screen as a

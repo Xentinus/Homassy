@@ -81,6 +81,26 @@
             </template>
           </p>
 
+          <!-- Things this message points at. Under the text, because the sentence is what was
+               said and these are what it was about. -->
+          <div v-if="message.references?.length" class="mt-1.5 flex flex-wrap gap-1">
+            <component
+              :is="reference.isAvailable ? 'button' : 'span'"
+              v-for="reference in message.references"
+              :key="reference.kind + reference.publicId"
+              :type="reference.isAvailable ? 'button' : undefined"
+              class="flex max-w-full items-center gap-1 rounded-full px-2 py-1 text-xs"
+              :class="[
+                own ? 'bg-white/15 text-white' : 'bg-default text-default',
+                reference.isAvailable ? 'cursor-pointer' : 'cursor-default opacity-70'
+              ]"
+              @click="reference.isAvailable && openReference(reference)"
+            >
+              <UIcon :name="referenceIcon(reference.kind)" class="h-3.5 w-3.5 shrink-0" />
+              <span class="truncate">{{ reference.label }}</span>
+            </component>
+          </div>
+
           <div
             class="mt-0.5 flex items-center justify-end gap-1 text-[10px] leading-none"
             :class="own ? 'text-white/70' : 'text-gray-500 dark:text-gray-400'"
@@ -147,7 +167,7 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
 import ImageLightbox, { type LightboxImage } from '~/components/ImageLightbox.vue'
-import type { FamilyChatStreamMessage } from '~/types/familyChat'
+import type { FamilyChatReference, FamilyChatReferenceKind, FamilyChatStreamMessage } from '~/types/familyChat'
 import type { SenderRun } from '~/utils/familyChat'
 import { linkifySegments, type ChatTextSegment } from '~/utils/linkify'
 
@@ -182,6 +202,7 @@ const { formatTime } = useDateFormat()
 const { accentStyle } = useMemberColor()
 const { mediaUrl } = useMediaUrl()
 const haptics = useHaptics()
+const { closePanel } = useFamilyChatBubble()
 
 const actionsOpen = ref(false)
 const actionTarget = ref<FamilyChatStreamMessage | null>(null)
@@ -254,6 +275,47 @@ const openImage = (message: FamilyChatStreamMessage): void => {
     alt: message.body || null
   }]
   lightboxOpen.value = true
+}
+
+// --- References ------------------------------------------------------------
+
+const REFERENCE_ICONS: Record<FamilyChatReferenceKind, string> = {
+  Product: 'i-lucide-package',
+  ShoppingLocation: 'i-lucide-store',
+  StorageLocation: 'i-lucide-archive',
+  ShoppingList: 'i-lucide-list-checks'
+}
+
+/**
+ * Where a chip takes you.
+ *
+ * Products have a page of their own; the other three live inside a list or a settings screen, so
+ * the chip opens the screen that holds them rather than pretending each has its own route.
+ */
+const REFERENCE_ROUTES: Record<FamilyChatReferenceKind, (publicId: string) => string> = {
+  Product: publicId => `/products/${publicId}`,
+  ShoppingLocation: () => '/profile/shopping-locations',
+  StorageLocation: () => '/profile/storage-locations',
+  ShoppingList: () => '/shopping-lists'
+}
+
+const referenceIcon = (kind: FamilyChatReferenceKind): string =>
+  REFERENCE_ICONS[kind] ?? 'i-lucide-paperclip'
+
+/**
+ * Opens what a chip points at, and closes the chat on the way.
+ *
+ * The panel floats over the page it was opened from, so leaving it up while navigating underneath
+ * would land the reader on a screen they cannot see. A chip is a request to go and look at the
+ * thing.
+ */
+const openReference = async (reference: FamilyChatReference): Promise<void> => {
+  const route = REFERENCE_ROUTES[reference.kind]
+  if (!route) return
+
+  haptics.tap()
+  closePanel()
+  await navigateTo(route(reference.publicId))
 }
 
 // --- Message actions -------------------------------------------------------

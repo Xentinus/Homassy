@@ -238,6 +238,19 @@ namespace Homassy.API.Context
                 entity.HasIndex(e => e.FamilyChatMessageId).IsUnique();
             });
 
+            // What a message points at. No navigation from the message: references are loaded per
+            // page in one batched query, and a collection on the message would invite Include()ing
+            // them row by row.
+            modelBuilder.Entity<FamilyChatMessageReference>(entity =>
+            {
+                entity.HasOne(r => r.Message)
+                    .WithMany()
+                    .HasForeignKey(r => r.FamilyChatMessageId)
+                    .OnDelete(DeleteBehavior.Cascade);
+
+                entity.HasIndex(e => e.FamilyChatMessageId);
+            });
+
             // Per-member read markers (#149). The unique index is the point: the marker is written
             // from every device the member has the chat open on, and two of them racing must
             // update one row rather than quietly create a second one that halves the unread count.
@@ -456,6 +469,7 @@ namespace Homassy.API.Context
         public DbSet<FamilyChatMessage> FamilyChatMessages { get; set; }
         public DbSet<FamilyChatImage> FamilyChatImages { get; set; }
         public DbSet<FamilyChatReadState> FamilyChatReadStates { get; set; }
+        public DbSet<FamilyChatMessageReference> FamilyChatMessageReferences { get; set; }
         public DbSet<ExternalCalendarReminderDispatch> ExternalCalendarReminderDispatches { get; set; }
         #endregion
 

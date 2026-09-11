@@ -4,6 +4,7 @@ using Homassy.API.Models.Common;
 using Homassy.API.Models.Family;
 using Homassy.API.Enums;
 using Homassy.API.Models.FamilyChat;
+using Homassy.API.Models.Product;
 using Homassy.Tests.Infrastructure;
 using SixLabors.ImageSharp;
 using SixLabors.ImageSharp.PixelFormats;
@@ -567,6 +568,165 @@ public class FamilyChatControllerTests : IClassFixture<HomassyWebApplicationFact
 
     #endregion
 
+    #region References
+
+    [Fact]
+    public async Task SendMessage_WithAProductReference_AnswersWithAResolvedChip()
+    {
+        string? testEmail = null;
+        try
+        {
+            var (email, auth) = await _authHelper.CreateAndAuthenticateUserAsync("chat-ref");
+            testEmail = email;
+            _authHelper.SetAuthToken(auth.AccessToken);
+            await CreateFamilyAsync("Reference Family");
+
+            var product = await CreateProductAsync("Tejföl");
+
+            var response = await _client.PostAsJsonAsync(
+                "/api/v1.0/familychat/messages",
+                new SendFamilyChatMessageRequest
+                {
+                    Body = "vegyél ilyet",
+                    References =
+                    [
+                        new FamilyChatReferenceRequest
+                        {
+                            Kind = FamilyChatReferenceKind.Product,
+                            PublicId = product
+                        }
+                    ]
+                });
+
+            Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+
+            var parsed = await response.Content.ReadFromJsonAsync<ApiResponse<FamilyChatMessageInfo>>();
+            var reference = Assert.Single(parsed!.Data!.References);
+
+            _output.WriteLine($"Reference: {reference.Kind} {reference.Label} available={reference.IsAvailable}");
+            Assert.Equal(FamilyChatReferenceKind.Product, reference.Kind);
+            Assert.Equal(product, reference.PublicId);
+            // The label is the server's, resolved from what this sender may see - never the
+            // client's word for it.
+            Assert.Equal(ProductLabel("Tejföl"), reference.Label);
+            Assert.True(reference.IsAvailable);
+        }
+        finally
+        {
+            _authHelper.ClearAuthToken();
+            if (testEmail != null) await _authHelper.CleanupUserAsync(testEmail);
+        }
+    }
+
+    [Fact]
+    public async Task SendMessage_WithOnlyAReference_IsAccepted()
+    {
+        string? testEmail = null;
+        try
+        {
+            var (email, auth) = await _authHelper.CreateAndAuthenticateUserAsync("chat-ref-only");
+            testEmail = email;
+            _authHelper.SetAuthToken(auth.AccessToken);
+            await CreateFamilyAsync("Wordless Family");
+
+            var product = await CreateProductAsync("Kenyér");
+
+            // No body at all: pointing at the thing is the whole message.
+            var response = await _client.PostAsJsonAsync(
+                "/api/v1.0/familychat/messages",
+                new SendFamilyChatMessageRequest
+                {
+                    References = [new FamilyChatReferenceRequest { Kind = FamilyChatReferenceKind.Product, PublicId = product }]
+                });
+
+            _output.WriteLine($"Status: {response.StatusCode}");
+            Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+
+            var parsed = await response.Content.ReadFromJsonAsync<ApiResponse<FamilyChatMessageInfo>>();
+            Assert.Null(parsed!.Data!.Body);
+            Assert.Single(parsed.Data.References);
+        }
+        finally
+        {
+            _authHelper.ClearAuthToken();
+            if (testEmail != null) await _authHelper.CleanupUserAsync(testEmail);
+        }
+    }
+
+    [Fact]
+    public async Task SendMessage_WithAReferenceTheSenderCannotSee_ReturnsBadRequest()
+    {
+        string? testEmail = null;
+        try
+        {
+            var (email, auth) = await _authHelper.CreateAndAuthenticateUserAsync("chat-ref-bogus");
+            testEmail = email;
+            _authHelper.SetAuthToken(auth.AccessToken);
+            await CreateFamilyAsync("Strict Family");
+
+            // An id this caller was never offered. The server resolves references against the same
+            // list the picker reads, so this cannot become a chip naming something unseen.
+            var response = await _client.PostAsJsonAsync(
+                "/api/v1.0/familychat/messages",
+                new SendFamilyChatMessageRequest
+                {
+                    Body = "nézd",
+                    References = [new FamilyChatReferenceRequest { Kind = FamilyChatReferenceKind.Product, PublicId = Guid.NewGuid() }]
+                });
+
+            _output.WriteLine($"Status: {response.StatusCode}");
+            Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        }
+        finally
+        {
+            _authHelper.ClearAuthToken();
+            if (testEmail != null) await _authHelper.CleanupUserAsync(testEmail);
+        }
+    }
+
+    [Fact]
+    public async Task GetMessages_ReferenceLabel_FollowsTheProductsCurrentName()
+    {
+        string? testEmail = null;
+        try
+        {
+            var (email, auth) = await _authHelper.CreateAndAuthenticateUserAsync("chat-ref-rename");
+            testEmail = email;
+            _authHelper.SetAuthToken(auth.AccessToken);
+            await CreateFamilyAsync("Renaming Family");
+
+            var product = await CreateProductAsync("Régi név");
+
+            await _client.PostAsJsonAsync(
+                "/api/v1.0/familychat/messages",
+                new SendFamilyChatMessageRequest
+                {
+                    Body = "erről van szó",
+                    References = [new FamilyChatReferenceRequest { Kind = FamilyChatReferenceKind.Product, PublicId = product }]
+                });
+
+            // Renaming the product must change what the old message says it points at - that is the
+            // whole reason a reference stores an id rather than only the name it had.
+            var rename = await _client.PutAsJsonAsync(
+                $"/api/v1.0/product/{product}",
+                new { Name = "Új név" });
+            Assert.Equal(HttpStatusCode.OK, rename.StatusCode);
+
+            var page = await GetPageAsync();
+            var message = page.Items.First(m => m.Body == "erről van szó");
+
+            _output.WriteLine($"Label after rename: {message.References[0].Label}");
+            Assert.Equal(ProductLabel("Új név"), message.References[0].Label);
+        }
+        finally
+        {
+            _authHelper.ClearAuthToken();
+            if (testEmail != null) await _authHelper.CleanupUserAsync(testEmail);
+        }
+    }
+
+    #endregion
+
     #region Helpers
 
     /// <summary>Creates a family for the currently authenticated caller and returns its share code.</summary>
@@ -595,6 +755,40 @@ public class FamilyChatControllerTests : IClassFixture<HomassyWebApplicationFact
         Assert.NotNull(parsed?.Data);
         return parsed!.Data!;
     }
+
+    /// <summary>
+    /// Creates a product the caller can actually reference, and returns its public id.
+    /// </summary>
+    /// <remarks>
+    /// The inventory item is not incidental: `SelectValueType.Product` lists the products a user
+    /// has stock of, which is the same list every product picker in the app shows - and the same
+    /// list a chat reference is validated against. A product with no inventory item is in nobody's
+    /// picker, so it is not something a message can point at either.
+    /// </remarks>
+    private async Task<Guid> CreateProductAsync(string name)
+    {
+        var response = await _client.PostAsJsonAsync(
+            "/api/v1.0/product",
+            new CreateProductRequest { Name = name, Brand = "Test", Unit = Homassy.API.Enums.Unit.Piece });
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+
+        var parsed = await response.Content.ReadFromJsonAsync<ApiResponse<ProductInfo>>();
+        Assert.NotNull(parsed?.Data);
+        var publicId = parsed!.Data!.PublicId;
+
+        var stock = await _client.PostAsJsonAsync(
+            "/api/v1.0/product/inventory/quick",
+            new QuickAddInventoryItemRequest { ProductPublicId = publicId, Quantity = 1 });
+        Assert.Equal(HttpStatusCode.OK, stock.StatusCode);
+
+        return publicId;
+    }
+
+    /// <summary>
+    /// What the product select list calls a product: brand and name, which is what a chip shows.
+    /// </summary>
+    private static string ProductLabel(string name) => $"Test - {name}";
 
     private async Task<int> GetUnreadCountAsync()
     {

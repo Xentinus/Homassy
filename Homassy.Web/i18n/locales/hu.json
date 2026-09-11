@@ -2911,6 +2911,18 @@
     "showAll": "Mind megjelenítése a térképen ({count})"
   },
   "familyChat": {
+    "reference": {
+      "pickerTitle": "Beszúrás",
+      "pickerDescription": "Az üzenet mutasson egy termékre, boltra, tárolóhelyre vagy listára.",
+      "empty": "Itt még nincs mit beszúrni.",
+      "remove": "{name} eltávolítása",
+      "kind": {
+        "product": "Termék",
+        "shoppingLocation": "Bolt",
+        "storageLocation": "Tárolóhely",
+        "shoppingList": "Bevásárlólista"
+      }
+    },
     "activeCount": "{count} jelen",
     "typing": {
       "one": "{name} éppen ír…",
@@ -2923,6 +2935,7 @@
     },
     "title": "Családi csevegés",
     "composer": {
+      "attachReference": "Termék, bolt vagy lista beszúrása",
       "attach": "Kép csatolása",
       "placeholder": "Írjon üzenetet…",
       "send": "Küldés"

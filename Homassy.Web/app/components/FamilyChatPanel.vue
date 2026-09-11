@@ -75,7 +75,7 @@
 
 <script setup lang="ts">
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
-import type { FamilyChatStreamMessage } from '~/types/familyChat'
+import type { FamilyChatReferenceDraft, FamilyChatStreamMessage } from '~/types/familyChat'
 
 /**
  * The family chat panel (#146) — the conversation the bubble opens.
@@ -195,11 +195,11 @@ const close = (): void => {
   closePanel()
 }
 
-const onSend = async (body: string): Promise<void> => {
+const onSend = async (body: string, references: FamilyChatReferenceDraft[] = []): Promise<void> => {
   // Sending is interaction: it pushes back the "nobody is really here" timeout that stops a panel
   // left open on a desk from swallowing notifications (#149).
   armInactivityTimeout()
-  await send(body)
+  await send(body, references)
   streamRef.value?.scrollToBottom()
 }
 

@@ -16,6 +16,33 @@ export interface FamilyChatSender {
   identityColor?: string | null
 }
 
+/**
+ * What a chat message can point at. Mirrors the API's `FamilyChatReferenceKind`, and each member
+ * maps onto the `SelectValueType` the picker reads from.
+ */
+export type FamilyChatReferenceKind = 'Product' | 'ShoppingLocation' | 'StorageLocation' | 'ShoppingList'
+
+/** Something a message points at, rendered as a chip under the text. */
+export interface FamilyChatReference {
+  kind: FamilyChatReferenceKind
+  publicId: string
+  /** The target's current name, or the name it had when it was sent — see `isAvailable`. */
+  label: string
+  /**
+   * False when the target no longer resolves for this reader (deleted, or not theirs to see).
+   * The chip still renders with the stored label; what it loses is the link.
+   */
+  isAvailable: boolean
+}
+
+/**
+ * A reference as the composer holds it before sending.
+ *
+ * No `isAvailable`: it was just picked from a list of things that exist, and whether it still
+ * resolves is a question only a *reader* of the stored message asks.
+ */
+export type FamilyChatReferenceDraft = Omit<FamilyChatReference, 'isAvailable'>
+
 export interface FamilyChatMessage {
   publicId: string
   kind: FamilyChatMessageKind
@@ -29,6 +56,8 @@ export interface FamilyChatMessage {
   imageFullUrl?: string | null
   imageWidth?: number | null
   imageHeight?: number | null
+  /** Things in the app this message points at (a product, a shop, a storage place, a list). */
+  references?: FamilyChatReference[]
 }
 
 export interface FamilyChatPage {
@@ -37,7 +66,10 @@ export interface FamilyChatPage {
 }
 
 export interface SendFamilyChatMessageRequest {
-  body: string
+  /** Optional when the message carries references — "the shop" plus "the milk" is a message. */
+  body?: string
+  /** What the message points at. The server resolves each label from what the sender may see. */
+  references?: Array<{ kind: FamilyChatReferenceKind, publicId: string }>
   /** The sender's own id for this message, echoed back on the broadcast so it reconciles rather than duplicating. */
   correlationId?: string
 }

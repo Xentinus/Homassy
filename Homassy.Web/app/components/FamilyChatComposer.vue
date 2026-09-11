@@ -1,9 +1,31 @@
 <template>
+  <!-- What is about to be attached, above the input rather than inside it: these are things, not
+       text, and a chip inside a textarea cannot be removed with a backspace. -->
+  <div v-if="pending.length > 0" class="flex flex-wrap gap-2 border-t border-default bg-default px-3 pt-3">
+    <span
+      v-for="reference in pending"
+      :key="reference.kind + reference.publicId"
+      class="flex max-w-full items-center gap-1 rounded-full bg-elevated py-1 pl-2 pr-1 text-xs"
+    >
+      <UIcon :name="referenceIcon(reference.kind)" class="h-3.5 w-3.5 shrink-0 text-primary-500" />
+      <span class="truncate">{{ reference.label }}</span>
+      <UButton
+        icon="i-lucide-x"
+        color="neutral"
+        variant="ghost"
+        size="xs"
+        :aria-label="t('familyChat.reference.remove', { name: reference.label })"
+        @click="removeReference(reference)"
+      />
+    </span>
+  </div>
+
   <!-- The row is sized for thumbs, not for a desktop form: 44px controls, a 16px input (anything
        smaller makes iOS zoom the page on focus) and a bottom pad that clears the home indicator. -->
   <div
     ref="rootEl"
     class="flex items-end gap-2 border-t border-default bg-default px-3 pt-3"
+    :class="pending.length > 0 ? 'border-t-0' : ''"
     style="padding-bottom: calc(0.75rem + env(safe-area-inset-bottom, 0px))"
   >
     <!-- One picker for camera and gallery: `accept="image/*"` on a phone offers both, and a
@@ -24,6 +46,17 @@
       :aria-label="t('familyChat.composer.attach')"
       class="h-11 w-11 shrink-0 justify-center"
       @click="fileInput?.click()"
+    />
+
+    <UButton
+      icon="i-lucide-plus"
+      color="neutral"
+      variant="ghost"
+      size="lg"
+      :disabled="pending.length >= MAX_REFERENCES"
+      :aria-label="t('familyChat.composer.attachReference')"
+      class="h-11 w-11 shrink-0 justify-center"
+      @click="pickerOpen = true"
     />
 
     <UTextarea
@@ -51,6 +84,8 @@
     />
   </div>
 
+  <FamilyChatReferencePicker v-model:open="pickerOpen" @pick="addReference" />
+
   <!-- The app's existing cropper, which is also where the "preview before sending" happens: the
        crop screen *is* the preview, so there is no second confirm step to build. -->
   <ImageCropper
@@ -65,7 +100,9 @@
 <script setup lang="ts">
 import { computed, nextTick, ref, watch } from 'vue'
 import ImageCropper from '~/components/ImageCropper.vue'
+import FamilyChatReferencePicker from '~/components/FamilyChatReferencePicker.vue'
 import { base64ToBlob, blobToBase64, compressImage } from '~/composables/useImageCrop'
+import type { FamilyChatReferenceDraft, FamilyChatReferenceKind } from '~/types/familyChat'
 
 /**
  * The chat's input row (#146).
@@ -80,7 +117,7 @@ import { base64ToBlob, blobToBase64, compressImage } from '~/composables/useImag
  */
 
 const emit = defineEmits<{
-  send: [body: string]
+  send: [body: string, references: FamilyChatReferenceDraft[]]
   /** A cropped picture, as a `data:` URL, plus whatever was in the draft as its caption (#147). */
   image: [dataUrl: string, caption: string | undefined]
   /** Every keystroke while there is something to send - what #148 throttles its typing signal off. */
@@ -96,14 +133,45 @@ const rootEl = ref<HTMLElement | null>(null)
 const fileInput = ref<HTMLInputElement | null>(null)
 const pickedImageSrc = ref('')
 const cropperOpen = ref(false)
+const pickerOpen = ref(false)
 
-const canSend = computed(() => draft.value.trim().length > 0)
+/** Matches `SendFamilyChatMessageRequest.MaxReferences` on the API. */
+const MAX_REFERENCES = 5
+
+/** What is attached but not yet sent. The label is only for the chip; the server resolves its own. */
+const pending = ref<FamilyChatReferenceDraft[]>([])
+
+const REFERENCE_ICONS: Record<FamilyChatReferenceKind, string> = {
+  Product: 'i-lucide-package',
+  ShoppingLocation: 'i-lucide-store',
+  StorageLocation: 'i-lucide-archive',
+  ShoppingList: 'i-lucide-list-checks'
+}
+
+const referenceIcon = (kind: FamilyChatReferenceKind): string => REFERENCE_ICONS[kind] ?? 'i-lucide-paperclip'
+
+// Something attached is something to send, even with nothing typed: "the shop" plus "the milk" is
+// a message, and the API accepts a body-less message that carries references.
+const canSend = computed(() => draft.value.trim().length > 0 || pending.value.length > 0)
+
+const addReference = (reference: FamilyChatReferenceDraft): void => {
+  if (pending.value.length >= MAX_REFERENCES) return
+  // The same thing twice is a fumbled tap, not a second attachment.
+  if (pending.value.some(r => r.kind === reference.kind && r.publicId === reference.publicId)) return
+
+  pending.value = [...pending.value, reference]
+}
+
+const removeReference = (reference: FamilyChatReferenceDraft): void => {
+  pending.value = pending.value.filter(r => !(r.kind === reference.kind && r.publicId === reference.publicId))
+}
 
 const submit = (): void => {
   if (!canSend.value) return
 
-  emit('send', draft.value.trim())
+  emit('send', draft.value.trim(), [...pending.value])
   draft.value = ''
+  pending.value = []
   emit('idle')
 }
 

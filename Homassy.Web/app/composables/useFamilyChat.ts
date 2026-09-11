@@ -22,6 +22,7 @@ import type {
   FamilyChatMessage,
   FamilyChatMessageCreatedEvent,
   FamilyChatMessageDeletedEvent,
+  FamilyChatReferenceDraft,
   FamilyChatStreamMessage,
   FamilyChatTypingMember
 } from '~/types/familyChat'
@@ -567,15 +568,20 @@ export const useFamilyChat = () => {
    * when it is fast. The row carries a correlation id so the broadcast - which the sender also
    * receives - reconciles onto it rather than appending a duplicate.
    */
-  const send = async (body: string): Promise<boolean> => {
+  const send = async (body: string, references: FamilyChatReferenceDraft[] = []): Promise<boolean> => {
     const text = body.trim()
-    if (!text) return false
+    // Something attached is something to send: the API accepts a message with no body when it
+    // carries references, and "the shop" plus "the milk" is a complete thought.
+    if (!text && references.length === 0) return false
 
     const correlationId = newCorrelationId()
     const optimistic: FamilyChatStreamMessage = {
       publicId: correlationId,
       kind: 'Text',
-      body: text,
+      body: text || null,
+      // Rendered from what the picker offered until the committed message replaces them with the
+      // server's own labels - which is also when they stop being assumed to resolve.
+      references: references.map(r => ({ ...r, isAvailable: true })),
       sentAt: new Date().toISOString(),
       sender: {
         publicId: currentUserPublicId.value ?? '',
@@ -592,7 +598,11 @@ export const useFamilyChat = () => {
     // path too (#148); this is the half that does not wait for the round trip.
     stopTyping()
 
-    const response = await sendMessage({ body: text, correlationId }).catch(() => null)
+    const response = await sendMessage({
+      body: text || undefined,
+      references: references.map(r => ({ kind: r.kind, publicId: r.publicId })),
+      correlationId
+    }).catch(() => null)
     const index = messages.value.findIndex(m => m.correlationId === correlationId)
 
     if (!response?.success || !response.data) {
@@ -687,8 +697,10 @@ export const useFamilyChat = () => {
       return await sendImage(base64, message.localPreview, message.body ?? undefined)
     }
 
-    if (!message.body) return false
-    return await send(message.body)
+    // A failed message keeps whatever it was attached to, so retrying re-sends the whole thing
+    // rather than a sentence with its chips dropped.
+    if (!message.body && (message.references?.length ?? 0) === 0) return false
+    return await send(message.body ?? '', message.references ?? [])
   }
 
   /**

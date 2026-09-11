@@ -2911,6 +2911,18 @@
     "showAll": "Alle auf der Karte zeigen ({count})"
   },
   "familyChat": {
+    "reference": {
+      "pickerTitle": "Etwas anhängen",
+      "pickerDescription": "Diese Nachricht auf ein Produkt, ein Geschäft, einen Lagerort oder eine Liste zeigen lassen.",
+      "empty": "Hier gibt es noch nichts anzuhängen.",
+      "remove": "{name} entfernen",
+      "kind": {
+        "product": "Produkt",
+        "shoppingLocation": "Geschäft",
+        "storageLocation": "Lagerort",
+        "shoppingList": "Einkaufsliste"
+      }
+    },
     "activeCount": "{count} hier",
     "typing": {
       "one": "{name} schreibt…",
@@ -2923,6 +2935,7 @@
     },
     "title": "Familienchat",
     "composer": {
+      "attachReference": "Produkt, Geschäft oder Liste anhängen",
       "attach": "Bild anhängen",
       "placeholder": "Nachricht schreiben…",
       "send": "Senden"
