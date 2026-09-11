@@ -429,6 +429,7 @@ namespace Homassy.API.Functions
                 Quantity = item.Quantity,
                 Unit = item.Unit,
                 Note = item.Note,
+                SortOrder = item.SortOrder,
                 PurchasedAt = item.PurchasedAt,
                 DeadlineAt = item.DeadlineAt,
                 DueAt = item.DueAt
@@ -796,6 +797,8 @@ namespace Homassy.API.Functions
                     Quantity = request.Quantity,
                     Unit = itemUnit,
                     Note = request.Note?.Trim(),
+                    // New items append to the end of the manual (aisle) order.
+                    SortOrder = SparseOrdering.Append(await MaxSortOrderAsync(context, shoppingList.Id, cancellationToken)),
                     DeadlineAt = request.DeadlineAt,
                     DueAt = request.DueAt
                 };
@@ -841,6 +844,7 @@ namespace Homassy.API.Functions
                     Quantity = shoppingListItem.Quantity,
                     Unit = shoppingListItem.Unit,
                     Note = shoppingListItem.Note,
+                    SortOrder = shoppingListItem.SortOrder,
                     PurchasedAt = shoppingListItem.PurchasedAt,
                     DeadlineAt = shoppingListItem.DeadlineAt,
                     DueAt = shoppingListItem.DueAt
@@ -1024,6 +1028,7 @@ namespace Homassy.API.Functions
                     Quantity = trackedItem.Quantity,
                     Unit = trackedItem.Unit,
                     Note = trackedItem.Note,
+                    SortOrder = trackedItem.SortOrder,
                     PurchasedAt = trackedItem.PurchasedAt,
                     DeadlineAt = trackedItem.DeadlineAt,
                     DueAt = trackedItem.DueAt
@@ -1201,6 +1206,7 @@ namespace Homassy.API.Functions
                         Quantity = trackedShoppingListItem.Quantity,
                         Unit = trackedShoppingListItem.Unit,
                         Note = trackedShoppingListItem.Note,
+                        SortOrder = trackedShoppingListItem.SortOrder,
                         PurchasedAt = trackedShoppingListItem.PurchasedAt,
                         DeadlineAt = trackedShoppingListItem.DeadlineAt,
                         DueAt = trackedShoppingListItem.DueAt
@@ -1306,6 +1312,7 @@ namespace Homassy.API.Functions
                     Quantity = trackedShoppingListItem.Quantity,
                     Unit = trackedShoppingListItem.Unit,
                     Note = trackedShoppingListItem.Note,
+                    SortOrder = trackedShoppingListItem.SortOrder,
                     PurchasedAt = trackedShoppingListItem.PurchasedAt,
                     DeadlineAt = trackedShoppingListItem.DeadlineAt,
                     DueAt = trackedShoppingListItem.DueAt
@@ -1409,6 +1416,7 @@ namespace Homassy.API.Functions
                     Quantity = trackedShoppingListItem.Quantity,
                     Unit = trackedShoppingListItem.Unit,
                     Note = trackedShoppingListItem.Note,
+                    SortOrder = trackedShoppingListItem.SortOrder,
                     PurchasedAt = trackedShoppingListItem.PurchasedAt,
                     DeadlineAt = trackedShoppingListItem.DeadlineAt,
                     DueAt = trackedShoppingListItem.DueAt
@@ -1547,6 +1555,7 @@ namespace Homassy.API.Functions
                     Quantity = trackedShoppingListItem.Quantity,
                     Unit = trackedShoppingListItem.Unit,
                     Note = trackedShoppingListItem.Note,
+                    SortOrder = trackedShoppingListItem.SortOrder,
                     PurchasedAt = trackedShoppingListItem.PurchasedAt,
                     DeadlineAt = trackedShoppingListItem.DeadlineAt,
                     DueAt = trackedShoppingListItem.DueAt
@@ -1646,6 +1655,7 @@ namespace Homassy.API.Functions
                     Quantity = trackedShoppingListItem.Quantity,
                     Unit = trackedShoppingListItem.Unit,
                     Note = trackedShoppingListItem.Note,
+                    SortOrder = trackedShoppingListItem.SortOrder,
                     PurchasedAt = trackedShoppingListItem.PurchasedAt,
                     DeadlineAt = trackedShoppingListItem.DeadlineAt,
                     DueAt = trackedShoppingListItem.DueAt
@@ -1708,6 +1718,9 @@ namespace Homassy.API.Functions
             try
             {
                 var createdItems = new List<ShoppingListItem>();
+                // One read for the whole batch; each item then appends after the previous one, so a
+                // multi-add lands in the order it was sent rather than in an arbitrary one.
+                var nextSortOrder = SparseOrdering.Append(await MaxSortOrderAsync(context, shoppingList.Id, cancellationToken));
 
                 foreach (var item in request.Items)
                 {
@@ -1750,10 +1763,12 @@ namespace Homassy.API.Functions
                         Quantity = item.Quantity,
                         Unit = itemUnit,
                         Note = item.Note?.Trim(),
+                        SortOrder = nextSortOrder,
                         DeadlineAt = item.DeadlineAt,
                         DueAt = item.DueAt
                     };
 
+                    nextSortOrder = SparseOrdering.Append(nextSortOrder);
                     createdItems.Add(shoppingListItem);
                 }
 
@@ -1804,6 +1819,7 @@ namespace Homassy.API.Functions
                     Quantity = sli.Quantity,
                     Unit = sli.Unit,
                     Note = sli.Note,
+                    SortOrder = sli.SortOrder,
                     PurchasedAt = sli.PurchasedAt,
                     DeadlineAt = sli.DeadlineAt,
                     DueAt = sli.DueAt
@@ -2056,6 +2072,7 @@ namespace Homassy.API.Functions
                         Quantity = trackedShoppingListItem.Quantity,
                         Unit = trackedShoppingListItem.Unit,
                         Note = trackedShoppingListItem.Note,
+                        SortOrder = trackedShoppingListItem.SortOrder,
                         PurchasedAt = trackedShoppingListItem.PurchasedAt,
                         DeadlineAt = trackedShoppingListItem.DeadlineAt,
                         DueAt = trackedShoppingListItem.DueAt
@@ -2249,6 +2266,104 @@ namespace Homassy.API.Functions
             }
 
             return new DeadlineCountResponse { TotalCount = count };
+        }
+        #endregion
+
+        #region Manual Ordering
+        /// <summary>
+        /// The highest manual position currently on a list, or null when the list is empty. Read
+        /// straight from the database rather than the item cache: the cache drops items purchased more
+        /// than a week ago, and appending behind a position that is still stored would reuse it.
+        /// </summary>
+        private static async Task<int?> MaxSortOrderAsync(HomassyDbContext context, int shoppingListId, CancellationToken cancellationToken)
+            => await context.ShoppingListItems
+                .Where(sli => sli.ShoppingListId == shoppingListId)
+                .MaxAsync(sli => (int?)sli.SortOrder, cancellationToken);
+
+        /// <summary>
+        /// Writes a new manual (aisle) order for a list's items. The request carries the ids in the
+        /// order they should appear; <see cref="SparseOrdering"/> turns that into the smallest set of
+        /// rows that has to change — usually one for a single drag — and they are written in one
+        /// transaction. Returns the rows that moved, which is also what is broadcast.
+        /// </summary>
+        public async Task<List<ReorderedEntry>> ReorderShoppingListItemsAsync(ReorderShoppingListItemsRequest request, CancellationToken cancellationToken = default)
+        {
+            var userId = SessionInfo.GetUserId();
+            if (!userId.HasValue)
+            {
+                Log.Warning("Invalid session: User ID not found");
+                throw new UserNotFoundException("User not found");
+            }
+
+            var actorPublicId = SessionInfo.GetPublicId();
+            var shoppingList = GetShoppingListByPublicId(request.ShoppingListPublicId);
+            if (shoppingList == null)
+            {
+                throw new ShoppingListNotFoundException();
+            }
+
+            var familyId = SessionInfo.GetFamilyId();
+            if (shoppingList.UserId != userId.Value &&
+                (!familyId.HasValue || shoppingList.FamilyId != familyId.Value))
+            {
+                throw new ShoppingListAccessDeniedException();
+            }
+
+            if (request.ItemPublicIds.Distinct().Count() != request.ItemPublicIds.Count)
+            {
+                throw new InvalidShoppingListItemException("The requested order contains the same item twice");
+            }
+
+            using var context = _contextFactory.CreateDbContext();
+            await using var transaction = await context.Database.BeginTransactionAsync(cancellationToken);
+
+            try
+            {
+                var items = await context.ShoppingListItems
+                    .Where(sli => sli.ShoppingListId == shoppingList.Id && request.ItemPublicIds.Contains(sli.PublicId))
+                    .ToListAsync(cancellationToken);
+
+                // Every id has to resolve on *this* list — an id from another list would otherwise be
+                // silently dropped and the client would render an order the server never stored.
+                if (items.Count != request.ItemPublicIds.Count)
+                {
+                    throw new ShoppingListItemNotFoundException("One or more items are not on this shopping list");
+                }
+
+                var byPublicId = items.ToDictionary(sli => sli.PublicId);
+                var ordered = request.ItemPublicIds.Select(id => byPublicId[id]).ToList();
+                var changes = SparseOrdering.PlanReorder(ordered.Select(sli => sli.SortOrder).ToList());
+
+                var moved = new List<ReorderedEntry>(changes.Count);
+                foreach (var (index, sortOrder) in changes)
+                {
+                    ordered[index].SortOrder = sortOrder;
+                    ordered[index].UpdateRecordChange(userId.Value);
+                    moved.Add(new ReorderedEntry { PublicId = ordered[index].PublicId, SortOrder = sortOrder });
+                }
+
+                if (moved.Count > 0)
+                {
+                    await context.SaveChangesAsync(cancellationToken);
+                }
+
+                await transaction.CommitAsync(cancellationToken);
+
+                Log.Information($"User {userId.Value} reordered shopping list {shoppingList.Id}: {moved.Count} of {ordered.Count} items moved");
+
+                if (moved.Count > 0)
+                {
+                    await _runtime.ShoppingList.ItemsReorderedAsync(shoppingList.PublicId, moved, cancellationToken, actorPublicId);
+                }
+
+                return moved;
+            }
+            catch (Exception ex)
+            {
+                await transaction.RollbackAsync(cancellationToken);
+                Log.Error(ex, $"Failed to reorder shopping list {shoppingList.Id} for user {userId.Value}");
+                throw;
+            }
         }
         #endregion
     }

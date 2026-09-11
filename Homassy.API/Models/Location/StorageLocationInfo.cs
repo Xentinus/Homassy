@@ -7,6 +7,8 @@
         public string? Description { get; set; }
         public string? Color { get; set; }
         public bool IsFreezer { get; set; }
+        /// <summary>Manual position — see <c>LocationBase.SortOrder</c>. Sparse, not an index.</summary>
+        public int SortOrder { get; set; }
         public bool IsSharedWithFamily { get; set; } = false;
     }
 }

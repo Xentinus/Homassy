@@ -24,6 +24,8 @@ namespace Homassy.API.Models.Automation
         public decimal? ThresholdQuantity { get; set; }
         public bool IsTriggered { get; set; }
         public bool IsEnabled { get; set; }
+        /// <summary>Manual position — see <c>ItemAutomation.SortOrder</c>. Sparse, not an index.</summary>
+        public int SortOrder { get; set; }
         public DateTime? NextExecutionAt { get; set; }
         public DateTime? LastExecutedAt { get; set; }
     }

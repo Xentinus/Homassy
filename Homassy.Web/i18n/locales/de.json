@@ -72,6 +72,12 @@
       "showResults": "{count} anzeigen",
       "all": "Alle",
       "clear": "Filter zurücksetzen"
+    },
+    "unnamed": "Ohne Namen",
+    "reorder": {
+      "handle": "Zum Umsortieren ziehen",
+      "handleFor": "{name} verschieben",
+      "failed": "Die neue Reihenfolge konnte nicht gespeichert werden."
     }
   },
   "imageCropper": {
@@ -732,7 +738,8 @@
         "deadline": "Frist",
         "quantity": "Menge",
         "location": "Einkaufsort",
-        "properties": "Eigenschaften"
+        "properties": "Eigenschaften",
+        "order": "Reihenfolge"
       },
       "menu": {
         "add": "Liste hinzufügen",
@@ -831,7 +838,12 @@
       "restorePurchaseInventoryWarning": "Hinweis: Dies markiert nur den Artikel als nicht gekauft. Es entfernt den Artikel NICHT aus dem Inventar, wenn er bereits hinzugefügt wurde.",
       "noListsHint": "Erstellen Sie eine Liste und sammeln Sie, was Sie brauchen.",
       "noItemsInListHint": "Fügen Sie den ersten Artikel zu dieser Liste hinzu.",
-      "noSearchResultsHint": "Versuchen Sie einen anderen Suchbegriff oder setzen Sie die Filter zurück"
+      "noSearchResultsHint": "Versuchen Sie einen anderen Suchbegriff oder setzen Sie die Filter zurück",
+      "order": {
+        "smart": "Intelligent",
+        "manual": "Manuell",
+        "manualHint": "Ziehen Sie die Einträge in die Reihenfolge, in der Sie den Laden durchgehen."
+      }
     },
     "activity": {
       "title": "Aktivität",
@@ -954,6 +966,20 @@
     "presence": {
       "othersHere": "{count} weitere Person(en) hier",
       "overflow": "+{count} weitere"
+    },
+    "shoppingMode": {
+      "title": "Einkaufsmodus",
+      "enter": "Einkaufsmodus starten",
+      "exit": "Einkaufsmodus schließen",
+      "progress": "{done} von {total} erledigt",
+      "screenAwake": "Der Bildschirm bleibt an",
+      "hereSection": "Hier kaufen",
+      "restSection": "Der Rest",
+      "doneTitle": "Alles im Einkaufswagen",
+      "doneBody": "Alle {count} Artikel sind gekauft.",
+      "tick": "{name} als gekauft markieren",
+      "showDetails": "Details",
+      "hideDetails": "Details ausblenden"
     }
   },
   "activity": {
@@ -2868,5 +2894,12 @@
         "bodyAllDayLead": "\"{eventTitle}\" ist in {lead}."
       }
     }
+  },
+  "map": {
+    "unavailable": "Die Karte konnte nicht geladen werden.",
+    "cluster": "{count} Orte hier",
+    "youAreHere": "Ihr Standort",
+    "hide": "Karte ausblenden",
+    "showAll": "Alle auf der Karte zeigen ({count})"
   }
 }

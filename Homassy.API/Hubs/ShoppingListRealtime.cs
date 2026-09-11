@@ -1,3 +1,4 @@
+using Homassy.API.Models.Common;
 using Homassy.API.Models.ShoppingList;
 using Microsoft.AspNetCore.SignalR;
 using Serilog;
@@ -15,6 +16,7 @@ namespace Homassy.API.Hubs
     {
         public const string ItemUpsertedEvent = "ItemUpserted";
         public const string ItemDeletedEvent = "ItemDeleted";
+        public const string ItemsReorderedEvent = "ItemsReordered";
         public const string ListUpdatedEvent = "ListUpdated";
         public const string ListDeletedEvent = "ListDeleted";
         public const string PresenceChangedEvent = "PresenceChanged";
@@ -46,6 +48,14 @@ namespace Homassy.API.Hubs
         /// <summary>Notifies the list's group that an item was removed, and by whom.</summary>
         public Task ItemDeletedAsync(Guid listPublicId, Guid itemPublicId, CancellationToken cancellationToken = default, Guid? actorPublicId = null)
             => SendAsync(listPublicId, ItemDeletedEvent, new { publicId = itemPublicId, shoppingListPublicId = listPublicId, actorPublicId }, cancellationToken);
+
+        /// <summary>
+        /// Notifies the list's group that the manual (aisle) order changed. Carries only the rows whose
+        /// position actually moved — the sparse ordering scheme usually makes that a single row — so a
+        /// viewer patches the positions it was sent and leaves the rest alone.
+        /// </summary>
+        public Task ItemsReorderedAsync(Guid listPublicId, IReadOnlyList<ReorderedEntry> entries, CancellationToken cancellationToken = default, Guid? actorPublicId = null)
+            => SendAsync(listPublicId, ItemsReorderedEvent, new { shoppingListPublicId = listPublicId, entries, actorPublicId }, cancellationToken);
 
         /// <summary>Notifies the list's group that list metadata (name, color, sharing) changed.</summary>
         public Task ListUpdatedAsync(ShoppingListInfo list, CancellationToken cancellationToken = default)

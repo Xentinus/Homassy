@@ -89,15 +89,23 @@
           @action="clearAllFilters"
         />
 
-        <!-- Automation Rules List -->
-        <AnimatedList class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-          <DataAutomationCard
-            v-for="automation in filteredAutomations"
-            :key="automation.publicId"
-            :automation="automation"
-            @deleted="handleCardDeleted"
-          />
-        </AnimatedList>
+        <!-- Automation Rules List. The wrapper exists so the drag composable has a plain element to
+             scan for `data-reorder-key` rows — AnimatedList's own root keeps the grid classes. -->
+        <div ref="gridEl">
+          <AnimatedList class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+            <DataAutomationCard
+              v-for="automation in filteredAutomations"
+              :key="automation.publicId"
+              :data-reorder-key="automation.publicId"
+              :automation="automation"
+              reorderable
+              :dragging="reorder.draggingKey.value === automation.publicId"
+              @deleted="handleCardDeleted"
+              @reorder-lift="(event) => reorder.startDrag(event, automation.publicId)"
+              @reorder-move="(direction) => reorder.moveByKeyboard(automation.publicId, direction)"
+            />
+          </AnimatedList>
+        </div>
       </template>
     </div>
   </div>
@@ -107,13 +115,14 @@
 import { useAutomationApi } from '~/composables/api/useAutomationApi'
 import { AutomationActionType, ScheduleType } from '~/types/automation'
 import type { AutomationResponse } from '~/types/automation'
-import type { MasterDataDeletedEvent } from '~/types/masterData'
+import type { MasterDataDeletedEvent, MasterDataReorderedEvent } from '~/types/masterData'
 
 definePageMeta({ layout: 'auth', middleware: 'auth' })
 
-const { getAutomations } = useAutomationApi()
+const { getAutomations, reorderAutomations } = useAutomationApi()
 const masterDataSocket = useMasterDataSocket()
 const { t } = useI18n()
+const toast = useToast()
 
 // Add-action lives on the dynamic nav FAB instead of an inline header button.
 useFabActions(() => [
@@ -159,45 +168,48 @@ const scheduleTypeFilterOptions = computed(() => [
   { value: String(ScheduleType.FixedDate), label: t('profile.automation.fixedDate') }
 ])
 
-// Filtered automations
-const filteredAutomations = computed(() => {
-  let result: AutomationResponse[] = automations.value
-
-  // Search filter
+// Search + filter predicate, shared by the rendered list and by the reorder composable (which must
+// only ever send the rules the user can actually see).
+function matchesFilters(a: AutomationResponse): boolean {
   if (searchQuery.value.trim()) {
     const query = searchQuery.value.toLowerCase().trim()
-    result = result.filter(a =>
-      a.productName.toLowerCase().includes(query) ||
-      (a.productBrand && a.productBrand.toLowerCase().includes(query))
-    )
+    const matches = a.productName.toLowerCase().includes(query)
+      || (a.productBrand && a.productBrand.toLowerCase().includes(query))
+    if (!matches) return false
   }
 
-  // Type filter
-  if (filterType.value !== 'all') {
-    const typeNum = Number(filterType.value)
-    result = result.filter(a => a.actionType === typeNum)
-  }
+  if (filterType.value !== 'all' && a.actionType !== Number(filterType.value)) return false
 
-  // Status filter
-  if (filterStatus.value === 'enabled') {
-    result = result.filter(a => a.isEnabled)
-  } else if (filterStatus.value === 'disabled') {
-    result = result.filter(a => !a.isEnabled)
-  }
+  if (filterStatus.value === 'enabled' && !a.isEnabled) return false
+  if (filterStatus.value === 'disabled' && a.isEnabled) return false
 
-  // Schedule type filter
-  if (filterScheduleType.value !== 'all') {
-    const scheduleNum = Number(filterScheduleType.value)
-    result = result.filter(a => a.scheduleType === scheduleNum)
-  }
+  if (filterScheduleType.value !== 'all' && a.scheduleType !== Number(filterScheduleType.value)) return false
 
-  // Triggered toggle
-  if (triggeredFilter.value) {
-    result = result.filter(a => a.isTriggered)
-  }
+  if (triggeredFilter.value && !a.isTriggered) return false
 
-  return result
+  return true
+}
+
+// Manual ordering (#113). `sortOrder` is zero on every rule nobody has dragged, so the enabled-first,
+// soonest-next order the list has always had survives as the tie-break.
+const gridEl = ref<HTMLElement | null>(null)
+const reorder = useReorderableList<AutomationResponse>({
+  items: automations,
+  container: gridEl,
+  baseSort: (a, b) => {
+    if (a.isEnabled !== b.isEnabled) return a.isEnabled ? -1 : 1
+    return (a.nextExecutionAt ?? '').localeCompare(b.nextExecutionAt ?? '')
+  },
+  filter: matchesFilters,
+  commit: orderedIds => reorderAutomations({ automationPublicIds: orderedIds }),
+  onFailed: (error) => {
+    console.error('Failed to reorder automations:', error)
+    toast.add({ title: t('common.error'), description: t('common.reorder.failed'), color: 'error' })
+  }
 })
+
+/** What the grid renders: the filter applied, in manual order (see `useReorderableList`). */
+const filteredAutomations = computed(() => reorder.orderedItems.value)
 
 // Active filter chips
 const activeFilters = computed(() => {
@@ -255,6 +267,11 @@ function handleAutomationDeleted(payload: MasterDataDeletedEvent) {
   automations.value = automations.value.filter(a => a.publicId !== payload.publicId)
 }
 
+// Another member dragged something: patch the positions that moved and let the order recompute.
+function handleAutomationsReordered(payload: MasterDataReorderedEvent) {
+  reorder.applyReorderedEntries(payload.entries)
+}
+
 // Card emitted a delete (own API call) — remove locally; the realtime echo is then a no-op.
 function handleCardDeleted(publicId: string) {
   automations.value = automations.value.filter(a => a.publicId !== publicId)
@@ -265,12 +282,14 @@ onMounted(async () => {
   await masterDataSocket.ensureConnected()
   masterDataSocket.on('AutomationUpserted', handleAutomationUpserted)
   masterDataSocket.on('AutomationDeleted', handleAutomationDeleted)
+  masterDataSocket.on('AutomationsReordered', handleAutomationsReordered)
   masterDataSocket.onReconnected(loadAutomations)
 })
 
 onBeforeUnmount(() => {
   masterDataSocket.off('AutomationUpserted', handleAutomationUpserted)
   masterDataSocket.off('AutomationDeleted', handleAutomationDeleted)
+  masterDataSocket.off('AutomationsReordered', handleAutomationsReordered)
   masterDataSocket.offReconnected(loadAutomations)
 })
 </script>

@@ -7,8 +7,10 @@ import type {
   AutomationExecutionResponse,
   CreateAutomationRequest,
   UpdateAutomationRequest,
-  ExecuteAutomationRequest
+  ExecuteAutomationRequest,
+  ReorderAutomationsRequest
 } from '~/types/automation'
+import type { ReorderedEntry } from '~/types/masterData'
 
 export const useAutomationApi = () => {
   const client = useApiClient()
@@ -62,8 +64,17 @@ export const useAutomationApi = () => {
     return await client.get<AutomationExecutionResponse[]>(`/api/v1/Automation/${publicId}/history?skip=${skip}&take=${take}`)
   }
 
+  /**
+   * Writes the manual order of the caller's automation rules from the ordered ids.
+   * Resolves with only the rules that actually moved (#113).
+   */
+  const reorderAutomations = async (request: ReorderAutomationsRequest) => {
+    return await client.post<ReorderedEntry[]>('/api/v1/Automation/reorder', request)
+  }
+
   return {
     getAutomations,
+    reorderAutomations,
     getAutomation,
     createAutomation,
     updateAutomation,

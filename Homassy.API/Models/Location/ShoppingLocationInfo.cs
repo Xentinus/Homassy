@@ -17,6 +17,8 @@ namespace Homassy.API.Models.Location
         public double? Latitude { get; set; }
         public double? Longitude { get; set; }
         public List<StoreType> StoreTypes { get; set; } = new();
+        /// <summary>Manual position — see <c>LocationBase.SortOrder</c>. Sparse, not an index.</summary>
+        public int SortOrder { get; set; }
         public bool IsSharedWithFamily { get; set; } = false;
     }
 }

@@ -22,7 +22,7 @@ name="i-lucide-trash-2" class="h-5 w-5 text-white transition-transform duration-
     <div
       ref="cardEl"
       class="relative h-full bg-default rounded-2xl border-2 p-3 cursor-pointer shadow-sm hover:shadow-lg transition-shadow duration-200 flex flex-col overflow-hidden select-none"
-      :class="cardBorderClass"
+      :class="[cardBorderClass, { 'opacity-40': dragging }]"
       :style="swipe.cardStyle.value"
       @click="handleCardClick"
     >
@@ -31,6 +31,14 @@ name="i-lucide-trash-2" class="h-5 w-5 text-white transition-transform duration-
         <div class="flex items-center gap-2">
           <span v-if="location.color" class="h-2.5 w-2.5 rounded-full flex-shrink-0" :style="{ backgroundColor: location.color }" />
           <h3 class="text-sm font-bold break-words text-highlighted flex-1" v-html="highlightText(location.name, searchQuery)" />
+          <ReorderHandle
+            v-if="reorderable"
+            :dragging="dragging"
+            :label="$t('common.reorder.handleFor', { name: location.name })"
+            size="sm"
+            @lift="(event) => emit('reorder-lift', event)"
+            @move="(direction) => emit('reorder-move', direction)"
+          />
         </div>
         <p v-if="location.description" class="text-xs text-muted break-words line-clamp-2" v-html="highlightText(location.description, searchQuery)" />
       </div>
@@ -82,15 +90,25 @@ const props = withDefaults(defineProps<{
   location: StorageLocationInfo
   isActive?: boolean
   searchQuery?: string
+  /** Show the drag handle (#113). Off unless the page is in its manual-order mode. */
+  reorderable?: boolean
+  /** True while this card is the one being dragged — it dims into a drop placeholder. */
+  dragging?: boolean
 }>(), {
   isActive: false,
-  searchQuery: ''
+  searchQuery: '',
+  reorderable: false,
+  dragging: false
 })
 
 const emit = defineEmits<{
   select: [publicId: string]
   edit: [location: StorageLocationInfo]
   deleted: [publicId: string]
+  /** The handle was pressed — the page owns the list, so it owns the drag. */
+  'reorder-lift': [event: PointerEvent]
+  /** An arrow key on the handle asked for a one-position move. */
+  'reorder-move': [direction: -1 | 1]
 }>()
 
 const { t } = useI18n()

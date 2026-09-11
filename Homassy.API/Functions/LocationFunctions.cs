@@ -340,9 +340,11 @@ namespace Homassy.API.Functions
                 Longitude = s.Longitude,
                 StoreTypes = s.StoreTypes,
                 Color = s.Color,
+                SortOrder = s.SortOrder,
                 IsSharedWithFamily = s.FamilyId.HasValue
             })
-            .OrderBy(s => s.Name);
+            .OrderBy(s => s.SortOrder)
+            .ThenBy(s => s.Name);
 
             return shoppingLocationInfos.ToPagedResult(pagination);
         }
@@ -380,9 +382,11 @@ namespace Homassy.API.Functions
                 Description = s.Description,
                 Color = s.Color,
                 IsFreezer = s.IsFreezer,
+                SortOrder = s.SortOrder,
                 IsSharedWithFamily = s.FamilyId.HasValue
             })
-            .OrderBy(s => s.Name);
+            .OrderBy(s => s.SortOrder)
+            .ThenBy(s => s.Name);
 
             return storageLocationInfos.ToPagedResult(pagination);
         }
@@ -426,6 +430,9 @@ namespace Homassy.API.Functions
                     FamilyId = request.IsSharedWithFamily == true && familyId.HasValue ? familyId : null
                 };
 
+                // New locations append to the end of the manual order.
+                shoppingLocation.SortOrder = SparseOrdering.Append(await MaxShoppingLocationSortOrderAsync(context, userId.Value, familyId, cancellationToken));
+
                 context.ShoppingLocations.Add(shoppingLocation);
                 await context.SaveChangesAsync(cancellationToken);
 
@@ -448,6 +455,7 @@ namespace Homassy.API.Functions
                     Latitude = shoppingLocation.Latitude,
                     Longitude = shoppingLocation.Longitude,
                     StoreTypes = shoppingLocation.StoreTypes,
+                    SortOrder = shoppingLocation.SortOrder,
                     IsSharedWithFamily = shoppingLocation.FamilyId.HasValue
                 };
 
@@ -617,6 +625,7 @@ namespace Homassy.API.Functions
                     Latitude = trackedLocation.Latitude,
                     Longitude = trackedLocation.Longitude,
                     StoreTypes = trackedLocation.StoreTypes,
+                    SortOrder = trackedLocation.SortOrder,
                     IsSharedWithFamily = trackedLocation.FamilyId.HasValue
                 };
 
@@ -663,6 +672,9 @@ namespace Homassy.API.Functions
                     FamilyId = request.IsSharedWithFamily == true && familyId.HasValue ? familyId : null
                 };
 
+                // New locations append to the end of the manual order.
+                storageLocation.SortOrder = SparseOrdering.Append(await MaxStorageLocationSortOrderAsync(context, userId.Value, familyId, cancellationToken));
+
                 context.StorageLocations.Add(storageLocation);
                 await context.SaveChangesAsync(cancellationToken);
 
@@ -677,6 +689,7 @@ namespace Homassy.API.Functions
                     Description = storageLocation.Description,
                     Color = storageLocation.Color,
                     IsFreezer = storageLocation.IsFreezer,
+                    SortOrder = storageLocation.SortOrder,
                     IsSharedWithFamily = storageLocation.FamilyId.HasValue
                 };
 
@@ -782,6 +795,7 @@ namespace Homassy.API.Functions
                     Description = trackedLocation.Description,
                     Color = trackedLocation.Color,
                     IsFreezer = trackedLocation.IsFreezer,
+                    SortOrder = trackedLocation.SortOrder,
                     IsSharedWithFamily = trackedLocation.FamilyId.HasValue
                 };
 
@@ -934,6 +948,8 @@ namespace Homassy.API.Functions
             try
             {
                 var storageLocations = new List<StorageLocation>();
+                // One read for the batch; each location then appends after the previous one.
+                var nextSortOrder = SparseOrdering.Append(await MaxStorageLocationSortOrderAsync(context, userId.Value, familyId, cancellationToken));
 
                 foreach (var request in requests)
                 {
@@ -949,6 +965,8 @@ namespace Homassy.API.Functions
                         FamilyId = request.IsSharedWithFamily == true && familyId.HasValue ? familyId : null
                     };
 
+                    storageLocation.SortOrder = nextSortOrder;
+                    nextSortOrder = SparseOrdering.Append(nextSortOrder);
                     storageLocations.Add(storageLocation);
                 }
 
@@ -969,6 +987,7 @@ namespace Homassy.API.Functions
                         Description = sl.Description,
                         Color = sl.Color,
                         IsFreezer = sl.IsFreezer,
+                        SortOrder = sl.SortOrder,
                         IsSharedWithFamily = sl.FamilyId.HasValue
                     };
                     infos.Add(info);
@@ -1015,6 +1034,8 @@ namespace Homassy.API.Functions
             try
             {
                 var shoppingLocations = new List<ShoppingLocation>();
+                // One read for the batch; each location then appends after the previous one.
+                var nextSortOrder = SparseOrdering.Append(await MaxShoppingLocationSortOrderAsync(context, userId.Value, familyId, cancellationToken));
 
                 foreach (var request in requests)
                 {
@@ -1038,6 +1059,8 @@ namespace Homassy.API.Functions
                         FamilyId = request.IsSharedWithFamily == true && familyId.HasValue ? familyId : null
                     };
 
+                    shoppingLocation.SortOrder = nextSortOrder;
+                    nextSortOrder = SparseOrdering.Append(nextSortOrder);
                     shoppingLocations.Add(shoppingLocation);
                 }
 
@@ -1066,6 +1089,7 @@ namespace Homassy.API.Functions
                         Latitude = sl.Latitude,
                         Longitude = sl.Longitude,
                         StoreTypes = sl.StoreTypes,
+                        SortOrder = sl.SortOrder,
                         IsSharedWithFamily = sl.FamilyId.HasValue
                     };
                     infos.Add(info);
@@ -1316,6 +1340,155 @@ namespace Homassy.API.Functions
         }
         #endregion
 
+        #region Manual Ordering
+        /// <summary>
+        /// The highest manual position among the shopping locations this caller can see. Locations are
+        /// owned per user with an optional family share, so the scope of the order is the same scope
+        /// the list endpoint reads.
+        /// </summary>
+        private static async Task<int?> MaxShoppingLocationSortOrderAsync(HomassyDbContext context, int userId, int? familyId, CancellationToken cancellationToken)
+            => await context.ShoppingLocations
+                .Where(sl => sl.UserId == userId || (familyId.HasValue && sl.FamilyId == familyId.Value))
+                .MaxAsync(sl => (int?)sl.SortOrder, cancellationToken);
+
+        /// <summary>The storage-location counterpart of <see cref="MaxShoppingLocationSortOrderAsync"/>.</summary>
+        private static async Task<int?> MaxStorageLocationSortOrderAsync(HomassyDbContext context, int userId, int? familyId, CancellationToken cancellationToken)
+            => await context.StorageLocations
+                .Where(sl => sl.UserId == userId || (familyId.HasValue && sl.FamilyId == familyId.Value))
+                .MaxAsync(sl => (int?)sl.SortOrder, cancellationToken);
+
+        /// <summary>
+        /// Writes a new manual order for the caller's shopping locations. See
+        /// <see cref="SparseOrdering"/> for why the full ordered id list usually costs one row write.
+        /// </summary>
+        public async Task<List<ReorderedEntry>> ReorderShoppingLocationsAsync(ReorderLocationsRequest request, CancellationToken cancellationToken = default)
+        {
+            var (userId, familyId) = RequireSession();
+
+            using var context = _contextFactory.CreateDbContext();
+            await using var transaction = await context.Database.BeginTransactionAsync(cancellationToken);
+
+            try
+            {
+                var locations = await context.ShoppingLocations
+                    .Where(sl => request.LocationPublicIds.Contains(sl.PublicId)
+                        && (sl.UserId == userId || (familyId.HasValue && sl.FamilyId == familyId.Value)))
+                    .ToListAsync(cancellationToken);
+
+                var moved = ApplyOrder(request.LocationPublicIds, locations, userId, () => new ShoppingLocationNotFoundException("One or more shopping locations were not found"));
+
+                if (moved.Count > 0)
+                {
+                    await context.SaveChangesAsync(cancellationToken);
+                }
+
+                await transaction.CommitAsync(cancellationToken);
+                Log.Information($"User {userId} reordered shopping locations: {moved.Count} of {locations.Count} moved");
+
+                if (moved.Count > 0)
+                {
+                    await _runtime.MasterData.ShoppingLocationsReorderedAsync(userId, familyId, moved, cancellationToken);
+                }
+
+                return moved;
+            }
+            catch (Exception ex)
+            {
+                await transaction.RollbackAsync(cancellationToken);
+                Log.Error(ex, $"Failed to reorder shopping locations for user {userId}");
+                throw;
+            }
+        }
+
+        /// <summary>The storage-location counterpart of <see cref="ReorderShoppingLocationsAsync"/>.</summary>
+        public async Task<List<ReorderedEntry>> ReorderStorageLocationsAsync(ReorderLocationsRequest request, CancellationToken cancellationToken = default)
+        {
+            var (userId, familyId) = RequireSession();
+
+            using var context = _contextFactory.CreateDbContext();
+            await using var transaction = await context.Database.BeginTransactionAsync(cancellationToken);
+
+            try
+            {
+                var locations = await context.StorageLocations
+                    .Where(sl => request.LocationPublicIds.Contains(sl.PublicId)
+                        && (sl.UserId == userId || (familyId.HasValue && sl.FamilyId == familyId.Value)))
+                    .ToListAsync(cancellationToken);
+
+                var moved = ApplyOrder(request.LocationPublicIds, locations, userId, () => new StorageLocationNotFoundException("One or more storage locations were not found"));
+
+                if (moved.Count > 0)
+                {
+                    await context.SaveChangesAsync(cancellationToken);
+                }
+
+                await transaction.CommitAsync(cancellationToken);
+                Log.Information($"User {userId} reordered storage locations: {moved.Count} of {locations.Count} moved");
+
+                if (moved.Count > 0)
+                {
+                    await _runtime.MasterData.StorageLocationsReorderedAsync(userId, familyId, moved, cancellationToken);
+                }
+
+                return moved;
+            }
+            catch (Exception ex)
+            {
+                await transaction.RollbackAsync(cancellationToken);
+                Log.Error(ex, $"Failed to reorder storage locations for user {userId}");
+                throw;
+            }
+        }
+
+        /// <summary>
+        /// Shared body of the two reorder methods: resolves the requested ids against the rows the
+        /// caller may actually see, plans the minimal write and applies it to the tracked entities.
+        /// Nothing is saved here — the caller owns the transaction.
+        /// </summary>
+        private static List<ReorderedEntry> ApplyOrder<T>(List<Guid> orderedPublicIds, List<T> rows, int userId, Func<Exception> notFound)
+            where T : LocationBase
+        {
+            if (orderedPublicIds.Distinct().Count() != orderedPublicIds.Count)
+            {
+                throw new BadRequestException("The requested order contains the same location twice");
+            }
+
+            // Every id must resolve to a row this caller owns or shares — an unknown or foreign id is
+            // rejected rather than skipped, so the client never renders an order the server did not store.
+            if (rows.Count != orderedPublicIds.Count)
+            {
+                throw notFound();
+            }
+
+            var byPublicId = rows.ToDictionary(row => row.PublicId);
+            var ordered = orderedPublicIds.Select(id => byPublicId[id]).ToList();
+            var changes = SparseOrdering.PlanReorder(ordered.Select(row => row.SortOrder).ToList());
+
+            var moved = new List<ReorderedEntry>(changes.Count);
+            foreach (var (index, sortOrder) in changes)
+            {
+                ordered[index].SortOrder = sortOrder;
+                ordered[index].UpdateRecordChange(userId);
+                moved.Add(new ReorderedEntry { PublicId = ordered[index].PublicId, SortOrder = sortOrder });
+            }
+
+            return moved;
+        }
+
+        /// <summary>The caller's user and family ids, or a <see cref="UserNotFoundException"/>.</summary>
+        private static (int UserId, int? FamilyId) RequireSession()
+        {
+            var userId = SessionInfo.GetUserId();
+            if (!userId.HasValue)
+            {
+                Log.Warning("Invalid session: User ID not found");
+                throw new UserNotFoundException("User not found");
+            }
+
+            return (userId.Value, SessionInfo.GetFamilyId());
+        }
+        #endregion
+
         #region Helper Methods
         /// <summary>
         /// Converts a ShoppingLocation entity to ShoppingLocationInfo DTO.
@@ -1339,6 +1512,7 @@ namespace Homassy.API.Functions
                 Longitude = shoppingLocation.Longitude,
                 StoreTypes = shoppingLocation.StoreTypes,
                 Color = shoppingLocation.Color,
+                SortOrder = shoppingLocation.SortOrder,
                 IsSharedWithFamily = shoppingLocation.FamilyId.HasValue
             };
         }

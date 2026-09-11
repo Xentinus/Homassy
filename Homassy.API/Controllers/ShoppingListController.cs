@@ -283,6 +283,27 @@ namespace Homassy.API.Controllers
         }
 
         /// <summary>
+        /// Sets the manual (aisle) order of a list's items from the ordered ids, in one transaction.
+        /// Returns only the items whose position actually changed — the ordering scheme is sparse, so a
+        /// single drag normally moves one row (see <see cref="Functions.SparseOrdering"/>).
+        /// </summary>
+        [HttpPost("item/reorder")]
+        [MapToApiVersion(1.0)]
+        [ProducesResponseType(typeof(ApiResponse<List<ReorderedEntry>>), StatusCodes.Status200OK)]
+        [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status404NotFound)]
+        public async Task<IActionResult> ReorderShoppingListItems([FromBody] ReorderShoppingListItemsRequest request, CancellationToken cancellationToken)
+        {
+            if (!ModelState.IsValid)
+            {
+                return BadRequest(ApiResponse.ErrorResponse(ErrorCodes.ValidationInvalidRequest));
+            }
+
+            var moved = await _shoppingListFunctions.ReorderShoppingListItemsAsync(request, cancellationToken);
+            return Ok(ApiResponse<List<ReorderedEntry>>.SuccessResponse(moved));
+        }
+
+        /// <summary>
         /// Gets the count of shopping list items that are overdue or due soon (within 14 days).
         /// </summary>
         [HttpGet("item/deadline-count")]

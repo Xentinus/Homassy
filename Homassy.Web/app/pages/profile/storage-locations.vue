@@ -59,18 +59,27 @@
         @action="hasActiveQuery ? clearAllFilters() : openCreateDrawer()"
       />
 
-      <!-- Locations Grid -->
-      <AnimatedList class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-        <DataStorageLocationCard
-          v-for="location in filteredLocations"
-          :key="location.publicId"
-          :location="location"
-          :search-query="searchQuery"
-          @select="openOverview"
-          @edit="openEditDrawer"
-          @deleted="onDeleted"
-        />
-      </AnimatedList>
+      <!-- Locations Grid. The wrapper exists so the drag composable has a plain element to scan for
+           `data-reorder-key` rows — AnimatedList's own root has to keep the grid classes, since
+           `grid` only applies to direct children. -->
+      <div ref="gridEl">
+        <AnimatedList class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          <DataStorageLocationCard
+            v-for="location in filteredLocations"
+            :key="location.publicId"
+            :data-reorder-key="location.publicId"
+            :location="location"
+            :search-query="searchQuery"
+            reorderable
+            :dragging="reorder.draggingKey.value === location.publicId"
+            @select="openOverview"
+            @edit="openEditDrawer"
+            @deleted="onDeleted"
+            @reorder-lift="(event) => reorder.startDrag(event, location.publicId)"
+            @reorder-move="(direction) => reorder.moveByKeyboard(location.publicId, direction)"
+          />
+        </AnimatedList>
+      </div>
     </template>
     </div>
 
@@ -91,13 +100,14 @@
 import { ref, computed, onMounted, onBeforeUnmount } from 'vue'
 import { useLocationsApi } from '~/composables/api/useLocationsApi'
 import type { StorageLocationInfo } from '~/types/location'
-import type { MasterDataDeletedEvent } from '~/types/masterData'
+import type { MasterDataDeletedEvent, MasterDataReorderedEvent } from '~/types/masterData'
 
 definePageMeta({ layout: 'auth', middleware: 'auth' })
 
-const { getStorageLocations } = useLocationsApi()
+const { getStorageLocations, reorderStorageLocations } = useLocationsApi()
 const masterDataSocket = useMasterDataSocket()
 const { t } = useI18n()
+const toast = useToast()
 
 // Add-action lives on the dynamic nav FAB instead of an inline header button.
 useFabActions(() => [
@@ -146,32 +156,43 @@ const sharedOptions = computed(() => [
   { label: t('common.personal'), value: 'personal' }
 ])
 
-// Filtered locations based on search + filters
-const filteredLocations = computed(() => {
-  let result = locations.value
+// Manual ordering (#113). The order is the list's own — there is no alternative sort to switch
+// between here, so the handles are always shown and `sortOrder` is always what decides the order,
+// with the alphabetical order it used to have as the tie-break for rows nobody has dragged.
+const gridEl = ref<HTMLElement | null>(null)
+const reorder = useReorderableList<StorageLocationInfo>({
+  items: locations,
+  container: gridEl,
+  baseSort: (a, b) => a.name.localeCompare(b.name),
+  filter: matchesFilters,
+  commit: orderedIds => reorderStorageLocations({ locationPublicIds: orderedIds }),
+  onFailed: (error) => {
+    console.error('Failed to reorder storage locations:', error)
+    toast.add({ title: t('common.error'), description: t('common.reorder.failed'), color: 'error' })
+  }
+})
 
+// Search + filter predicate, shared by the rendered list and by the reorder composable (which must
+// only ever send the rows the user can actually see).
+function matchesFilters(loc: StorageLocationInfo): boolean {
   if (searchQuery.value.trim()) {
     const query = searchQuery.value.toLowerCase()
-    result = result.filter(loc =>
-      loc.name.toLowerCase().includes(query)
+    const matches = loc.name.toLowerCase().includes(query)
       || loc.description?.toLowerCase().includes(query)
-    )
+    if (!matches) return false
   }
 
-  if (freezerFilter.value === 'freezer') {
-    result = result.filter(loc => loc.isFreezer)
-  } else if (freezerFilter.value === 'notFreezer') {
-    result = result.filter(loc => !loc.isFreezer)
-  }
+  if (freezerFilter.value === 'freezer' && !loc.isFreezer) return false
+  if (freezerFilter.value === 'notFreezer' && loc.isFreezer) return false
 
-  if (sharedFilter.value === 'shared') {
-    result = result.filter(loc => loc.isSharedWithFamily)
-  } else if (sharedFilter.value === 'personal') {
-    result = result.filter(loc => !loc.isSharedWithFamily)
-  }
+  if (sharedFilter.value === 'shared' && !loc.isSharedWithFamily) return false
+  if (sharedFilter.value === 'personal' && loc.isSharedWithFamily) return false
 
-  return result
-})
+  return true
+}
+
+/** What the grid renders: the filter applied, in manual order (see `useReorderableList`). */
+const filteredLocations = computed(() => reorder.orderedItems.value)
 
 // Active filter chips
 const activeFilters = computed(() => {
@@ -249,17 +270,24 @@ function handleDeleted(payload: MasterDataDeletedEvent) {
   removeLocation(payload.publicId)
 }
 
+// Another member dragged something: patch the positions that moved and let the order recompute.
+function handleReordered(payload: MasterDataReorderedEvent) {
+  reorder.applyReorderedEntries(payload.entries)
+}
+
 onMounted(async () => {
   await loadStorageLocations()
   await masterDataSocket.ensureConnected()
   masterDataSocket.on('StorageLocationUpserted', handleUpserted)
   masterDataSocket.on('StorageLocationDeleted', handleDeleted)
+  masterDataSocket.on('StorageLocationsReordered', handleReordered)
   masterDataSocket.onReconnected(loadStorageLocations)
 })
 
 onBeforeUnmount(() => {
   masterDataSocket.off('StorageLocationUpserted', handleUpserted)
   masterDataSocket.off('StorageLocationDeleted', handleDeleted)
+  masterDataSocket.off('StorageLocationsReordered', handleReordered)
   masterDataSocket.offReconnected(loadStorageLocations)
 })
 </script>

@@ -19,7 +19,7 @@ name="i-lucide-trash-2" class="h-5 w-5 text-white transition-transform duration-
     <div
       ref="cardEl"
       class="relative h-full bg-default rounded-2xl border-2 p-3 cursor-pointer shadow-sm hover:shadow-lg transition-shadow duration-200 flex flex-col overflow-hidden select-none"
-      :class="[cardBorderClass, automation.isEnabled ? '' : 'opacity-70']"
+      :class="[cardBorderClass, automation.isEnabled ? '' : 'opacity-70', { 'opacity-40': dragging }]"
       :style="swipe.cardStyle.value"
       @click="handleCardClick"
     >
@@ -33,6 +33,14 @@ name="i-lucide-trash-2" class="h-5 w-5 text-white transition-transform duration-
           <p v-if="automation.productBrand" class="text-xs text-muted truncate">{{ automation.productBrand }}</p>
         </div>
         <UIcon v-if="automation.isTriggered" name="i-lucide-flame" class="h-4 w-4 text-orange-500 flex-shrink-0" :title="$t('profile.automation.triggered')" />
+        <ReorderHandle
+          v-if="reorderable"
+          :dragging="dragging"
+          :label="$t('common.reorder.handleFor', { name: automation.productName })"
+          size="sm"
+          @lift="(event) => emit('reorder-lift', event)"
+          @move="(direction) => emit('reorder-move', direction)"
+        />
       </div>
 
       <!-- Details (pinned bottom) -->
@@ -75,12 +83,23 @@ import { AutomationActionType, ScheduleType } from '~/types/automation'
 import type { AutomationResponse } from '~/types/automation'
 import { useAutomationApi } from '~/composables/api/useAutomationApi'
 
-const props = defineProps<{
+const props = withDefaults(defineProps<{
   automation: AutomationResponse
-}>()
+  /** Show the drag handle (#113). Off unless the page is in its manual-order mode. */
+  reorderable?: boolean
+  /** True while this card is the one being dragged — it dims into a drop placeholder. */
+  dragging?: boolean
+}>(), {
+  reorderable: false,
+  dragging: false
+})
 
 const emit = defineEmits<{
   deleted: [publicId: string]
+  /** The handle was pressed — the page owns the list, so it owns the drag. */
+  'reorder-lift': [event: PointerEvent]
+  /** An arrow key on the handle asked for a one-position move. */
+  'reorder-move': [direction: -1 | 1]
 }>()
 
 const { t } = useI18n()
