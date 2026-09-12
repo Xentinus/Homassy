@@ -135,7 +135,7 @@
            an already-open list (showPurchased toggle, socket reconnect,
            pull-to-refresh) keeps the grid mounted, so the bubble animation is
            not replayed for every card. -->
-      <div v-if="isLoadingDetails && !currentListDetails" class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+      <div v-if="isLoadingDetails && !currentListDetails" class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-4">
         <SkeletonCard v-for="i in 8" :key="i" :lines="1" :footer-lines="3" />
       </div>
 
@@ -214,7 +214,7 @@
              of this mode is that the order on screen is the order the user set. The smart ordering
              below is still there; this is a mode alongside it, not a replacement. -->
         <div v-if="isManualOrder" ref="gridEl">
-          <AnimatedList class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+          <AnimatedList class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-4">
             <div
               v-for="entry in manualItemsWithAttribution"
               :key="entry.item.publicId"
@@ -264,7 +264,7 @@
               {{ $t('pages.shoppingLists.nearby.sectionPending', { count: herePendingCount }) }}
             </UBadge>
           </div>
-          <AnimatedList class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 mb-6">
+          <AnimatedList class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-4 mb-6">
             <div
               v-for="entry in hereItemsWithAttribution"
               :key="entry.item.publicId"
@@ -305,7 +305,7 @@
              *requests* delete/purchase/restore, and this page owns the items array, so a card
              whose request nobody listens for closes its confirm drawer and does nothing at all.
              An unhandled emit is silent in Vue — neither the linter nor the typechecker sees it. -->
-        <AnimatedList class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+        <AnimatedList class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-4">
           <div
             v-for="entry in restItemsWithAttribution"
             :key="entry.item.publicId"

@@ -189,7 +189,7 @@
          the feedback); swapping it out would remount every card and replay the
          bubble animation, and would swallow the leave animation of a card
          removed in the same tick. -->
-    <div v-if="isLoading && !hasLoaded" class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+    <div v-if="isLoading && !hasLoaded" class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-4">
       <SkeletonCard v-for="i in 8" :key="i" :lines="2" />
     </div>
 
@@ -211,7 +211,7 @@
       <!-- Products grid. Ungrouped it is one flat AnimatedList, as before; grouped it is one
            list per section under a sticky header. Separate lists on purpose — a header inside a
            TransitionGroup would join the cards' FLIP animation. -->
-      <AnimatedList v-if="sections.length === 0" class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+      <AnimatedList v-if="sections.length === 0" class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-4">
         <div
           v-for="entry in displayedProductsView"
           :key="entry.product.publicId"
@@ -240,7 +240,7 @@
             <span class="text-xs text-muted tabular-nums">{{ section.count }}</span>
           </h2>
 
-          <AnimatedList class="mb-4 grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+          <AnimatedList class="mb-4 grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-4">
             <div
               v-for="entry in section.items"
               :key="entry.product.publicId"
@@ -262,7 +262,7 @@
     <!-- Sentinel for intersection observer -->
     <div v-if="hasMoreProducts" ref="sentinelRef" class="w-full min-h-[1px]">
       <!-- Loading skeletons while loading more -->
-      <div v-if="loadingMore" class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 mt-4">
+      <div v-if="loadingMore" class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-4 mt-4">
         <SkeletonCard v-for="i in 8" :key="i" :lines="2" />
       </div>
     </div>

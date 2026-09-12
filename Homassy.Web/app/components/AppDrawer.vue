@@ -2,6 +2,10 @@
   <UDrawer
     :open="open"
     :dismissible="dismissible && closable"
+    :direction="isSidePanel ? 'right' : 'bottom'"
+    :handle="!isSidePanel"
+    :modal="!isDetailPanel"
+    :overlay="!isDetailPanel"
     :ui="ui"
     @update:open="(value) => emit('update:open', value)"
   >
@@ -42,14 +46,20 @@ import { computed, ref } from 'vue'
 import { DrawerTitle, DrawerDescription } from 'vaul-vue'
 
 /**
- * The app's standard bottom-sheet drawer: a near-fullscreen `UDrawer` with a
- * fixed header (icon + title + close ✕), a scrollable body, and an optional
- * pinned footer for action buttons. Drag the header down to dismiss.
+ * The app's standard drawer: a `UDrawer` with a fixed header (icon + title +
+ * close ✕), a scrollable body, and an optional pinned footer for action buttons.
  *
- * This is the single source of truth for drawer chrome — every bottom sheet
- * (wizards, forms, overviews, filters, the barcode scanner, …) wraps this so
- * they are all the same size, look identical, and are always closable via the
- * ✕ button or the drag gesture. Small confirm/progress dialogs stay `UModal`.
+ * This is the single source of truth for drawer chrome — every sheet (wizards,
+ * forms, overviews, filters, the barcode scanner, …) wraps this so they are all
+ * the same size, look identical, and are always closable via the ✕ button or the
+ * drag gesture. Small confirm/progress dialogs stay `UModal`.
+ *
+ * **Below `lg` it is always a bottom sheet**, dragged down to dismiss. **Above
+ * `lg` the `desktop` prop decides what it becomes** (#122) — a right-hand side
+ * panel by default, a non-modal detail pane for read-only overviews, or a bottom
+ * sheet still, for the few places where that is the right shape at any width.
+ * One prop rather than a second component: a desktop-only drawer component would
+ * be a second copy of this chrome to keep in step with this one.
  *
  * Slots: `header-extra` (below the title), the default slot (scrollable body),
  * and `footer` (only rendered when provided — overview drawers omit it).
@@ -87,6 +97,19 @@ const props = withDefaults(defineProps<{
    * and would be dragged off-screen with it.
    */
   snapPoints?: number[]
+  /**
+   * What this drawer becomes above `lg` (#122). Below `lg` it is a bottom sheet
+   * whatever this says.
+   *
+   * - `panel` (default) — a right-hand side panel, still modal: the overlay and
+   *   the focus trap stay, which is what a form or a wizard needs.
+   * - `detail` — a right-hand side panel with no overlay and no scroll lock, so
+   *   the list it was opened from stays readable and clickable next to it. This
+   *   is the master/detail shape, and it is only right for a read-only overview:
+   *   picking another row swaps what the pane shows instead of closing it.
+   * - `sheet` — stay a bottom sheet at every width.
+   */
+  desktop?: 'panel' | 'detail' | 'sheet'
 }>(), {
   icon: undefined,
   description: undefined,
@@ -97,7 +120,8 @@ const props = withDefaults(defineProps<{
   padded: true,
   closable: true,
   elevated: false,
-  snapPoints: undefined
+  snapPoints: undefined,
+  desktop: 'panel'
 })
 
 const emit = defineEmits<{
@@ -105,6 +129,13 @@ const emit = defineEmits<{
 }>()
 
 const { t } = useI18n()
+const { isDesktop } = useBreakpoint()
+
+/** True while this drawer is a right-hand panel rather than a bottom sheet. */
+const isSidePanel = computed(() => isDesktop.value && props.desktop !== 'sheet')
+
+/** True while it is the non-modal master/detail pane — a stricter case of the above. */
+const isDetailPanel = computed(() => isSidePanel.value && props.desktop === 'detail')
 
 const ui = computed(() => {
   const bodyPad = props.padded ? ' p-4 sm:p-6' : ''
@@ -122,7 +153,12 @@ const ui = computed(() => {
     // correctly in this vaul-vue / Nuxt UI version — they render below the
     // viewport (transform = translateY(fullHeight), `--snap-point-height: 0`),
     // leaving only a click-blocking overlay. A fixed height is the reliable option.
-    content: `h-[94dvh] rounded-t-2xl overflow-hidden${zContent}`,
+    // A side panel is the same sheet turned on its side: a fixed width instead of a
+    // fixed height, rounded on the edge that faces the list, and capped so it never
+    // takes more than half of a very wide window away from the master list.
+    content: isSidePanel.value
+      ? `h-full w-full max-w-xl rounded-l-2xl overflow-hidden${zContent}`
+      : `h-[94dvh] rounded-t-2xl overflow-hidden${zContent}`,
     container: 'flex flex-1 flex-col min-h-0 gap-0 p-0 overflow-hidden',
     header: 'shrink-0 border-b border-default p-4 sm:px-6',
     body: `flex-1 min-h-0 overflow-y-auto${bodyPad}`,
@@ -137,9 +173,13 @@ const ui = computed(() => {
 // (default false, so outside-tap / Esc don't close by accident); this gesture
 // and the ✕ button are the deliberate exits.
 const headerEl = ref<HTMLElement | null>(null)
+// A side panel has no drag gesture: the composable's whole vocabulary is vertical
+// (drag down to dismiss, park at a snap point), and there is no equivalent worth
+// inventing for a panel pinned to the right edge of a desktop window with a mouse.
+// Its ✕ button is the exit.
 useDrawerDragToClose(headerEl, {
   onClose: () => emit('update:open', false),
-  disabled: () => !props.dragToClose || !props.closable || props.loading,
-  snapPoints: () => props.snapPoints
+  disabled: () => isSidePanel.value || !props.dragToClose || !props.closable || props.loading,
+  snapPoints: () => (isSidePanel.value ? undefined : props.snapPoints)
 })
 </script>

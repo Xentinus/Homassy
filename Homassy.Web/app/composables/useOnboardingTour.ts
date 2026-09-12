@@ -53,9 +53,24 @@ function selectorFor(target: string) {
   return `[data-tour="${CSS.escape(target)}"]`
 }
 
+/**
+ * The first *visible* element carrying the target's marker.
+ *
+ * Visible rather than merely first, because since #122 the navigation exists twice: a bottom
+ * bar below `lg` and a sidebar above it, one of which is always `display: none`. A plain
+ * `querySelector` would return whichever comes first in the DOM regardless of which one the
+ * reader can actually see, and a zero rect is a hole nobody can see. Falls back to the first
+ * match so a not-yet-laid-out element is still returned for `waitForTarget` to poll on.
+ */
 function findTarget(target: string): HTMLElement | null {
   if (!import.meta.client) return null
-  return document.querySelector<HTMLElement>(selectorFor(target))
+
+  const matches = document.querySelectorAll<HTMLElement>(selectorFor(target))
+  for (const el of matches) {
+    if (el.getBoundingClientRect().width > 0) return el
+  }
+
+  return matches[0] ?? null
 }
 
 /**

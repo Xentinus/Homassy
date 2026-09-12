@@ -4,14 +4,73 @@
          stays mounted across navigation, exactly like the bottom nav below. -->
     <AppHeader />
 
+    <!-- Desktop navigation (#122). Above `lg` the bottom bar below is hidden and this takes
+         over: the same items, the same badges, the same avatar entry, in the shape a wide
+         window wants. It is a sibling of the page slot for the same reason the bottom bar is —
+         it has to survive navigation — and it sits under the header rather than beside it, so
+         the header stays one full-width strip at every size. -->
+    <aside
+      class="hidden lg:flex fixed left-0 bottom-0 z-40 w-64 flex-col border-r border-default bg-default/95 backdrop-blur px-3 py-4"
+      :style="{ top: 'var(--app-header-height, 5.5rem)' }"
+    >
+      <!-- The FAB's desktop form: a primary button, same `useFabActions` registration. -->
+      <ClientOnly>
+        <NavSidebarAction />
+      </ClientOnly>
+
+      <nav data-tour="nav-bar" class="flex-1 flex flex-col gap-1 overflow-y-auto">
+        <NuxtLink
+          v-for="item in navItems"
+          :key="`sidebar-${item.to}`"
+          :to="item.to"
+          :data-tour="item.tour"
+          :aria-label="item.label"
+          :aria-current="item.active ? 'page' : undefined"
+          class="relative flex items-center gap-3 rounded-xl px-3 py-2.5 transition-colors duration-200"
+          :class="item.active
+            ? 'bg-primary-100 dark:bg-primary-500/15 text-primary-600 dark:text-primary-400 font-semibold'
+            : 'text-gray-600 dark:text-gray-400 hover:bg-elevated'"
+        >
+          <div class="relative shrink-0">
+            <div
+              v-if="item.badge"
+              class="absolute -top-1.5 -right-1.5 z-10 flex items-center justify-center min-w-[18px] h-[18px] px-1 rounded-full shadow-md"
+              :class="item.badgeClass"
+            >
+              <span class="text-[10px] font-bold text-white leading-none tabular-nums">
+                {{ item.badge }}
+              </span>
+            </div>
+
+            <div v-if="item.avatar" class="h-6 w-6">
+              <ClientOnly>
+                <UserAvatar
+                  :src="avatarSrc"
+                  :name="avatarName"
+                  :public-id="authStore.user?.publicId"
+                  :identity-color="authStore.user?.identityColor"
+                  :size="24"
+                />
+              </ClientOnly>
+            </div>
+            <UIcon v-else :name="item.icon" class="h-6 w-6" />
+          </div>
+          <span class="truncate text-sm">{{ item.label }}</span>
+        </NuxtLink>
+      </nav>
+    </aside>
+
+    <!-- `pb-32` clears the floating bottom bar, which only exists below `lg`; above it the
+         page is given the sidebar's width as a margin (not padding — the pages have horizontal
+         padding of their own, and a margin leaves that alone) and the whole remaining width. -->
     <UMain
-      class="flex-1 px-4 sm:px-6 lg:px-8 pb-32"
+      class="flex-1 px-4 sm:px-6 lg:px-8 lg:ml-64 pb-32 lg:pb-10"
       :style="{ paddingTop: 'calc(var(--app-header-height, 5.5rem) + 1rem)' }"
     >
       <slot />
     </UMain>
 
-    <nav class="fixed inset-x-4 bottom-4 z-50 max-w-2xl mx-auto">
+    <nav class="lg:hidden fixed inset-x-4 bottom-4 z-50 max-w-2xl mx-auto">
       <!-- Dynamic add button, centred on the nav's top border -->
       <NavFab />
 

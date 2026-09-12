@@ -4,6 +4,7 @@
     :title="product?.name || $t('pages.products.details.overview')"
     icon="i-lucide-package"
     :snap-points="[0.5, 1]"
+    desktop="detail"
     @update:open="(value) => emit('update:open', value)"
   >
     <!-- Loading -->
