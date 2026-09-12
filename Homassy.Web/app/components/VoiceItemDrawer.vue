@@ -89,7 +89,7 @@
               variant="ghost"
               size="xs"
               :aria-label="t('common.delete')"
-              @click="rows.splice(index, 1)"
+              @click="() => { rows.splice(index, 1) }"
             />
           </div>
 

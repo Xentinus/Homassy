@@ -56,7 +56,7 @@
       :disabled="pending.length >= MAX_REFERENCES"
       :aria-label="t('familyChat.composer.attachReference')"
       class="h-11 w-11 shrink-0 justify-center"
-      @click="pickerOpen = true"
+      @click="() => { pickerOpen = true }"
     />
 
     <UTextarea

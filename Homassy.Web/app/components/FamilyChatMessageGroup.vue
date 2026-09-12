@@ -156,7 +156,7 @@
         >
           {{ t('familyChat.actions.delete') }}
         </UButton>
-        <UButton color="neutral" variant="ghost" class="w-full justify-center" @click="actionsOpen = false">
+        <UButton color="neutral" variant="ghost" class="w-full justify-center" @click="() => { actionsOpen = false }">
           {{ t('common.cancel') }}
         </UButton>
       </div>
