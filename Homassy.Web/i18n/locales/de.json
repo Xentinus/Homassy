@@ -8,6 +8,13 @@
       "description": "Verwalten Sie Ihr Haushaltsinventar, Einkaufslisten und teilen Sie alles mit Ihrer Familie.",
       "ogTitle": "Homassy - Intelligente Haushaltsverwaltung",
       "ogDescription": "Organisieren Sie Ihr Hausinventar und Einkäufe mit Ihrer Familie"
+    },
+    "home": {
+      "title": "Homassy - Haushaltsbestand und Einkaufslisten für Familien",
+      "description": "Wisse, was in deinen Schränken steht, sieh, was bald abläuft, und führe eine einzige Einkaufsliste, die zu Hause alle gleichzeitig bearbeiten. Kostenlos und quelloffen.",
+      "ogTitle": "Homassy - Dein Haushaltsbestand, gemeinsam",
+      "ogDescription": "Ablaufdaten, Einkaufslisten in Echtzeit und ein Barcode-Scanner — für alle, mit denen du zusammenwohnst.",
+      "ogImageAlt": "Der Lagerbestand-Bildschirm von Homassy mit Produkten und ihren Ablaufdaten"
     }
   },
   "common": {
@@ -335,6 +342,102 @@
           "purchasedItems": "Gekaufte Artikel",
           "shoppingLocations": "Einkaufsorte",
           "storageLocations": "Lagerorte"
+        }
+      },
+      "hero": {
+        "title": "Dein Haushaltsbestand, geteilt mit den Menschen, mit denen du lebst",
+        "description": "Homassy weiß, was in deinen Schränken steht, sagt dir, was bald schlecht wird, und führt eine Einkaufsliste, an der die ganze Familie gleichzeitig schreibt.",
+        "secondary": "So funktioniert es",
+        "screenshotAlt": "Der Lagerbestand-Bildschirm von Homassy mit Produkten und ihren Ablaufdaten",
+        "proof": {
+          "free": "Kostenlos und quelloffen",
+          "install": "Direkt aus dem Browser installierbar",
+          "family": "Für einen ganzen Haushalt gebaut"
+        }
+      },
+      "showcase": {
+        "inventory": {
+          "eyebrow": "Lagerbestand",
+          "title": "Wisse, was du hast — und was bald schlecht wird",
+          "description": "Jeder Artikel trägt sein eigenes Ablaufdatum, und die App färbt ihn ein, je näher es rückt: zwei Wochen vorher bernsteinfarben, in den letzten drei Tagen rot. Dieselbe Zahl steht auf dem App-Symbol, ganz ohne die App zu öffnen.",
+          "points": {
+            "one": "Mengen pro Lagerort, bis aufs Regal genau",
+            "two": "Ein Abzeichen für alles Ablaufende, auf Symbol und Tab",
+            "three": "Verbrauchen, umlagern oder aufteilen mit zwei Tipps"
+          }
+        },
+        "shopping": {
+          "eyebrow": "Einkaufslisten",
+          "title": "Eine Liste, an der alle gleichzeitig schreiben",
+          "description": "Du schreibst zu Hause Brot auf, während jemand anderes im Laden Milch abhakt — und beide sehen es passieren. Abgehakte Artikel wandern mitsamt Preis direkt in den Bestand, sodass der nächste Einkauf mit dem beginnt, was wirklich übrig ist.",
+          "points": {
+            "one": "Live-Aktualisierung über Socket, ohne Neuladen",
+            "two": "Sieh, wer in der Liste ist und was gerade gekauft wurde",
+            "three": "Aus einem Einkauf wird Bestand, der Preis bleibt gemerkt"
+          }
+        },
+        "scanner": {
+          "eyebrow": "Barcode-Scanner",
+          "title": "Kamera drauf halten, Produkt erhalten",
+          "description": "Scanne einen Barcode und Homassy schlägt ihn nach — zuerst im eigenen Katalog, dann bei Open Food Facts. Ein schon einmal gekauftes Produkt kommt mit Marke, Einheit und Stammgeschäft zurück.",
+          "points": {
+            "one": "Läuft mit der Handykamera, ohne Zusatzgerät",
+            "two": "Open Food Facts ergänzt, was du nicht getippt hast",
+            "three": "Direkt in den Bestand oder auf eine Liste scannen"
+          }
+        },
+        "calendar": {
+          "eyebrow": "Kalender",
+          "title": "Der kommende Monat auf einem Bildschirm",
+          "description": "Ablaufdaten, Einkaufsfristen und wiederkehrende Automatisierungen landen auf dem Tag, auf den sie fallen. Abonniere den Kalender-Feed der Familie, und er taucht in dem Kalender auf, den du ohnehin nutzt.",
+          "points": {
+            "one": "Ablaufdaten und Fristen in einer Monatsansicht",
+            "two": "Wiederkehrende Automatisierungen setzen Artikel von selbst zurück auf die Liste",
+            "three": "Externe Kalender-Feeds, in beide Richtungen"
+          }
+        }
+      },
+      "preview": {
+        "inventory": {
+          "items": {
+            "milk": "Fettarme Milch",
+            "yogurt": "Naturjoghurt",
+            "rice": "Basmatireis",
+            "coffee": "Gemahlener Kaffee",
+            "pasta": "Penne-Nudeln",
+            "butter": "Butter"
+          },
+          "expiry": {
+            "tomorrow": "Läuft morgen ab",
+            "days": "Noch {count} Tage",
+            "months": "Noch {count} Monate"
+          }
+        },
+        "shopping": {
+          "live": "Anna kauft gerade ein",
+          "items": {
+            "bread": "Roggenbrot",
+            "eggs": "Freilandeier",
+            "tomato": "Tomaten",
+            "detergent": "Waschmittel",
+            "coffee": "Gemahlener Kaffee",
+            "apples": "Äpfel"
+          }
+        },
+        "scanner": {
+          "title": "Scannen",
+          "hint": "Richte den Barcode im Rahmen aus",
+          "productName": "Fettarme Milch 1 l",
+          "add": "Hinzufügen"
+        },
+        "calendar": {
+          "month": "April",
+          "weekdays": "M,D,M,D,F,S,S",
+          "events": {
+            "milk": "Milch läuft ab",
+            "yogurt": "Joghurt läuft ab",
+            "shopping": "Wocheneinkauf"
+          }
         }
       }
     },

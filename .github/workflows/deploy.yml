@@ -266,6 +266,7 @@ jobs:
           build-args: |
             NUXT_PUBLIC_KRATOS_URL=${{ vars.NUXT_PUBLIC_KRATOS_URL }}
             NUXT_PUBLIC_API_BASE=${{ vars.NUXT_PUBLIC_API_BASE }}
+            NUXT_PUBLIC_SITE_URL=${{ vars.NUXT_PUBLIC_SITE_URL }}
           cache-from: type=gha,scope=${{ matrix.name }}
           cache-to: type=gha,mode=max,scope=${{ matrix.name }}
 

@@ -1151,6 +1151,7 @@ On the shopping-list page a locate button (shown when the open list has location
 |---|---|---|
 | `NUXT_PUBLIC_API_BASE` | `http://localhost:5226` | Homassy.API base URL (production: `https://homassy.kellner.dev` — same origin, the reverse proxy routes `/api/v*` + `/hubs/*` to the API; other `/api/*` paths such as `@nuxt/icon`'s `/api/_nuxt_icon/*` stay on the Nuxt server) |
 | `NUXT_PUBLIC_KRATOS_URL` | `http://localhost:4433` | Kratos public URL (production: `https://homassy.kellner.dev/kratos`) |
+| `NUXT_PUBLIC_SITE_URL` | `http://localhost:3000` | Where this deployment is reachable from the outside. Used only for absolute URLs a crawler cannot resolve itself — the landing page's Open Graph / Twitter card image (production: `https://homassy.kellner.dev`) |
 
 In Docker, these are passed as build args and compiled into the static bundle. Set them at build time, not at runtime. In production both point at the single public domain served by the Caddy reverse proxy (`Homassy.Proxy/Caddyfile`).
 

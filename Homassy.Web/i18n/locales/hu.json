@@ -8,6 +8,13 @@
       "description": "Kezeld háztartásod készletét, bevásárlólistáit, és oszd meg mindent a családoddal.",
       "ogTitle": "Homassy - Okos háztartáskezelés",
       "ogDescription": "Szervezd otthonod készletét és bevásárlásait a családoddal"
+    },
+    "home": {
+      "title": "Homassy - Háztartási készlet és bevásárlólisták családoknak",
+      "description": "Tudd, mi van a szekrényekben, lásd, mi jár le hamarosan, és vezess egyetlen bevásárlólistát, amelyet otthon mindenki egyszerre szerkeszt. Ingyenes és nyílt forráskódú.",
+      "ogTitle": "Homassy - A háztartásod készlete, közösen",
+      "ogDescription": "Lejárat-figyelés, élő bevásárlólisták és vonalkód-olvasó mindenkinek, akivel együtt élsz.",
+      "ogImageAlt": "A Homassy készletek képernyője a termékekkel és a lejárati dátumaikkal"
     }
   },
   "common": {
@@ -335,6 +342,102 @@
           "purchasedItems": "Megvásárolt tételek",
           "shoppingLocations": "Bevásárlóhelyek",
           "storageLocations": "Tárolóhelyek"
+        }
+      },
+      "hero": {
+        "title": "A háztartásod készlete, közösen azokkal, akikkel együtt élsz",
+        "description": "A Homassy tudja, mi van a szekrényeidben, szól, ha valami hamarosan lejár, és egyetlen bevásárlólistát vezet, amelyet az egész család egyszerre szerkeszt.",
+        "secondary": "Nézd meg, hogyan működik",
+        "screenshotAlt": "A Homassy készletek képernyője a termékekkel és a lejárati dátumaikkal",
+        "proof": {
+          "free": "Ingyenes és nyílt forráskódú",
+          "install": "Böngészőből telepíthető",
+          "family": "Egész háztartásra tervezve"
+        }
+      },
+      "showcase": {
+        "inventory": {
+          "eyebrow": "Készletek",
+          "title": "Tudd, mid van, és mi jár le hamarosan",
+          "description": "Minden tétel a saját lejárati dátumát hordozza, és az app színezi, ahogy közeledik a dátum: két héten belül borostyán, az utolsó három napban piros. Ugyanez a szám ül az app ikonján, így meg sem kell nyitnod.",
+          "points": {
+            "one": "Mennyiségek tárolónként, egészen a polcig",
+            "two": "Egyetlen jelvény minden lejáró tételre, az ikonon és a fülön",
+            "three": "Fogyasztás, mozgatás vagy szétbontás két koppintással"
+          }
+        },
+        "shopping": {
+          "eyebrow": "Bevásárlólisták",
+          "title": "Egy lista, amelyre mindenki egyszerre ír",
+          "description": "Otthonról felírod a kenyeret, miközben valaki más a boltban kipipálja a tejet — és mindketten látjátok. A kipipált tételek az árukkal együtt egyenesen a készletbe kerülnek, így a következő bevásárlás abból indul, ami tényleg maradt.",
+          "points": {
+            "one": "Élő frissítés socketen, frissítgetés nélkül",
+            "two": "Látod, ki van a listában, és mit vett meg épp",
+            "three": "A vásárlásból készlet lesz, megjegyzett árral"
+          }
+        },
+        "scanner": {
+          "eyebrow": "Vonalkód-olvasó",
+          "title": "Irányítsd rá a kamerát, és megvan a termék",
+          "description": "Olvasd be a vonalkódot, és a Homassy kikeresi: először a saját katalógusodban, aztán az Open Food Factsben. Egy korábban vásárolt termék márkával, mértékegységgel és a szokásos bolttal együtt jön vissza.",
+          "points": {
+            "one": "A telefon kamerájával működik, külön eszköz nélkül",
+            "two": "Az Open Food Facts kitölti, amit nem gépeltél be",
+            "three": "Egyből a készletbe vagy a listára olvashatsz be"
+          }
+        },
+        "calendar": {
+          "eyebrow": "Naptár",
+          "title": "Az előtted álló hónap egy képernyőn",
+          "description": "A lejáratok, a bevásárlási határidők és az ismétlődő automatizálások arra a napra kerülnek, amelyikre esnek. Iratkozz fel a család naptár-feedjére, és megjelenik abban a naptárban, amelyet amúgy is használsz.",
+          "points": {
+            "one": "Lejáratok és határidők egyetlen havi nézeten",
+            "two": "Az ismétlődő automatizálások maguktól visszateszik a tételeket a listára",
+            "three": "Külső naptár-feedek, mindkét irányban"
+          }
+        }
+      },
+      "preview": {
+        "inventory": {
+          "items": {
+            "milk": "Félzsíros tej",
+            "yogurt": "Natúr joghurt",
+            "rice": "Basmati rizs",
+            "coffee": "Őrölt kávé",
+            "pasta": "Penne tészta",
+            "butter": "Vaj"
+          },
+          "expiry": {
+            "tomorrow": "Holnap lejár",
+            "days": "Még {count} nap",
+            "months": "Még {count} hónap"
+          }
+        },
+        "shopping": {
+          "live": "Anna épp vásárol",
+          "items": {
+            "bread": "Rozskenyér",
+            "eggs": "Szabadtartású tojás",
+            "tomato": "Paradicsom",
+            "detergent": "Mosószer",
+            "coffee": "Őrölt kávé",
+            "apples": "Alma"
+          }
+        },
+        "scanner": {
+          "title": "Beolvasás",
+          "hint": "Igazítsd a vonalkódot a keretbe",
+          "productName": "Félzsíros tej 1 l",
+          "add": "Hozzáad"
+        },
+        "calendar": {
+          "month": "Április",
+          "weekdays": "H,K,Sze,Cs,P,Szo,V",
+          "events": {
+            "milk": "Lejár a tej",
+            "yogurt": "Lejár a joghurt",
+            "shopping": "Heti nagybevásárlás"
+          }
         }
       }
     },

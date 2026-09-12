@@ -163,6 +163,7 @@
       - NODE_ENV=production
       - NUXT_PUBLIC_API_BASE=${NUXT_PUBLIC_API_BASE}
       - NUXT_PUBLIC_KRATOS_URL=${KRATOS_PUBLIC_URL}
+      - NUXT_PUBLIC_SITE_URL=${NUXT_PUBLIC_SITE_URL}
     networks:
       - homassy-network
     depends_on:

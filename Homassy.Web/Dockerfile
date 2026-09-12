@@ -15,6 +15,7 @@ WORKDIR /app
 # Build arguments for environment variables
 ARG NUXT_PUBLIC_KRATOS_URL=http://localhost:4433
 ARG NUXT_PUBLIC_API_BASE=http://localhost:5226
+ARG NUXT_PUBLIC_SITE_URL=http://localhost:3000
 
 # Install build dependencies for native modules
 RUN apk add --no-cache python3 make g++
@@ -33,6 +34,7 @@ ENV NUXT_TELEMETRY_DISABLED=1
 # Pass build args as env vars for Nuxt build
 ENV NUXT_PUBLIC_KRATOS_URL=${NUXT_PUBLIC_KRATOS_URL}
 ENV NUXT_PUBLIC_API_BASE=${NUXT_PUBLIC_API_BASE}
+ENV NUXT_PUBLIC_SITE_URL=${NUXT_PUBLIC_SITE_URL}
 
 # Run build with memory cleanup between stages
 RUN npm run build && \

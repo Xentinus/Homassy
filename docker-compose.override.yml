@@ -34,3 +34,4 @@ services:
     environment:
       - NUXT_PUBLIC_API_BASE=http://localhost:5226
       - NUXT_PUBLIC_KRATOS_URL=http://localhost:4433
+      - NUXT_PUBLIC_SITE_URL=http://localhost:3000

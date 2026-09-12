@@ -395,7 +395,11 @@ export default defineNuxtConfig({
   runtimeConfig: {
     public: {
       apiBase: process.env.NUXT_PUBLIC_API_BASE || 'http://localhost:5226',
-      kratosPublicUrl: process.env.NUXT_PUBLIC_KRATOS_URL || 'http://localhost:4433'
+      kratosPublicUrl: process.env.NUXT_PUBLIC_KRATOS_URL || 'http://localhost:4433',
+      // Where this deployment is reachable from the outside. Only the landing page needs it,
+      // and only for one thing: Open Graph and Twitter card images have to be absolute URLs —
+      // the crawler that fetches them has no page to resolve a relative path against (#123).
+      siteUrl: process.env.NUXT_PUBLIC_SITE_URL || 'http://localhost:3000'
     }
   },
 
