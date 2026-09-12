@@ -5,18 +5,18 @@
     <div class="flex items-center justify-between px-4 pt-3 pb-1 text-[10px] font-medium text-muted">
       <span class="tabular-nums">9:41</span>
       <div class="flex items-center gap-1">
-        <UIcon name="i-lucide-signal" class="h-3 w-3" />
-        <UIcon name="i-lucide-wifi" class="h-3 w-3" />
-        <UIcon name="i-lucide-battery-full" class="h-3 w-3" />
+        <UIcon name="i-lucide-signal" mode="svg" class="h-3 w-3" />
+        <UIcon name="i-lucide-wifi" mode="svg" class="h-3 w-3" />
+        <UIcon name="i-lucide-battery-full" mode="svg" class="h-3 w-3" />
       </div>
     </div>
 
     <!-- Page header -->
     <div class="flex items-center gap-2 px-4 pb-3">
-      <UIcon :name="screenMeta.icon" class="h-5 w-5 text-primary" />
+      <UIcon :name="screenMeta.icon" mode="svg" class="h-5 w-5 text-primary" />
       <p class="text-sm font-semibold leading-none">{{ screenMeta.title }}</p>
-      <UIcon name="i-lucide-search" class="ml-auto h-4 w-4 text-muted" />
-      <UIcon name="i-lucide-bell" class="h-4 w-4 text-muted" />
+      <UIcon name="i-lucide-search" mode="svg" class="ml-auto h-4 w-4 text-muted" />
+      <UIcon name="i-lucide-bell" mode="svg" class="h-4 w-4 text-muted" />
     </div>
 
     <div class="flex-1 overflow-hidden px-3">
@@ -29,12 +29,12 @@
           :class="[item.tone.border, item.tone.surface]"
         >
           <div class="mb-2 flex h-10 items-center justify-center rounded-lg bg-elevated">
-            <UIcon :name="item.icon" class="h-5 w-5 text-muted" />
+            <UIcon :name="item.icon" mode="svg" class="h-5 w-5 text-muted" />
           </div>
           <p class="truncate text-[11px] font-medium leading-tight">{{ item.name }}</p>
           <p class="truncate text-[9px] text-muted">{{ item.quantity }}</p>
           <p class="mt-1 flex items-center gap-1 text-[9px] font-medium" :class="item.tone.text">
-            <UIcon :name="item.tone.icon" class="h-2.5 w-2.5" />
+            <UIcon :name="item.tone.icon" mode="svg" class="h-2.5 w-2.5" />
             {{ item.expiry }}
           </p>
         </div>
@@ -69,7 +69,7 @@
             class="flex h-4 w-4 shrink-0 items-center justify-center rounded-md border"
             :class="row.done ? 'border-primary-500 bg-primary-500' : 'border-accented'"
           >
-            <UIcon v-if="row.done" name="i-lucide-check" class="h-3 w-3 text-white" />
+            <UIcon v-if="row.done" name="i-lucide-check" mode="svg" class="h-3 w-3 text-white" />
           </span>
           <div class="min-w-0 flex-1">
             <p class="truncate text-[11px] font-medium leading-tight" :class="row.done ? 'text-muted line-through' : ''">
@@ -103,7 +103,7 @@
 
         <div class="mt-2 flex items-center gap-2 rounded-2xl border border-default bg-elevated p-2.5">
           <div class="flex h-9 w-9 items-center justify-center rounded-lg bg-default">
-            <UIcon name="i-lucide-milk" class="h-4 w-4 text-muted" />
+            <UIcon name="i-lucide-milk" mode="svg" class="h-4 w-4 text-muted" />
           </div>
           <div class="min-w-0 flex-1">
             <p class="truncate text-[11px] font-semibold leading-tight">
@@ -155,7 +155,7 @@
         class="relative flex flex-col items-center gap-0.5"
         :class="tab.active ? 'text-primary-600 dark:text-primary-400' : 'text-muted'"
       >
-        <UIcon :name="tab.icon" class="h-4 w-4" />
+        <UIcon :name="tab.icon" mode="svg" class="h-4 w-4" />
         <span
           v-if="tab.badge"
           class="absolute -right-1.5 -top-1 flex h-3 min-w-3 items-center justify-center rounded-full bg-error px-0.5 text-[7px] font-bold leading-none text-white tabular-nums"
@@ -180,6 +180,12 @@ import { computed } from 'vue'
  * It is a likeness of the product, not a capture of it: the data in it is invented. When real
  * captures exist, `LandingDeviceFrame` already takes `light` / `dark` image sources — pass
  * those instead of this component and nothing else about the page changes.
+ *
+ * **Every icon here is `mode="svg"`.** Nuxt Icon's default renders an empty `<span>` on the
+ * server and fills it in on the client, which on a server-rendered page is both a hydration
+ * mismatch and an icon that arrives late; `svg` puts the real markup in the first response. The
+ * rest of the app never hit this because its pages are behind the auth gate and effectively
+ * client-rendered — this is the first page that is genuinely served from the server.
  */
 const props = defineProps<{
   screen: 'inventory' | 'shopping' | 'scanner' | 'calendar'
