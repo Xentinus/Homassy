@@ -196,12 +196,13 @@ jobs:
         working-directory: Homassy.Web
 
       - name: Typecheck
-        # Still advisory: unlike lint, this one has a backlog left (a little over a hundred,
-        # mostly Nuxt UI event-handler return types and the reactive-unwrap of
-        # @internationalized/date values). The step runs so the count stays visible.
+        # A real gate now, like Lint above: the backlog this step was created to measure — a
+        # little over a hundred, mostly Nuxt UI event-handler return types and the
+        # reactive-unwrap of @internationalized/date values — is down to zero. While it was
+        # advisory the last three were reported on a green run and merged anyway, which is the
+        # failure mode `continue-on-error` has once a backlog is actually cleared.
         run: npm run typecheck
         working-directory: Homassy.Web
-        continue-on-error: true
 
   # ---------------------------------------------------------------------------------------
   # Release. The images are built on pull requests too — a broken Dockerfile is a build
