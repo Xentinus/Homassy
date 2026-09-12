@@ -127,6 +127,7 @@ Homassy.API/
 │   ├── OpenFoodFactsController.cs
 │   ├── ProductController.cs
 │   ├── ProgressController.cs      Job progress tracking
+│   ├── SearchController.cs       Global search across every entity type (the command palette)
 │   ├── SelectValueController.cs
 │   ├── ShoppingListController.cs
 │   ├── StatisticsController.cs    Public global platform statistics
@@ -178,6 +179,7 @@ Homassy.API/
 │   ├── Language.cs
 │   ├── NotificationType.cs        What a stored notification is about
 │   ├── ProductCategory.cs
+│   ├── SearchResultKind.cs        Which entity type a global-search hit belongs to
 │   ├── SelectValueType.cs
 │   ├── StoreType.cs
 │   ├── Unit.cs
@@ -214,6 +216,7 @@ Homassy.API/
 │   ├── NotificationFunctions.cs   Notification centre reads/writes + the retention sweep
 │   ├── ProductFunctions.cs
 │   ├── PushNotificationFunctions.cs  Subscribe/unsubscribe/send notifications
+│   ├── SearchFunctions.cs         Global search: cache-backed, ranked and capped per type
 │   ├── SelectValueFunctions.cs
 │   ├── ShoppingListFunctions.cs
 │   ├── SparseOrdering.cs          Manual-order arithmetic shared by every reorder endpoint
@@ -257,6 +260,7 @@ Homassy.API/
 │   ├── PushNotification/ (CreatePushSubscriptionRequest, VapidPublicKeyResponse, etc.)
 │   ├── RateLimit/
 │   ├── RequestLoggingOptions.cs
+│   ├── Search/          GlobalSearchResponse, SearchResultGroup, SearchResultItem
 │   ├── ShoppingList/
 │   └── User/
 ├── Security/            Security utilities
@@ -418,6 +422,31 @@ The Functions classes implement a sophisticated caching mechanism:
 - Dramatic reduction in database queries
 - Improved response times
 - Automatic cache invalidation on data changes
+
+### Global search (`SearchFunctions`)
+
+`GET /api/v1.0/search?q=…&limit=…` is the one endpoint behind the web client's command palette
+(#111). It answers six types at once — products, inventory items, shopping lists, shopping
+locations, storage locations and automations — each ranked (exact > prefix > word prefix >
+anywhere) and capped, in a single round trip.
+
+It is a direct consumer of the cache above, and that is what makes it cheap enough for a client
+to call on every debounced keystroke: with a warm cache it does **no database work at all**
+except for automations, the one searchable type with no cache, which it looks up on the indexed
+`ItemAutomations.ProductId` starting from product ids the term already matched in memory.
+
+Two consequences worth knowing before changing it:
+
+- **Matching is accent-insensitive**, because it runs in memory through
+  `StringExtensions.NormalizeForSearch`. A SQL `ILIKE` would not be, which is why the endpoint
+  deliberately does not have (or need) trigram indexes on the name columns.
+- **Ownership scoping is delegated**, never re-expressed. Every type is read through the
+  existing `Get…ByUserAndFamily` accessor. A second copy of "whose rows are these" is exactly
+  the kind of duplication that drifts into a leak.
+
+Products are searched catalogue-wide (`GetCatalogProducts`), not "what this family has stock
+of": a `Product` carries no owner, and the commonest thing to look up is something you have run
+out of. Same reasoning as the chat's attachment picker.
 
 ---
 
