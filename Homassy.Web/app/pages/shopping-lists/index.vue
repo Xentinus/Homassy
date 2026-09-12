@@ -595,6 +595,20 @@ const showPurchased = ref(false)
 const isLoadingLists = ref(false)
 const isLoadingDetails = ref(false)
 
+// Arrivals from the command palette (#111): a hit opens that list, a "show all" pre-fills the
+// item filter. The selection waits for the lists themselves — picking one before they load
+// would be picking from an empty array, and the restore-last-selected logic would then
+// overwrite it anyway.
+useSearchHandoff({
+  search: (term) => { searchQuery.value = term },
+  select: (publicId) => {
+    if (allShoppingLists.value.some(list => list.publicId === publicId)) {
+      selectedListId.value = publicId
+    }
+  },
+  ready: () => allShoppingLists.value.length > 0
+})
+
 // --- Best known prices + the estimated total (#128) ----------------------------------------
 //
 // One request per list, keyed by product public id — never one per row. The API asserts the

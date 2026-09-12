@@ -142,6 +142,13 @@ const automations = ref<AutomationResponse[]>([])
 
 // Filter state
 const searchQuery = ref('')
+
+// "Show all N in Automations" from the command palette (#111). A single automation is a route
+// of its own, so this page only ever receives a term.
+useSearchHandoff({
+  search: (term) => { searchQuery.value = term }
+})
+
 const filterType = ref<string>('all')
 const filterStatus = ref<string>('all')
 const filterScheduleType = ref<string>('all')

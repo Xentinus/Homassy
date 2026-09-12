@@ -174,6 +174,15 @@ function openOverview(publicId: string) {
   isOverviewOpen.value = true
 }
 
+// Arrivals from the command palette (#111). The selection waits for `hasLoaded` because
+// `openOverview` resolves the location out of the loaded list — on an empty list it would open
+// an empty drawer.
+useSearchHandoff({
+  search: (term) => { searchQuery.value = term },
+  select: openOverview,
+  ready: () => hasLoaded.value
+})
+
 // Filter options
 const sharedOptions = computed(() => [
   { label: t('common.filters.all'), value: 'all' },

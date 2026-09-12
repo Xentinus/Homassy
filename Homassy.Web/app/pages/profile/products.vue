@@ -187,6 +187,13 @@ function openOverview(publicId: string) {
   isOverviewOpen.value = true
 }
 
+// "Show all N in Products" from the command palette (#111). No `ready` gate: the overview
+// drawer fetches by public id, so it does not need the grid to have arrived first.
+useSearchHandoff({
+  search: (term) => { searchQuery.value = term },
+  select: openOverview
+})
+
 // Load all products (client-side search + filtering)
 async function loadProducts() {
   loading.value = true

@@ -211,6 +211,34 @@
     "calendar": "Naptár",
     "profile": "Profil"
   },
+  "search": {
+    "title": "Keresés",
+    "description": "Keresés termékek, készletek, bevásárlólisták, helyek és automatizálások között.",
+    "placeholder": "Keresés mindenben...",
+    "emptyTitle": "Keresés mindenben",
+    "emptyHint": "Írj be legalább két karaktert a termékek, készletek, bevásárlólisták, helyek és automatizálások kereséséhez.",
+    "noResults": "Nincs találat erre: \"{query}\"",
+    "noResultsHint": "Ellenőrizd a helyesírást, vagy próbálj rövidebb kifejezést.",
+    "goTo": "Ugrás ide: {page}",
+    "showAll": "Összes megjelenítése itt: {page}",
+    "showAllCount": "Mind a(z) {count} megjelenítése itt: {page}",
+    "clearRecent": "Korábbi keresések törlése",
+    "groups": {
+      "products": "Termékek",
+      "inventoryItems": "Készletek",
+      "shoppingLists": "Bevásárlólisták",
+      "shoppingLocations": "Bevásárlási helyek",
+      "storageLocations": "Tárolók",
+      "automations": "Automatizálás",
+      "navigation": "Ugrás",
+      "actions": "Műveletek",
+      "recent": "Korábbi keresések"
+    },
+    "actions": {
+      "addItem": "Tétel hozzáadása",
+      "scanBarcode": "Vonalkód beolvasása"
+    }
+  },
   "fab": {
     "open": "Hozzáadás megnyitása",
     "close": "Bezárás",
@@ -1154,9 +1182,18 @@
       "label": "Alkalmazásikon jelvény",
       "description": "Mit számoljon a telepített app ikonján lévő szám ezen az eszközön.",
       "sources": {
-        "deadline": { "label": "Lejárt bevásárlási tételek", "description": "Határidőn túli tételek." },
-        "chat": { "label": "Olvasatlan üzenetek", "description": "El nem olvasott üzenetek a családi csevegésben." },
-        "expiration": { "label": "Lejáró termékek", "description": "Szavatossági idejükhöz közeli termékek." }
+        "deadline": {
+          "label": "Lejárt bevásárlási tételek",
+          "description": "Határidőn túli tételek."
+        },
+        "chat": {
+          "label": "Olvasatlan üzenetek",
+          "description": "El nem olvasott üzenetek a családi csevegésben."
+        },
+        "expiration": {
+          "label": "Lejáró termékek",
+          "description": "Szavatossági idejükhöz közeli termékek."
+        }
       }
     },
     "haptics": {
@@ -1271,8 +1308,8 @@
       "pushDescription": "Push értesítések fogadása fontos eseményekről és heti készletösszefoglalóról.",
       "pushNotifications": "Push értesítések",
       "pushFamilyChat": "Családi csevegés",
-    "pushFamilyChatDescription": "Értesítés az új üzenetekről, amikor éppen nem olvassa őket.",
-    "pushWeeklySummary": "Heti összefoglaló",
+      "pushFamilyChatDescription": "Értesítés az új üzenetekről, amikor éppen nem olvassa őket.",
+      "pushWeeklySummary": "Heti összefoglaló",
       "pushDailyDescription": "Értesítést kapsz fontos eseményekről.",
       "pushWeeklyDescription": "Heti összefoglalót kapsz a készletedről.",
       "inAppSection": "Az alkalmazásban",

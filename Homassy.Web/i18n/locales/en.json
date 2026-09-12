@@ -211,6 +211,34 @@
     "calendar": "Calendar",
     "profile": "Profile"
   },
+  "search": {
+    "title": "Search",
+    "description": "Search products, inventory, shopping lists, locations and automations.",
+    "placeholder": "Search everything...",
+    "emptyTitle": "Search everything",
+    "emptyHint": "Type at least two characters to search products, inventory, shopping lists, locations and automations.",
+    "noResults": "No results for \"{query}\"",
+    "noResultsHint": "Check the spelling, or try a shorter term.",
+    "goTo": "Go to {page}",
+    "showAll": "Show all in {page}",
+    "showAllCount": "Show all {count} in {page}",
+    "clearRecent": "Clear recent searches",
+    "groups": {
+      "products": "Products",
+      "inventoryItems": "Inventory",
+      "shoppingLists": "Shopping Lists",
+      "shoppingLocations": "Shopping Locations",
+      "storageLocations": "Storage Locations",
+      "automations": "Automation",
+      "navigation": "Go to",
+      "actions": "Actions",
+      "recent": "Recent searches"
+    },
+    "actions": {
+      "addItem": "Add item",
+      "scanBarcode": "Scan barcode"
+    }
+  },
   "fab": {
     "open": "Open add menu",
     "close": "Close",
@@ -1154,9 +1182,18 @@
       "label": "App icon badge",
       "description": "What the number on the installed app’s icon counts, on this device.",
       "sources": {
-        "deadline": { "label": "Overdue shopping items", "description": "Items past their deadline." },
-        "chat": { "label": "Unread chat messages", "description": "Messages in the family chat you have not read." },
-        "expiration": { "label": "Expiring products", "description": "Products close to their expiry date." }
+        "deadline": {
+          "label": "Overdue shopping items",
+          "description": "Items past their deadline."
+        },
+        "chat": {
+          "label": "Unread chat messages",
+          "description": "Messages in the family chat you have not read."
+        },
+        "expiration": {
+          "label": "Expiring products",
+          "description": "Products close to their expiry date."
+        }
       }
     },
     "haptics": {
@@ -1271,8 +1308,8 @@
       "pushDescription": "Receive push notifications for important events and a weekly inventory summary.",
       "pushNotifications": "Push notifications",
       "pushFamilyChat": "Family chat",
-    "pushFamilyChatDescription": "Be notified about new chat messages when you are not reading them.",
-    "pushWeeklySummary": "Weekly summary",
+      "pushFamilyChatDescription": "Be notified about new chat messages when you are not reading them.",
+      "pushWeeklySummary": "Weekly summary",
       "pushDailyDescription": "Get notified about important events.",
       "pushWeeklyDescription": "Receive a weekly summary of your inventory.",
       "inAppSection": "In the app",

@@ -410,6 +410,12 @@ const hasLoaded = ref(false)
 const searchQuery = ref('')
 const filtersOpen = ref(false)
 
+// "Show all N in Inventory" in the command palette (#111) lands here with the term it was
+// searched with, so the grid opens already filtered to what the reader was looking at.
+useSearchHandoff({
+  search: (term) => { searchQuery.value = term }
+})
+
 // Independent, individually-combinable filters (values validated on load/use)
 const expirationFilter = ref('all')
 const eatableFilter = ref('all')

@@ -100,6 +100,14 @@
       <FamilyChatBubble />
       <FamilyChatPanel />
     </ClientOnly>
+
+    <!-- Global command palette (#111). Mounted once, here, for the same reason as the chat
+         panel: it is opened from the header, from the desktop sidebar and from Ctrl/Cmd+K, it
+         has to survive navigation, and its Ctrl/Cmd+K listener must exist exactly once.
+         Client-only — it has no meaningful SSR state and every result is authenticated data. -->
+    <ClientOnly>
+      <CommandPalette />
+    </ClientOnly>
   </UApp>
 </template>
 

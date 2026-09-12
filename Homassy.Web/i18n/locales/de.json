@@ -211,6 +211,34 @@
     "calendar": "Kalender",
     "profile": "Profil"
   },
+  "search": {
+    "title": "Suche",
+    "description": "Produkte, Lagerbestand, Einkaufslisten, Orte und Automatisierungen durchsuchen.",
+    "placeholder": "Alles durchsuchen...",
+    "emptyTitle": "Alles durchsuchen",
+    "emptyHint": "Gib mindestens zwei Zeichen ein, um Produkte, Lagerbestand, Einkaufslisten, Orte und Automatisierungen zu durchsuchen.",
+    "noResults": "Keine Ergebnisse für \"{query}\"",
+    "noResultsHint": "Prüfe die Schreibweise oder versuche einen kürzeren Begriff.",
+    "goTo": "Zu {page}",
+    "showAll": "Alle in {page} anzeigen",
+    "showAllCount": "Alle {count} in {page} anzeigen",
+    "clearRecent": "Letzte Suchen löschen",
+    "groups": {
+      "products": "Produkte",
+      "inventoryItems": "Lagerbestand",
+      "shoppingLists": "Einkaufslisten",
+      "shoppingLocations": "Einkaufsorte",
+      "storageLocations": "Lagerorte",
+      "automations": "Automatisierung",
+      "navigation": "Gehe zu",
+      "actions": "Aktionen",
+      "recent": "Letzte Suchen"
+    },
+    "actions": {
+      "addItem": "Artikel hinzufügen",
+      "scanBarcode": "Barcode scannen"
+    }
+  },
   "fab": {
     "open": "Hinzufügen-Menü öffnen",
     "close": "Schließen",
@@ -1154,9 +1182,18 @@
       "label": "App-Symbol-Badge",
       "description": "Was die Zahl auf dem Symbol der installierten App auf diesem Gerät zählt.",
       "sources": {
-        "deadline": { "label": "Überfällige Einkaufsposten", "description": "Posten, deren Frist abgelaufen ist." },
-        "chat": { "label": "Ungelesene Nachrichten", "description": "Ungelesene Nachrichten im Familienchat." },
-        "expiration": { "label": "Ablaufende Produkte", "description": "Produkte kurz vor dem Ablaufdatum." }
+        "deadline": {
+          "label": "Überfällige Einkaufsposten",
+          "description": "Posten, deren Frist abgelaufen ist."
+        },
+        "chat": {
+          "label": "Ungelesene Nachrichten",
+          "description": "Ungelesene Nachrichten im Familienchat."
+        },
+        "expiration": {
+          "label": "Ablaufende Produkte",
+          "description": "Produkte kurz vor dem Ablaufdatum."
+        }
       }
     },
     "haptics": {
@@ -1271,8 +1308,8 @@
       "pushDescription": "Erhalten Sie Push-Benachrichtigungen über wichtige Ereignisse und eine wöchentliche Bestandsübersicht.",
       "pushNotifications": "Push-Benachrichtigungen",
       "pushFamilyChat": "Familienchat",
-    "pushFamilyChatDescription": "Über neue Nachrichten benachrichtigt werden, wenn Sie sie gerade nicht lesen.",
-    "pushWeeklySummary": "Wöchentliche Zusammenfassung",
+      "pushFamilyChatDescription": "Über neue Nachrichten benachrichtigt werden, wenn Sie sie gerade nicht lesen.",
+      "pushWeeklySummary": "Wöchentliche Zusammenfassung",
       "pushDailyDescription": "Erhalten Sie Benachrichtigungen über wichtige Ereignisse.",
       "pushWeeklyDescription": "Erhalten Sie eine wöchentliche Zusammenfassung Ihres Bestands.",
       "inAppSection": "In der App",
