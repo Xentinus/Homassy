@@ -189,7 +189,7 @@
          the feedback); swapping it out would remount every card and replay the
          bubble animation, and would swallow the leave animation of a card
          removed in the same tick. -->
-    <div v-if="isLoading && !hasLoaded" class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+    <div v-if="isLoading && !hasLoaded" class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-4">
       <SkeletonCard v-for="i in 8" :key="i" :lines="2" />
     </div>
 
@@ -211,7 +211,7 @@
       <!-- Products grid. Ungrouped it is one flat AnimatedList, as before; grouped it is one
            list per section under a sticky header. Separate lists on purpose — a header inside a
            TransitionGroup would join the cards' FLIP animation. -->
-      <AnimatedList v-if="sections.length === 0" class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+      <AnimatedList v-if="sections.length === 0" class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-4">
         <div
           v-for="entry in displayedProductsView"
           :key="entry.product.publicId"
@@ -240,7 +240,7 @@
             <span class="text-xs text-muted tabular-nums">{{ section.count }}</span>
           </h2>
 
-          <AnimatedList class="mb-4 grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+          <AnimatedList class="mb-4 grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-4">
             <div
               v-for="entry in section.items"
               :key="entry.product.publicId"
@@ -262,7 +262,7 @@
     <!-- Sentinel for intersection observer -->
     <div v-if="hasMoreProducts" ref="sentinelRef" class="w-full min-h-[1px]">
       <!-- Loading skeletons while loading more -->
-      <div v-if="loadingMore" class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 mt-4">
+      <div v-if="loadingMore" class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-4 mt-4">
         <SkeletonCard v-for="i in 8" :key="i" :lines="2" />
       </div>
     </div>
@@ -284,6 +284,15 @@
 
     <!-- Add Inventory Wizard (bottom-sheet) -->
     <AddInventoryItemModal v-model:open="isAddInventoryOpen" @created="handleInventoryCreated" />
+
+    <!-- Dictate a few items straight into stock (#132). Rendered only where recognition
+         exists, so the drawer never mounts a microphone the browser cannot open. -->
+    <VoiceItemDrawer
+      v-if="isVoiceSupported"
+      v-model:open="isVoiceOpen"
+      target="inventory"
+      @created="handleInventoryCreated"
+    />
 
     <!-- Inventory overview (bottom-sheet), opened by tapping a card -->
     <InventoryOverviewDrawer v-model:open="isOverviewOpen" :product-public-id="overviewProductId" />
@@ -379,12 +388,25 @@ const openOverview = (publicId: string) => {
 }
 
 // Register the page's add-action(s) on the dynamic nav FAB.
+// Voice input (#132) sits next to the add action rather than replacing it, and only where the
+// browser can actually transcribe — Firefox has no Web Speech API at all, and an affordance
+// that is there but cannot work is worse than one that is not offered.
+const { isSupported: isVoiceSupported } = useSpeechRecognition()
+const isVoiceOpen = ref(false)
+
 useFabActions(() => [
   {
     label: $t('pages.products.addProductButton'),
     icon: 'i-lucide-plus',
     handler: () => { isAddInventoryOpen.value = true }
-  }
+  },
+  ...(isVoiceSupported.value
+    ? [{
+        label: $t('voice.addByVoice'),
+        icon: 'i-lucide-mic',
+        handler: () => { isVoiceOpen.value = true }
+      }]
+    : [])
 ])
 
 // Manifest app shortcuts land here with an action already chosen (#118): "Add item"
@@ -409,6 +431,12 @@ const isLoading = ref(false)
 const hasLoaded = ref(false)
 const searchQuery = ref('')
 const filtersOpen = ref(false)
+
+// "Show all N in Inventory" in the command palette (#111) lands here with the term it was
+// searched with, so the grid opens already filtered to what the reader was looking at.
+useSearchHandoff({
+  search: (term) => { searchQuery.value = term }
+})
 
 // Independent, individually-combinable filters (values validated on load/use)
 const expirationFilter = ref('all')

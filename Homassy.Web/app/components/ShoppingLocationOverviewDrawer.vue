@@ -4,6 +4,7 @@
     :title="location?.name ?? ''"
     icon="i-lucide-shopping-cart"
     :snap-points="[0.5, 1]"
+    desktop="detail"
     @update:open="(v) => emit('update:open', v)"
   >
     <div v-if="location" class="space-y-6">

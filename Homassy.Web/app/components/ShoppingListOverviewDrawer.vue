@@ -4,6 +4,7 @@
     :title="list?.name ?? ''"
     icon="i-lucide-list-checks"
     :snap-points="[0.5, 1]"
+    desktop="detail"
     @update:open="(v) => emit('update:open', v)"
   >
     <div v-if="list" class="space-y-6">

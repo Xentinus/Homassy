@@ -8,6 +8,13 @@
       "description": "Manage your household inventory, shopping lists, and share everything with your family.",
       "ogTitle": "Homassy - Smart Household Management",
       "ogDescription": "Organize your home inventory and shopping with your family"
+    },
+    "home": {
+      "title": "Homassy - Household inventory and shopping lists for families",
+      "description": "Track what is in your cupboards, see what is about to expire, and keep one shopping list that everyone at home edits at the same time. Free and open source.",
+      "ogTitle": "Homassy - Your household inventory, shared",
+      "ogDescription": "Expiry tracking, live shopping lists and a barcode scanner, for everyone you live with.",
+      "ogImageAlt": "The Homassy inventory screen, with products and their expiry dates"
     }
   },
   "common": {
@@ -211,6 +218,65 @@
     "calendar": "Calendar",
     "profile": "Profile"
   },
+  "search": {
+    "title": "Search",
+    "description": "Search products, inventory, shopping lists, locations and automations.",
+    "placeholder": "Search everything...",
+    "emptyTitle": "Search everything",
+    "emptyHint": "Type at least two characters to search products, inventory, shopping lists, locations and automations.",
+    "noResults": "No results for \"{query}\"",
+    "noResultsHint": "Check the spelling, or try a shorter term.",
+    "goTo": "Go to {page}",
+    "showAll": "Show all in {page}",
+    "showAllCount": "Show all {count} in {page}",
+    "clearRecent": "Clear recent searches",
+    "groups": {
+      "products": "Products",
+      "inventoryItems": "Inventory",
+      "shoppingLists": "Shopping Lists",
+      "shoppingLocations": "Shopping Locations",
+      "storageLocations": "Storage Locations",
+      "automations": "Automation",
+      "navigation": "Go to",
+      "actions": "Actions",
+      "recent": "Recent searches"
+    },
+    "actions": {
+      "addItem": "Add item",
+      "scanBarcode": "Scan barcode"
+    }
+  },
+  "voice": {
+    "title": "Add by voice",
+    "addByVoice": "Add by voice",
+    "holdToTalk": "Hold to talk",
+    "listening": "Listening — release to stop",
+    "speakNow": "Say what you want to add, for example \"two litres of milk and six eggs\"",
+    "review": "Heard {count} item | Heard {count} items",
+    "clear": "Start over",
+    "addAll": "Add nothing | Add 1 item | Add {count} items",
+    "added": "Added {count} item | Added {count} items",
+    "namePlaceholder": "Item name",
+    "brandPlaceholder": "Brand",
+    "unknownBrand": "Unknown brand",
+    "privacyNote": "Speech is recognised by your browser, which on some devices sends the audio to the browser vendor's service. This feature is entirely optional — everything here can be typed instead.",
+    "badges": {
+      "known": "Known product",
+      "category": "Matched category",
+      "custom": "Free text",
+      "newProduct": "New product"
+    },
+    "errors": {
+      "deniedTitle": "Microphone blocked",
+      "deniedHint": "Allow microphone access for this site in your browser's address bar, then hold the button again.",
+      "noSpeechTitle": "Nothing heard",
+      "noSpeechHint": "Hold the button, wait a moment, then speak — and release when you are done.",
+      "networkTitle": "Recognition unavailable",
+      "networkHint": "Your browser could not reach its speech service. Check the connection and try again, or type the items instead.",
+      "unknownTitle": "Recognition failed",
+      "unknownHint": "Something went wrong while listening. Try again, or type the items instead."
+    }
+  },
   "fab": {
     "open": "Open add menu",
     "close": "Close",
@@ -307,6 +373,102 @@
           "purchasedItems": "Purchased Items",
           "shoppingLocations": "Shopping Locations",
           "storageLocations": "Storage Locations"
+        }
+      },
+      "hero": {
+        "title": "Your household inventory, shared with the people you live with",
+        "description": "Homassy knows what is in your cupboards, tells you what is about to go off, and keeps one shopping list the whole family edits at once.",
+        "secondary": "See how it works",
+        "screenshotAlt": "The Homassy inventory screen, with products and their expiry dates",
+        "proof": {
+          "free": "Free and open source",
+          "install": "Installs from the browser",
+          "family": "Built for a whole household"
+        }
+      },
+      "showcase": {
+        "inventory": {
+          "eyebrow": "Inventory",
+          "title": "Know what you have, and what is about to go off",
+          "description": "Every item carries its own expiry date, and the app colours it as that date gets closer — amber two weeks out, red in the last three days. The same number sits on the app icon, so you see it without opening anything.",
+          "points": {
+            "one": "Quantities per storage location, down to the shelf",
+            "two": "One badge for everything expiring, on the icon and the tab",
+            "three": "Consume, move or split an item in two taps"
+          }
+        },
+        "shopping": {
+          "eyebrow": "Shopping lists",
+          "title": "One list, everyone writing on it at once",
+          "description": "Add bread at home while someone else ticks off milk in the shop, and both of you see it happen. Ticked items go straight into the inventory with their price, so the next shop starts from what is actually left.",
+          "points": {
+            "one": "Live updates over a socket, no refreshing",
+            "two": "See who is in the list and what they just bought",
+            "three": "A purchase becomes stock, with the price remembered"
+          }
+        },
+        "scanner": {
+          "eyebrow": "Barcode scanner",
+          "title": "Point the camera, get the product",
+          "description": "Scan a barcode and Homassy looks it up — in your own catalogue first, then in Open Food Facts. A product you have bought before comes back with its brand, its unit and its usual shop already filled in.",
+          "points": {
+            "one": "Works on the phone camera, no extra hardware",
+            "two": "Open Food Facts fills in what you have not typed",
+            "three": "Scan straight into the inventory or onto a list"
+          }
+        },
+        "calendar": {
+          "eyebrow": "Calendar",
+          "title": "The month ahead, in one screen",
+          "description": "Expiry dates, shopping deadlines and recurring automations land on the day they fall on. Subscribe your family's calendar feed and it turns up in the calendar app you already use.",
+          "points": {
+            "one": "Expiries and deadlines on one month view",
+            "two": "Recurring automations put items back on the list by themselves",
+            "three": "External calendar feeds, both ways"
+          }
+        }
+      },
+      "preview": {
+        "inventory": {
+          "items": {
+            "milk": "Semi-skimmed milk",
+            "yogurt": "Natural yogurt",
+            "rice": "Basmati rice",
+            "coffee": "Ground coffee",
+            "pasta": "Penne pasta",
+            "butter": "Butter"
+          },
+          "expiry": {
+            "tomorrow": "Expires tomorrow",
+            "days": "{count} days left",
+            "months": "{count} months left"
+          }
+        },
+        "shopping": {
+          "live": "Anna is shopping now",
+          "items": {
+            "bread": "Rye bread",
+            "eggs": "Free-range eggs",
+            "tomato": "Tomatoes",
+            "detergent": "Laundry detergent",
+            "coffee": "Ground coffee",
+            "apples": "Apples"
+          }
+        },
+        "scanner": {
+          "title": "Scan",
+          "hint": "Line the barcode up inside the frame",
+          "productName": "Semi-skimmed milk 1 l",
+          "add": "Add"
+        },
+        "calendar": {
+          "month": "April",
+          "weekdays": "M,T,W,T,F,S,S",
+          "events": {
+            "milk": "Milk expires",
+            "yogurt": "Yogurt expires",
+            "shopping": "Weekly shop"
+          }
         }
       }
     },
@@ -1154,9 +1316,18 @@
       "label": "App icon badge",
       "description": "What the number on the installed app’s icon counts, on this device.",
       "sources": {
-        "deadline": { "label": "Overdue shopping items", "description": "Items past their deadline." },
-        "chat": { "label": "Unread chat messages", "description": "Messages in the family chat you have not read." },
-        "expiration": { "label": "Expiring products", "description": "Products close to their expiry date." }
+        "deadline": {
+          "label": "Overdue shopping items",
+          "description": "Items past their deadline."
+        },
+        "chat": {
+          "label": "Unread chat messages",
+          "description": "Messages in the family chat you have not read."
+        },
+        "expiration": {
+          "label": "Expiring products",
+          "description": "Products close to their expiry date."
+        }
       }
     },
     "haptics": {
@@ -1271,8 +1442,8 @@
       "pushDescription": "Receive push notifications for important events and a weekly inventory summary.",
       "pushNotifications": "Push notifications",
       "pushFamilyChat": "Family chat",
-    "pushFamilyChatDescription": "Be notified about new chat messages when you are not reading them.",
-    "pushWeeklySummary": "Weekly summary",
+      "pushFamilyChatDescription": "Be notified about new chat messages when you are not reading them.",
+      "pushWeeklySummary": "Weekly summary",
       "pushDailyDescription": "Get notified about important events.",
       "pushWeeklyDescription": "Receive a weekly summary of your inventory.",
       "inAppSection": "In the app",

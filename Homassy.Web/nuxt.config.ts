@@ -152,6 +152,17 @@ export default defineNuxtConfig({
     }
   },
 
+  icon: {
+    // Inline the SVG instead of Nuxt Icon's default CSS mask.
+    //
+    // The default renders an empty `<span>` on the server and fills it in on the client, which
+    // on a server-rendered page is both a hydration mismatch and an icon that arrives a beat
+    // late. It went unnoticed while every page was behind the auth gate and effectively
+    // client-rendered; the landing page (#123) is the first one genuinely served from the
+    // server, and it is full of icons.
+    mode: 'svg'
+  },
+
   imports: {
     presets: [
       {
@@ -395,7 +406,11 @@ export default defineNuxtConfig({
   runtimeConfig: {
     public: {
       apiBase: process.env.NUXT_PUBLIC_API_BASE || 'http://localhost:5226',
-      kratosPublicUrl: process.env.NUXT_PUBLIC_KRATOS_URL || 'http://localhost:4433'
+      kratosPublicUrl: process.env.NUXT_PUBLIC_KRATOS_URL || 'http://localhost:4433',
+      // Where this deployment is reachable from the outside. Only the landing page needs it,
+      // and only for one thing: Open Graph and Twitter card images have to be absolute URLs —
+      // the crawler that fetches them has no page to resolve a relative path against (#123).
+      siteUrl: process.env.NUXT_PUBLIC_SITE_URL || 'http://localhost:3000'
     }
   },
 

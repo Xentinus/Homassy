@@ -8,6 +8,13 @@
       "description": "Kezeld háztartásod készletét, bevásárlólistáit, és oszd meg mindent a családoddal.",
       "ogTitle": "Homassy - Okos háztartáskezelés",
       "ogDescription": "Szervezd otthonod készletét és bevásárlásait a családoddal"
+    },
+    "home": {
+      "title": "Homassy - Háztartási készlet és bevásárlólisták családoknak",
+      "description": "Tudd, mi van a szekrényekben, lásd, mi jár le hamarosan, és vezess egyetlen bevásárlólistát, amelyet otthon mindenki egyszerre szerkeszt. Ingyenes és nyílt forráskódú.",
+      "ogTitle": "Homassy - A háztartásod készlete, közösen",
+      "ogDescription": "Lejárat-figyelés, élő bevásárlólisták és vonalkód-olvasó mindenkinek, akivel együtt élsz.",
+      "ogImageAlt": "A Homassy készletek képernyője a termékekkel és a lejárati dátumaikkal"
     }
   },
   "common": {
@@ -211,6 +218,65 @@
     "calendar": "Naptár",
     "profile": "Profil"
   },
+  "search": {
+    "title": "Keresés",
+    "description": "Keresés termékek, készletek, bevásárlólisták, helyek és automatizálások között.",
+    "placeholder": "Keresés mindenben...",
+    "emptyTitle": "Keresés mindenben",
+    "emptyHint": "Írj be legalább két karaktert a termékek, készletek, bevásárlólisták, helyek és automatizálások kereséséhez.",
+    "noResults": "Nincs találat erre: \"{query}\"",
+    "noResultsHint": "Ellenőrizd a helyesírást, vagy próbálj rövidebb kifejezést.",
+    "goTo": "Ugrás ide: {page}",
+    "showAll": "Összes megjelenítése itt: {page}",
+    "showAllCount": "Mind a(z) {count} megjelenítése itt: {page}",
+    "clearRecent": "Korábbi keresések törlése",
+    "groups": {
+      "products": "Termékek",
+      "inventoryItems": "Készletek",
+      "shoppingLists": "Bevásárlólisták",
+      "shoppingLocations": "Bevásárlási helyek",
+      "storageLocations": "Tárolók",
+      "automations": "Automatizálás",
+      "navigation": "Ugrás",
+      "actions": "Műveletek",
+      "recent": "Korábbi keresések"
+    },
+    "actions": {
+      "addItem": "Tétel hozzáadása",
+      "scanBarcode": "Vonalkód beolvasása"
+    }
+  },
+  "voice": {
+    "title": "Hozzáadás hanggal",
+    "addByVoice": "Hozzáadás hanggal",
+    "holdToTalk": "Tartsd nyomva a beszédhez",
+    "listening": "Hallgatlak — engedd el a befejezéshez",
+    "speakNow": "Mondd, mit szeretnél hozzáadni, például „két liter tej és hat tojás”",
+    "review": "{count} tételt hallottam | {count} tételt hallottam",
+    "clear": "Kezdés elölről",
+    "addAll": "Nincs mit hozzáadni | 1 tétel hozzáadása | {count} tétel hozzáadása",
+    "added": "{count} tétel hozzáadva | {count} tétel hozzáadva",
+    "namePlaceholder": "Tétel neve",
+    "brandPlaceholder": "Márka",
+    "unknownBrand": "Ismeretlen márka",
+    "privacyNote": "A beszédfelismerést a böngésző végzi, amely egyes eszközökön a böngésző gyártójának szolgáltatásához küldi a hangot. A funkció teljesen opcionális — minden begépelhető helyette.",
+    "badges": {
+      "known": "Ismert termék",
+      "category": "Talált kategória",
+      "custom": "Szabad szöveg",
+      "newProduct": "Új termék"
+    },
+    "errors": {
+      "deniedTitle": "A mikrofon le van tiltva",
+      "deniedHint": "Engedélyezd a mikrofont ehhez az oldalhoz a böngésző címsorában, majd tartsd nyomva újra a gombot.",
+      "noSpeechTitle": "Nem hallottam semmit",
+      "noSpeechHint": "Tartsd nyomva a gombot, várj egy pillanatot, aztán beszélj — és engedd el, ha végeztél.",
+      "networkTitle": "A felismerés nem érhető el",
+      "networkHint": "A böngésző nem érte el a beszédfelismerő szolgáltatását. Ellenőrizd a kapcsolatot, vagy gépeld be a tételeket.",
+      "unknownTitle": "A felismerés nem sikerült",
+      "unknownHint": "Hiba történt hallgatás közben. Próbáld újra, vagy gépeld be a tételeket."
+    }
+  },
   "fab": {
     "open": "Hozzáadás megnyitása",
     "close": "Bezárás",
@@ -307,6 +373,102 @@
           "purchasedItems": "Megvásárolt tételek",
           "shoppingLocations": "Bevásárlóhelyek",
           "storageLocations": "Tárolóhelyek"
+        }
+      },
+      "hero": {
+        "title": "A háztartásod készlete, közösen azokkal, akikkel együtt élsz",
+        "description": "A Homassy tudja, mi van a szekrényeidben, szól, ha valami hamarosan lejár, és egyetlen bevásárlólistát vezet, amelyet az egész család egyszerre szerkeszt.",
+        "secondary": "Nézd meg, hogyan működik",
+        "screenshotAlt": "A Homassy készletek képernyője a termékekkel és a lejárati dátumaikkal",
+        "proof": {
+          "free": "Ingyenes és nyílt forráskódú",
+          "install": "Böngészőből telepíthető",
+          "family": "Egész háztartásra tervezve"
+        }
+      },
+      "showcase": {
+        "inventory": {
+          "eyebrow": "Készletek",
+          "title": "Tudd, mid van, és mi jár le hamarosan",
+          "description": "Minden tétel a saját lejárati dátumát hordozza, és az app színezi, ahogy közeledik a dátum: két héten belül borostyán, az utolsó három napban piros. Ugyanez a szám ül az app ikonján, így meg sem kell nyitnod.",
+          "points": {
+            "one": "Mennyiségek tárolónként, egészen a polcig",
+            "two": "Egyetlen jelvény minden lejáró tételre, az ikonon és a fülön",
+            "three": "Fogyasztás, mozgatás vagy szétbontás két koppintással"
+          }
+        },
+        "shopping": {
+          "eyebrow": "Bevásárlólisták",
+          "title": "Egy lista, amelyre mindenki egyszerre ír",
+          "description": "Otthonról felírod a kenyeret, miközben valaki más a boltban kipipálja a tejet — és mindketten látjátok. A kipipált tételek az árukkal együtt egyenesen a készletbe kerülnek, így a következő bevásárlás abból indul, ami tényleg maradt.",
+          "points": {
+            "one": "Élő frissítés socketen, frissítgetés nélkül",
+            "two": "Látod, ki van a listában, és mit vett meg épp",
+            "three": "A vásárlásból készlet lesz, megjegyzett árral"
+          }
+        },
+        "scanner": {
+          "eyebrow": "Vonalkód-olvasó",
+          "title": "Irányítsd rá a kamerát, és megvan a termék",
+          "description": "Olvasd be a vonalkódot, és a Homassy kikeresi: először a saját katalógusodban, aztán az Open Food Factsben. Egy korábban vásárolt termék márkával, mértékegységgel és a szokásos bolttal együtt jön vissza.",
+          "points": {
+            "one": "A telefon kamerájával működik, külön eszköz nélkül",
+            "two": "Az Open Food Facts kitölti, amit nem gépeltél be",
+            "three": "Egyből a készletbe vagy a listára olvashatsz be"
+          }
+        },
+        "calendar": {
+          "eyebrow": "Naptár",
+          "title": "Az előtted álló hónap egy képernyőn",
+          "description": "A lejáratok, a bevásárlási határidők és az ismétlődő automatizálások arra a napra kerülnek, amelyikre esnek. Iratkozz fel a család naptár-feedjére, és megjelenik abban a naptárban, amelyet amúgy is használsz.",
+          "points": {
+            "one": "Lejáratok és határidők egyetlen havi nézeten",
+            "two": "Az ismétlődő automatizálások maguktól visszateszik a tételeket a listára",
+            "three": "Külső naptár-feedek, mindkét irányban"
+          }
+        }
+      },
+      "preview": {
+        "inventory": {
+          "items": {
+            "milk": "Félzsíros tej",
+            "yogurt": "Natúr joghurt",
+            "rice": "Basmati rizs",
+            "coffee": "Őrölt kávé",
+            "pasta": "Penne tészta",
+            "butter": "Vaj"
+          },
+          "expiry": {
+            "tomorrow": "Holnap lejár",
+            "days": "Még {count} nap",
+            "months": "Még {count} hónap"
+          }
+        },
+        "shopping": {
+          "live": "Anna épp vásárol",
+          "items": {
+            "bread": "Rozskenyér",
+            "eggs": "Szabadtartású tojás",
+            "tomato": "Paradicsom",
+            "detergent": "Mosószer",
+            "coffee": "Őrölt kávé",
+            "apples": "Alma"
+          }
+        },
+        "scanner": {
+          "title": "Beolvasás",
+          "hint": "Igazítsd a vonalkódot a keretbe",
+          "productName": "Félzsíros tej 1 l",
+          "add": "Hozzáad"
+        },
+        "calendar": {
+          "month": "Április",
+          "weekdays": "H,K,Sze,Cs,P,Szo,V",
+          "events": {
+            "milk": "Lejár a tej",
+            "yogurt": "Lejár a joghurt",
+            "shopping": "Heti nagybevásárlás"
+          }
         }
       }
     },
@@ -1154,9 +1316,18 @@
       "label": "Alkalmazásikon jelvény",
       "description": "Mit számoljon a telepített app ikonján lévő szám ezen az eszközön.",
       "sources": {
-        "deadline": { "label": "Lejárt bevásárlási tételek", "description": "Határidőn túli tételek." },
-        "chat": { "label": "Olvasatlan üzenetek", "description": "El nem olvasott üzenetek a családi csevegésben." },
-        "expiration": { "label": "Lejáró termékek", "description": "Szavatossági idejükhöz közeli termékek." }
+        "deadline": {
+          "label": "Lejárt bevásárlási tételek",
+          "description": "Határidőn túli tételek."
+        },
+        "chat": {
+          "label": "Olvasatlan üzenetek",
+          "description": "El nem olvasott üzenetek a családi csevegésben."
+        },
+        "expiration": {
+          "label": "Lejáró termékek",
+          "description": "Szavatossági idejükhöz közeli termékek."
+        }
       }
     },
     "haptics": {
@@ -1271,8 +1442,8 @@
       "pushDescription": "Push értesítések fogadása fontos eseményekről és heti készletösszefoglalóról.",
       "pushNotifications": "Push értesítések",
       "pushFamilyChat": "Családi csevegés",
-    "pushFamilyChatDescription": "Értesítés az új üzenetekről, amikor éppen nem olvassa őket.",
-    "pushWeeklySummary": "Heti összefoglaló",
+      "pushFamilyChatDescription": "Értesítés az új üzenetekről, amikor éppen nem olvassa őket.",
+      "pushWeeklySummary": "Heti összefoglaló",
       "pushDailyDescription": "Értesítést kapsz fontos eseményekről.",
       "pushWeeklyDescription": "Heti összefoglalót kapsz a készletedről.",
       "inAppSection": "Az alkalmazásban",

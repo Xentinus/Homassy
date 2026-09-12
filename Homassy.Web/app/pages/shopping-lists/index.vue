@@ -135,7 +135,7 @@
            an already-open list (showPurchased toggle, socket reconnect,
            pull-to-refresh) keeps the grid mounted, so the bubble animation is
            not replayed for every card. -->
-      <div v-if="isLoadingDetails && !currentListDetails" class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+      <div v-if="isLoadingDetails && !currentListDetails" class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-4">
         <SkeletonCard v-for="i in 8" :key="i" :lines="1" :footer-lines="3" />
       </div>
 
@@ -214,7 +214,7 @@
              of this mode is that the order on screen is the order the user set. The smart ordering
              below is still there; this is a mode alongside it, not a replacement. -->
         <div v-if="isManualOrder" ref="gridEl">
-          <AnimatedList class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+          <AnimatedList class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-4">
             <div
               v-for="entry in manualItemsWithAttribution"
               :key="entry.item.publicId"
@@ -264,7 +264,7 @@
               {{ $t('pages.shoppingLists.nearby.sectionPending', { count: herePendingCount }) }}
             </UBadge>
           </div>
-          <AnimatedList class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 mb-6">
+          <AnimatedList class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-4 mb-6">
             <div
               v-for="entry in hereItemsWithAttribution"
               :key="entry.item.publicId"
@@ -305,7 +305,7 @@
              *requests* delete/purchase/restore, and this page owns the items array, so a card
              whose request nobody listens for closes its confirm drawer and does nothing at all.
              An unhandled emit is silent in Vue — neither the linter nor the typechecker sees it. -->
-        <AnimatedList class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+        <AnimatedList class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-4">
           <div
             v-for="entry in restItemsWithAttribution"
             :key="entry.item.publicId"
@@ -497,6 +497,16 @@
       :initial-name="sharedItemName"
     />
 
+    <!-- Dictate a few items onto the open list (#132). Rendered only where recognition exists,
+         so the drawer never mounts a microphone the browser cannot open. -->
+    <VoiceItemDrawer
+      v-if="isVoiceSupported && selectedListId"
+      v-model:open="isVoiceOpen"
+      target="shopping-list"
+      :shopping-list-public-id="selectedListId"
+      @created="onVoiceItemsCreated"
+    />
+
     <!-- Barcode Scanner Modal -->
     <BarcodeScannerModal :on-barcode-detected="handleBarcodeScanned" />
 
@@ -594,6 +604,20 @@ const searchQuery = ref('')
 const showPurchased = ref(false)
 const isLoadingLists = ref(false)
 const isLoadingDetails = ref(false)
+
+// Arrivals from the command palette (#111): a hit opens that list, a "show all" pre-fills the
+// item filter. The selection waits for the lists themselves — picking one before they load
+// would be picking from an empty array, and the restore-last-selected logic would then
+// overwrite it anyway.
+useSearchHandoff({
+  search: (term) => { searchQuery.value = term },
+  select: (publicId) => {
+    if (allShoppingLists.value.some(list => list.publicId === publicId)) {
+      selectedListId.value = publicId
+    }
+  },
+  ready: () => allShoppingLists.value.length > 0
+})
 
 // --- Best known prices + the estimated total (#128) ----------------------------------------
 //
@@ -720,6 +744,9 @@ useDeepLinkAction({
 })
 
 // Dynamic add-actions on the nav FAB: only when a list is selected. Two options →
+const { isSupported: isVoiceSupported } = useSpeechRecognition()
+const isVoiceOpen = ref(false)
+
 // the FAB opens a chooser (see useFabActions); each opens the wizard in a given mode.
 useFabActions(() => selectedListId.value
   ? [
@@ -732,7 +759,16 @@ useFabActions(() => selectedListId.value
         label: $t('pages.shoppingLists.addCustom'),
         icon: 'i-lucide-pencil-line',
         handler: () => openAddItemModal('custom')
-      }
+      },
+      // Voice input (#132), offered next to the other two and only where the browser can
+      // actually transcribe — Firefox has no Web Speech API at all.
+      ...(isVoiceSupported.value
+        ? [{
+            label: $t('voice.addByVoice'),
+            icon: 'i-lucide-mic',
+            handler: () => { isVoiceOpen.value = true }
+          }]
+        : [])
     ]
   : [])
 
@@ -1595,6 +1631,10 @@ const handleItemRefresh = async () => {
     await loadListDetails(selectedListId.value)
   }
 }
+
+// Dictated items arrive through the same bulk endpoint as any other write, so the socket
+// echoes them back like everything else — this only covers the socket being down (#132).
+const onVoiceItemsCreated = () => handleItemRefresh()
 
 // --- Optimistic delete/purchase/restore -------------------------------------
 // ShoppingListItemCard owns the confirm-drawer UX and the request shape (and emits once the user

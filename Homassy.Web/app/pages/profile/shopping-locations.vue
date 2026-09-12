@@ -47,7 +47,7 @@
          mounted (PullToRefreshIndicator gives the feedback); swapping it out
          would remount every card and replay the bubble animation. -->
     <template v-if="loading && !hasLoaded">
-      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
         <SkeletonCard v-for="i in 6" :key="i" />
       </div>
     </template>
@@ -93,7 +93,7 @@
       <!-- Locations Grid. The wrapper exists so the drag composable has a plain element to scan for
            `data-reorder-key` rows — AnimatedList's own root has to keep the grid classes. -->
       <div ref="gridEl">
-        <AnimatedList class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        <AnimatedList class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
           <DataShoppingLocationCard
             v-for="location in filteredLocations"
             :key="location.publicId"
@@ -173,6 +173,15 @@ function openOverview(publicId: string) {
   overviewLocation.value = locations.value.find(l => l.publicId === publicId) ?? null
   isOverviewOpen.value = true
 }
+
+// Arrivals from the command palette (#111). The selection waits for `hasLoaded` because
+// `openOverview` resolves the location out of the loaded list — on an empty list it would open
+// an empty drawer.
+useSearchHandoff({
+  search: (term) => { searchQuery.value = term },
+  select: openOverview,
+  ready: () => hasLoaded.value
+})
 
 // Filter options
 const sharedOptions = computed(() => [

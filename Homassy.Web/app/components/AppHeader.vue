@@ -84,6 +84,20 @@
           class="order-last w-full md:order-none md:w-96 lg:w-[28rem] empty:hidden"
         />
 
+        <!-- Global search (#111). Chrome, like the bell below it: the palette searches every
+             entity type, so it belongs to the app rather than to whichever page is open. The
+             keyboard hint only appears where there is a keyboard to press. -->
+        <UTooltip :text="t('search.title')" :kbds="['meta', 'K']">
+          <UButton
+            icon="i-lucide-search"
+            color="neutral"
+            variant="ghost"
+            class="shrink-0"
+            :aria-label="t('search.title')"
+            @click="openCommandPalette"
+          />
+        </UTooltip>
+
         <!-- The notification bell (#116). Header chrome rather than a page action teleported
              into `#app-header-actions` below: the inbox belongs to the app, not to whichever
              page is open, and it has to be reachable from all of them. Client-only because the
@@ -125,6 +139,7 @@ import { useRoute } from 'vue-router'
 const { t } = useI18n()
 const route = useRoute()
 const header = usePageHeaderState()
+const { open: openCommandPalette } = useCommandPalette()
 const {
   unreadCount,
   open: openNotifications,

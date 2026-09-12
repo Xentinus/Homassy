@@ -59,7 +59,7 @@
            verbatim (it used to be a `space-y-4` stack against a grid), so the
            placeholders occupy the cells the cards will land in. -->
       <template v-if="loading && !hasLoaded">
-        <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+        <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
           <SkeletonCard v-for="i in 8" :key="i" />
         </div>
       </template>
@@ -92,7 +92,7 @@
         <!-- Automation Rules List. The wrapper exists so the drag composable has a plain element to
              scan for `data-reorder-key` rows — AnimatedList's own root keeps the grid classes. -->
         <div ref="gridEl">
-          <AnimatedList class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+          <AnimatedList class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
             <DataAutomationCard
               v-for="automation in filteredAutomations"
               :key="automation.publicId"
@@ -142,6 +142,13 @@ const automations = ref<AutomationResponse[]>([])
 
 // Filter state
 const searchQuery = ref('')
+
+// "Show all N in Automations" from the command palette (#111). A single automation is a route
+// of its own, so this page only ever receives a term.
+useSearchHandoff({
+  search: (term) => { searchQuery.value = term }
+})
+
 const filterType = ref<string>('all')
 const filterStatus = ref<string>('all')
 const filterScheduleType = ref<string>('all')

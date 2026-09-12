@@ -54,6 +54,7 @@ Homassy.Web/
 │   │   └── css/main.css        Global styles
 │   ├── components/             Shared UI components (auto-imported)
 │   │   ├── auth/               Auth flow components
+│   │   ├── landing/            Public landing page: device frame, rendered app screens, showcase bands
 │   │   ├── security/           Security/WebAuthn components
 │   │   └── *.vue               Cards, modals, buttons, etc.
 │   ├── composables/
@@ -65,6 +66,7 @@ Homassy.Web/
 │   │   │   ├── useFamilyApi.ts
 │   │   │   ├── useUserApi.ts
 │   │   │   ├── useSelectValueApi.ts
+│   │   │   ├── useSearchApi.ts     Global search: the command palette's one endpoint
 │   │   │   ├── useOpenFoodFactsApi.ts
 │   │   │   ├── useProgressApi.ts
 │   │   │   ├── useAutomationApi.ts
@@ -76,6 +78,12 @@ Homassy.Web/
 │   │   │   └── useVersionApi.ts
 │   │   ├── index.ts            Re-exports all composables
 │   │   ├── useApiClient.ts     Wrapper: $api + toast error handling
+│   │   ├── useBreakpoint.ts    Reactive "is this a desktop-width window" (the lg crossing)
+│   │   ├── useCommandPalette.ts  Palette state: open flag, query, results, recent searches
+│   │   ├── useSearchHandoff.ts   Receives ?search= / ?select= on a list page
+│   │   ├── useScrollReveal.ts  One-shot reveal-on-scroll, for the landing page
+│   │   ├── useSpeechRecognition.ts  Web Speech API wrapper: support, transcript, failures
+│   │   ├── useVoiceItemMatching.ts  A dictated name → product, category, or free text
 │   │   ├── useKratos.ts        Ory Kratos FrontendApi flows
 │   │   ├── useBarcodeScanner.ts
 │   │   ├── useCameraAvailability.ts
@@ -168,6 +176,7 @@ Homassy.Web/
 │       ├── errorCodes.ts
 │       ├── geoUtils.ts           Haversine distanceMeters + NEARBY_RADIUS_METERS
 │       ├── manualOrder.ts        The pure ordering rules behind drag-and-drop reordering
+│       ├── voiceItemParser.ts    Dictated sentence → quantity + unit + name, per locale
 │       └── stringUtils.ts
 ├── i18n/
 │   └── locales/
@@ -546,7 +555,25 @@ markup, and neither had zoom, pan or a dismiss gesture.
 
 ---
 
-## Bottom sheets (`AppDrawer` + `useDrawerDragToClose`)
+## Drawers (`AppDrawer` + `useDrawerDragToClose`)
+
+### What a drawer becomes at each width (#122)
+
+Below `lg` an `AppDrawer` is always the bottom sheet described in the rest of this section. Above
+`lg` its `desktop` prop decides:
+
+| `desktop` | Above `lg` | For |
+|---|---|---|
+| `panel` (default) | Right-hand side panel, still modal — overlay and focus trap intact | Forms, wizards, filters |
+| `detail` | Right-hand side panel with **no** overlay and no scroll lock, so the list it opened from stays readable and clickable | The four overview drawers — this is the master/detail shape |
+| `sheet` | Stays a bottom sheet | The rare drawer that is the right shape at any width |
+
+One prop rather than a second component: a desktop-only drawer would be a second copy of this
+chrome to keep in step with this one. A side panel has no drag gesture and no snap points — the
+composable's whole vocabulary is vertical, and there is no equivalent worth inventing for a panel
+pinned to the right edge of a desktop window with a mouse. Its ✕ is the exit.
+
+### The bottom sheet
 
 `AppDrawer` is the single source of truth for drawer chrome; `useDrawerDragToClose(headerEl, options)` owns every gesture on it. vaul's native dismiss stays off (`dismissible: false`), so this composable and the ✕ button are the only exits.
 
@@ -572,7 +599,7 @@ Snapping specifics:
 
 ### `auth.vue` (authenticated)
 
-Used for all protected pages. Features a **fixed bottom navigation bar** with:
+Used for all protected pages. Below `lg` it features a **fixed bottom navigation bar** with:
 - Home (Products)
 - Shopping Lists
 - Activity
@@ -585,9 +612,25 @@ browser-tab title and the installed app's icon all show the same number. The lay
 the first-run tour starts from (`maybeAutoStart()`) and where `OnboardingSpotlight` is mounted —
 it is the one component that outlives the tour's own navigation.
 
+### Above `lg`: the sidebar (#122)
+
+The bottom bar is `lg:hidden`, and a persistent left sidebar takes over — the same items, the
+same badges, the same avatar entry. `UMain` swaps `pb-32` for `lg:ml-64`; a margin, not padding,
+because the pages have horizontal padding of their own.
+
+The FAB becomes a primary button at the top of the sidebar (`NavSidebarAction`), reading the
+same `useFabActions` registration: one action runs on click, several open the same chooser as a
+menu. A page therefore still declares what "add" means exactly once, and neither surface can
+offer something the other does not.
+
+The navigation now exists **twice**, one copy always `display: none`. That is why
+`useOnboardingTour.findTarget` returns the first *visible* element carrying a `data-tour` marker
+rather than the first one in the DOM: both copies carry the same markers, and a zero rect is a
+hole nobody can see.
+
 ### `public.vue`
 
-Used for `/auth/*` pages. Minimal layout without navigation.
+Used for `/auth/*` pages and the landing page. Minimal layout without navigation.
 
 ---
 
@@ -1145,12 +1188,107 @@ On the shopping-list page a locate button (shown when the open list has location
 
 ---
 
+## Global command palette (#111)
+
+`CommandPalette` is mounted **once**, in `layouts/auth.vue`, next to the chat panel and for the
+same reasons: it is opened from three places, it has to survive navigation, and its `Ctrl/Cmd+K`
+listener must exist exactly once. Opened from the header's search button, from that chord, or
+from `useCommandPalette().open()`. It is a `UModal` at every width, `fullscreen` below `lg` —
+that is the "full-height sheet with the keyboard focused" a phone wants, without a second
+component to keep in step.
+
+Inside it, a `UCommandPalette` with **`preserve-group-order`** and `ignoreFilter: true` on every
+server-answered group: the ranking is the server's (`SearchFunctions`), and letting fuse re-score
+rows it never filtered would fight it. The navigation and action groups are left to fuse, so
+typing "cal" reaches the calendar without a request. Each server group ends in a "show all N in …"
+row; a group whose `hasMore` is set says "show all" without a number, because the server stopped
+counting at its scan cap.
+
+- `useCommandPalette` holds the state (open flag, query, results, per-device recent searches in
+  `localStorage`). Requests are **debounced and sequenced** — every request carries a sequence
+  number and only the newest may write the results, so a slow early answer cannot land under a
+  newer query. Debouncing alone does not prevent that.
+- Highlighting is the existing `useSearchHighlight`, fed the term that was actually typed.
+- A hit navigates by kind. Two of the six have no page of their own: an inventory item opens its
+  product, and a list or a location is opened by its own list page through `?select=`.
+- `useSearchHandoff` is the receiving end of both that and the "show all" row: a list page reads
+  `?search=` / `?select=` off the route, strips them with `router.replace` (so a reload or a
+  back-navigation does not re-apply a filter the reader has since cleared), and applies them.
+  Pass `ready` when opening something needs the page's own data to have arrived — `select` waits
+  for it, `search` never does.
+
+---
+
+## Voice input (#132)
+
+Hold the microphone in `VoiceItemDrawer`, say "two litres of milk, bread and six eggs", and get
+three pre-filled rows to confirm. Offered as a FAB action on the products and shopping-list
+pages, next to the other add actions.
+
+Three pieces, deliberately separate:
+
+- **`utils/voiceItemParser.ts`** — the grammar, as a pure function over a string. Splits an
+  utterance on punctuation and the locale's own conjunctions, then reads each fragment as
+  `[quantity] [unit] name`, with a trailing-quantity fallback (`milk 2 litres`) for the way people
+  read a written list aloud. Spoken numbers and unit words are tabled per locale for all three.
+  Being pure is the point: it is the only part of a microphone feature that can be tested, and
+  `tests/unit/voiceItemParser.spec.ts` is where its behaviour is pinned. A comma between two
+  digits is a decimal separator, not a list separator.
+- **`useVoiceItemMatching`** — what a name refers to, on three rungs: an existing product first,
+  then the 947-word localized `enums.productCategory` vocabulary (indexed once per locale), then
+  the words themselves. Hungarian object and plural endings are trimmed before matching, because
+  "két liter tejet" otherwise matches nothing at all.
+- **`useSpeechRecognition`** — the Web Speech API, prefixed and unprefixed, `continuous` (a list
+  is read out with pauses in it, and a single-shot recognizer stops at the first one). Reports
+  only the failures the UI says something different about: `denied`, `no-speech`, `network`.
+
+**Nothing is ever written silently.** Speech becomes editable rows badged with what each matched,
+and a row that will create a catalogue product says so and shows the brand it would use. On a
+shopping list an unmatched name becomes a free-text item; inventory has no free text, so those
+rows create the product first.
+
+Where the API does not exist (Firefox has no implementation at all) the FAB action and the drawer
+are **both** gated on `isSupported`, so nothing offers a microphone the browser cannot open. The
+drawer states in as many words that the transcription is the browser's and may leave the device.
+
+The hold gesture uses **pointer capture**: without it the browser retargets the release to
+whatever is under the finger, and "release outside to cancel" cannot work at all.
+
+---
+
+## The public landing page (#123)
+
+`pages/index.vue` under `layouts/public.vue`: a hero with a device-framed app screen, four
+showcase bands (inventory, shopping list, scanner, calendar), the live `HomepageStats`, then the
+feature grid and the CTA.
+
+- The screens are **rendered in markup** (`components/landing/AppScreen.vue`), not shipped as
+  bitmaps. They are built from the app's own semantic tokens and the real expiration ramp, so
+  they follow the visitor's theme by themselves, cost no image bytes, and cannot go stale against
+  a redesign. They are a likeness, not a capture — the data in them is invented.
+- `LandingDeviceFrame` owns the aspect ratio, so whatever is inside occupies the same box and
+  nothing shifts. It already accepts `light` / `dark` sources for the day real screenshots exist;
+  pass those instead of the slot and nothing else about the page changes.
+- `useScrollReveal` is `opacity` + `transform` only, on sections whose space is already reserved,
+  with the observer disconnected once it has fired and the whole effect skipped under
+  `prefers-reduced-motion`.
+- Metadata is per locale (`meta.home.*`) with an Open Graph / Twitter card image at
+  `public/og-image.png`. Regenerate it with `npm run generate:og-image`; the card image has to be
+  an **absolute** URL, which is what `NUXT_PUBLIC_SITE_URL` is for.
+- The page **renders during SSR**. It used to gate everything on a session check that can only run
+  on the client (the Kratos cookie is httpOnly), which meant the server returned an empty div —
+  nothing for a crawler or a link preview to read. The redirect for an already-authenticated
+  visitor happens over the rendered page instead.
+
+---
+
 ## Environment Variables
 
 | Variable | Default | Description |
 |---|---|---|
 | `NUXT_PUBLIC_API_BASE` | `http://localhost:5226` | Homassy.API base URL (production: `https://homassy.kellner.dev` — same origin, the reverse proxy routes `/api/v*` + `/hubs/*` to the API; other `/api/*` paths such as `@nuxt/icon`'s `/api/_nuxt_icon/*` stay on the Nuxt server) |
 | `NUXT_PUBLIC_KRATOS_URL` | `http://localhost:4433` | Kratos public URL (production: `https://homassy.kellner.dev/kratos`) |
+| `NUXT_PUBLIC_SITE_URL` | `http://localhost:3000` | Where this deployment is reachable from the outside. Used only for absolute URLs a crawler cannot resolve itself — the landing page's Open Graph / Twitter card image (production: `https://homassy.kellner.dev`) |
 
 In Docker, these are passed as build args and compiled into the static bundle. Set them at build time, not at runtime. In production both point at the single public domain served by the Caddy reverse proxy (`Homassy.Proxy/Caddyfile`).
 
@@ -1205,6 +1343,9 @@ npx nuxi typecheck
 
 # Regenerate the ProductCategory enum + its three locale blocks from the API enum
 npm run sync:product-category
+
+# Regenerate the landing page's Open Graph / Twitter card image (public/og-image.png)
+npm run generate:og-image
 ```
 
 ---
