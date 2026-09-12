@@ -497,6 +497,16 @@
       :initial-name="sharedItemName"
     />
 
+    <!-- Dictate a few items onto the open list (#132). Rendered only where recognition exists,
+         so the drawer never mounts a microphone the browser cannot open. -->
+    <VoiceItemDrawer
+      v-if="isVoiceSupported && selectedListId"
+      v-model:open="isVoiceOpen"
+      target="shopping-list"
+      :shopping-list-public-id="selectedListId"
+      @created="onVoiceItemsCreated"
+    />
+
     <!-- Barcode Scanner Modal -->
     <BarcodeScannerModal :on-barcode-detected="handleBarcodeScanned" />
 
@@ -734,6 +744,9 @@ useDeepLinkAction({
 })
 
 // Dynamic add-actions on the nav FAB: only when a list is selected. Two options →
+const { isSupported: isVoiceSupported } = useSpeechRecognition()
+const isVoiceOpen = ref(false)
+
 // the FAB opens a chooser (see useFabActions); each opens the wizard in a given mode.
 useFabActions(() => selectedListId.value
   ? [
@@ -746,7 +759,16 @@ useFabActions(() => selectedListId.value
         label: $t('pages.shoppingLists.addCustom'),
         icon: 'i-lucide-pencil-line',
         handler: () => openAddItemModal('custom')
-      }
+      },
+      // Voice input (#132), offered next to the other two and only where the browser can
+      // actually transcribe — Firefox has no Web Speech API at all.
+      ...(isVoiceSupported.value
+        ? [{
+            label: $t('voice.addByVoice'),
+            icon: 'i-lucide-mic',
+            handler: () => { isVoiceOpen.value = true }
+          }]
+        : [])
     ]
   : [])
 
@@ -1609,6 +1631,10 @@ const handleItemRefresh = async () => {
     await loadListDetails(selectedListId.value)
   }
 }
+
+// Dictated items arrive through the same bulk endpoint as any other write, so the socket
+// echoes them back like everything else — this only covers the socket being down (#132).
+const onVoiceItemsCreated = () => handleItemRefresh()
 
 // --- Optimistic delete/purchase/restore -------------------------------------
 // ShoppingListItemCard owns the confirm-drawer UX and the request shape (and emits once the user

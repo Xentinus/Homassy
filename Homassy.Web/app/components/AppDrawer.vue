@@ -156,8 +156,10 @@ const ui = computed(() => {
     // A side panel is the same sheet turned on its side: a fixed width instead of a
     // fixed height, rounded on the edge that faces the list, and capped so it never
     // takes more than half of a very wide window away from the master list.
+    // `mx-0` undoes the `mx-auto` `app.config.ts` sets for the centred bottom sheet: a panel
+    // pinned to the right edge must not also try to centre itself.
     content: isSidePanel.value
-      ? `h-full w-full max-w-xl rounded-l-2xl overflow-hidden${zContent}`
+      ? `h-full w-full max-w-xl mx-0 rounded-l-2xl overflow-hidden${zContent}`
       : `h-[94dvh] rounded-t-2xl overflow-hidden${zContent}`,
     container: 'flex flex-1 flex-col min-h-0 gap-0 p-0 overflow-hidden',
     header: 'shrink-0 border-b border-default p-4 sm:px-6',

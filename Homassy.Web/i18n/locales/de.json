@@ -246,6 +246,37 @@
       "scanBarcode": "Barcode scannen"
     }
   },
+  "voice": {
+    "title": "Per Sprache hinzufügen",
+    "addByVoice": "Per Sprache hinzufügen",
+    "holdToTalk": "Zum Sprechen gedrückt halten",
+    "listening": "Ich höre zu — loslassen zum Beenden",
+    "speakNow": "Sag, was du hinzufügen möchtest, zum Beispiel „zwei Liter Milch und sechs Eier“",
+    "review": "{count} Artikel gehört | {count} Artikel gehört",
+    "clear": "Neu beginnen",
+    "addAll": "Nichts hinzuzufügen | 1 Artikel hinzufügen | {count} Artikel hinzufügen",
+    "added": "{count} Artikel hinzugefügt | {count} Artikel hinzugefügt",
+    "namePlaceholder": "Artikelname",
+    "brandPlaceholder": "Marke",
+    "unknownBrand": "Unbekannte Marke",
+    "privacyNote": "Die Spracherkennung übernimmt dein Browser, der die Aufnahme auf manchen Geräten an den Dienst des Browser-Herstellers sendet. Die Funktion ist völlig optional — alles lässt sich auch tippen.",
+    "badges": {
+      "known": "Bekanntes Produkt",
+      "category": "Gefundene Kategorie",
+      "custom": "Freitext",
+      "newProduct": "Neues Produkt"
+    },
+    "errors": {
+      "deniedTitle": "Mikrofon blockiert",
+      "deniedHint": "Erlaube den Mikrofonzugriff für diese Seite in der Adressleiste deines Browsers und halte die Taste erneut gedrückt.",
+      "noSpeechTitle": "Nichts gehört",
+      "noSpeechHint": "Halte die Taste gedrückt, warte einen Moment, sprich dann — und lass los, wenn du fertig bist.",
+      "networkTitle": "Erkennung nicht verfügbar",
+      "networkHint": "Dein Browser konnte seinen Spracherkennungsdienst nicht erreichen. Prüfe die Verbindung, oder tippe die Artikel ein.",
+      "unknownTitle": "Erkennung fehlgeschlagen",
+      "unknownHint": "Beim Zuhören ist etwas schiefgegangen. Versuche es erneut, oder tippe die Artikel ein."
+    }
+  },
   "fab": {
     "open": "Hinzufügen-Menü öffnen",
     "close": "Schließen",

@@ -285,6 +285,15 @@
     <!-- Add Inventory Wizard (bottom-sheet) -->
     <AddInventoryItemModal v-model:open="isAddInventoryOpen" @created="handleInventoryCreated" />
 
+    <!-- Dictate a few items straight into stock (#132). Rendered only where recognition
+         exists, so the drawer never mounts a microphone the browser cannot open. -->
+    <VoiceItemDrawer
+      v-if="isVoiceSupported"
+      v-model:open="isVoiceOpen"
+      target="inventory"
+      @created="handleInventoryCreated"
+    />
+
     <!-- Inventory overview (bottom-sheet), opened by tapping a card -->
     <InventoryOverviewDrawer v-model:open="isOverviewOpen" :product-public-id="overviewProductId" />
   </div>
@@ -379,12 +388,25 @@ const openOverview = (publicId: string) => {
 }
 
 // Register the page's add-action(s) on the dynamic nav FAB.
+// Voice input (#132) sits next to the add action rather than replacing it, and only where the
+// browser can actually transcribe — Firefox has no Web Speech API at all, and an affordance
+// that is there but cannot work is worse than one that is not offered.
+const { isSupported: isVoiceSupported } = useSpeechRecognition()
+const isVoiceOpen = ref(false)
+
 useFabActions(() => [
   {
     label: $t('pages.products.addProductButton'),
     icon: 'i-lucide-plus',
     handler: () => { isAddInventoryOpen.value = true }
-  }
+  },
+  ...(isVoiceSupported.value
+    ? [{
+        label: $t('voice.addByVoice'),
+        icon: 'i-lucide-mic',
+        handler: () => { isVoiceOpen.value = true }
+      }]
+    : [])
 ])
 
 // Manifest app shortcuts land here with an action already chosen (#118): "Add item"

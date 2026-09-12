@@ -246,6 +246,37 @@
       "scanBarcode": "Scan barcode"
     }
   },
+  "voice": {
+    "title": "Add by voice",
+    "addByVoice": "Add by voice",
+    "holdToTalk": "Hold to talk",
+    "listening": "Listening — release to stop",
+    "speakNow": "Say what you want to add, for example \"two litres of milk and six eggs\"",
+    "review": "Heard {count} item | Heard {count} items",
+    "clear": "Start over",
+    "addAll": "Add nothing | Add 1 item | Add {count} items",
+    "added": "Added {count} item | Added {count} items",
+    "namePlaceholder": "Item name",
+    "brandPlaceholder": "Brand",
+    "unknownBrand": "Unknown brand",
+    "privacyNote": "Speech is recognised by your browser, which on some devices sends the audio to the browser vendor's service. This feature is entirely optional — everything here can be typed instead.",
+    "badges": {
+      "known": "Known product",
+      "category": "Matched category",
+      "custom": "Free text",
+      "newProduct": "New product"
+    },
+    "errors": {
+      "deniedTitle": "Microphone blocked",
+      "deniedHint": "Allow microphone access for this site in your browser's address bar, then hold the button again.",
+      "noSpeechTitle": "Nothing heard",
+      "noSpeechHint": "Hold the button, wait a moment, then speak — and release when you are done.",
+      "networkTitle": "Recognition unavailable",
+      "networkHint": "Your browser could not reach its speech service. Check the connection and try again, or type the items instead.",
+      "unknownTitle": "Recognition failed",
+      "unknownHint": "Something went wrong while listening. Try again, or type the items instead."
+    }
+  },
   "fab": {
     "open": "Open add menu",
     "close": "Close",

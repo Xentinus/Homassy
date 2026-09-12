@@ -246,6 +246,37 @@
       "scanBarcode": "Vonalkód beolvasása"
     }
   },
+  "voice": {
+    "title": "Hozzáadás hanggal",
+    "addByVoice": "Hozzáadás hanggal",
+    "holdToTalk": "Tartsd nyomva a beszédhez",
+    "listening": "Hallgatlak — engedd el a befejezéshez",
+    "speakNow": "Mondd, mit szeretnél hozzáadni, például „két liter tej és hat tojás”",
+    "review": "{count} tételt hallottam | {count} tételt hallottam",
+    "clear": "Kezdés elölről",
+    "addAll": "Nincs mit hozzáadni | 1 tétel hozzáadása | {count} tétel hozzáadása",
+    "added": "{count} tétel hozzáadva | {count} tétel hozzáadva",
+    "namePlaceholder": "Tétel neve",
+    "brandPlaceholder": "Márka",
+    "unknownBrand": "Ismeretlen márka",
+    "privacyNote": "A beszédfelismerést a böngésző végzi, amely egyes eszközökön a böngésző gyártójának szolgáltatásához küldi a hangot. A funkció teljesen opcionális — minden begépelhető helyette.",
+    "badges": {
+      "known": "Ismert termék",
+      "category": "Talált kategória",
+      "custom": "Szabad szöveg",
+      "newProduct": "Új termék"
+    },
+    "errors": {
+      "deniedTitle": "A mikrofon le van tiltva",
+      "deniedHint": "Engedélyezd a mikrofont ehhez az oldalhoz a böngésző címsorában, majd tartsd nyomva újra a gombot.",
+      "noSpeechTitle": "Nem hallottam semmit",
+      "noSpeechHint": "Tartsd nyomva a gombot, várj egy pillanatot, aztán beszélj — és engedd el, ha végeztél.",
+      "networkTitle": "A felismerés nem érhető el",
+      "networkHint": "A böngésző nem érte el a beszédfelismerő szolgáltatását. Ellenőrizd a kapcsolatot, vagy gépeld be a tételeket.",
+      "unknownTitle": "A felismerés nem sikerült",
+      "unknownHint": "Hiba történt hallgatás közben. Próbáld újra, vagy gépeld be a tételeket."
+    }
+  },
   "fab": {
     "open": "Hozzáadás megnyitása",
     "close": "Bezárás",
