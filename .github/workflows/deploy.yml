@@ -201,6 +201,8 @@ jobs:
         # reactive-unwrap of @internationalized/date values — is down to zero. While it was
         # advisory the last three were reported on a green run and merged anyway, which is the
         # failure mode `continue-on-error` has once a backlog is actually cleared.
+        #
+        # "Gate" is only true because `build` now lists this job in its `needs` — see there.
         run: npm run typecheck
         working-directory: Homassy.Web
 
@@ -221,9 +223,12 @@ jobs:
 
   build:
     name: Build & push images
-    # `test` gates this, so a failing test stops the pipeline before any image is built.
-    # `prepare` has no dependency on `test`, so the two run in parallel.
-    needs: [prepare, test]
+    # `test` and `web` gate this, so a failing test — or a lint or typecheck error — stops the
+    # pipeline before any image is built. `web` was missing here: both of its steps described
+    # themselves as gates while nothing downstream depended on the job, and `master` has no
+    # branch protection, so a red check blocked precisely nothing.
+    # `prepare` depends on neither, so it runs in parallel with both.
+    needs: [prepare, test, web]
     runs-on: ubuntu-latest
     strategy:
       fail-fast: true
