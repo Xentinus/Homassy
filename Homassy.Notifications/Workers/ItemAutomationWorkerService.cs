@@ -1,12 +1,12 @@
-﻿using Homassy.API.Context;
-using Homassy.API.Entities.Product;
-using Homassy.API.Enums;
-using Homassy.API.Extensions;
-using Homassy.API.Functions;
-using Homassy.API.Models.Notification;
+using Homassy.Data.Entities.Product;
+using Homassy.Data.Enums;
+using Homassy.Data.Models.Notification;
 using Homassy.Notifications.Services;
 using Microsoft.EntityFrameworkCore;
 using Serilog;
+using Homassy.Data.Context;
+using Homassy.Data.Functions;
+using Homassy.Data.Models.Inventory;
 
 namespace Homassy.Notifications.Workers;
 
@@ -251,8 +251,8 @@ public sealed class ItemAutomationWorkerService : BackgroundService
             {
                 await broadcastClient.BroadcastUpsertAsync(
                     itemUserId, inventoryItem.FamilyId,
-                    ProductFunctions.BuildGridProductCarrier(product),
-                    ProductFunctions.BuildGridItem(inventoryItem, product.PublicId),
+                    InventoryGridProjection.BuildProduct(product),
+                    InventoryGridProjection.BuildItem(inventoryItem, product.PublicId),
                     cancellationToken);
             }
         }
@@ -342,7 +342,8 @@ public sealed class ItemAutomationWorkerService : BackgroundService
         {
             var userId = automation.CreatedByUserId;
             var familyId = automation.FamilyId;
-            await new ActivityFunctions(_contextFactory).RecordActivityAsync(
+            await ActivityRecorder.RecordAsync(
+                _contextFactory,
                 userId, familyId,
                 ActivityType.AutomationExecute,
                 automation.Id,
@@ -407,10 +408,10 @@ public sealed class ItemAutomationWorkerService : BackgroundService
         }
 
         var quantity = automation.AddQuantity ?? 1;
-        var unit = automation.AddUnit ?? API.Enums.Unit.Piece;
+        var unit = automation.AddUnit ?? Homassy.Data.Enums.Unit.Piece;
 
         // Create shopping list item
-        var shoppingListItem = new API.Entities.ShoppingList.ShoppingListItem
+        var shoppingListItem = new Homassy.Data.Entities.ShoppingList.ShoppingListItem
         {
             ShoppingListId = shoppingList.Id,
             ProductId = product.Id,
@@ -438,7 +439,8 @@ public sealed class ItemAutomationWorkerService : BackgroundService
             // Visibility follows the target list's privacy, not the automation's:
             // a personal list (FamilyId == null) must stay hidden from the family.
             var familyId = shoppingList.FamilyId;
-            await new ActivityFunctions(_contextFactory).RecordActivityAsync(
+            await ActivityRecorder.RecordAsync(
+                _contextFactory,
                 userId, familyId,
                 ActivityType.AutomationExecute,
                 automation.Id,
@@ -585,8 +587,11 @@ public sealed class ItemAutomationWorkerService : BackgroundService
         UserTimeZone userTimeZone;
         try
         {
+            // Read straight from the context rather than through the API's UserFunctions: that
+            // lookup is backed by a cache this process never initialises, so borrowing it would
+            // mean depending on a class whose fast path is dead here anyway (#91).
             var userProfile = automation.UserId.HasValue
-                ? new UserFunctions(_contextFactory).GetUserProfileByUserId(automation.UserId.Value)
+                ? context.UserProfiles.FirstOrDefault(p => p.UserId == automation.UserId.Value)
                 : null;
 
             // If family-owned, try to find the first family member's timezone
@@ -604,7 +609,7 @@ public sealed class ItemAutomationWorkerService : BackgroundService
             userTimeZone = UserTimeZone.CentralEuropeStandardTime;
         }
 
-        automation.NextExecutionAt = AutomationFunctions.CalculateNextExecutionAt(
+        automation.NextExecutionAt = AutomationSchedule.CalculateNextExecutionAt(
             automation.ScheduleType,
             automation.ScheduledTime,
             automation.IntervalDays,
@@ -728,10 +733,10 @@ public sealed class ItemAutomationWorkerService : BackgroundService
 
                 // Stock is below threshold — trigger!
                 var quantity = automation.AddQuantity ?? 1;
-                var unit = automation.AddUnit ?? API.Enums.Unit.Piece;
+                var unit = automation.AddUnit ?? Homassy.Data.Enums.Unit.Piece;
 
                 // Create shopping list item
-                var shoppingListItem = new API.Entities.ShoppingList.ShoppingListItem
+                var shoppingListItem = new Homassy.Data.Entities.ShoppingList.ShoppingListItem
                 {
                     ShoppingListId = shoppingList.Id,
                     ProductId = product.Id,
@@ -763,7 +768,8 @@ public sealed class ItemAutomationWorkerService : BackgroundService
                 {
                     var userId = automation.CreatedByUserId;
                     var familyId = automation.FamilyId;
-                    await new ActivityFunctions(_contextFactory).RecordActivityAsync(
+                    await ActivityRecorder.RecordAsync(
+                _contextFactory,
                         userId, familyId,
                         ActivityType.AutomationExecute,
                         automation.Id,

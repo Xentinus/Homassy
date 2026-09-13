@@ -1,5 +1,4 @@
 using System.Net.Http;
-using Homassy.API.Context;
 using Homassy.API.Functions;
 using Homassy.API.Models.User;
 using Homassy.API.Services;
@@ -7,6 +6,7 @@ using Homassy.Tests.Infrastructure;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Configuration;
+using Homassy.Data.Context;
 
 namespace Homassy.Tests.Unit;
 

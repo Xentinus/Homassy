@@ -1,17 +1,19 @@
 using Homassy.API.Constants;
 using Homassy.API.Context;
-using Homassy.API.Entities.Common;
-using Homassy.API.Entities.Family;
-using Homassy.API.Entities.Product;
-using Homassy.API.Entities.User;
-using Homassy.API.Enums;
-using Homassy.API.Exceptions;
+using Homassy.Data.Entities.Common;
+using Homassy.Data.Entities.Family;
+using Homassy.Data.Entities.Product;
+using Homassy.Data.Entities.User;
+using Homassy.Data.Enums;
+using Homassy.Data.Exceptions;
 using Homassy.API.Models;
 using Homassy.API.Models.Family;
 using Homassy.API.Models.ImageUpload;
 using Homassy.API.Services;
 using Microsoft.EntityFrameworkCore;
 using Serilog;
+using Homassy.Data.Context;
+using Homassy.Data.Security;
 
 namespace Homassy.API.Functions
 {
@@ -128,7 +130,7 @@ namespace Homassy.API.Functions
                     await new ActivityFunctions(_contextFactory).RecordActivityAsync(
                         userId.Value,
                         familyId,
-                        Enums.ActivityType.ProductPhotoUpload,
+                        Homassy.Data.Enums.ActivityType.ProductPhotoUpload,
                         product.Id,
                         product.Name,
                         null,
@@ -206,7 +208,7 @@ namespace Homassy.API.Functions
                     await new ActivityFunctions(_contextFactory).RecordActivityAsync(
                         userId.Value,
                         familyId,
-                        Enums.ActivityType.ProductPhotoDelete,
+                        Homassy.Data.Enums.ActivityType.ProductPhotoDelete,
                         product.Id,
                         product.Name,
                         null,

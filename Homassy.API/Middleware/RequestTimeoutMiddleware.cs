@@ -1,4 +1,4 @@
-using Homassy.API.Exceptions;
+using Homassy.Data.Exceptions;
 using Homassy.API.Models.ApplicationSettings;
 using Microsoft.Extensions.Options;
 using Serilog;

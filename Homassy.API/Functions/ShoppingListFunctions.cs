@@ -1,13 +1,14 @@
 ﻿using Homassy.API.Context;
-using Homassy.API.Entities.ShoppingList;
-using Homassy.API.Exceptions;
+using Homassy.Data.Entities.ShoppingList;
+using Homassy.Data.Exceptions;
 using Homassy.API.Extensions;
 using Homassy.API.Hubs;
-using Homassy.API.Models.Common;
+using Homassy.Data.Models.Common;
 using Homassy.API.Models.ShoppingList;
 using Microsoft.EntityFrameworkCore;
 using Serilog;
 using System.Collections.Concurrent;
+using Homassy.Data.Context;
 
 namespace Homassy.API.Functions
 {
@@ -479,7 +480,7 @@ namespace Homassy.API.Functions
                     await new ActivityFunctions(_contextFactory).RecordActivityAsync(
                         userId.Value,
                         shoppingList.FamilyId,
-                        Enums.ActivityType.ShoppingListCreate,
+                        Homassy.Data.Enums.ActivityType.ShoppingListCreate,
                         shoppingList.Id,
                         shoppingList.Name,
                         null,
@@ -610,7 +611,7 @@ namespace Homassy.API.Functions
                         await new ActivityFunctions(_contextFactory).RecordActivityAsync(
                             userId.Value,
                             trackedList.FamilyId,
-                            Enums.ActivityType.ShoppingListUpdate,
+                            Homassy.Data.Enums.ActivityType.ShoppingListUpdate,
                             trackedList.Id,
                             trackedList.Name,
                             cancellationToken: cancellationToken
@@ -697,7 +698,7 @@ namespace Homassy.API.Functions
                     await new ActivityFunctions(_contextFactory).RecordActivityAsync(
                         userId.Value,
                         shoppingList.FamilyId,
-                        Enums.ActivityType.ShoppingListDelete,
+                        Homassy.Data.Enums.ActivityType.ShoppingListDelete,
                         shoppingList.Id,
                         shoppingList.Name,
                         cancellationToken: cancellationToken
@@ -760,7 +761,7 @@ namespace Homassy.API.Functions
 
             // For product-linked items the unit is inherited from the product; for standalone
             // (custom) items it comes from the request (defaulting to Piece).
-            var itemUnit = request.Unit ?? Homassy.API.Enums.Unit.Piece;
+            var itemUnit = request.Unit ?? Homassy.Data.Enums.Unit.Piece;
 
             if (request.ProductPublicId.HasValue)
             {
@@ -820,7 +821,7 @@ namespace Homassy.API.Functions
                     await new ActivityFunctions(_contextFactory).RecordActivityAsync(
                         userId.Value,
                         shoppingList.FamilyId,
-                        Enums.ActivityType.ShoppingListItemAdd,
+                        Homassy.Data.Enums.ActivityType.ShoppingListItemAdd,
                         shoppingListItem.Id,
                         $"{shoppingList.Name} - {itemName}",
                         cancellationToken: cancellationToken
@@ -1003,7 +1004,7 @@ namespace Homassy.API.Functions
                         await new ActivityFunctions(_contextFactory).RecordActivityAsync(
                             userId.Value,
                             shoppingList.FamilyId,
-                            Enums.ActivityType.ShoppingListItemUpdate,
+                            Homassy.Data.Enums.ActivityType.ShoppingListItemUpdate,
                             trackedItem.Id,
                             $"{shoppingList.Name} - {itemName}",
                             cancellationToken: cancellationToken
@@ -1102,7 +1103,7 @@ namespace Homassy.API.Functions
                     await new ActivityFunctions(_contextFactory).RecordActivityAsync(
                         userId.Value,
                         shoppingList.FamilyId,
-                        Enums.ActivityType.ShoppingListItemDelete,
+                        Homassy.Data.Enums.ActivityType.ShoppingListItemDelete,
                         shoppingListItem.Id,
                         $"{shoppingList.Name} - {itemName}",
                         null,
@@ -1183,7 +1184,7 @@ namespace Homassy.API.Functions
                         await new ActivityFunctions(_contextFactory).RecordActivityAsync(
                             userId.Value,
                             shoppingList.FamilyId,
-                            Enums.ActivityType.ShoppingListItemPurchase,
+                            Homassy.Data.Enums.ActivityType.ShoppingListItemPurchase,
                             shoppingListItem.Id,
                             $"{shoppingList.Name} - {trackedShoppingListItem.CustomName ?? "Custom Item"}",
                             null,
@@ -1244,7 +1245,7 @@ namespace Homassy.API.Functions
                 var currency = request.Currency ?? userProfile?.DefaultCurrency;
 
                 // Create inventory item
-                var inventoryItem = new Entities.Product.ProductInventoryItem
+                var inventoryItem = new Homassy.Data.Entities.Product.ProductInventoryItem
                 {
                     ProductId = product.Id,
                     UserId = request.IsSharedWithFamily && familyId.HasValue ? null : userId.Value,
@@ -1259,10 +1260,10 @@ namespace Homassy.API.Functions
                 await context.SaveChangesAsync(cancellationToken);
 
                 // Create purchase info
-                Entities.Product.ProductPurchaseInfo? purchaseInfo = null;
+                Homassy.Data.Entities.Product.ProductPurchaseInfo? purchaseInfo = null;
                 if (request.Price.HasValue || shoppingLocationId.HasValue)
                 {
-                    purchaseInfo = new Entities.Product.ProductPurchaseInfo
+                    purchaseInfo = new Homassy.Data.Entities.Product.ProductPurchaseInfo
                     {
                         ProductInventoryItemId = inventoryItem.Id,
                         PurchasedAt = request.PurchasedAt,
@@ -1289,7 +1290,7 @@ namespace Homassy.API.Functions
                     await new ActivityFunctions(_contextFactory).RecordActivityAsync(
                         userId.Value,
                         shoppingList.FamilyId,
-                        Enums.ActivityType.ShoppingListItemPurchase,
+                        Homassy.Data.Enums.ActivityType.ShoppingListItemPurchase,
                         shoppingListItem.Id,
                         $"{shoppingList.Name} - {product.Name}",
                         null,
@@ -1387,7 +1388,7 @@ namespace Homassy.API.Functions
                     await new ActivityFunctions(_contextFactory).RecordActivityAsync(
                         userId.Value,
                         shoppingList.FamilyId,
-                        Enums.ActivityType.ShoppingListItemQuickPurchase,
+                        Homassy.Data.Enums.ActivityType.ShoppingListItemQuickPurchase,
                         shoppingListItem.Id,
                         $"{shoppingList.Name} - {displayName}",
                         trackedShoppingListItem.Unit,
@@ -1527,7 +1528,7 @@ namespace Homassy.API.Functions
                     await new ActivityFunctions(_contextFactory).RecordActivityAsync(
                         userId.Value,
                         shoppingList.FamilyId,
-                        Enums.ActivityType.ShoppingListItemQuickPurchase,
+                        Homassy.Data.Enums.ActivityType.ShoppingListItemQuickPurchase,
                         shoppingListItem.Id,
                         $"{shoppingList.Name} - {displayName}",
                         trackedShoppingListItem.Unit,
@@ -1626,7 +1627,7 @@ namespace Homassy.API.Functions
                     await new ActivityFunctions(_contextFactory).RecordActivityAsync(
                         userId.Value,
                         shoppingList.FamilyId,
-                        Enums.ActivityType.ShoppingListItemRestorePurchase,
+                        Homassy.Data.Enums.ActivityType.ShoppingListItemRestorePurchase,
                         shoppingListItem.Id,
                         $"{shoppingList.Name} - {displayName}",
                         trackedShoppingListItem.Unit,
@@ -1731,7 +1732,7 @@ namespace Homassy.API.Functions
 
                     // Product-linked items inherit the unit from the product; standalone
                     // (custom) items use the unit from the request (defaulting to Piece).
-                    var itemUnit = item.Unit ?? Homassy.API.Enums.Unit.Piece;
+                    var itemUnit = item.Unit ?? Homassy.Data.Enums.Unit.Piece;
 
                     if (item.ProductPublicId.HasValue)
                     {
@@ -1791,7 +1792,7 @@ namespace Homassy.API.Functions
                         await new ActivityFunctions(_contextFactory).RecordActivityAsync(
                             userId.Value,
                             shoppingList.FamilyId,
-                            Enums.ActivityType.ShoppingListItemAdd,
+                            Homassy.Data.Enums.ActivityType.ShoppingListItemAdd,
                             sli.Id,
                             $"{shoppingList.Name} - {itemName}",
                             cancellationToken: cancellationToken
@@ -1899,7 +1900,7 @@ namespace Homassy.API.Functions
                         await new ActivityFunctions(_contextFactory).RecordActivityAsync(
                             userId.Value,
                             shoppingList.FamilyId,
-                            Enums.ActivityType.ShoppingListItemDelete,
+                            Homassy.Data.Enums.ActivityType.ShoppingListItemDelete,
                             shoppingListItem.Id,
                             $"{shoppingList.Name} - {itemName}",
                             cancellationToken: cancellationToken
@@ -2014,7 +2015,7 @@ namespace Homassy.API.Functions
 
                     trackedShoppingListItem.PurchasedAt = itemRequest.PurchasedAt;
 
-                    var inventoryItem = new Entities.Product.ProductInventoryItem
+                    var inventoryItem = new Homassy.Data.Entities.Product.ProductInventoryItem
                     {
                         ProductId = product.Id,
                         UserId = itemRequest.IsSharedWithFamily && familyId.HasValue ? null : userId.Value,
@@ -2032,7 +2033,7 @@ namespace Homassy.API.Functions
 
                     if (itemRequest.Price.HasValue || shoppingLocationId.HasValue)
                     {
-                        var purchaseInfo = new Entities.Product.ProductPurchaseInfo
+                        var purchaseInfo = new Homassy.Data.Entities.Product.ProductPurchaseInfo
                         {
                             ProductInventoryItemId = inventoryItem.Id,
                             PurchasedAt = itemRequest.PurchasedAt,
@@ -2051,7 +2052,7 @@ namespace Homassy.API.Functions
                         await new ActivityFunctions(_contextFactory).RecordActivityAsync(
                             userId.Value,
                             shoppingList.FamilyId,
-                            Enums.ActivityType.ShoppingListItemPurchase,
+                            Homassy.Data.Enums.ActivityType.ShoppingListItemPurchase,
                             shoppingListItem.Id,
                             $"{shoppingList.Name} - {product.Name}",
                             cancellationToken: cancellationToken

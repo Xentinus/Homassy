@@ -1,9 +1,9 @@
-using Homassy.API.Context;
-using Homassy.API.Enums;
-using Homassy.API.Models.Notification;
+using Homassy.Data.Enums;
+using Homassy.Data.Models.Notification;
 using Homassy.Notifications.Services;
 using Microsoft.EntityFrameworkCore;
 using Serilog;
+using Homassy.Data.Context;
 
 namespace Homassy.Notifications.Workers;
 

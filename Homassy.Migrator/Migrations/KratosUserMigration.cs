@@ -1,11 +1,11 @@
-﻿using Homassy.API.Context;
-using Homassy.API.Entities.User;
-using Homassy.API.Enums;
-using Homassy.API.Models.Kratos;
+using Homassy.Data.Entities.User;
+using Homassy.Data.Enums;
+using Homassy.Data.Models.Kratos;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using System.Net.Http.Json;
 using System.Text.Json;
+using Homassy.Data.Context;
 
 namespace Homassy.Migrator.Migrations
 {

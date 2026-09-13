@@ -1,17 +1,20 @@
 ﻿using Homassy.API.Constants;
 using Homassy.API.Context;
-using Homassy.API.Entities.Location;
-using Homassy.API.Entities.Product;
-using Homassy.API.Entities.User;
-using Homassy.API.Enums;
-using Homassy.API.Exceptions;
+using Homassy.Data.Entities.Location;
+using Homassy.Data.Entities.Product;
+using Homassy.Data.Entities.User;
+using Homassy.Data.Enums;
+using Homassy.Data.Exceptions;
 using Homassy.API.Extensions;
 using Homassy.API.Hubs;
-using Homassy.API.Models.Common;
+using Homassy.Data.Models.Common;
 using Homassy.API.Models.Product;
 using Microsoft.EntityFrameworkCore;
 using Serilog;
 using System.Collections.Concurrent;
+using Homassy.Data.Context;
+using Homassy.Data.Models.Inventory;
+using Homassy.Data.Functions;
 
 namespace Homassy.API.Functions
 {
@@ -608,7 +611,7 @@ namespace Homassy.API.Functions
                     await new ActivityFunctions(_contextFactory).RecordActivityAsync(
                         userId.Value,
                         familyId,
-                        Enums.ActivityType.ProductCreate,
+                        Homassy.Data.Enums.ActivityType.ProductCreate,
                         product.Id,
                         product.Name,
                         null,
@@ -727,7 +730,7 @@ namespace Homassy.API.Functions
                 {
                     await _runtime.Inventory.ProductUpdatedAsync(
                         userId.Value, SessionInfo.GetFamilyId(),
-                        BuildGridProductCarrier(product),
+                        InventoryGridProjection.BuildProduct(product),
                         cancellationToken);
                 }
 
@@ -740,7 +743,7 @@ namespace Homassy.API.Functions
                         await new ActivityFunctions(_contextFactory).RecordActivityAsync(
                             userId.Value,
                             familyId,
-                            Enums.ActivityType.ProductUpdate,
+                            Homassy.Data.Enums.ActivityType.ProductUpdate,
                             product.Id,
                             product.Name,
                             null,
@@ -859,7 +862,7 @@ namespace Homassy.API.Functions
                     await new ActivityFunctions(_contextFactory).RecordActivityAsync(
                         userId.Value,
                         familyId,
-                        Enums.ActivityType.ProductDelete,
+                        Homassy.Data.Enums.ActivityType.ProductDelete,
                         product.Id,
                         product.Name,
                         null,
@@ -1343,52 +1346,13 @@ namespace Homassy.API.Functions
             }).ToList();
         }
 
-        /// <summary>Builds the lightweight grid item projection used by the snapshot and realtime broadcasts.</summary>
-        /// <param name="item">The inventory item to project.</param>
-        /// <param name="productPublicId">Its product, which the projection does not navigate to.</param>
-        /// <param name="originalQuantity">
-        /// The purchased amount, for the card's stock ring. Callers with a context of their own pass
-        /// it; the fallback reads the navigation, which is loaded on a tracked item and null on one
-        /// that came out of the cache — hence <see cref="GridItem"/> for callers inside this class.
-        /// </param>
-        public static InventoryGridItemInfo BuildGridItem(
-            ProductInventoryItem item,
-            Guid productPublicId,
-            decimal? originalQuantity = null) => new()
-        {
-            PublicId = item.PublicId,
-            ProductPublicId = productPublicId,
-            CurrentQuantity = item.CurrentQuantity,
-            OriginalQuantity = originalQuantity ?? item.PurchaseInfo?.OriginalQuantity,
-            Unit = item.Unit,
-            ExpirationAt = item.ExpirationAt,
-            IsSharedWithFamily = item.FamilyId.HasValue
-        };
-
         /// <summary>
-        /// <see cref="BuildGridItem"/> with the purchased amount resolved from this instance's
+        /// <see cref="InventoryGridProjection.BuildItem"/> with the purchased amount resolved from this instance's
         /// caches, so every projection this class emits carries a stock-ring denominator whether
         /// the item came from the cache or from a tracked query.
         /// </summary>
         private InventoryGridItemInfo GridItem(ProductInventoryItem item, Guid productPublicId) =>
-            BuildGridItem(item, productPublicId, GetPurchaseInfoByInventoryItemId(item.Id)?.OriginalQuantity);
-
-        /// <summary>
-        /// Builds a lightweight grid product carrier (no items) for an <c>InventoryUpserted</c> broadcast,
-        /// so a receiver can insert a new card for a product it hasn't seen yet. <see cref="InventoryGridProductInfo.IsFavorite"/>
-        /// is left <c>false</c> — favorite is per-user and not meaningful in a group broadcast.
-        /// </summary>
-        public static InventoryGridProductInfo BuildGridProductCarrier(Product product) => new()
-        {
-            PublicId = product.PublicId,
-            Name = product.Name,
-            Brand = product.Brand,
-            Category = product.Category,
-            Barcode = product.Barcode,
-            IsEatable = product.IsEatable,
-            IsFavorite = false,
-            InventoryItems = new()
-        };
+            InventoryGridProjection.BuildItem(item, productPublicId, GetPurchaseInfoByInventoryItemId(item.Id)?.OriginalQuantity);
 
         /// <summary>
         /// How many of the current user's inventory items are expired or expiring inside the
@@ -1549,7 +1513,7 @@ namespace Homassy.API.Functions
                 // Realtime: push the new item to everyone whose grid shows it.
                 await _runtime.Inventory.InventoryUpsertedAsync(
                     userId.Value, familyId,
-                    BuildGridProductCarrier(product),
+                    InventoryGridProjection.BuildProduct(product),
                     GridItem(inventoryItem, product.PublicId),
                     cancellationToken);
 
@@ -1562,7 +1526,7 @@ namespace Homassy.API.Functions
                     await new ActivityFunctions(_contextFactory).RecordActivityAsync(
                         userId.Value,
                         familyId,
-                        Enums.ActivityType.ProductInventoryCreate,
+                        Homassy.Data.Enums.ActivityType.ProductInventoryCreate,
                         inventoryItem.Id,
                         product.Name,
                         inventoryItem.Unit,
@@ -1655,7 +1619,7 @@ namespace Homassy.API.Functions
                 // Realtime: push the new item to everyone whose grid shows it.
                 await _runtime.Inventory.InventoryUpsertedAsync(
                     userId.Value, familyId,
-                    BuildGridProductCarrier(product),
+                    InventoryGridProjection.BuildProduct(product),
                     GridItem(inventoryItem, product.PublicId),
                     cancellationToken);
 
@@ -1670,7 +1634,7 @@ namespace Homassy.API.Functions
                     await new ActivityFunctions(_contextFactory).RecordActivityAsync(
                         userId.Value,
                         familyId,
-                        Enums.ActivityType.ProductInventoryCreate,
+                        Homassy.Data.Enums.ActivityType.ProductInventoryCreate,
                         inventoryItem.Id,
                         product.Name,
                         inventoryItem.Unit,
@@ -1859,7 +1823,7 @@ namespace Homassy.API.Functions
 
                         await _runtime.Inventory.InventoryUpsertedAsync(
                             userId.Value, familyId,
-                            BuildGridProductCarrier(broadcastProduct),
+                            InventoryGridProjection.BuildProduct(broadcastProduct),
                             GridItem(trackedItem, broadcastProduct.PublicId),
                             cancellationToken);
                     }
@@ -1878,7 +1842,7 @@ namespace Homassy.API.Functions
                         await new ActivityFunctions(_contextFactory).RecordActivityAsync(
                             userId.Value,
                             familyId,
-                            Enums.ActivityType.ProductInventoryUpdate,
+                            Homassy.Data.Enums.ActivityType.ProductInventoryUpdate,
                             trackedItem.Id,
                             product?.Name ?? "Unknown",
                             trackedItem.Unit,
@@ -2008,7 +1972,7 @@ namespace Homassy.API.Functions
                     await new ActivityFunctions(_contextFactory).RecordActivityAsync(
                         userId.Value,
                         familyId,
-                        Enums.ActivityType.ProductInventoryDelete,
+                        Homassy.Data.Enums.ActivityType.ProductInventoryDelete,
                         inventoryItem.Id,
                         product?.Name ?? "Unknown",
                         inventoryItem.Unit,
@@ -2108,7 +2072,7 @@ namespace Homassy.API.Functions
                     {
                         await _runtime.Inventory.InventoryUpsertedAsync(
                             userId.Value, familyId,
-                            BuildGridProductCarrier(consumedProduct),
+                            InventoryGridProjection.BuildProduct(consumedProduct),
                             GridItem(trackedItem, consumedProduct.PublicId),
                             cancellationToken);
                     }
@@ -2126,7 +2090,7 @@ namespace Homassy.API.Functions
                     await new ActivityFunctions(_contextFactory).RecordActivityAsync(
                         userId.Value,
                         familyId,
-                        Enums.ActivityType.ProductInventoryDecrease,
+                        Homassy.Data.Enums.ActivityType.ProductInventoryDecrease,
                         trackedItem.Id,
                         product?.Name ?? "Unknown",
                         trackedItem.Unit,
@@ -2272,7 +2236,7 @@ namespace Homassy.API.Functions
                 foreach (var (bp, bi) in createdForBroadcast)
                     await _runtime.Inventory.InventoryUpsertedAsync(
                         userId.Value, familyId,
-                        BuildGridProductCarrier(bp),
+                        InventoryGridProjection.BuildProduct(bp),
                         GridItem(bi, bp.PublicId),
                         cancellationToken);
 
@@ -2407,7 +2371,7 @@ namespace Homassy.API.Functions
                 foreach (var (bp, bi) in movedForBroadcast)
                     await _runtime.Inventory.InventoryUpsertedAsync(
                         userId.Value, familyId,
-                        BuildGridProductCarrier(bp),
+                        InventoryGridProjection.BuildProduct(bp),
                         GridItem(bi, bp.PublicId),
                         cancellationToken);
 
@@ -2487,7 +2451,7 @@ namespace Homassy.API.Functions
                         await new ActivityFunctions(_contextFactory).RecordActivityAsync(
                             userId.Value,
                             familyId,
-                            Enums.ActivityType.ProductInventoryDelete,
+                            Homassy.Data.Enums.ActivityType.ProductInventoryDelete,
                             inventoryItem.Id,
                             product?.Name ?? "Unknown",
                             inventoryItem.Unit,
@@ -2616,7 +2580,7 @@ namespace Homassy.API.Functions
                         await new ActivityFunctions(_contextFactory).RecordActivityAsync(
                             userId.Value,
                             familyId,
-                            Enums.ActivityType.ProductInventoryDecrease,
+                            Homassy.Data.Enums.ActivityType.ProductInventoryDecrease,
                             trackedItem.Id,
                             product?.Name ?? "Unknown",
                             trackedItem.Unit,
@@ -2680,7 +2644,7 @@ namespace Homassy.API.Functions
                     else
                         await _runtime.Inventory.InventoryUpsertedAsync(
                             userId.Value, familyId,
-                            BuildGridProductCarrier(bp),
+                            InventoryGridProjection.BuildProduct(bp),
                             GridItem(bi, bp.PublicId),
                             cancellationToken);
                 }
@@ -2819,12 +2783,12 @@ namespace Homassy.API.Functions
                 {
                     await _runtime.Inventory.InventoryUpsertedAsync(
                         userId.Value, familyId,
-                        BuildGridProductCarrier(splitProduct),
+                        InventoryGridProjection.BuildProduct(splitProduct),
                         GridItem(trackedItem, splitProduct.PublicId),
                         cancellationToken);
                     await _runtime.Inventory.InventoryUpsertedAsync(
                         userId.Value, familyId,
-                        BuildGridProductCarrier(splitProduct),
+                        InventoryGridProjection.BuildProduct(splitProduct),
                         GridItem(newItem, splitProduct.PublicId),
                         cancellationToken);
                 }
@@ -2843,7 +2807,7 @@ namespace Homassy.API.Functions
                     await new ActivityFunctions(_contextFactory).RecordActivityAsync(
                         userId.Value,
                         familyId,
-                        Enums.ActivityType.ProductInventoryDecrease,
+                        Homassy.Data.Enums.ActivityType.ProductInventoryDecrease,
                         trackedItem.Id,
                         product?.Name ?? "Unknown",
                         trackedItem.Unit,

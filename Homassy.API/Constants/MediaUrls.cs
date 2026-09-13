@@ -1,4 +1,4 @@
-using Homassy.API.Enums;
+using Homassy.Data.Enums;
 
 namespace Homassy.API.Constants
 {

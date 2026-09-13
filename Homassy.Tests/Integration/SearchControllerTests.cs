@@ -1,7 +1,7 @@
 using System.Net;
 using System.Net.Http.Json;
-using Homassy.API.Enums;
-using Homassy.API.Models.Common;
+using Homassy.Data.Enums;
+using Homassy.Data.Models.Common;
 using Homassy.API.Models.Location;
 using Homassy.API.Models.Product;
 using Homassy.API.Models.Search;
@@ -99,7 +99,7 @@ public class SearchControllerTests : IClassFixture<HomassyWebApplicationFactory>
             {
                 Name = name,
                 Brand = "SearchTest",
-                Unit = Homassy.API.Enums.Unit.Piece
+                Unit = Homassy.Data.Enums.Unit.Piece
             });
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
     }
@@ -243,7 +243,7 @@ public class SearchControllerTests : IClassFixture<HomassyWebApplicationFactory>
                     ShoppingListPublicId = itemListId.Value,
                     CustomName = itemName,
                     Quantity = 1,
-                    Unit = Homassy.API.Enums.Unit.Piece
+                    Unit = Homassy.Data.Enums.Unit.Piece
                 });
             Assert.Equal(HttpStatusCode.OK, item.StatusCode);
 

@@ -1,4 +1,4 @@
-using Homassy.API.Enums;
+using Homassy.Data.Enums;
 using Homassy.API.Models.ImageUpload;
 using Serilog;
 using SixLabors.ImageSharp;

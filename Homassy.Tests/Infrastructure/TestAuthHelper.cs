@@ -1,8 +1,9 @@
 using Homassy.API.Context;
-using Homassy.API.Entities.User;
-using Homassy.API.Enums;
+using Homassy.Data.Entities.User;
+using Homassy.Data.Enums;
 using Homassy.API.Functions;
 using Microsoft.Extensions.DependencyInjection;
+using Homassy.Data.Context;
 
 namespace Homassy.Tests.Infrastructure;
 

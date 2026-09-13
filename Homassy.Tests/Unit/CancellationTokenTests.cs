@@ -1,6 +1,6 @@
-using Homassy.API.Enums;
+using Homassy.Data.Enums;
 using Homassy.API.Middleware;
-using Homassy.API.Models.Common;
+using Homassy.Data.Models.Common;
 using Microsoft.AspNetCore.Http;
 using System.Text.Json;
 

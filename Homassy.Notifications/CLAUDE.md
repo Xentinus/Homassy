@@ -25,7 +25,7 @@ Homassy.Notifications is a standalone microservice responsible for all notificat
 ### Key Architectural Decisions
 
 - **Minimal ASP.NET Core** – No controllers. Uses Minimal API endpoints (`app.MapPost(...)`) for simplicity
-- **ProjectReference to Homassy.API** – Shares entities and `HomassyDbContext` directly (same pattern as `Homassy.Migrator`)
+- **ProjectReference to Homassy.Data** – Shares entities, `HomassyDbContext` and the cache-free shared helpers (same pattern as `Homassy.Migrator`). It used to reference `Homassy.API` itself, which pulled the whole web layer into this image; see #91
 - **Push notifications moved here** – All WebPush logic migrated from `Homassy.API`; the API proxies `/push/test` to this service
 - **Weekly email summaries** – Sends inventory expiration summaries via `Homassy.Email` every Monday at 07:00 local time
 - **Two channels from one description** – every notification is a `NotificationEnvelope` (type + parameters). `FamilyPushNotifier.DispatchAsync` renders it for the push *and* records it as a `UserNotification` row for the in-app notification centre, in the same method and the same unit of work
@@ -37,7 +37,7 @@ Homassy.Notifications is a standalone microservice responsible for all notificat
 | Layer | Technology |
 |---|---|
 | Framework | ASP.NET Core 10 (Minimal API) |
-| ORM | Entity Framework Core 10 (via Homassy.API project ref) |
+| ORM | Entity Framework Core 10 (via Homassy.Data project ref) |
 | Database | PostgreSQL (Npgsql) |
 | Push | WebPush (VAPID) |
 | Logging | Serilog (Console sink) |
@@ -51,7 +51,7 @@ Homassy.Notifications is a standalone microservice responsible for all notificat
 Homassy.Notifications/
 ├── CLAUDE.md                           # This file
 ├── Dockerfile                          # Multi-stage Linux container
-├── Homassy.Notifications.csproj        # .NET 10 Web SDK, references Homassy.API
+├── Homassy.Notifications.csproj        # .NET 10 Web SDK, references Homassy.Data
 ├── Program.cs                          # Minimal API bootstrap
 ├── appsettings.json                    # Base configuration
 ├── appsettings.Development.json        # Development overrides
@@ -105,7 +105,9 @@ Homassy.Notifications  →  POST /email/automation-notification →  Homassy.Ema
 
 ### DB Access
 
-The service takes a `ProjectReference` to `Homassy.API.csproj` and reuses `HomassyDbContext` and all entities directly. This avoids duplication and ensures schema parity.
+The service takes a `ProjectReference` to `Homassy.Data.csproj` and reuses `HomassyDbContext` and all entities directly. This avoids duplication and ensures schema parity.
+
+It used to reference `Homassy.API.csproj`, which meant this image carried the API's 17 controllers, its middleware, its SignalR hubs and its whole package set, every API change invalidated this image's layer cache, and the `Functions` classes it borrowed brought entity caches that only the API ever initialises — a cache-backed read from here would have silently returned nothing. What it actually needs is the data model plus four cache-free helpers, and that is what `Homassy.Data` is (#91). Anything cache-backed stayed in `Homassy.API`, where the cache is.
 
 Setup in `Program.cs` mirrors the API — the factory for the `Functions` layer this service
 borrows, plus the scoped context the workers resolve per iteration:
@@ -306,7 +308,7 @@ variables via Docker Compose (double-underscore notation, e.g. `ConnectionString
 ### Logging levels
 
 Serilog is configured in code via `UseHomassyMinimumLevels()`
-(`Homassy.API/Extensions/SerilogExtensions.cs`, shared with the API and Email). It pins
+(`Homassy.Data/Extensions/SerilogExtensions.cs`, shared with the API and Email). It pins
 `Microsoft.EntityFrameworkCore` to `Warning`, so the six background workers do **not** dump the
 SQL of every polling cycle into `docker logs homassy-notifications`. Never set `MinimumLevel`
 by hand here.

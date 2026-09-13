@@ -1,7 +1,7 @@
 using System.Net;
 using System.Net.Http.Json;
-using Homassy.API.Enums;
-using Homassy.API.Models.Common;
+using Homassy.Data.Enums;
+using Homassy.Data.Models.Common;
 using Homassy.API.Models.Family;
 using Homassy.API.Models.ImageUpload;
 using Homassy.Tests.Infrastructure;

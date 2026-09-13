@@ -148,13 +148,20 @@ Homassy/
 ├── Homassy.API/           ASP.NET Core Web API (backend)
 │   ├── Controllers/       HTTP endpoints (thin layer)
 │   ├── Functions/         Business logic and data access
-│   ├── Entities/          Database models (EF Core)
-│   ├── Models/            DTOs and request/response objects
-│   ├── Context/           DbContext and session management
+│   ├── Models/            Request/response DTOs
+│   ├── Context/           Per-request session state
 │   ├── Services/          Infrastructure services
 │   ├── Middleware/        Exception handling, CORS, compression, logging, rate limiting
 │   ├── docs/              Split reference docs (security, features, dev guidelines)
 │   └── CLAUDE.md          Architecture documentation (entry point + doc map)
+├── Homassy.Data/          Shared data library (no ASP.NET Core; referenced by API, Notifications, Migrator)
+│   ├── Context/           HomassyDbContext, its factory, the audit-user hook
+│   ├── Entities/          Database models (EF Core)
+│   ├── Enums/             Shared enumerations
+│   ├── Migrations/        EF Core database migrations
+│   ├── Models/            DTOs that cross a service boundary
+│   ├── Functions/         Cache-free logic both the API and the workers run
+│   └── CLAUDE.md          Architecture documentation
 ├── Homassy.Email/         Transactional email microservice
 │   ├── Endpoints/         Kratos webhook, send-email, weekly-summary, automation-notification
 │   ├── Services/          Content, queue, sender, and template-renderer services
@@ -182,7 +189,7 @@ Homassy/
 │   └── Dockerfile         Multi-stage Docker build
 ├── Homassy.Proxy/         Caddy reverse proxy
 │   └── Caddyfile          Single-domain routing (/api/v*, /hubs/*, /kratos/*, and the web app)
-├── Homassy.Migrator/      Database migration tool
+├── Homassy.Migrator/      Database migration runner (schema migrations live in Homassy.Data)
 │   ├── Migrations/        One-time Kratos user migration
 │   ├── Program.cs         CLI entry point (migrate, migrate-to-kratos, verify-kratos, kratos-stats)
 │   └── Dockerfile         Run-and-exit container

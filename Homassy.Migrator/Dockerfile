@@ -4,7 +4,7 @@ WORKDIR /src
 
 # Copy csproj files and restore
 COPY ["Homassy.Migrator/Homassy.Migrator.csproj", "Homassy.Migrator/"]
-COPY ["Homassy.API/Homassy.API.csproj", "Homassy.API/"]
+COPY ["Homassy.Data/Homassy.Data.csproj", "Homassy.Data/"]
 RUN dotnet restore "Homassy.Migrator/Homassy.Migrator.csproj"
 
 # Copy source and build

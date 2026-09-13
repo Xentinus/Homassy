@@ -1,10 +1,10 @@
 using Asp.Versioning;
 using Homassy.API.Context;
-using Homassy.API.Enums;
+using Homassy.Data.Enums;
 using Homassy.API.Extensions;
 using Homassy.API.Functions;
 using Homassy.API.Models;
-using Homassy.API.Models.Common;
+using Homassy.Data.Models.Common;
 using Homassy.API.Models.Insights;
 using Homassy.API.Models.Product;
 using Homassy.API.Models.ImageUpload;

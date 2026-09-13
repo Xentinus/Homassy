@@ -1,5 +1,5 @@
 using Homassy.API.Attributes.Validation;
-using Homassy.API.Enums;
+using Homassy.Data.Enums;
 using System.ComponentModel.DataAnnotations;
 
 namespace Homassy.API.Models.ShoppingList

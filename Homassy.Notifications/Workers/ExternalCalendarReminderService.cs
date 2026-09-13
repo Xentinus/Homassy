@@ -1,13 +1,13 @@
-using Homassy.API.Context;
-using Homassy.API.Entities.Family;
-using Homassy.API.Enums;
-using Homassy.API.Extensions;
-using Homassy.API.Functions;
-using Homassy.API.Models.ExternalCalendar;
+using Homassy.Data.Entities.Family;
+using Homassy.Data.Enums;
+using Homassy.Data.Functions;
+using Homassy.Data.Models.ExternalCalendar;
 using Homassy.Notifications.Services;
 using Microsoft.EntityFrameworkCore;
 using Serilog;
 using System.Text.Json;
+using Homassy.Data.Context;
+using Homassy.Data.Extensions;
 
 namespace Homassy.Notifications.Workers;
 
@@ -131,7 +131,7 @@ public sealed class ExternalCalendarReminderService : BackgroundService
         DateTime nowUtc,
         CancellationToken cancellationToken)
     {
-        var leadTimes = ExternalCalendarFunctions.ParseReminderLeadTimes(calendar.ReminderLeadTimesJson);
+        var leadTimes = ReminderLeadTimes.Parse(calendar.ReminderLeadTimesJson);
         if (leadTimes.Count == 0)
             return;
 

@@ -1,5 +1,5 @@
 using System.Reflection;
-using Homassy.API.Models.Common;
+using Homassy.Data.Models.Common;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 

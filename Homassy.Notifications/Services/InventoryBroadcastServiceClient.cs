@@ -1,5 +1,5 @@
-using Homassy.API.Models.Internal;
-using Homassy.API.Models.Product;
+using Homassy.Data.Models.Internal;
+using Homassy.Data.Models.Inventory;
 
 namespace Homassy.Notifications.Services;
 

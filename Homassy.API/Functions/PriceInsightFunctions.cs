@@ -1,8 +1,8 @@
-using Homassy.API.Context;
-using Homassy.API.Enums;
+using Homassy.Data.Enums;
 using Homassy.API.Models.Insights;
 using Homassy.API.Services;
 using Microsoft.EntityFrameworkCore;
+using Homassy.Data.Context;
 
 namespace Homassy.API.Functions
 {
@@ -112,7 +112,7 @@ namespace Homassy.API.Functions
         /// Runs the actual aggregation on a cache miss.
         ///
         /// <para>
-        /// <b>Scope.</b> <c>Entities.Product.ProductPurchaseInfo</c> carries no <c>UserId</c> or
+        /// <b>Scope.</b> <c>Homassy.Data.Entities.Product.ProductPurchaseInfo</c> carries no <c>UserId</c> or
         /// <c>FamilyId</c> of its own, so it is scoped through the inventory item it hangs off,
         /// with the same union <c>ProductFunctions.GetInventoryItemsByUserAndFamily</c> and
         /// <c>InsightFunctions.ComputeSpendByLocationAsync</c> use -

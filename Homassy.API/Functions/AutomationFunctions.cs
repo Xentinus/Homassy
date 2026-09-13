@@ -1,14 +1,18 @@
 ﻿using Homassy.API.Context;
-using Homassy.API.Entities.Product;
-using Homassy.API.Enums;
-using Homassy.API.Exceptions;
+using Homassy.Data.Entities.Product;
+using Homassy.Data.Enums;
+using Homassy.Data.Exceptions;
 using Homassy.API.Extensions;
 using Homassy.API.Hubs;
 using Homassy.API.Infrastructure;
 using Homassy.API.Models.Automation;
-using Homassy.API.Models.Common;
+using Homassy.Data.Models.Common;
 using Microsoft.EntityFrameworkCore;
 using Serilog;
+using Homassy.Data.Context;
+using Homassy.Data.Extensions;
+using Homassy.Data.Functions;
+using Homassy.Data.Models.Inventory;
 
 namespace Homassy.API.Functions
 {
@@ -22,125 +26,6 @@ namespace Homassy.API.Functions
             _runtime = runtime;
             _contextFactory = runtime.ContextFactory;
         }
-
-        #region NextExecutionAt Calculation
-
-        /// <summary>
-        /// Calculates the next execution time in UTC based on the automation schedule and user's timezone.
-        /// </summary>
-        public static DateTime? CalculateNextExecutionAt(
-            ScheduleType scheduleType,
-            TimeOnly scheduledTime,
-            int? intervalDays,
-            DaysOfWeek? scheduledDaysOfWeek,
-            int? scheduledDayOfMonth,
-            UserTimeZone userTimeZone,
-            DateTime? lastExecutedAtUtc = null)
-        {
-            var tzId = userTimeZone.ToTimeZoneId();
-            var tz = TimeZoneInfo.FindSystemTimeZoneById(tzId);
-            var nowUtc = DateTime.UtcNow;
-            var nowLocal = TimeZoneInfo.ConvertTimeFromUtc(nowUtc, tz);
-
-            DateTime nextLocal;
-
-            if (scheduleType == ScheduleType.Interval)
-            {
-                if (!intervalDays.HasValue || intervalDays.Value < 1)
-                    return null;
-
-                if (lastExecutedAtUtc.HasValue)
-                {
-                    var lastLocal = TimeZoneInfo.ConvertTimeFromUtc(lastExecutedAtUtc.Value, tz);
-                    var nextDate = lastLocal.Date.AddDays(intervalDays.Value);
-                    nextLocal = nextDate.Add(scheduledTime.ToTimeSpan());
-
-                    // If calculated time is in the past, advance forward
-                    while (nextLocal <= nowLocal)
-                    {
-                        nextLocal = nextLocal.AddDays(intervalDays.Value);
-                    }
-                }
-                else
-                {
-                    // First execution: schedule for today at the specified time, or tomorrow if past
-                    nextLocal = nowLocal.Date.Add(scheduledTime.ToTimeSpan());
-                    if (nextLocal <= nowLocal)
-                    {
-                        nextLocal = nextLocal.AddDays(intervalDays.Value);
-                    }
-                }
-            }
-            else // FixedDate
-            {
-                if (scheduledDaysOfWeek.HasValue && scheduledDaysOfWeek.Value != DaysOfWeek.None)
-                {
-                    // Weekly schedule: find next occurrence among selected days
-                    var selectedDays = GetSelectedDays(scheduledDaysOfWeek.Value);
-                    if (selectedDays.Count == 0)
-                        return null;
-
-                    // Find the nearest upcoming day from the set
-                    DateTime? earliest = null;
-                    foreach (var day in selectedDays)
-                    {
-                        var daysUntil = ((int)day - (int)nowLocal.DayOfWeek + 7) % 7;
-                        var candidate = nowLocal.Date.AddDays(daysUntil).Add(scheduledTime.ToTimeSpan());
-
-                        // If it's today but the time has passed, go to next week
-                        if (candidate <= nowLocal)
-                        {
-                            candidate = candidate.AddDays(7);
-                        }
-
-                        if (!earliest.HasValue || candidate < earliest.Value)
-                        {
-                            earliest = candidate;
-                        }
-                    }
-
-                    nextLocal = earliest!.Value;
-                }
-                else if (scheduledDayOfMonth.HasValue)
-                {
-                    // Monthly schedule: find next occurrence of the specified day of month
-                    var day = Math.Min(scheduledDayOfMonth.Value, DateTime.DaysInMonth(nowLocal.Year, nowLocal.Month));
-                    nextLocal = new DateTime(nowLocal.Year, nowLocal.Month, day).Add(scheduledTime.ToTimeSpan());
-
-                    if (nextLocal <= nowLocal)
-                    {
-                        // Move to next month
-                        var nextMonth = nowLocal.AddMonths(1);
-                        day = Math.Min(scheduledDayOfMonth.Value, DateTime.DaysInMonth(nextMonth.Year, nextMonth.Month));
-                        nextLocal = new DateTime(nextMonth.Year, nextMonth.Month, day).Add(scheduledTime.ToTimeSpan());
-                    }
-                }
-                else
-                {
-                    return null;
-                }
-            }
-
-            return TimeZoneInfo.ConvertTimeToUtc(DateTime.SpecifyKind(nextLocal, DateTimeKind.Unspecified), tz);
-        }
-
-        /// <summary>
-        /// Converts DaysOfWeek flags to a list of DayOfWeek values.
-        /// </summary>
-        internal static List<DayOfWeek> GetSelectedDays(DaysOfWeek daysOfWeek)
-        {
-            var days = new List<DayOfWeek>();
-            if (daysOfWeek.HasFlag(DaysOfWeek.Monday)) days.Add(DayOfWeek.Monday);
-            if (daysOfWeek.HasFlag(DaysOfWeek.Tuesday)) days.Add(DayOfWeek.Tuesday);
-            if (daysOfWeek.HasFlag(DaysOfWeek.Wednesday)) days.Add(DayOfWeek.Wednesday);
-            if (daysOfWeek.HasFlag(DaysOfWeek.Thursday)) days.Add(DayOfWeek.Thursday);
-            if (daysOfWeek.HasFlag(DaysOfWeek.Friday)) days.Add(DayOfWeek.Friday);
-            if (daysOfWeek.HasFlag(DaysOfWeek.Saturday)) days.Add(DayOfWeek.Saturday);
-            if (daysOfWeek.HasFlag(DaysOfWeek.Sunday)) days.Add(DayOfWeek.Sunday);
-            return days;
-        }
-
-        #endregion
 
         #region Schedule Validation
 
@@ -298,7 +183,7 @@ namespace Homassy.API.Functions
             var productFunctions = new ProductFunctions(_runtime);
             using var context = _contextFactory.CreateDbContext();
             ProductInventoryItem? inventoryItem = null;
-            Entities.Product.Product? productEntity = null;
+            Homassy.Data.Entities.Product.Product? productEntity = null;
             int? shoppingListId = null;
             int? productId = null;
 
@@ -375,7 +260,7 @@ namespace Homassy.API.Functions
             // Calculate next execution (skip for low-stock — event-driven)
             if (request.ActionType != AutomationActionType.LowStockAddToShoppingList)
             {
-                automation.NextExecutionAt = CalculateNextExecutionAt(
+                automation.NextExecutionAt = AutomationSchedule.CalculateNextExecutionAt(
                     automation.ScheduleType,
                     automation.ScheduledTime,
                     automation.IntervalDays,
@@ -502,7 +387,7 @@ namespace Homassy.API.Functions
                 var userProfile = new UserFunctions(_contextFactory).GetUserProfileByUserId(userId.Value);
                 var userTimeZone = userProfile?.DefaultTimeZone ?? UserTimeZone.CentralEuropeStandardTime;
 
-                automation.NextExecutionAt = CalculateNextExecutionAt(
+                automation.NextExecutionAt = AutomationSchedule.CalculateNextExecutionAt(
                     automation.ScheduleType,
                     automation.ScheduledTime,
                     automation.IntervalDays,
@@ -679,7 +564,7 @@ namespace Homassy.API.Functions
             if (automation.ActionType != AutomationActionType.LowStockAddToShoppingList)
             {
                 automation.NextExecutionAt = automation.IsEnabled
-                    ? CalculateNextExecutionAt(
+                    ? AutomationSchedule.CalculateNextExecutionAt(
                         automation.ScheduleType,
                         automation.ScheduledTime,
                         automation.IntervalDays,
@@ -770,7 +655,7 @@ namespace Homassy.API.Functions
             var unit = automation.AddUnit ?? Unit.Piece;
 
             // Create shopping list item
-            var shoppingListItem = new Entities.ShoppingList.ShoppingListItem
+            var shoppingListItem = new Homassy.Data.Entities.ShoppingList.ShoppingListItem
             {
                 ShoppingListId = shoppingList.Id,
                 ProductId = product.Id,
@@ -918,8 +803,8 @@ namespace Homassy.API.Functions
                 {
                     await _runtime.Inventory.InventoryUpsertedAsync(
                         itemUserId, trackedItem.FamilyId,
-                        ProductFunctions.BuildGridProductCarrier(broadcastProduct),
-                        ProductFunctions.BuildGridItem(
+                        InventoryGridProjection.BuildProduct(broadcastProduct),
+                        InventoryGridProjection.BuildItem(
                             trackedItem,
                             broadcastProduct.PublicId,
                             new ProductFunctions(_runtime).GetPurchaseInfoByInventoryItemId(trackedItem.Id)?.OriginalQuantity),
@@ -986,7 +871,7 @@ namespace Homassy.API.Functions
                             var quantity = automation.AddQuantity ?? 1;
                             var unit = automation.AddUnit ?? Unit.Piece;
 
-                            var shoppingListItem = new Entities.ShoppingList.ShoppingListItem
+                            var shoppingListItem = new Homassy.Data.Entities.ShoppingList.ShoppingListItem
                             {
                                 ShoppingListId = shoppingList.Id,
                                 ProductId = product.Id,

@@ -1,5 +1,6 @@
-using Homassy.API.Enums;
+using Homassy.Data.Enums;
 using Homassy.API.Services;
+using Homassy.Data.Validation;
 
 namespace Homassy.Tests.Unit
 {

@@ -1,16 +1,17 @@
 using Homassy.API.Constants;
 using Homassy.API.Context;
-using Homassy.API.Entities.Family;
-using Homassy.API.Enums;
-using Homassy.API.Exceptions;
+using Homassy.Data.Entities.Family;
+using Homassy.Data.Enums;
+using Homassy.Data.Exceptions;
 using Homassy.API.Hubs;
-using Homassy.API.Models.Activity;
+using Homassy.Data.Models.Activity;
 using Homassy.API.Models.ImageUpload;
 using Homassy.API.Models.FamilyChat;
 using Homassy.API.Services;
 using Microsoft.EntityFrameworkCore;
 using Npgsql;
 using Serilog;
+using Homassy.Data.Context;
 
 namespace Homassy.API.Functions
 {
@@ -536,7 +537,7 @@ namespace Homassy.API.Functions
         /// on <see cref="DeleteMessageAsync"/>.
         /// <para>
         /// The rendition itself - thumbnail or full, WebP or a JPEG transcode, and the ETag that
-        /// tells them apart - is <see cref="ImageFunctions.Render(IImageProcessingService, Entities.Common.StoredImageEntity, ImageVariant, bool)"/>'s, shared rather than written
+        /// tells them apart - is <see cref="ImageFunctions.Render(IImageProcessingService, Homassy.Data.Entities.Common.StoredImageEntity, ImageVariant, bool)"/>'s, shared rather than written
         /// again here.
         /// </para>
         /// </remarks>

@@ -1,6 +1,5 @@
 using System.Collections.Concurrent;
-using Homassy.API.Context;
-using Homassy.API.Models.Kratos;
+using Homassy.Data.Models.Kratos;
 using Homassy.API.Services;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
@@ -9,6 +8,7 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Hosting;
+using Homassy.Data.Context;
 
 namespace Homassy.Tests.Infrastructure;
 

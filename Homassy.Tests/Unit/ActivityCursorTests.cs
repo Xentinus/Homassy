@@ -1,4 +1,4 @@
-using Homassy.API.Models.Activity;
+using Homassy.Data.Models.Activity;
 
 namespace Homassy.Tests.Unit;
 

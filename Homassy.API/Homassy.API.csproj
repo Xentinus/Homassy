@@ -50,7 +50,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <Folder Include="Migrations\" />
+    <ProjectReference Include="../Homassy.Data/Homassy.Data.csproj" />
   </ItemGroup>
 
 

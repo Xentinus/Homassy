@@ -1,4 +1,4 @@
-using Homassy.API.Models.Common;
+using Homassy.Data.Models.Common;
 using Homassy.API.Models.ShoppingList;
 using Microsoft.AspNetCore.SignalR;
 using Serilog;

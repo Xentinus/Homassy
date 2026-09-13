@@ -1,6 +1,6 @@
 using Asp.Versioning;
 using Homassy.API.Functions;
-using Homassy.API.Models.Common;
+using Homassy.Data.Models.Common;
 using Homassy.API.Models.ExternalCalendar;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -39,7 +39,7 @@ namespace Homassy.API.Controllers
             CancellationToken cancellationToken)
         {
             if (!ModelState.IsValid)
-                return BadRequest(ApiResponse.ErrorResponse(Enums.ErrorCodes.ValidationInvalidRequest));
+                return BadRequest(ApiResponse.ErrorResponse(Homassy.Data.Enums.ErrorCodes.ValidationInvalidRequest));
 
             var httpClient = _httpClientFactory.CreateClient("ExternalCalendarSync");
             var calendar = await _externalCalendarFunctions
@@ -56,7 +56,7 @@ namespace Homassy.API.Controllers
             CancellationToken cancellationToken)
         {
             if (!ModelState.IsValid)
-                return BadRequest(ApiResponse.ErrorResponse(Enums.ErrorCodes.ValidationInvalidRequest));
+                return BadRequest(ApiResponse.ErrorResponse(Homassy.Data.Enums.ErrorCodes.ValidationInvalidRequest));
 
             var httpClient = _httpClientFactory.CreateClient("ExternalCalendarSync");
             var calendar = await _externalCalendarFunctions

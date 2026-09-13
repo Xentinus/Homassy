@@ -40,7 +40,7 @@ namespace Homassy.API.Constants
     {
         /// <summary>
         /// Stable, permanent id (e.g. <c>"items-added-100"</c>). Reaches the client, ends up in
-        /// i18n keys and DOM ids, and is stored on every <see cref="Entities.User.UserBadge"/> row.
+        /// i18n keys and DOM ids, and is stored on every <see cref="Homassy.Data.Entities.User.UserBadge"/> row.
         /// </summary>
         public required string Id { get; init; }
 
@@ -72,7 +72,7 @@ namespace Homassy.API.Constants
     /// <summary>
     /// Every badge the server knows about. Code, not a table - a badge has no per-family
     /// configuration and nothing about it is user data, so a migration to add one would be pure
-    /// ceremony. <see cref="Entities.User.UserBadge"/> stores only <em>which</em> badge a user
+    /// ceremony. <see cref="Homassy.Data.Entities.User.UserBadge"/> stores only <em>which</em> badge a user
     /// earned, by id.
     ///
     /// <para>

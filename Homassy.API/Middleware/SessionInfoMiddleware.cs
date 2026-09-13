@@ -1,6 +1,6 @@
 ﻿using Homassy.API.Context;
 using Homassy.API.Functions;
-using Homassy.API.Models.Kratos;
+using Homassy.Data.Models.Kratos;
 using Homassy.API.Services;
 using System.Security.Claims;
 

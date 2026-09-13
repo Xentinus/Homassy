@@ -1,13 +1,14 @@
 ﻿using Homassy.API.Context;
-using Homassy.API.Entities.Location;
-using Homassy.API.Exceptions;
+using Homassy.Data.Entities.Location;
+using Homassy.Data.Exceptions;
 using Homassy.API.Extensions;
 using Homassy.API.Hubs;
-using Homassy.API.Models.Common;
+using Homassy.Data.Models.Common;
 using Homassy.API.Models.Location;
 using Microsoft.EntityFrameworkCore;
 using Serilog;
 using System.Collections.Concurrent;
+using Homassy.Data.Context;
 
 namespace Homassy.API.Functions
 {

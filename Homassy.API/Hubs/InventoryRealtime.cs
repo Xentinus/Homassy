@@ -1,6 +1,7 @@
 using Homassy.API.Models.Product;
 using Microsoft.AspNetCore.SignalR;
 using Serilog;
+using Homassy.Data.Models.Inventory;
 
 namespace Homassy.API.Hubs
 {

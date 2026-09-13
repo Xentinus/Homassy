@@ -1,4 +1,4 @@
-﻿using Homassy.API.Entities.User;
+﻿using Homassy.Data.Entities.User;
 using Serilog;
 using System.Text.Json;
 using WebPush;

@@ -1,6 +1,7 @@
 ﻿using Homassy.API.Attributes.Validation;
-using Homassy.API.Enums;
+using Homassy.Data.Enums;
 using System.ComponentModel.DataAnnotations;
+using Homassy.Data.Validation;
 
 namespace Homassy.API.Models.Product
 {

@@ -1,14 +1,15 @@
 using System.Net;
 using System.Net.Http.Json;
 using System.Text.Json;
-using Homassy.API.Entities.User;
-using Homassy.API.Enums;
+using Homassy.Data.Entities.User;
+using Homassy.Data.Enums;
 using Homassy.API.Functions;
-using Homassy.API.Models.Common;
-using Homassy.API.Models.Notification;
+using Homassy.Data.Models.Common;
+using Homassy.Data.Models.Notification;
 using Homassy.Tests.Infrastructure;
 using Microsoft.EntityFrameworkCore;
 using Xunit.Abstractions;
+using Homassy.Data.Functions;
 
 namespace Homassy.Tests.Integration;
 

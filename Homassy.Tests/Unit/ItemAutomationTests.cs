@@ -1,9 +1,9 @@
 ﻿using Homassy.API.Constants;
-using Homassy.API.Entities.Product;
-using Homassy.API.Enums;
-using Homassy.API.Exceptions;
+using Homassy.Data.Entities.Product;
+using Homassy.Data.Enums;
+using Homassy.Data.Exceptions;
 using Homassy.API.Models.Automation;
-using ApiUnit = Homassy.API.Enums.Unit;
+using ApiUnit = Homassy.Data.Enums.Unit;
 
 namespace Homassy.Tests.Unit;
 

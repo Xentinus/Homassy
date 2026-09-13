@@ -15,7 +15,7 @@ namespace Homassy.API.Models.Insights
     /// <b>Deviation from the task brief, deliberate.</b> The brief specified
     /// <c>IReadOnlyList&lt;int&gt; ProductIds</c> and an <c>int</c>-keyed response. Both are the
     /// internal primary key, which this codebase never hands out from a public DTO (see the
-    /// "BaseEntity" section of <c>Homassy.API/Entities/CLAUDE.md</c>) - and the client has no
+    /// "BaseEntity" section of <c>Homassy.API/Homassy.Data.Entities.CLAUDE.md</c>) - and the client has no
     /// internal ids to send in the first place, since every product it holds came from a payload
     /// carrying <c>PublicId</c>. Task 9 made exactly this correction to
     /// <see cref="LocationSpend"/> after the same brief-level slip, so this follows the fix rather

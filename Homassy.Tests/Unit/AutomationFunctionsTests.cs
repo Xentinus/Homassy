@@ -1,6 +1,7 @@
-﻿using Homassy.API.Enums;
-using Homassy.API.Exceptions;
+﻿using Homassy.Data.Enums;
+using Homassy.Data.Exceptions;
 using Homassy.API.Functions;
+using Homassy.Data.Functions;
 
 namespace Homassy.Tests.Unit;
 
@@ -32,7 +33,7 @@ public class AutomationFunctionsTests
         var userTimeZone = UserTimeZone.UTC;
 
         // Act
-        var result = AutomationFunctions.CalculateNextExecutionAt(
+        var result = AutomationSchedule.CalculateNextExecutionAt(
             ScheduleType.Interval,
             scheduledTime,
             intervalDays,
@@ -53,7 +54,7 @@ public class AutomationFunctionsTests
         var userTimeZone = UserTimeZone.UTC;
 
         // Act
-        var result = AutomationFunctions.CalculateNextExecutionAt(
+        var result = AutomationSchedule.CalculateNextExecutionAt(
             ScheduleType.Interval,
             scheduledTime,
             intervalDays,
@@ -80,7 +81,7 @@ public class AutomationFunctionsTests
         var lastExecution = DateTime.UtcNow.AddDays(-1); // executed yesterday
 
         // Act
-        var result = AutomationFunctions.CalculateNextExecutionAt(
+        var result = AutomationSchedule.CalculateNextExecutionAt(
             ScheduleType.Interval,
             scheduledTime,
             intervalDays,
@@ -103,7 +104,7 @@ public class AutomationFunctionsTests
         var lastExecution = DateTime.UtcNow.AddDays(-30);
 
         // Act
-        var result = AutomationFunctions.CalculateNextExecutionAt(
+        var result = AutomationSchedule.CalculateNextExecutionAt(
             ScheduleType.Interval,
             scheduledTime,
             intervalDays,
@@ -120,7 +121,7 @@ public class AutomationFunctionsTests
     public void CalculateNextExecutionAt_Interval_NullIntervalDays_ReturnsNull()
     {
         // Act
-        var result = AutomationFunctions.CalculateNextExecutionAt(
+        var result = AutomationSchedule.CalculateNextExecutionAt(
             ScheduleType.Interval,
             new TimeOnly(8, 0),
             null, null, null,
@@ -134,7 +135,7 @@ public class AutomationFunctionsTests
     public void CalculateNextExecutionAt_Interval_ZeroIntervalDays_ReturnsNull()
     {
         // Act
-        var result = AutomationFunctions.CalculateNextExecutionAt(
+        var result = AutomationSchedule.CalculateNextExecutionAt(
             ScheduleType.Interval,
             new TimeOnly(8, 0),
             0, null, null,
@@ -154,7 +155,7 @@ public class AutomationFunctionsTests
         var lastExecution = DateTime.UtcNow.AddHours(-2);
 
         // Act
-        var result = AutomationFunctions.CalculateNextExecutionAt(
+        var result = AutomationSchedule.CalculateNextExecutionAt(
             ScheduleType.Interval,
             scheduledTime,
             intervalDays,
@@ -182,7 +183,7 @@ public class AutomationFunctionsTests
         var userTimeZone = UserTimeZone.UTC;
 
         // Act
-        var result = AutomationFunctions.CalculateNextExecutionAt(
+        var result = AutomationSchedule.CalculateNextExecutionAt(
             ScheduleType.FixedDate,
             scheduledTime,
             null,
@@ -206,7 +207,7 @@ public class AutomationFunctionsTests
             var daysFlag = ToDaysOfWeek(day);
             if (daysFlag == DaysOfWeek.None) continue;
 
-            var result = AutomationFunctions.CalculateNextExecutionAt(
+            var result = AutomationSchedule.CalculateNextExecutionAt(
                 ScheduleType.FixedDate,
                 scheduledTime,
                 null,
@@ -232,7 +233,7 @@ public class AutomationFunctionsTests
         var userTimeZone = UserTimeZone.UTC;
 
         // Act
-        var result = AutomationFunctions.CalculateNextExecutionAt(
+        var result = AutomationSchedule.CalculateNextExecutionAt(
             ScheduleType.FixedDate,
             scheduledTime,
             null,
@@ -255,7 +256,7 @@ public class AutomationFunctionsTests
         var userTimeZone = UserTimeZone.UTC;
 
         // Act
-        var result = AutomationFunctions.CalculateNextExecutionAt(
+        var result = AutomationSchedule.CalculateNextExecutionAt(
             ScheduleType.FixedDate,
             scheduledTime,
             null,
@@ -274,7 +275,7 @@ public class AutomationFunctionsTests
     public void CalculateNextExecutionAt_FixedDate_NoDaySet_ReturnsNull()
     {
         // Act - neither DayOfWeek nor DayOfMonth set
-        var result = AutomationFunctions.CalculateNextExecutionAt(
+        var result = AutomationSchedule.CalculateNextExecutionAt(
             ScheduleType.FixedDate,
             new TimeOnly(8, 0),
             null,
@@ -297,7 +298,7 @@ public class AutomationFunctionsTests
         var userTimeZone = UserTimeZone.CentralEuropeStandardTime;
 
         // Act
-        var result = AutomationFunctions.CalculateNextExecutionAt(
+        var result = AutomationSchedule.CalculateNextExecutionAt(
             ScheduleType.Interval,
             scheduledTime,
             1,
@@ -318,7 +319,7 @@ public class AutomationFunctionsTests
         var userTimeZone = UserTimeZone.EasternStandardTime;
 
         // Act
-        var result = AutomationFunctions.CalculateNextExecutionAt(
+        var result = AutomationSchedule.CalculateNextExecutionAt(
             ScheduleType.Interval,
             scheduledTime,
             1,
@@ -338,11 +339,11 @@ public class AutomationFunctionsTests
         var intervalDays = 1;
 
         // Act
-        var utcResult = AutomationFunctions.CalculateNextExecutionAt(
+        var utcResult = AutomationSchedule.CalculateNextExecutionAt(
             ScheduleType.Interval, scheduledTime, intervalDays,
             null, null, UserTimeZone.UTC);
 
-        var easternResult = AutomationFunctions.CalculateNextExecutionAt(
+        var easternResult = AutomationSchedule.CalculateNextExecutionAt(
             ScheduleType.Interval, scheduledTime, intervalDays,
             null, null, UserTimeZone.EasternStandardTime);
 
@@ -523,7 +524,7 @@ public class AutomationFunctionsTests
     public void CalculateNextExecutionAt_Interval_365Days_Works()
     {
         // Maximum allowed interval
-        var result = AutomationFunctions.CalculateNextExecutionAt(
+        var result = AutomationSchedule.CalculateNextExecutionAt(
             ScheduleType.Interval,
             new TimeOnly(8, 0),
             365,
@@ -538,7 +539,7 @@ public class AutomationFunctionsTests
     public void CalculateNextExecutionAt_Interval_1Day_Works()
     {
         // Minimum allowed interval
-        var result = AutomationFunctions.CalculateNextExecutionAt(
+        var result = AutomationSchedule.CalculateNextExecutionAt(
             ScheduleType.Interval,
             new TimeOnly(23, 59),
             1,
@@ -552,7 +553,7 @@ public class AutomationFunctionsTests
     [Fact]
     public void CalculateNextExecutionAt_FixedDate_Monthly_Day1()
     {
-        var result = AutomationFunctions.CalculateNextExecutionAt(
+        var result = AutomationSchedule.CalculateNextExecutionAt(
             ScheduleType.FixedDate,
             new TimeOnly(23, 59),
             null,
@@ -566,7 +567,7 @@ public class AutomationFunctionsTests
     [Fact]
     public void CalculateNextExecutionAt_FixedDate_Weekly_Sunday()
     {
-        var result = AutomationFunctions.CalculateNextExecutionAt(
+        var result = AutomationSchedule.CalculateNextExecutionAt(
             ScheduleType.FixedDate,
             new TimeOnly(23, 59),
             null,
@@ -585,7 +586,7 @@ public class AutomationFunctionsTests
         var scheduledTime = new TimeOnly(14, 30);
 
         // Act
-        var result = AutomationFunctions.CalculateNextExecutionAt(
+        var result = AutomationSchedule.CalculateNextExecutionAt(
             ScheduleType.Interval,
             scheduledTime,
             1,
@@ -610,7 +611,7 @@ public class AutomationFunctionsTests
         var scheduledDays = DaysOfWeek.Monday | DaysOfWeek.Wednesday | DaysOfWeek.Friday;
 
         // Act
-        var result = AutomationFunctions.CalculateNextExecutionAt(
+        var result = AutomationSchedule.CalculateNextExecutionAt(
             ScheduleType.FixedDate,
             scheduledTime,
             null,
@@ -632,7 +633,7 @@ public class AutomationFunctionsTests
         var scheduledTime = new TimeOnly(23, 59);
         var scheduledDays = DaysOfWeek.Monday | DaysOfWeek.Wednesday | DaysOfWeek.Friday;
 
-        var result = AutomationFunctions.CalculateNextExecutionAt(
+        var result = AutomationSchedule.CalculateNextExecutionAt(
             ScheduleType.FixedDate,
             scheduledTime,
             null,
@@ -650,7 +651,7 @@ public class AutomationFunctionsTests
         // Single flag day should behave like old single DayOfWeek
         var scheduledTime = new TimeOnly(23, 59);
 
-        var result = AutomationFunctions.CalculateNextExecutionAt(
+        var result = AutomationSchedule.CalculateNextExecutionAt(
             ScheduleType.FixedDate,
             scheduledTime,
             null,
@@ -669,7 +670,7 @@ public class AutomationFunctionsTests
         var allDays = DaysOfWeek.Monday | DaysOfWeek.Tuesday | DaysOfWeek.Wednesday
                       | DaysOfWeek.Thursday | DaysOfWeek.Friday | DaysOfWeek.Saturday | DaysOfWeek.Sunday;
 
-        var result = AutomationFunctions.CalculateNextExecutionAt(
+        var result = AutomationSchedule.CalculateNextExecutionAt(
             ScheduleType.FixedDate,
             scheduledTime,
             null,
@@ -688,7 +689,7 @@ public class AutomationFunctionsTests
         var scheduledTime = new TimeOnly(23, 59);
         var weekendDays = DaysOfWeek.Saturday | DaysOfWeek.Sunday;
 
-        var result = AutomationFunctions.CalculateNextExecutionAt(
+        var result = AutomationSchedule.CalculateNextExecutionAt(
             ScheduleType.FixedDate,
             scheduledTime,
             null,
@@ -705,7 +706,7 @@ public class AutomationFunctionsTests
     [Fact]
     public void CalculateNextExecutionAt_FixedDate_DaysOfWeekNone_ReturnsNull()
     {
-        var result = AutomationFunctions.CalculateNextExecutionAt(
+        var result = AutomationSchedule.CalculateNextExecutionAt(
             ScheduleType.FixedDate,
             new TimeOnly(8, 0),
             null,

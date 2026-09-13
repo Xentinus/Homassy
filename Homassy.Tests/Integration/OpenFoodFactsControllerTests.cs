@@ -1,9 +1,10 @@
 using System.Net;
 using System.Net.Http.Json;
-using Homassy.API.Models.Common;
+using Homassy.Data.Models.Common;
 using Homassy.API.Models.OpenFoodFacts;
 using Homassy.Tests.Infrastructure;
 using Xunit.Abstractions;
+using Homassy.Data.Validation;
 
 namespace Homassy.Tests.Integration;
 

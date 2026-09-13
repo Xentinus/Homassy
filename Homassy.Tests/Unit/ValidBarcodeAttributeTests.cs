@@ -1,6 +1,6 @@
-using Homassy.API.Attributes.Validation;
 using Homassy.API.Services;
 using System.ComponentModel.DataAnnotations;
+using Homassy.Data.Validation;
 
 namespace Homassy.Tests.Unit
 {

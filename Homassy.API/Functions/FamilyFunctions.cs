@@ -1,13 +1,14 @@
 ﻿using Homassy.API.Constants;
 using Homassy.API.Context;
-using Homassy.API.Entities.Family;
-using Homassy.API.Entities.Location;
-using Homassy.API.Entities.User;
-using Homassy.API.Exceptions;
+using Homassy.Data.Entities.Family;
+using Homassy.Data.Entities.Location;
+using Homassy.Data.Entities.User;
+using Homassy.Data.Exceptions;
 using Homassy.API.Models.Family;
 using Microsoft.EntityFrameworkCore;
 using Serilog;
 using System.Collections.Concurrent;
+using Homassy.Data.Context;
 
 namespace Homassy.API.Functions
 {
@@ -220,7 +221,7 @@ namespace Homassy.API.Functions
                     await new ActivityFunctions(_contextFactory).RecordActivityAsync(
                         userId.Value,
                         family.Id,
-                        Enums.ActivityType.FamilyCreate,
+                        Homassy.Data.Enums.ActivityType.FamilyCreate,
                         family.Id,
                         family.Name,
                         null,

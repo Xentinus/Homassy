@@ -1,6 +1,6 @@
-using Homassy.API.Context;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
+using Homassy.Data.Context;
 
 namespace Homassy.Tests.Infrastructure;
 

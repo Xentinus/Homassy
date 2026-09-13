@@ -29,17 +29,17 @@ Homassy.Migrator is a standalone console application (run-and-exit) responsible 
 
 It is designed to run as a short-lived Docker container during deployments, before the main API starts. It is **not** a long-running service.
 
-The migrator references `Homassy.API.csproj` directly to reuse entities, `HomassyDbContext`, and enum types – it does not duplicate any data model code.
+The migrator references `Homassy.Data.csproj` directly to reuse entities, `HomassyDbContext`, and enum types – it does not duplicate any data model code. It referenced `Homassy.API.csproj` until #91 split the data model out.
 
 ---
 
 ## Technology Stack
 
 - **.NET 10.0** – Console application (`OutputType: Exe`)
-- **EF Core 10.0 + Npgsql** – database migrations and queries (shared with Homassy.API)
+- **EF Core 10.0 + Npgsql** – database migrations and queries (shared with Homassy.API through Homassy.Data)
 - **Microsoft.Extensions.Configuration** – loads `appsettings.json` and environment variables
 - **HttpClient** – calls Kratos Admin API directly (no Kratos SDK)
-- **Project reference** to `Homassy.API` – reuses `HomassyDbContext`, entities, enums, and Kratos models
+- **Project reference** to `Homassy.Data` – reuses `HomassyDbContext`, entities, enums, and Kratos models
 
 ---
 
@@ -56,7 +56,7 @@ Homassy.Migrator/
 └── Program.cs                   Entry point; parses commands, waits for DB, dispatches
 ```
 
-> **Note:** EF Core migration files live in `Homassy.API/Migrations/`. The Migrator applies those migrations by loading `HomassyDbContext` from the API project.
+> **Note:** EF Core migration files live in `Homassy.Data/Migrations/`, next to the context they describe. The Migrator applies them by loading `HomassyDbContext` from `Homassy.Data`.
 
 ---
 
@@ -85,15 +85,15 @@ dotnet Homassy.Migrator.dll [command] [options]
 
 ## EF Core Migrations
 
-Applies all pending EF Core migrations from `Homassy.API/Migrations/` using `context.Database.MigrateAsync()`.
+Applies all pending EF Core migrations from `Homassy.Data/Migrations/` using `context.Database.MigrateAsync()`.
 
 ### Creating a New Migration
 
-Migrations are created from the **Homassy.API project**, not the Migrator:
+Migrations live in **Homassy.Data**, and `dotnet ef` still needs a startup project that can build
+a configured context, which is **Homassy.API**:
 
 ```bash
-cd Homassy.API
-dotnet ef migrations add <MigrationName> --project ../Homassy.API --startup-project ../Homassy.API
+dotnet ef migrations add <MigrationName> --project Homassy.Data --startup-project Homassy.API
 ```
 
 The Migrator picks them up automatically on next run.

@@ -1,7 +1,7 @@
 using Homassy.API.Context;
 using Homassy.API.Functions;
 using Homassy.API.Middleware;
-using Homassy.API.Models.Kratos;
+using Homassy.Data.Models.Kratos;
 using Homassy.API.Models.ShoppingList;
 using Homassy.API.Models.User;
 using Microsoft.AspNetCore.Authorization;
@@ -82,7 +82,7 @@ namespace Homassy.API.Hubs
                 snapshot = _shoppingListFunctions.GetDetailedShoppingList(publicId, showPurchased);
                 currentUser = GetCurrentUserInfo();
             }
-            catch (Exceptions.ShoppingListAccessDeniedException)
+            catch (Homassy.Data.Exceptions.ShoppingListAccessDeniedException)
             {
                 throw new HubException("Access to this shopping list was denied.");
             }

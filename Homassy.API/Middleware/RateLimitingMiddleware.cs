@@ -1,7 +1,7 @@
-using Homassy.API.Enums;
+using Homassy.Data.Enums;
 using Homassy.API.Extensions;
 using Homassy.API.Models.ApplicationSettings;
-using Homassy.API.Models.Common;
+using Homassy.Data.Models.Common;
 using Homassy.API.Models.RateLimit;
 using Homassy.API.Services;
 using Microsoft.Extensions.Options;

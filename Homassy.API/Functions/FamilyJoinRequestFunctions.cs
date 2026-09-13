@@ -1,11 +1,12 @@
 using Homassy.API.Constants;
 using Homassy.API.Context;
-using Homassy.API.Entities.Family;
-using Homassy.API.Enums;
-using Homassy.API.Exceptions;
+using Homassy.Data.Entities.Family;
+using Homassy.Data.Enums;
+using Homassy.Data.Exceptions;
 using Homassy.API.Models.Family;
 using Microsoft.EntityFrameworkCore;
 using Serilog;
+using Homassy.Data.Context;
 
 namespace Homassy.API.Functions
 {

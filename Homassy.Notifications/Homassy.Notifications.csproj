@@ -4,11 +4,10 @@
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
     <DockerDefaultTargetOS>Linux</DockerDefaultTargetOS>
-    <ErrorOnDuplicatePublishOutputFiles>false</ErrorOnDuplicatePublishOutputFiles>
   </PropertyGroup>
 
   <ItemGroup>
-    <ProjectReference Include="../Homassy.API/Homassy.API.csproj" />
+    <ProjectReference Include="../Homassy.Data/Homassy.Data.csproj" />
   </ItemGroup>
 
   <ItemGroup>

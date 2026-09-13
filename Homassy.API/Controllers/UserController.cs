@@ -1,10 +1,10 @@
 ﻿using Asp.Versioning;
 using Homassy.API.Context;
-using Homassy.API.Enums;
+using Homassy.Data.Enums;
 using Homassy.API.Extensions;
 using Homassy.API.Functions;
 using Homassy.API.Models;
-using Homassy.API.Models.Common;
+using Homassy.Data.Models.Common;
 using Homassy.API.Models.PushNotification;
 using Homassy.API.Models.User;
 using Homassy.API.Models.ImageUpload;
@@ -13,6 +13,7 @@ using Homassy.API.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Serilog;
+using Homassy.Data.Functions;
 
 namespace Homassy.API.Controllers
 {
@@ -294,7 +295,7 @@ namespace Homassy.API.Controllers
         /// </summary>
         [HttpGet("activities")]
         [MapToApiVersion(1.0)]
-        [ProducesResponseType(typeof(ApiResponse<PagedResult<Models.Activity.ActivityInfo>>), StatusCodes.Status200OK)]
+        [ProducesResponseType(typeof(ApiResponse<PagedResult<Data.Models.Activity.ActivityInfo>>), StatusCodes.Status200OK)]
         [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status400BadRequest)]
         public async Task<IActionResult> GetActivities(
             [FromQuery] int? activityType,
@@ -311,9 +312,9 @@ namespace Homassy.API.Controllers
                 return BadRequest(ApiResponse.ErrorResponse(ErrorCodes.ValidationInvalidRequest));
             }
 
-            var request = new Models.Activity.GetActivitiesRequest
+            var request = new Homassy.Data.Models.Activity.GetActivitiesRequest
             {
-                ActivityType = activityType.HasValue ? (Enums.ActivityType)activityType.Value : null,
+                ActivityType = activityType.HasValue ? (Homassy.Data.Enums.ActivityType)activityType.Value : null,
                 StartDate = startDate,
                 EndDate = endDate,
                 UserPublicId = userPublicId,
@@ -323,7 +324,7 @@ namespace Homassy.API.Controllers
             };
 
             var result = await _activityFunctions.GetActivitiesAsync(request, cancellationToken);
-            return Ok(ApiResponse<PagedResult<Models.Activity.ActivityInfo>>.SuccessResponse(result));
+            return Ok(ApiResponse<PagedResult<Data.Models.Activity.ActivityInfo>>.SuccessResponse(result));
         }
 
         /// <summary>
@@ -335,13 +336,13 @@ namespace Homassy.API.Controllers
         /// <param name="cursor">Opaque cursor from a previous page's response, or omitted for the first page.</param>
         /// <param name="activityType">Optional activity type filter.</param>
         /// <param name="userPublicId">Optional single-member filter; omitted shows the caller's own activities plus their family's.</param>
-        /// <param name="since">Optional window start (exclusive) - see <see cref="Models.Activity.ActivityTimelineRequest.Since"/>.</param>
+        /// <param name="since">Optional window start (exclusive) - see <see cref="Homassy.Data.Models.Activity.ActivityTimelineRequest.Since"/>.</param>
         /// <param name="until">Optional window end (inclusive).</param>
         /// <param name="pageSize">Maximum number of entries to return.</param>
         /// <param name="cancellationToken">Cancellation token.</param>
         [HttpGet("activities/timeline")]
         [MapToApiVersion(1.0)]
-        [ProducesResponseType(typeof(ApiResponse<Models.Activity.ActivityTimelineResult>), StatusCodes.Status200OK)]
+        [ProducesResponseType(typeof(ApiResponse<Data.Models.Activity.ActivityTimelineResult>), StatusCodes.Status200OK)]
         [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status400BadRequest)]
         public async Task<IActionResult> GetActivityTimeline(
             [FromQuery] string? cursor,
@@ -357,11 +358,11 @@ namespace Homassy.API.Controllers
                 return BadRequest(ApiResponse.ErrorResponse(ErrorCodes.ValidationInvalidRequest));
             }
 
-            var request = new Models.Activity.ActivityTimelineRequest
+            var request = new Homassy.Data.Models.Activity.ActivityTimelineRequest
             {
                 Cursor = cursor,
                 PageSize = pageSize,
-                ActivityType = activityType.HasValue ? (Enums.ActivityType)activityType.Value : null,
+                ActivityType = activityType.HasValue ? (Homassy.Data.Enums.ActivityType)activityType.Value : null,
                 UserPublicId = userPublicId,
                 Since = since,
                 Until = until
@@ -370,7 +371,7 @@ namespace Homassy.API.Controllers
             // An undecodable cursor throws ArgumentException from GetActivityTimelineAsync, mapped
             // to 400 by GlobalExceptionMiddleware - no try/catch needed here.
             var result = await _activityFunctions.GetActivityTimelineAsync(request, cancellationToken);
-            return Ok(ApiResponse<Models.Activity.ActivityTimelineResult>.SuccessResponse(result));
+            return Ok(ApiResponse<Data.Models.Activity.ActivityTimelineResult>.SuccessResponse(result));
         }
 
         /// <summary>

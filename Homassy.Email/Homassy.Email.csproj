@@ -9,7 +9,7 @@
   <ItemGroup>
     <!-- Shared Serilog level policy. Linked instead of referenced: Homassy.Email has no
          database and must not take a project reference on Homassy.API (EF Core, Npgsql). -->
-    <Compile Include="..\Homassy.API\Extensions\SerilogExtensions.cs" Link="Extensions\SerilogExtensions.cs" />
+    <Compile Include="..\Homassy.Data\Extensions\SerilogExtensions.cs" Link="Extensions\SerilogExtensions.cs" />
   </ItemGroup>
 
   <ItemGroup>

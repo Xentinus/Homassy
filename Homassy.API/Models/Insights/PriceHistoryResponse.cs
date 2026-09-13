@@ -1,5 +1,5 @@
 using Homassy.API.Controllers;
-using Homassy.API.Enums;
+using Homassy.Data.Enums;
 using Homassy.API.Functions;
 using System.Text.Json.Serialization;
 
@@ -36,7 +36,7 @@ namespace Homassy.API.Models.Insights
 
         /// <summary>
         /// The unit <see cref="Quantity"/> is expressed in - the inventory item's own unit, since
-        /// <c>Entities.Product.ProductPurchaseInfo</c> carries no unit of its own and its
+        /// <c>Homassy.Data.Entities.Product.ProductPurchaseInfo</c> carries no unit of its own and its
         /// <c>OriginalQuantity</c> is recorded in the unit of the item it purchased.
         /// </summary>
         public Unit Unit { get; init; }

@@ -1,5 +1,3 @@
-﻿using Homassy.API.Context;
-using Homassy.API.Extensions;
 using Homassy.Notifications.Endpoints;
 using Homassy.Notifications.HealthChecks;
 using Homassy.Notifications.Middleware;
@@ -8,6 +6,8 @@ using Homassy.Notifications.Workers;
 using Microsoft.AspNetCore.Diagnostics.HealthChecks;
 using Microsoft.EntityFrameworkCore;
 using Serilog;
+using Homassy.Data.Context;
+using Homassy.Data.Extensions;
 
 Log.Logger = new LoggerConfiguration()
     .UseHomassyMinimumLevels()

@@ -1,11 +1,11 @@
-﻿using Homassy.API.Context;
-using Homassy.API.Entities.User;
-using Homassy.API.Enums;
-using Homassy.API.Extensions;
-using Homassy.API.Functions;
+using Homassy.Data.Entities.User;
+using Homassy.Data.Enums;
+using Homassy.Data.Functions;
 using Homassy.Notifications.Services;
 using Microsoft.EntityFrameworkCore;
 using Serilog;
+using Homassy.Data.Context;
+using Homassy.Data.Extensions;
 
 namespace Homassy.Notifications.Workers;
 

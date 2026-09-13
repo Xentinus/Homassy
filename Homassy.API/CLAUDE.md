@@ -94,24 +94,19 @@ Homassy.API is a home storage management system built with ASP.NET Core. The pro
 
 ```
 Homassy.API/
-├── Constants/              Application-wide constants
-├── Context/               Database context and session management
-│   ├── HomassyDbContext.cs
-│   └── SessionInfo.cs
+# The data model - Context, Entities, Enums, Exceptions, Migrations and the DTOs that cross a
+# service boundary - lives in Homassy.Data, which this project references (#91). See that
+# project's CLAUDE.md for what is in it and why.
 ├── Attributes/           Custom validation attributes
 │   └── Validation/
 │       ├── PublicFeedUrlAttribute.cs   Server-fetchable URL (https, public host) — anti-SSRF
-│       ├── SanitizedStringAttribute.cs
-│       └── ValidBarcodeAttribute.cs
+│       └── SanitizedStringAttribute.cs
 ├── Constants/              Application-wide constants
 │   ├── ErrorCodeDescriptions.cs   Error code enum → human-readable map
 │   ├── ImageSizes.cs              Pixel sizes the stored image renditions are generated at
 │   ├── MediaUrls.cs               Builds the versioned image-endpoint paths DTOs carry
 │   └── TableNames.cs
-├── Context/               Database context and session management
-│   ├── HomassyDbContext.cs
-│   ├── HomassyDbContextFactory.cs             Design-time factory, for EF tooling only
-│   ├── HomassyDbContextFactoryExtensions.cs   CreateForReading() — the no-tracking context
+├── Context/               Per-request session state (the DbContext itself is in Homassy.Data)
 │   └── SessionInfo.cs
 ├── Controllers/           HTTP endpoint handlers (thin layer)
 │   ├── AuthController.cs
@@ -132,66 +127,6 @@ Homassy.API/
 │   ├── StatisticsController.cs    Public global platform statistics
 │   ├── UserController.cs
 │   └── VersionController.cs
-├── Entities/              Database entity models
-│   ├── Activity/
-│   │   └── Activity.cs
-│   ├── Common/           Base entities
-│   │   ├── BaseEntity.cs
-│   │   ├── SoftDeleteEntity.cs
-│   │   ├── RecordChangeEntity.cs
-│   │   ├── StoredImageEntity.cs   Uploaded image bytes + thumbnail + content-hash version
-│   │   └── TableRecordChange.cs
-│   ├── Family/
-│   │   ├── Family.cs
-│   │   └── FamilyJoinRequest.cs    Approval-gated join request
-│   ├── Location/
-│   │   ├── LocationBase.cs
-│   │   ├── ShoppingLocation.cs
-│   │   └── StorageLocation.cs
-│   ├── Product/
-│   │   ├── Product.cs
-│   │   ├── ProductConsumptionLog.cs
-│   │   ├── ProductImage.cs
-│   │   ├── ProductCustomization.cs
-│   │   ├── ProductInventoryItem.cs
-│   │   ├── ProductPurchaseInfo.cs
-│   │   ├── ItemAutomation.cs            Automation rule (schedule/threshold)
-│   │   └── ItemAutomationExecution.cs   Automation execution log entry
-│   ├── ShoppingList/
-│   │   ├── ShoppingList.cs
-│   │   └── ShoppingListItem.cs
-│   └── User/
-│       ├── User.cs
-│       ├── UserNotification.cs           One delivered notification + its read state
-│       ├── UserNotificationPreferences.cs
-│       ├── UserProfile.cs
-│       ├── UserProfilePicture.cs
-│       └── UserPushSubscription.cs
-├── Enums/                Application enumerations
-│   ├── ActivityType.cs
-│   ├── BarcodeFormat.cs
-│   ├── Currency.cs
-│   ├── ErrorCode.cs               Typed error codes for all API error responses
-│   ├── ImageFormat.cs
-│   ├── ImageVariant.cs            Which stored rendition an `?size=` query wants
-│   ├── ImageValidationError.cs
-│   ├── Language.cs
-│   ├── NotificationType.cs        What a stored notification is about
-│   ├── ProductCategory.cs
-│   ├── SearchResultKind.cs        Which entity type a global-search hit belongs to
-│   ├── SelectValueType.cs
-│   ├── StoreType.cs
-│   ├── Unit.cs
-│   ├── UserStatus.cs
-│   └── UserTimeZone.cs
-├── Exceptions/           Custom exception classes
-│   ├── AccountLockedException.cs  429 – account temporarily locked
-│   ├── AuthException.cs           Base auth exception with StatusCode
-│   ├── LocationException.cs
-│   ├── NotificationException.cs   404 - not this caller's notification
-│   ├── ProductException.cs
-│   ├── RequestTimeoutException.cs
-│   └── ShoppingListException.cs
 ├── Extensions/           Extension methods
 │   ├── CurrencyExtensions.cs
 │   ├── HttpContextExtensions.cs    GetKratosSession() helper
@@ -201,7 +136,6 @@ Homassy.API/
 │   ├── RequestLoggingMiddlewareExtensions.cs
 │   ├── StringExtensions.cs
 │   ├── UnitExtensions.cs
-│   └── UserTimeZoneExtensions.cs
 ├── Functions/            Business logic layer (replaces traditional services)
 │   ├── ActivityFunctions.cs       Activity feed queries
 │   ├── AutomationFunctions.cs     Item-automation CRUD, scheduling, execution, low-stock check
@@ -212,9 +146,7 @@ Homassy.API/
 │   ├── FunctionsRuntime.cs        The layer's cross-cutting deps as one typed parameter object
 │   ├── ImageFunctions.cs          Image upload/delete for products & profiles
 │   ├── LocationFunctions.cs
-│   ├── NotificationFunctions.cs   Notification centre reads/writes + the retention sweep
 │   ├── ProductFunctions.cs
-│   ├── PushNotificationFunctions.cs  Subscribe/unsubscribe/send notifications
 │   ├── SearchFunctions.cs         Global search: cache-backed, ranked and capped per type
 │   ├── SelectValueFunctions.cs
 │   ├── ShoppingListFunctions.cs
@@ -242,18 +174,12 @@ Homassy.API/
 │   ├── RequestLoggingMiddleware.cs
 │   ├── RequestTimeoutMiddleware.cs
 │   └── SessionInfoMiddleware.cs
-├── Migrations/           EF Core database migrations
 ├── Models/               DTOs and request/response models
-│   ├── Activity/         Activity feed DTOs (ActivityInfo, GetActivitiesRequest)
 │   ├── ApplicationSettings/  (HttpsSettings, GracefulShutdownSettings, etc.)
-│   ├── Barcode/          Barcode validation result models
-│   ├── Common/           Shared models (ApiResponse, PagedResult, SelectValue, VersionInfo)
 │   ├── Family/
 │   ├── HealthCheck/
 │   ├── ImageUpload/      Image upload request/response models
-│   ├── Kratos/           Kratos session/config models
 │   ├── Location/
-│   ├── Notification/     NotificationEnvelope, NotificationInfo, NotificationPage, UnreadCountResponse
 │   ├── OpenFoodFacts/
 │   ├── Product/
 │   ├── ProgressInfo.cs   Progress tracking DTO
@@ -273,11 +199,9 @@ Homassy.API/
     ├── Sanitization/
     │   ├── IInputSanitizationService.cs
     │   └── InputSanitizationService.cs
-    ├── BarcodeValidationService.cs
     ├── CacheManagementService.cs  (IHostedService – cache invalidation)
     ├── ConfigService.cs
     ├── GracefulShutdownService.cs (IHostedService – reports the shutdown drain)
-    ├── IBarcodeValidationService.cs
     ├── IImageProcessingService.cs
     ├── ImageProcessingService.cs
     ├── InFlightRequestTracker.cs   Live request count the shutdown log reads

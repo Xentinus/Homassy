@@ -1,6 +1,6 @@
 using Asp.Versioning;
 using Homassy.API.Constants;
-using Homassy.API.Models.Common;
+using Homassy.Data.Models.Common;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 

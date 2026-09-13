@@ -1,7 +1,7 @@
 ﻿using Asp.Versioning;
-using Homassy.API.Enums;
+using Homassy.Data.Enums;
 using Homassy.API.Models;
-using Homassy.API.Models.Common;
+using Homassy.Data.Models.Common;
 using Homassy.API.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
