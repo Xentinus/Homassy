@@ -1,4 +1,7 @@
 // https://nuxt.com/docs/api/configuration/nuxt-config
+import { createResolver } from '@nuxt/kit'
+
+const { resolve: resolveFromHere } = createResolver(import.meta.url)
 
 /**
  * The build-time environment, for the `process.env` reads further down.
@@ -417,6 +420,27 @@ export default defineNuxtConfig({
     prerender: {
       routes: ['/offline']
     },
+
+    // The zxing-wasm binary, served from this origin instead of jsDelivr (#164). On a
+    // browser with no native BarcodeDetector -- Safari, which is most of the installed
+    // base, and desktop Firefox -- vue-qrcode-reader falls back to barcode-detector,
+    // whose default locateFile points at a hardcoded
+    // https://fastly.jsdelivr.net/npm/zxing-wasm@<version>/dist/... path.
+    // app/plugins/qrcode-reader.client.ts overrides that to /zxing/, which is this.
+    //
+    // The directory is read out of node_modules at build time rather than copied into
+    // public/: a committed blob would go stale the moment zxing-wasm is bumped, and the
+    // filename carries no version, so nothing would catch it. Nitro serves it in dev and
+    // copies it into .output/public on build. It is immutable for a year because a new
+    // zxing-wasm ships a different binary through a different package version, and the
+    // service worker has no chance to precache 950 kB it may never need.
+    publicAssets: [
+      {
+        baseURL: 'zxing',
+        dir: resolveFromHere('./node_modules/zxing-wasm/dist/reader'),
+        maxAge: 60 * 60 * 24 * 365
+      }
+    ],
 
     // Reduce Nitro build memory. Kept deliberately: with the three unused modules gone
     // (#88) the no-cache build of the `build` target is 105s against 132s before, and

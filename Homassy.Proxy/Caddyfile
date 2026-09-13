@@ -51,7 +51,9 @@
 # 'wasm-unsafe-eval' in script-src: on a browser with no native BarcodeDetector (Safari,
 # desktop Firefox) vue-qrcode-reader falls back to zxing-wasm, which compiles a WebAssembly
 # module — Chromium and Firefox refuse that without this keyword. It permits WebAssembly
-# compilation and nothing else; it does not bring back eval().
+# compilation and nothing else; it does not bring back eval(). It stays even though the
+# binary is self-hosted now (#164): the keyword is about compiling WebAssembly at all, not
+# about where the bytes came from.
 #
 # img-src: data: for the base64 avatars and product pictures, blob: for the object URLs the
 # image cropper and the share target create.
@@ -65,9 +67,6 @@
 #     <img>, whenever the source refreshes expired tiles (the default), so img-src alone
 #     leaves the store map blank.
 #   - nominatim for app/composables/useGeocoding.ts.
-#   - jsdelivr for the zxing-wasm binary above, which the library locates on the CDN by
-#     default. This is the one third-party origin here that should not have to exist; see the
-#     self-hosting note in Homassy.Web/CLAUDE.md.
 # worker-src blob:: MapLibre builds its tile worker from a Blob URL.
 # style-src 'unsafe-inline': Tailwind 4 / @nuxt/ui emit runtime style attributes and blocks;
 # threading a nonce through those would need every one of them to go through unhead.
@@ -78,7 +77,7 @@
 (app_csp) {
 	header {
 		defer
-		Content-Security-Policy "default-src 'self'; base-uri 'self'; object-src 'none'; frame-ancestors 'none'; form-action 'self'; script-src 'self' 'wasm-unsafe-eval' 'nonce-{http.request.uuid}'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https://*.basemaps.cartocdn.com; font-src 'self'; connect-src 'self' wss://{http.request.host}:* https://*.basemaps.cartocdn.com https://nominatim.openstreetmap.org https://fastly.jsdelivr.net; worker-src 'self' blob:; manifest-src 'self'; frame-src 'none'"
+		Content-Security-Policy "default-src 'self'; base-uri 'self'; object-src 'none'; frame-ancestors 'none'; form-action 'self'; script-src 'self' 'wasm-unsafe-eval' 'nonce-{http.request.uuid}'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https://*.basemaps.cartocdn.com; font-src 'self'; connect-src 'self' wss://{http.request.host}:* https://*.basemaps.cartocdn.com https://nominatim.openstreetmap.org; worker-src 'self' blob:; manifest-src 'self'; frame-src 'none'"
 	}
 }
 
