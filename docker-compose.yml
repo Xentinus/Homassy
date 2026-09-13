@@ -5,7 +5,8 @@ services:
     container_name: homassy-postgres
     image: postgres:16
     ports:
-      # Loopback-only: reachable from the dev machine, not from the LAN.
+      # Loopback-only: reachable from the dev machine, not from the LAN. Unlike the app ports
+      # below this one ignores HOST_BIND — nothing about testing from a phone needs the database.
       - "127.0.0.1:5432:5432"
     environment:
       - POSTGRES_DB=${POSTGRES_DB}
@@ -41,14 +42,18 @@ services:
     container_name: homassy-kratos
     image: oryd/kratos:v1.2.0
     ports:
-      - "4433:4433"
-      - "4434:4434"
+      # Public API only. The admin API (4434) authenticates nobody — Ory's model is that it is
+      # reachable only from a trusted network — so it is not published at all: the API talks to
+      # it over homassy-network as http://homassy-kratos:4434, and manual calls go through
+      # `docker compose exec homassy.kratos ...`.
+      - "${HOST_BIND:-127.0.0.1}:4433:4433"
     environment:
       # Database connection (Kratos standard env var)
       - DSN=postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@${DATABASE_HOST}:${DATABASE_PORT}/${POSTGRES_DB}?sslmode=disable&search_path=kratos
-      # Secrets (Kratos standard env vars)
-      - SECRETS_COOKIE=${KRATOS_COOKIE_SECRET:-PLEASE-CHANGE-ME-I-AM-VERY-INSECURE!}
-      - SECRETS_CIPHER=${KRATOS_CIPHER_SECRET:-32-character-cipher-key-here-012}
+      # Secrets (Kratos standard env vars). No fallback on purpose: a default here lets the stack
+      # come up on a secret that is published in this file, and nothing says so at runtime.
+      - SECRETS_COOKIE=${KRATOS_COOKIE_SECRET:?set KRATOS_COOKIE_SECRET in .env}
+      - SECRETS_CIPHER=${KRATOS_CIPHER_SECRET:?set KRATOS_CIPHER_SECRET in .env (exactly 32 characters)}
       # Global internal service-to-service API key (used to authenticate the courier webhook to Homassy.Email)
       - INTERNAL_API_KEY=${INTERNAL_API_KEY}
     volumes:
@@ -82,7 +87,7 @@ services:
     # requests had finished and before Serilog had flushed (#85). An idle API still stops at once.
     stop_grace_period: 45s
     ports:
-      - "5226:8080"
+      - "${HOST_BIND:-127.0.0.1}:5226:8080"
     environment:
       - ASPNETCORE_ENVIRONMENT=Development
       - ASPNETCORE_HTTP_PORTS=8080
@@ -125,9 +130,14 @@ services:
       dockerfile: Dockerfile
       target: development
     ports:
-      - "3000:3000"
+      - "${HOST_BIND:-127.0.0.1}:3000:3000"
     environment:
       - NODE_ENV=development
+      # Inside the container the dev server must listen on every interface, or the docker-proxy
+      # (which connects to the container IP, not its loopback) cannot reach it. The host-side
+      # binding above is what keeps the LAN out. Outside Docker the default in nuxt.config.ts
+      # applies and the dev server is loopback-only.
+      - NUXT_DEV_HOST=0.0.0.0
       - NUXT_PUBLIC_API_BASE=http://localhost:5226
       - NUXT_PUBLIC_KRATOS_URL=http://localhost:4433
       - NUXT_PUBLIC_SITE_URL=http://localhost:3000
