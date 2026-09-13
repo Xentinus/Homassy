@@ -1,4 +1,4 @@
-using Homassy.API.Models.Common;
+using Homassy.Data.Models.Common;
 using Microsoft.EntityFrameworkCore;
 
 namespace Homassy.API.Extensions;

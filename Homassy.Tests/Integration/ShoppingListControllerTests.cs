@@ -1,13 +1,13 @@
 using System.Net;
 using System.Net.Http.Json;
-using Homassy.API.Models.Common;
+using Homassy.Data.Models.Common;
 using Homassy.API.Models.Location;
 using Homassy.API.Models.Product;
 using Homassy.API.Models.ShoppingList;
 using Homassy.Tests.Infrastructure;
 using Xunit.Abstractions;
-using ProductUnit = Homassy.API.Enums.Unit;
-using ProductCurrency = Homassy.API.Enums.Currency;
+using ProductUnit = Homassy.Data.Enums.Unit;
+using ProductCurrency = Homassy.Data.Enums.Currency;
 
 namespace Homassy.Tests.Integration;
 

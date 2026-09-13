@@ -8,7 +8,7 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <ProjectReference Include="../Homassy.API/Homassy.API.csproj" />
+    <ProjectReference Include="../Homassy.Data/Homassy.Data.csproj" />
   </ItemGroup>
 
   <ItemGroup>

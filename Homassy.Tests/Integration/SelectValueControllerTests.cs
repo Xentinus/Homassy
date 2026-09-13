@@ -1,7 +1,7 @@
 using System.Net;
 using System.Net.Http.Json;
-using Homassy.API.Enums;
-using Homassy.API.Models.Common;
+using Homassy.Data.Enums;
+using Homassy.Data.Models.Common;
 using Homassy.API.Models.Location;
 using Homassy.API.Models.Product;
 using Homassy.API.Models.ShoppingList;
@@ -505,7 +505,7 @@ public class SelectValueControllerTests : IClassFixture<HomassyWebApplicationFac
             var name = $"Catalogue {Guid.NewGuid():N}";
             var createResponse = await _client.PostAsJsonAsync(
                 "/api/v1.0/product",
-                new CreateProductRequest { Name = name, Brand = "Test", Unit = Homassy.API.Enums.Unit.Piece });
+                new CreateProductRequest { Name = name, Brand = "Test", Unit = Homassy.Data.Enums.Unit.Piece });
             Assert.Equal(HttpStatusCode.OK, createResponse.StatusCode);
 
             var catalogue = await _client.GetFromJsonAsync<ApiResponse<List<SelectValue>>>(

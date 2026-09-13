@@ -1,7 +1,5 @@
-using Homassy.API.Context;
-using Homassy.API.Entities.Activity;
-using Homassy.API.Enums;
-using Homassy.API.Extensions;
+using Homassy.Data.Entities.Activity;
+using Homassy.Data.Enums;
 using Homassy.API.Functions;
 using Homassy.API.Models.Insights;
 using Homassy.API.Services;
@@ -11,6 +9,8 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Xunit.Abstractions;
+using Homassy.Data.Context;
+using Homassy.Data.Extensions;
 
 namespace Homassy.Tests.Unit;
 
@@ -58,6 +58,11 @@ public class StatisticsRefreshWorkerTests
 
         services.AddDbContextFactory<HomassyDbContext>(options => options.UseNpgsql(connectionString));
         services.AddSingleton(cache);
+        // InsightFunctions resolves the acting user through UserFunctions, which reads families
+        // through FamilyCache (#133). The worker swallows a resolution failure by design, so a
+        // missing registration here shows up as an unwarmed scoreboard rather than an exception.
+        services.AddScoped<FamilyCache>();
+        services.AddScoped<UserFunctions>();
         services.AddScoped<InsightFunctions>();
 
         return services.BuildServiceProvider();
@@ -73,12 +78,12 @@ public class StatisticsRefreshWorkerTests
     {
         using var context = TestConfiguration.DbContextFactory.CreateDbContext();
 
-        var family = new Homassy.API.Entities.Family.Family { Name = $"{namePrefix} Family" };
+        var family = new Homassy.Data.Entities.Family.Family { Name = $"{namePrefix} Family" };
         context.Families.Add(family);
         await context.SaveChangesAsync();
 
         var email = $"{namePrefix}-{Guid.NewGuid():N}@test.homassy.local";
-        var user = new Homassy.API.Entities.User.User
+        var user = new Homassy.Data.Entities.User.User
         {
             Email = email,
             Name = $"{namePrefix} Member",
@@ -91,7 +96,7 @@ public class StatisticsRefreshWorkerTests
         context.Users.Add(user);
         await context.SaveChangesAsync();
 
-        context.UserProfiles.Add(new Homassy.API.Entities.User.UserProfile
+        context.UserProfiles.Add(new Homassy.Data.Entities.User.UserProfile
         {
             UserId = user.Id,
             DisplayName = $"{namePrefix} Member",

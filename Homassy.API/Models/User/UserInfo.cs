@@ -30,7 +30,7 @@ namespace Homassy.API.Models.User
         /// while I was away" - the first launch on a new device, which is the one case a device-local
         /// value cannot cover. A client that has its own value prefers it: this one lags by up to a
         /// flush interval and counts every device the user has (see
-        /// <c>Entities.User.UserProfile.LastSeenAt</c>).
+        /// <c>Homassy.Data.Entities.User.UserProfile.LastSeenAt</c>).
         /// <para>
         /// It is the value <em>before</em> this request's own stamp: the stamp lives in
         /// <see cref="Services.LastSeenTracker"/>'s memory until the next flush, so a caller reading

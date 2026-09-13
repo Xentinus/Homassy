@@ -1,5 +1,5 @@
-﻿using Homassy.API.Context;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
+using Homassy.Data.Context;
 
 namespace Homassy.Notifications.HealthChecks;
 

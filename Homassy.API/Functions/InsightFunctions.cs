@@ -1,12 +1,13 @@
 using Homassy.API.Constants;
-using Homassy.API.Context;
-using Homassy.API.Enums;
+using Homassy.Data.Enums;
 using Homassy.API.Extensions;
 using Homassy.API.Models.Insights;
 using Homassy.API.Services;
 using Microsoft.EntityFrameworkCore;
 using Npgsql;
 using Serilog;
+using Homassy.Data.Context;
+using Homassy.Data.Extensions;
 
 namespace Homassy.API.Functions
 {
@@ -64,11 +65,13 @@ namespace Homassy.API.Functions
 
         private readonly IDbContextFactory<HomassyDbContext> _contextFactory;
         private readonly FamilyInsightsCache _cache;
+        private readonly UserFunctions _userFunctions;
 
-        public InsightFunctions(IDbContextFactory<HomassyDbContext> contextFactory, FamilyInsightsCache cache)
+        public InsightFunctions(IDbContextFactory<HomassyDbContext> contextFactory, FamilyInsightsCache cache, UserFunctions userFunctions)
         {
             _contextFactory = contextFactory;
             _cache = cache;
+            _userFunctions = userFunctions;
         }
 
         /// <summary>
@@ -254,7 +257,7 @@ namespace Homassy.API.Functions
             // the key itself (see ConsumptionCacheKey's remarks), and GetUserProfileByUserId is a
             // cheap, cache-backed lookup (see UserFunctions), not a query worth deferring behind
             // the cache's single-flight factory.
-            var userTimeZone = new UserFunctions(_contextFactory).GetUserProfileByUserId(userId)?.DefaultTimeZone ?? UserTimeZone.CentralEuropeStandardTime;
+            var userTimeZone = _userFunctions.GetUserProfileByUserId(userId)?.DefaultTimeZone ?? UserTimeZone.CentralEuropeStandardTime;
             var ianaTimeZoneId = ResolveIanaTimeZoneId(userTimeZone.ToTimeZoneId());
 
             var key = familyId.HasValue
@@ -514,8 +517,8 @@ namespace Homassy.API.Functions
         /// Runs the actual aggregation on a cache miss.
         ///
         /// <para>
-        /// <b>Scope.</b> <c>Entities.Product.ProductPurchaseInfo</c> carries no <c>FamilyId</c> or
-        /// <c>UserId</c> of its own - it hangs off <c>Entities.Product.ProductInventoryItem</c> via
+        /// <b>Scope.</b> <c>Homassy.Data.Entities.Product.ProductPurchaseInfo</c> carries no <c>FamilyId</c> or
+        /// <c>UserId</c> of its own - it hangs off <c>Homassy.Data.Entities.Product.ProductInventoryItem</c> via
         /// <c>ProductInventoryItemId</c>, so it is scoped through that item, exactly the way
         /// <see cref="ComputeInventoryCompositionAsync"/> scopes inventory itself:
         /// <c>item.UserId == userId || (familyId.HasValue &amp;&amp; item.FamilyId == familyId)</c> -
@@ -569,7 +572,7 @@ namespace Homassy.API.Functions
         /// <para>
         /// <b>Currency is not a reliable proxy for "has a price," either.</b>
         /// <c>ProductFunctions.CreateInventoryItemAsync</c> defaults a purchase's <c>Currency</c>
-        /// to the user's own saved <c>Entities.User.UserProfile.DefaultCurrency</c> whenever the
+        /// to the user's own saved <c>Homassy.Data.Entities.User.UserProfile.DefaultCurrency</c> whenever the
         /// request does not specify one - regardless of whether <c>Price</c> was supplied - so a
         /// <see langword="null"/>-<c>Price</c> purchase routinely still carries a real, non-null
         /// <c>Currency</c>. Folding a currency entry whenever a group's <c>Currency</c> is non-null
@@ -590,7 +593,7 @@ namespace Homassy.API.Functions
         /// <see cref="LocationSpend.ShoppingLocationPublicId"/> is exposed instead of the
         /// internal <c>ShoppingLocationId</c> this method groups and looks up by, matching this
         /// codebase's convention of never handing out an enumerable primary key from a public DTO
-        /// (see the "BaseEntity" section of <c>Homassy.API/Entities/CLAUDE.md</c>) - it comes from this same bounded lookup, not a
+        /// (see the "BaseEntity" section of <c>Homassy.API/Homassy.Data.Entities.CLAUDE.md</c>) - it comes from this same bounded lookup, not a
         /// second query, so resolving it costs nothing beyond the one extra column already
         /// selected here, rather than pulling location rows into memory afterwards, which would
         /// trade the convention fix for an N+1. A location id this lookup cannot resolve (e.g.
@@ -756,7 +759,7 @@ namespace Homassy.API.Functions
         {
             // Resolved up front, exactly as GetConsumptionSeriesAsync does it: the zone has to be
             // part of the cache key, and the profile lookup is a cheap cache-backed read.
-            var userTimeZone = new UserFunctions(_contextFactory).GetUserProfileByUserId(userId)?.DefaultTimeZone ?? UserTimeZone.CentralEuropeStandardTime;
+            var userTimeZone = _userFunctions.GetUserProfileByUserId(userId)?.DefaultTimeZone ?? UserTimeZone.CentralEuropeStandardTime;
             var ianaTimeZoneId = ResolveIanaTimeZoneId(userTimeZone.ToTimeZoneId());
 
             if (!familyId.HasValue)
@@ -1032,7 +1035,7 @@ namespace Homassy.API.Functions
         /// <summary>
         /// Every badge in the catalog, evaluated against the caller's own lifetime counters and
         /// their household's streaks - and, for any threshold they have just crossed, the
-        /// <see cref="Entities.User.UserBadge"/> row that makes the unlock durable.
+        /// <see cref="Homassy.Data.Entities.User.UserBadge"/> row that makes the unlock durable.
         ///
         /// <para>
         /// <b>This method writes, and is deliberately not cached.</b> Both follow from
@@ -1167,7 +1170,7 @@ namespace Homassy.API.Functions
         }
 
         /// <summary>
-        /// Inserts a <see cref="Entities.User.UserBadge"/> for every threshold the caller has
+        /// Inserts a <see cref="Homassy.Data.Entities.User.UserBadge"/> for every threshold the caller has
         /// crossed but has no row for yet, and returns the ids that were actually written - the
         /// exact set that may report <see cref="BadgeState.JustUnlocked"/>.
         ///
@@ -1207,7 +1210,7 @@ namespace Homassy.API.Functions
                 var earnedAt = DateTime.UtcNow;
 
                 using var context = _contextFactory.CreateDbContext();
-                context.UserBadges.Add(new Entities.User.UserBadge
+                context.UserBadges.Add(new Homassy.Data.Entities.User.UserBadge
                 {
                     UserId = userId,
                     BadgeId = definition.Id,
@@ -1313,7 +1316,7 @@ namespace Homassy.API.Functions
         public async Task<AwayDeltaResponse> GetAwayDeltaAsync(int userId, int? familyId, DateTime? since, CancellationToken cancellationToken)
         {
             var untilUtc = DateTime.UtcNow;
-            var resolvedSince = since ?? new UserFunctions(_contextFactory).GetUserProfileByUserId(userId)?.LastSeenAt;
+            var resolvedSince = since ?? _userFunctions.GetUserProfileByUserId(userId)?.LastSeenAt;
 
             // No window at all, or a window that has not happened yet: nothing to report, and
             // deliberately not "everything ever" - see this method's remarks.

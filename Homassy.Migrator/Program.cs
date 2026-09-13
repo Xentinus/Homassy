@@ -1,9 +1,9 @@
-using Homassy.API.Context;
 using Homassy.Migrator.Migrations;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Npgsql;
 using System.Data.Common;
+using Homassy.Data.Context;
 
 // Parse command line arguments
 var command = args.Length > 0 ? args[0] : "migrate";

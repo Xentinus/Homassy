@@ -1,15 +1,17 @@
 using Homassy.API.Constants;
 using Homassy.API.Context;
-using Homassy.API.Entities.Activity;
-using Homassy.API.Entities.User;
-using Homassy.API.Enums;
-using Homassy.API.Exceptions;
-using Homassy.API.Models.Activity;
-using Homassy.API.Models.Common;
+using Homassy.Data.Entities.Activity;
+using Homassy.Data.Entities.User;
+using Homassy.Data.Enums;
+using Homassy.Data.Exceptions;
+using Homassy.Data.Models.Activity;
+using Homassy.Data.Models.Common;
 using Homassy.API.Security;
 using Microsoft.EntityFrameworkCore;
 using Serilog;
 using System.Collections.Concurrent;
+using Homassy.Data.Context;
+using Homassy.Data.Functions;
 
 namespace Homassy.API.Functions
 {
@@ -40,10 +42,12 @@ namespace Homassy.API.Functions
         private const int TimelineMaxRawFetch = 500;
 
         private readonly IDbContextFactory<HomassyDbContext> _contextFactory;
+        private readonly UserFunctions _userFunctions;
 
-        public ActivityFunctions(IDbContextFactory<HomassyDbContext> contextFactory)
+        public ActivityFunctions(IDbContextFactory<HomassyDbContext> contextFactory, UserFunctions userFunctions)
         {
             _contextFactory = contextFactory;
+            _userFunctions = userFunctions;
         }
 
         #region Cache Management
@@ -110,7 +114,13 @@ namespace Homassy.API.Functions
         #endregion
 
         #region Activity Recording
-        public async Task RecordActivityAsync(
+        /// <summary>
+        /// Records one activity. The write path itself lives in <see cref="ActivityRecorder"/>,
+        /// in the shared library, because the notification workers record activities too and the
+        /// two must write identical rows (#91). The reads below stay here: they are backed by a
+        /// cache only the API initialises.
+        /// </summary>
+        public Task RecordActivityAsync(
             int userId,
             int? familyId,
             ActivityType activityType,
@@ -119,34 +129,8 @@ namespace Homassy.API.Functions
             Unit? unit = null,
             decimal? quantity = null,
             CancellationToken cancellationToken = default)
-        {
-            try
-            {
-                using var context = _contextFactory.CreateDbContext();
-
-                var activity = new Activity
-                {
-                    UserId = userId,
-                    FamilyId = familyId,
-                    Timestamp = DateTime.UtcNow,
-                    ActivityType = activityType,
-                    RecordId = recordId,
-                    RecordName = recordName,
-                    Unit = unit,
-                    Quantity = quantity
-                };
-
-                context.Activities.Add(activity);
-                await context.SaveChangesAsync(cancellationToken);
-
-                Log.Information($"Recorded activity: {activityType} by user {userId} on record {recordId} ({recordName})");
-            }
-            catch (Exception ex)
-            {
-                Log.Error(ex, $"Failed to record activity {activityType} for record {recordId}");
-                // Don't throw - activities are "nice to have"
-            }
-        }
+            => ActivityRecorder.RecordAsync(
+                _contextFactory, userId, familyId, activityType, recordId, recordName, unit, quantity, cancellationToken);
         #endregion
 
         #region Activity Retrieval
@@ -197,11 +181,10 @@ namespace Homassy.API.Functions
             var activities = await query.ToListAsync(cancellationToken);
 
             // Map to ActivityInfo
-            var userFunctions = new UserFunctions(_contextFactory);
             var activityInfos = activities.Select(a =>
             {
-                var user = userFunctions.GetUserById(a.UserId);
-                var profile = userFunctions.GetUserProfileByUserId(a.UserId);
+                var user = _userFunctions.GetUserById(a.UserId);
+                var profile = _userFunctions.GetUserProfileByUserId(a.UserId);
                 return new ActivityInfo
                 {
                     PublicId = a.PublicId,
@@ -243,7 +226,7 @@ namespace Homassy.API.Functions
 
             if (filterUserPublicId.HasValue)
             {
-                var requestedUser = new UserFunctions(_contextFactory).GetUserByPublicId(filterUserPublicId.Value);
+                var requestedUser = _userFunctions.GetUserByPublicId(filterUserPublicId.Value);
                 if (requestedUser == null)
                     return null;
 
@@ -346,7 +329,7 @@ namespace Homassy.API.Functions
             // Resolve every actor once - not per row like GetActivitiesAsync's GetUserById-per-row
             // above - so this method does not carry the same N+1 into a path with more rows fetched.
             var distinctUserIds = rows.Select(a => (int?)a.UserId).Distinct().ToList();
-            var usersById = new UserFunctions(_contextFactory)
+            var usersById = _userFunctions
                 .GetAllUsersDataByIds(distinctUserIds)
                 .ToDictionary(u => u.Id);
 

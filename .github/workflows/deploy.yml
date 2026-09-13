@@ -111,9 +111,6 @@ jobs:
               "EndpointWindowMinutes": "1"
             },
             "Cors": { "AllowedOrigins": [ "http://localhost:3000" ] },
-            "Security": {
-              "AccountLockout": { "MaxFailedAttempts": 5, "LockoutDurationMinutes": 15 }
-            },
             "InternalApi": { "ApiKey": "ci-internal-api-key" },
             "RegistrationEnabled": true
           }
@@ -341,7 +338,6 @@ jobs:
           script: |
             set -e
             cd /opt/homassy
-            mv -f Homassy.Kratos/kratos.production.yml Homassy.Kratos/kratos.yml
             echo "$GHCR_PAT" | docker login ghcr.io -u "$GHCR_USERNAME" --password-stdin
             n=0
             until docker compose -f docker-compose.production.yml pull; do

@@ -1,12 +1,14 @@
-﻿using Homassy.API.Context;
-using Homassy.API.Entities.Product;
-using Homassy.API.Enums;
-using Homassy.API.Extensions;
-using Homassy.API.Functions;
-using Homassy.API.Models.Notification;
+using Homassy.Data.Entities.Product;
+using Homassy.Data.Enums;
+using Homassy.Data.Models.Notification;
 using Homassy.Notifications.Services;
 using Microsoft.EntityFrameworkCore;
 using Serilog;
+using Homassy.Data.Context;
+using Homassy.Data.Functions;
+using Homassy.Data.Models.Inventory;
+using Homassy.Notifications.Configuration;
+using Microsoft.Extensions.Options;
 
 namespace Homassy.Notifications.Workers;
 
@@ -15,7 +17,7 @@ namespace Homassy.Notifications.Workers;
 /// For each due rule it either auto-consumes inventory or sends a notification reminder,
 /// then recalculates the next execution time.
 /// </summary>
-public sealed class ItemAutomationWorkerService : BackgroundService
+public sealed class ItemAutomationWorkerService : PeriodicWorkerService
 {
     private readonly IServiceScopeFactory _scopeFactory;
     /// <summary>
@@ -33,44 +35,28 @@ public sealed class ItemAutomationWorkerService : BackgroundService
     /// </remarks>
     private readonly FamilyPushNotifier _notifier;
     private readonly IDbContextFactory<HomassyDbContext> _contextFactory;
-    private readonly TimeSpan _interval = TimeSpan.FromMinutes(5);
 
     public ItemAutomationWorkerService(
         IServiceScopeFactory scopeFactory,
         FamilyPushNotifier notifier,
-        IDbContextFactory<HomassyDbContext> contextFactory)
+        IDbContextFactory<HomassyDbContext> contextFactory, IOptions<NotificationWorkerSettings> workerSettings)
+        : base(workerSettings.Value.ItemAutomationWorker)
     {
         _scopeFactory = scopeFactory;
         _notifier = notifier;
         _contextFactory = contextFactory;
     }
 
-    protected override async Task ExecuteAsync(CancellationToken stoppingToken)
+    protected override string WorkerName => "Item automation worker service";
+
+    /// <summary>Ran its first cycle at startup before #95, and still does.</summary>
+    protected override bool RunOnStartup => true;
+
+    protected override async Task DoWorkAsync(CancellationToken cancellationToken)
     {
-        Log.Information("Item automation worker service started");
-
-        while (!stoppingToken.IsCancellationRequested)
-        {
-            try
-            {
-                await ProcessDueAutomationsAsync(stoppingToken);
-                await ProcessLowStockAutomationsAsync(stoppingToken);
-                await RearmLowStockAutomationsAsync(stoppingToken);
-                await Task.Delay(_interval, stoppingToken);
-            }
-            catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested)
-            {
-                break;
-            }
-            catch (Exception ex)
-            {
-                Log.Error(ex, "Error in item automation worker service");
-                try { await Task.Delay(TimeSpan.FromMinutes(5), stoppingToken); }
-                catch (OperationCanceledException) { break; }
-            }
-        }
-
-        Log.Information("Item automation worker service stopped");
+        await ProcessDueAutomationsAsync(cancellationToken);
+        await ProcessLowStockAutomationsAsync(cancellationToken);
+        await RearmLowStockAutomationsAsync(cancellationToken);
     }
 
     private async Task ProcessDueAutomationsAsync(CancellationToken cancellationToken)
@@ -251,8 +237,8 @@ public sealed class ItemAutomationWorkerService : BackgroundService
             {
                 await broadcastClient.BroadcastUpsertAsync(
                     itemUserId, inventoryItem.FamilyId,
-                    ProductFunctions.BuildGridProductCarrier(product),
-                    ProductFunctions.BuildGridItem(inventoryItem, product.PublicId),
+                    InventoryGridProjection.BuildProduct(product),
+                    InventoryGridProjection.BuildItem(inventoryItem, product.PublicId),
                     cancellationToken);
             }
         }
@@ -342,7 +328,8 @@ public sealed class ItemAutomationWorkerService : BackgroundService
         {
             var userId = automation.CreatedByUserId;
             var familyId = automation.FamilyId;
-            await new ActivityFunctions(_contextFactory).RecordActivityAsync(
+            await ActivityRecorder.RecordAsync(
+                _contextFactory,
                 userId, familyId,
                 ActivityType.AutomationExecute,
                 automation.Id,
@@ -407,10 +394,10 @@ public sealed class ItemAutomationWorkerService : BackgroundService
         }
 
         var quantity = automation.AddQuantity ?? 1;
-        var unit = automation.AddUnit ?? API.Enums.Unit.Piece;
+        var unit = automation.AddUnit ?? Homassy.Data.Enums.Unit.Piece;
 
         // Create shopping list item
-        var shoppingListItem = new API.Entities.ShoppingList.ShoppingListItem
+        var shoppingListItem = new Homassy.Data.Entities.ShoppingList.ShoppingListItem
         {
             ShoppingListId = shoppingList.Id,
             ProductId = product.Id,
@@ -438,7 +425,8 @@ public sealed class ItemAutomationWorkerService : BackgroundService
             // Visibility follows the target list's privacy, not the automation's:
             // a personal list (FamilyId == null) must stay hidden from the family.
             var familyId = shoppingList.FamilyId;
-            await new ActivityFunctions(_contextFactory).RecordActivityAsync(
+            await ActivityRecorder.RecordAsync(
+                _contextFactory,
                 userId, familyId,
                 ActivityType.AutomationExecute,
                 automation.Id,
@@ -585,8 +573,11 @@ public sealed class ItemAutomationWorkerService : BackgroundService
         UserTimeZone userTimeZone;
         try
         {
+            // Read straight from the context rather than through the API's UserFunctions: that
+            // lookup is backed by a cache this process never initialises, so borrowing it would
+            // mean depending on a class whose fast path is dead here anyway (#91).
             var userProfile = automation.UserId.HasValue
-                ? new UserFunctions(_contextFactory).GetUserProfileByUserId(automation.UserId.Value)
+                ? context.UserProfiles.FirstOrDefault(p => p.UserId == automation.UserId.Value)
                 : null;
 
             // If family-owned, try to find the first family member's timezone
@@ -604,7 +595,7 @@ public sealed class ItemAutomationWorkerService : BackgroundService
             userTimeZone = UserTimeZone.CentralEuropeStandardTime;
         }
 
-        automation.NextExecutionAt = AutomationFunctions.CalculateNextExecutionAt(
+        automation.NextExecutionAt = AutomationSchedule.CalculateNextExecutionAt(
             automation.ScheduleType,
             automation.ScheduledTime,
             automation.IntervalDays,
@@ -728,10 +719,10 @@ public sealed class ItemAutomationWorkerService : BackgroundService
 
                 // Stock is below threshold — trigger!
                 var quantity = automation.AddQuantity ?? 1;
-                var unit = automation.AddUnit ?? API.Enums.Unit.Piece;
+                var unit = automation.AddUnit ?? Homassy.Data.Enums.Unit.Piece;
 
                 // Create shopping list item
-                var shoppingListItem = new API.Entities.ShoppingList.ShoppingListItem
+                var shoppingListItem = new Homassy.Data.Entities.ShoppingList.ShoppingListItem
                 {
                     ShoppingListId = shoppingList.Id,
                     ProductId = product.Id,
@@ -763,7 +754,8 @@ public sealed class ItemAutomationWorkerService : BackgroundService
                 {
                     var userId = automation.CreatedByUserId;
                     var familyId = automation.FamilyId;
-                    await new ActivityFunctions(_contextFactory).RecordActivityAsync(
+                    await ActivityRecorder.RecordAsync(
+                _contextFactory,
                         userId, familyId,
                         ActivityType.AutomationExecute,
                         automation.Id,

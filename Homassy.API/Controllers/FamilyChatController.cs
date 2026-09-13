@@ -1,7 +1,7 @@
 using Asp.Versioning;
-using Homassy.API.Enums;
+using Homassy.Data.Enums;
 using Homassy.API.Functions;
-using Homassy.API.Models.Common;
+using Homassy.Data.Models.Common;
 using Homassy.API.Extensions;
 using Homassy.API.Models.FamilyChat;
 using Microsoft.AspNetCore.Authorization;

@@ -1,5 +1,5 @@
-using Homassy.API.Enums;
-using Homassy.API.Models.Notification;
+using Homassy.Data.Enums;
+using Homassy.Data.Models.Notification;
 using System.Globalization;
 
 namespace Homassy.Notifications.Services;

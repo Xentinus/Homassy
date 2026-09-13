@@ -1,5 +1,4 @@
-﻿using Homassy.API.Context;
-using Homassy.API.Extensions;
+using Homassy.Notifications.Configuration;
 using Homassy.Notifications.Endpoints;
 using Homassy.Notifications.HealthChecks;
 using Homassy.Notifications.Middleware;
@@ -8,6 +7,8 @@ using Homassy.Notifications.Workers;
 using Microsoft.AspNetCore.Diagnostics.HealthChecks;
 using Microsoft.EntityFrameworkCore;
 using Serilog;
+using Homassy.Data.Context;
+using Homassy.Data.Extensions;
 
 Log.Logger = new LoggerConfiguration()
     .UseHomassyMinimumLevels()
@@ -33,6 +34,15 @@ try
 
     builder.Services.AddDbContextFactory<HomassyDbContext>(configureDbContext);
     builder.Services.AddDbContext<HomassyDbContext>(configureDbContext, optionsLifetime: ServiceLifetime.Singleton);
+
+    // Worker cadence (#95). ValidateOnStart, so a zero or negative interval stops the container
+    // here rather than producing a worker that spins on an empty table until somebody notices the
+    // CPU graph. Every default matches the value that used to be compiled into the worker.
+    builder.Services
+        .AddOptions<NotificationWorkerSettings>()
+        .Bind(builder.Configuration.GetSection(NotificationWorkerSettings.SectionName))
+        .ValidateDataAnnotations()
+        .ValidateOnStart();
 
     // Services
     builder.Services.AddSingleton<IWebPushService, WebPushService>();

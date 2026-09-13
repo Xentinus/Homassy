@@ -1,8 +1,8 @@
-using Homassy.API.Context;
-using Homassy.API.Entities.Family;
+using Homassy.Data.Entities.Family;
 using Homassy.API.Functions;
 using Homassy.API.Security;
 using Homassy.Tests.Infrastructure;
+using Homassy.Data.Context;
 
 namespace Homassy.Tests.Unit;
 
@@ -52,7 +52,7 @@ public class ExternalCalendarSyncGuardTests
         using var context = CreateContext();
         var calendar = CalendarWith(url);
 
-        await ExternalCalendarFunctions.SyncCalendarAsync(calendar, context, httpClient, CancellationToken.None);
+        await ExternalCalendarFunctions.SyncCalendarAsync(calendar, httpClient, CancellationToken.None);
 
         Assert.False(handler.WasCalled);
         Assert.NotNull(calendar.LastSyncError);
@@ -71,7 +71,7 @@ public class ExternalCalendarSyncGuardTests
         // to exercise the DNS re-check rather than the syntactic one.
         var calendar = CalendarWith("https://localhost.localdomain/feed.ics");
 
-        await ExternalCalendarFunctions.SyncCalendarAsync(calendar, context, httpClient, CancellationToken.None);
+        await ExternalCalendarFunctions.SyncCalendarAsync(calendar, httpClient, CancellationToken.None);
 
         Assert.False(handler.WasCalled);
         Assert.NotNull(calendar.LastSyncError);

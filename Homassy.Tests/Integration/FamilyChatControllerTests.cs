@@ -1,8 +1,8 @@
 using System.Net;
 using System.Net.Http.Json;
-using Homassy.API.Models.Common;
+using Homassy.Data.Models.Common;
 using Homassy.API.Models.Family;
-using Homassy.API.Enums;
+using Homassy.Data.Enums;
 using Homassy.API.Models.FamilyChat;
 using Homassy.API.Models.Product;
 using Homassy.Tests.Infrastructure;
@@ -769,7 +769,7 @@ public class FamilyChatControllerTests : IClassFixture<HomassyWebApplicationFact
     {
         var response = await _client.PostAsJsonAsync(
             "/api/v1.0/product",
-            new CreateProductRequest { Name = name, Brand = "Test", Unit = Homassy.API.Enums.Unit.Piece });
+            new CreateProductRequest { Name = name, Brand = "Test", Unit = Homassy.Data.Enums.Unit.Piece });
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
 

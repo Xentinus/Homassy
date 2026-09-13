@@ -1,21 +1,20 @@
-﻿using Homassy.API.Enums;
+﻿using Homassy.Data.Enums;
 using Homassy.API.Functions;
-using Homassy.API.Models.Kratos;
+using Homassy.Data.Context;
+using Homassy.Data.Models.Kratos;
 
 namespace Homassy.API.Context
 {
     public static class SessionInfo
     {
         private static readonly AsyncLocal<string?> _kratosIdentityId = new();
-        private static readonly AsyncLocal<Guid?> _publicId = new();
-        private static readonly AsyncLocal<int?> _userId = new();
-        private static readonly AsyncLocal<int?> _familyId = new();
+        private static readonly AsyncLocal<Guid?> _publicId = new();        private static readonly AsyncLocal<int?> _familyId = new();
         private static readonly AsyncLocal<Language?> _language = new();
         private static readonly AsyncLocal<KratosSession?> _kratosSession = new();
 
         public static string? GetKratosIdentityId() => _kratosIdentityId.Value;
         public static Guid? GetPublicId() => _publicId.Value;
-        public static int? GetUserId() => _userId.Value;
+        public static int? GetUserId() => AuditUser.UserId;
         public static int? GetFamilyId() => _familyId.Value;
         public static Language GetLanguage() => _language.Value ?? Language.English;
         public static KratosSession? GetKratosSession() => _kratosSession.Value;
@@ -38,7 +37,7 @@ namespace Homassy.API.Context
 
             if (user != null)
             {
-                _userId.Value = user.Id;
+                AuditUser.UserId = user.Id;
                 _publicId.Value = user.PublicId;
                 _familyId.Value = user.FamilyId ?? session.Identity.Traits.FamilyId;
 
@@ -49,7 +48,7 @@ namespace Homassy.API.Context
             else
             {
                 // User doesn't exist locally yet - use data from Kratos traits
-                _userId.Value = null;
+                AuditUser.UserId = null;
                 _publicId.Value = null;
                 _familyId.Value = session.Identity.Traits.FamilyId;
                 _language.Value = ParseLanguage(session.Identity.Traits.DefaultLanguage);
@@ -63,7 +62,7 @@ namespace Homassy.API.Context
         public static void SetUser(Guid? publicId, UserFunctions userFunctions, int? familyId = null)
         {
             var user = userFunctions.GetUserByPublicId(publicId);
-            _userId.Value = user?.Id;
+            AuditUser.UserId = user?.Id;
             _publicId.Value = publicId ?? user?.PublicId;
             _familyId.Value = familyId ?? user?.FamilyId;
 
@@ -84,7 +83,7 @@ namespace Homassy.API.Context
             _kratosIdentityId.Value = null;
             _kratosSession.Value = null;
             _publicId.Value = null;
-            _userId.Value = null;
+            AuditUser.UserId = null;
             _familyId.Value = null;
             _language.Value = null;
         }

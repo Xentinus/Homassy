@@ -1,5 +1,5 @@
 using Homassy.API.Functions;
-using ProductUnit = Homassy.API.Enums.Unit;
+using ProductUnit = Homassy.Data.Enums.Unit;
 
 namespace Homassy.Tests.Unit;
 

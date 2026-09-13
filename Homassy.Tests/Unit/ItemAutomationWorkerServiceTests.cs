@@ -1,11 +1,13 @@
 ﻿extern alias NotificationsProject;
-using Homassy.API.Context;
-using Homassy.API.Entities.User;
-using Homassy.API.Enums;
+using Homassy.Data.Entities.User;
+using Homassy.Data.Enums;
 using NotificationsProject::Homassy.Notifications.Services;
 using NotificationsProject::Homassy.Notifications.Workers;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Options;
+using NotificationsProject::Homassy.Notifications.Configuration;
+using Homassy.Data.Context;
 
 namespace Homassy.Tests.Unit;
 
@@ -266,7 +268,8 @@ public class ItemAutomationWorkerServiceTests
             new ItemAutomationWorkerService(
                 new NoOpServiceScopeFactory(),
                 new FamilyPushNotifier(new NoOpWebPushService()),
-                new NoOpDbContextFactory()));
+                new NoOpDbContextFactory(),
+                Options.Create(new NotificationWorkerSettings())));
 
         Assert.Null(exception);
     }
@@ -277,7 +280,8 @@ public class ItemAutomationWorkerServiceTests
         var service = new ItemAutomationWorkerService(
             new NoOpServiceScopeFactory(),
             new FamilyPushNotifier(new NoOpWebPushService()),
-            new NoOpDbContextFactory());
+            new NoOpDbContextFactory(),
+            Options.Create(new NotificationWorkerSettings()));
 
         using var cts = new CancellationTokenSource();
 

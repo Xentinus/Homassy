@@ -1,11 +1,11 @@
 using System.Net;
 using System.Net.Http.Json;
-using Homassy.API.Entities.Activity;
-using Homassy.API.Entities.Family;
-using Homassy.API.Enums;
+using Homassy.Data.Entities.Activity;
+using Homassy.Data.Entities.Family;
+using Homassy.Data.Enums;
 using Homassy.API.Functions;
-using Homassy.API.Models.Activity;
-using Homassy.API.Models.Common;
+using Homassy.Data.Models.Activity;
+using Homassy.Data.Models.Common;
 using Homassy.API.Models.User;
 using Homassy.API.Models.ImageUpload;
 using Homassy.Tests.Infrastructure;

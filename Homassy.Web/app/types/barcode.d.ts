@@ -7,6 +7,9 @@
  * as a bare global. That keeps the feature check (`if (window.BarcodeDetector)`)
  * type-safe instead of an `any` cast, and avoids the `declare var` a global
  * would need.
+ *
+ * The polyfill path is the one that loads a WebAssembly module. It is served from this
+ * origin rather than jsDelivr -- see `app/utils/zxingWasm.ts` (#164).
  */
 
 interface DetectedBarcode {

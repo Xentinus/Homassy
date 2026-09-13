@@ -1,8 +1,10 @@
-using Homassy.API.Context;
-using Homassy.API.Enums;
+using Homassy.Data.Enums;
 using Homassy.Notifications.Services;
 using Microsoft.EntityFrameworkCore;
 using Serilog;
+using Homassy.Data.Context;
+using Homassy.Notifications.Configuration;
+using Microsoft.Extensions.Options;
 
 namespace Homassy.Notifications.Workers;
 
@@ -15,45 +17,24 @@ namespace Homassy.Notifications.Workers;
 /// Join requests are time-sensitive, so this worker polls more frequently than the activity
 /// aggregation monitors.
 /// </summary>
-public sealed class FamilyJoinRequestMonitorService : BackgroundService
+public sealed class FamilyJoinRequestMonitorService : PeriodicWorkerService
 {
     private readonly IServiceScopeFactory _scopeFactory;
     private readonly FamilyPushNotifier _notifier;
-    private readonly TimeSpan _interval = TimeSpan.FromMinutes(1);
     private DateTime _lastRun;
 
-    public FamilyJoinRequestMonitorService(IServiceScopeFactory scopeFactory, FamilyPushNotifier notifier)
+    public FamilyJoinRequestMonitorService(IServiceScopeFactory scopeFactory, FamilyPushNotifier notifier, IOptions<NotificationWorkerSettings> workerSettings)
+        : base(workerSettings.Value.FamilyJoinRequestMonitor)
     {
         _scopeFactory = scopeFactory;
         _notifier = notifier;
         _lastRun = DateTime.UtcNow;
     }
 
-    protected override async Task ExecuteAsync(CancellationToken stoppingToken)
-    {
-        Log.Information("Family join request monitor service started");
+    protected override string WorkerName => "Family join request monitor service";
 
-        while (!stoppingToken.IsCancellationRequested)
-        {
-            try
-            {
-                await Task.Delay(_interval, stoppingToken);
-                await ProcessAsync(stoppingToken);
-            }
-            catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested)
-            {
-                break;
-            }
-            catch (Exception ex)
-            {
-                Log.Error(ex, "Error in family join request monitor service");
-                try { await Task.Delay(TimeSpan.FromMinutes(1), stoppingToken); }
-                catch (OperationCanceledException) { break; }
-            }
-        }
-
-        Log.Information("Family join request monitor service stopped");
-    }
+    protected override Task DoWorkAsync(CancellationToken cancellationToken)
+        => ProcessAsync(cancellationToken);
 
     private async Task ProcessAsync(CancellationToken cancellationToken)
     {

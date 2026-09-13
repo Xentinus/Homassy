@@ -1,11 +1,13 @@
 using Homassy.API.Constants;
 using Homassy.API.Context;
-using Homassy.API.Entities.Family;
-using Homassy.API.Enums;
-using Homassy.API.Exceptions;
+using Homassy.Data.Entities.Family;
+using Homassy.Data.Enums;
+using Homassy.Data.Exceptions;
 using Homassy.API.Models.Family;
 using Microsoft.EntityFrameworkCore;
 using Serilog;
+using Homassy.Data.Context;
+using Homassy.Data.Functions;
 
 namespace Homassy.API.Functions
 {
@@ -19,10 +21,14 @@ namespace Homassy.API.Functions
         /// Creates a pending request for the current user to join the family identified by the share code.
         /// </summary>
         private readonly IDbContextFactory<HomassyDbContext> _contextFactory;
+        private readonly UserFunctions _userFunctions;
+        private readonly FamilyCache _familyCache;
 
-        public FamilyJoinRequestFunctions(IDbContextFactory<HomassyDbContext> contextFactory)
+        public FamilyJoinRequestFunctions(IDbContextFactory<HomassyDbContext> contextFactory, UserFunctions userFunctions, FamilyCache familyCache)
         {
             _contextFactory = contextFactory;
+            _userFunctions = userFunctions;
+            _familyCache = familyCache;
         }
 
         public async Task<MyJoinRequestResponse> CreateJoinRequestAsync(JoinFamilyRequest request, CancellationToken cancellationToken = default)
@@ -34,7 +40,7 @@ namespace Homassy.API.Functions
                 throw new UnauthorizedException("Invalid authentication", ErrorCodes.AuthUnauthorized);
             }
 
-            var user = new UserFunctions(_contextFactory).GetUserById(userId.Value);
+            var user = _userFunctions.GetUserById(userId.Value);
             if (user == null)
             {
                 Log.Warning($"User not found for userId {userId.Value}");
@@ -51,7 +57,7 @@ namespace Homassy.API.Functions
                 throw new BadRequestException("Share code is required", ErrorCodes.ValidationShareCodeRequired);
             }
 
-            var family = new FamilyFunctions(_contextFactory).GetFamilyByShareCode(request.ShareCode);
+            var family = _familyCache.GetFamilyByShareCode(request.ShareCode);
             if (family == null)
             {
                 throw new FamilyNotFoundException("Family not found with the provided share code", ErrorCodes.FamilyInvalidShareCode);
@@ -125,7 +131,7 @@ namespace Homassy.API.Functions
                 return null;
             }
 
-            var family = new FamilyFunctions(_contextFactory).GetFamilyById(request.FamilyId);
+            var family = _familyCache.GetFamilyById(request.FamilyId);
 
             return new MyJoinRequestResponse
             {
@@ -185,7 +191,7 @@ namespace Homassy.API.Functions
                 throw new UnauthorizedException("Invalid authentication", ErrorCodes.AuthUnauthorized);
             }
 
-            var user = new UserFunctions(_contextFactory).GetUserById(userId.Value);
+            var user = _userFunctions.GetUserById(userId.Value);
             if (user == null || !user.FamilyId.HasValue)
             {
                 throw new FamilyNotFoundException("You are not a member of any family", ErrorCodes.FamilyNotMember);
@@ -323,7 +329,7 @@ namespace Homassy.API.Functions
                 throw new UnauthorizedException("Invalid authentication", ErrorCodes.AuthUnauthorized);
             }
 
-            var approver = new UserFunctions(_contextFactory).GetUserById(userId.Value);
+            var approver = _userFunctions.GetUserById(userId.Value);
             if (approver == null || !approver.FamilyId.HasValue)
             {
                 throw new FamilyNotFoundException("You are not a member of any family", ErrorCodes.FamilyNotMember);
@@ -374,7 +380,8 @@ namespace Homassy.API.Functions
         {
             try
             {
-                await new ActivityFunctions(_contextFactory).RecordActivityAsync(
+                await ActivityRecorder.RecordAsync(
+                    _contextFactory,
                     userId, familyId, activityType, recordId, recordName, null, null, cancellationToken);
             }
             catch (Exception ex)

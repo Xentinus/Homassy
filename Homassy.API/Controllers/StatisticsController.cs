@@ -1,5 +1,5 @@
 ﻿using Asp.Versioning;
-using Homassy.API.Models.Common;
+using Homassy.Data.Models.Common;
 using Homassy.API.Models.Statistics;
 using Homassy.API.Services;
 using Microsoft.AspNetCore.Authorization;

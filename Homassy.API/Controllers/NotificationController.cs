@@ -1,10 +1,11 @@
 using Asp.Versioning;
-using Homassy.API.Enums;
+using Homassy.Data.Enums;
 using Homassy.API.Functions;
-using Homassy.API.Models.Common;
-using Homassy.API.Models.Notification;
+using Homassy.Data.Models.Common;
+using Homassy.Data.Models.Notification;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Homassy.Data.Functions;
 
 namespace Homassy.API.Controllers;
 

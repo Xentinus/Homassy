@@ -10,6 +10,9 @@ appsettings.*.json
 !appsettings.example.json
 !appsettings.Testing.example.json
 !appsettings.Production.json
+# Homassy.Notifications has no secrets in its appsettings.json - it is the worker cadence (#95),
+# and every deployment needs the same defaults, so it is tracked.
+!Homassy.Notifications/appsettings.json
 
 # Skill documentation (local development)
 .github/skills/
@@ -825,7 +828,6 @@ $RECYCLE.BIN/
 # Additional files built by Visual Studio
 
 # End of https://www.toptal.com/developers/gitignore/api/visualstudio,visualstudiocode,csharp,vue,vuejs,macos,linux,windows,aspnetcore,dotnetcore
-appsettings.json
 /Tasks
 /node_modules
 

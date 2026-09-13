@@ -1,11 +1,11 @@
-using Homassy.API.Context;
-using Homassy.API.Enums;
+using Homassy.Data.Enums;
 using Homassy.API.Services;
 using Homassy.API.Services.Background;
 using Homassy.Tests.Infrastructure;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Homassy.Data.Context;
 
 namespace Homassy.Tests.Unit;
 
@@ -35,7 +35,7 @@ public class LastSeenFlushServiceTests
     {
         using var context = TestConfiguration.DbContextFactory.CreateDbContext();
 
-        var user = new Homassy.API.Entities.User.User
+        var user = new Homassy.Data.Entities.User.User
         {
             Email = $"{namePrefix}-{Guid.NewGuid():N}@test.homassy.local",
             Name = $"{namePrefix} User",
@@ -47,7 +47,7 @@ public class LastSeenFlushServiceTests
         context.Users.Add(user);
         await context.SaveChangesAsync();
 
-        var profile = new Homassy.API.Entities.User.UserProfile
+        var profile = new Homassy.Data.Entities.User.UserProfile
         {
             UserId = user.Id,
             DisplayName = $"{namePrefix} User",

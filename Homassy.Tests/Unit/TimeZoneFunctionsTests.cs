@@ -1,4 +1,4 @@
-using Homassy.API.Enums;
+using Homassy.Data.Enums;
 using Homassy.API.Functions;
 
 namespace Homassy.Tests.Unit;

@@ -1,3 +1,4 @@
+using Homassy.API.Functions;
 using Homassy.API.Models.ApplicationSettings;
 using Homassy.API.Services;
 using Homassy.Tests.Infrastructure;
@@ -87,5 +88,40 @@ public class HostWiringTests : IClassFixture<HomassyWebApplicationFactory>
     {
         Assert.NotEmpty(_factory.Services.GetServices<IValidateOptions<RateLimitSettings>>());
         Assert.NotNull(_factory.Services.GetService<IStartupValidator>());
+    }
+
+    /// <summary>
+    /// Every class in the Functions layer resolves from a request scope.
+    /// </summary>
+    /// <remarks>
+    /// The layer used to construct itself with <c>new</c>, which meant a missing registration or a
+    /// constructor cycle was invisible until the endpoint that needed it was called - and a cycle
+    /// is not a compile error, it is a stack overflow at runtime. Now that the classes take each
+    /// other through their constructors (#133), resolving all of them from one scope is what says
+    /// the graph is both complete and acyclic. A new dependency that closes a cycle fails here
+    /// rather than in production.
+    /// </remarks>
+    [Fact]
+    public void EveryFunctionsClass_ResolvesFromARequestScope()
+    {
+        var types = typeof(UserFunctions).Assembly
+            .GetTypes()
+            .Where(t => t.IsClass && !t.IsAbstract && t.Namespace == typeof(UserFunctions).Namespace)
+            .Where(t => t.Name.EndsWith("Functions", StringComparison.Ordinal) || t.Name == nameof(FamilyCache))
+            // A class with only static members (UnitFunctions) is not a service and is not
+            // registered; what this is about is the classes that take dependencies.
+            .Where(t => t.GetConstructors().Any(c => c.GetParameters().Length > 0))
+            .OrderBy(t => t.Name)
+            .ToList();
+
+        Assert.NotEmpty(types);
+
+        using var scope = _factory.Services.CreateScope();
+
+        foreach (var type in types)
+        {
+            var resolved = Record.Exception(() => scope.ServiceProvider.GetRequiredService(type));
+            Assert.True(resolved is null, $"{type.Name} did not resolve: {resolved?.Message}");
+        }
     }
 }

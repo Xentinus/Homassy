@@ -28,7 +28,6 @@ Homassy.Web is the **frontend application** of the Homassy platform. It is a **N
 | Auth | @ory/client 1.22.23 |
 | i18n | @nuxtjs/i18n 10.2.1 |
 | PWA | @vite-pwa/nuxt 1.1.0 |
-| API proxy | nuxt-api-party 3.4.2 |
 | Realtime | @microsoft/signalr 10.0.0 |
 | Image | @nuxt/image 2.0.0, browser-image-compression 2.0.2 |
 | Icons | @iconify-json/heroicons, @iconify-json/lucide |
@@ -38,6 +37,7 @@ Homassy.Web is the **frontend application** of the Homassy platform. It is a **N
 | Maps | maplibre-gl 6.9.0 (lazily imported — see Maps) |
 | WebAuthn | @simplewebauthn/browser 13.2.2 |
 | Date | @internationalized/date 3.10.1 |
+| Validation | zod 3.25.76 (form schemas; a direct dependency since #88 — it used to arrive only through @nuxt/content) |
 | Linting | @nuxt/eslint 1.12.1, eslint 9.39.2 |
 | Node runtime | Node.js 22 (Alpine Docker) |
 
@@ -667,19 +667,33 @@ with it:
   `https://*.basemaps.cartocdn.com` (MapLibre basemap tiles — in **both** `img-src` and
   `connect-src`, because MapLibre pulls raster tiles with `fetch()` rather than `<img>` while
   the source refreshes expired tiles), `https://nominatim.openstreetmap.org` (`useGeocoding`),
-  `https://fastly.jsdelivr.net` (see below), `wss://<the request host>` (SignalR hubs),
+  `wss://<the request host>` (SignalR hubs),
   `data:`/`blob:` (base64 and object-URL images) and `blob:` in `worker-src` (MapLibre's tile
   worker). Anything else the app starts fetching at runtime is blocked until the Caddyfile says
   so. Check the browser console on the barcode scanner, calendar, shopping list, store map and
   profile pages after touching any of it.
 
-**The zxing-wasm CDN fetch is worth removing.** On a browser with no native `BarcodeDetector`
-(Safari, desktop Firefox) `vue-qrcode-reader` falls back to `zxing-wasm`, which locates its
-`.wasm` at `https://fastly.jsdelivr.net/npm/zxing-wasm@<version>/dist/...` unless
-`setZXingModuleOverrides` says otherwise. That is why `connect-src` allows jsDelivr and why
-`script-src` carries `'wasm-unsafe-eval'` (which permits WebAssembly compilation only — it does
-not bring back `eval`). Self-hosting the binary under `public/` and pointing the override at it
-would let the jsDelivr entry go; until then an unpinned third-party binary runs in this origin.
+**The zxing-wasm binary is self-hosted (#164).** On a browser with no native `BarcodeDetector`
+(Safari, desktop Firefox) `vue-qrcode-reader` decodes through `barcode-detector`, which loads
+`zxing-wasm`. Its default `locateFile` returns a hardcoded
+`https://fastly.jsdelivr.net/npm/zxing-wasm@<version>/dist/...`, so the app used to fetch and
+compile an unpinned third-party binary inside its own origin, and scanning broke outright when
+jsDelivr was unreachable — a network dependency nothing else here has.
+
+`nitro.publicAssets` in `nuxt.config.ts` serves `node_modules/zxing-wasm/dist/reader` at
+`/zxing/`, and `app/plugins/qrcode-reader.client.ts` points `setZXingModuleOverrides` at it
+through `app/utils/zxingWasm.ts`. The directory is read out of `node_modules` rather than
+copied into `public/` on purpose: a committed blob would go stale on the next `zxing-wasm`
+bump and the filename carries no version, so nothing would catch it.
+
+Two things follow. `setZXingModuleOverrides` must be imported from `vue-qrcode-reader`, which
+re-exports the `barcode-detector` copy it actually decodes with — importing it from
+`barcode-detector/pure` sets the override on a second copy and changes nothing. And
+`script-src` keeps `'wasm-unsafe-eval'`: that keyword is about compiling WebAssembly at all,
+not about where the bytes came from, so self-hosting only bought the `connect-src` entry.
+
+Chrome takes the native `BarcodeDetector` path and never loads the module, so a change here
+has to be checked on Safari or desktop Firefox to be checked at all.
 
 `/offline` is prerendered, so it cannot carry a per-request nonce and the Caddyfile gives that
 one route a policy with `'unsafe-inline'` instead. Keep it free of user content.

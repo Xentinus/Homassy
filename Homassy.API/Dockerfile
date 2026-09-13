@@ -11,6 +11,7 @@ FROM mcr.microsoft.com/dotnet/sdk:10.0 AS build
 ARG BUILD_CONFIGURATION=Release
 WORKDIR /src
 COPY ["Homassy.API/Homassy.API.csproj", "Homassy.API/"]
+COPY ["Homassy.Data/Homassy.Data.csproj", "Homassy.Data/"]
 RUN dotnet restore "./Homassy.API/Homassy.API.csproj"
 COPY . .
 WORKDIR "/src/Homassy.API"

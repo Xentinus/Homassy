@@ -1,7 +1,7 @@
 using Homassy.API.Context;
 using Homassy.API.Functions;
 using Homassy.API.Middleware;
-using Homassy.API.Models.Kratos;
+using Homassy.Data.Models.Kratos;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.SignalR;
 using Serilog;

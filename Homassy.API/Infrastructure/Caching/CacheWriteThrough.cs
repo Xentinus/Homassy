@@ -203,7 +203,7 @@ namespace Homassy.API.Infrastructure.Caching
 
                 // Read the id off the entity rather than the entry: a deleted entry is detached by
                 // the time the save reports, and its properties are no longer readable through it.
-                if (entry.Entity is not Entities.Common.BaseEntity entity || entity.Id == 0)
+                if (entry.Entity is not Homassy.Data.Entities.Common.BaseEntity entity || entity.Id == 0)
                 {
                     continue;
                 }

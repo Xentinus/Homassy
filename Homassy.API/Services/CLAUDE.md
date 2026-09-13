@@ -96,11 +96,7 @@ Several hosted services run as `IHostedService` / `BackgroundService`:
 - Refreshes the global-statistics cache (`StatisticsService`) once on startup, then nightly at 02:00 UTC
 - Computes platform-wide totals via a scoped `HomassyDbContext`
 
-**5. TokenCleanupService** _(in `Services/Background/`)_
-- Runs periodically to clean up stale data
-- Scoped database access per execution
-
-**6. FamilyChatStateSweepService** _(in `Services/Background/`)_ — #148, #149
+**5. FamilyChatStateSweepService** _(in `Services/Background/`)_ — #148, #149
 - Every 2s, retires expired typing **and watching** flags in `FamilyChatConnectionState` and
   broadcasts the new set to the families whose set actually changed. A tick that finds nothing sends
   nothing
@@ -124,7 +120,6 @@ builder.Services.AddHostedService<RateLimitCleanupService>();
 builder.Services.AddSingleton<StatisticsService>();
 builder.Services.AddHostedService<StatisticsRefreshWorker>();
 builder.Services.AddHostedService<GracefulShutdownService>();
-// TokenCleanupService also registered as a hosted background service
 ```
 
 ### Application Services

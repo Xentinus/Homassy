@@ -1,5 +1,5 @@
-using Homassy.API.Models.Common;
-using Homassy.API.Models.Internal;
+using Homassy.Data.Models.Common;
+using Homassy.Data.Models.Internal;
 
 namespace Homassy.Notifications.Services;
 

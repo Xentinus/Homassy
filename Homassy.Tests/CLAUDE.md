@@ -52,7 +52,6 @@ Homassy.Tests/
 │   ├── HomassyWebApplicationFactory.cs   WebApplicationFactory + MockKratosService
 │   └── TestAuthHelper.cs                 Creates/authenticates test users
 ├── Integration/
-│   ├── AccountLockoutIntegrationTests.cs  Stub (lockout delegated to Kratos)
 │   ├── AuthControllerTests.cs             Auth endpoint tests
 │   ├── FamilyControllerTests.cs           Family CRUD tests
 │   ├── GracefulShutdownTests.cs           Shutdown signal tests
@@ -69,7 +68,6 @@ Homassy.Tests/
 │   ├── ShoppingListControllerTests.cs            Shopping list tests
 │   └── UserControllerTests.cs                    User profile tests
 ├── Unit/
-│   ├── AccountLockoutServiceTests.cs         AccountLockoutService logic
 │   ├── AutomationEmailContentTests.cs        Automation email content (multilingual)
 │   ├── AutomationFunctionsTests.cs           Automation next-execution calculations
 │   ├── AutomationNotificationIntegrationTests.cs  Automation notification wiring
@@ -82,15 +80,14 @@ Homassy.Tests/
 │   ├── ItemAutomationTests.cs                Item automation logic
 │   ├── ItemAutomationWorkerServiceTests.cs   Automation worker execution
 │   ├── OpenFoodFactsHealthCheckTests.cs      OpenFoodFacts health check
+│   ├── PeriodicWorkerServiceTests.cs         The notification workers' shared loop: interval, jitter, backoff
 │   ├── RateLimitServiceTests.cs              Rate limit logic
 │   ├── RateLimitingMiddlewareTests.cs        Rate limiting middleware
-│   ├── RefreshTokenRotationTests.cs          Token cleanup logic
 │   ├── RequestLoggingMiddlewareTests.cs      Request logging middleware
 │   ├── RequestTimeoutMiddlewareTests.cs      Timeout middleware
 │   ├── SanitizedStringAttributeTests.cs      [SanitizedString] attribute
 │   ├── ShoppingListActivityMonitorServiceTests.cs  Activity monitor service
 │   ├── TimeZoneFunctionsTests.cs             Timezone conversion
-│   ├── TokenCleanupServiceTests.cs           Token cleanup service
 │   ├── UnitFunctionsTests.cs                 Measurement unit conversions
 │   ├── UserFunctionsTests.cs                 User business logic
 │   └── ValidBarcodeAttributeTests.cs         [ValidBarcode] attribute
@@ -114,10 +111,10 @@ Test individual classes and methods in isolation. Most do **not** require `Homas
 
 **Coverage includes:**
 - Business logic (`UserFunctions`, `TimeZoneFunctions`, `UnitFunctions`)
-- Services (`AccountLockoutService`, `RateLimitService`, `InputSanitizationService`, `BarcodeValidationService`, `ImageProcessingService`)
+- Services (`RateLimitService`, `InputSanitizationService`, `BarcodeValidationService`, `ImageProcessingService`)
 - Middleware (`GlobalExceptionMiddleware`, `RateLimitingMiddleware`, `CorrelationIdMiddleware`, `RequestLoggingMiddleware`, `RequestTimeoutMiddleware`)
 - Validation attributes (`[SanitizedString]`, `[ValidBarcode]`)
-- Background services (`TokenCleanupService`, `ShoppingListActivityMonitorService`)
+- Background services (`PeriodicWorkerService` - the loop all eight notification workers share - and `ShoppingListActivityMonitorService`)
 - Health checks (`OpenFoodFactsHealthCheck`)
 
 ### Integration Tests (`/Integration`)
@@ -406,12 +403,6 @@ Required structure:
     "EndpointMaxAttempts": "1000000",
     "EndpointWindowMinutes": "1"
   },
-  "Security": {
-    "AccountLockout": {
-      "MaxFailedAttempts": 5,
-      "LockoutDurationMinutes": 15
-    }
-  },
   "RegistrationEnabled": true
 }
 ```
@@ -609,5 +600,4 @@ _output.WriteLine($"User exists: {user != null}");
 
 - **No JWT** – the system uses Kratos session tokens. There are no JWT access tokens, refresh token endpoints, or JWT configuration in tests
 - **MockKratosService** intercepts all `IKratosService` calls – no real Kratos process is needed
-- **`AccountLockoutIntegrationTests`** is a stub – account lockout is delegated to Kratos configuration
 - **Registration via API is not tested** – users are inserted directly into the DB for speed and reliability

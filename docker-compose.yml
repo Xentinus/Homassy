@@ -60,7 +60,7 @@ services:
       # Global internal service-to-service API key (used to authenticate the courier webhook to Homassy.Email)
       - INTERNAL_API_KEY=${INTERNAL_API_KEY}
     volumes:
-      - ./Homassy.Kratos/kratos.yml:/etc/config/kratos/kratos.yml:ro
+      - ./Homassy.Kratos/kratos.development.yml:/etc/config/kratos/kratos.yml:ro
       - ./Homassy.Kratos/identity.schema.json:/etc/config/kratos/identity.schema.json:ro
       - ./Homassy.Kratos/webhook_body.jsonnet:/etc/config/kratos/webhook_body.jsonnet:ro
     entrypoint: /bin/sh
@@ -206,6 +206,12 @@ services:
       - InternalApi__ApiKey=${INTERNAL_API_KEY:-dev-internal-api-key}
       - EmailService__BaseUrl=http://homassy-email:8080
       - HomassyApi__BaseUrl=http://homassy-api:8080
+      # Worker cadence (#95). Every interval and window has a default in
+      # Homassy.Notifications/appsettings.json; set one of these to override it without an image
+      # rebuild. A zero or negative value fails the container on start rather than spinning.
+      #  - NotificationWorkers__ItemAutomationWorker__IntervalSeconds=60
+      #  - NotificationWorkers__FamilyChatNotification__GraceWindowSeconds=15
+      #  - NotificationWorkers__ExternalCalendarReminder__CatchUpWindowMinutes=15
     networks:
       - homassy-network
     depends_on:

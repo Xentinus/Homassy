@@ -1,4 +1,3 @@
-﻿using Homassy.API.Extensions;
 using Homassy.Email.Endpoints;
 using Homassy.Email.HealthChecks;
 using Homassy.Email.Middleware;
@@ -6,6 +5,7 @@ using Homassy.Email.Services;
 using Homassy.Email.Workers;
 using Microsoft.AspNetCore.Diagnostics.HealthChecks;
 using Serilog;
+using Homassy.Data.Extensions;
 
 Log.Logger = new LoggerConfiguration()
     .UseHomassyMinimumLevels()

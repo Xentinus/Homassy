@@ -1,7 +1,7 @@
-using Homassy.API.Context;
 using Homassy.API.Functions;
 using Microsoft.EntityFrameworkCore;
 using Serilog;
+using Homassy.Data.Context;
 
 namespace Homassy.API.Services.Background;
 
@@ -78,7 +78,7 @@ public sealed class ExternalCalendarSyncService : BackgroundService
 
                 try
                 {
-                    await ExternalCalendarFunctions.SyncCalendarAsync(calendar, context, httpClient, ct);
+                    await ExternalCalendarFunctions.SyncCalendarAsync(calendar, httpClient, ct);
                     synced++;
                 }
                 catch (OperationCanceledException)

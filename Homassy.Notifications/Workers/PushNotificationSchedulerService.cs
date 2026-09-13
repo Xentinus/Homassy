@@ -1,51 +1,35 @@
-﻿using Homassy.API.Context;
-using Homassy.API.Entities.User;
-using Homassy.API.Enums;
-using Homassy.API.Extensions;
-using Homassy.API.Functions;
+using Homassy.Data.Entities.User;
+using Homassy.Data.Enums;
+using Homassy.Data.Functions;
 using Homassy.Notifications.Services;
 using Microsoft.EntityFrameworkCore;
 using Serilog;
+using Homassy.Data.Context;
+using Homassy.Data.Extensions;
+using Homassy.Notifications.Configuration;
+using Microsoft.Extensions.Options;
 
 namespace Homassy.Notifications.Workers;
 
-public sealed class PushNotificationSchedulerService : BackgroundService
+public sealed class PushNotificationSchedulerService : PeriodicWorkerService
 {
     private readonly IServiceScopeFactory _scopeFactory;
     private readonly IWebPushService _webPushService;
-    private readonly TimeSpan _interval = TimeSpan.FromHours(1);
 
-    public PushNotificationSchedulerService(IServiceScopeFactory scopeFactory, IWebPushService webPushService)
+    public PushNotificationSchedulerService(IServiceScopeFactory scopeFactory, IWebPushService webPushService, IOptions<NotificationWorkerSettings> workerSettings)
+        : base(workerSettings.Value.PushNotificationScheduler)
     {
         _scopeFactory = scopeFactory;
         _webPushService = webPushService;
     }
 
-    protected override async Task ExecuteAsync(CancellationToken stoppingToken)
-    {
-        Log.Information("Push notification scheduler service started");
+    protected override string WorkerName => "Push notification scheduler service";
 
-        while (!stoppingToken.IsCancellationRequested)
-        {
-            try
-            {
-                await ProcessNotificationsAsync(stoppingToken);
-                await Task.Delay(_interval, stoppingToken);
-            }
-            catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested)
-            {
-                break;
-            }
-            catch (Exception ex)
-            {
-                Log.Error(ex, "Error in push notification scheduler service");
-                try { await Task.Delay(TimeSpan.FromMinutes(5), stoppingToken); }
-                catch (OperationCanceledException) { break; }
-            }
-        }
+    /// <summary>Ran its first cycle at startup before #95, and still does.</summary>
+    protected override bool RunOnStartup => true;
 
-        Log.Information("Push notification scheduler service stopped");
-    }
+    protected override Task DoWorkAsync(CancellationToken cancellationToken)
+        => ProcessNotificationsAsync(cancellationToken);
 
     private async Task ProcessNotificationsAsync(CancellationToken cancellationToken)
     {

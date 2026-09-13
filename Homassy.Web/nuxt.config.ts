@@ -1,4 +1,7 @@
 // https://nuxt.com/docs/api/configuration/nuxt-config
+import { createResolver } from '@nuxt/kit'
+
+const { resolve: resolveFromHere } = createResolver(import.meta.url)
 
 /**
  * The build-time environment, for the `process.env` reads further down.
@@ -67,7 +70,6 @@ export default defineNuxtConfig({
   },
 
   modules: [
-    '@nuxt/content',
     '@nuxt/eslint',
     // Listed explicitly even though @nuxt/ui registers it internally: this pins
     // the version the font config below is written against, and makes Nuxt UI's
@@ -82,10 +84,8 @@ export default defineNuxtConfig({
     // duplicate's own dependency subtree is what desynchronised the lockfile.
     '@nuxt/fonts',
     '@nuxt/image',
-    '@nuxt/scripts',
     '@nuxt/ui',
     '@pinia/nuxt',
-    'nuxt-api-party',
     '@nuxtjs/i18n',
     '@vite-pwa/nuxt'
   ],
@@ -421,7 +421,32 @@ export default defineNuxtConfig({
       routes: ['/offline']
     },
 
-    // Reduce Nitro build memory
+    // The zxing-wasm binary, served from this origin instead of jsDelivr (#164). On a
+    // browser with no native BarcodeDetector -- Safari, which is most of the installed
+    // base, and desktop Firefox -- vue-qrcode-reader falls back to barcode-detector,
+    // whose default locateFile points at a hardcoded
+    // https://fastly.jsdelivr.net/npm/zxing-wasm@<version>/dist/... path.
+    // app/plugins/qrcode-reader.client.ts overrides that to /zxing/, which is this.
+    //
+    // The directory is read out of node_modules at build time rather than copied into
+    // public/: a committed blob would go stale the moment zxing-wasm is bumped, and the
+    // filename carries no version, so nothing would catch it. Nitro serves it in dev and
+    // copies it into .output/public on build. It is immutable for a year because a new
+    // zxing-wasm ships a different binary through a different package version, and the
+    // service worker has no chance to precache 950 kB it may never need.
+    publicAssets: [
+      {
+        baseURL: 'zxing',
+        dir: resolveFromHere('./node_modules/zxing-wasm/dist/reader'),
+        maxAge: 60 * 60 * 24 * 365
+      }
+    ],
+
+    // Reduce Nitro build memory. Kept deliberately: with the three unused modules gone
+    // (#88) the no-cache build of the `build` target is 105s against 132s before, and
+    // removing both maxParallelFileOps overrides on top of that measured 104s — inside
+    // the noise. They cost no time, and they are the only thing holding the peak down on
+    // a runner with less memory than a dev machine, so the trade is still worth taking.
     minify: true,
     sourceMap: false,
     rollupConfig: {
@@ -452,17 +477,6 @@ export default defineNuxtConfig({
     // container by its IP; its host-side port binding is loopback-only instead.
     host: process.env.NUXT_DEV_HOST || '127.0.0.1',
     port: 3000
-  },
-
-  apiParty: {
-    endpoints: {
-      homassyApi: {
-        url: process.env.NUXT_PUBLIC_API_BASE || 'http://localhost:5226',
-        headers: {
-          'Content-Type': 'application/json'
-        }
-      }
-    }
   },
 
   i18n: {

@@ -40,9 +40,8 @@ Homassy.API does **not** handle authentication logic directly – it delegates e
 
 | File | Purpose |
 |------|---------|
-| `kratos.yml` | Base configuration (development defaults) |
-| `kratos.development.yml` | Development environment overrides (longer lifespans, verbose logging) |
-| `kratos.production.yml` | Complete production configuration with production URLs |
+| `kratos.development.yml` | Complete development configuration, mounted at `/etc/config/kratos/kratos.yml` by `docker-compose.yml` |
+| `kratos.production.yml` | Complete production configuration, mounted at the same in-container path by `docker-compose.production.yml` |
 | `identity.schema.json` | JSON Schema defining the Homassy identity (user traits) |
 | `webhook_body.jsonnet` | Jsonnet template transforming Kratos courier data → Homassy.Email request |
 | `init-kratos-schema.sql` | SQL to create the isolated `kratos` PostgreSQL schema |
@@ -121,10 +120,10 @@ methods:
     passwordless_enabled: true
     enabled: true
     config:
-      lifespan: 15m   # 30m in development
+      lifespan: 15m
 ```
 
-- Code lifespan: **15 minutes** (production), **30 minutes** (development)
+- Code lifespan: **15 minutes** in both environments
 - Used for: login, registration, recovery, verification
 
 ### WebAuthn (Passkey / Passwordless)
@@ -152,11 +151,11 @@ methods:
 
 | Flow | Development | Production |
 |------|-------------|------------|
-| Login | 30m | 10m |
-| Registration | 30m | 10m |
-| Recovery | 2h | 1h |
-| Verification | 2h | 1h |
-| Settings (privileged) | – | 15m |
+| Login | 10m | 10m |
+| Registration | 10m | 10m |
+| Recovery | 1h | 1h |
+| Verification | 1h | 1h |
+| Settings (privileged) | 15m | 15m |
 
 ### UI URLs (`/auth/*` on the frontend)
 
@@ -184,7 +183,7 @@ methods:
 
 ```yaml
 session:
-  lifespan: 720h      # 30 days (production), 168h / 7 days (development)
+  lifespan: 720h      # 30 days, in both environments
   cookie:
     name: ory_kratos_session
     persistent: true
@@ -198,7 +197,7 @@ cookies:
 
 **Key details:**
 - Session cookie name: `ory_kratos_session`
-- Sessions last **30 days** in production (720 hours)
+- Sessions last **30 days** (720 hours)
 - Production cookie domain is the exact public host `homassy.kellner.dev` (no leading dot — everything is served from one domain behind the Caddy reverse proxy)
 - `SameSite: Lax` – cookie sent on top-level navigations, not cross-site POST
 - Homassy.API also accepts sessions via `X-Session-Token` header (for API/mobile clients)
@@ -418,25 +417,24 @@ Used internally by Kratos for credential data. Production uses stronger paramete
 
 ## Config Files
 
-### `kratos.yml` – Base (Development Defaults)
+There is **one complete config file per environment**, and neither is merged with the other.
+Kratos is started with exactly one `-c`, so a partial "overrides" file would never be read:
+`docker-compose.yml` mounts `kratos.development.yml` and `docker-compose.production.yml` mounts
+`kratos.production.yml`, both at `/etc/config/kratos/kratos.yml` inside the container. That
+in-container name is why the `sed` that substitutes `REPLACE_INTERNAL_API_KEY` is identical in
+both compose files, and it is the reason the deploy no longer renames anything on the VPS.
 
-The primary config file used in development. Contains:
+### `kratos.development.yml` – Development Config
+
+The config used in development. Contains:
 - Development URLs (`localhost:3000`, `localhost:4433`, `localhost:4434`)
-- Debug-level logging with `leak_sensitive_values: false`
-- Default lifespans (15m codes, 720h sessions, 10m flows)
+- Debug-level logging in JSON with `leak_sensitive_values: false`
+- Lifespans: 15m codes, 720h sessions, 10m login/registration flows, 1h recovery/verification
 - Courier HTTP webhook to `http://homassy-email:8080/kratos/webhook`
-
-### `kratos.development.yml` – Development Overrides
-
-Merged on top of `kratos.yml` for development. Overrides:
-- Log level: `debug`, format: `text`, `leak_sensitive_values: true`
-- Longer flow lifespans: login/registration 30m, recovery/verification 2h
-- Code lifespan: 30m
-- Session lifespan: 168h (7 days)
 
 ### `kratos.production.yml` – Production Config
 
-A complete standalone production config (not merged with `kratos.yml`). Key differences:
+A complete standalone production config. Key differences:
 - Production URLs — everything on one domain: UI at `https://homassy.kellner.dev`, Kratos public API at `https://homassy.kellner.dev/kratos` (the Caddy reverse proxy in `Homassy.Proxy/Caddyfile` strips the `/kratos` prefix before forwarding to port 4433)
 - Log level: `warning`, format: `json`
 - Cookie domain: `homassy.kellner.dev` (exact host, no leading dot)
@@ -504,11 +502,12 @@ Kratos Courier
 | Frontend URL | `http://localhost:3000` | `https://homassy.kellner.dev` |
 | WebAuthn RP ID | `localhost` | `kellner.dev` |
 | Cookie domain | `localhost` | `homassy.kellner.dev` |
-| Log level | `debug` (text) | `warning` (json) |
-| Leak sensitive values | `true` | `false` |
-| Session lifespan | 168h (7 days) | 720h (30 days) |
-| Code lifespan | 30m | 15m |
-| Login / Registration flow | 30m | 10m |
-| Recovery / Verification flow | 2h | 1h |
+| Config file | `kratos.development.yml` | `kratos.production.yml` |
+| Log level | `debug` (json) | `warning` (json) |
+| Leak sensitive values | `false` | `false` |
+| Session lifespan | 720h (30 days) | 720h (30 days) |
+| Code lifespan | 15m | 15m |
+| Login / Registration flow | 10m | 10m |
+| Recovery / Verification flow | 1h | 1h |
 | Argon2 memory | 128 MB | 256 MB |
 | Argon2 key length | 16 | 32 |

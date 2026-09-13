@@ -1,6 +1,6 @@
-﻿using Homassy.API.Context;
 using Homassy.Notifications.Models;
 using Microsoft.EntityFrameworkCore;
+using Homassy.Data.Context;
 
 namespace Homassy.Notifications.Services;
 

@@ -1,6 +1,6 @@
-using Homassy.API.Context;
 using Homassy.Tests.Infrastructure;
 using Microsoft.EntityFrameworkCore;
+using Homassy.Data.Context;
 
 namespace Homassy.Tests.Unit;
 

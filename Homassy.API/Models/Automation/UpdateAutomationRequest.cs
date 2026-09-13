@@ -1,4 +1,4 @@
-﻿using Homassy.API.Enums;
+﻿using Homassy.Data.Enums;
 using System.ComponentModel.DataAnnotations;
 
 namespace Homassy.API.Models.Automation

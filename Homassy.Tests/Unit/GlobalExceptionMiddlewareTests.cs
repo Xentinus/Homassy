@@ -1,7 +1,7 @@
-using Homassy.API.Enums;
-using Homassy.API.Exceptions;
+using Homassy.Data.Enums;
+using Homassy.Data.Exceptions;
 using Homassy.API.Middleware;
-using Homassy.API.Models.Common;
+using Homassy.Data.Models.Common;
 using Microsoft.AspNetCore.Http;
 using System.Text.Json;
 

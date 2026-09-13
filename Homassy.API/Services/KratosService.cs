@@ -1,4 +1,4 @@
-﻿using Homassy.API.Models.Kratos;
+﻿using Homassy.Data.Models.Kratos;
 using Serilog;
 using System.Net.Http.Headers;
 using System.Text.Json;

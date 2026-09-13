@@ -1,9 +1,9 @@
 using System.Net;
 using System.Net.Http.Json;
 using Homassy.API.Constants;
-using Homassy.API.Entities.Activity;
-using Homassy.API.Enums;
-using Homassy.API.Models.Common;
+using Homassy.Data.Entities.Activity;
+using Homassy.Data.Enums;
+using Homassy.Data.Models.Common;
 using Homassy.API.Models.Insights;
 using Homassy.Tests.Infrastructure;
 using Microsoft.EntityFrameworkCore;
@@ -88,7 +88,7 @@ public class BadgeTests : IClassFixture<HomassyWebApplicationFactory>
         var (scope, context) = _factory.CreateScopedDbContext();
         await using var _ = scope as IAsyncDisposable;
 
-        context.UserBadges.Add(new Homassy.API.Entities.User.UserBadge
+        context.UserBadges.Add(new Homassy.Data.Entities.User.UserBadge
         {
             UserId = userId,
             BadgeId = badgeId,

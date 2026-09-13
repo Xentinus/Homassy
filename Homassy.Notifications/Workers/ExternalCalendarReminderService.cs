@@ -1,13 +1,15 @@
-using Homassy.API.Context;
-using Homassy.API.Entities.Family;
-using Homassy.API.Enums;
-using Homassy.API.Extensions;
-using Homassy.API.Functions;
-using Homassy.API.Models.ExternalCalendar;
+using Homassy.Data.Entities.Family;
+using Homassy.Data.Enums;
+using Homassy.Data.Functions;
+using Homassy.Data.Models.ExternalCalendar;
 using Homassy.Notifications.Services;
 using Microsoft.EntityFrameworkCore;
 using Serilog;
 using System.Text.Json;
+using Homassy.Data.Context;
+using Homassy.Data.Extensions;
+using Homassy.Notifications.Configuration;
+using Microsoft.Extensions.Options;
 
 namespace Homassy.Notifications.Workers;
 
@@ -26,7 +28,7 @@ namespace Homassy.Notifications.Workers;
 /// a restart inside the catch-up window) can only ever skip a send, never repeat one.
 /// </para>
 /// </summary>
-public sealed class ExternalCalendarReminderService : BackgroundService
+public sealed class ExternalCalendarReminderService : PeriodicWorkerService
 {
     private readonly IServiceScopeFactory _scopeFactory;
     private readonly FamilyPushNotifier _notifier;
@@ -36,53 +38,32 @@ public sealed class ExternalCalendarReminderService : BackgroundService
         PropertyNamingPolicy = JsonNamingPolicy.CamelCase
     };
 
-    private readonly TimeSpan _interval = TimeSpan.FromMinutes(1);
 
     /// <summary>
     /// A trigger time that has already passed is still delivered inside this window, so a deploy or a
     /// short outage does not silently swallow a reminder. Anything older is dropped as stale — nobody
     /// wants "starts in 15 minutes" hours after the fact.
     /// </summary>
-    private static readonly TimeSpan CatchUpWindow = TimeSpan.FromMinutes(15);
 
-    private static readonly TimeSpan MarkerRetention = TimeSpan.FromDays(30);
-    private static readonly TimeSpan PruneInterval = TimeSpan.FromHours(6);
     private DateTime _nextPruneUtc = DateTime.MinValue;
 
     /// <summary>Matches <see cref="ExternalCalendarReminderDispatch.EventUid"/>'s column length.</summary>
     private const int MaxEventUidLength = 512;
 
-    public ExternalCalendarReminderService(IServiceScopeFactory scopeFactory, FamilyPushNotifier notifier)
+    private readonly ExternalCalendarWorkerSchedule _settings;
+
+    public ExternalCalendarReminderService(IServiceScopeFactory scopeFactory, FamilyPushNotifier notifier, IOptions<NotificationWorkerSettings> workerSettings)
+        : base(workerSettings.Value.ExternalCalendarReminder)
     {
+        _settings = workerSettings.Value.ExternalCalendarReminder;
         _scopeFactory = scopeFactory;
         _notifier = notifier;
     }
 
-    protected override async Task ExecuteAsync(CancellationToken stoppingToken)
-    {
-        Log.Information("External calendar reminder service started");
+    protected override string WorkerName => "External calendar reminder service";
 
-        while (!stoppingToken.IsCancellationRequested)
-        {
-            try
-            {
-                await Task.Delay(_interval, stoppingToken);
-                await ProcessAsync(stoppingToken);
-            }
-            catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested)
-            {
-                break;
-            }
-            catch (Exception ex)
-            {
-                Log.Error(ex, "Error in external calendar reminder service");
-                try { await Task.Delay(TimeSpan.FromMinutes(1), stoppingToken); }
-                catch (OperationCanceledException) { break; }
-            }
-        }
-
-        Log.Information("External calendar reminder service stopped");
-    }
+    protected override Task DoWorkAsync(CancellationToken cancellationToken)
+        => ProcessAsync(cancellationToken);
 
     private async Task ProcessAsync(CancellationToken cancellationToken)
     {
@@ -131,7 +112,7 @@ public sealed class ExternalCalendarReminderService : BackgroundService
         DateTime nowUtc,
         CancellationToken cancellationToken)
     {
-        var leadTimes = ExternalCalendarFunctions.ParseReminderLeadTimes(calendar.ReminderLeadTimesJson);
+        var leadTimes = ReminderLeadTimes.Parse(calendar.ReminderLeadTimesJson);
         if (leadTimes.Count == 0)
             return;
 
@@ -205,7 +186,7 @@ public sealed class ExternalCalendarReminderService : BackgroundService
     /// falls inside the current window. Trigger times are per recipient because an all-day event is
     /// anchored to the calendar's notify time in the recipient's own timezone.
     /// </summary>
-    private static List<DueReminder> CollectDueReminders(
+    private List<DueReminder> CollectDueReminders(
         CalendarState calendar,
         List<CachedICalEvent> events,
         List<int> leadTimes,
@@ -230,7 +211,7 @@ public sealed class ExternalCalendarReminderService : BackgroundService
                     if (triggerUtc == null)
                         continue;
 
-                    if (triggerUtc > nowUtc || triggerUtc <= nowUtc - CatchUpWindow)
+                    if (triggerUtc > nowUtc || triggerUtc <= nowUtc - _settings.CatchUpWindow)
                         continue;
 
                     due.Add(new DueReminder(recipient, ev, leadTime, OccurrenceKeyOf(ev)));
@@ -246,10 +227,10 @@ public sealed class ExternalCalendarReminderService : BackgroundService
     /// so the per-recipient trigger maths runs over a handful of events rather than the whole feed. The
     /// two-day slack absorbs every timezone offset without needing to know the recipient's zone yet.
     /// </summary>
-    private static List<CachedICalEvent> FilterToHorizon(List<CachedICalEvent> events, List<int> leadTimes, DateTime nowUtc)
+    private List<CachedICalEvent> FilterToHorizon(List<CachedICalEvent> events, List<int> leadTimes, DateTime nowUtc)
     {
-        var slack = TimeSpan.FromDays(2);
-        var from = nowUtc - CatchUpWindow - slack;
+        var slack = _settings.LookaheadSlack;
+        var from = nowUtc - _settings.CatchUpWindow - slack;
         var to = nowUtc + TimeSpan.FromMinutes(leadTimes.Max()) + slack;
 
         return events
@@ -333,8 +314,8 @@ public sealed class ExternalCalendarReminderService : BackgroundService
         if (nowUtc < _nextPruneUtc)
             return;
 
-        _nextPruneUtc = nowUtc + PruneInterval;
-        var cutoff = nowUtc - MarkerRetention;
+        _nextPruneUtc = nowUtc + _settings.PruneInterval;
+        var cutoff = nowUtc - _settings.MarkerRetention;
 
         var removed = await context.ExternalCalendarReminderDispatches
             .Where(d => d.SentAt < cutoff)

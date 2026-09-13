@@ -1,7 +1,8 @@
 ﻿using Homassy.API.Context;
-using Homassy.API.Entities.User;
+using Homassy.Data.Entities.User;
 using Microsoft.EntityFrameworkCore;
 using Serilog;
+using Homassy.Data.Context;
 
 namespace Homassy.API.Functions
 {

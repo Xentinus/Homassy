@@ -1,9 +1,9 @@
 using System.Net;
 using System.Net.Http.Json;
-using Homassy.API.Entities.Activity;
-using Homassy.API.Enums;
+using Homassy.Data.Entities.Activity;
+using Homassy.Data.Enums;
 using Homassy.API.Functions;
-using Homassy.API.Models.Common;
+using Homassy.Data.Models.Common;
 using Homassy.API.Models.Family;
 using Homassy.API.Models.Insights;
 using Homassy.Tests.Infrastructure;

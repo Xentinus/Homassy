@@ -1,13 +1,14 @@
 using System.Net;
 using System.Net.Http.Json;
 using System.Text.Json;
-using Homassy.API.Enums;
-using Homassy.API.Models.Common;
+using Homassy.Data.Enums;
+using Homassy.Data.Models.Common;
 using Homassy.API.Models.ImageUpload;
 using Homassy.API.Models.Product;
 using Homassy.Tests.Infrastructure;
 using Xunit.Abstractions;
-using ProductUnit = Homassy.API.Enums.Unit;
+using ProductUnit = Homassy.Data.Enums.Unit;
+using Homassy.Data.Validation;
 
 namespace Homassy.Tests.Integration;
 

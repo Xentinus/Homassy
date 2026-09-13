@@ -1,6 +1,6 @@
 using Homassy.API.Context;
-using Homassy.API.Entities.Family;
-using Homassy.API.Exceptions;
+using Homassy.Data.Entities.Family;
+using Homassy.Data.Exceptions;
 using Homassy.API.Hubs;
 using Homassy.API.Models.Calendar;
 using Homassy.API.Models.ExternalCalendar;
@@ -14,6 +14,9 @@ using System.Text;
 using System.Text.Json;
 // Aliased rather than imported: `using System.Globalization` would make `Calendar` ambiguous with Ical.Net's.
 using CultureInfo = System.Globalization.CultureInfo;
+using Homassy.Data.Context;
+using Homassy.Data.Models.ExternalCalendar;
+using Homassy.Data.Functions;
 
 namespace Homassy.API.Functions
 {
@@ -163,7 +166,7 @@ namespace Homassy.API.Functions
             if (calendar.FamilyId != familyId)
                 throw new ExternalCalendarAccessDeniedException();
 
-            await SyncCalendarAsync(calendar, context, httpClient, ct);
+            await SyncCalendarAsync(calendar, httpClient, ct);
             await context.SaveChangesAsync(ct);
 
             var response = MapToResponse(calendar);
@@ -226,7 +229,6 @@ namespace Homassy.API.Functions
 
         public static async Task SyncCalendarAsync(
             FamilyExternalCalendar calendar,
-            HomassyDbContext context,
             HttpClient httpClient,
             CancellationToken ct)
         {
@@ -554,26 +556,6 @@ namespace Homassy.API.Functions
             return parsed;
         }
 
-        /// <summary>
-        /// Reads the stored lead times back. Also used by the reminder worker in Homassy.Notifications,
-        /// so the storage format has exactly one reader. Unparseable JSON yields no reminders rather than
-        /// taking the worker down.
-        /// </summary>
-        public static List<int> ParseReminderLeadTimes(string? json)
-        {
-            if (string.IsNullOrWhiteSpace(json))
-                return [];
-
-            try
-            {
-                return JsonSerializer.Deserialize<List<int>>(json, JsonOptions) ?? [];
-            }
-            catch (JsonException)
-            {
-                return [];
-            }
-        }
-
         private static string NormalizeICalUrl(string url) => ExternalUrlGuard.Normalize(url);
 
         private static ExternalCalendarResponse MapToResponse(FamilyExternalCalendar calendar)
@@ -600,7 +582,7 @@ namespace Homassy.API.Functions
                 LastSyncedAt = calendar.LastSyncedAt,
                 LastSyncError = calendar.LastSyncError,
                 EventCount = eventCount,
-                ReminderLeadTimes = ParseReminderLeadTimes(calendar.ReminderLeadTimesJson),
+                ReminderLeadTimes = ReminderLeadTimes.Parse(calendar.ReminderLeadTimesJson),
                 AllDayNotifyTime = calendar.AllDayNotifyTime.ToString(@"HH\:mm", CultureInfo.InvariantCulture)
             };
         }

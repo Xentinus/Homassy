@@ -1,11 +1,11 @@
 extern alias NotificationsProject;
-using Homassy.API.Context;
-using Homassy.API.Entities.Family;
-using Homassy.API.Entities.ShoppingList;
-using Homassy.API.Enums;
+using Homassy.Data.Entities.Family;
+using Homassy.Data.Entities.ShoppingList;
+using Homassy.Data.Enums;
 using Homassy.Tests.Infrastructure;
 using Microsoft.EntityFrameworkCore;
 using NotificationsProject::Homassy.Notifications.Services;
+using Homassy.Data.Context;
 
 namespace Homassy.Tests.Integration;
 
@@ -73,7 +73,7 @@ public class AppBadgeCountTests : IAsyncLifetime
         return new Seeded(family.Id, owner.Id, other.Id);
     }
 
-    private static Homassy.API.Entities.User.User NewUser(string prefix, int? familyId) => new()
+    private static Homassy.Data.Entities.User.User NewUser(string prefix, int? familyId) => new()
     {
         Email = $"{prefix}-{Guid.NewGuid():N}@test.homassy.local",
         Name = $"{prefix} User",
@@ -188,11 +188,11 @@ public class AppBadgeCountTests : IAsyncLifetime
 
         using (var write = TestConfiguration.DbContextFactory.CreateDbContext())
         {
-            var product = new Homassy.API.Entities.Product.Product
+            var product = new Homassy.Data.Entities.Product.Product
             {
                 Name = $"Gone {Guid.NewGuid():N}",
                 Brand = "Test",
-                Unit = Homassy.API.Enums.Unit.Piece
+                Unit = Homassy.Data.Enums.Unit.Piece
             };
             write.Products.Add(product);
             await write.SaveChangesAsync();
@@ -206,7 +206,7 @@ public class AppBadgeCountTests : IAsyncLifetime
                 ShoppingListId = list.Id,
                 ProductId = product.Id,
                 Quantity = 1,
-                Unit = Homassy.API.Enums.Unit.Piece,
+                Unit = Homassy.Data.Enums.Unit.Piece,
                 DeadlineAt = DateTime.UtcNow.AddDays(1)
             });
             await write.SaveChangesAsync();
@@ -274,7 +274,7 @@ public class AppBadgeCountTests : IAsyncLifetime
             ShoppingListId = list.Id,
             CustomName = item.Name,
             Quantity = 1,
-            Unit = Homassy.API.Enums.Unit.Piece,
+            Unit = Homassy.Data.Enums.Unit.Piece,
             DeadlineAt = item.DeadlineAt,
             DueAt = item.DueAt,
             PurchasedAt = item.PurchasedAt

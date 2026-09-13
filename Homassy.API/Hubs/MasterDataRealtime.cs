@@ -1,5 +1,5 @@
 using Homassy.API.Models.Automation;
-using Homassy.API.Models.Common;
+using Homassy.Data.Models.Common;
 using Homassy.API.Models.ExternalCalendar;
 using Homassy.API.Models.Location;
 using Homassy.API.Models.Product;

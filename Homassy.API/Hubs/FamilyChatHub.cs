@@ -2,7 +2,7 @@ using Homassy.API.Context;
 using Homassy.API.Functions;
 using Homassy.API.Middleware;
 using Homassy.API.Models.FamilyChat;
-using Homassy.API.Models.Kratos;
+using Homassy.Data.Models.Kratos;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.SignalR;
 using Serilog;
@@ -90,7 +90,7 @@ namespace Homassy.API.Hubs
                 userPublicId = SessionInfo.GetPublicId() ?? throw new HubException("Unauthorized.");
                 displayName = ResolveDisplayName(userPublicId);
             }
-            catch (Exceptions.FamilyChatAccessDeniedException)
+            catch (Homassy.Data.Exceptions.FamilyChatAccessDeniedException)
             {
                 throw new HubException("Access to this family chat was denied.");
             }
@@ -261,7 +261,7 @@ namespace Homassy.API.Hubs
                 SessionInfo.SetFromKratosSession(session, _userFunctions);
                 return _chatFunctions.RequireFamily().FamilyPublicId;
             }
-            catch (Exceptions.FamilyChatAccessDeniedException)
+            catch (Homassy.Data.Exceptions.FamilyChatAccessDeniedException)
             {
                 return null;
             }

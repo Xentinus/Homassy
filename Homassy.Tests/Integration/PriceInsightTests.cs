@@ -1,10 +1,9 @@
 using System.Data.Common;
 using System.Net;
 using System.Net.Http.Json;
-using Homassy.API.Context;
-using Homassy.API.Enums;
+using Homassy.Data.Enums;
 using Homassy.API.Functions;
-using Homassy.API.Models.Common;
+using Homassy.Data.Models.Common;
 using Homassy.API.Models.Family;
 using Homassy.API.Models.Insights;
 using Homassy.API.Models.Location;
@@ -15,7 +14,8 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Diagnostics;
 using Microsoft.Extensions.Configuration;
 using Xunit.Abstractions;
-using ProductUnit = Homassy.API.Enums.Unit;
+using ProductUnit = Homassy.Data.Enums.Unit;
+using Homassy.Data.Context;
 
 namespace Homassy.Tests.Integration;
 

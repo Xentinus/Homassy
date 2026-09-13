@@ -1,11 +1,10 @@
 using Homassy.API.Constants;
 using Homassy.API.Context;
-using Homassy.API.Entities.User;
-using Homassy.API.Enums;
-using Homassy.API.Exceptions;
+using Homassy.Data.Entities.User;
+using Homassy.Data.Enums;
+using Homassy.Data.Exceptions;
 using Homassy.API.Extensions;
-using Homassy.API.Models.Auth;
-using Homassy.API.Models.Common;
+using Homassy.Data.Models.Common;
 using Homassy.API.Models.Family;
 using Homassy.API.Models.User;
 using Homassy.API.Security;
@@ -14,6 +13,9 @@ using Microsoft.EntityFrameworkCore;
 using Serilog;
 using System.Collections.Concurrent;
 using System.Text.RegularExpressions;
+using Homassy.Data.Context;
+using Homassy.Data.Extensions;
+using Homassy.Data.Functions;
 
 namespace Homassy.API.Functions
 {
@@ -45,10 +47,12 @@ namespace Homassy.API.Functions
         public static bool Inited = false;
 
         private readonly IDbContextFactory<HomassyDbContext> _contextFactory;
+        private readonly FamilyCache _familyCache;
 
-        public UserFunctions(IDbContextFactory<HomassyDbContext> contextFactory)
+        public UserFunctions(IDbContextFactory<HomassyDbContext> contextFactory, FamilyCache familyCache)
         {
             _contextFactory = contextFactory;
+            _familyCache = familyCache;
         }
 
         #region Cache Management
@@ -760,7 +764,7 @@ namespace Homassy.API.Functions
             try
             {
                 // Cache family name BEFORE user leaves
-                var family = new FamilyFunctions(_contextFactory).GetFamilyById(user.FamilyId);
+                var family = _familyCache.GetFamilyById(user.FamilyId);
                 var familyName = family?.Name ?? "Unknown Family";
 
                 var familyIdToLog = user.FamilyId;
@@ -777,10 +781,11 @@ namespace Homassy.API.Functions
                 {
                     try
                     {
-                        await new ActivityFunctions(_contextFactory).RecordActivityAsync(
+                        await ActivityRecorder.RecordAsync(
+                            _contextFactory,
                             userId.Value,
                             familyIdToLog,
-                            Enums.ActivityType.FamilyLeave,
+                            Homassy.Data.Enums.ActivityType.FamilyLeave,
                             familyIdToLog.Value,
                             familyName,
                             null,
@@ -832,7 +837,7 @@ namespace Homassy.API.Functions
             FamilyInfo? familyInfo = null;
             if (user.FamilyId.HasValue)
             {
-                var family = new FamilyFunctions(_contextFactory).GetFamilyById(user.FamilyId.Value);
+                var family = _familyCache.GetFamilyById(user.FamilyId.Value);
                 if (family != null)
                 {
                     familyInfo = new FamilyInfo
@@ -1025,7 +1030,7 @@ namespace Homassy.API.Functions
         /// <summary>
         /// Gets user info from a Kratos session combined with local user data.
         /// </summary>
-        public UserInfo GetUserInfoFromKratosSession(Models.Kratos.KratosSession session, User user)
+        public UserInfo GetUserInfoFromKratosSession(Homassy.Data.Models.Kratos.KratosSession session, User user)
         {
             var traits = session.Identity.Traits;
 
@@ -1051,7 +1056,7 @@ namespace Homassy.API.Functions
         /// <summary>
         /// Creates a local user record from a Kratos identity.
         /// </summary>
-        public async Task<User?> CreateUserFromKratosAsync(Models.Kratos.KratosIdentity identity, CancellationToken cancellationToken = default)
+        public async Task<User?> CreateUserFromKratosAsync(Homassy.Data.Models.Kratos.KratosIdentity identity, CancellationToken cancellationToken = default)
         {
             try
             {
@@ -1150,9 +1155,9 @@ namespace Homassy.API.Functions
         /// Used for syncing profile changes back to Kratos.
         /// Note: Optional fields are set to null (not empty string) so JsonIgnore works properly.
         /// </summary>
-        public static Models.Kratos.KratosTraits BuildKratosTraitsFromProfile(User user, Entities.User.UserProfile profile)
+        public static Homassy.Data.Models.Kratos.KratosTraits BuildKratosTraitsFromProfile(User user, Data.Entities.User.UserProfile profile)
         {
-            return new Models.Kratos.KratosTraits
+            return new Homassy.Data.Models.Kratos.KratosTraits
             {
                 Email = user.Email,
                 Name = user.Name,
@@ -1176,7 +1181,7 @@ namespace Homassy.API.Functions
         /// Syncs local user profile data to Kratos identity traits.
         /// Non-blocking: logs warning on failure but doesn't throw.
         /// </summary>
-        public async Task SyncUserProfileToKratosAsync(User user, Entities.User.UserProfile profile, IKratosService kratosService, CancellationToken cancellationToken = default)
+        public async Task SyncUserProfileToKratosAsync(User user, Data.Entities.User.UserProfile profile, IKratosService kratosService, CancellationToken cancellationToken = default)
         {
             if (string.IsNullOrEmpty(user.KratosIdentityId))
             {
@@ -1208,7 +1213,7 @@ namespace Homassy.API.Functions
         /// <summary>
         /// Syncs a local user record with Kratos identity data.
         /// </summary>
-        public async Task<User?> SyncUserFromKratosAsync(Models.Kratos.KratosIdentity identity, CancellationToken cancellationToken = default)
+        public async Task<User?> SyncUserFromKratosAsync(Homassy.Data.Models.Kratos.KratosIdentity identity, CancellationToken cancellationToken = default)
         {
             try
             {
@@ -1222,7 +1227,6 @@ namespace Homassy.API.Functions
                     // provider can index rather than a per-row function call.
                     var normalizedEmail = User.NormalizeEmail(identity.Traits.Email);
                     user = await context.Users.FirstOrDefaultAsync(u => u.Email == normalizedEmail, cancellationToken);
-
 
                     if (user == null)
                     {

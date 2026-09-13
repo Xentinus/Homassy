@@ -1,11 +1,11 @@
 ﻿using Homassy.API.Constants;
-using Homassy.API.Context;
-using Homassy.API.Entities.Common;
+using Homassy.Data.Entities.Common;
 using Homassy.API.Functions;
 using Microsoft.EntityFrameworkCore;
 using Npgsql;
 using Serilog;
 using System.Text.Json;
+using Homassy.Data.Context;
 
 namespace Homassy.API.Services
 {
@@ -175,7 +175,7 @@ namespace Homassy.API.Services
                 var services = scope.ServiceProvider;
 
                 await services.GetRequiredService<UserFunctions>().InitializeCacheAsync();
-                await services.GetRequiredService<FamilyFunctions>().InitializeCacheAsync();
+                await services.GetRequiredService<FamilyCache>().InitializeCacheAsync();
                 await services.GetRequiredService<ProductFunctions>().InitializeCacheAsync();
                 await services.GetRequiredService<LocationFunctions>().InitializeCacheAsync();
                 await services.GetRequiredService<ShoppingListFunctions>().InitializeCacheAsync();

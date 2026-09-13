@@ -1,7 +1,7 @@
 using System.Net;
 using System.Net.Http.Json;
-using Homassy.API.Models.Common;
-using Homassy.API.Models.Kratos;
+using Homassy.Data.Models.Common;
+using Homassy.Data.Models.Kratos;
 using Homassy.Tests.Infrastructure;
 using Xunit.Abstractions;
 

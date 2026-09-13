@@ -1,4 +1,3 @@
-﻿using Homassy.API.Context;
 using Homassy.API.Extensions;
 using Homassy.API.Functions;
 using Homassy.API.HealthChecks;
@@ -24,6 +23,10 @@ using System.Net.Http.Headers;
 using System.Reflection;
 using System.Text;
 using System.Text.Json;
+using Homassy.Data.Context;
+using Homassy.Data.Validation;
+using Homassy.Data.Functions;
+using Homassy.Data.Extensions;
 
 Log.Logger = new LoggerConfiguration()
     .UseHomassyMinimumLevels(LogEventLevel.Debug)
@@ -100,12 +103,14 @@ try
     builder.Services.AddScoped<AutomationFunctions>();
     builder.Services.AddScoped<CalendarFunctions>();
     builder.Services.AddScoped<ExternalCalendarFunctions>();
+    builder.Services.AddScoped<FamilyCache>();
     builder.Services.AddScoped<FamilyChatFunctions>();
     builder.Services.AddScoped<FamilyFunctions>();
     builder.Services.AddScoped<FamilyJoinRequestFunctions>();
     builder.Services.AddScoped<ImageFunctions>();
     builder.Services.AddScoped<InsightFunctions>();
     builder.Services.AddScoped<LocationFunctions>();
+    builder.Services.AddScoped<LowStockAutomationFunctions>();
     builder.Services.AddScoped<NotificationFunctions>();
     builder.Services.AddScoped<PriceInsightFunctions>();
     builder.Services.AddScoped<ProductFunctions>();
