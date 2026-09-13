@@ -360,6 +360,32 @@ namespace Homassy.API.Functions
             return string.Join("\r\n", kept);
         }
 
+        /// <summary>How far back the rolling expansion window reaches, in months.</summary>
+        public const int ExpansionWindowMonthsBack = 2;
+
+        /// <summary>How far forward the rolling expansion window reaches, in months.</summary>
+        public const int ExpansionWindowMonthsForward = 12;
+
+        /// <summary>
+        /// The window recurrence expansion is limited to. Recurrence rules can be unbounded, so
+        /// occurrences are only materialised around the present; sync runs hourly (and on startup),
+        /// so the window keeps sliding forward over time.
+        /// </summary>
+        /// <param name="nowUtc">
+        /// The instant the window is centred on. Must be UTC: everything the boundaries are compared
+        /// against - parsed DTSTART/DTEND values and the rest of the calendar pipeline - is UTC, so a
+        /// local-clock instant would slide the whole window by the container's offset, and by a
+        /// different amount twice a year. Both boundaries come from this one value rather than from
+        /// two clock reads, so they cannot straddle a tick.
+        /// </param>
+        public static (DateTime Start, DateTime End) ExpansionWindow(DateTime nowUtc)
+        {
+            if (nowUtc.Kind != DateTimeKind.Utc)
+                throw new ArgumentException("The expansion window must be built from a UTC instant.", nameof(nowUtc));
+
+            return (nowUtc.AddMonths(-ExpansionWindowMonthsBack), nowUtc.AddMonths(ExpansionWindowMonthsForward));
+        }
+
         /// <summary>
         /// Loads events from sanitized iCal text and expands recurrences into concrete occurrences
         /// without letting one bad event abort the whole feed. Fast path parses + expands the entire
@@ -369,10 +395,7 @@ namespace Homassy.API.Functions
         /// </summary>
         private static List<CachedICalEvent> LoadAndExpandEvents(string ics, Guid calendarId)
         {
-            // Recurrence rules can be unbounded, so expansion is limited to a rolling window.
-            // Sync runs hourly (and on startup), so the window keeps sliding forward over time.
-            var windowStart = DateTime.Now.AddMonths(-2);
-            var windowEnd = DateTime.Now.AddMonths(12);
+            var (windowStart, windowEnd) = ExpansionWindow(DateTime.UtcNow);
 
             try
             {
@@ -438,10 +461,12 @@ namespace Homassy.API.Functions
             {
                 if (ev.RecurrenceRules?.Count > 0 || ev.RecurrenceDates?.Count > 0) continue;
 
-                var start = ev.DtStart?.AsSystemLocal;
+                // Compared against the UTC window, so the absolute instant is what counts here.
+                // AsSystemLocal would put the server's offset on one side of the comparison only.
+                var start = ev.DtStart?.AsUtc;
                 if (start == null) continue;
 
-                var end = ev.DtEnd?.AsSystemLocal ?? start.Value;
+                var end = ev.DtEnd?.AsUtc ?? start.Value;
                 var overlapsWindow = start.Value <= windowEnd && end >= windowStart;
                 if (overlapsWindow) continue;
 
