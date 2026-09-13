@@ -371,10 +371,15 @@ try
                     Name = "Homassy",
                     Url = new Uri("https://github.com/Xentinus/Homassy")
                 },
+                // The project is AGPL-3.0, not MIT, and the repository file is LICENSE.txt.
+                // The SPDX expression goes in Name so that tooling matching on a license string
+                // gets the right one: the document is OpenAPI 3.1, where the dedicated
+                // `identifier` field is mutually exclusive with `url`, and a link a reader can
+                // open is worth more here than the field it would have to displace.
                 License = new()
                 {
-                    Name = "MIT License",
-                    Url = new Uri("https://github.com/Xentinus/Homassy/blob/master/LICENSE")
+                    Name = "AGPL-3.0-only",
+                    Url = new Uri("https://github.com/Xentinus/Homassy/blob/master/LICENSE.txt")
                 }
             };
             return Task.CompletedTask;
@@ -451,9 +456,15 @@ try
         context.Response.Headers.Append("X-Application-Name", "Homassy");
         context.Response.Headers.Append("X-Application-Version", version);
         context.Response.Headers.Append("X-Application-Description", "Home storage management system");
+        // These cover the API's own responses only — /api/v* and /hubs/*. The documents the
+        // browser actually loads come from the Nuxt container, and get their headers from
+        // Homassy.Proxy/Caddyfile, which deliberately skips the two API routes: two
+        // Content-Security-Policy headers on one response are enforced as the intersection of
+        // both. The API also runs without that proxy in development, so it keeps its own set.
+        // X-XSS-Protection is gone: no current browser implements it, and the XSS auditor it
+        // used to switch on was removed for being an information-disclosure vector of its own.
         context.Response.Headers.Append("X-Content-Type-Options", "nosniff");
         context.Response.Headers.Append("X-Frame-Options", "DENY");
-        context.Response.Headers.Append("X-XSS-Protection", "1; mode=block");
         context.Response.Headers.Append("Referrer-Policy", "strict-origin-when-cross-origin");
         context.Response.Headers.Append("Content-Security-Policy", "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self'; connect-src 'self'; frame-ancestors 'none'");
         context.Response.Headers.Remove("Server");
