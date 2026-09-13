@@ -42,11 +42,14 @@ services:
     container_name: homassy-kratos
     image: oryd/kratos:v1.2.0
     ports:
-      # Public API only. The admin API (4434) authenticates nobody — Ory's model is that it is
-      # reachable only from a trusted network — so it is not published at all: the API talks to
-      # it over homassy-network as http://homassy-kratos:4434, and manual calls go through
-      # `docker compose exec homassy.kratos ...`.
       - "${HOST_BIND:-127.0.0.1}:4433:4433"
+      # The admin API authenticates nobody — Ory's model is that it is reachable only from a
+      # trusted network — so unlike the public port this one ignores HOST_BIND and stays on
+      # loopback under every configuration. It is published at all because the API and the
+      # Migrator default Kratos:AdminUrl to http://localhost:4434 when they run outside Docker,
+      # which is the "Local development (individual services)" flow in README.md. Inside Docker
+      # they use http://homassy-kratos:4434 over homassy-network and never touch this binding.
+      - "127.0.0.1:4434:4434"
     environment:
       # Database connection (Kratos standard env var)
       - DSN=postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@${DATABASE_HOST}:${DATABASE_PORT}/${POSTGRES_DB}?sslmode=disable&search_path=kratos

@@ -445,7 +445,9 @@ export default defineNuxtConfig({
   devServer: {
     // Loopback by default: the dev server carries a real session cookie and talks to a real
     // Kratos, and on an untrusted network `0.0.0.0` hands all of that to whoever is on the same
-    // Wi-Fi. Testing from a phone is an opt-in: `npm run dev -- --host`, or NUXT_DEV_HOST.
+    // Wi-Fi. Testing from a phone is an opt-in: `npm run dev -- --host 0.0.0.0`, or
+    // NUXT_DEV_HOST. The address is required — the CLI parses a bare `--host` as an empty
+    // string, which falls through to this default.
     // The Docker dev container sets NUXT_DEV_HOST=0.0.0.0 because docker-proxy reaches the
     // container by its IP; its host-side port binding is loopback-only instead.
     host: process.env.NUXT_DEV_HOST || '127.0.0.1',

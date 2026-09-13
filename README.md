@@ -52,7 +52,7 @@ This starts PostgreSQL, the migrator, Kratos, the API, the email and notificatio
 
 In development each service is reachable on its own localhost port. The single-domain Caddy proxy is production-only.
 
-Every published port binds to `127.0.0.1`, so a development machine on an untrusted network serves nothing to the other hosts on it. The Kratos **admin** API (4434) is not published at all — it has no authentication of its own, so anything that needs it either goes over the internal network (`http://homassy-kratos:4434`, which is how the API reaches it) or through `docker compose exec homassy.kratos ...`.
+Every published port binds to `127.0.0.1`, so a development machine on an untrusted network serves nothing to the other hosts on it. The Kratos **admin** API (4434) has no authentication of its own, so it stays on loopback under every configuration — it ignores `HOST_BIND` the way PostgreSQL does. It is published at all only because the API and the Migrator default `Kratos:AdminUrl` to `http://localhost:4434` when they run outside Docker (see below); inside Docker they reach it over the internal network as `http://homassy-kratos:4434`.
 
 #### Testing from another device
 
@@ -62,7 +62,7 @@ To open the app from a phone on the same network, set the bind address for one s
 HOST_BIND=0.0.0.0 docker compose up -d
 ```
 
-That republishes the web, API and Kratos public ports on every interface; the admin API and PostgreSQL stay on loopback either way. Outside Docker, `npm run dev` is loopback-only too — use `npm run dev -- --host` for the same purpose. Do neither on a network you do not trust: the dev stack has no TLS and carries real session cookies.
+That republishes the web, API and Kratos public ports on every interface; the Kratos admin API and PostgreSQL stay on loopback either way. Outside Docker, `npm run dev` is loopback-only too — use `npm run dev -- --host 0.0.0.0` (the address is required; a bare `--host` parses as an empty string and falls back to the config default). Do neither on a network you do not trust: the dev stack has no TLS and carries real session cookies.
 
 ### Local development (individual services)
 

@@ -33,5 +33,17 @@ export default defineNitroPlugin((nitroApp) => {
     html.head = html.head.map(stamp)
     html.bodyPrepend = html.bodyPrepend.map(stamp)
     html.bodyAppend = html.bodyAppend.map(stamp)
+
+    // A nonce is only worth anything while the document it is in belongs to one visitor. If a
+    // shared cache in front of us (Cloudflare sits there, and a Cache Rule is one click away)
+    // ever stored this HTML, every visitor served that copy would get the same nonce — which an
+    // attacker can simply read out of the page and then use to get an injected script executed.
+    // `private` is what keeps it out of a shared cache; `no-cache` keeps the browser's own copy
+    // revalidating, which is what the '/' route rule already asked for. Deliberately not
+    // `no-store`: Chrome refuses to restore a no-store document from the back/forward cache, so
+    // every back navigation in the app would pay a full SSR round trip.
+    // The header goes on here, where we know the response is a nonce-bearing document, rather
+    // than on a route rule that would also cover the immutable /_nuxt assets.
+    setResponseHeader(event, 'Cache-Control', 'private, no-cache, must-revalidate')
   })
 })

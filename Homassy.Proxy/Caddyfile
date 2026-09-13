@@ -48,14 +48,38 @@
 # The __NUXT_DATA__ payload needs nothing: type="application/json" is never executed, and the
 # HTML spec returns out of "prepare the script element" before the CSP check for such a type.
 #
+# 'wasm-unsafe-eval' in script-src: on a browser with no native BarcodeDetector (Safari,
+# desktop Firefox) vue-qrcode-reader falls back to zxing-wasm, which compiles a WebAssembly
+# module — Chromium and Firefox refuse that without this keyword. It permits WebAssembly
+# compilation and nothing else; it does not bring back eval().
+#
 # img-src: data: for the base64 avatars and product pictures, blob: for the object URLs the
-# image cropper and the share target create, cartocdn.com for the MapLibre raster basemap.
-# connect-src: wss: for the SignalR hubs, nominatim for app/composables/useGeocoding.ts.
+# image cropper and the share target create.
+# connect-src is where most of the third parties are, because fetch() is how they arrive:
+#   - wss://{http.request.host}:* for the SignalR hubs. Host-scoped rather than a bare `wss:`,
+#     which is a scheme-source and would match every host on the internet — an open channel
+#     for anything that did get injected. The placeholder keeps the file deployment-agnostic.
+#     'self' is specified to cover same-origin wss: too, but not every browser has always
+#     implemented that, and the hubs are not worth a silent regression on one of them.
+#   - cartocdn.com for the MapLibre basemap. MapLibre pulls raster tiles with fetch(), not
+#     <img>, whenever the source refreshes expired tiles (the default), so img-src alone
+#     leaves the store map blank.
+#   - nominatim for app/composables/useGeocoding.ts.
+#   - jsdelivr for the zxing-wasm binary above, which the library locates on the CDN by
+#     default. This is the one third-party origin here that should not have to exist; see the
+#     self-hosting note in Homassy.Web/CLAUDE.md.
 # worker-src blob:: MapLibre builds its tile worker from a Blob URL.
 # style-src 'unsafe-inline': Tailwind 4 / @nuxt/ui emit runtime style attributes and blocks;
 # threading a nonce through those would need every one of them to go through unhead.
+#
+# `defer` matters: without it Caddy writes the header before reverse_proxy copies the upstream
+# response headers, and those are appended — an upstream that ever emitted its own CSP would
+# produce two, which the browser enforces as the intersection of both.
 (app_csp) {
-	header Content-Security-Policy "default-src 'self'; base-uri 'self'; object-src 'none'; frame-ancestors 'none'; form-action 'self'; script-src 'self' 'nonce-{http.request.uuid}'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https://*.basemaps.cartocdn.com; font-src 'self'; connect-src 'self' wss: https://nominatim.openstreetmap.org; worker-src 'self' blob:; manifest-src 'self'; frame-src 'none'"
+	header {
+		defer
+		Content-Security-Policy "default-src 'self'; base-uri 'self'; object-src 'none'; frame-ancestors 'none'; form-action 'self'; script-src 'self' 'wasm-unsafe-eval' 'nonce-{http.request.uuid}'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https://*.basemaps.cartocdn.com; font-src 'self'; connect-src 'self' wss://{http.request.host}:* https://*.basemaps.cartocdn.com https://nominatim.openstreetmap.org https://fastly.jsdelivr.net; worker-src 'self' blob:; manifest-src 'self'; frame-src 'none'"
+	}
 }
 
 :3000 {
@@ -93,7 +117,12 @@
 	@offline path /offline /offline/*
 	handle @offline {
 		import document_security_headers
-		header Content-Security-Policy "default-src 'self'; base-uri 'self'; object-src 'none'; frame-ancestors 'none'; form-action 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self'; connect-src 'self'; worker-src 'self' blob:; manifest-src 'self'; frame-src 'none'"
+		header {
+			# Deferred for the same reason as app_csp: a header written before the proxy copies
+			# the upstream response would be appended to an upstream CSP, not replace it.
+			defer
+			Content-Security-Policy "default-src 'self'; base-uri 'self'; object-src 'none'; frame-ancestors 'none'; form-action 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self'; connect-src 'self'; worker-src 'self' blob:; manifest-src 'self'; frame-src 'none'"
+		}
 		reverse_proxy homassy-web:3000
 	}
 
