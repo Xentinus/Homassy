@@ -12,7 +12,6 @@ public static class ErrorCodeDescriptions
         [ErrorCodes.AuthUnauthorized] = "Authentication required but not provided.",
         [ErrorCodes.AuthInvalidCredentials] = "Invalid email or verification code.",
         [ErrorCodes.AuthExpiredCredentials] = "Verification code has expired.",
-        [ErrorCodes.AuthAccountLocked] = "Account is temporarily locked due to too many failed login attempts.",
         [ErrorCodes.AuthForbidden] = "Access denied to the requested resource.",
         [ErrorCodes.AuthRegistrationDisabled] = "Registration is currently disabled.",
 

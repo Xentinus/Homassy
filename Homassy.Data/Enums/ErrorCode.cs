@@ -6,7 +6,6 @@ public static class ErrorCodes
     public const string AuthUnauthorized = "AUTH-0001";
     public const string AuthInvalidCredentials = "AUTH-0002";
     public const string AuthExpiredCredentials = "AUTH-0003";
-    public const string AuthAccountLocked = "AUTH-0004";
     public const string AuthForbidden = "AUTH-0005";
     public const string AuthRegistrationDisabled = "AUTH-0008";
     #endregion

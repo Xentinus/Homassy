@@ -54,7 +54,7 @@ namespace Homassy.API.Functions
 
         /// <summary>
         /// For work that must not borrow the request's scope, because it outlives it — the
-        /// fire-and-forget low-stock notification in <see cref="AutomationFunctions"/>.
+        /// fire-and-forget low-stock notification in <see cref="LowStockAutomationFunctions"/>.
         /// </summary>
         public IServiceScopeFactory ScopeFactory { get; }
 

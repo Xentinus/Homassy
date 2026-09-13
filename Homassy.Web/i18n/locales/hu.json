@@ -1040,7 +1040,6 @@
     "AUTH-0001": "Bejelentkezés szükséges.",
     "AUTH-0002": "Hibás e-mail cím vagy ellenőrző kód.",
     "AUTH-0003": "Az ellenőrző kód lejárt.",
-    "AUTH-0004": "A fiók átmenetileg zárolva a túl sok sikertelen próbálkozás miatt.",
     "AUTH-0005": "A kért erőforráshoz nincs hozzáférés.",
     "AUTH-0008": "A regisztráció jelenleg le van tiltva.",
     "USER-0001": "A felhasználó nem található.",
