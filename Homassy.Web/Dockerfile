@@ -17,9 +17,6 @@ ARG NUXT_PUBLIC_KRATOS_URL=http://localhost:4433
 ARG NUXT_PUBLIC_API_BASE=http://localhost:5226
 ARG NUXT_PUBLIC_SITE_URL=http://localhost:3000
 
-# Install build dependencies for native modules
-RUN apk add --no-cache python3 make g++
-
 COPY package*.json ./
 RUN npm ci
 

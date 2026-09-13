@@ -28,7 +28,6 @@ Homassy.Web is the **frontend application** of the Homassy platform. It is a **N
 | Auth | @ory/client 1.22.23 |
 | i18n | @nuxtjs/i18n 10.2.1 |
 | PWA | @vite-pwa/nuxt 1.1.0 |
-| API proxy | nuxt-api-party 3.4.2 |
 | Realtime | @microsoft/signalr 10.0.0 |
 | Image | @nuxt/image 2.0.0, browser-image-compression 2.0.2 |
 | Icons | @iconify-json/heroicons, @iconify-json/lucide |
@@ -38,6 +37,7 @@ Homassy.Web is the **frontend application** of the Homassy platform. It is a **N
 | Maps | maplibre-gl 6.9.0 (lazily imported — see Maps) |
 | WebAuthn | @simplewebauthn/browser 13.2.2 |
 | Date | @internationalized/date 3.10.1 |
+| Validation | zod 3.25.76 (form schemas; a direct dependency since #88 — it used to arrive only through @nuxt/content) |
 | Linting | @nuxt/eslint 1.12.1, eslint 9.39.2 |
 | Node runtime | Node.js 22 (Alpine Docker) |
 

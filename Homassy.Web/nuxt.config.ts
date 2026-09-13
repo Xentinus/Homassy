@@ -67,7 +67,6 @@ export default defineNuxtConfig({
   },
 
   modules: [
-    '@nuxt/content',
     '@nuxt/eslint',
     // Listed explicitly even though @nuxt/ui registers it internally: this pins
     // the version the font config below is written against, and makes Nuxt UI's
@@ -82,10 +81,8 @@ export default defineNuxtConfig({
     // duplicate's own dependency subtree is what desynchronised the lockfile.
     '@nuxt/fonts',
     '@nuxt/image',
-    '@nuxt/scripts',
     '@nuxt/ui',
     '@pinia/nuxt',
-    'nuxt-api-party',
     '@nuxtjs/i18n',
     '@vite-pwa/nuxt'
   ],
@@ -421,7 +418,11 @@ export default defineNuxtConfig({
       routes: ['/offline']
     },
 
-    // Reduce Nitro build memory
+    // Reduce Nitro build memory. Kept deliberately: with the three unused modules gone
+    // (#88) the no-cache build of the `build` target is 105s against 132s before, and
+    // removing both maxParallelFileOps overrides on top of that measured 104s — inside
+    // the noise. They cost no time, and they are the only thing holding the peak down on
+    // a runner with less memory than a dev machine, so the trade is still worth taking.
     minify: true,
     sourceMap: false,
     rollupConfig: {
@@ -452,17 +453,6 @@ export default defineNuxtConfig({
     // container by its IP; its host-side port binding is loopback-only instead.
     host: process.env.NUXT_DEV_HOST || '127.0.0.1',
     port: 3000
-  },
-
-  apiParty: {
-    endpoints: {
-      homassyApi: {
-        url: process.env.NUXT_PUBLIC_API_BASE || 'http://localhost:5226',
-        headers: {
-          'Content-Type': 'application/json'
-        }
-      }
-    }
   },
 
   i18n: {
