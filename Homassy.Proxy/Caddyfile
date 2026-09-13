@@ -40,14 +40,6 @@
 		reverse_proxy homassy-api:8080
 	}
 
-	# TEMPORARY — remove ~30 days after cutover. Purges the legacy wildcard-domain
-	# session cookie, which would otherwise shadow the new host-scoped cookie after
-	# the first logout (browser sends the older cookie first; Kratos reads only it).
-	handle /auth/* {
-		header +Set-Cookie "ory_kratos_session=; Domain=.kellner.dev; Path=/; Max-Age=0; Secure; HttpOnly; SameSite=Lax"
-		reverse_proxy homassy-web:3000
-	}
-
 	# Everything else -> Nuxt (SSR, static assets, PWA files).
 	handle {
 		reverse_proxy homassy-web:3000
