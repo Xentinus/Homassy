@@ -42,6 +42,12 @@ try
     builder.Services.AddHttpClient<InventoryBroadcastServiceClient>();
     builder.Services.AddHttpClient<FamilyChatActivityClient>();
 
+    // The host's own default is 5 seconds, which is not enough for a worker that is mid-send:
+    // an email or a push in flight when the stop signal arrives would be cancelled and abandoned.
+    // Paired with stop_grace_period in docker-compose*.yml, which is set above this so Docker does
+    // not SIGKILL the container before the window is up (#85).
+    builder.Services.Configure<HostOptions>(options => options.ShutdownTimeout = TimeSpan.FromSeconds(30));
+
     // Background workers
     builder.Services.AddHostedService<PushNotificationSchedulerService>();
     builder.Services.AddHostedService<ShoppingListActivityMonitorService>();

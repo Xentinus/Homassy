@@ -99,8 +99,10 @@ public class UserFunctionsTests : IClassFixture<HomassyWebApplicationFactory>
     /// made it a coin flip: on an empty database it returned early and asserted nothing, and
     /// once other tests had inserted users it could pick one whose email is not stored in the
     /// normalised form <see cref="UserFunctions.GetUserByEmailAddress"/> looks for, and fail
-    /// for a reason that has nothing to do with the lookup. That normalisation gap is real and
-    /// tracked in Xentinus/Homassy#136; this test should not be the thing that reports it.
+    /// for a reason that has nothing to do with the lookup. That normalisation gap is closed —
+    /// <c>User.Email</c> normalises whatever is assigned to it — but the test still creates the
+    /// row it asserts on, because a test that depends on the table's contents is a test that
+    /// behaves differently on a developer's database and in CI.
     /// </remarks>
     [Fact]
     public async Task GetUserByEmailAddress_ExistingUser_ReturnsUser()

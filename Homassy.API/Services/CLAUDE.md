@@ -79,10 +79,18 @@ Several hosted services run as `IHostedService` / `BackgroundService`:
 - Maintains rate limiting performance
 
 **3. GracefulShutdownService**
-- Listens for `ApplicationStopping` lifetime event
-- Waits a configurable drain period (`GracefulShutdown:TimeoutSeconds`) before process exits
-- Allows in-flight requests to complete during rolling restarts
-- Configured via `appsettings.json`: `"GracefulShutdown": { "Enabled": true, "TimeoutSeconds": 10 }`
+- **Reports** the drain; it does not perform it. The drain is `HostOptions.ShutdownTimeout`, set
+  from `GracefulShutdown:TimeoutSeconds` in `Program.cs`: on the stop signal Kestrel stops
+  accepting connections and waits for the requests already in flight, for up to that long
+- On `ApplicationStopping` it logs how many requests are in flight, and logs again when the last
+  one leaves. The count comes from `InFlightRequestTracker` (singleton), fed by
+  `InFlightRequestMiddleware`, which is first in the pipeline
+- An idle instance stops immediately. Nothing sleeps: a blocking wait on a lifetime callback runs
+  while the server is still accepting, so it can never be the drain (#85)
+- `docker-compose*.yml` set `stop_grace_period: 45s` on `homassy.api` and `homassy.notifications`.
+  Docker's default is 10s, which is shorter than the drain — the container would be `SIGKILL`ed
+  before the pipeline emptied and before Serilog flushed. Raise it with `TimeoutSeconds`
+- Configured via `appsettings.json`: `"GracefulShutdown": { "Enabled": true, "TimeoutSeconds": 30 }`
 
 **4. StatisticsRefreshWorker** _(in `Services/Background/`)_
 - Refreshes the global-statistics cache (`StatisticsService`) once on startup, then nightly at 02:00 UTC

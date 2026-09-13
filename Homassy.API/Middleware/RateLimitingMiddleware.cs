@@ -1,8 +1,10 @@
 using Homassy.API.Enums;
 using Homassy.API.Extensions;
+using Homassy.API.Models.ApplicationSettings;
 using Homassy.API.Models.Common;
 using Homassy.API.Models.RateLimit;
 using Homassy.API.Services;
+using Microsoft.Extensions.Options;
 using Serilog;
 using System.Text.Json;
 
@@ -19,24 +21,30 @@ namespace Homassy.API.Middleware
         public const string UnmatchedEndpointKey = "unmatched";
 
         private readonly RequestDelegate _next;
-        private readonly IConfiguration _configuration;
+        private readonly IOptionsMonitor<RateLimitSettings> _settings;
         private static readonly JsonSerializerOptions JsonOptions = new()
         {
             PropertyNamingPolicy = JsonNamingPolicy.CamelCase
         };
 
         /// <remarks>
-        /// The limits come from the injected configuration rather than the process-wide
+        /// The limits come from injected options rather than the process-wide
         /// <see cref="ConfigService"/> on purpose. The limiter is the one component the whole test
         /// suite runs through, and reading a mutable static at request time let a unit test that
         /// installs deliberately tiny limits bleed into every integration test running in parallel —
         /// which is exactly how a 401 assertion started seeing 429. Constructor injection makes that
         /// impossible: <c>UseMiddleware</c> resolves this from the app's own container.
+        ///
+        /// <see cref="IOptionsMonitor{TOptions}"/> rather than <see cref="IOptions{TOptions}"/> so a
+        /// configuration reload still takes effect, which the per-request <c>IConfiguration</c> reads
+        /// this replaced also allowed. What is gone is the per-request cost of those reads and the
+        /// <c>int.Parse</c> that turned a typo in a setting into a 500 on every request instead of a
+        /// startup failure — see <see cref="RateLimitSettings"/>.
         /// </remarks>
-        public RateLimitingMiddleware(RequestDelegate next, IConfiguration configuration)
+        public RateLimitingMiddleware(RequestDelegate next, IOptionsMonitor<RateLimitSettings> settings)
         {
             _next = next;
-            _configuration = configuration;
+            _settings = settings;
         }
 
         public async Task InvokeAsync(HttpContext context)
@@ -45,52 +53,33 @@ namespace Homassy.API.Middleware
             var endpoint = context.Request.Path.Value?.ToLowerInvariant() ?? string.Empty;
             var endpointKey = GetEndpointKey(context);
             var method = context.Request.Method;
+            var settings = _settings.CurrentValue;
 
-            var globalMaxAttempts = int.Parse(_configuration["RateLimiting:GlobalMaxAttempts"] ?? "100");
-            var globalWindowMinutes = int.Parse(_configuration["RateLimiting:GlobalWindowMinutes"] ?? "1");
-            var globalWindow = TimeSpan.FromMinutes(globalWindowMinutes);
+            // One registered attempt per scope, and the status that attempt produced. Counting and
+            // then re-reading the bucket was two independent reads per scope per request, and the
+            // headers could describe a bucket state that was never the one this request saw.
             var globalRateLimitKey = $"global:{clientIp}";
+            var globalStatus = RateLimitService.RegisterAttempt(globalRateLimitKey, settings.GlobalMaxAttempts, settings.GlobalWindow);
 
-            if (RateLimitService.IsRateLimited(globalRateLimitKey, globalMaxAttempts, globalWindow))
+            if (globalStatus.IsLimited)
             {
-                var status = RateLimitService.GetRateLimitStatus(globalRateLimitKey, globalMaxAttempts, globalWindow);
                 Log.Warning($"Global rate limit exceeded from IP {clientIp} for endpoint {method} {endpoint}");
-
-                context.Response.StatusCode = 429;
-                context.Response.ContentType = "application/json";
-                AddRateLimitHeaders(context, status);
-                
-                var errorResponse = ApiResponse.ErrorResponse(ErrorCodes.RateLimitExceeded);
-                
-                await context.Response.WriteAsync(JsonSerializer.Serialize(errorResponse, JsonOptions));
+                await WriteRateLimitedResponseAsync(context, globalStatus);
                 return;
             }
 
-            var endpointMaxAttempts = int.Parse(_configuration["RateLimiting:EndpointMaxAttempts"] ?? "30");
-            var endpointWindowMinutes = int.Parse(_configuration["RateLimiting:EndpointWindowMinutes"] ?? "1");
-            var endpointWindow = TimeSpan.FromMinutes(endpointWindowMinutes);
             var endpointRateLimitKey = $"endpoint:{endpointKey}:{clientIp}";
+            var endpointStatus = RateLimitService.RegisterAttempt(endpointRateLimitKey, settings.EndpointMaxAttempts, settings.EndpointWindow);
 
-            if (RateLimitService.IsRateLimited(endpointRateLimitKey, endpointMaxAttempts, endpointWindow))
+            if (endpointStatus.IsLimited)
             {
-                var status = RateLimitService.GetRateLimitStatus(endpointRateLimitKey, endpointMaxAttempts, endpointWindow);
                 Log.Warning($"Endpoint rate limit exceeded from IP {clientIp} for {method} {endpoint}");
-
-                context.Response.StatusCode = 429;
-                context.Response.ContentType = "application/json";
-                AddRateLimitHeaders(context, status);
-                
-                var errorResponse = ApiResponse.ErrorResponse(ErrorCodes.RateLimitExceeded);
-                
-                await context.Response.WriteAsync(JsonSerializer.Serialize(errorResponse, JsonOptions));
+                await WriteRateLimitedResponseAsync(context, endpointStatus);
                 return;
             }
 
-            var globalStatus = RateLimitService.GetRateLimitStatus(globalRateLimitKey, globalMaxAttempts, globalWindow);
-            var endpointStatus = RateLimitService.GetRateLimitStatus(endpointRateLimitKey, endpointMaxAttempts, endpointWindow);
-
-            var mostRestrictiveStatus = globalStatus.Remaining <= endpointStatus.Remaining 
-                ? globalStatus 
+            var mostRestrictiveStatus = globalStatus.Remaining <= endpointStatus.Remaining
+                ? globalStatus
                 : endpointStatus;
 
             context.Response.OnStarting(() =>
@@ -119,6 +108,17 @@ namespace Homassy.API.Middleware
             }
 
             return endpoint?.DisplayName?.ToLowerInvariant() ?? UnmatchedEndpointKey;
+        }
+
+        private static async Task WriteRateLimitedResponseAsync(HttpContext context, RateLimitStatus status)
+        {
+            context.Response.StatusCode = 429;
+            context.Response.ContentType = "application/json";
+            AddRateLimitHeaders(context, status);
+
+            var errorResponse = ApiResponse.ErrorResponse(ErrorCodes.RateLimitExceeded);
+
+            await context.Response.WriteAsync(JsonSerializer.Serialize(errorResponse, JsonOptions));
         }
 
         private static void AddRateLimitHeaders(HttpContext context, RateLimitStatus status)

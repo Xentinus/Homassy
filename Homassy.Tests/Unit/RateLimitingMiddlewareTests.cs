@@ -4,7 +4,9 @@ using Homassy.Tests.Infrastructure;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Routing;
 using Microsoft.AspNetCore.Routing.Patterns;
+using Homassy.API.Models.ApplicationSettings;
 using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Options;
 using System.Net;
 using System.Text.Json;
 
@@ -17,7 +19,7 @@ public class RateLimitingMiddlewareTests
     private static int _testCounter;
 
     /// <summary>
-    /// Builds a rate-limit configuration for one middleware instance, leaving the process-wide
+    /// Builds the limits for one middleware instance, leaving the process-wide
     /// <see cref="ConfigService"/> alone.
     /// </summary>
     /// <remarks>
@@ -26,25 +28,35 @@ public class RateLimitingMiddlewareTests
     /// request read it too — which is how <c>LocationControllerTests</c> came to assert 401 and get
     /// 429. The limits belong to the instance under test and nothing else.
     /// </remarks>
-    private static IConfiguration BuildConfig(string globalMaxAttempts, string endpointMaxAttempts)
+    private static IOptionsMonitor<RateLimitSettings> BuildLimits(int globalMaxAttempts, int endpointMaxAttempts)
     {
-        return new ConfigurationBuilder()
-            .AddInMemoryCollection(new Dictionary<string, string?>
-            {
-                ["RateLimiting:GlobalMaxAttempts"] = globalMaxAttempts,
-                ["RateLimiting:GlobalWindowMinutes"] = "1",
-                ["RateLimiting:EndpointMaxAttempts"] = endpointMaxAttempts,
-                ["RateLimiting:EndpointWindowMinutes"] = "1"
-            })
-            .Build();
+        return new FixedOptionsMonitor<RateLimitSettings>(new RateLimitSettings
+        {
+            GlobalMaxAttempts = globalMaxAttempts,
+            GlobalWindowMinutes = 1,
+            EndpointMaxAttempts = endpointMaxAttempts,
+            EndpointWindowMinutes = 1
+        });
+    }
+
+    /// <summary>An options monitor over one value that never changes.</summary>
+    private sealed class FixedOptionsMonitor<T> : IOptionsMonitor<T>
+    {
+        public FixedOptionsMonitor(T value) => CurrentValue = value;
+
+        public T CurrentValue { get; }
+
+        public T Get(string? name) => CurrentValue;
+
+        public IDisposable? OnChange(Action<T, string?> listener) => null;
     }
 
     /// <summary>The limits a test gets when it does not care about them: the production defaults.</summary>
     private static RateLimitingMiddleware CreateMiddleware(RequestDelegate next)
-        => CreateMiddleware(next, BuildConfig(globalMaxAttempts: "100", endpointMaxAttempts: "30"));
+        => CreateMiddleware(next, BuildLimits(globalMaxAttempts: 100, endpointMaxAttempts: 30));
 
-    private static RateLimitingMiddleware CreateMiddleware(RequestDelegate next, IConfiguration configuration)
-        => new(next, configuration);
+    private static RateLimitingMiddleware CreateMiddleware(RequestDelegate next, IOptionsMonitor<RateLimitSettings> limits)
+        => new(next, limits);
 
     private DefaultHttpContext CreateHttpContext(string path = "/api/test", string? ip = null)
     {
@@ -70,7 +82,7 @@ public class RateLimitingMiddlewareTests
     [Fact]
     public async Task InvokeAsync_WhenRateLimited_Returns429()
     {
-        var config = BuildConfig(globalMaxAttempts: "100", endpointMaxAttempts: "2");
+        var config = BuildLimits(globalMaxAttempts: 100, endpointMaxAttempts: 2);
 
         var uniqueIp = GetUniqueIp();
         var middleware = CreateMiddleware(_ => Task.CompletedTask, config);
@@ -90,7 +102,7 @@ public class RateLimitingMiddlewareTests
     [Fact]
     public async Task InvokeAsync_WhenRateLimited_AddsRateLimitLimitHeader()
     {
-        var config = BuildConfig(globalMaxAttempts: "100", endpointMaxAttempts: "2");
+        var config = BuildLimits(globalMaxAttempts: 100, endpointMaxAttempts: 2);
 
         var uniqueIp = GetUniqueIp();
         var middleware = CreateMiddleware(_ => Task.CompletedTask, config);
@@ -112,7 +124,7 @@ public class RateLimitingMiddlewareTests
     [Fact]
     public async Task InvokeAsync_WhenRateLimited_AddsRetryAfterHeader()
     {
-        var config = BuildConfig(globalMaxAttempts: "100", endpointMaxAttempts: "2");
+        var config = BuildLimits(globalMaxAttempts: 100, endpointMaxAttempts: 2);
 
         var uniqueIp = GetUniqueIp();
         var middleware = CreateMiddleware(_ => Task.CompletedTask, config);
@@ -135,7 +147,7 @@ public class RateLimitingMiddlewareTests
     [Fact]
     public async Task InvokeAsync_WhenRateLimited_RemainingIsZero()
     {
-        var config = BuildConfig(globalMaxAttempts: "100", endpointMaxAttempts: "2");
+        var config = BuildLimits(globalMaxAttempts: 100, endpointMaxAttempts: 2);
 
         var uniqueIp = GetUniqueIp();
         var middleware = CreateMiddleware(_ => Task.CompletedTask, config);
@@ -156,7 +168,7 @@ public class RateLimitingMiddlewareTests
     [Fact]
     public async Task InvokeAsync_WhenRateLimited_ResetHeaderIsValidTimestamp()
     {
-        var config = BuildConfig(globalMaxAttempts: "100", endpointMaxAttempts: "2");
+        var config = BuildLimits(globalMaxAttempts: 100, endpointMaxAttempts: 2);
 
         var uniqueIp = GetUniqueIp();
         var middleware = CreateMiddleware(_ => Task.CompletedTask, config);
@@ -199,7 +211,7 @@ public class RateLimitingMiddlewareTests
     [Fact]
     public async Task InvokeAsync_DoesNotCallNextMiddleware_WhenRateLimited()
     {
-        var config = BuildConfig(globalMaxAttempts: "100", endpointMaxAttempts: "1");
+        var config = BuildLimits(globalMaxAttempts: 100, endpointMaxAttempts: 1);
 
         var nextCallCount = 0;
         var uniqueIp = GetUniqueIp();
@@ -225,7 +237,7 @@ public class RateLimitingMiddlewareTests
     [Fact]
     public async Task InvokeAsync_WhenRateLimited_ReturnsJsonResponse()
     {
-        var config = BuildConfig(globalMaxAttempts: "100", endpointMaxAttempts: "1");
+        var config = BuildLimits(globalMaxAttempts: 100, endpointMaxAttempts: 1);
 
         var uniqueIp = GetUniqueIp();
         var middleware = CreateMiddleware(_ => Task.CompletedTask, config);
@@ -249,7 +261,7 @@ public class RateLimitingMiddlewareTests
     [Fact]
     public async Task InvokeAsync_WhenGlobalRateLimitExceeded_Returns429()
     {
-        var config = BuildConfig(globalMaxAttempts: "2", endpointMaxAttempts: "100");
+        var config = BuildLimits(globalMaxAttempts: 2, endpointMaxAttempts: 100);
 
         var uniqueIp = GetUniqueIp();
         var middleware = CreateMiddleware(_ => Task.CompletedTask, config);
@@ -273,7 +285,7 @@ public class RateLimitingMiddlewareTests
     [Fact]
     public async Task InvokeAsync_ForgedXForwardedFor_IsCountedAgainstTheConnectionAddress()
     {
-        var config = BuildConfig(globalMaxAttempts: "100", endpointMaxAttempts: "2");
+        var config = BuildLimits(globalMaxAttempts: 100, endpointMaxAttempts: 2);
 
         // One caller, a different fabricated X-Forwarded-For on every request. The
         // connection address is untrusted (no UseForwardedHeaders rewrote it), so the
@@ -298,7 +310,7 @@ public class RateLimitingMiddlewareTests
     [Fact]
     public async Task InvokeAsync_ForgedXRealIp_IsCountedAgainstTheConnectionAddress()
     {
-        var config = BuildConfig(globalMaxAttempts: "2", endpointMaxAttempts: "100");
+        var config = BuildLimits(globalMaxAttempts: 2, endpointMaxAttempts: 100);
 
         var connectionIp = GetUniqueIp();
         var middleware = CreateMiddleware(_ => Task.CompletedTask, config);
@@ -363,7 +375,7 @@ public class RateLimitingMiddlewareTests
     [Fact]
     public async Task InvokeAsync_ManyDistinctUnroutedPaths_ShareOneEndpointBucket()
     {
-        var config = BuildConfig(globalMaxAttempts: "100", endpointMaxAttempts: "2");
+        var config = BuildLimits(globalMaxAttempts: 100, endpointMaxAttempts: 2);
 
         var connectionIp = GetUniqueIp();
         var middleware = CreateMiddleware(_ => Task.CompletedTask, config);
@@ -417,7 +429,7 @@ public class RateLimitingMiddlewareTests
 
         var middleware = CreateMiddleware(
             _ => Task.CompletedTask,
-            BuildConfig(globalMaxAttempts: "1000000", endpointMaxAttempts: "1000000"));
+            BuildLimits(globalMaxAttempts: 1000000, endpointMaxAttempts: 1000000));
         var connectionIp = GetUniqueIp();
 
         for (int i = 0; i < 5; i++)

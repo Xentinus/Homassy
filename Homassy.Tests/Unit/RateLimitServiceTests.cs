@@ -221,6 +221,112 @@ public class RateLimitServiceTests : IDisposable
 
     #endregion
 
+    #region Concurrency Tests
+
+    /// <summary>
+    /// Runs <paramref name="body"/> <paramref name="iterations"/> times across more threads than
+    /// the machine has cores, all released from one barrier.
+    /// </summary>
+    /// <remarks>
+    /// Deliberately not <c>Parallel.For</c>. Its partitioner is free to hand every iteration to
+    /// one worker on a small runner, and a run that serialises proves nothing about a lost
+    /// update — it would have passed against the broken code too. Real threads plus a barrier
+    /// means the contention is there whatever the core count.
+    /// </remarks>
+    private static void RunContended(int iterations, Action body)
+    {
+        var threadCount = Math.Max(8, Environment.ProcessorCount * 2);
+        var start = new Barrier(threadCount);
+        var remaining = iterations;
+
+        var threads = Enumerable.Range(0, threadCount).Select(_ => new Thread(() =>
+        {
+            start.SignalAndWait();
+
+            while (Interlocked.Decrement(ref remaining) >= 0)
+            {
+                body();
+            }
+        })).ToList();
+
+        foreach (var thread in threads) thread.Start();
+        foreach (var thread in threads) thread.Join(TimeSpan.FromSeconds(30));
+    }
+
+    /// <summary>
+    /// The counter used to be a mutable field incremented inside a <c>ConcurrentDictionary</c>
+    /// update delegate, which the dictionary gives no exclusivity: two requests on the same key
+    /// could both read 7 and both write 8, so the recorded count drifted below the real one and
+    /// the effective limit ended up higher than configured — under exactly the parallel load the
+    /// limiter exists for (#82).
+    /// </summary>
+    [Fact]
+    public void RegisterAttempt_UnderParallelLoadOnOneKey_CountsEveryAttempt()
+    {
+        var key = GetUniqueKey();
+        const int attempts = 1000;
+        const int maxAttempts = attempts * 2;   // High enough that nothing is refused.
+        var window = TimeSpan.FromMinutes(5);
+
+        RunContended(attempts, () => RateLimitService.RegisterAttempt(key, maxAttempts, window));
+
+        var status = RateLimitService.GetRateLimitStatus(key, maxAttempts, window);
+
+        Assert.Equal(maxAttempts - attempts, status.Remaining);
+    }
+
+    /// <summary>
+    /// With the limit inside the range of the parallel run, exactly the configured number of
+    /// attempts must get through — one lost increment means one extra request served.
+    /// </summary>
+    [Fact]
+    public void RegisterAttempt_UnderParallelLoad_RefusesEverythingOverTheLimit()
+    {
+        var key = GetUniqueKey(1);
+        const int attempts = 1000;
+        const int maxAttempts = 250;
+        var window = TimeSpan.FromMinutes(5);
+
+        var allowed = 0;
+
+        RunContended(attempts, () =>
+        {
+            if (!RateLimitService.RegisterAttempt(key, maxAttempts, window).IsLimited)
+            {
+                Interlocked.Increment(ref allowed);
+            }
+        });
+
+        Assert.Equal(maxAttempts, allowed);
+    }
+
+    /// <summary>
+    /// Every field of the status comes from the snapshot the attempt produced, so the headers
+    /// built from it cannot contradict each other.
+    /// </summary>
+    [Fact]
+    public void RegisterAttempt_ReturnsAStatusConsistentWithTheAttemptThatProducedIt()
+    {
+        var key = GetUniqueKey(2);
+        const int maxAttempts = 3;
+        var window = TimeSpan.FromMinutes(1);
+
+        Assert.Equal(2, RateLimitService.RegisterAttempt(key, maxAttempts, window).Remaining);
+        Assert.Equal(1, RateLimitService.RegisterAttempt(key, maxAttempts, window).Remaining);
+
+        var third = RateLimitService.RegisterAttempt(key, maxAttempts, window);
+        Assert.Equal(0, third.Remaining);
+        Assert.False(third.IsLimited);      // The third attempt is the last allowed one.
+        Assert.NotNull(third.RetryAfterSeconds);
+
+        var fourth = RateLimitService.RegisterAttempt(key, maxAttempts, window);
+        Assert.True(fourth.IsLimited);
+        Assert.Equal(0, fourth.Remaining);
+        Assert.Equal(third.ResetTimestamp, fourth.ResetTimestamp);
+    }
+
+    #endregion
+
     #region GetLockoutRemaining Tests
 
     [Fact]

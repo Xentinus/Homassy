@@ -79,6 +79,17 @@ namespace Homassy.API.Context
             }
 
             #region User Relationships
+            // One address, one user. `User.Email` normalises on the way in, so a plain unique
+            // index over the column enforces case-insensitive uniqueness without a functional
+            // index or a citext column — and it is the backstop for a row written by something
+            // that is not the entity, which is how the casing drift in #136 started.
+            // Filtered on IsDeleted, matching the soft-delete query filter above: a deleted row
+            // keeps its address but must not stop the same person signing up again.
+            modelBuilder.Entity<User>()
+                .HasIndex(u => u.Email)
+                .IsUnique()
+                .HasFilter("\"IsDeleted\" = false");
+
             modelBuilder.Entity<User>()
                 .HasOne(u => u.Profile)
                 .WithOne(p => p.User)

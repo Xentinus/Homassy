@@ -2,6 +2,20 @@
 
 > Per-middleware detail split out of [../CLAUDE.md](../CLAUDE.md). The pipeline **order** lives in the main file; this doc covers each middleware in depth.
 
+### In-Flight Request Middleware
+
+Increments `InFlightRequestTracker` on the way in and decrements it in a `finally`, so the count
+is right for a request that threw as well as one that returned.
+
+It sits directly after the forwarded-header unwind, above everything else, because the count is
+read during shutdown: `GracefulShutdownService` logs how many requests the stop is waiting for and
+how long the last one took. A request counted further down the pipeline would be a request the
+shutdown log claims is not there.
+
+It does **not** drain anything. The drain is `HostOptions.ShutdownTimeout` (see
+[../Services/CLAUDE.md](../Services/CLAUDE.md)); this is the instrumentation that says whether it
+finished.
+
 ### Response Compression
 
 Automatic response compression for improved performance:
@@ -192,12 +206,24 @@ Two-tier rate limiting system via `RateLimitingMiddleware`:
 **1. Global Rate Limiting**
 - Per IP address across all endpoints
 - Default: 100 requests per minute
-- Configurable via `GlobalRateLimitRequests` and `GlobalRateLimitWindowMinutes`
+- `RateLimiting:GlobalMaxAttempts` and `RateLimiting:GlobalWindowMinutes`
 
 **2. Endpoint-Specific Rate Limiting**
 - Per IP per **route template** — not per request path
 - Default: 30 requests per minute
-- Configurable via `EndpointRateLimitRequests` and `EndpointRateLimitWindowMinutes`
+- `RateLimiting:EndpointMaxAttempts` and `RateLimiting:EndpointWindowMinutes`
+
+**Settings:** bound to `RateLimitSettings` and registered with
+`ValidateDataAnnotations().ValidateOnStart()`, injected as `IOptionsMonitor<RateLimitSettings>`.
+They are read once at startup, not per request, and a malformed or out-of-range value stops the
+host from starting. Before #82 the middleware `int.Parse`d four configuration values on every
+request, so one typo turned every request — health endpoints included — into a 500.
+
+**Counting:** one `RateLimitService.RegisterAttempt` per scope, and the headers come from the
+status that attempt returned. Counting and then re-reading the bucket was two independent reads
+per scope, and could describe a state this request never saw. The counter itself is a
+compare-and-swap over an immutable snapshot, so no increment is lost under parallel load from one
+client — which is precisely the load the limiter exists for.
 
 **Key shape:** `global:{ip}` and `endpoint:{routeTemplate}:{ip}`. The route template comes from
 the matched endpoint (hence the explicit `app.UseRouting()` before the middleware); everything

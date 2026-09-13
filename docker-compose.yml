@@ -77,6 +77,10 @@ services:
     build:
       context: .
       dockerfile: Homassy.API/Dockerfile
+    # Longer than GracefulShutdown:TimeoutSeconds (30s), so the drain decides when the process
+    # stops. Docker's default is 10s, which used to SIGKILL the container before in-flight
+    # requests had finished and before Serilog had flushed (#85). An idle API still stops at once.
+    stop_grace_period: 45s
     ports:
       - "5226:8080"
     environment:
@@ -170,6 +174,10 @@ services:
     build:
       context: .
       dockerfile: Homassy.Notifications/Dockerfile
+    # Eight background workers, each of which should finish the cycle it is in rather than be
+    # killed mid-send. The window itself is HostOptions.ShutdownTimeout in this service's
+    # Program.cs (30s); this only keeps Docker from SIGKILLing the container before it is up.
+    stop_grace_period: 45s
     environment:
       - ASPNETCORE_ENVIRONMENT=Development
       - ASPNETCORE_URLS=http://+:8080

@@ -1,0 +1,5 @@
+; Symbols banned across the whole solution, reported as RS0030 by
+; Microsoft.CodeAnalysis.BannedApiAnalyzers (wired up in Directory.Build.props).
+; Format: <documentation comment id>;<message shown with the diagnostic>
+P:System.DateTime.Now;This solution is UTC-everywhere. Use DateTime.UtcNow, or inject a clock if a test needs to control the instant.
+P:System.DateTime.Today;This solution is UTC-everywhere. Use DateTime.UtcNow.Date, or inject a clock if a test needs to control the instant.

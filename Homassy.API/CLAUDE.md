@@ -48,7 +48,7 @@ Homassy.API is a home storage management system built with ASP.NET Core. The pro
 - **Notification Centre**: every notification the workers send is stored per recipient as a *type plus parameters* (never rendered prose), so the text is composed in the reader's own language at read time; cursor-paged, with per-user read state and a retention window
 - **Error Code System**: Typed `ErrorCodes` enum with descriptions instead of plain string messages in all API error responses
 - **Account Lockout**: Automatic account lockout after repeated failed login attempts via `AccountLockoutService`
-- **Graceful Shutdown**: Configurable drain period before process exit, ensuring in-flight requests complete
+- **Graceful Shutdown**: `HostOptions.ShutdownTimeout` drains in-flight requests on the stop signal; an idle instance stops immediately, and `stop_grace_period` in compose is set above the timeout so the container is not killed mid-drain
 - **CORS Support**: Configurable cross-origin resource sharing for web clients
 - **Response Compression**: Brotli and Gzip for improved performance
 - **SignalR Realtime (Shopping Lists)**: Each shopping list is a SignalR group; clients join the list they are viewing and receive live item/list events. Writes stay on the REST endpoints — after a successful commit the Functions layer broadcasts via the injected `ShoppingListRealtime` helper
@@ -237,6 +237,7 @@ Homassy.API/
 ├── Middleware/           Custom middleware
 │   ├── CorrelationIdMiddleware.cs
 │   ├── GlobalExceptionMiddleware.cs
+│   ├── InFlightRequestMiddleware.cs  Counts requests in the pipeline, for the shutdown drain
 │   ├── KratosSessionMiddleware.cs  Validates Kratos session + populates HttpContext
 │   ├── RateLimitingMiddleware.cs
 │   ├── RequestLoggingMiddleware.cs
@@ -278,10 +279,11 @@ Homassy.API/
     ├── BarcodeValidationService.cs
     ├── CacheManagementService.cs  (IHostedService – cache invalidation)
     ├── ConfigService.cs
-    ├── GracefulShutdownService.cs (IHostedService – drain on shutdown)
+    ├── GracefulShutdownService.cs (IHostedService – reports the shutdown drain)
     ├── IBarcodeValidationService.cs
     ├── IImageProcessingService.cs
     ├── ImageProcessingService.cs
+    ├── InFlightRequestTracker.cs   Live request count the shutdown log reads
     ├── KratosService.cs
     ├── OpenFoodFactsService.cs
     ├── ProgressTrackerService.cs
@@ -806,6 +808,7 @@ The middleware pipeline is configured in a specific order in `Program.cs`:
 
 ```csharp
 if (forwardedHeadersSettings.Enabled) app.UseForwardedHeaders(); // must be first
+app.UseMiddleware<InFlightRequestMiddleware>();  // counts everything the server accepted
 app.UseResponseCompression();
 app.Use(async (context, next) => { /* Security + App Headers */ });
 app.UseMiddleware<CorrelationIdMiddleware>();
@@ -832,23 +835,24 @@ app.MapControllers();
 
 **Order matters:**
 1. **Forwarded Headers** - Unwinds `X-Forwarded-For`/`-Proto` from configured proxies only. Must be first: everything below reads `RemoteIpAddress` and `Request.Scheme`
-2. **Response Compression** - Brotli and Gzip compression for responses
-3. **Response Headers** - Adds security headers (CSP, X-Frame-Options, HSTS, etc.) and app metadata; removes `Server` / `X-Powered-By`
-4. **Correlation ID** - Generates/propagates `X-Correlation-ID` for request tracing
-5. **Request Timeout** - Enforces per-endpoint timeout limits
-6. **Request Logging** - Logs HTTP requests/responses (sanitized) via extension method `UseRequestLogging`
-7. **Global Exception Handler** - Catches and maps all unhandled exceptions
-8. **OpenAPI** - Swagger UI (development only)
-9. **HSTS** - HTTP Strict Transport Security (non-dev, if enabled)
-10. **HTTPS Redirection** - Forces HTTPS (non-dev, if enabled)
-11. **Routing** - Matches the endpoint. Explicit, because rate limiting keys on the route template and the Kratos middleware reads `[AllowAnonymous]` from endpoint metadata
-12. **CORS** - Cross-Origin Resource Sharing; allowlist only, plus a loopback shortcut in Development
-13. **Rate Limiting** - Global and per-route-template request throttling
-14. **Kratos Session** - Calls Kratos `/sessions/whoami`, sets `context.User` and `HttpContext.Items["KratosSession"]`; skipped for `[AllowAnonymous]` endpoints and for requests with no session credentials
-15. **Authentication** - Reads the `ClaimsPrincipal` already set by KratosSessionMiddleware
-16. **Authorization** - Enforces `[Authorize]` attributes
-17. **Session Info** - Extracts user/family IDs from claims into `AsyncLocal` (`SessionInfo`)
-18. **Controllers** - Route to endpoints
+2. **In-Flight Request Counter** - Feeds `InFlightRequestTracker`, which is what the shutdown log lines report on. This high up so a request that never reaches a controller still counts as in flight
+3. **Response Compression** - Brotli and Gzip compression for responses
+4. **Response Headers** - Adds security headers (CSP, X-Frame-Options, HSTS, etc.) and app metadata; removes `Server` / `X-Powered-By`
+5. **Correlation ID** - Generates/propagates `X-Correlation-ID` for request tracing
+6. **Request Timeout** - Enforces per-endpoint timeout limits
+7. **Request Logging** - Logs HTTP requests/responses (sanitized) via extension method `UseRequestLogging`
+8. **Global Exception Handler** - Catches and maps all unhandled exceptions
+9. **OpenAPI** - Swagger UI (development only)
+10. **HSTS** - HTTP Strict Transport Security (non-dev, if enabled)
+11. **HTTPS Redirection** - Forces HTTPS (non-dev, if enabled)
+12. **Routing** - Matches the endpoint. Explicit, because rate limiting keys on the route template and the Kratos middleware reads `[AllowAnonymous]` from endpoint metadata
+13. **CORS** - Cross-Origin Resource Sharing; allowlist only, plus a loopback shortcut in Development
+14. **Rate Limiting** - Global and per-route-template request throttling
+15. **Kratos Session** - Calls Kratos `/sessions/whoami`, sets `context.User` and `HttpContext.Items["KratosSession"]`; skipped for `[AllowAnonymous]` endpoints and for requests with no session credentials
+16. **Authentication** - Reads the `ClaimsPrincipal` already set by KratosSessionMiddleware
+17. **Authorization** - Enforces `[Authorize]` attributes
+18. **Session Info** - Extracts user/family IDs from claims into `AsyncLocal` (`SessionInfo`)
+19. **Controllers** - Route to endpoints
 
 > Each middleware is documented in depth in [Middleware/CLAUDE.md](Middleware/CLAUDE.md). The remaining cross-cutting concerns (error codes, push, activity feed, automation, family join, lockout, graceful shutdown) live in [docs/features.md](docs/features.md); input sanitization, barcode, and image validation in [docs/security-and-validation.md](docs/security-and-validation.md); application/background services and health checks in [Services/CLAUDE.md](Services/CLAUDE.md).
 

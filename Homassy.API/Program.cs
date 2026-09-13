@@ -228,6 +228,14 @@ try
     builder.Services.Configure<HealthCheckOptions>(builder.Configuration.GetSection("HealthChecks"));
     builder.Services.Configure<GracefulShutdownSettings>(builder.Configuration.GetSection("GracefulShutdown"));
 
+    // ValidateOnStart, so a non-numeric or out-of-range limit stops the host here rather than
+    // turning every request - the health endpoints included - into a 500 (#82).
+    builder.Services
+        .AddOptions<RateLimitSettings>()
+        .Bind(builder.Configuration.GetSection("RateLimiting"))
+        .ValidateDataAnnotations()
+        .ValidateOnStart();
+
     var httpsSettings = builder.Configuration.GetSection("Https").Get<HttpsSettings>() ?? new HttpsSettings();
     var gracefulShutdownSettings = builder.Configuration.GetSection("GracefulShutdown").Get<GracefulShutdownSettings>() ?? new GracefulShutdownSettings();
 
@@ -237,8 +245,20 @@ try
         {
             serverOptions.AddServerHeader = false;
         });
+
+        // This is the whole drain. On the stop signal Kestrel stops accepting connections and
+        // waits for the requests already in flight, for up to this long, then abandons them —
+        // which is exactly the behaviour the old Thread.Sleep in the ApplicationStopping callback
+        // was hand-rolling, except that the sleep waited out the full timeout whether or not
+        // anything was in flight. The host's own default is 5 seconds, so without this line the
+        // configured TimeoutSeconds would not have been the number that governs anything (#85).
+        builder.Services.Configure<HostOptions>(options =>
+            options.ShutdownTimeout = TimeSpan.FromSeconds(gracefulShutdownSettings.TimeoutSeconds));
     }
 
+    // Diagnostics for the drain above: how many requests the stop is waiting for, and whether
+    // they finished inside the window. Paired with InFlightRequestMiddleware.
+    builder.Services.AddSingleton<InFlightRequestTracker>();
     builder.Services.AddHostedService<GracefulShutdownService>();
 
     if (httpsSettings.Enabled && httpsSettings.Hsts.Enabled)
@@ -420,6 +440,10 @@ try
         app.UseForwardedHeaders();
     }
 
+    // Straight after the forwarded-header unwind, so every request the server accepted is counted
+    // for the shutdown drain — including the ones that never reach a controller.
+    app.UseMiddleware<InFlightRequestMiddleware>();
+
     app.UseResponseCompression();
 
     app.Use(async (context, next) =>
@@ -489,17 +513,9 @@ try
 
     Log.Information("Homassy API started successfully");
 
-    if (gracefulShutdownSettings.Enabled)
-    {
-        var lifetime = app.Services.GetRequiredService<IHostApplicationLifetime>();
-        lifetime.ApplicationStopping.Register(() =>
-        {
-            Log.Information("Shutdown signal received, waiting for active requests to complete");
-            Thread.Sleep(TimeSpan.FromSeconds(gracefulShutdownSettings.TimeoutSeconds));
-        });
-    }
-
-    app.Run();
+    // Nothing to register for shutdown here. The drain is HostOptions.ShutdownTimeout (set
+    // above); what is waiting for what is reported by GracefulShutdownService.
+    await app.RunAsync();
 }
 catch (Exception ex)
 {
@@ -507,6 +523,9 @@ catch (Exception ex)
 }
 finally
 {
+    // Reached on SIGTERM as well: RunAsync returns once the host has stopped, so the shutdown
+    // log lines are still buffered when this flushes them. Nothing may block before here — the
+    // Thread.Sleep this replaced was reliably SIGKILLed mid-sleep, taking the buffer with it.
     Log.Information("Shutting down Homassy API");
     await Log.CloseAndFlushAsync();
 }

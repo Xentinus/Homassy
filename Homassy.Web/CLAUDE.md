@@ -153,7 +153,7 @@ Homassy.Web/
 │   │       ├── index.vue
 │   │       └── add-product.vue
 │   ├── plugins/
-│   │   ├── api.ts              Provides $api ($fetch wrapper with 401 → /auth/login)
+│   │   ├── api.ts              Provides $api ($fetch wrapper with 401 → /auth/login + return_to)
 │   │   ├── app-badge.client.ts Installs the document-title prefix (see useAppBadge)
 │   │   ├── auth.ts             On startup: loadFromCookies + setupVisibilityListener
 │   │   ├── i18n.ts
@@ -172,6 +172,7 @@ Homassy.Web/
 │   │   ├── enums.ts
 │   │   └── ...
 │   └── utils/
+│       ├── authRedirect.ts       Where an unauthenticated caller goes, and what it carries
 │       ├── enumMappers.ts
 │       ├── errorCodes.ts
 │       ├── geoUtils.ts           Haversine distanceMeters + NEARBY_RADIUS_METERS
@@ -267,7 +268,8 @@ Runs on app startup:
 
 A `$fetch` wrapper registered as `$api`. Sends `credentials: 'include'` (Kratos session cookie). On `401` response:
 1. Clears local auth state
-2. Redirects to `/auth/login`
+2. Redirects to `/auth/login` **carrying the current route** as `return_to`, via the same
+   `loginRedirectFor` the auth middleware uses — see *Deep links through the auth gate*
 
 ### `useApiClient` Composable
 
@@ -713,12 +715,31 @@ it, stashes the payload in a cache of its own, and `303`s to the plain `/share` 
 
 ### Deep links through the auth gate
 
-The auth middleware carries `to.fullPath` over as `return_to`. The login page had always honoured
-that parameter and nothing ever sent it, so every unauthenticated launch threw the intended route
-away — fine for a bookmark, fatal for a shortcut or a share, which *is* an unauthenticated launch.
-`safeReturnTo` validates it (one leading slash, never two, never back into `/auth/`), because a
-parameter that is now written on every gated navigation is reachable by anyone who can hand the
-user a login link.
+Two places send a user to the login page, and both carry the destination as `return_to`:
+
+| Where | When | Carries |
+|---|---|---|
+| `middleware/auth.ts` | a navigation into a protected route with no valid session | `to.fullPath` |
+| `plugins/api.ts` | a 401 from the API | the router's current `fullPath` |
+
+The login page had always honoured that parameter and nothing ever sent it, so every
+unauthenticated launch threw the intended route away — fine for a bookmark, fatal for a shortcut
+or a share, which *is* an unauthenticated launch. The 401 path kept doing that after the
+middleware was fixed, and it is the **commoner** case on mobile: a session lapsing while the app
+is open, or an installed PWA reopened after it lapsed, bounced the user to login and then to the
+calendar, losing whatever they were doing.
+
+Both go through `utils/authRedirect.ts` → `loginRedirectFor(currentFullPath)`, so there is one
+answer to "where does an unauthenticated caller go, and what does it carry". It returns `null` on
+an `/auth/` route: nothing worth preserving, and bouncing from there is a login loop.
+
+`safeReturnTo` (in `utils/shareText.ts`) validates the value again on the way out — one leading
+slash, never two, never back into `/auth/` — because a parameter written on every gated navigation
+is reachable by anyone who can hand the user a login link.
+
+Kratos's own flows are a separate mechanism: `SELFSERVICE_ALLOWED_RETURN_URLS_0` in the Kratos
+config governs where *Kratos* may return to after a flow it drove. It has nothing to do with the
+application-internal redirect above, and neither one covers the other.
 
 ---
 
