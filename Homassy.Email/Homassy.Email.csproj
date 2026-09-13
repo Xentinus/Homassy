@@ -19,7 +19,8 @@
   </ItemGroup>
 
   <ItemGroup>
-    <PackageReference Include="MailKit" Version="4.9.0" />
+    <!-- 4.9.0 carried GHSA-9j88-vvj5-vhgr / GHSA-g7hc-96xr-gvvx (MimeKit, transitive). -->
+    <PackageReference Include="MailKit" Version="4.17.0" />
     <PackageReference Include="Serilog.AspNetCore" Version="9.0.0" />
     <PackageReference Include="Serilog.Sinks.Console" Version="6.0.0" />
     <PackageReference Include="Serilog.Sinks.File" Version="6.0.0" />

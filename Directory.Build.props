@@ -20,15 +20,35 @@
     <!-- Disable source revision ID (git commit hash) being appended -->
     <IncludeSourceRevisionInInformationalVersion>false</IncludeSourceRevisionInInformationalVersion>
 
-    <!-- CI builds with -warnaserror so a new compiler warning fails the pipeline. NuGet's
-         vulnerability audit (NU1901-NU1904) has to be exempt from that: it reports advisories
-         published after the fact, so it turns an untouched commit red without anyone changing
-         a line, and -warnaserror promotes restore warnings too. WarningsNotAsErrors does not
-         cover restore, hence NoWarn.
+    <!-- NuGet's vulnerability audit (NU1901-NU1904) used to be NoWarn-ed here, because the tree
+         carried advisories that nobody was about to fix and -warnaserror promotes restore
+         warnings too, so an untouched commit went red whenever a new advisory landed.
 
-         The audit is NOT dropped: the CI workflow runs `dotnet list package` in vulnerable +
-         transitive mode as its own step, which reports the same advisories somewhere a person
-         will actually read them instead of buried in a build log. -->
-    <NoWarn>$(NoWarn);NU1901;NU1902;NU1903;NU1904</NoWarn>
+         The tree is clean now (#135), so the audit is back on. A newly published advisory does
+         fail the build, and that is the point: it is the only thing that keeps the tree clean.
+         The fix is to bump the package, not to re-add the NoWarn. The CI workflow still lists
+         vulnerable + transitive packages in the run summary, which says *which* package it is
+         without reading a build log. -->
+    <NuGetAudit>true</NuGetAudit>
+    <NuGetAuditMode>all</NuGetAuditMode>
+    <NuGetAuditLevel>low</NuGetAuditLevel>
+
+    <!-- RS0030 is the banned-API diagnostic (see BannedSymbols.txt below). It only ever fires on
+         a symbol somebody deliberately listed, so a warning it can be scrolled past is not much
+         of a ban - it is an error locally, not just under CI's -warnaserror. -->
+    <WarningsAsErrors>$(WarningsAsErrors);RS0030</WarningsAsErrors>
   </PropertyGroup>
+
+  <!-- UTC everywhere is the convention in this solution: every stored timestamp, every value
+       parsed out of an external feed and every comparison between them is UTC. DateTime.Now and
+       DateTime.Today read the *container's* local clock, so a single TZ environment variable
+       silently shifts whatever they feed (#86). Ban them outright rather than re-finding the
+       next one by hand. Use DateTime.UtcNow, or inject a clock when a test needs to control it. -->
+  <ItemGroup Condition="'$(MSBuildProjectExtension)' == '.csproj'">
+    <PackageReference Include="Microsoft.CodeAnalysis.BannedApiAnalyzers" Version="4.14.0">
+      <PrivateAssets>all</PrivateAssets>
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+    </PackageReference>
+    <AdditionalFiles Include="$(MSBuildThisFileDirectory)BannedSymbols.txt" />
+  </ItemGroup>
 </Project>

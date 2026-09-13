@@ -124,8 +124,9 @@ jobs:
 
       - name: Build
         # -warnaserror: a new compiler warning fails here rather than being noticed later.
-        # The NuGet vulnerability audit is exempted in Directory.Build.props and reported by
-        # its own step below.
+        # That now includes the NuGet vulnerability audit (NU1901-NU1904): the tree is clean,
+        # so a newly published advisory is meant to stop the build. The step below says which
+        # package it was without anyone reading the build log.
         run: dotnet build Homassy.slnx --no-restore -warnaserror
 
       - name: Apply database migrations
@@ -159,14 +160,20 @@ jobs:
           if-no-files-found: warn
 
       - name: Report vulnerable packages
-        # Advisory, not a gate: an advisory published overnight must not turn an untouched
-        # commit red. See the NoWarn note in Directory.Build.props.
+        # Diagnostics, not the gate — the restore audit in the Build step is the gate. This
+        # names the offending package and the path it arrives by, which a NU190x line does not.
+        #
+        # Run per project, not on the solution: `dotnet list <solution>.slnx package` reports
+        # the first project only and says nothing about the rest, which is how four advisories
+        # in the other four projects stayed invisible until #135.
         if: always()
         continue-on-error: true
         run: |
           echo '### Vulnerable NuGet packages' >> "$GITHUB_STEP_SUMMARY"
           echo '```' >> "$GITHUB_STEP_SUMMARY"
-          dotnet list Homassy.slnx package --vulnerable --include-transitive >> "$GITHUB_STEP_SUMMARY" 2>&1 || true
+          for proj in Homassy.API Homassy.Email Homassy.Migrator Homassy.Notifications Homassy.Tests; do
+            dotnet list "$proj/$proj.csproj" package --vulnerable --include-transitive >> "$GITHUB_STEP_SUMMARY" 2>&1 || true
+          done
           echo '```' >> "$GITHUB_STEP_SUMMARY"
 
   web:
