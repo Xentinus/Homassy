@@ -649,6 +649,31 @@ Language setting from the user's profile (`UserInfo.language`) is synced to the 
 
 ---
 
+## Content Security Policy
+
+The policy is set by the reverse proxy (`Homassy.Proxy/Caddyfile`), not by Nuxt, so it also
+covers the Kratos flows under `/kratos/*`. Two things in this project have to stay in step
+with it:
+
+- **Inline scripts need the nonce.** `script-src` carries a nonce Caddy generates per request
+  and forwards as the `X-CSP-Nonce` request header;
+  `server/plugins/csp-nonce.ts` stamps it onto every inline `<script>` in the head and the
+  appended body chunks on the `render:html` hook. Adding another inline script (the
+  `pwa-standalone` detector in `app.head.script` is the only hand-written one) needs nothing
+  extra as long as it goes through unhead — but a raw `<script>` written into a component's
+  template will be blocked. There are no hashes to update; the nonce exists precisely because
+  the runtime-config block and the import map change per deployment and per build.
+- **A new external origin needs a directive.** Today the non-`'self'` entries are
+  `https://*.basemaps.cartocdn.com` (MapLibre basemap tiles, `img-src`),
+  `https://nominatim.openstreetmap.org` (`useGeocoding`, `connect-src`), `wss:` (SignalR hubs),
+  `data:`/`blob:` (base64 and object-URL images) and `blob:` in `worker-src` (MapLibre's tile
+  worker). Anything else the app starts fetching at runtime is blocked until the Caddyfile says
+  so. Check the browser console on the barcode scanner, calendar, shopping list, store map and
+  profile pages after touching any of it.
+
+`/offline` is prerendered, so it cannot carry a per-request nonce and the Caddyfile gives that
+one route a policy with `'unsafe-inline'` instead. Keep it free of user content.
+
 ## PWA
 
 - **Auto-update** on new deployments

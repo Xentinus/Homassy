@@ -248,12 +248,14 @@ by walking made-up URLs.
 
 ### Security Headers
 
-All responses include comprehensive security headers:
+All API responses include comprehensive security headers. These reach `/api/v*` and `/hubs/*`
+only — the HTML documents come from the Nuxt container and are covered by the site-level header
+blocks in `Homassy.Proxy/Caddyfile`, which skips the two API routes so that no response carries
+two `Content-Security-Policy` headers (browsers enforce the intersection of both).
 
 ```csharp
 X-Content-Type-Options: nosniff
 X-Frame-Options: DENY
-X-XSS-Protection: 1; mode=block
 Referrer-Policy: strict-origin-when-cross-origin
 Strict-Transport-Security: max-age=31536000; includeSubDomains
 Content-Security-Policy: default-src 'self'; script-src 'self'; ...
