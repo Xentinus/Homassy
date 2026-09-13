@@ -166,7 +166,7 @@ namespace Homassy.API.Functions
             if (calendar.FamilyId != familyId)
                 throw new ExternalCalendarAccessDeniedException();
 
-            await SyncCalendarAsync(calendar, context, httpClient, ct);
+            await SyncCalendarAsync(calendar, httpClient, ct);
             await context.SaveChangesAsync(ct);
 
             var response = MapToResponse(calendar);
@@ -229,7 +229,6 @@ namespace Homassy.API.Functions
 
         public static async Task SyncCalendarAsync(
             FamilyExternalCalendar calendar,
-            HomassyDbContext context,
             HttpClient httpClient,
             CancellationToken ct)
         {

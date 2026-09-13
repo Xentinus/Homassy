@@ -13,20 +13,23 @@ namespace Homassy.API.Functions
     /// This is a parameter object, not a service locator — every member is a declared, typed
     /// dependency and nothing can be pulled out of it that is not listed here.
     ///
-    /// It exists because the layer instantiates itself: <c>UserFunctions</c> ↔
-    /// <c>FamilyFunctions</c> and <c>ProductFunctions</c> ↔ <c>AutomationFunctions</c> are
-    /// mutually dependent, so those classes cannot take each other through the constructor and
-    /// create each other with <c>new</c> instead. Passing the dependencies one by one would mean
-    /// every class along the way declaring the union of everything its callees need — eight
-    /// classes with four or five parameters each, re-cascading the moment one more of them
-    /// broadcasts. One argument keeps the internal <c>new</c> sites stable.
+    /// It exists so that adding one more broadcast to one class does not re-cascade a constructor
+    /// parameter through every class that takes it. Without it each class along the way would
+    /// declare the union of everything its callees need — eight classes with four or five
+    /// parameters each, re-cascading the moment one more of them broadcasts.
+    ///
+    /// It used to have a second job, which it no longer has: the layer constructed itself with
+    /// <c>new</c> at 143 sites because <c>UserFunctions</c> ↔ <c>FamilyFunctions</c> and
+    /// <c>ProductFunctions</c> ↔ <c>AutomationFunctions</c> were mutually dependent, and one
+    /// argument kept those <c>new</c> sites stable. Those cycles are gone (#133) — see
+    /// <c>FamilyCache</c> and <c>LowStockAutomationFunctions</c> — and the classes take each
+    /// other through their constructors now.
     ///
     /// A class that needs nothing but a context — <c>ActivityFunctions</c>,
-    /// <c>FamilyFunctions</c>, <c>FamilyJoinRequestFunctions</c>,
+    /// <c>FamilyFunctions</c>, <c>FamilyCache</c>, <c>FamilyJoinRequestFunctions</c>,
     /// <c>PushNotificationFunctions</c>, <c>UserFunctions</c> — deliberately takes
-    /// <see cref="IDbContextFactory{TContext}"/> directly. Those five only ever construct each
-    /// other, so the set is closed, and it keeps them usable from a host that has no hubs (the
-    /// notifications service borrows exactly those two).
+    /// <see cref="IDbContextFactory{TContext}"/> directly, which keeps them usable from a host
+    /// that has no hubs.
     /// </remarks>
     public sealed class FunctionsRuntime
     {

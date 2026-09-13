@@ -84,16 +84,28 @@ namespace Homassy.API.Functions
         private readonly IDbContextFactory<HomassyDbContext> _contextFactory;
         private readonly IImageProcessingService _imageProcessingService;
         private readonly FamilyChatConnectionState _connectionState;
+        private readonly UserFunctions _userFunctions;
+        private readonly ProductFunctions _productFunctions;
+        private readonly SelectValueFunctions _selectValueFunctions;
+        private readonly FamilyCache _familyCache;
 
         public FamilyChatFunctions(
             FunctionsRuntime runtime,
             IImageProcessingService imageProcessingService,
-            FamilyChatConnectionState connectionState)
+            FamilyChatConnectionState connectionState,
+            UserFunctions userFunctions,
+            ProductFunctions productFunctions,
+            SelectValueFunctions selectValueFunctions,
+            FamilyCache familyCache)
         {
             _runtime = runtime;
             _contextFactory = runtime.ContextFactory;
             _imageProcessingService = imageProcessingService;
             _connectionState = connectionState;
+            _userFunctions = userFunctions;
+            _productFunctions = productFunctions;
+            _selectValueFunctions = selectValueFunctions;
+            _familyCache = familyCache;
         }
 
         #region Access
@@ -114,7 +126,7 @@ namespace Homassy.API.Functions
                 throw new FamilyChatAccessDeniedException("You are not a member of any family");
             }
 
-            var family = new FamilyFunctions(_contextFactory).GetFamilyById(familyId.Value)
+            var family = _familyCache.GetFamilyById(familyId.Value)
                 ?? throw new FamilyChatAccessDeniedException("You are not a member of any family");
 
             return (family.Id, family.PublicId);
@@ -650,7 +662,7 @@ namespace Homassy.API.Functions
         {
             if (requested.Count == 0) return [];
 
-            var selectValues = new SelectValueFunctions(_runtime);
+            var selectValues = _selectValueFunctions;
             var byKind = new Dictionary<FamilyChatReferenceKind, Dictionary<Guid, string>>();
             var resolved = new List<FamilyChatReferenceInfo>(requested.Count);
             var seen = new HashSet<(FamilyChatReferenceKind, Guid)>();
@@ -706,7 +718,7 @@ namespace Homassy.API.Functions
         {
             if (rows.Count == 0) return [];
 
-            var selectValues = new SelectValueFunctions(_runtime);
+            var selectValues = _selectValueFunctions;
             var byKind = new Dictionary<FamilyChatReferenceKind, Dictionary<Guid, string>>();
 
             foreach (var kind in rows.Select(r => r.Kind).Distinct())
@@ -775,7 +787,7 @@ namespace Homassy.API.Functions
                     .ToDictionary(g => g.Key, g => g.First().Text);
             }
 
-            var products = new ProductFunctions(_runtime);
+            var products = _productFunctions;
             var labels = new Dictionary<Guid, string>();
 
             foreach (var id in ids.Distinct())
@@ -885,10 +897,9 @@ namespace Homassy.API.Functions
             var ids = userIds.Distinct().ToList();
             if (ids.Count == 0) return [];
 
-            var userFunctions = new UserFunctions(_contextFactory);
             var nullableIds = ids.Cast<int?>().ToList();
-            var users = userFunctions.GetUsersByIds(nullableIds);
-            var profiles = userFunctions.GetUserProfilesByUserIds(nullableIds);
+            var users = _userFunctions.GetUsersByIds(nullableIds);
+            var profiles = _userFunctions.GetUserProfilesByUserIds(nullableIds);
 
             return users.ToDictionary(u => u.Id, u =>
             {

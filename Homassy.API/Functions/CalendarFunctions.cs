@@ -9,11 +9,13 @@ namespace Homassy.API.Functions
     {
         private readonly FunctionsRuntime _runtime;
         private readonly IDbContextFactory<HomassyDbContext> _contextFactory;
+        private readonly ExternalCalendarFunctions _externalCalendarFunctions;
 
-        public CalendarFunctions(FunctionsRuntime runtime)
+        public CalendarFunctions(FunctionsRuntime runtime, ExternalCalendarFunctions externalCalendarFunctions)
         {
             _runtime = runtime;
             _contextFactory = runtime.ContextFactory;
+            _externalCalendarFunctions = externalCalendarFunctions;
         }
 
         public async Task<List<CalendarEventInfo>> GetCalendarEventsAsync(
@@ -55,7 +57,7 @@ namespace Homassy.API.Functions
             if (!familyId.HasValue)
                 return Task.FromResult(new List<CalendarEventInfo>());
 
-            var events = new ExternalCalendarFunctions(_runtime)
+            var events = _externalCalendarFunctions
                 .GetCachedEventsForDateRange(familyId.Value, startDate, endDate);
 
             return Task.FromResult(events);

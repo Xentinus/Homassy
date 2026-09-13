@@ -29,11 +29,17 @@ namespace Homassy.API.Functions
     {
         private readonly FunctionsRuntime _runtime;
         private readonly IDbContextFactory<HomassyDbContext> _contextFactory;
+        private readonly ProductFunctions _productFunctions;
+        private readonly LocationFunctions _locationFunctions;
+        private readonly ShoppingListFunctions _shoppingListFunctions;
 
-        public SearchFunctions(FunctionsRuntime runtime)
+        public SearchFunctions(FunctionsRuntime runtime, ProductFunctions productFunctions, LocationFunctions locationFunctions, ShoppingListFunctions shoppingListFunctions)
         {
             _runtime = runtime;
             _contextFactory = runtime.ContextFactory;
+            _productFunctions = productFunctions;
+            _locationFunctions = locationFunctions;
+            _shoppingListFunctions = shoppingListFunctions;
         }
 
         /// <summary>Shortest query worth answering — one letter matches most of a catalogue.</summary>
@@ -72,35 +78,31 @@ namespace Homassy.API.Functions
             if (normalized.Length < MinQueryLength)
                 return response;
 
-            var productFunctions = new ProductFunctions(_runtime);
-            var locationFunctions = new LocationFunctions(_runtime);
-            var shoppingListFunctions = new ShoppingListFunctions(_runtime);
-
             AddGroup(response, SearchResultKind.Product, limit,
-                SearchProducts(productFunctions, normalized));
+                SearchProducts(_productFunctions, normalized));
             AddGroup(response, SearchResultKind.InventoryItem, limit,
-                SearchInventoryItems(productFunctions, locationFunctions, userId.Value, familyId, normalized));
+                SearchInventoryItems(_productFunctions, _locationFunctions, userId.Value, familyId, normalized));
             AddGroup(response, SearchResultKind.ShoppingList, limit,
-                SearchShoppingLists(shoppingListFunctions, productFunctions, userId.Value, familyId, normalized));
+                SearchShoppingLists(_shoppingListFunctions, _productFunctions, userId.Value, familyId, normalized));
             AddGroup(response, SearchResultKind.ShoppingLocation, limit,
-                SearchShoppingLocations(locationFunctions, userId.Value, familyId, normalized));
+                SearchShoppingLocations(_locationFunctions, userId.Value, familyId, normalized));
             AddGroup(response, SearchResultKind.StorageLocation, limit,
-                SearchStorageLocations(locationFunctions, userId.Value, familyId, normalized));
+                SearchStorageLocations(_locationFunctions, userId.Value, familyId, normalized));
             AddGroup(response, SearchResultKind.Automation, limit,
-                await SearchAutomationsAsync(productFunctions, userId.Value, familyId, normalized, cancellationToken));
+                await SearchAutomationsAsync(_productFunctions, userId.Value, familyId, normalized, cancellationToken));
 
             return response;
         }
 
         #region Per-type searches
-        private static List<RankedHit> SearchProducts(ProductFunctions productFunctions, string normalized)
+        private static List<RankedHit> SearchProducts(ProductFunctions _productFunctions, string normalized)
         {
             // Catalogue-wide, not "what this family has stock of": the commonest thing to look up
             // is something you have run out of. A Product carries no owner, so there is nothing to
             // scope it by — the same reasoning as the chat's attachment picker.
             var hits = new List<RankedHit>();
 
-            foreach (var product in productFunctions.GetCatalogProducts())
+            foreach (var product in _productFunctions.GetCatalogProducts())
             {
                 var rank = BestRank(normalized, product.Name, product.Brand, product.Barcode);
                 if (rank < 0) continue;
@@ -121,23 +123,23 @@ namespace Homassy.API.Functions
         }
 
         private static List<RankedHit> SearchInventoryItems(
-            ProductFunctions productFunctions,
-            LocationFunctions locationFunctions,
+            ProductFunctions _productFunctions,
+            LocationFunctions _locationFunctions,
             int userId,
             int? familyId,
             string normalized)
         {
             var hits = new List<RankedHit>();
 
-            foreach (var item in productFunctions.GetInventoryItemsByUserAndFamily(userId, familyId))
+            foreach (var item in _productFunctions.GetInventoryItemsByUserAndFamily(userId, familyId))
             {
-                var product = productFunctions.GetProductById(item.ProductId);
+                var product = _productFunctions.GetProductById(item.ProductId);
                 if (product == null) continue;
 
                 var rank = BestRank(normalized, product.Name, product.Brand);
                 if (rank < 0) continue;
 
-                var storageLocation = locationFunctions.GetStorageLocationById(item.StorageLocationId);
+                var storageLocation = _locationFunctions.GetStorageLocationById(item.StorageLocationId);
 
                 hits.Add(new RankedHit(rank, product.Name, new SearchResultItem
                 {
@@ -158,8 +160,8 @@ namespace Homassy.API.Functions
         }
 
         private static List<RankedHit> SearchShoppingLists(
-            ShoppingListFunctions shoppingListFunctions,
-            ProductFunctions productFunctions,
+            ShoppingListFunctions _shoppingListFunctions,
+            ProductFunctions _productFunctions,
             int userId,
             int? familyId,
             string normalized)
@@ -169,8 +171,8 @@ namespace Homassy.API.Functions
             // A list matches on its own name, and also on what is still on it: "milk" should find
             // the list milk is waiting on, which is the question a palette is usually asked.
             var items = familyId.HasValue
-                ? shoppingListFunctions.GetShoppingListItemsByFamilyId(familyId.Value)
-                : shoppingListFunctions.GetShoppingListItemsByUserId(userId);
+                ? _shoppingListFunctions.GetShoppingListItemsByFamilyId(familyId.Value)
+                : _shoppingListFunctions.GetShoppingListItemsByUserId(userId);
 
             var matchedItemByListId = new Dictionary<int, (int Rank, string Label)>();
 
@@ -178,7 +180,7 @@ namespace Homassy.API.Functions
             {
                 if (item.PurchasedAt.HasValue) continue;
 
-                var label = item.CustomName ?? productFunctions.GetProductById(item.ProductId)?.Name;
+                var label = item.CustomName ?? _productFunctions.GetProductById(item.ProductId)?.Name;
                 if (string.IsNullOrWhiteSpace(label)) continue;
 
                 var itemRank = BestRank(normalized, label);
@@ -188,7 +190,7 @@ namespace Homassy.API.Functions
                     matchedItemByListId[item.ShoppingListId] = (itemRank, label);
             }
 
-            foreach (var list in shoppingListFunctions.GetShoppingListsByUserAndFamily(userId, familyId))
+            foreach (var list in _shoppingListFunctions.GetShoppingListsByUserAndFamily(userId, familyId))
             {
                 var nameRank = BestRank(normalized, list.Name);
                 var hasItemMatch = matchedItemByListId.TryGetValue(list.Id, out var itemMatch);
@@ -215,14 +217,14 @@ namespace Homassy.API.Functions
         }
 
         private static List<RankedHit> SearchShoppingLocations(
-            LocationFunctions locationFunctions,
+            LocationFunctions _locationFunctions,
             int userId,
             int? familyId,
             string normalized)
         {
             var hits = new List<RankedHit>();
 
-            foreach (var location in locationFunctions.GetShoppingLocationsByUserAndFamily(userId, familyId))
+            foreach (var location in _locationFunctions.GetShoppingLocationsByUserAndFamily(userId, familyId))
             {
                 var rank = BestRank(normalized, location.Name, location.City, location.Address);
                 if (rank < 0) continue;
@@ -243,14 +245,14 @@ namespace Homassy.API.Functions
         }
 
         private static List<RankedHit> SearchStorageLocations(
-            LocationFunctions locationFunctions,
+            LocationFunctions _locationFunctions,
             int userId,
             int? familyId,
             string normalized)
         {
             var hits = new List<RankedHit>();
 
-            foreach (var location in locationFunctions.GetStorageLocationsByUserAndFamily(userId, familyId))
+            foreach (var location in _locationFunctions.GetStorageLocationsByUserAndFamily(userId, familyId))
             {
                 var rank = BestRank(normalized, location.Name, location.Description);
                 if (rank < 0) continue;
@@ -277,13 +279,13 @@ namespace Homassy.API.Functions
         /// table, and nothing to match in SQL.
         /// </summary>
         private async Task<List<RankedHit>> SearchAutomationsAsync(
-            ProductFunctions productFunctions,
+            ProductFunctions _productFunctions,
             int userId,
             int? familyId,
             string normalized,
             CancellationToken cancellationToken)
         {
-            var matchedProducts = productFunctions.GetCatalogProducts()
+            var matchedProducts = _productFunctions.GetCatalogProducts()
                 .Select(p => new { p.Id, Rank = BestRank(normalized, p.Name, p.Brand), Product = p })
                 .Where(x => x.Rank >= 0)
                 .OrderBy(x => x.Rank)

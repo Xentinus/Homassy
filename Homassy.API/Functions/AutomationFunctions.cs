@@ -20,11 +20,15 @@ namespace Homassy.API.Functions
     {
         private readonly FunctionsRuntime _runtime;
         private readonly IDbContextFactory<HomassyDbContext> _contextFactory;
+        private readonly ProductFunctions _productFunctions;
+        private readonly UserFunctions _userFunctions;
 
-        public AutomationFunctions(FunctionsRuntime runtime)
+        public AutomationFunctions(FunctionsRuntime runtime, ProductFunctions productFunctions, UserFunctions userFunctions)
         {
             _runtime = runtime;
             _contextFactory = runtime.ContextFactory;
+            _productFunctions = productFunctions;
+            _userFunctions = userFunctions;
         }
 
         #region Schedule Validation
@@ -108,19 +112,18 @@ namespace Homassy.API.Functions
                 .ThenBy(a => a.NextExecutionAt)
                 .ToListAsync(cancellationToken);
 
-            var productFunctions = new ProductFunctions(_runtime);
             var responses = new List<AutomationResponse>();
 
             foreach (var automation in automations)
             {
                 var inventoryItem = automation.ProductInventoryItemId.HasValue
-                    ? productFunctions.GetInventoryItemById(automation.ProductInventoryItemId.Value)
+                    ? _productFunctions.GetInventoryItemById(automation.ProductInventoryItemId.Value)
                     : null;
-                var product = inventoryItem != null ? productFunctions.GetProductById(inventoryItem.ProductId) : null;
+                var product = inventoryItem != null ? _productFunctions.GetProductById(inventoryItem.ProductId) : null;
 
                 // For AddToShoppingList, resolve product directly
                 if (product == null && automation.ProductId.HasValue)
-                    product = productFunctions.GetProductById(automation.ProductId.Value);
+                    product = _productFunctions.GetProductById(automation.ProductId.Value);
 
                 responses.Add(MapToResponse(automation, inventoryItem, product));
             }
@@ -150,14 +153,13 @@ namespace Homassy.API.Functions
                 (!familyId.HasValue || automation.FamilyId != familyId.Value))
                 throw new AutomationAccessDeniedException();
 
-            var productFunctions = new ProductFunctions(_runtime);
             var inventoryItem = automation.ProductInventoryItemId.HasValue
-                ? productFunctions.GetInventoryItemById(automation.ProductInventoryItemId.Value)
+                ? _productFunctions.GetInventoryItemById(automation.ProductInventoryItemId.Value)
                 : null;
-            var product = inventoryItem != null ? productFunctions.GetProductById(inventoryItem.ProductId) : null;
+            var product = inventoryItem != null ? _productFunctions.GetProductById(inventoryItem.ProductId) : null;
 
             if (product == null && automation.ProductId.HasValue)
-                product = productFunctions.GetProductById(automation.ProductId.Value);
+                product = _productFunctions.GetProductById(automation.ProductId.Value);
 
             return MapToResponse(automation, inventoryItem, product);
         }
@@ -180,7 +182,6 @@ namespace Homassy.API.Functions
                 request.ShoppingListPublicId, request.ProductPublicId, request.AddQuantity,
                 request.ThresholdQuantity);
 
-            var productFunctions = new ProductFunctions(_runtime);
             using var context = _contextFactory.CreateDbContext();
             ProductInventoryItem? inventoryItem = null;
             Homassy.Data.Entities.Product.Product? productEntity = null;
@@ -190,7 +191,7 @@ namespace Homassy.API.Functions
             if (request.ActionType == AutomationActionType.AddToShoppingList || request.ActionType == AutomationActionType.LowStockAddToShoppingList)
             {
                 // Resolve product
-                var product = productFunctions.GetProductByPublicId(request.ProductPublicId!.Value);
+                var product = _productFunctions.GetProductByPublicId(request.ProductPublicId!.Value);
                 if (product == null)
                     throw new AutomationProductNotFoundException();
                 productId = product.Id;
@@ -215,7 +216,7 @@ namespace Homassy.API.Functions
                 if (!request.InventoryItemPublicId.HasValue)
                     throw new AutomationInvalidScheduleException("AutoConsume and NotifyOnly actions require InventoryItemPublicId");
 
-                inventoryItem = productFunctions.GetInventoryItemByPublicId(request.InventoryItemPublicId.Value);
+                inventoryItem = _productFunctions.GetInventoryItemByPublicId(request.InventoryItemPublicId.Value);
                 if (inventoryItem == null)
                     throw new ProductInventoryItemNotFoundException();
 
@@ -226,12 +227,12 @@ namespace Homassy.API.Functions
             }
 
             // Get user timezone for scheduling
-            var userProfile = new UserFunctions(_contextFactory).GetUserProfileByUserId(userId.Value);
+            var userProfile = _userFunctions.GetUserProfileByUserId(userId.Value);
             var userTimeZone = userProfile?.DefaultTimeZone ?? UserTimeZone.CentralEuropeStandardTime;
 
             // The unit is always inherited from the related product (no longer supplied by the client).
             var derivedUnit = productEntity?.Unit
-                ?? (inventoryItem != null ? productFunctions.GetProductById(inventoryItem.ProductId)?.Unit : null);
+                ?? (inventoryItem != null ? _productFunctions.GetProductById(inventoryItem.ProductId)?.Unit : null);
             var isAddAction = request.ActionType == AutomationActionType.AddToShoppingList
                 || request.ActionType == AutomationActionType.LowStockAddToShoppingList;
 
@@ -280,8 +281,9 @@ namespace Homassy.API.Functions
             // Record activity
             try
             {
-                var product = productEntity ?? (inventoryItem != null ? productFunctions.GetProductById(inventoryItem.ProductId) : null);
-                await new ActivityFunctions(_contextFactory).RecordActivityAsync(
+                var product = productEntity ?? (inventoryItem != null ? _productFunctions.GetProductById(inventoryItem.ProductId) : null);
+                await ActivityRecorder.RecordAsync(
+                    _contextFactory,
                     userId.Value,
                     familyId,
                     ActivityType.AutomationCreate,
@@ -296,7 +298,7 @@ namespace Homassy.API.Functions
                 Log.Error(ex, $"Failed to record AutomationCreate activity for automation {automation.PublicId}");
             }
 
-            var finalProduct = productEntity ?? (inventoryItem != null ? productFunctions.GetProductById(inventoryItem.ProductId) : null);
+            var finalProduct = productEntity ?? (inventoryItem != null ? _productFunctions.GetProductById(inventoryItem.ProductId) : null);
             var response = MapToResponse(automation, inventoryItem, finalProduct);
 
             // Realtime: add the new rule to the master-data automation list.
@@ -384,7 +386,7 @@ namespace Homassy.API.Functions
 
             if (scheduleChanged && automation.IsEnabled)
             {
-                var userProfile = new UserFunctions(_contextFactory).GetUserProfileByUserId(userId.Value);
+                var userProfile = _userFunctions.GetUserProfileByUserId(userId.Value);
                 var userTimeZone = userProfile?.DefaultTimeZone ?? UserTimeZone.CentralEuropeStandardTime;
 
                 automation.NextExecutionAt = AutomationSchedule.CalculateNextExecutionAt(
@@ -410,14 +412,14 @@ namespace Homassy.API.Functions
             // Record activity
             try
             {
-                var productFunctions = new ProductFunctions(_runtime);
                 var inventoryItem = automation.ProductInventoryItemId.HasValue
-                    ? productFunctions.GetInventoryItemById(automation.ProductInventoryItemId.Value)
+                    ? _productFunctions.GetInventoryItemById(automation.ProductInventoryItemId.Value)
                     : null;
-                var product = inventoryItem != null ? productFunctions.GetProductById(inventoryItem.ProductId) : null;
+                var product = inventoryItem != null ? _productFunctions.GetProductById(inventoryItem.ProductId) : null;
                 if (product == null && automation.ProductId.HasValue)
-                    product = productFunctions.GetProductById(automation.ProductId.Value);
-                await new ActivityFunctions(_contextFactory).RecordActivityAsync(
+                    product = _productFunctions.GetProductById(automation.ProductId.Value);
+                await ActivityRecorder.RecordAsync(
+                    _contextFactory,
                     userId.Value,
                     familyId,
                     ActivityType.AutomationUpdate,
@@ -432,13 +434,12 @@ namespace Homassy.API.Functions
                 Log.Error(ex, $"Failed to record AutomationUpdate activity for automation {automation.PublicId}");
             }
 
-            var pf = new ProductFunctions(_runtime);
             var item = automation.ProductInventoryItemId.HasValue
-                ? pf.GetInventoryItemById(automation.ProductInventoryItemId.Value)
+                ? _productFunctions.GetInventoryItemById(automation.ProductInventoryItemId.Value)
                 : null;
-            var prod = item != null ? pf.GetProductById(item.ProductId) : null;
+            var prod = item != null ? _productFunctions.GetProductById(item.ProductId) : null;
             if (prod == null && automation.ProductId.HasValue)
-                prod = pf.GetProductById(automation.ProductId.Value);
+                prod = _productFunctions.GetProductById(automation.ProductId.Value);
             var response = MapToResponse(automation, item, prod);
 
             // Realtime: push the updated rule to the master-data automation list.
@@ -481,14 +482,14 @@ namespace Homassy.API.Functions
             // Record activity
             try
             {
-                var productFunctions = new ProductFunctions(_runtime);
                 var inventoryItem = automation.ProductInventoryItemId.HasValue
-                    ? productFunctions.GetInventoryItemById(automation.ProductInventoryItemId.Value)
+                    ? _productFunctions.GetInventoryItemById(automation.ProductInventoryItemId.Value)
                     : null;
-                var product = inventoryItem != null ? productFunctions.GetProductById(inventoryItem.ProductId) : null;
+                var product = inventoryItem != null ? _productFunctions.GetProductById(inventoryItem.ProductId) : null;
                 if (product == null && automation.ProductId.HasValue)
-                    product = productFunctions.GetProductById(automation.ProductId.Value);
-                await new ActivityFunctions(_contextFactory).RecordActivityAsync(
+                    product = _productFunctions.GetProductById(automation.ProductId.Value);
+                await ActivityRecorder.RecordAsync(
+                    _contextFactory,
                     userId.Value,
                     familyId,
                     ActivityType.AutomationDelete,
@@ -533,7 +534,6 @@ namespace Homassy.API.Functions
                 throw new AutomationInvalidScheduleException("Low-stock automations cannot be manually executed");
 
             ItemAutomationExecution execution;
-            var productFunctions = new ProductFunctions(_runtime);
 
             if (automation.ActionType == AutomationActionType.AddToShoppingList || automation.ActionType == AutomationActionType.LowStockAddToShoppingList)
             {
@@ -544,7 +544,7 @@ namespace Homassy.API.Functions
                 if (!automation.ProductInventoryItemId.HasValue)
                     throw new AutomationInvalidScheduleException("Manual execution requires an inventory item");
 
-                var inventoryItem = productFunctions.GetInventoryItemById(automation.ProductInventoryItemId.Value);
+                var inventoryItem = _productFunctions.GetInventoryItemById(automation.ProductInventoryItemId.Value);
                 if (inventoryItem == null)
                     throw new ProductInventoryItemNotFoundException();
 
@@ -555,7 +555,7 @@ namespace Homassy.API.Functions
             }
 
             // Recalculate next execution
-            var userProfile = new UserFunctions(_contextFactory).GetUserProfileByUserId(userId.Value);
+            var userProfile = _userFunctions.GetUserProfileByUserId(userId.Value);
             var userTimeZone = userProfile?.DefaultTimeZone ?? UserTimeZone.CentralEuropeStandardTime;
 
             automation.LastExecutedAt = DateTime.UtcNow;
@@ -589,7 +589,7 @@ namespace Homassy.API.Functions
 
                 if (automation.ActionType == AutomationActionType.AddToShoppingList || automation.ActionType == AutomationActionType.LowStockAddToShoppingList)
                 {
-                    var product = automation.ProductId.HasValue ? productFunctions.GetProductById(automation.ProductId.Value) : null;
+                    var product = automation.ProductId.HasValue ? _productFunctions.GetProductById(automation.ProductId.Value) : null;
                     productName = product?.Name ?? "Unknown";
                     unit = automation.AddUnit;
                     quantity = automation.AddQuantity;
@@ -597,14 +597,15 @@ namespace Homassy.API.Functions
                 else
                 {
                     var inventoryItem = automation.ProductInventoryItemId.HasValue
-                        ? productFunctions.GetInventoryItemById(automation.ProductInventoryItemId.Value) : null;
-                    var product = inventoryItem != null ? productFunctions.GetProductById(inventoryItem.ProductId) : null;
+                        ? _productFunctions.GetInventoryItemById(automation.ProductInventoryItemId.Value) : null;
+                    var product = inventoryItem != null ? _productFunctions.GetProductById(inventoryItem.ProductId) : null;
                     productName = product?.Name ?? "Unknown";
                     unit = automation.ConsumeUnit;
                     quantity = execution.ConsumedQuantity;
                 }
 
-                await new ActivityFunctions(_contextFactory).RecordActivityAsync(
+                await ActivityRecorder.RecordAsync(
+                    _contextFactory,
                     userId.Value,
                     familyId,
                     ActivityType.AutomationExecute,
@@ -646,8 +647,7 @@ namespace Homassy.API.Functions
             if (!automation.ProductId.HasValue)
                 throw new AutomationInvalidScheduleException("AddToShoppingList automation has no product configured");
 
-            var productFunctions = new ProductFunctions(_runtime);
-            var product = productFunctions.GetProductById(automation.ProductId.Value);
+            var product = _productFunctions.GetProductById(automation.ProductId.Value);
             if (product == null)
                 throw new AutomationProductNotFoundException();
 
@@ -789,7 +789,7 @@ namespace Homassy.API.Functions
 
             // Realtime: reflect the auto-consume on every grid showing this item. Scope from the item
             // itself (family-shared vs personal), not the automation.
-            var broadcastProduct = new ProductFunctions(_runtime).GetProductById(trackedItem.ProductId);
+            var broadcastProduct = _productFunctions.GetProductById(trackedItem.ProductId);
             if (broadcastProduct != null)
             {
                 var itemUserId = trackedItem.UserId ?? userId;
@@ -807,7 +807,7 @@ namespace Homassy.API.Functions
                         InventoryGridProjection.BuildItem(
                             trackedItem,
                             broadcastProduct.PublicId,
-                            new ProductFunctions(_runtime).GetPurchaseInfoByInventoryItemId(trackedItem.Id)?.OriginalQuantity),
+                            _productFunctions.GetPurchaseInfoByInventoryItemId(trackedItem.Id)?.OriginalQuantity),
                         cancellationToken);
                 }
             }
@@ -818,143 +818,6 @@ namespace Homassy.API.Functions
         #endregion
 
         #region Low Stock Event-Driven Check
-
-        /// <summary>
-        /// Checks all enabled LowStock automations for the given product and triggers or re-arms them.
-        /// Called after every inventory change. Must never throw — wrapped in try-catch.
-        /// </summary>
-        public async Task CheckLowStockForProductAsync(int productId, CancellationToken cancellationToken = default)
-        {
-            try
-            {
-                var userId = SessionInfo.GetUserId();
-                var familyId = SessionInfo.GetFamilyId();
-
-                await using var context = _contextFactory.CreateDbContext();
-
-                var automations = await context.ItemAutomations
-                    .Include(a => a.Product)
-                    .Include(a => a.ShoppingList)
-                    .Where(a => a.IsEnabled
-                             && a.ActionType == AutomationActionType.LowStockAddToShoppingList
-                             && a.ProductId == productId)
-                    .ToListAsync(cancellationToken);
-
-                if (automations.Count == 0) return;
-
-                foreach (var automation in automations)
-                {
-                    try
-                    {
-                        if (!automation.ThresholdQuantity.HasValue) continue;
-
-                        var product = automation.Product;
-                        var shoppingList = automation.ShoppingList;
-
-                        if (product == null || product.IsDeleted || shoppingList == null || shoppingList.IsDeleted)
-                            continue;
-
-                        // Sum stock scoped by family or user
-                        var stockQuery = context.ProductInventoryItems
-                            .Where(i => i.Product.Id == productId && !i.IsFullyConsumed);
-
-                        if (automation.FamilyId.HasValue)
-                            stockQuery = stockQuery.Where(i => i.FamilyId == automation.FamilyId.Value);
-                        else if (automation.UserId.HasValue)
-                            stockQuery = stockQuery.Where(i => i.UserId == automation.UserId.Value);
-
-                        var totalStock = await stockQuery.SumAsync(i => i.CurrentQuantity, cancellationToken);
-
-                        if (!automation.IsTriggered && totalStock < automation.ThresholdQuantity.Value)
-                        {
-                            // TRIGGER: stock below threshold
-                            var quantity = automation.AddQuantity ?? 1;
-                            var unit = automation.AddUnit ?? Unit.Piece;
-
-                            var shoppingListItem = new Homassy.Data.Entities.ShoppingList.ShoppingListItem
-                            {
-                                ShoppingListId = shoppingList.Id,
-                                ProductId = product.Id,
-                                Quantity = quantity,
-                                Unit = unit
-                            };
-                            context.ShoppingListItems.Add(shoppingListItem);
-
-                            var execution = new ItemAutomationExecution
-                            {
-                                ItemAutomationId = automation.Id,
-                                Status = AutomationExecutionStatus.AddedToShoppingList,
-                                Notes = $"Low stock triggered: total stock {totalStock} below threshold {automation.ThresholdQuantity.Value}. " +
-                                        $"Added {quantity} {unit} of \"{product.Name}\" to \"{shoppingList.Name}\""
-                            };
-                            context.ItemAutomationExecutions.Add(execution);
-
-                            automation.IsTriggered = true;
-                            automation.LastExecutedAt = DateTime.UtcNow;
-
-                            await context.SaveChangesAsync(cancellationToken);
-
-                            Log.Information("Low-stock automation {Id}: stock {Stock} < threshold {Threshold} — triggered for product {Product}",
-                                automation.Id, totalStock, automation.ThresholdQuantity.Value, product.Name);
-
-                            // Record activity
-                            try
-                            {
-                                await new ActivityFunctions(_contextFactory).RecordActivityAsync(
-                                    automation.CreatedByUserId, automation.FamilyId,
-                                    ActivityType.AutomationExecute,
-                                    automation.Id,
-                                    product.Name,
-                                    unit,
-                                    quantity,
-                                    cancellationToken);
-                            }
-                            catch (Exception ex)
-                            {
-                                Log.Error(ex, "Failed to record activity for low-stock automation {Id}", automation.Id);
-                            }
-
-                            // Fire-and-forget notification. It outlives the request, so it takes a
-                            // scope of its own rather than borrowing one that is about to be
-                            // disposed underneath it.
-                            _ = Task.Run(async () =>
-                            {
-                                try
-                                {
-                                    using var scope = _runtime.ScopeFactory.CreateScope();
-                                    var notificationsClient = scope.ServiceProvider.GetRequiredService<NotificationsServiceClient>();
-                                    await notificationsClient.SendLowStockNotificationAsync(
-                                        automation.CreatedByUserId, product.Name, totalStock,
-                                        automation.ThresholdQuantity.Value, quantity, unit.ToString(),
-                                        shoppingList.Name);
-                                }
-                                catch (Exception ex)
-                                {
-                                    Log.Error(ex, "Failed to send low-stock notification for automation {Id}", automation.Id);
-                                }
-                            }, CancellationToken.None);
-                        }
-                        else if (automation.IsTriggered && totalStock >= automation.ThresholdQuantity.Value)
-                        {
-                            // RE-ARM: stock back above threshold
-                            automation.IsTriggered = false;
-                            await context.SaveChangesAsync(cancellationToken);
-
-                            Log.Information("Low-stock automation {Id} re-armed: stock {Stock} >= threshold {Threshold}",
-                                automation.Id, totalStock, automation.ThresholdQuantity.Value);
-                        }
-                    }
-                    catch (Exception ex)
-                    {
-                        Log.Error(ex, "Error checking low-stock automation {Id} for product {ProductId}", automation.Id, productId);
-                    }
-                }
-            }
-            catch (Exception ex)
-            {
-                Log.Error(ex, "Error in CheckLowStockForProductAsync for product {ProductId}", productId);
-            }
-        }
 
         #endregion
 

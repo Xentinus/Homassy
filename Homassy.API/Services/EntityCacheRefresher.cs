@@ -72,7 +72,7 @@ namespace Homassy.API.Services
                     break;
 
                 case TableNames.Families:
-                    await services.GetRequiredService<FamilyFunctions>().RefreshCacheAsync(recordId);
+                    await services.GetRequiredService<FamilyCache>().RefreshCacheAsync(recordId);
                     break;
 
                 case TableNames.Products:

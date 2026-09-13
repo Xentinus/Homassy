@@ -103,12 +103,14 @@ try
     builder.Services.AddScoped<AutomationFunctions>();
     builder.Services.AddScoped<CalendarFunctions>();
     builder.Services.AddScoped<ExternalCalendarFunctions>();
+    builder.Services.AddScoped<FamilyCache>();
     builder.Services.AddScoped<FamilyChatFunctions>();
     builder.Services.AddScoped<FamilyFunctions>();
     builder.Services.AddScoped<FamilyJoinRequestFunctions>();
     builder.Services.AddScoped<ImageFunctions>();
     builder.Services.AddScoped<InsightFunctions>();
     builder.Services.AddScoped<LocationFunctions>();
+    builder.Services.AddScoped<LowStockAutomationFunctions>();
     builder.Services.AddScoped<NotificationFunctions>();
     builder.Services.AddScoped<PriceInsightFunctions>();
     builder.Services.AddScoped<ProductFunctions>();

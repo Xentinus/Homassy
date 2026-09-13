@@ -14,11 +14,17 @@ namespace Homassy.API.Functions
     {
         private readonly FunctionsRuntime _runtime;
         private readonly IDbContextFactory<HomassyDbContext> _contextFactory;
+        private readonly LocationFunctions _locationFunctions;
+        private readonly ProductFunctions _productFunctions;
+        private readonly ShoppingListFunctions _shoppingListFunctions;
 
-        public SelectValueFunctions(FunctionsRuntime runtime)
+        public SelectValueFunctions(FunctionsRuntime runtime, LocationFunctions locationFunctions, ProductFunctions productFunctions, ShoppingListFunctions shoppingListFunctions)
         {
             _runtime = runtime;
             _contextFactory = runtime.ContextFactory;
+            _locationFunctions = locationFunctions;
+            _productFunctions = productFunctions;
+            _shoppingListFunctions = shoppingListFunctions;
         }
 
         public List<SelectValue> GetSelectValues(SelectValueType type)
@@ -50,8 +56,7 @@ namespace Homassy.API.Functions
 
         private List<SelectValue> GetShoppingLocationSelectValues(int userId, int? familyId)
         {
-            var locationFunctions = new LocationFunctions(_runtime);
-            var locations = locationFunctions.GetShoppingLocationsByUserAndFamily(userId, familyId);
+            var locations = _locationFunctions.GetShoppingLocationsByUserAndFamily(userId, familyId);
 
             return locations
                 .Select(l => new SelectValue
@@ -65,8 +70,7 @@ namespace Homassy.API.Functions
 
         private List<SelectValue> GetStorageLocationSelectValues(int userId, int? familyId)
         {
-            var locationFunctions = new LocationFunctions(_runtime);
-            var locations = locationFunctions.GetStorageLocationsByUserAndFamily(userId, familyId);
+            var locations = _locationFunctions.GetStorageLocationsByUserAndFamily(userId, familyId);
 
             return locations
                 .Select(l => new SelectValue
@@ -80,8 +84,7 @@ namespace Homassy.API.Functions
 
         private List<SelectValue> GetProductSelectValues(int userId, int? familyId)
         {
-            var productFunctions = new ProductFunctions(_runtime);
-            var products = productFunctions.GetProductsByUserAndFamily(userId, familyId);
+            var products = _productFunctions.GetProductsByUserAndFamily(userId, familyId);
 
             return products
                 .Select(p => new SelectValue
@@ -95,8 +98,7 @@ namespace Homassy.API.Functions
 
         private List<SelectValue> GetProductCatalogSelectValues()
         {
-            var productFunctions = new ProductFunctions(_runtime);
-            var products = productFunctions.GetCatalogProducts();
+            var products = _productFunctions.GetCatalogProducts();
 
             return products
                 .Select(p => new SelectValue
@@ -110,13 +112,12 @@ namespace Homassy.API.Functions
 
         private List<SelectValue> GetProductInventoryItemSelectValues(int userId, int? familyId)
         {
-            var productFunctions = new ProductFunctions(_runtime);
-            var inventoryItems = productFunctions.GetInventoryItemsByUserAndFamily(userId, familyId);
+            var inventoryItems = _productFunctions.GetInventoryItemsByUserAndFamily(userId, familyId);
 
             return inventoryItems
                 .Select(i =>
                 {
-                    var product = productFunctions.GetProductById(i.ProductId);
+                    var product = _productFunctions.GetProductById(i.ProductId);
                     var text = product != null
                         ? $"{product.Brand} - {product.Name}"
                         : $"Item {i.PublicId}";
@@ -133,8 +134,7 @@ namespace Homassy.API.Functions
 
         private List<SelectValue> GetShoppingListSelectValues(int userId, int? familyId)
         {
-            var shoppingListFunctions = new ShoppingListFunctions(_runtime);
-            var shoppingLists = shoppingListFunctions.GetShoppingListsByUserAndFamily(userId, familyId);
+            var shoppingLists = _shoppingListFunctions.GetShoppingListsByUserAndFamily(userId, familyId);
 
             return shoppingLists
                 .Select(sl => new SelectValue

@@ -175,7 +175,7 @@ namespace Homassy.API.Services
                 var services = scope.ServiceProvider;
 
                 await services.GetRequiredService<UserFunctions>().InitializeCacheAsync();
-                await services.GetRequiredService<FamilyFunctions>().InitializeCacheAsync();
+                await services.GetRequiredService<FamilyCache>().InitializeCacheAsync();
                 await services.GetRequiredService<ProductFunctions>().InitializeCacheAsync();
                 await services.GetRequiredService<LocationFunctions>().InitializeCacheAsync();
                 await services.GetRequiredService<ShoppingListFunctions>().InitializeCacheAsync();

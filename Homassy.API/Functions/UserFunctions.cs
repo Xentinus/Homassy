@@ -15,6 +15,7 @@ using System.Collections.Concurrent;
 using System.Text.RegularExpressions;
 using Homassy.Data.Context;
 using Homassy.Data.Extensions;
+using Homassy.Data.Functions;
 
 namespace Homassy.API.Functions
 {
@@ -46,10 +47,12 @@ namespace Homassy.API.Functions
         public static bool Inited = false;
 
         private readonly IDbContextFactory<HomassyDbContext> _contextFactory;
+        private readonly FamilyCache _familyCache;
 
-        public UserFunctions(IDbContextFactory<HomassyDbContext> contextFactory)
+        public UserFunctions(IDbContextFactory<HomassyDbContext> contextFactory, FamilyCache familyCache)
         {
             _contextFactory = contextFactory;
+            _familyCache = familyCache;
         }
 
         #region Cache Management
@@ -761,7 +764,7 @@ namespace Homassy.API.Functions
             try
             {
                 // Cache family name BEFORE user leaves
-                var family = new FamilyFunctions(_contextFactory).GetFamilyById(user.FamilyId);
+                var family = _familyCache.GetFamilyById(user.FamilyId);
                 var familyName = family?.Name ?? "Unknown Family";
 
                 var familyIdToLog = user.FamilyId;
@@ -778,7 +781,8 @@ namespace Homassy.API.Functions
                 {
                     try
                     {
-                        await new ActivityFunctions(_contextFactory).RecordActivityAsync(
+                        await ActivityRecorder.RecordAsync(
+                            _contextFactory,
                             userId.Value,
                             familyIdToLog,
                             Homassy.Data.Enums.ActivityType.FamilyLeave,
@@ -833,7 +837,7 @@ namespace Homassy.API.Functions
             FamilyInfo? familyInfo = null;
             if (user.FamilyId.HasValue)
             {
-                var family = new FamilyFunctions(_contextFactory).GetFamilyById(user.FamilyId.Value);
+                var family = _familyCache.GetFamilyById(user.FamilyId.Value);
                 if (family != null)
                 {
                     familyInfo = new FamilyInfo
@@ -1223,7 +1227,6 @@ namespace Homassy.API.Functions
                     // provider can index rather than a per-row function call.
                     var normalizedEmail = User.NormalizeEmail(identity.Traits.Email);
                     user = await context.Users.FirstOrDefaultAsync(u => u.Email == normalizedEmail, cancellationToken);
-
 
                     if (user == null)
                     {

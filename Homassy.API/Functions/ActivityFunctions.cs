@@ -42,10 +42,12 @@ namespace Homassy.API.Functions
         private const int TimelineMaxRawFetch = 500;
 
         private readonly IDbContextFactory<HomassyDbContext> _contextFactory;
+        private readonly UserFunctions _userFunctions;
 
-        public ActivityFunctions(IDbContextFactory<HomassyDbContext> contextFactory)
+        public ActivityFunctions(IDbContextFactory<HomassyDbContext> contextFactory, UserFunctions userFunctions)
         {
             _contextFactory = contextFactory;
+            _userFunctions = userFunctions;
         }
 
         #region Cache Management
@@ -179,11 +181,10 @@ namespace Homassy.API.Functions
             var activities = await query.ToListAsync(cancellationToken);
 
             // Map to ActivityInfo
-            var userFunctions = new UserFunctions(_contextFactory);
             var activityInfos = activities.Select(a =>
             {
-                var user = userFunctions.GetUserById(a.UserId);
-                var profile = userFunctions.GetUserProfileByUserId(a.UserId);
+                var user = _userFunctions.GetUserById(a.UserId);
+                var profile = _userFunctions.GetUserProfileByUserId(a.UserId);
                 return new ActivityInfo
                 {
                     PublicId = a.PublicId,
@@ -225,7 +226,7 @@ namespace Homassy.API.Functions
 
             if (filterUserPublicId.HasValue)
             {
-                var requestedUser = new UserFunctions(_contextFactory).GetUserByPublicId(filterUserPublicId.Value);
+                var requestedUser = _userFunctions.GetUserByPublicId(filterUserPublicId.Value);
                 if (requestedUser == null)
                     return null;
 
@@ -328,7 +329,7 @@ namespace Homassy.API.Functions
             // Resolve every actor once - not per row like GetActivitiesAsync's GetUserById-per-row
             // above - so this method does not carry the same N+1 into a path with more rows fetched.
             var distinctUserIds = rows.Select(a => (int?)a.UserId).Distinct().ToList();
-            var usersById = new UserFunctions(_contextFactory)
+            var usersById = _userFunctions
                 .GetAllUsersDataByIds(distinctUserIds)
                 .ToDictionary(u => u.Id);
 

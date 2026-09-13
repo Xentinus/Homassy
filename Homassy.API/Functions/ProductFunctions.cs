@@ -31,11 +31,17 @@ namespace Homassy.API.Functions
 
         private readonly FunctionsRuntime _runtime;
         private readonly IDbContextFactory<HomassyDbContext> _contextFactory;
+        private readonly LocationFunctions _locationFunctions;
+        private readonly UserFunctions _userFunctions;
+        private readonly LowStockAutomationFunctions _lowStock;
 
-        public ProductFunctions(FunctionsRuntime runtime)
+        public ProductFunctions(FunctionsRuntime runtime, LocationFunctions locationFunctions, UserFunctions userFunctions, LowStockAutomationFunctions lowStock)
         {
             _runtime = runtime;
             _contextFactory = runtime.ContextFactory;
+            _locationFunctions = locationFunctions;
+            _userFunctions = userFunctions;
+            _lowStock = lowStock;
         }
 
         #region Cache Management
@@ -608,7 +614,8 @@ namespace Homassy.API.Functions
                 try
                 {
                     var familyId = SessionInfo.GetFamilyId();
-                    await new ActivityFunctions(_contextFactory).RecordActivityAsync(
+                    await ActivityRecorder.RecordAsync(
+                        _contextFactory,
                         userId.Value,
                         familyId,
                         Homassy.Data.Enums.ActivityType.ProductCreate,
@@ -740,7 +747,8 @@ namespace Homassy.API.Functions
                     try
                     {
                         var familyId = SessionInfo.GetFamilyId();
-                        await new ActivityFunctions(_contextFactory).RecordActivityAsync(
+                        await ActivityRecorder.RecordAsync(
+                            _contextFactory,
                             userId.Value,
                             familyId,
                             Homassy.Data.Enums.ActivityType.ProductUpdate,
@@ -859,7 +867,8 @@ namespace Homassy.API.Functions
                 try
                 {
                     var familyId = SessionInfo.GetFamilyId();
-                    await new ActivityFunctions(_contextFactory).RecordActivityAsync(
+                    await ActivityRecorder.RecordAsync(
+                        _contextFactory,
                         userId.Value,
                         familyId,
                         Homassy.Data.Enums.ActivityType.ProductDelete,
@@ -976,7 +985,6 @@ namespace Homassy.API.Functions
 
             var customization = GetCustomizationByProductAndUser(product.Id, userId.Value);
             var inventoryItems = GetInventoryItemsByProductId(product.Id, includeConsumed: false);
-            var locationFunctions = new LocationFunctions(_runtime);
 
             var inventoryItemInfos = inventoryItems.Select(item =>
             {
@@ -991,7 +999,7 @@ namespace Homassy.API.Functions
                     IsSharedWithFamily = item.FamilyId.HasValue,
                     ExpirationAt = item.ExpirationAt,
                     StorageLocation = item.StorageLocationId.HasValue
-                        ? (locationFunctions.GetStorageLocationById(item.StorageLocationId.Value) is var storageLocation && storageLocation != null
+                        ? (_locationFunctions.GetStorageLocationById(item.StorageLocationId.Value) is var storageLocation && storageLocation != null
                             ? new LocationInfo
                             {
                                 PublicId = storageLocation.PublicId,
@@ -1007,7 +1015,7 @@ namespace Homassy.API.Functions
                         Price = purchaseInfo.Price,
                         Currency = purchaseInfo.Currency,
                         ShoppingLocation = purchaseInfo.ShoppingLocationId.HasValue
-                            ? (locationFunctions.GetShoppingLocationById(purchaseInfo.ShoppingLocationId.Value) is var shoppingLocation && shoppingLocation != null
+                            ? (_locationFunctions.GetShoppingLocationById(purchaseInfo.ShoppingLocationId.Value) is var shoppingLocation && shoppingLocation != null
                                 ? new LocationInfo
                                 {
                                     PublicId = shoppingLocation.PublicId,
@@ -1018,7 +1026,7 @@ namespace Homassy.API.Functions
                     } : null,
                     ConsumptionLogs = consumptionLogs.Select(log =>
                     {
-                        var user = log.UserId.HasValue ? new UserFunctions(_contextFactory).GetUserById(log.UserId.Value) : null;
+                        var user = log.UserId.HasValue ? _userFunctions.GetUserById(log.UserId.Value) : null;
 
                         return new ConsumptionLogInfo
                         {
@@ -1089,8 +1097,6 @@ namespace Homassy.API.Functions
             var itemIds = items.Select(i => i.Id).ToList();
             var itemById = items.ToDictionary(i => i.Id);
 
-            var locationFunctions = new LocationFunctions(_runtime);
-            var userFunctions = new UserFunctions(_contextFactory);
             var events = new List<ProductHistoryEventInfo>();
 
             // Purchases (retained even after the item is gone)
@@ -1106,7 +1112,7 @@ namespace Homassy.API.Functions
                 LocationInfo? location = null;
                 if (p.ShoppingLocationId.HasValue)
                 {
-                    var shoppingLocation = locationFunctions.GetShoppingLocationById(p.ShoppingLocationId.Value);
+                    var shoppingLocation = _locationFunctions.GetShoppingLocationById(p.ShoppingLocationId.Value);
                     if (shoppingLocation != null)
                     {
                         location = new LocationInfo { PublicId = shoppingLocation.PublicId, Name = shoppingLocation.Name };
@@ -1137,7 +1143,7 @@ namespace Homassy.API.Functions
             {
                 itemById.TryGetValue(log.ProductInventoryItemId, out var item);
 
-                var user = log.UserId.HasValue ? userFunctions.GetUserById(log.UserId.Value) : null;
+                var user = log.UserId.HasValue ? _userFunctions.GetUserById(log.UserId.Value) : null;
 
                 events.Add(new ProductHistoryEventInfo
                 {
@@ -1169,7 +1175,7 @@ namespace Homassy.API.Functions
             foreach (var activity in activities)
             {
                 itemById.TryGetValue(activity.RecordId, out var item);
-                var user = userFunctions.GetUserById(activity.UserId);
+                var user = _userFunctions.GetUserById(activity.UserId);
 
                 var type = activity.ActivityType switch
                 {
@@ -1230,8 +1236,6 @@ namespace Homassy.API.Functions
                                   (familyId.HasValue && item.FamilyId == familyId.Value))
                     .ToList();
 
-                var locationFunctions = new LocationFunctions(_runtime);
-
                 var inventoryItemInfos = userInventoryItems.Select(item =>
                 {
                     var purchaseInfo = GetPurchaseInfoByInventoryItemId(item.Id);
@@ -1245,7 +1249,7 @@ namespace Homassy.API.Functions
                         IsSharedWithFamily = item.FamilyId.HasValue,
                         ExpirationAt = item.ExpirationAt,
                         StorageLocation = item.StorageLocationId.HasValue
-                            ? (locationFunctions.GetStorageLocationById(item.StorageLocationId.Value) is var storageLocation && storageLocation != null
+                            ? (_locationFunctions.GetStorageLocationById(item.StorageLocationId.Value) is var storageLocation && storageLocation != null
                                 ? new LocationInfo
                                 {
                                     PublicId = storageLocation.PublicId,
@@ -1261,7 +1265,7 @@ namespace Homassy.API.Functions
                             Price = purchaseInfo.Price,
                             Currency = purchaseInfo.Currency,
                             ShoppingLocation = purchaseInfo.ShoppingLocationId.HasValue
-                                ? (locationFunctions.GetShoppingLocationById(purchaseInfo.ShoppingLocationId.Value) is var shoppingLocation && shoppingLocation != null
+                                ? (_locationFunctions.GetShoppingLocationById(purchaseInfo.ShoppingLocationId.Value) is var shoppingLocation && shoppingLocation != null
                                     ? new LocationInfo
                                     {
                                         PublicId = shoppingLocation.PublicId,
@@ -1272,7 +1276,7 @@ namespace Homassy.API.Functions
                         } : null,
                         ConsumptionLogs = consumptionLogs.Select(log =>
                         {
-                            var user = log.UserId.HasValue ? new UserFunctions(_contextFactory).GetUserById(log.UserId.Value) : null;
+                            var user = log.UserId.HasValue ? _userFunctions.GetUserById(log.UserId.Value) : null;
 
                             return new ConsumptionLogInfo
                             {
@@ -1443,13 +1447,12 @@ namespace Homassy.API.Functions
                 throw new ProductNotFoundException();
             }
 
-            var locationFunctions = new LocationFunctions(_runtime);
             int? storageLocationId = null;
             int? shoppingLocationId = null;
 
             if (request.StorageLocationPublicId.HasValue)
             {
-                var storageLocation = locationFunctions.GetStorageLocationByPublicId(request.StorageLocationPublicId.Value);
+                var storageLocation = _locationFunctions.GetStorageLocationByPublicId(request.StorageLocationPublicId.Value);
                 if (storageLocation == null)
                 {
                     throw new StorageLocationNotFoundException("Storage location not found");
@@ -1459,7 +1462,7 @@ namespace Homassy.API.Functions
 
             if (request.ShoppingLocationPublicId.HasValue)
             {
-                var shoppingLocation = locationFunctions.GetShoppingLocationByPublicId(request.ShoppingLocationPublicId.Value);
+                var shoppingLocation = _locationFunctions.GetShoppingLocationByPublicId(request.ShoppingLocationPublicId.Value);
                 if (shoppingLocation == null)
                 {
                     throw new ShoppingLocationNotFoundException("Shopping location not found");
@@ -1467,7 +1470,7 @@ namespace Homassy.API.Functions
                 shoppingLocationId = shoppingLocation.Id;
             }
 
-            var userProfile = new UserFunctions(_contextFactory).GetUserProfileByUserId(userId.Value);
+            var userProfile = _userFunctions.GetUserProfileByUserId(userId.Value);
             var currency = request.Currency ?? userProfile?.DefaultCurrency;
 
             using var context = _contextFactory.CreateDbContext();
@@ -1518,12 +1521,13 @@ namespace Homassy.API.Functions
                     cancellationToken);
 
                 // Check low-stock automations
-                await new AutomationFunctions(_runtime).CheckLowStockForProductAsync(product.Id, cancellationToken);
+                await _lowStock.CheckLowStockForProductAsync(product.Id, cancellationToken);
 
                 // Record activity
                 try
                 {
-                    await new ActivityFunctions(_contextFactory).RecordActivityAsync(
+                    await ActivityRecorder.RecordAsync(
+                        _contextFactory,
                         userId.Value,
                         familyId,
                         Homassy.Data.Enums.ActivityType.ProductInventoryCreate,
@@ -1546,7 +1550,7 @@ namespace Homassy.API.Functions
                     Unit = inventoryItem.Unit,
                     ExpirationAt = inventoryItem.ExpirationAt,
                     StorageLocation = inventoryItem.StorageLocationId.HasValue
-                        ? (locationFunctions.GetStorageLocationById(inventoryItem.StorageLocationId.Value) is var storageLocation && storageLocation != null
+                        ? (_locationFunctions.GetStorageLocationById(inventoryItem.StorageLocationId.Value) is var storageLocation && storageLocation != null
                             ? new LocationInfo
                             {
                                 PublicId = storageLocation.PublicId,
@@ -1562,7 +1566,7 @@ namespace Homassy.API.Functions
                         Price = purchaseInfo.Price,
                         Currency = purchaseInfo.Currency,
                         ShoppingLocation = purchaseInfo.ShoppingLocationId.HasValue
-                            ? (locationFunctions.GetShoppingLocationById(purchaseInfo.ShoppingLocationId.Value) is var shoppingLocation && shoppingLocation != null
+                            ? (_locationFunctions.GetShoppingLocationById(purchaseInfo.ShoppingLocationId.Value) is var shoppingLocation && shoppingLocation != null
                                 ? new LocationInfo
                                 {
                                     PublicId = shoppingLocation.PublicId,
@@ -1624,14 +1628,15 @@ namespace Homassy.API.Functions
                     cancellationToken);
 
                 // Check low-stock automations
-                await new AutomationFunctions(_runtime).CheckLowStockForProductAsync(product.Id, cancellationToken);
+                await _lowStock.CheckLowStockForProductAsync(product.Id, cancellationToken);
 
                 Log.Information($"User {userId} quick-added inventory item {inventoryItem.Id} (PublicId: {inventoryItem.PublicId}) for product {product.Id}");
 
                 // Record activity
                 try
                 {
-                    await new ActivityFunctions(_contextFactory).RecordActivityAsync(
+                    await ActivityRecorder.RecordAsync(
+                        _contextFactory,
                         userId.Value,
                         familyId,
                         Homassy.Data.Enums.ActivityType.ProductInventoryCreate,
@@ -1690,7 +1695,6 @@ namespace Homassy.API.Functions
             // Capture the pre-update scope so we can move the item between groups if IsSharedWithFamily flips.
             var wasSharedWithFamily = inventoryItem.FamilyId.HasValue;
 
-            var locationFunctions = new LocationFunctions(_runtime);
             using var context = _contextFactory.CreateDbContext();
             await using var transaction = await context.Database.BeginTransactionAsync(cancellationToken);
 
@@ -1706,7 +1710,7 @@ namespace Homassy.API.Functions
 
                 if (request.StorageLocationPublicId.HasValue)
                 {
-                    var storageLocation = locationFunctions.GetStorageLocationByPublicId(request.StorageLocationPublicId.Value);
+                    var storageLocation = _locationFunctions.GetStorageLocationByPublicId(request.StorageLocationPublicId.Value);
                     if (storageLocation == null)
                     {
                         throw new StorageLocationNotFoundException("Storage location not found");
@@ -1750,7 +1754,7 @@ namespace Homassy.API.Functions
                 {
                     if (purchaseInfo == null)
                     {
-                        var userProfile = new UserFunctions(_contextFactory).GetUserProfileByUserId(userId.Value);
+                        var userProfile = _userFunctions.GetUserProfileByUserId(userId.Value);
                         purchaseInfo = new ProductPurchaseInfo
                         {
                             ProductInventoryItemId = inventoryItem.Id,
@@ -1762,7 +1766,7 @@ namespace Homassy.API.Functions
 
                         if (request.ShoppingLocationPublicId.HasValue)
                         {
-                            var shoppingLocation = locationFunctions.GetShoppingLocationByPublicId(request.ShoppingLocationPublicId.Value);
+                            var shoppingLocation = _locationFunctions.GetShoppingLocationByPublicId(request.ShoppingLocationPublicId.Value);
                             if (shoppingLocation == null)
                             {
                                 throw new ShoppingLocationNotFoundException("Shopping location not found");
@@ -1785,7 +1789,7 @@ namespace Homassy.API.Functions
                                 trackedPurchase.ReceiptNumber = string.IsNullOrWhiteSpace(request.ReceiptNumber) ? null : request.ReceiptNumber.Trim();
                             if (request.ShoppingLocationPublicId.HasValue)
                             {
-                                var shoppingLocation = locationFunctions.GetShoppingLocationByPublicId(request.ShoppingLocationPublicId.Value);
+                                var shoppingLocation = _locationFunctions.GetShoppingLocationByPublicId(request.ShoppingLocationPublicId.Value);
                                 if (shoppingLocation == null)
                                 {
                                     throw new ShoppingLocationNotFoundException("Shopping location not found");
@@ -1831,7 +1835,7 @@ namespace Homassy.API.Functions
 
                 // Check low-stock automations
                 if (hasChanges)
-                    await new AutomationFunctions(_runtime).CheckLowStockForProductAsync(trackedItem.ProductId, cancellationToken);
+                    await _lowStock.CheckLowStockForProductAsync(trackedItem.ProductId, cancellationToken);
 
                 // Record activity only if changes were made
                 if (hasChanges)
@@ -1839,7 +1843,8 @@ namespace Homassy.API.Functions
                     try
                     {
                         var product = GetProductById(trackedItem.ProductId);
-                        await new ActivityFunctions(_contextFactory).RecordActivityAsync(
+                        await ActivityRecorder.RecordAsync(
+                            _contextFactory,
                             userId.Value,
                             familyId,
                             Homassy.Data.Enums.ActivityType.ProductInventoryUpdate,
@@ -1865,7 +1870,7 @@ namespace Homassy.API.Functions
                     Unit = trackedItem.Unit,
                     ExpirationAt = trackedItem.ExpirationAt,
                     StorageLocation = trackedItem.StorageLocationId.HasValue
-                        ? (locationFunctions.GetStorageLocationById(trackedItem.StorageLocationId.Value) is var storageLocationRef && storageLocationRef != null
+                        ? (_locationFunctions.GetStorageLocationById(trackedItem.StorageLocationId.Value) is var storageLocationRef && storageLocationRef != null
                             ? new LocationInfo
                             {
                                 PublicId = storageLocationRef.PublicId,
@@ -1881,7 +1886,7 @@ namespace Homassy.API.Functions
                         Price = purchaseInfo.Price,
                         Currency = purchaseInfo.Currency,
                         ShoppingLocation = purchaseInfo.ShoppingLocationId.HasValue
-                            ? (locationFunctions.GetShoppingLocationById(purchaseInfo.ShoppingLocationId.Value) is var shoppingLocationRef && shoppingLocationRef != null
+                            ? (_locationFunctions.GetShoppingLocationById(purchaseInfo.ShoppingLocationId.Value) is var shoppingLocationRef && shoppingLocationRef != null
                                 ? new LocationInfo
                                 {
                                     PublicId = shoppingLocationRef.PublicId,
@@ -1892,7 +1897,7 @@ namespace Homassy.API.Functions
                     } : null,
                     ConsumptionLogs = consumptionLogs.Select(log =>
                     {
-                        var user = log.UserId.HasValue ? new UserFunctions(_contextFactory).GetUserById(log.UserId.Value) : null;
+                        var user = log.UserId.HasValue ? _userFunctions.GetUserById(log.UserId.Value) : null;
                         return new ConsumptionLogInfo
                         {
                             PublicId = log.PublicId,
@@ -1961,7 +1966,7 @@ namespace Homassy.API.Functions
                 }
 
                 // Check low-stock automations
-                await new AutomationFunctions(_runtime).CheckLowStockForProductAsync(inventoryItem.ProductId, cancellationToken);
+                await _lowStock.CheckLowStockForProductAsync(inventoryItem.ProductId, cancellationToken);
 
                 Log.Information($"User {userId} deleted inventory item {inventoryItem.Id} (PublicId: {inventoryItem.PublicId})");
 
@@ -1969,7 +1974,8 @@ namespace Homassy.API.Functions
                 try
                 {
                     var product = GetProductById(inventoryItem.ProductId);
-                    await new ActivityFunctions(_contextFactory).RecordActivityAsync(
+                    await ActivityRecorder.RecordAsync(
+                        _contextFactory,
                         userId.Value,
                         familyId,
                         Homassy.Data.Enums.ActivityType.ProductInventoryDelete,
@@ -2079,7 +2085,7 @@ namespace Homassy.API.Functions
                 }
 
                 // Check low-stock automations
-                await new AutomationFunctions(_runtime).CheckLowStockForProductAsync(trackedItem.ProductId, cancellationToken);
+                await _lowStock.CheckLowStockForProductAsync(trackedItem.ProductId, cancellationToken);
 
                 Log.Information($"User {userId} consumed {request.Quantity} from inventory item {trackedItem.Id} (PublicId: {trackedItem.PublicId}), remaining: {remainingQuantity}");
 
@@ -2087,7 +2093,8 @@ namespace Homassy.API.Functions
                 try
                 {
                     var product = GetProductById(trackedItem.ProductId);
-                    await new ActivityFunctions(_contextFactory).RecordActivityAsync(
+                    await ActivityRecorder.RecordAsync(
+                        _contextFactory,
                         userId.Value,
                         familyId,
                         Homassy.Data.Enums.ActivityType.ProductInventoryDecrease,
@@ -2105,7 +2112,6 @@ namespace Homassy.API.Functions
 
                 var purchaseInfo = GetPurchaseInfoByInventoryItemId(trackedItem.Id);
                 var consumptionLogs = GetConsumptionLogsByInventoryItemId(trackedItem.Id);
-                var locationFunctions = new LocationFunctions(_runtime);
 
                 return new InventoryItemInfo
                 {
@@ -2114,7 +2120,7 @@ namespace Homassy.API.Functions
                     Unit = trackedItem.Unit,
                     ExpirationAt = trackedItem.ExpirationAt,
                     StorageLocation = trackedItem.StorageLocationId.HasValue
-                        ? (locationFunctions.GetStorageLocationById(trackedItem.StorageLocationId.Value) is var storageLocation && storageLocation != null
+                        ? (_locationFunctions.GetStorageLocationById(trackedItem.StorageLocationId.Value) is var storageLocation && storageLocation != null
                             ? new LocationInfo
                             {
                                 PublicId = storageLocation.PublicId,
@@ -2130,7 +2136,7 @@ namespace Homassy.API.Functions
                         Price = purchaseInfo.Price,
                         Currency = purchaseInfo.Currency,
                         ShoppingLocation = purchaseInfo.ShoppingLocationId.HasValue
-                            ? (locationFunctions.GetShoppingLocationById(purchaseInfo.ShoppingLocationId.Value) is var shoppingLocation && shoppingLocation != null
+                            ? (_locationFunctions.GetShoppingLocationById(purchaseInfo.ShoppingLocationId.Value) is var shoppingLocation && shoppingLocation != null
                                 ? new LocationInfo
                                 {
                                     PublicId = shoppingLocation.PublicId,
@@ -2141,7 +2147,7 @@ namespace Homassy.API.Functions
                     } : null,
                     ConsumptionLogs = consumptionLogs.Select(log =>
                     {
-                        var user = log.UserId.HasValue ? new UserFunctions(_contextFactory).GetUserById(log.UserId.Value) : null;
+                        var user = log.UserId.HasValue ? _userFunctions.GetUserById(log.UserId.Value) : null;
                         return new ConsumptionLogInfo
                         {
                             PublicId = log.PublicId,
@@ -2171,12 +2177,11 @@ namespace Homassy.API.Functions
             }
 
             var familyId = SessionInfo.GetFamilyId();
-            var locationFunctions = new LocationFunctions(_runtime);
 
             int? storageLocationId = null;
             if (request.StorageLocationPublicId.HasValue)
             {
-                var storageLocation = locationFunctions.GetStorageLocationByPublicId(request.StorageLocationPublicId.Value);
+                var storageLocation = _locationFunctions.GetStorageLocationByPublicId(request.StorageLocationPublicId.Value);
                 if (storageLocation == null)
                 {
                     throw new StorageLocationNotFoundException("Storage location not found");
@@ -2242,7 +2247,7 @@ namespace Homassy.API.Functions
 
                 // Check low-stock automations for all affected products
                 foreach (var pid in affectedProductIds)
-                    await new AutomationFunctions(_runtime).CheckLowStockForProductAsync(pid, cancellationToken);
+                    await _lowStock.CheckLowStockForProductAsync(pid, cancellationToken);
 
                 Log.Information($"User {userId} quick-added {request.Items.Count} inventory items" +
                     (storageLocationId.HasValue ? $" to storage location {storageLocationId}" : ""));
@@ -2267,9 +2272,8 @@ namespace Homassy.API.Functions
             }
 
             var familyId = SessionInfo.GetFamilyId();
-            var locationFunctions = new LocationFunctions(_runtime);
 
-            var storageLocation = locationFunctions.GetStorageLocationByPublicId(request.StorageLocationPublicId);
+            var storageLocation = _locationFunctions.GetStorageLocationByPublicId(request.StorageLocationPublicId);
             if (storageLocation == null)
             {
                 throw new StorageLocationNotFoundException("Storage location not found");
@@ -2323,7 +2327,7 @@ namespace Homassy.API.Functions
                         Unit = trackedItem.Unit,
                         ExpirationAt = trackedItem.ExpirationAt,
                         StorageLocation = trackedItem.StorageLocationId.HasValue
-                            ? (locationFunctions.GetStorageLocationById(trackedItem.StorageLocationId.Value) is var storageLocationRef && storageLocationRef != null
+                            ? (_locationFunctions.GetStorageLocationById(trackedItem.StorageLocationId.Value) is var storageLocationRef && storageLocationRef != null
                                 ? new LocationInfo
                                 {
                                     PublicId = storageLocationRef.PublicId,
@@ -2339,7 +2343,7 @@ namespace Homassy.API.Functions
                             Price = purchaseInfo.Price,
                             Currency = purchaseInfo.Currency,
                             ShoppingLocation = purchaseInfo.ShoppingLocationId.HasValue
-                                ? (locationFunctions.GetShoppingLocationById(purchaseInfo.ShoppingLocationId.Value) is var shoppingLocationRef && shoppingLocationRef != null
+                                ? (_locationFunctions.GetShoppingLocationById(purchaseInfo.ShoppingLocationId.Value) is var shoppingLocationRef && shoppingLocationRef != null
                                     ? new LocationInfo
                                     {
                                         PublicId = shoppingLocationRef.PublicId,
@@ -2350,7 +2354,7 @@ namespace Homassy.API.Functions
                         } : null,
                         ConsumptionLogs = consumptionLogs.Select(log =>
                         {
-                            var user = log.UserId.HasValue ? new UserFunctions(_contextFactory).GetUserById(log.UserId.Value) : null;
+                            var user = log.UserId.HasValue ? _userFunctions.GetUserById(log.UserId.Value) : null;
                             return new ConsumptionLogInfo
                             {
                                 PublicId = log.PublicId,
@@ -2448,7 +2452,8 @@ namespace Homassy.API.Functions
                     try
                     {
                         var product = GetProductById(inventoryItem.ProductId);
-                        await new ActivityFunctions(_contextFactory).RecordActivityAsync(
+                        await ActivityRecorder.RecordAsync(
+                            _contextFactory,
                             userId.Value,
                             familyId,
                             Homassy.Data.Enums.ActivityType.ProductInventoryDelete,
@@ -2476,7 +2481,7 @@ namespace Homassy.API.Functions
 
                 // Check low-stock automations for all affected products
                 foreach (var pid in affectedProductIds)
-                    await new AutomationFunctions(_runtime).CheckLowStockForProductAsync(pid, cancellationToken);
+                    await _lowStock.CheckLowStockForProductAsync(pid, cancellationToken);
 
                 Log.Information($"User {userId.Value} deleted {request.ItemPublicIds.Count} inventory items");
             }
@@ -2503,7 +2508,6 @@ namespace Homassy.API.Functions
             }
 
             var familyId = SessionInfo.GetFamilyId();
-            var locationFunctions = new LocationFunctions(_runtime);
 
             using var context = _contextFactory.CreateDbContext();
             await using var transaction = await context.Database.BeginTransactionAsync(cancellationToken);
@@ -2577,7 +2581,8 @@ namespace Homassy.API.Functions
                     try
                     {
                         var product = GetProductById(trackedItem.ProductId);
-                        await new ActivityFunctions(_contextFactory).RecordActivityAsync(
+                        await ActivityRecorder.RecordAsync(
+                            _contextFactory,
                             userId.Value,
                             familyId,
                             Homassy.Data.Enums.ActivityType.ProductInventoryDecrease,
@@ -2602,7 +2607,7 @@ namespace Homassy.API.Functions
                         Unit = trackedItem.Unit,
                         ExpirationAt = trackedItem.ExpirationAt,
                         StorageLocation = trackedItem.StorageLocationId.HasValue
-                            ? (locationFunctions.GetStorageLocationById(trackedItem.StorageLocationId.Value) is var storageLocationRef && storageLocationRef != null
+                            ? (_locationFunctions.GetStorageLocationById(trackedItem.StorageLocationId.Value) is var storageLocationRef && storageLocationRef != null
                                 ? new LocationInfo
                                 {
                                     PublicId = storageLocationRef.PublicId,
@@ -2618,7 +2623,7 @@ namespace Homassy.API.Functions
                             Price = purchaseInfo.Price,
                             Currency = purchaseInfo.Currency,
                             ShoppingLocation = purchaseInfo.ShoppingLocationId.HasValue
-                                ? (locationFunctions.GetShoppingLocationById(purchaseInfo.ShoppingLocationId.Value) is var shoppingLocationRef && shoppingLocationRef != null
+                                ? (_locationFunctions.GetShoppingLocationById(purchaseInfo.ShoppingLocationId.Value) is var shoppingLocationRef && shoppingLocationRef != null
                                     ? new LocationInfo
                                     {
                                         PublicId = shoppingLocationRef.PublicId,
@@ -2651,7 +2656,7 @@ namespace Homassy.API.Functions
 
                 // Check low-stock automations for all affected products
                 foreach (var pid in affectedProductIds)
-                    await new AutomationFunctions(_runtime).CheckLowStockForProductAsync(pid, cancellationToken);
+                    await _lowStock.CheckLowStockForProductAsync(pid, cancellationToken);
 
                 Log.Information($"User {userId.Value} consumed {request.Items.Count} inventory items");
 
@@ -2794,7 +2799,7 @@ namespace Homassy.API.Functions
                 }
 
                 // Check low-stock automations
-                await new AutomationFunctions(_runtime).CheckLowStockForProductAsync(trackedItem.ProductId, cancellationToken);
+                await _lowStock.CheckLowStockForProductAsync(trackedItem.ProductId, cancellationToken);
 
                 // Refresh cache for both items
                 await RefreshInventoryItemCacheAsync(trackedItem.Id, cancellationToken);
@@ -2804,7 +2809,8 @@ namespace Homassy.API.Functions
                 try
                 {
                     var product = GetProductById(trackedItem.ProductId);
-                    await new ActivityFunctions(_contextFactory).RecordActivityAsync(
+                    await ActivityRecorder.RecordAsync(
+                        _contextFactory,
                         userId.Value,
                         familyId,
                         Homassy.Data.Enums.ActivityType.ProductInventoryDecrease,
@@ -2821,7 +2827,6 @@ namespace Homassy.API.Functions
                 }
 
                 // Load full details for response
-                var locationFunctions = new LocationFunctions(_runtime);
 
                 var originalItemPurchaseInfo = GetPurchaseInfoByInventoryItemId(trackedItem.Id);
                 var originalConsumptionLogs = GetConsumptionLogsByInventoryItemId(trackedItem.Id);
@@ -2832,7 +2837,7 @@ namespace Homassy.API.Functions
                     Unit = trackedItem.Unit,
                     ExpirationAt = trackedItem.ExpirationAt,
                     StorageLocation = trackedItem.StorageLocationId.HasValue
-                        ? (locationFunctions.GetStorageLocationById(trackedItem.StorageLocationId.Value) is var storageLocationRef && storageLocationRef != null
+                        ? (_locationFunctions.GetStorageLocationById(trackedItem.StorageLocationId.Value) is var storageLocationRef && storageLocationRef != null
                             ? new LocationInfo
                             {
                                 PublicId = storageLocationRef.PublicId,
@@ -2848,7 +2853,7 @@ namespace Homassy.API.Functions
                         Price = originalItemPurchaseInfo.Price,
                         Currency = originalItemPurchaseInfo.Currency,
                         ShoppingLocation = originalItemPurchaseInfo.ShoppingLocationId.HasValue
-                            ? (locationFunctions.GetShoppingLocationById(originalItemPurchaseInfo.ShoppingLocationId.Value) is var shoppingLocationRef && shoppingLocationRef != null
+                            ? (_locationFunctions.GetShoppingLocationById(originalItemPurchaseInfo.ShoppingLocationId.Value) is var shoppingLocationRef && shoppingLocationRef != null
                                 ? new LocationInfo
                                 {
                                     PublicId = shoppingLocationRef.PublicId,
@@ -2859,7 +2864,7 @@ namespace Homassy.API.Functions
                     } : null,
                     ConsumptionLogs = originalConsumptionLogs.Select(log =>
                     {
-                        var user = log.UserId.HasValue ? new UserFunctions(_contextFactory).GetUserById(log.UserId.Value) : null;
+                        var user = log.UserId.HasValue ? _userFunctions.GetUserById(log.UserId.Value) : null;
 
                         return new ConsumptionLogInfo
                         {
@@ -2880,7 +2885,7 @@ namespace Homassy.API.Functions
                     Unit = newItem.Unit,
                     ExpirationAt = newItem.ExpirationAt,
                     StorageLocation = newItem.StorageLocationId.HasValue
-                        ? (locationFunctions.GetStorageLocationById(newItem.StorageLocationId.Value) is var newStorageLocationRef && newStorageLocationRef != null
+                        ? (_locationFunctions.GetStorageLocationById(newItem.StorageLocationId.Value) is var newStorageLocationRef && newStorageLocationRef != null
                             ? new LocationInfo
                             {
                                 PublicId = newStorageLocationRef.PublicId,
@@ -2896,7 +2901,7 @@ namespace Homassy.API.Functions
                         Price = newItemPurchaseInfo.Price,
                         Currency = newItemPurchaseInfo.Currency,
                         ShoppingLocation = newItemPurchaseInfo.ShoppingLocationId.HasValue
-                            ? (locationFunctions.GetShoppingLocationById(newItemPurchaseInfo.ShoppingLocationId.Value) is var newShoppingLocationRef && newShoppingLocationRef != null
+                            ? (_locationFunctions.GetShoppingLocationById(newItemPurchaseInfo.ShoppingLocationId.Value) is var newShoppingLocationRef && newShoppingLocationRef != null
                                 ? new LocationInfo
                                 {
                                     PublicId = newShoppingLocationRef.PublicId,

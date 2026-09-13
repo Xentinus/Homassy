@@ -14,6 +14,7 @@ using Microsoft.EntityFrameworkCore;
 using Serilog;
 using Homassy.Data.Context;
 using Homassy.Data.Security;
+using Homassy.Data.Functions;
 
 namespace Homassy.API.Functions
 {
@@ -23,16 +24,22 @@ namespace Homassy.API.Functions
         private readonly IDbContextFactory<HomassyDbContext> _contextFactory;
         private readonly IImageProcessingService _imageProcessingService;
         private readonly IKratosService? _kratosService;
+        private readonly ProductFunctions _productFunctions;
+        private readonly UserFunctions _userFunctions;
 
         public ImageFunctions(
             FunctionsRuntime runtime,
             IImageProcessingService imageProcessingService,
+            ProductFunctions productFunctions,
+            UserFunctions userFunctions,
             IKratosService? kratosService = null)
         {
             _runtime = runtime;
             _contextFactory = runtime.ContextFactory;
             _imageProcessingService = imageProcessingService;
             _kratosService = kratosService;
+            _productFunctions = productFunctions;
+            _userFunctions = userFunctions;
         }
 
         public async Task<ProductImageInfo> UploadProductImageAsync(UploadProductImageRequest request, IProgress<ProgressInfo>? progress = null, CancellationToken cancellationToken = default)
@@ -44,8 +51,7 @@ namespace Homassy.API.Functions
                 throw new UserNotFoundException("User not found");
             }
 
-            var productFunctions = new ProductFunctions(_runtime);
-            var product = productFunctions.GetProductByPublicId(request.ProductPublicId);
+            var product = _productFunctions.GetProductByPublicId(request.ProductPublicId);
             if (product == null)
             {
                 throw new ProductNotFoundException();
@@ -127,7 +133,8 @@ namespace Homassy.API.Functions
                 try
                 {
                     var familyId = SessionInfo.GetFamilyId();
-                    await new ActivityFunctions(_contextFactory).RecordActivityAsync(
+                    await ActivityRecorder.RecordAsync(
+                        _contextFactory,
                         userId.Value,
                         familyId,
                         Homassy.Data.Enums.ActivityType.ProductPhotoUpload,
@@ -171,8 +178,7 @@ namespace Homassy.API.Functions
                 throw new UserNotFoundException("User not found");
             }
 
-            var productFunctions = new ProductFunctions(_runtime);
-            var product = productFunctions.GetProductByPublicId(productPublicId);
+            var product = _productFunctions.GetProductByPublicId(productPublicId);
             if (product == null)
             {
                 throw new ProductNotFoundException();
@@ -205,7 +211,8 @@ namespace Homassy.API.Functions
                 try
                 {
                     var familyId = SessionInfo.GetFamilyId();
-                    await new ActivityFunctions(_contextFactory).RecordActivityAsync(
+                    await ActivityRecorder.RecordAsync(
+                        _contextFactory,
                         userId.Value,
                         familyId,
                         Homassy.Data.Enums.ActivityType.ProductPhotoDelete,
@@ -400,7 +407,7 @@ namespace Homassy.API.Functions
             bool acceptsWebp,
             CancellationToken cancellationToken = default)
         {
-            var user = new UserFunctions(_contextFactory).GetUserByPublicId(userPublicId);
+            var user = _userFunctions.GetUserByPublicId(userPublicId);
             if (user == null)
             {
                 return null;
@@ -567,7 +574,7 @@ namespace Homassy.API.Functions
 
             // The Users row, not the session's family id: see RequireFamilyId below for why a
             // writable Kratos trait must not decide whose picture this serves.
-            var familyId = new UserFunctions(_contextFactory).GetUserById(userId.Value)?.FamilyId;
+            var familyId = _userFunctions.GetUserById(userId.Value)?.FamilyId;
             if (!familyId.HasValue)
             {
                 return null;
@@ -606,7 +613,7 @@ namespace Homassy.API.Functions
                 throw new UserNotFoundException("User not found");
             }
 
-            var user = new UserFunctions(_contextFactory).GetUserById(userId.Value);
+            var user = _userFunctions.GetUserById(userId.Value);
 
             return user?.FamilyId
                 ?? throw new FamilyNotFoundException("You are not a member of any family");
@@ -628,7 +635,7 @@ namespace Homassy.API.Functions
             bool acceptsWebp,
             CancellationToken cancellationToken = default)
         {
-            var product = new ProductFunctions(_runtime).GetProductByPublicId(productPublicId);
+            var product = _productFunctions.GetProductByPublicId(productPublicId);
             if (product == null)
             {
                 return null;

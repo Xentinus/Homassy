@@ -137,15 +137,17 @@ Homassy.API/
 │   ├── StringExtensions.cs
 │   ├── UnitExtensions.cs
 ├── Functions/            Business logic layer (replaces traditional services)
-│   ├── ActivityFunctions.cs       Activity feed queries
-│   ├── AutomationFunctions.cs     Item-automation CRUD, scheduling, execution, low-stock check
+│   ├── ActivityFunctions.cs       Activity feed queries (the write path is Homassy.Data's ActivityRecorder)
+│   ├── AutomationFunctions.cs     Item-automation CRUD, scheduling and execution
 │   ├── CalendarFunctions.cs       Calendar event aggregation
+│   ├── FamilyCache.cs             The family cache and its reads, shared by Family and User (#133)
 │   ├── FamilyChatFunctions.cs     Family chat reads/writes + the post-commit broadcast
 │   ├── FamilyFunctions.cs
 │   ├── FamilyJoinRequestFunctions.cs  Approval-gated family join requests
 │   ├── FunctionsRuntime.cs        The layer's cross-cutting deps as one typed parameter object
 │   ├── ImageFunctions.cs          Image upload/delete for products & profiles
 │   ├── LocationFunctions.cs
+│   ├── LowStockAutomationFunctions.cs  The low-stock check that runs after every inventory change
 │   ├── ProductFunctions.cs
 │   ├── SearchFunctions.cs         Global search: cache-backed, ranked and capped per type
 │   ├── SelectValueFunctions.cs
@@ -286,22 +288,42 @@ public class UserFunctions
 }
 ```
 
-Inside the layer the classes still instantiate each other, passing their dependency along
-(`new ActivityFunctions(_contextFactory)`, `new ProductFunctions(_runtime)`). That is
-deliberate: `UserFunctions` ↔ `FamilyFunctions` and `ProductFunctions` ↔ `AutomationFunctions`
-are mutually dependent, so constructor injection between them would be an unresolvable cycle.
+**A class in this layer that needs another one takes it through its constructor.** There is no
+`new XFunctions(...)` anywhere in `Functions/` — there were 143 of them, each opening a context
+of its own from the factory, which is one connection per call for an object that lives for one
+statement (#133). `HostWiringTests.EveryFunctionsClass_ResolvesFromARequestScope` resolves every
+class in this namespace from one scope, so a missing registration or a new constructor cycle
+fails there rather than at the endpoint that needed it.
 
-Which of the two constructors a class takes follows from what it needs:
+Three classes exist to keep that graph acyclic, and they are the reason no `Lazy<T>` is needed:
+
+| Class | What it holds | Which cycle it broke |
+|---|---|---|
+| `Homassy.Data.Functions.ActivityRecorder` | the activity-feed write path, as a static | 35 of the 143 sites were `new ActivityFunctions(...).RecordActivityAsync(...)`, and `ActivityFunctions` reads users through `UserFunctions`, which records activities |
+| `FamilyCache` | the family cache and its reads | `UserFunctions` wanted a family by id and `FamilyFunctions` wants users; what `UserFunctions` actually needed was the cache, not the family write path |
+| `LowStockAutomationFunctions` | the low-stock check that runs after every inventory change | `ProductFunctions` called it and `AutomationFunctions`, where it lived, reads products through `ProductFunctions`. It never needed `AutomationFunctions` at all, so lifting it made it a leaf |
+
+Which of the two base constructors a class takes follows from what it needs, and the Functions
+dependencies are appended to that:
 
 | Constructor | Classes | Why |
 |---|---|---|
-| `IDbContextFactory<HomassyDbContext>` | Activity, Family, FamilyJoinRequest, Notification, PushNotification, User | They need nothing but a context, and only ever construct each other — a closed set, so they also work in a host with no SignalR hubs (`Homassy.Notifications` borrows two of them) |
-| `FunctionsRuntime` | Automation, Calendar, ExternalCalendar, Image, Location, Product, SelectValue, ShoppingList | They broadcast over SignalR, need a scope of their own, or construct a class that does |
+| `IDbContextFactory<HomassyDbContext>` | Activity, Family, FamilyCache, FamilyJoinRequest, Notification, PushNotification, User | They need nothing but a context, so they also work in a host with no SignalR hubs |
+| `FunctionsRuntime` | Automation, Calendar, ExternalCalendar, Image, LowStockAutomation, Location, Product, SelectValue, ShoppingList | They broadcast over SignalR or need a scope of their own |
 
 `FunctionsRuntime` is a parameter object, not a service locator: every member is a declared,
-typed dependency (`ContextFactory`, `ScopeFactory`, `Inventory`, `MasterData`, `ShoppingList`).
-It exists so adding one more broadcast to one class does not re-cascade a constructor parameter
-through every class that constructs it. Read its XML docs before changing its shape.
+typed dependency (`ContextFactory`, `ScopeFactory`, `Inventory`, `MasterData`, `ShoppingList`,
+`FamilyChat`). It exists so adding one more broadcast to one class does not re-cascade a
+constructor parameter through every class that takes it. Read its XML docs before changing its
+shape.
+
+> **Still open on #133:** each Functions class still takes `IDbContextFactory` and opens a
+> context per operation, so one request still uses several independent contexts and a multi-step
+> operation that spans two Functions classes is still not atomic. Converting the layer to a
+> single scoped `HomassyDbContext` per request is the other half of that issue: it changes every
+> read path (the 113 `CreateForReading()` calls have no equivalent on a shared tracking context)
+> and it has to answer what the 61 `BeginTransactionAsync` sites do when two of them land on the
+> same context. That is a decision, not a rename, and it is not made here.
 
 #### DbContext lifetime — two rules, no exceptions
 

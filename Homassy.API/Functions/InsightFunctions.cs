@@ -65,11 +65,13 @@ namespace Homassy.API.Functions
 
         private readonly IDbContextFactory<HomassyDbContext> _contextFactory;
         private readonly FamilyInsightsCache _cache;
+        private readonly UserFunctions _userFunctions;
 
-        public InsightFunctions(IDbContextFactory<HomassyDbContext> contextFactory, FamilyInsightsCache cache)
+        public InsightFunctions(IDbContextFactory<HomassyDbContext> contextFactory, FamilyInsightsCache cache, UserFunctions userFunctions)
         {
             _contextFactory = contextFactory;
             _cache = cache;
+            _userFunctions = userFunctions;
         }
 
         /// <summary>
@@ -255,7 +257,7 @@ namespace Homassy.API.Functions
             // the key itself (see ConsumptionCacheKey's remarks), and GetUserProfileByUserId is a
             // cheap, cache-backed lookup (see UserFunctions), not a query worth deferring behind
             // the cache's single-flight factory.
-            var userTimeZone = new UserFunctions(_contextFactory).GetUserProfileByUserId(userId)?.DefaultTimeZone ?? UserTimeZone.CentralEuropeStandardTime;
+            var userTimeZone = _userFunctions.GetUserProfileByUserId(userId)?.DefaultTimeZone ?? UserTimeZone.CentralEuropeStandardTime;
             var ianaTimeZoneId = ResolveIanaTimeZoneId(userTimeZone.ToTimeZoneId());
 
             var key = familyId.HasValue
@@ -757,7 +759,7 @@ namespace Homassy.API.Functions
         {
             // Resolved up front, exactly as GetConsumptionSeriesAsync does it: the zone has to be
             // part of the cache key, and the profile lookup is a cheap cache-backed read.
-            var userTimeZone = new UserFunctions(_contextFactory).GetUserProfileByUserId(userId)?.DefaultTimeZone ?? UserTimeZone.CentralEuropeStandardTime;
+            var userTimeZone = _userFunctions.GetUserProfileByUserId(userId)?.DefaultTimeZone ?? UserTimeZone.CentralEuropeStandardTime;
             var ianaTimeZoneId = ResolveIanaTimeZoneId(userTimeZone.ToTimeZoneId());
 
             if (!familyId.HasValue)
@@ -1314,7 +1316,7 @@ namespace Homassy.API.Functions
         public async Task<AwayDeltaResponse> GetAwayDeltaAsync(int userId, int? familyId, DateTime? since, CancellationToken cancellationToken)
         {
             var untilUtc = DateTime.UtcNow;
-            var resolvedSince = since ?? new UserFunctions(_contextFactory).GetUserProfileByUserId(userId)?.LastSeenAt;
+            var resolvedSince = since ?? _userFunctions.GetUserProfileByUserId(userId)?.LastSeenAt;
 
             // No window at all, or a window that has not happened yet: nothing to report, and
             // deliberately not "everything ever" - see this method's remarks.

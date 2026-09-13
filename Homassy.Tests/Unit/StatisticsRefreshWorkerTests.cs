@@ -58,6 +58,11 @@ public class StatisticsRefreshWorkerTests
 
         services.AddDbContextFactory<HomassyDbContext>(options => options.UseNpgsql(connectionString));
         services.AddSingleton(cache);
+        // InsightFunctions resolves the acting user through UserFunctions, which reads families
+        // through FamilyCache (#133). The worker swallows a resolution failure by design, so a
+        // missing registration here shows up as an unwarmed scoreboard rather than an exception.
+        services.AddScoped<FamilyCache>();
+        services.AddScoped<UserFunctions>();
         services.AddScoped<InsightFunctions>();
 
         return services.BuildServiceProvider();
