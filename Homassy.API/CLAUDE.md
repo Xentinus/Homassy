@@ -47,7 +47,6 @@ Homassy.API is a home storage management system built with ASP.NET Core. The pro
 - **Activity Feed**: Per-family activity log tracking create/update/delete operations across entities
 - **Notification Centre**: every notification the workers send is stored per recipient as a *type plus parameters* (never rendered prose), so the text is composed in the reader's own language at read time; cursor-paged, with per-user read state and a retention window
 - **Error Code System**: Typed `ErrorCodes` enum with descriptions instead of plain string messages in all API error responses
-- **Account Lockout**: Automatic account lockout after repeated failed login attempts via `AccountLockoutService`
 - **Graceful Shutdown**: `HostOptions.ShutdownTimeout` drains in-flight requests on the stop signal; an idle instance stops immediately, and `stop_grace_period` in compose is set above the timeout so the container is not killed mid-drain
 - **CORS Support**: Configurable cross-origin resource sharing for web clients
 - **Response Compression**: Brotli and Gzip for improved performance
@@ -270,12 +269,10 @@ Homassy.API/
 │   └── SecureCompare.cs
 └── Services/            Application services
     ├── Background/      Background hosted services
-    │   ├── StatisticsRefreshWorker.cs   Nightly global-statistics cache refresh
-    │   └── TokenCleanupService.cs
+    │   └── StatisticsRefreshWorker.cs   Nightly global-statistics cache refresh
     ├── Sanitization/
     │   ├── IInputSanitizationService.cs
     │   └── InputSanitizationService.cs
-    ├── AccountLockoutService.cs
     ├── BarcodeValidationService.cs
     ├── CacheManagementService.cs  (IHostedService – cache invalidation)
     ├── ConfigService.cs
@@ -748,10 +745,10 @@ public async Task<User?> EnsureLocalUserAsync(KratosSession session, Cancellatio
 
 #### Kratos Configuration
 
-Kratos is configured via `kratos.yml`:
+Kratos is configured per environment by `Homassy.Kratos/kratos.development.yml` and `Homassy.Kratos/kratos.production.yml`:
 
 - **Passwordless Login**: Uses 6-digit codes sent via email
-- **Session Lifespan**: 30 days in production (720h), 7 days in development (168h); set in the Kratos config, not the API (see `Homassy.Kratos`)
+- **Session Lifespan**: 30 days (720h) in both environments; set in the Kratos config, not the API (see `Homassy.Kratos`)
 - **Cookie Settings**: SameSite=Lax, HttpOnly, Secure in production
 - **Email Templates**: Customizable templates for verification, recovery
 

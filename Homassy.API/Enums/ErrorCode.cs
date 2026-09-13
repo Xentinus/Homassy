@@ -8,8 +8,6 @@ public static class ErrorCodes
     public const string AuthExpiredCredentials = "AUTH-0003";
     public const string AuthAccountLocked = "AUTH-0004";
     public const string AuthForbidden = "AUTH-0005";
-    public const string AuthInvalidRefreshToken = "AUTH-0006";
-    public const string AuthTokenTheftDetected = "AUTH-0007";
     public const string AuthRegistrationDisabled = "AUTH-0008";
     #endregion
 
@@ -62,7 +60,6 @@ public static class ErrorCodes
     public const string ValidationShareCodeRequired = "VALIDATION-0006";
     public const string ValidationNameRequired = "VALIDATION-0007";
     public const string ValidationEmailCodeRequired = "VALIDATION-0008";
-    public const string ValidationRefreshTokenRequired = "VALIDATION-0009";
     public const string ValidationProfilePictureRequired = "VALIDATION-0010";
     public const string ValidationBarcodeRequired = "VALIDATION-0011";
     #endregion

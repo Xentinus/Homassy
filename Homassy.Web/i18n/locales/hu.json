@@ -1042,8 +1042,6 @@
     "AUTH-0003": "Az ellenőrző kód lejárt.",
     "AUTH-0004": "A fiók átmenetileg zárolva a túl sok sikertelen próbálkozás miatt.",
     "AUTH-0005": "A kért erőforráshoz nincs hozzáférés.",
-    "AUTH-0006": "Érvénytelen vagy lejárt frissítő token.",
-    "AUTH-0007": "Lehetséges token-lopás észlelve. Minden munkamenet érvénytelenítve.",
     "AUTH-0008": "A regisztráció jelenleg le van tiltva.",
     "USER-0001": "A felhasználó nem található.",
     "USER-0002": "A felhasználói profil nem található.",

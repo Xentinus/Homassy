@@ -8,11 +8,6 @@ services:
   homassy.api:
     environment:
       - ConnectionStrings__DefaultConnection=${DB_CONNECTION_STRING_DOCKER}
-      - Jwt__SecretKey=${JWT_SECRET_KEY}
-      - Jwt__Issuer=Homassy.API
-      - Jwt__Audience=Homassy.Client
-      - Jwt__AccessTokenExpirationMinutes=15
-      - Jwt__RefreshTokenExpirationDays=7
       - Cors__AllowedOrigins__0=http://localhost:3000
       # Log levels come from UseHomassyMinimumLevels() in code; Logging__LogLevel__* has no effect.
       # Uncomment to see EF Core SQL locally (ignored when ASPNETCORE_ENVIRONMENT=Production):

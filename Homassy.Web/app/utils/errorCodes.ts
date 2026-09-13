@@ -9,8 +9,6 @@ export const errorCodeMessages: Record<string, string> = {
   'AUTH-0003': 'The verification code has expired.',
   'AUTH-0004': 'The account is temporarily locked due to too many failed login attempts.',
   'AUTH-0005': 'Access to the requested resource is denied.',
-  'AUTH-0006': 'Invalid or expired refresh token.',
-  'AUTH-0007': 'Possible token theft detected. All sessions have been invalidated.',
   'AUTH-0008': 'Registration is currently disabled.',
 
   // User Errors (USER-0xxx)

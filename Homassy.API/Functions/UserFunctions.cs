@@ -4,7 +4,6 @@ using Homassy.API.Entities.User;
 using Homassy.API.Enums;
 using Homassy.API.Exceptions;
 using Homassy.API.Extensions;
-using Homassy.API.Models.Auth;
 using Homassy.API.Models.Common;
 using Homassy.API.Models.Family;
 using Homassy.API.Models.User;

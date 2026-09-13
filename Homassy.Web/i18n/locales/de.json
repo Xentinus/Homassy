@@ -1042,8 +1042,6 @@
     "AUTH-0003": "Der Bestätigungscode ist abgelaufen.",
     "AUTH-0004": "Das Konto ist wegen zu vieler Fehlversuche vorübergehend gesperrt.",
     "AUTH-0005": "Zugriff auf die angeforderte Ressource verweigert.",
-    "AUTH-0006": "Ungültiges oder abgelaufenes Aktualisierungstoken.",
-    "AUTH-0007": "Möglicher Token-Diebstahl erkannt. Alle Sitzungen wurden ungültig gemacht.",
     "AUTH-0008": "Die Registrierung ist derzeit deaktiviert.",
     "USER-0001": "Benutzer nicht gefunden.",
     "USER-0002": "Benutzerprofil nicht gefunden.",

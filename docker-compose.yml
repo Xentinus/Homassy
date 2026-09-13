@@ -60,7 +60,7 @@ services:
       # Global internal service-to-service API key (used to authenticate the courier webhook to Homassy.Email)
       - INTERNAL_API_KEY=${INTERNAL_API_KEY}
     volumes:
-      - ./Homassy.Kratos/kratos.yml:/etc/config/kratos/kratos.yml:ro
+      - ./Homassy.Kratos/kratos.development.yml:/etc/config/kratos/kratos.yml:ro
       - ./Homassy.Kratos/identity.schema.json:/etc/config/kratos/identity.schema.json:ro
       - ./Homassy.Kratos/webhook_body.jsonnet:/etc/config/kratos/webhook_body.jsonnet:ro
     entrypoint: /bin/sh

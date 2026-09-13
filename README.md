@@ -187,8 +187,8 @@ Homassy/
 │   ├── Program.cs         CLI entry point (migrate, migrate-to-kratos, verify-kratos, kratos-stats)
 │   └── Dockerfile         Run-and-exit container
 ├── Homassy.Kratos/        Ory Kratos configuration
-│   ├── kratos.yml             Base configuration (HTTP courier to Homassy.Email)
-│   ├── kratos.production.yml  Production overrides
+│   ├── kratos.development.yml Development configuration (HTTP courier to Homassy.Email)
+│   ├── kratos.production.yml  Production configuration
 │   ├── identity.schema.json   Identity schema (traits, notification preferences)
 │   └── webhook_body.jsonnet   Courier webhook payload template
 ├── Homassy.Tests/         Test suite (xUnit)

@@ -14,8 +14,6 @@ public static class ErrorCodeDescriptions
         [ErrorCodes.AuthExpiredCredentials] = "Verification code has expired.",
         [ErrorCodes.AuthAccountLocked] = "Account is temporarily locked due to too many failed login attempts.",
         [ErrorCodes.AuthForbidden] = "Access denied to the requested resource.",
-        [ErrorCodes.AuthInvalidRefreshToken] = "Invalid or expired refresh token.",
-        [ErrorCodes.AuthTokenTheftDetected] = "Potential token theft detected. All sessions invalidated.",
         [ErrorCodes.AuthRegistrationDisabled] = "Registration is currently disabled.",
 
         // User Errors
@@ -62,7 +60,6 @@ public static class ErrorCodeDescriptions
         [ErrorCodes.ValidationShareCodeRequired] = "Share code is required.",
         [ErrorCodes.ValidationNameRequired] = "Name is required.",
         [ErrorCodes.ValidationEmailCodeRequired] = "Email and code are required.",
-        [ErrorCodes.ValidationRefreshTokenRequired] = "Refresh token is required.",
         [ErrorCodes.ValidationProfilePictureRequired] = "Profile picture data is required.",
         [ErrorCodes.ValidationBarcodeRequired] = "Barcode is required.",
 
