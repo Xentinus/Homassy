@@ -2,6 +2,8 @@
  * Authentication middleware (Kratos Version)
  * Protects routes that require authentication using Ory Kratos sessions
  */
+import { LOGIN_PATH, loginRedirectFor } from '~/utils/authRedirect'
+
 export default defineNuxtRouteMiddleware(async (to) => {
   const authStore = useAuthStore()
 
@@ -16,8 +18,11 @@ export default defineNuxtRouteMiddleware(async (to) => {
    * `to.fullPath` is always a router-resolved same-origin path here, but it becomes a
    * query parameter the login page pushes, so the login page validates it before
    * using it rather than trusting the shape of whatever ends up in the URL.
+   *
+   * Shared with the 401 path in `plugins/api.ts` (#87): the two used to disagree about
+   * whether the destination was worth carrying, which is the whole of that bug.
    */
-  const toLogin = () => navigateTo({ path: '/auth/login', query: { return_to: to.fullPath } })
+  const toLogin = () => navigateTo(loginRedirectFor(to.fullPath) ?? { path: LOGIN_PATH })
 
   console.debug(`[Middleware] Checking auth for route: ${to.path}`)
   console.debug(`[Middleware] isAuthenticated before init: ${authStore.isAuthenticated}`)
