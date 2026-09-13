@@ -221,6 +221,82 @@ public class RateLimitServiceTests : IDisposable
 
     #endregion
 
+    #region Concurrency Tests
+
+    /// <summary>
+    /// The counter used to be a mutable field incremented inside a <c>ConcurrentDictionary</c>
+    /// update delegate, which the dictionary gives no exclusivity: two requests on the same key
+    /// could both read 7 and both write 8, so the recorded count drifted below the real one and
+    /// the effective limit ended up higher than configured — under exactly the parallel load the
+    /// limiter exists for (#82).
+    /// </summary>
+    [Fact]
+    public void RegisterAttempt_UnderParallelLoadOnOneKey_CountsEveryAttempt()
+    {
+        var key = GetUniqueKey();
+        const int attempts = 1000;
+        const int maxAttempts = attempts * 2;   // High enough that nothing is refused.
+        var window = TimeSpan.FromMinutes(5);
+
+        Parallel.For(0, attempts, _ => RateLimitService.RegisterAttempt(key, maxAttempts, window));
+
+        var status = RateLimitService.GetRateLimitStatus(key, maxAttempts, window);
+
+        Assert.Equal(maxAttempts - attempts, status.Remaining);
+    }
+
+    /// <summary>
+    /// With the limit inside the range of the parallel run, exactly the configured number of
+    /// attempts must get through — one lost increment means one extra request served.
+    /// </summary>
+    [Fact]
+    public void RegisterAttempt_UnderParallelLoad_RefusesEverythingOverTheLimit()
+    {
+        var key = GetUniqueKey(1);
+        const int attempts = 1000;
+        const int maxAttempts = 250;
+        var window = TimeSpan.FromMinutes(5);
+
+        var allowed = 0;
+
+        Parallel.For(0, attempts, _ =>
+        {
+            if (!RateLimitService.RegisterAttempt(key, maxAttempts, window).IsLimited)
+            {
+                Interlocked.Increment(ref allowed);
+            }
+        });
+
+        Assert.Equal(maxAttempts, allowed);
+    }
+
+    /// <summary>
+    /// Every field of the status comes from the snapshot the attempt produced, so the headers
+    /// built from it cannot contradict each other.
+    /// </summary>
+    [Fact]
+    public void RegisterAttempt_ReturnsAStatusConsistentWithTheAttemptThatProducedIt()
+    {
+        var key = GetUniqueKey(2);
+        const int maxAttempts = 3;
+        var window = TimeSpan.FromMinutes(1);
+
+        Assert.Equal(2, RateLimitService.RegisterAttempt(key, maxAttempts, window).Remaining);
+        Assert.Equal(1, RateLimitService.RegisterAttempt(key, maxAttempts, window).Remaining);
+
+        var third = RateLimitService.RegisterAttempt(key, maxAttempts, window);
+        Assert.Equal(0, third.Remaining);
+        Assert.False(third.IsLimited);      // The third attempt is the last allowed one.
+        Assert.NotNull(third.RetryAfterSeconds);
+
+        var fourth = RateLimitService.RegisterAttempt(key, maxAttempts, window);
+        Assert.True(fourth.IsLimited);
+        Assert.Equal(0, fourth.Remaining);
+        Assert.Equal(third.ResetTimestamp, fourth.ResetTimestamp);
+    }
+
+    #endregion
+
     #region GetLockoutRemaining Tests
 
     [Fact]

@@ -206,12 +206,24 @@ Two-tier rate limiting system via `RateLimitingMiddleware`:
 **1. Global Rate Limiting**
 - Per IP address across all endpoints
 - Default: 100 requests per minute
-- Configurable via `GlobalRateLimitRequests` and `GlobalRateLimitWindowMinutes`
+- `RateLimiting:GlobalMaxAttempts` and `RateLimiting:GlobalWindowMinutes`
 
 **2. Endpoint-Specific Rate Limiting**
 - Per IP per **route template** — not per request path
 - Default: 30 requests per minute
-- Configurable via `EndpointRateLimitRequests` and `EndpointRateLimitWindowMinutes`
+- `RateLimiting:EndpointMaxAttempts` and `RateLimiting:EndpointWindowMinutes`
+
+**Settings:** bound to `RateLimitSettings` and registered with
+`ValidateDataAnnotations().ValidateOnStart()`, injected as `IOptionsMonitor<RateLimitSettings>`.
+They are read once at startup, not per request, and a malformed or out-of-range value stops the
+host from starting. Before #82 the middleware `int.Parse`d four configuration values on every
+request, so one typo turned every request — health endpoints included — into a 500.
+
+**Counting:** one `RateLimitService.RegisterAttempt` per scope, and the headers come from the
+status that attempt returned. Counting and then re-reading the bucket was two independent reads
+per scope, and could describe a state this request never saw. The counter itself is a
+compare-and-swap over an immutable snapshot, so no increment is lost under parallel load from one
+client — which is precisely the load the limiter exists for.
 
 **Key shape:** `global:{ip}` and `endpoint:{routeTemplate}:{ip}`. The route template comes from
 the matched endpoint (hence the explicit `app.UseRouting()` before the middleware); everything

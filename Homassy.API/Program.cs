@@ -228,6 +228,14 @@ try
     builder.Services.Configure<HealthCheckOptions>(builder.Configuration.GetSection("HealthChecks"));
     builder.Services.Configure<GracefulShutdownSettings>(builder.Configuration.GetSection("GracefulShutdown"));
 
+    // ValidateOnStart, so a non-numeric or out-of-range limit stops the host here rather than
+    // turning every request - the health endpoints included - into a 500 (#82).
+    builder.Services
+        .AddOptions<RateLimitSettings>()
+        .Bind(builder.Configuration.GetSection("RateLimiting"))
+        .ValidateDataAnnotations()
+        .ValidateOnStart();
+
     var httpsSettings = builder.Configuration.GetSection("Https").Get<HttpsSettings>() ?? new HttpsSettings();
     var gracefulShutdownSettings = builder.Configuration.GetSection("GracefulShutdown").Get<GracefulShutdownSettings>() ?? new GracefulShutdownSettings();
 
