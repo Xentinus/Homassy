@@ -121,6 +121,9 @@
     container_name: homassy-api
     image: ${DOCKER_REGISTRY-}homassyapi:${IMAGE_TAG-latest}
     restart: unless-stopped
+    # Longer than GracefulShutdown:TimeoutSeconds (30s), so a rolling restart lets in-flight
+    # requests finish and Serilog flush instead of being SIGKILLed at Docker's 10s default (#85).
+    stop_grace_period: 45s
     environment:
       - ASPNETCORE_ENVIRONMENT=Production
       - ConnectionStrings__DefaultConnection=${DB_CONNECTION_STRING_DOCKER}
@@ -227,6 +230,9 @@
     container_name: homassy-notifications
     image: ${DOCKER_REGISTRY-}homassynotifications:${IMAGE_TAG-latest}
     restart: unless-stopped
+    # Seven background workers, each of which should finish the cycle it is in rather than be
+    # killed mid-send. Same margin as the API, for the same reason.
+    stop_grace_period: 45s
     environment:
       - ASPNETCORE_ENVIRONMENT=Production
       - ASPNETCORE_URLS=http://+:8080

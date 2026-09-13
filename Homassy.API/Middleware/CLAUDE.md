@@ -2,6 +2,20 @@
 
 > Per-middleware detail split out of [../CLAUDE.md](../CLAUDE.md). The pipeline **order** lives in the main file; this doc covers each middleware in depth.
 
+### In-Flight Request Middleware
+
+Increments `InFlightRequestTracker` on the way in and decrements it in a `finally`, so the count
+is right for a request that threw as well as one that returned.
+
+It sits directly after the forwarded-header unwind, above everything else, because the count is
+read during shutdown: `GracefulShutdownService` logs how many requests the stop is waiting for and
+how long the last one took. A request counted further down the pipeline would be a request the
+shutdown log claims is not there.
+
+It does **not** drain anything. The drain is `HostOptions.ShutdownTimeout` (see
+[../Services/CLAUDE.md](../Services/CLAUDE.md)); this is the instrumentation that says whether it
+finished.
+
 ### Response Compression
 
 Automatic response compression for improved performance:
