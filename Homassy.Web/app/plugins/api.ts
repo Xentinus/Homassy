@@ -12,6 +12,11 @@ export default defineNuxtPlugin(() => {
   const config = useRuntimeConfig()
   const baseURL = config.public.apiBase || 'http://localhost:5226'
 
+  // Resolved here, in the plugin body, where the Nuxt instance context exists. The 401 handler
+  // below runs after an await inside a rejected request, which is outside that context —
+  // calling useRouter() there would throw, and the redirect would be skipped entirely.
+  const router = useRouter()
+
   // Base client - Kratos session cookie is sent automatically
   const rawApi = $fetch.create({
     baseURL,
@@ -45,7 +50,7 @@ export default defineNuxtPlugin(() => {
            * it is what the login page will push. `loginRedirectFor` answers `null` on an auth
            * route — nothing to preserve, and nowhere to bounce to without looping.
            */
-          const redirect = loginRedirectFor(useRouter().currentRoute.value.fullPath)
+          const redirect = loginRedirectFor(router.currentRoute.value.fullPath)
 
           if (redirect) {
             console.debug('[API] Redirecting to login')

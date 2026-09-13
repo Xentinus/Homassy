@@ -224,6 +224,36 @@ public class RateLimitServiceTests : IDisposable
     #region Concurrency Tests
 
     /// <summary>
+    /// Runs <paramref name="body"/> <paramref name="iterations"/> times across more threads than
+    /// the machine has cores, all released from one barrier.
+    /// </summary>
+    /// <remarks>
+    /// Deliberately not <c>Parallel.For</c>. Its partitioner is free to hand every iteration to
+    /// one worker on a small runner, and a run that serialises proves nothing about a lost
+    /// update — it would have passed against the broken code too. Real threads plus a barrier
+    /// means the contention is there whatever the core count.
+    /// </remarks>
+    private static void RunContended(int iterations, Action body)
+    {
+        var threadCount = Math.Max(8, Environment.ProcessorCount * 2);
+        var start = new Barrier(threadCount);
+        var remaining = iterations;
+
+        var threads = Enumerable.Range(0, threadCount).Select(_ => new Thread(() =>
+        {
+            start.SignalAndWait();
+
+            while (Interlocked.Decrement(ref remaining) >= 0)
+            {
+                body();
+            }
+        })).ToList();
+
+        foreach (var thread in threads) thread.Start();
+        foreach (var thread in threads) thread.Join(TimeSpan.FromSeconds(30));
+    }
+
+    /// <summary>
     /// The counter used to be a mutable field incremented inside a <c>ConcurrentDictionary</c>
     /// update delegate, which the dictionary gives no exclusivity: two requests on the same key
     /// could both read 7 and both write 8, so the recorded count drifted below the real one and
@@ -238,7 +268,7 @@ public class RateLimitServiceTests : IDisposable
         const int maxAttempts = attempts * 2;   // High enough that nothing is refused.
         var window = TimeSpan.FromMinutes(5);
 
-        Parallel.For(0, attempts, _ => RateLimitService.RegisterAttempt(key, maxAttempts, window));
+        RunContended(attempts, () => RateLimitService.RegisterAttempt(key, maxAttempts, window));
 
         var status = RateLimitService.GetRateLimitStatus(key, maxAttempts, window);
 
@@ -259,7 +289,7 @@ public class RateLimitServiceTests : IDisposable
 
         var allowed = 0;
 
-        Parallel.For(0, attempts, _ =>
+        RunContended(attempts, () =>
         {
             if (!RateLimitService.RegisterAttempt(key, maxAttempts, window).IsLimited)
             {

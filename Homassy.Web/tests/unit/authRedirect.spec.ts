@@ -22,6 +22,9 @@ describe('loginRedirectFor', () => {
     expect(loginRedirectFor('/auth/login')).toBeNull()
     expect(loginRedirectFor('/auth/login?return_to=/products')).toBeNull()
     expect(loginRedirectFor('/auth/register')).toBeNull()
+    // Stricter than safeReturnTo, which only rejects the `/auth/` prefix. There is no page at
+    // a bare `/auth`, so carrying it would only ever be a redirect to nothing.
+    expect(loginRedirectFor('/auth')).toBeNull()
   })
 
   it('goes to a bare login page when there is no usable destination', () => {

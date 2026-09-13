@@ -61,7 +61,11 @@ public class RateLimitSettingsTests
             ["RateLimiting:EndpointWindowMinutes"] = "1"
         });
 
-        await Assert.ThrowsAnyAsync<Exception>(() => host.StartAsync());
+        // Specifically the binder's failure, not "something went wrong": ThrowsAny would be
+        // satisfied by a host that failed to start for an entirely unrelated reason.
+        var exception = await Assert.ThrowsAsync<InvalidOperationException>(() => host.StartAsync());
+
+        Assert.Contains("GlobalMaxAttempts", exception.Message, StringComparison.OrdinalIgnoreCase);
     }
 
     [Theory]

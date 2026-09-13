@@ -109,17 +109,24 @@ public class GracefulShutdownDrainTests
         stopwatch.Stop();
 
         // The old implementation slept for TimeoutSeconds unconditionally. Anything in that
-        // neighbourhood means the stop is waiting out a clock instead of the requests.
+        // neighbourhood means the stop is waiting out a clock instead of the requests. The budget
+        // is a third of the timeout rather than something tight: this assembly also runs several
+        // 1000-iteration Parallel.For tests that saturate every core, and xUnit runs classes in
+        // parallel, so a tight budget would fail for scheduling reasons on a small runner.
         Assert.True(
-            stopwatch.Elapsed < TimeSpan.FromSeconds(5),
+            stopwatch.Elapsed < TimeSpan.FromSeconds(10),
             $"An idle host took {stopwatch.Elapsed.TotalSeconds:0.0}s to stop, with a {TimeoutSeconds}s drain timeout configured.");
     }
 
     [Fact]
     public async Task ARequestInFlightWhenTheStopSignalArrives_GetsANormalResponse()
     {
-        var release = new TaskCompletionSource();
-        var entered = new TaskCompletionSource();
+        // RunContinuationsAsynchronously on both: without it SetResult runs the waiter's
+        // continuation inline on whichever thread completed it — the endpoint's on the test
+        // thread, the test's on a Kestrel thread — which is the standard way this shape turns
+        // into an intermittent hang.
+        var release = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var entered = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
 
         await using var drainHost = await StartHostAsync(release.Task, entered);
         var tracker = drainHost.Host.Services.GetRequiredService<InFlightRequestTracker>();

@@ -230,8 +230,9 @@
     container_name: homassy-notifications
     image: ${DOCKER_REGISTRY-}homassynotifications:${IMAGE_TAG-latest}
     restart: unless-stopped
-    # Seven background workers, each of which should finish the cycle it is in rather than be
-    # killed mid-send. Same margin as the API, for the same reason.
+    # Eight background workers, each of which should finish the cycle it is in rather than be
+    # killed mid-send. The window itself is HostOptions.ShutdownTimeout in this service's
+    # Program.cs (30s); this only keeps Docker from SIGKILLing the container before it is up.
     stop_grace_period: 45s
     environment:
       - ASPNETCORE_ENVIRONMENT=Production

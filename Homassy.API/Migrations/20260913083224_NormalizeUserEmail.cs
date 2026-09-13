@@ -12,26 +12,31 @@ namespace Homassy.API.Migrations
         {
             // Two live rows for one address, differing only in case or surrounding whitespace,
             // are two accounts for one person. Canonicalising would make them collide, and this
-            // migration must not pick a winner - stop with the addresses named instead, so
-            // whoever runs the deploy knows exactly which rows to merge.
+            // migration must not pick a winner - stop instead, naming the rows to merge.
+            //
+            // Naming them by Users.Id, never by address: this runs in the deploy job, so the
+            // message lands in a CI log, and an email address is the user's personal data. An id
+            // points at the same row just as well for whoever has to merge them.
             migrationBuilder.Sql("""
                 DO $$
-                DECLARE duplicates text;
+                DECLARE duplicate_ids text;
+                DECLARE duplicate_groups int;
                 BEGIN
-                    SELECT string_agg(d.address, ', ')
-                      INTO duplicates
+                    SELECT string_agg(d.ids, ' | '), count(*)
+                      INTO duplicate_ids, duplicate_groups
                       FROM (
-                            SELECT lower(btrim("Email")) AS address
+                            SELECT string_agg("Id"::text, ', ' ORDER BY "Id") AS ids
                               FROM "Users"
                              WHERE "IsDeleted" = false
                              GROUP BY lower(btrim("Email"))
                             HAVING count(*) > 1
                            ) d;
 
-                    IF duplicates IS NOT NULL THEN
+                    IF duplicate_groups > 0 THEN
                         RAISE EXCEPTION
-                            'Users.Email cannot be made unique: % occur more than once, differing only in case or whitespace. Merge those accounts and run the migration again.',
-                            duplicates;
+                            'Users.Email cannot be made unique: % address(es) are held by more than one live user, differing only in case or whitespace. Merge these Users.Id groups and run the migration again: %',
+                            duplicate_groups,
+                            duplicate_ids;
                     END IF;
                 END $$;
                 """);

@@ -6,7 +6,12 @@ namespace Homassy.API.Models.User
 {
     public record UpdateUserSettingsRequest
     {
+        // 320 is the RFC's ceiling and what the Kratos identity schema allows, so this rejects
+        // nothing Kratos would accept. It is a bound rather than decoration: Users.Email is
+        // unbounded text under a btree index (#136), and an index entry over 2704 bytes is a
+        // Postgres error - a 500 on save where a 400 on validation is the right answer.
         [EmailAddress]
+        [StringLength(320)]
         public string? Email { get; init; }
 
         [StringLength(128, MinimumLength = 2)]

@@ -1107,12 +1107,43 @@ namespace Homassy.API.Functions
                 Log.Information($"Created local user {user.Id} for Kratos identity {identity.Id}");
                 return user;
             }
+            catch (DbUpdateException ex) when (IsUniqueViolation(ex))
+            {
+                // Lost the race: the caller checked by Kratos id, then by email, then inserted,
+                // and something else inserted the same address in between. Before the unique
+                // index on Users.Email (#136) both inserts succeeded and the account quietly
+                // existed twice; now one of them is refused, and the right answer is the row the
+                // winner wrote rather than a 500 on somebody's login.
+                var normalizedEmail = User.NormalizeEmail(identity.Traits.Email);
+                using var context = _contextFactory.CreateForReading();
+                var existing = await context.Users.FirstOrDefaultAsync(u => u.Email == normalizedEmail, cancellationToken);
+
+                if (existing != null)
+                {
+                    Log.Information(
+                        "Concurrent create for Kratos identity {KratosIdentityId} lost the race; using the existing user {UserId}",
+                        identity.Id,
+                        existing.Id);
+                    return existing;
+                }
+
+                Log.Error(ex, $"Failed to create local user for Kratos identity {identity.Id}");
+                return null;
+            }
             catch (Exception ex)
             {
                 Log.Error(ex, $"Failed to create local user for Kratos identity {identity.Id}");
                 return null;
             }
         }
+
+        /// <summary>
+        /// Whether a failed save was PostgreSQL refusing a duplicate (<c>23505</c>) rather than
+        /// anything else - narrow on purpose, so a genuine failure still surfaces instead of being
+        /// quietly read as "somebody else wrote it first".
+        /// </summary>
+        private static bool IsUniqueViolation(DbUpdateException exception) =>
+            exception.InnerException is Npgsql.PostgresException { SqlState: Npgsql.PostgresErrorCodes.UniqueViolation };
 
         /// <summary>
         /// Builds KratosTraits from local User and UserProfile data.
