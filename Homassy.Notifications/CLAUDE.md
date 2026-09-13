@@ -64,6 +64,8 @@ Homassy.Notifications/
 │   └── WebPushHealthCheck.cs           # VAPID config presence check
 ├── Middleware/
 │   └── ApiKeyMiddleware.cs             # X-Api-Key header validation
+├── Configuration/
+│   └── NotificationWorkerSettings.cs   # Every worker's interval, backoff and windows (#95)
 ├── Models/
 │   └── TestPushRequest.cs              # { UserId } request record
 ├── Services/
@@ -79,6 +81,7 @@ Homassy.Notifications/
 │   ├── FamilyChatActivityClient.cs     # HTTP client → Homassy.API: who is watching the chat (#149)
 │   └── AppBadgeCount.cs                # What a push writes onto the app icon (#130)
 └── Workers/
+    ├── PeriodicWorkerService.cs              # The loop all eight share: timer, jitter, backoff
     ├── PushNotificationSchedulerService.cs   # Hourly, Mon 07:00 → weekly push
     ├── ShoppingListActivityMonitorService.cs  # 5 min → shopping list push
     ├── InventoryActivityMonitorService.cs     # 5 min → inventory (készlet) push
@@ -138,6 +141,32 @@ builder.Services.AddDbContext<HomassyDbContext>(configureDbContext, optionsLifet
 ---
 
 ## Background Workers
+
+Every worker below extends `PeriodicWorkerService` and supplies only a `DoWorkAsync`. The loop
+itself — the interval, the startup jitter, the error backoff and the cancellation handling — lives
+in that one class (#95). It used to be copy-pasted into each worker, which meant any fix to it had
+to be made eight times, and each new worker copied it again.
+
+Three things it does that the copies did not:
+
+- **`PeriodicTimer` instead of sleeping after the work.** A delay that starts when the work
+  finishes makes the effective period `work duration + interval`, so every worker drifted against
+  the wall clock. A timer schedules on the period.
+- **Startup jitter.** Eight workers used to sweep the database in the same instant on every
+  container start. Each now waits a random slice of `StartupJitterSeconds`, capped at one interval
+  so a 10-second worker is not held back by a window meant for an hourly one.
+- **Backoff that escalates.** The error delay doubles on each consecutive failure up to
+  `MaxErrorBackoffSeconds` and resets on the first cycle that succeeds, rather than retrying a
+  broken dependency at a fixed rate forever.
+
+`RunOnStartup` says whether the first cycle runs immediately or one interval later; it is set per
+worker to whatever that worker did before, so default behaviour is unchanged.
+
+**The intervals are configuration, not code.** Every value in the sections below comes from
+`NotificationWorkers` in `appsettings.json`, overridable per environment
+(`NotificationWorkers__ItemAutomationWorker__IntervalSeconds=60`). The options are registered with
+`ValidateDataAnnotations().ValidateOnStart()`, so a zero or negative interval stops the container
+at startup instead of producing a worker that spins on an empty table.
 
 ### PushNotificationSchedulerService
 - Runs every hour
@@ -302,14 +331,36 @@ Email) validates and sends the same value.
 }
 ```
 
-The service ships **no `appsettings.json`** — every value above comes from environment
-variables via Docker Compose (double-underscore notation, e.g. `ConnectionStrings__DefaultConnection`).
+Every value above comes from environment variables via Docker Compose (double-underscore notation,
+e.g. `ConnectionStrings__DefaultConnection`) — they are secrets or per-deployment addresses, and
+none of them has a sensible default.
+
+The one thing the service *does* ship an `appsettings.json` for is the worker cadence (#95), which
+is the opposite case: every deployment wants the same defaults, and nothing in it is a secret.
+
+```json
+{
+  "NotificationWorkers": {
+    "ItemAutomationWorker": { "IntervalSeconds": 300, "ErrorBackoffSeconds": 300 },
+    "FamilyChatNotification": { "IntervalSeconds": 10, "ErrorBackoffSeconds": 60, "GraceWindowSeconds": 15 },
+    "ExternalCalendarReminder": {
+      "IntervalSeconds": 60, "ErrorBackoffSeconds": 60,
+      "CatchUpWindowMinutes": 15, "MarkerRetentionDays": 30,
+      "PruneIntervalHours": 6, "LookaheadSlackDays": 2
+    }
+  }
+}
+```
+
+Each section also takes `MaxErrorBackoffSeconds` (default 3600) and `StartupJitterSeconds`
+(default 10). The file is the one `appsettings.json` in this repository that is **not**
+gitignored — see the exception in `.gitignore`.
 
 ### Logging levels
 
 Serilog is configured in code via `UseHomassyMinimumLevels()`
 (`Homassy.Data/Extensions/SerilogExtensions.cs`, shared with the API and Email). It pins
-`Microsoft.EntityFrameworkCore` to `Warning`, so the six background workers do **not** dump the
+`Microsoft.EntityFrameworkCore` to `Warning`, so the eight background workers do **not** dump the
 SQL of every polling cycle into `docker logs homassy-notifications`. Never set `MinimumLevel`
 by hand here.
 
@@ -328,4 +379,4 @@ docker compose run --rm -e EFCORE_SQL_LOGGING=true homassy.notifications
 - **DB access**: only via the scoped `HomassyDbContext` or `IDbContextFactory<HomassyDbContext>` — never construct one directly in a service
 - **Logging**: always use `ILogger<T>` injection, never `Console.Write`
 - **API Key**: the Notifications service is internal-only — enforce auth on all non-health endpoints
-- **Background workers**: extend `BackgroundService`, use `IServiceScopeFactory` for scoped dependencies inside workers
+- **Background workers**: extend `PeriodicWorkerService`, not `BackgroundService` — add a section to `NotificationWorkerSettings` for the new worker's cadence, implement `DoWorkAsync`, and use `IServiceScopeFactory` for scoped dependencies inside it. Never write another polling loop (#95)

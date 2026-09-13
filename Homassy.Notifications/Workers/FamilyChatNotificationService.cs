@@ -4,6 +4,8 @@ using Homassy.Notifications.Services;
 using Microsoft.EntityFrameworkCore;
 using Serilog;
 using Homassy.Data.Context;
+using Homassy.Notifications.Configuration;
+using Microsoft.Extensions.Options;
 
 namespace Homassy.Notifications.Workers;
 
@@ -30,20 +32,19 @@ namespace Homassy.Notifications.Workers;
 /// notification - the messages themselves are safe in the database, and the unread badge still
 /// shows them.</para>
 /// </summary>
-public sealed class FamilyChatNotificationService : BackgroundService
+public sealed class FamilyChatNotificationService : PeriodicWorkerService
 {
-    /// <summary>How often new messages are collected and ripe bursts flushed.</summary>
-    private readonly TimeSpan _interval = TimeSpan.FromSeconds(10);
 
     /// <summary>
-    /// How quiet a sender has to go before their burst is sent.
+    /// How quiet a sender has to go before their burst is sent
+    /// (<c>NotificationWorkers:FamilyChatNotification:GraceWindowSeconds</c>, default 15s).
     /// </summary>
     /// <remarks>
     /// Short enough that a message you are not there for reaches you promptly, long enough to
     /// collapse a run of "wait" / "actually" / "never mind" into one notification - and long enough
     /// that opening the chat right after a message arrives suppresses it entirely.
     /// </remarks>
-    private static readonly TimeSpan GraceWindow = TimeSpan.FromSeconds(15);
+    private TimeSpan GraceWindow => _settings.GraceWindow;
 
     /// <summary>Longest message preview a notification body carries.</summary>
     private const int PreviewLength = 120;
@@ -57,42 +58,25 @@ public sealed class FamilyChatNotificationService : BackgroundService
 
     private DateTime _watermark;
 
+    private readonly FamilyChatWorkerSchedule _settings;
+
     public FamilyChatNotificationService(
         IServiceScopeFactory scopeFactory,
         FamilyPushNotifier notifier,
-        FamilyChatActivityClient activityClient)
+        FamilyChatActivityClient activityClient, IOptions<NotificationWorkerSettings> workerSettings)
+        : base(workerSettings.Value.FamilyChatNotification)
     {
+        _settings = workerSettings.Value.FamilyChatNotification;
         _scopeFactory = scopeFactory;
         _notifier = notifier;
         _activityClient = activityClient;
         _watermark = DateTime.UtcNow;
     }
 
-    protected override async Task ExecuteAsync(CancellationToken stoppingToken)
-    {
-        Log.Information("Family chat notification service started");
+    protected override string WorkerName => "Family chat notification service";
 
-        while (!stoppingToken.IsCancellationRequested)
-        {
-            try
-            {
-                await Task.Delay(_interval, stoppingToken);
-                await ProcessAsync(stoppingToken);
-            }
-            catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested)
-            {
-                break;
-            }
-            catch (Exception ex)
-            {
-                Log.Error(ex, "Error in family chat notification service");
-                try { await Task.Delay(TimeSpan.FromMinutes(1), stoppingToken); }
-                catch (OperationCanceledException) { break; }
-            }
-        }
-
-        Log.Information("Family chat notification service stopped");
-    }
+    protected override Task DoWorkAsync(CancellationToken cancellationToken)
+        => ProcessAsync(cancellationToken);
 
     private async Task ProcessAsync(CancellationToken cancellationToken)
     {

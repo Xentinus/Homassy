@@ -4,6 +4,8 @@ using Homassy.Notifications.Services;
 using Microsoft.EntityFrameworkCore;
 using Serilog;
 using Homassy.Data.Context;
+using Homassy.Notifications.Configuration;
+using Microsoft.Extensions.Options;
 
 namespace Homassy.Notifications.Workers;
 
@@ -22,12 +24,10 @@ namespace Homassy.Notifications.Workers;
 /// Only families with at least two active members are notified. Sessions are held purely in memory
 /// and cleared after notifications are dispatched.
 /// </summary>
-public sealed class ShoppingListActivityMonitorService : BackgroundService
+public sealed class ShoppingListActivityMonitorService : PeriodicWorkerService
 {
     private readonly IServiceScopeFactory _scopeFactory;
     private readonly FamilyPushNotifier _notifier;
-    private readonly TimeSpan _interval = TimeSpan.FromMinutes(5);
-    private readonly TimeSpan _sessionTimeout = TimeSpan.FromMinutes(5);
 
     private static readonly ActivityType[] TrackedItemActivities =
     {
@@ -42,38 +42,21 @@ public sealed class ShoppingListActivityMonitorService : BackgroundService
     private readonly Dictionary<int, ShoppingListSession> _activeSessions = new();
     private DateTime _lastRun;
 
-    public ShoppingListActivityMonitorService(IServiceScopeFactory scopeFactory, FamilyPushNotifier notifier)
+    private readonly ActivityMonitorWorkerSchedule _settings;
+
+    public ShoppingListActivityMonitorService(IServiceScopeFactory scopeFactory, FamilyPushNotifier notifier, IOptions<NotificationWorkerSettings> workerSettings)
+        : base(workerSettings.Value.ShoppingListActivityMonitor)
     {
+        _settings = workerSettings.Value.ShoppingListActivityMonitor;
         _scopeFactory = scopeFactory;
         _notifier = notifier;
         _lastRun = DateTime.UtcNow;
     }
 
-    protected override async Task ExecuteAsync(CancellationToken stoppingToken)
-    {
-        Log.Information("Shopping list activity monitor service started");
+    protected override string WorkerName => "Shopping list activity monitor service";
 
-        while (!stoppingToken.IsCancellationRequested)
-        {
-            try
-            {
-                await Task.Delay(_interval, stoppingToken);
-                await ProcessAsync(stoppingToken);
-            }
-            catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested)
-            {
-                break;
-            }
-            catch (Exception ex)
-            {
-                Log.Error(ex, "Error in shopping list activity monitor service");
-                try { await Task.Delay(TimeSpan.FromMinutes(1), stoppingToken); }
-                catch (OperationCanceledException) { break; }
-            }
-        }
-
-        Log.Information("Shopping list activity monitor service stopped");
-    }
+    protected override Task DoWorkAsync(CancellationToken cancellationToken)
+        => ProcessAsync(cancellationToken);
 
     private async Task ProcessAsync(CancellationToken cancellationToken)
     {
@@ -131,7 +114,7 @@ public sealed class ShoppingListActivityMonitorService : BackgroundService
 
     /// <summary>
     /// Accumulates item add/edit/delete/purchase activities into per-list sessions and dispatches
-    /// aggregated notifications once a session has been idle for at least <see cref="_sessionTimeout"/>.
+    /// aggregated notifications once a session has been idle for at least <see cref="_settings.SessionTimeout"/>.
     /// </summary>
     private async Task ProcessItemActivitiesAsync(HomassyDbContext context, DateTime since, DateTime now, CancellationToken cancellationToken)
     {
@@ -203,7 +186,7 @@ public sealed class ShoppingListActivityMonitorService : BackgroundService
 
         // Find sessions with no new activity for >= sessionTimeout and notify.
         var staleSessions = _activeSessions.Values
-            .Where(s => s.LastActivityAt < now - _sessionTimeout)
+            .Where(s => s.LastActivityAt < now - _settings.SessionTimeout)
             .ToList();
 
         foreach (var session in staleSessions)

@@ -80,6 +80,7 @@ Homassy.Tests/
 │   ├── ItemAutomationTests.cs                Item automation logic
 │   ├── ItemAutomationWorkerServiceTests.cs   Automation worker execution
 │   ├── OpenFoodFactsHealthCheckTests.cs      OpenFoodFacts health check
+│   ├── PeriodicWorkerServiceTests.cs         The notification workers' shared loop: interval, jitter, backoff
 │   ├── RateLimitServiceTests.cs              Rate limit logic
 │   ├── RateLimitingMiddlewareTests.cs        Rate limiting middleware
 │   ├── RequestLoggingMiddlewareTests.cs      Request logging middleware
@@ -113,7 +114,7 @@ Test individual classes and methods in isolation. Most do **not** require `Homas
 - Services (`RateLimitService`, `InputSanitizationService`, `BarcodeValidationService`, `ImageProcessingService`)
 - Middleware (`GlobalExceptionMiddleware`, `RateLimitingMiddleware`, `CorrelationIdMiddleware`, `RequestLoggingMiddleware`, `RequestTimeoutMiddleware`)
 - Validation attributes (`[SanitizedString]`, `[ValidBarcode]`)
-- Background services (`ShoppingListActivityMonitorService`)
+- Background services (`PeriodicWorkerService` - the loop all eight notification workers share - and `ShoppingListActivityMonitorService`)
 - Health checks (`OpenFoodFactsHealthCheck`)
 
 ### Integration Tests (`/Integration`)

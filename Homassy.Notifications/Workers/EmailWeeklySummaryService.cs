@@ -4,44 +4,28 @@ using Microsoft.EntityFrameworkCore;
 using Serilog;
 using Homassy.Data.Context;
 using Homassy.Data.Extensions;
+using Homassy.Notifications.Configuration;
+using Microsoft.Extensions.Options;
 
 namespace Homassy.Notifications.Workers;
 
-public sealed class EmailWeeklySummaryService : BackgroundService
+public sealed class EmailWeeklySummaryService : PeriodicWorkerService
 {
     private readonly IServiceScopeFactory _scopeFactory;
-    private readonly TimeSpan _interval = TimeSpan.FromHours(1);
 
-    public EmailWeeklySummaryService(IServiceScopeFactory scopeFactory)
+    public EmailWeeklySummaryService(IServiceScopeFactory scopeFactory, IOptions<NotificationWorkerSettings> workerSettings)
+        : base(workerSettings.Value.EmailWeeklySummary)
     {
         _scopeFactory = scopeFactory;
     }
 
-    protected override async Task ExecuteAsync(CancellationToken stoppingToken)
-    {
-        Log.Information("Email weekly summary service started");
+    protected override string WorkerName => "Email weekly summary service";
 
-        while (!stoppingToken.IsCancellationRequested)
-        {
-            try
-            {
-                await ProcessEmailSummariesAsync(stoppingToken);
-                await Task.Delay(_interval, stoppingToken);
-            }
-            catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested)
-            {
-                break;
-            }
-            catch (Exception ex)
-            {
-                Log.Error(ex, "Error in email weekly summary service");
-                try { await Task.Delay(TimeSpan.FromMinutes(5), stoppingToken); }
-                catch (OperationCanceledException) { break; }
-            }
-        }
+    /// <summary>Ran its first cycle at startup before #95, and still does.</summary>
+    protected override bool RunOnStartup => true;
 
-        Log.Information("Email weekly summary service stopped");
-    }
+    protected override Task DoWorkAsync(CancellationToken cancellationToken)
+        => ProcessEmailSummariesAsync(cancellationToken);
 
     private async Task ProcessEmailSummariesAsync(CancellationToken cancellationToken)
     {

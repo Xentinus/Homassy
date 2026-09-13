@@ -7,6 +7,8 @@ using Serilog;
 using Homassy.Data.Context;
 using Homassy.Data.Functions;
 using Homassy.Data.Models.Inventory;
+using Homassy.Notifications.Configuration;
+using Microsoft.Extensions.Options;
 
 namespace Homassy.Notifications.Workers;
 
@@ -15,7 +17,7 @@ namespace Homassy.Notifications.Workers;
 /// For each due rule it either auto-consumes inventory or sends a notification reminder,
 /// then recalculates the next execution time.
 /// </summary>
-public sealed class ItemAutomationWorkerService : BackgroundService
+public sealed class ItemAutomationWorkerService : PeriodicWorkerService
 {
     private readonly IServiceScopeFactory _scopeFactory;
     /// <summary>
@@ -33,44 +35,28 @@ public sealed class ItemAutomationWorkerService : BackgroundService
     /// </remarks>
     private readonly FamilyPushNotifier _notifier;
     private readonly IDbContextFactory<HomassyDbContext> _contextFactory;
-    private readonly TimeSpan _interval = TimeSpan.FromMinutes(5);
 
     public ItemAutomationWorkerService(
         IServiceScopeFactory scopeFactory,
         FamilyPushNotifier notifier,
-        IDbContextFactory<HomassyDbContext> contextFactory)
+        IDbContextFactory<HomassyDbContext> contextFactory, IOptions<NotificationWorkerSettings> workerSettings)
+        : base(workerSettings.Value.ItemAutomationWorker)
     {
         _scopeFactory = scopeFactory;
         _notifier = notifier;
         _contextFactory = contextFactory;
     }
 
-    protected override async Task ExecuteAsync(CancellationToken stoppingToken)
+    protected override string WorkerName => "Item automation worker service";
+
+    /// <summary>Ran its first cycle at startup before #95, and still does.</summary>
+    protected override bool RunOnStartup => true;
+
+    protected override async Task DoWorkAsync(CancellationToken cancellationToken)
     {
-        Log.Information("Item automation worker service started");
-
-        while (!stoppingToken.IsCancellationRequested)
-        {
-            try
-            {
-                await ProcessDueAutomationsAsync(stoppingToken);
-                await ProcessLowStockAutomationsAsync(stoppingToken);
-                await RearmLowStockAutomationsAsync(stoppingToken);
-                await Task.Delay(_interval, stoppingToken);
-            }
-            catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested)
-            {
-                break;
-            }
-            catch (Exception ex)
-            {
-                Log.Error(ex, "Error in item automation worker service");
-                try { await Task.Delay(TimeSpan.FromMinutes(5), stoppingToken); }
-                catch (OperationCanceledException) { break; }
-            }
-        }
-
-        Log.Information("Item automation worker service stopped");
+        await ProcessDueAutomationsAsync(cancellationToken);
+        await ProcessLowStockAutomationsAsync(cancellationToken);
+        await RearmLowStockAutomationsAsync(cancellationToken);
     }
 
     private async Task ProcessDueAutomationsAsync(CancellationToken cancellationToken)

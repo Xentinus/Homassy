@@ -4,6 +4,8 @@ using Homassy.Notifications.Services;
 using Microsoft.EntityFrameworkCore;
 using Serilog;
 using Homassy.Data.Context;
+using Homassy.Notifications.Configuration;
+using Microsoft.Extensions.Options;
 
 namespace Homassy.Notifications.Workers;
 
@@ -18,12 +20,10 @@ namespace Homassy.Notifications.Workers;
 /// (no product names). Families with no eligible recipient (e.g. single-member families) receive
 /// nothing. Sessions are held purely in memory and cleared after notifications are dispatched.
 /// </summary>
-public sealed class InventoryActivityMonitorService : BackgroundService
+public sealed class InventoryActivityMonitorService : PeriodicWorkerService
 {
     private readonly IServiceScopeFactory _scopeFactory;
     private readonly FamilyPushNotifier _notifier;
-    private readonly TimeSpan _interval = TimeSpan.FromMinutes(5);
-    private readonly TimeSpan _sessionTimeout = TimeSpan.FromMinutes(5);
 
     private static readonly ActivityType[] TrackedInventoryActivities =
     {
@@ -37,38 +37,21 @@ public sealed class InventoryActivityMonitorService : BackgroundService
     private readonly Dictionary<int, InventorySession> _activeSessions = new();
     private DateTime _lastRun;
 
-    public InventoryActivityMonitorService(IServiceScopeFactory scopeFactory, FamilyPushNotifier notifier)
+    private readonly ActivityMonitorWorkerSchedule _settings;
+
+    public InventoryActivityMonitorService(IServiceScopeFactory scopeFactory, FamilyPushNotifier notifier, IOptions<NotificationWorkerSettings> workerSettings)
+        : base(workerSettings.Value.InventoryActivityMonitor)
     {
+        _settings = workerSettings.Value.InventoryActivityMonitor;
         _scopeFactory = scopeFactory;
         _notifier = notifier;
         _lastRun = DateTime.UtcNow;
     }
 
-    protected override async Task ExecuteAsync(CancellationToken stoppingToken)
-    {
-        Log.Information("Inventory activity monitor service started");
+    protected override string WorkerName => "Inventory activity monitor service";
 
-        while (!stoppingToken.IsCancellationRequested)
-        {
-            try
-            {
-                await Task.Delay(_interval, stoppingToken);
-                await ProcessAsync(stoppingToken);
-            }
-            catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested)
-            {
-                break;
-            }
-            catch (Exception ex)
-            {
-                Log.Error(ex, "Error in inventory activity monitor service");
-                try { await Task.Delay(TimeSpan.FromMinutes(1), stoppingToken); }
-                catch (OperationCanceledException) { break; }
-            }
-        }
-
-        Log.Information("Inventory activity monitor service stopped");
-    }
+    protected override Task DoWorkAsync(CancellationToken cancellationToken)
+        => ProcessAsync(cancellationToken);
 
     private async Task ProcessAsync(CancellationToken cancellationToken)
     {
@@ -104,7 +87,7 @@ public sealed class InventoryActivityMonitorService : BackgroundService
 
         // Find sessions with no new activity for >= sessionTimeout and notify.
         var staleSessions = _activeSessions.Values
-            .Where(s => s.LastActivityAt < now - _sessionTimeout)
+            .Where(s => s.LastActivityAt < now - _settings.SessionTimeout)
             .ToList();
 
         foreach (var session in staleSessions)
