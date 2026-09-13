@@ -649,6 +649,48 @@ Language setting from the user's profile (`UserInfo.language`) is synced to the 
 
 ---
 
+## Content Security Policy
+
+The policy is set by the reverse proxy (`Homassy.Proxy/Caddyfile`), not by Nuxt, so it also
+covers the Kratos flows under `/kratos/*`. Two things in this project have to stay in step
+with it:
+
+- **Inline scripts need the nonce.** `script-src` carries a nonce Caddy generates per request
+  and forwards as the `X-CSP-Nonce` request header;
+  `server/plugins/csp-nonce.ts` stamps it onto every inline `<script>` in the head and the
+  appended body chunks on the `render:html` hook. Adding another inline script (the
+  `pwa-standalone` detector in `app.head.script` is the only hand-written one) needs nothing
+  extra as long as it goes through unhead — but a raw `<script>` written into a component's
+  template will be blocked. There are no hashes to update; the nonce exists precisely because
+  the runtime-config block and the import map change per deployment and per build.
+- **A new external origin needs a directive.** Today the non-`'self'` entries are
+  `https://*.basemaps.cartocdn.com` (MapLibre basemap tiles — in **both** `img-src` and
+  `connect-src`, because MapLibre pulls raster tiles with `fetch()` rather than `<img>` while
+  the source refreshes expired tiles), `https://nominatim.openstreetmap.org` (`useGeocoding`),
+  `https://fastly.jsdelivr.net` (see below), `wss://<the request host>` (SignalR hubs),
+  `data:`/`blob:` (base64 and object-URL images) and `blob:` in `worker-src` (MapLibre's tile
+  worker). Anything else the app starts fetching at runtime is blocked until the Caddyfile says
+  so. Check the browser console on the barcode scanner, calendar, shopping list, store map and
+  profile pages after touching any of it.
+
+**The zxing-wasm CDN fetch is worth removing.** On a browser with no native `BarcodeDetector`
+(Safari, desktop Firefox) `vue-qrcode-reader` falls back to `zxing-wasm`, which locates its
+`.wasm` at `https://fastly.jsdelivr.net/npm/zxing-wasm@<version>/dist/...` unless
+`setZXingModuleOverrides` says otherwise. That is why `connect-src` allows jsDelivr and why
+`script-src` carries `'wasm-unsafe-eval'` (which permits WebAssembly compilation only — it does
+not bring back `eval`). Self-hosting the binary under `public/` and pointing the override at it
+would let the jsDelivr entry go; until then an unpinned third-party binary runs in this origin.
+
+`/offline` is prerendered, so it cannot carry a per-request nonce and the Caddyfile gives that
+one route a policy with `'unsafe-inline'` instead. Keep it free of user content.
+
+`server/plugins/csp-nonce.ts` also sets `Cache-Control: private, no-cache, must-revalidate` on
+the documents it stamps (`private` is the part that matters; `no-store` would cost the back/
+forward cache on every back navigation). A
+nonce is only worth anything while the document belongs to one visitor: if a shared cache in
+front of the app (Cloudflare, where a Cache Rule is one click away) stored the HTML, every
+visitor would get the same nonce, and an attacker could read it out of the page and use it.
+
 ## PWA
 
 - **Auto-update** on new deployments

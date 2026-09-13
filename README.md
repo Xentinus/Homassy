@@ -52,6 +52,18 @@ This starts PostgreSQL, the migrator, Kratos, the API, the email and notificatio
 
 In development each service is reachable on its own localhost port. The single-domain Caddy proxy is production-only.
 
+Every published port binds to `127.0.0.1`, so a development machine on an untrusted network serves nothing to the other hosts on it. The Kratos **admin** API (4434) has no authentication of its own, so it stays on loopback under every configuration — it ignores `HOST_BIND` the way PostgreSQL does. It is published at all only because the API and the Migrator default `Kratos:AdminUrl` to `http://localhost:4434` when they run outside Docker (see below); inside Docker they reach it over the internal network as `http://homassy-kratos:4434`.
+
+#### Testing from another device
+
+To open the app from a phone on the same network, set the bind address for one session:
+
+```bash
+HOST_BIND=0.0.0.0 docker compose up -d
+```
+
+That republishes the web, API and Kratos public ports on every interface; the Kratos admin API and PostgreSQL stay on loopback either way. Outside Docker, `npm run dev` is loopback-only too — use `npm run dev -- --host 0.0.0.0` (the address is required; a bare `--host` parses as an empty string and falls back to the config default). Do neither on a network you do not trust: the dev stack has no TLS and carries real session cookies.
+
 ### Local development (individual services)
 
 ```bash
@@ -290,6 +302,10 @@ The flow (`.github/workflows/deploy.yml`):
 Built images (`ghcr.io/xentinus/...`): `homassyapi`, `homassyweb`, `homassyemail`, `homassynotifications`, `homassymigrator`. The proxy uses the public `caddy:2-alpine` image, so it is not built here.
 
 In production everything is served from one domain. The Caddy reverse proxy (`Homassy.Proxy/Caddyfile`) listens on host port 3000, behind a Cloudflare tunnel that terminates TLS, and routes `/api/v*` and `/hubs/*` to the API, `/kratos/*` to Kratos, and everything else to the web app. Only the proxy and PostgreSQL publish host ports; the other containers are reachable only on the internal Docker network.
+
+The proxy is also where the browser-facing security headers are set — CSP, HSTS, `X-Frame-Options`, `Referrer-Policy`, `Permissions-Policy` — for the Nuxt documents and the Kratos flows. The API sets its own on `/api/v*` and `/hubs/*`, which the proxy leaves alone. The CSP nonce is generated per request by Caddy and stamped onto Nuxt's inline scripts by `Homassy.Web/server/plugins/csp-nonce.ts`; `Homassy.Web/CLAUDE.md` has the details of what the policy allows.
+
+`Homassy.Proxy/Caddyfile` is copied to the VPS verbatim by `.github/workflows/deploy.yml` and is the same file for every deployment target, so nothing host-specific belongs in it. Anything that varies by deployment comes from the environment (`{$CADDY_TRUSTED_PROXIES}` is the pattern).
 
 Required GitHub configuration (Settings, then Environments or Secrets and variables):
 

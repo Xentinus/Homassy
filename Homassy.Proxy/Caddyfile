@@ -14,6 +14,74 @@
 	}
 }
 
+# Security headers for everything the browser loads as a document: the Nuxt app and the Kratos
+# self-service flows. The API sets its own set in Homassy.API/Program.cs (it also runs without
+# this proxy in development), so the /api/v* and /hubs/* routes deliberately do NOT import this
+# — one origin sending two Content-Security-Policy headers means the browser enforces the
+# intersection of both, which is a trap rather than a policy.
+#
+# TLS is terminated by Cloudflare in front of cloudflared and Caddy runs auto_https off on plain
+# :3000, so Strict-Transport-Security set here is what the client ends up seeing.
+(document_security_headers) {
+	header {
+		Strict-Transport-Security "max-age=31536000; includeSubDomains"
+		X-Content-Type-Options "nosniff"
+		X-Frame-Options "DENY"
+		Referrer-Policy "strict-origin-when-cross-origin"
+		# The app itself asks for the camera (barcode scanning) and for geolocation (the store
+		# map). `(self)` grants both to this origin and denies them to any embedded third party.
+		Permissions-Policy "camera=(self), geolocation=(self), microphone=(), payment=(), usb=(), interest-cohort=()"
+		# Caddy strips these from upstream responses; Nuxt and Kratos both advertise themselves.
+		-Server
+		-X-Powered-By
+	}
+}
+
+# The policy itself, split out because /offline needs a different script-src (see below).
+#
+# script-src: 'self' covers the built /_nuxt/*.js bundles. The inline scripts Nuxt emits cannot
+# be covered by a fixed hash — the runtime-config block embeds NUXT_PUBLIC_* (deployment
+# specific) and the import map embeds the entry chunk's content hash (build specific) — so the
+# nonce below is generated per request and handed to Nitro through the X-CSP-Nonce request
+# header; server/plugins/csp-nonce.ts stamps it onto those tags. {http.request.uuid} is
+# evaluated once per request and cached, so the header_up and this header agree.
+# The __NUXT_DATA__ payload needs nothing: type="application/json" is never executed, and the
+# HTML spec returns out of "prepare the script element" before the CSP check for such a type.
+#
+# 'wasm-unsafe-eval' in script-src: on a browser with no native BarcodeDetector (Safari,
+# desktop Firefox) vue-qrcode-reader falls back to zxing-wasm, which compiles a WebAssembly
+# module — Chromium and Firefox refuse that without this keyword. It permits WebAssembly
+# compilation and nothing else; it does not bring back eval().
+#
+# img-src: data: for the base64 avatars and product pictures, blob: for the object URLs the
+# image cropper and the share target create.
+# connect-src is where most of the third parties are, because fetch() is how they arrive:
+#   - wss://{http.request.host}:* for the SignalR hubs. Host-scoped rather than a bare `wss:`,
+#     which is a scheme-source and would match every host on the internet — an open channel
+#     for anything that did get injected. The placeholder keeps the file deployment-agnostic.
+#     'self' is specified to cover same-origin wss: too, but not every browser has always
+#     implemented that, and the hubs are not worth a silent regression on one of them.
+#   - cartocdn.com for the MapLibre basemap. MapLibre pulls raster tiles with fetch(), not
+#     <img>, whenever the source refreshes expired tiles (the default), so img-src alone
+#     leaves the store map blank.
+#   - nominatim for app/composables/useGeocoding.ts.
+#   - jsdelivr for the zxing-wasm binary above, which the library locates on the CDN by
+#     default. This is the one third-party origin here that should not have to exist; see the
+#     self-hosting note in Homassy.Web/CLAUDE.md.
+# worker-src blob:: MapLibre builds its tile worker from a Blob URL.
+# style-src 'unsafe-inline': Tailwind 4 / @nuxt/ui emit runtime style attributes and blocks;
+# threading a nonce through those would need every one of them to go through unhead.
+#
+# `defer` matters: without it Caddy writes the header before reverse_proxy copies the upstream
+# response headers, and those are appended — an upstream that ever emitted its own CSP would
+# produce two, which the browser enforces as the intersection of both.
+(app_csp) {
+	header {
+		defer
+		Content-Security-Policy "default-src 'self'; base-uri 'self'; object-src 'none'; frame-ancestors 'none'; form-action 'self'; script-src 'self' 'wasm-unsafe-eval' 'nonce-{http.request.uuid}'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https://*.basemaps.cartocdn.com; font-src 'self'; connect-src 'self' wss://{http.request.host}:* https://*.basemaps.cartocdn.com https://nominatim.openstreetmap.org https://fastly.jsdelivr.net; worker-src 'self' blob:; manifest-src 'self'; frame-src 'none'"
+	}
+}
+
 :3000 {
 	# Proxy self-check — compose healthcheck + post-deploy smoke test.
 	handle /healthz {
@@ -24,6 +92,8 @@
 	#   /kratos/self-service/login/browser -> /self-service/login/browser
 	# Kratos generates all URLs from serve.public.base_url (https://homassy.kellner.dev/kratos).
 	handle_path /kratos/* {
+		import document_security_headers
+		import app_csp
 		reverse_proxy homassy-kratos:4433
 	}
 
@@ -40,16 +110,28 @@
 		reverse_proxy homassy-api:8080
 	}
 
-	# TEMPORARY — remove ~30 days after cutover. Purges the legacy wildcard-domain
-	# session cookie, which would otherwise shadow the new host-scoped cookie after
-	# the first logout (browser sends the older cookie first; Kratos reads only it).
-	handle /auth/* {
-		header +Set-Cookie "ory_kratos_session=; Domain=.kellner.dev; Path=/; Max-Age=0; Secure; HttpOnly; SameSite=Lax"
+	# /offline is prerendered at build time (nitro.prerender.routes) so the service worker can
+	# precache it as its fallback document. A prerendered file cannot carry a per-request nonce,
+	# so this one route allows inline scripts instead. It renders a fixed "you are offline"
+	# message and no user content, so there is nothing on it for an injected script to reach.
+	@offline path /offline /offline/*
+	handle @offline {
+		import document_security_headers
+		header {
+			# Deferred for the same reason as app_csp: a header written before the proxy copies
+			# the upstream response would be appended to an upstream CSP, not replace it.
+			defer
+			Content-Security-Policy "default-src 'self'; base-uri 'self'; object-src 'none'; frame-ancestors 'none'; form-action 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self'; connect-src 'self'; worker-src 'self' blob:; manifest-src 'self'; frame-src 'none'"
+		}
 		reverse_proxy homassy-web:3000
 	}
 
 	# Everything else -> Nuxt (SSR, static assets, PWA files).
 	handle {
-		reverse_proxy homassy-web:3000
+		import document_security_headers
+		import app_csp
+		reverse_proxy homassy-web:3000 {
+			header_up X-CSP-Nonce {http.request.uuid}
+		}
 	}
 }
