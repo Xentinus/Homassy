@@ -103,6 +103,7 @@ try
     builder.Services.AddScoped<AutomationFunctions>();
     builder.Services.AddScoped<CalendarFunctions>();
     builder.Services.AddScoped<ExternalCalendarFunctions>();
+    builder.Services.AddScoped<CalendarNoteFunctions>();
     builder.Services.AddScoped<FamilyCache>();
     builder.Services.AddScoped<FamilyChatFunctions>();
     builder.Services.AddScoped<FamilyFunctions>();

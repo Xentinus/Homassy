@@ -66,6 +66,7 @@ try
     builder.Services.AddHostedService<EmailWeeklySummaryService>();
     builder.Services.AddHostedService<ItemAutomationWorkerService>();
     builder.Services.AddHostedService<ExternalCalendarReminderService>();
+    builder.Services.AddHostedService<CalendarNoteReminderService>();
     builder.Services.AddHostedService<FamilyChatNotificationService>();
 
     // Health checks

@@ -1174,7 +1174,10 @@ namespace Homassy.API.Functions
                     throw new ShoppingListItemNotFoundException();
                 }
 
-                trackedShoppingListItem.PurchasedAt = request.PurchasedAt;
+                // An item bought on an earlier trip keeps the date it was actually bought on: this
+                // endpoint is also how a past purchase is loaded into the stock (#63), and re-stamping
+                // it with "now" would rewrite the shopping history to say the trip happened today.
+                trackedShoppingListItem.PurchasedAt ??= request.PurchasedAt;
                 await context.SaveChangesAsync(cancellationToken);
 
                 // If it's a custom item (no ProductId), just set PurchasedAt and return
@@ -1264,14 +1267,16 @@ namespace Homassy.API.Functions
                 context.ProductInventoryItems.Add(inventoryItem);
                 await context.SaveChangesAsync(cancellationToken);
 
-                // Create purchase info
+                // Create purchase info. The shopping location is the list item's own - the item already
+                // records where it was bought, so the picker never asks for it again (#63) - and the
+                // date is the item's effective purchase date, not "now".
                 Homassy.Data.Entities.Product.ProductPurchaseInfo? purchaseInfo = null;
                 if (request.Price.HasValue || shoppingLocationId.HasValue)
                 {
                     purchaseInfo = new Homassy.Data.Entities.Product.ProductPurchaseInfo
                     {
                         ProductInventoryItemId = inventoryItem.Id,
-                        PurchasedAt = request.PurchasedAt,
+                        PurchasedAt = trackedShoppingListItem.PurchasedAt ?? request.PurchasedAt,
                         OriginalQuantity = request.Quantity,
                         Price = request.Price,
                         Currency = currency,
@@ -1282,7 +1287,22 @@ namespace Homassy.API.Functions
                     await context.SaveChangesAsync(cancellationToken);
                 }
 
+                // Mark the item as converted so the "load inventory from shopping list" picker stops
+                // offering it. Inside the transaction: an item is either in the stock and marked, or
+                // neither.
+                trackedShoppingListItem.InventoryLoadedAt = DateTime.UtcNow;
+                await context.SaveChangesAsync(cancellationToken);
+
                 await transaction.CommitAsync(cancellationToken);
+
+                // Realtime: push the new stock to everyone whose Készletek grid shows it. Quick
+                // purchase creates inventory exactly as the inventory endpoints do, so it has to
+                // broadcast the same way - without this the grid only caught up on the next refetch.
+                await _runtime.Inventory.InventoryUpsertedAsync(
+                    userId.Value, familyId,
+                    InventoryGridProjection.BuildProduct(product),
+                    InventoryGridProjection.BuildItem(inventoryItem, product.PublicId, request.Quantity),
+                    cancellationToken);
 
                 // Check low-stock automations (stock increased via purchase)
                 await _lowStock.CheckLowStockForProductAsync(product.Id, cancellationToken);
@@ -1955,6 +1975,8 @@ namespace Homassy.API.Functions
                 var results = new List<ShoppingListItemInfo>();
                 var affectedProductIds = new HashSet<int>();
                 var upsertedItems = new List<(ShoppingList list, ShoppingListItem item)>();
+                // The created stock, broadcast after the commit so a rolled-back batch pushes nothing.
+                var createdInventory = new List<(Homassy.Data.Entities.Product.Product product, Homassy.Data.Entities.Product.ProductInventoryItem item, decimal originalQuantity)>();
 
                 foreach (var itemRequest in request.Items)
                 {
@@ -2009,7 +2031,10 @@ namespace Homassy.API.Functions
                         throw new ShoppingListItemNotFoundException();
                     }
 
-                    trackedShoppingListItem.PurchasedAt = itemRequest.PurchasedAt;
+                    // An item bought on an earlier trip keeps the date it was actually bought on - see
+                    // QuickPurchaseFromShoppingListItemAsync.
+                    trackedShoppingListItem.PurchasedAt ??= itemRequest.PurchasedAt;
+                    trackedShoppingListItem.InventoryLoadedAt = DateTime.UtcNow;
 
                     var inventoryItem = new Homassy.Data.Entities.Product.ProductInventoryItem
                     {
@@ -2026,13 +2051,14 @@ namespace Homassy.API.Functions
                     await context.SaveChangesAsync(cancellationToken);
 
                     affectedProductIds.Add(product.Id);
+                    createdInventory.Add((product, inventoryItem, itemRequest.Quantity));
 
                     if (itemRequest.Price.HasValue || shoppingLocationId.HasValue)
                     {
                         var purchaseInfo = new Homassy.Data.Entities.Product.ProductPurchaseInfo
                         {
                             ProductInventoryItemId = inventoryItem.Id,
-                            PurchasedAt = itemRequest.PurchasedAt,
+                            PurchasedAt = trackedShoppingListItem.PurchasedAt ?? itemRequest.PurchasedAt,
                             OriginalQuantity = itemRequest.Quantity,
                             Price = itemRequest.Price,
                             Currency = currency,
@@ -2092,6 +2118,16 @@ namespace Homassy.API.Functions
                 foreach (var (list, item) in upsertedItems)
                 {
                     await _runtime.ShoppingList.ItemUpsertedAsync(list.PublicId, BuildItemInfo(item, list), cancellationToken, actorPublicId);
+                }
+
+                // Realtime: the same batch also created stock, so the Készletek grid hears about it too.
+                foreach (var (broadcastProduct, inventoryItem, originalQuantity) in createdInventory)
+                {
+                    await _runtime.Inventory.InventoryUpsertedAsync(
+                        userId.Value, familyId,
+                        InventoryGridProjection.BuildProduct(broadcastProduct),
+                        InventoryGridProjection.BuildItem(inventoryItem, broadcastProduct.PublicId, originalQuantity),
+                        cancellationToken);
                 }
 
                 return results;
@@ -2161,6 +2197,123 @@ namespace Homassy.API.Functions
         /// <summary>Single-list convenience over <see cref="CountPendingItemsByShoppingList"/>.</summary>
         private int CountPendingItems(int shoppingListId)
             => CountPendingItemsByShoppingList([shoppingListId]).GetValueOrDefault(shoppingListId);
+
+        /// <summary>
+        /// The shopping list items that can still be loaded into the inventory (#63), across every
+        /// list the caller can see - their own and the family's, in one pass, because a shopping trip
+        /// is one trip whichever list it was written on.
+        /// </summary>
+        /// <remarks>
+        /// Only items with a <c>ProductId</c> are offered: a free-text item has no product to attach
+        /// stock to. Items already loaded by this flow are filtered out on
+        /// <see cref="ShoppingListItem.InventoryLoadedAt"/>, not on <c>PurchasedAt</c> - an item can
+        /// be marked purchased without ever reaching the stock, and last week's purchases are exactly
+        /// what this picker is for.
+        /// <para>
+        /// The rows are read from the database rather than the item cache: that cache holds only
+        /// unpurchased items and purchases from the last seven days (see
+        /// <c>InitializeCacheAsync</c>), which is narrower than this picker's window. Search is then
+        /// applied in memory through <c>NormalizeForSearch</c>, for the same reason
+        /// <see cref="GetAllShoppingLists"/> does it that way: a SQL <c>ILIKE</c> is not
+        /// accent-insensitive, and "tejföl" has to be findable by typing "tejfol".
+        /// </para>
+        /// </remarks>
+        public async Task<PagedResult<LoadableShoppingListItemInfo>> GetLoadableInventoryItemsAsync(
+            PaginationRequest pagination,
+            CancellationToken cancellationToken = default)
+        {
+            var userId = SessionInfo.GetUserId();
+            if (!userId.HasValue)
+            {
+                Log.Warning("Invalid session: User ID not found");
+                throw new UserNotFoundException("User not found");
+            }
+
+            var familyId = SessionInfo.GetFamilyId();
+            var shoppingLists = GetShoppingListsByUserAndFamily(userId.Value, familyId);
+            if (shoppingLists.Count == 0)
+            {
+                return PagedResult<LoadableShoppingListItemInfo>.Create([], 0, pagination.PageNumber, pagination.PageSize);
+            }
+
+            var listsById = shoppingLists.ToDictionary(sl => sl.Id);
+            var shoppingListIds = listsById.Keys.ToList();
+
+            using var context = _contextFactory.CreateForReading();
+            var rows = await context.ShoppingListItems
+                .Where(sli => shoppingListIds.Contains(sli.ShoppingListId)
+                              && sli.ProductId.HasValue
+                              && sli.InventoryLoadedAt == null)
+                .Select(sli => new
+                {
+                    sli.PublicId,
+                    sli.ShoppingListId,
+                    sli.ProductId,
+                    sli.Quantity,
+                    sli.Unit,
+                    sli.Note,
+                    sli.PurchasedAt,
+                    sli.ShoppingLocationId
+                })
+                .ToListAsync(cancellationToken);
+
+            var items = new List<LoadableShoppingListItemInfo>(rows.Count);
+            foreach (var row in rows)
+            {
+                // A deleted product leaves its list item behind; there is nothing to stock.
+                var product = _productFunctions.GetProductById(row.ProductId);
+                if (product == null || product.IsDeleted)
+                {
+                    continue;
+                }
+
+                if (!listsById.TryGetValue(row.ShoppingListId, out var shoppingList))
+                {
+                    continue;
+                }
+
+                var shoppingLocation = row.ShoppingLocationId.HasValue
+                    ? _locationFunctions.GetShoppingLocationById(row.ShoppingLocationId)
+                    : null;
+
+                items.Add(new LoadableShoppingListItemInfo
+                {
+                    PublicId = row.PublicId,
+                    ShoppingListPublicId = shoppingList.PublicId,
+                    ShoppingListName = shoppingList.Name,
+                    IsSharedWithFamily = shoppingList.FamilyId.HasValue,
+                    ProductPublicId = product.PublicId,
+                    ProductName = product.Name,
+                    ProductBrand = product.Brand,
+                    Quantity = row.Quantity,
+                    Unit = row.Unit,
+                    Note = row.Note,
+                    PurchasedAt = row.PurchasedAt,
+                    ShoppingLocationPublicId = shoppingLocation?.PublicId,
+                    ShoppingLocationName = shoppingLocation?.Name
+                });
+            }
+
+            if (!string.IsNullOrWhiteSpace(pagination.SearchText))
+            {
+                var normalizedSearch = pagination.SearchText.NormalizeForSearch();
+                items = items.Where(i =>
+                    i.ProductName.NormalizeForSearch().Contains(normalizedSearch) ||
+                    (i.ProductBrand ?? string.Empty).NormalizeForSearch().Contains(normalizedSearch) ||
+                    i.ShoppingListName.NormalizeForSearch().Contains(normalizedSearch)
+                ).ToList();
+            }
+
+            // The newest purchases first, then everything still outstanding. Purchase date is what a
+            // shopper recognises a trip by, so it leads; the name is only a stable tie-break.
+            var ordered = items
+                .OrderByDescending(i => i.PurchasedAt.HasValue)
+                .ThenByDescending(i => i.PurchasedAt)
+                .ThenBy(i => i.ProductName)
+                .ToList();
+
+            return ordered.ToPagedResult(pagination);
+        }
 
         public PagedResult<ShoppingListInfo> GetAllShoppingLists(PaginationRequest pagination)
         {

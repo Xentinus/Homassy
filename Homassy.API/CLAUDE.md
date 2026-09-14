@@ -111,7 +111,7 @@ Homassy.API/
 ├── Controllers/           HTTP endpoint handlers (thin layer)
 │   ├── AuthController.cs
 │   ├── AutomationController.cs    Item-automation rule management
-│   ├── CalendarController.cs      Calendar event aggregation
+│   ├── CalendarController.cs      Calendar event aggregation + day-note CRUD
 │   ├── ErrorCodesController.cs    Error code reference (public)
 │   ├── FamilyChatController.cs    Family chat: history, send, delete
 │   ├── FamilyController.cs
@@ -140,6 +140,7 @@ Homassy.API/
 │   ├── ActivityFunctions.cs       Activity feed queries (the write path is Homassy.Data's ActivityRecorder)
 │   ├── AutomationFunctions.cs     Item-automation CRUD, scheduling and execution
 │   ├── CalendarFunctions.cs       Calendar event aggregation
+│   ├── CalendarNoteFunctions.cs   Family day notes on the calendar (#60): CRUD + the aggregated read
 │   ├── FamilyCache.cs             The family cache and its reads, shared by Family and User (#133)
 │   ├── FamilyChatFunctions.cs     Family chat reads/writes + the post-commit broadcast
 │   ├── FamilyFunctions.cs
@@ -308,7 +309,7 @@ dependencies are appended to that:
 
 | Constructor | Classes | Why |
 |---|---|---|
-| `IDbContextFactory<HomassyDbContext>` | Activity, Family, FamilyCache, FamilyJoinRequest, Notification, PushNotification, User | They need nothing but a context, so they also work in a host with no SignalR hubs |
+| `IDbContextFactory<HomassyDbContext>` | Activity, CalendarNote, Family, FamilyCache, FamilyJoinRequest, Notification, PushNotification, User | They need nothing but a context, so they also work in a host with no SignalR hubs |
 | `FunctionsRuntime` | Automation, Calendar, ExternalCalendar, Image, LowStockAutomation, Location, Product, SelectValue, ShoppingList | They broadcast over SignalR or need a scope of their own |
 
 `FunctionsRuntime` is a parameter object, not a service locator: every member is a declared,

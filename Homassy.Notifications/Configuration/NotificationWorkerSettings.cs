@@ -21,7 +21,7 @@ public sealed class NotificationWorkerSettings : IValidatableObject
     /// <summary>Configuration section this binds from.</summary>
     public const string SectionName = "NotificationWorkers";
 
-    /// <summary>Unread family-chat messages, the shortest interval of the eight.</summary>
+    /// <summary>Unread family-chat messages, the shortest interval of the nine.</summary>
     public FamilyChatWorkerSchedule FamilyChatNotification { get; set; } = new()
     {
         IntervalSeconds = 10,
@@ -30,6 +30,13 @@ public sealed class NotificationWorkerSettings : IValidatableObject
 
     /// <summary>External calendar event reminders.</summary>
     public ExternalCalendarWorkerSchedule ExternalCalendarReminder { get; set; } = new()
+    {
+        IntervalSeconds = 60,
+        ErrorBackoffSeconds = 60
+    };
+
+    /// <summary>Reminders on the family calendar's day notes (#60).</summary>
+    public CalendarNoteWorkerSchedule CalendarNoteReminder { get; set; } = new()
     {
         IntervalSeconds = 60,
         ErrorBackoffSeconds = 60
@@ -81,6 +88,7 @@ public sealed class NotificationWorkerSettings : IValidatableObject
     {
         yield return (nameof(FamilyChatNotification), FamilyChatNotification);
         yield return (nameof(ExternalCalendarReminder), ExternalCalendarReminder);
+        yield return (nameof(CalendarNoteReminder), CalendarNoteReminder);
         yield return (nameof(FamilyJoinRequestMonitor), FamilyJoinRequestMonitor);
         yield return (nameof(InventoryActivityMonitor), InventoryActivityMonitor);
         yield return (nameof(ShoppingListActivityMonitor), ShoppingListActivityMonitor);
@@ -155,7 +163,7 @@ public class WorkerSchedule
     public int MaxErrorBackoffSeconds { get; set; } = 3_600;
 
     /// <summary>
-    /// Random delay before the first tick, so eight workers do not all sweep the database in the
+    /// Random delay before the first tick, so nine workers do not all sweep the database in the
     /// same instant when the container starts. Capped at the interval: a ten-second worker must
     /// not be held back by a jitter window meant for an hourly one.
     /// </summary>
@@ -197,6 +205,20 @@ public sealed class FamilyChatWorkerSchedule : WorkerSchedule
     public int GraceWindowSeconds { get; set; } = 15;
 
     public TimeSpan GraceWindow => TimeSpan.FromSeconds(GraceWindowSeconds);
+}
+
+/// <summary>The day-note reminder worker (#60).</summary>
+public sealed class CalendarNoteWorkerSchedule : WorkerSchedule
+{
+    /// <summary>
+    /// How far back a reminder whose moment was missed is still sent. Covers a restart or a slow
+    /// cycle; past this the note is marked as sent without a push, because "this was two weeks ago"
+    /// is worse than nothing.
+    /// </summary>
+    [Range(1, 1_440)]
+    public int CatchUpWindowMinutes { get; set; } = 60;
+
+    public TimeSpan CatchUpWindow => TimeSpan.FromMinutes(CatchUpWindowMinutes);
 }
 
 /// <summary>The calendar reminder worker and its four windows.</summary>

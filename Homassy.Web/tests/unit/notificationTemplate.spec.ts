@@ -37,7 +37,8 @@ const ALL_TYPES = [
   'FamilyJoinRequest',
   'FamilyJoinApproved',
   'FamilyJoinDeclined',
-  'CalendarEventReminder'
+  'CalendarEventReminder',
+  'CalendarNoteReminder'
 ]
 
 describe('notificationTemplate', () => {
@@ -95,6 +96,30 @@ describe('notificationTemplate', () => {
         .toBe('notifications.types.CalendarEventReminder.bodyNow')
     })
   })
+
+  describe('the day note reminder branches on how far away its day is (#60)', () => {
+    const note = (daysUntil: string) =>
+      notificationTemplate({ type: 'CalendarNoteReminder', parameters: { noteTitle: 'School closed', daysUntil } }).bodyKey
+
+    it('reads as "today" on the day itself', () => {
+      expect(note('0')).toBe('notifications.types.CalendarNoteReminder.bodyToday')
+    })
+
+    it('reads as "tomorrow" one day ahead', () => {
+      expect(note('1')).toBe('notifications.types.CalendarNoteReminder.bodyTomorrow')
+    })
+
+    it('counts the days beyond that', () => {
+      expect(note('4')).toBe('notifications.types.CalendarNoteReminder.bodyInDays')
+    })
+
+    it('never looks backwards: a late reminder still reads as "today"', () => {
+      // The worker clamps at zero, but a catch-up delivery must not be able to say "-1 days".
+      expect(note('-2')).toBe('notifications.types.CalendarNoteReminder.bodyToday')
+      expect(notificationTemplate({ type: 'CalendarNoteReminder' }).bodyKey)
+        .toBe('notifications.types.CalendarNoteReminder.bodyToday')
+    })
+  })
 })
 
 describe('the locale files cover every notification type', () => {
@@ -110,10 +135,13 @@ describe('the locale files cover every notification type', () => {
           missing.push(`${type}.title`)
         }
 
-        // The calendar reminder is the one type with four bodies instead of one.
+        // Two types branch their wording instead of carrying one body: the calendar reminder on
+        // lead time and all-day, the day note on how far away its day still is.
         const bodies = type === 'CalendarEventReminder'
           ? ['bodyNow', 'bodyLead', 'bodyAllDayToday', 'bodyAllDayLead']
-          : ['body']
+          : type === 'CalendarNoteReminder'
+            ? ['bodyToday', 'bodyTomorrow', 'bodyInDays']
+            : ['body']
 
         for (const body of bodies) {
           if (typeof lookup(bag, `notifications.types.${type}.${body}`) !== 'string') {

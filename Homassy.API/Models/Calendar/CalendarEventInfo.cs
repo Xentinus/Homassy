@@ -5,7 +5,10 @@ namespace Homassy.API.Models.Calendar
         InventoryExpiration = 0,
         AutomationExecution = 1,
         ShoppingListDeadline = 2,
-        ExternalCalendar = 3
+        ExternalCalendar = 3,
+
+        /// <summary>A family day note (#60). Carries its own colour/marker in the calendar view.</summary>
+        DayNote = 4
     }
 
     public class CalendarEventInfo

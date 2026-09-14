@@ -55,7 +55,8 @@ const ICONS: Record<string, string> = {
 
   FamilyChatMessages: 'i-lucide-message-circle',
 
-  CalendarEventReminder: 'i-lucide-calendar-clock'
+  CalendarEventReminder: 'i-lucide-calendar-clock',
+  CalendarNoteReminder: 'i-lucide-sticky-note'
 }
 
 const FALLBACK_ICON = 'i-lucide-bell'
@@ -110,6 +111,16 @@ function bodyKeyFor(type: string, params: Record<string, string>): string {
     return (params.preview ?? '').length > 0
       ? `${BASE}.FamilyChatMessages.body`
       : `${BASE}.FamilyChatMessages.bodyPhoto`
+  }
+
+  // A day note has no lead time to phrase — it is about a day — so the branch is how far away that
+  // day still is, counted by the server in the reader's own timezone.
+  if (type === 'CalendarNoteReminder') {
+    const days = Number.parseInt(params.daysUntil ?? '0', 10)
+    if (!Number.isFinite(days) || days <= 0) return `${BASE}.CalendarNoteReminder.bodyToday`
+    return days === 1
+      ? `${BASE}.CalendarNoteReminder.bodyTomorrow`
+      : `${BASE}.CalendarNoteReminder.bodyInDays`
   }
 
   if (type !== 'CalendarEventReminder') return `${BASE}.${type}.body`

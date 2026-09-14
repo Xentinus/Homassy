@@ -83,6 +83,10 @@ public static class NotificationContentRenderer
                 => PushNotificationContentService.GetCalendarEventReminderContent(
                     language, Str(p, "eventTitle"), Int(p, "leadMinutes"), Bool(p, "isAllDay")),
 
+            NotificationType.CalendarNoteReminder
+                => PushNotificationContentService.GetCalendarNoteReminderContent(
+                    language, Str(p, "noteTitle"), Int(p, "daysUntil")),
+
             NotificationType.FamilyChatMessages
                 => PushNotificationContentService.GetFamilyChatMessagesContent(
                     language, Str(p, "senderName"), Int(p, "count"), Str(p, "preview")),

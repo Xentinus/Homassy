@@ -1027,13 +1027,62 @@
         "automationExecution": "Automatisierung",
         "shoppingListDeadline": "Einkaufsfrist",
         "activity": "Aktivität",
-        "externalCalendar": "Externer Kalender"
+        "externalCalendar": "Externer Kalender",
+        "dayNote": "Notiz"
+      },
+      "notes": {
+        "addButton": "Notiz",
+        "createTitle": "Neue Notiz",
+        "editTitle": "Notiz bearbeiten",
+        "description": "Notizen zu diesem Tag sieht die ganze Familie.",
+        "titleLabel": "Titel",
+        "titlePlaceholder": "z. B. schulfrei",
+        "titleRequired": "Ein Titel ist erforderlich.",
+        "contentLabel": "Notiz",
+        "contentPlaceholder": "Was die anderen über diesen Tag wissen sollten",
+        "reminderLabel": "Familie erinnern",
+        "reminderDate": "Datum der Erinnerung",
+        "reminderTime": "Uhrzeit der Erinnerung",
+        "reminderHint": "Alle werden über die Kanäle benachrichtigt, die sie aktiviert haben.",
+        "saveFailed": "Die Notiz konnte nicht gespeichert werden.",
+        "deleteFailed": "Die Notiz konnte nicht gelöscht werden."
       },
       "views": {
         "month": "Monat",
         "week": "Woche"
       },
       "today": "Heute"
+    }
+  },
+  "loadInventory": {
+    "title": "Bestand aus Liste laden",
+    "fabAction": "Aus Einkaufsliste laden",
+    "fabDescription": "Einen ganzen Einkauf in den Bestand übernehmen",
+    "steps": {
+      "select": "Artikel",
+      "summary": "Fertig"
+    },
+    "searchPlaceholder": "Nach Produkt oder Liste suchen...",
+    "selectedCount": "{count} ausgewählt",
+    "clearSelection": "Leeren",
+    "startButton": "Weiter ({count})",
+    "skipButton": "Überspringen",
+    "addButton": "In den Bestand",
+    "loadMore": "Mehr laden",
+    "notPurchasedYet": "Noch nicht gekauft",
+    "shoppingLocationCarriedOver": "Das Geschäft kommt vom Listeneintrag.",
+    "storageLocation": "Lagerort",
+    "storageLocationPlaceholder": "Wohin kommt es?",
+    "commitFailed": "Der Artikel konnte nicht in den Bestand übernommen werden.",
+    "empty": {
+      "title": "Nichts mehr zu laden",
+      "description": "Einträge mit einem Produkt aus deinen Einkaufslisten erscheinen hier, bis du sie in den Bestand lädst.",
+      "noMatch": "Kein Eintrag passt zur Suche"
+    },
+    "summary": {
+      "title": "Bestand aktualisiert",
+      "added": "{count} hinzugefügt",
+      "skipped": "{count} übersprungen"
     }
   },
   "errorCodes": {
@@ -1091,7 +1140,11 @@
     "SYSTEM-0001": "Ein unerwarteter Fehler ist aufgetreten.",
     "SYSTEM-0002": "Die Anfrage hat das Zeitlimit überschritten.",
     "SYSTEM-0003": "Die Anfrage wurde abgebrochen.",
-    "SYSTEM-0004": "Unbefugter Zugriff."
+    "SYSTEM-0004": "Unbefugter Zugriff.",
+    "CALNOTE-0001": "Die Kalendernotiz wurde nicht gefunden.",
+    "CALNOTE-0002": "Du hast keinen Zugriff auf diese Kalendernotiz.",
+    "CALNOTE-0003": "Kalendernotizen kannst du nur als Mitglied einer Familie verwalten.",
+    "CALNOTE-0004": "Die Erinnerungszeit ist ungültig."
   },
   "shoppingList": {
     "purchase": {
@@ -1903,7 +1956,10 @@
       "26": "Automatisierung ausgeführt",
       "27": "Beitrittsanfrage gesendet",
       "28": "Beitrittsanfrage genehmigt",
-      "29": "Beitrittsanfrage abgelehnt"
+      "29": "Beitrittsanfrage abgelehnt",
+      "30": "Kalendernotiz erstellt",
+      "31": "Kalendernotiz aktualisiert",
+      "32": "Kalendernotiz gelöscht"
     },
     "productCategoryGroup": {
       "0": "Sonstiges",
@@ -3085,6 +3141,12 @@
         "bodyLead": "\"{eventTitle}\" beginnt in {lead}.",
         "bodyAllDayToday": "\"{eventTitle}\" ist heute.",
         "bodyAllDayLead": "\"{eventTitle}\" ist in {lead}."
+      },
+      "CalendarNoteReminder": {
+        "title": "Kalendernotiz",
+        "bodyToday": "\"{noteTitle}\" ist heute.",
+        "bodyTomorrow": "\"{noteTitle}\" ist morgen.",
+        "bodyInDays": "\"{noteTitle}\" ist in {daysUntil} Tagen."
       }
     }
   },

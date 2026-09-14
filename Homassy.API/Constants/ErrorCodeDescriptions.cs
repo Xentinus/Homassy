@@ -101,6 +101,11 @@ public static class ErrorCodeDescriptions
         [ErrorCodes.ExternalCalendarFetchFailed] = "Failed to fetch the iCal feed from the provided URL.",
         [ErrorCodes.ExternalCalendarRequiresFamily] = "You must be a member of a family to manage external calendars.",
         [ErrorCodes.ExternalCalendarInvalidReminder] = "The reminder settings are invalid.",
+        // Calendar Note Errors
+        [ErrorCodes.CalendarNoteNotFound] = "The calendar note was not found.",
+        [ErrorCodes.CalendarNoteAccessDenied] = "You do not have access to this calendar note.",
+        [ErrorCodes.CalendarNoteRequiresFamily] = "You must be a member of a family to manage calendar notes.",
+        [ErrorCodes.CalendarNoteInvalidReminder] = "The reminder time is invalid.",
         // Family Chat Errors
         [ErrorCodes.FamilyChatAccessDenied] = "You do not have access to this family chat.",
         [ErrorCodes.FamilyChatMessageNotFound] = "Chat message not found.",

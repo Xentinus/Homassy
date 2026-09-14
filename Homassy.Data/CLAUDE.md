@@ -74,6 +74,7 @@ Homassy.Data/
 │   └── HomassyDbContextFactoryExtensions.cs   CreateForReading() - the no-tracking context
 ├── Entities/             Database entity models (EF Core)
 │   └── Activity/  Common/  Family/  Location/  Product/  ShoppingList/  User/
+│       (Family/ also holds CalendarNote — a day note belongs to a family, not to a calendar, #60)
 ├── Enums/                Application enumerations, incl. the 947-member ProductCategory
 ├── Exceptions/           Domain exceptions, each carrying the status code the API maps it to
 │   └── HttpStatus.cs     The five status constants, so this library needs no ASP.NET Core

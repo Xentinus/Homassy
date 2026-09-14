@@ -126,10 +126,18 @@
         <!-- Day panel -->
         <div v-if="selectedDay" class="flex flex-col flex-1 min-h-0 lg:block">
           <!-- Panel header — divider line sits directly above the scrolling cards -->
-          <div class="mb-2 px-1 pb-2 border-b border-gray-200 dark:border-gray-800 shrink-0">
+          <div class="mb-2 px-1 pb-2 border-b border-gray-200 dark:border-gray-800 shrink-0 flex items-center justify-between gap-2">
             <span class="text-sm font-semibold text-gray-800 dark:text-gray-100">
               {{ formatDate(selectedDay) }}
             </span>
+            <UButton
+              :label="t('pages.calendar.notes.addButton')"
+              icon="i-lucide-sticky-note"
+              size="xs"
+              color="neutral"
+              variant="outline"
+              @click="openNoteForm(null)"
+            />
           </div>
 
             <!-- No events -->
@@ -163,6 +171,13 @@
                     :detail="item.data.detail"
                     :color="item.data.color"
                   />
+                  <CalendarNoteCard
+                    v-else-if="item.kind === 'note'"
+                    :note="item.data"
+                    :deleting="deletingNoteId === item.data.publicId"
+                    @edit="openNoteForm"
+                    @delete="deleteNote"
+                  />
                   <CalendarActivityCard
                     v-else
                     :activity-type="item.data.activityType"
@@ -186,12 +201,19 @@
         </div>
       </div>
     </div>
+
+    <CalendarNoteFormDrawer
+      v-model:open="isNoteFormOpen"
+      :date="selectedDay ?? todayStr"
+      :note="editingNote"
+      @saved="onNoteSaved"
+    />
   </div>
 </template>
 
 <script setup lang="ts">
 import { CalendarEventType } from '~/types/calendar'
-import type { CalendarEventInfo } from '~/types/calendar'
+import type { CalendarEventInfo, CalendarNoteInfo } from '~/types/calendar'
 import type { ExternalCalendarResponse } from '~/types/externalCalendar'
 import type { ActivityType, ActivityInfo } from '~/types/activity'
 import { useAuthStore } from '~/stores/auth'
@@ -199,7 +221,8 @@ import { useAuthStore } from '~/stores/auth'
 definePageMeta({ layout: 'auth' })
 
 const { t, locale } = useI18n()
-const { getCalendarEvents } = useCalendarApi()
+const { getCalendarEvents, getCalendarNotes, deleteCalendarNote } = useCalendarApi()
+const toast = useToast()
 const { getActivities } = useUserApi()
 const { getExternalCalendars } = useExternalCalendarApi()
 const authStore = useAuthStore()
@@ -240,6 +263,7 @@ interface CalActivity {
 
 type DayItem =
   | { kind: 'event'; uid: string; data: CalEvent }
+  | { kind: 'note'; uid: string; data: CalendarNoteInfo }
   | { kind: 'activity'; uid: string; data: CalActivity }
 
 const toLocalDate = (date: Date): string => {
@@ -254,6 +278,14 @@ const isLoading = ref(false)
 const calendarEvents = ref<CalEvent[]>([])
 const calendarActivities = ref<CalActivity[]>([])
 const externalCalendars = ref<ExternalCalendarResponse[]>([])
+
+// Notes arrive twice, on purpose. The aggregated event list is what paints the day cells, so the
+// week's markers stay one query; the note list is the editable shape the day panel needs, which
+// the calendar projection deliberately does not carry (its text, its reminder, its author).
+const calendarNotes = ref<CalendarNoteInfo[]>([])
+const isNoteFormOpen = ref(false)
+const editingNote = ref<CalendarNoteInfo | null>(null)
+const deletingNoteId = ref<string | null>(null)
 
 const selectedDay = ref<string | null>(toLocalDate(new Date()))
 const visibleCount = ref(5)
@@ -355,6 +387,14 @@ const eventsByDate = computed(() => {
   return map
 })
 
+const notesByDate = computed(() => {
+  const map: Record<string, CalendarNoteInfo[]> = {}
+  for (const n of calendarNotes.value) {
+    ;(map[n.date] ??= []).push(n)
+  }
+  return map
+})
+
 const activitiesByDate = computed(() => {
   const map: Record<string, CalActivity[]> = {}
   for (const a of calendarActivities.value) {
@@ -384,18 +424,25 @@ const calendarCells = computed(() => {
 const selectedDayItems = computed((): DayItem[] => {
   if (!selectedDay.value) return []
 
+  // Day notes are dropped from the event stream here and re-added from `notesByDate`: the panel
+  // needs the editable note, and rendering both shapes would show every note twice.
   const events: DayItem[] = (eventsByDate.value[selectedDay.value] ?? [])
+    .filter(e => e.eventType !== CalendarEventType.DayNote)
     .map(e => ({ kind: 'event' as const, uid: `event-${e.publicId}-${e.startAt}-${e.title}`, data: e }))
+
+  const notes: DayItem[] = (notesByDate.value[selectedDay.value] ?? [])
+    .map(n => ({ kind: 'note' as const, uid: `note-${n.publicId}`, data: n }))
 
   const activities: DayItem[] = (activitiesByDate.value[selectedDay.value] ?? [])
     .map(a => ({ kind: 'activity' as const, uid: `activity-${a.publicId}`, data: a }))
 
-  const merged = [...events, ...activities].sort((a, b) => {
-    const aAllDay = a.kind === 'event' && a.data.isAllDay
-    const bAllDay = b.kind === 'event' && b.data.isAllDay
+  const merged = [...events, ...notes, ...activities].sort((a, b) => {
+    // A note is about the whole day, so it sorts with the all-day events: above everything timed.
+    const aAllDay = a.kind === 'note' || (a.kind === 'event' && a.data.isAllDay)
+    const bAllDay = b.kind === 'note' || (b.kind === 'event' && b.data.isAllDay)
     if (aAllDay !== bAllDay) return aAllDay ? -1 : 1
-    const ta = a.kind === 'event' ? a.data.startAt : a.data.timestamp
-    const tb = b.kind === 'event' ? b.data.startAt : b.data.timestamp
+    const ta = a.kind === 'event' ? a.data.startAt : a.kind === 'note' ? a.data.createdAt : a.data.timestamp
+    const tb = b.kind === 'event' ? b.data.startAt : b.kind === 'note' ? b.data.createdAt : b.data.timestamp
     return tb.localeCompare(ta)
   })
 
@@ -492,10 +539,11 @@ const loadEvents = async () => {
     const startStr = toLocalDate(weekStart.value)
     const endStr = toLocalDate(weekEnd)
 
-    const [eventsRes, activitiesRes, calendarsRes] = await Promise.all([
+    const [eventsRes, activitiesRes, calendarsRes, notesRes] = await Promise.all([
       getCalendarEvents(startStr, endStr),
       getActivities({ startDate: startStr, endDate: endStr, returnAll: true }),
-      getExternalCalendars()
+      getExternalCalendars(),
+      getCalendarNotes(startStr, endStr)
     ])
 
     if (eventsRes.success && eventsRes.data)
@@ -504,6 +552,8 @@ const loadEvents = async () => {
       calendarActivities.value = mapActivities(activitiesRes.data.items)
     if (calendarsRes.success && calendarsRes.data)
       externalCalendars.value = calendarsRes.data.filter(c => c.isEnabled)
+    if (notesRes.success && notesRes.data)
+      calendarNotes.value = notesRes.data
   } finally {
     isLoading.value = false
     // Normal PWA relaunch lands here — dismiss the boot splash once the
@@ -539,11 +589,72 @@ const goToToday = () => {
   currentDate.value = new Date()
 }
 
+const openNoteForm = (note: CalendarNoteInfo | null) => {
+  editingNote.value = note
+  isNoteFormOpen.value = true
+}
+
+// Patch in place rather than refetching the week: the note the user just wrote is the one they are
+// looking at, and a reload would restart the day panel's staggered render under them.
+const onNoteSaved = (note: CalendarNoteInfo) => {
+  const index = calendarNotes.value.findIndex(n => n.publicId === note.publicId)
+  if (index >= 0) calendarNotes.value.splice(index, 1, note)
+  else calendarNotes.value = [...calendarNotes.value, note]
+
+  // The day cells are painted from the aggregated event list, so that copy has to move too.
+  const asEvent: CalEvent = {
+    publicId: note.publicId,
+    title: note.title,
+    eventType: CalendarEventType.DayNote,
+    dateStr: note.date,
+    endStr: null,
+    startAt: `${note.date}T00:00:00Z`,
+    detail: note.content,
+    relatedPublicId: note.publicId,
+    color: null,
+    isAllDay: true
+  }
+  const eventIndex = calendarEvents.value.findIndex(
+    e => e.eventType === CalendarEventType.DayNote && e.publicId === note.publicId
+  )
+  if (eventIndex >= 0) calendarEvents.value.splice(eventIndex, 1, asEvent)
+  else calendarEvents.value = [...calendarEvents.value, asEvent]
+
+  editingNote.value = null
+}
+
+const deleteNote = async (note: CalendarNoteInfo) => {
+  deletingNoteId.value = note.publicId
+  try {
+    const res = await deleteCalendarNote(note.publicId, {
+      errorMessage: t('pages.calendar.notes.deleteFailed')
+    })
+    if (!res.success) return
+
+    calendarNotes.value = calendarNotes.value.filter(n => n.publicId !== note.publicId)
+    calendarEvents.value = calendarEvents.value.filter(
+      e => !(e.eventType === CalendarEventType.DayNote && e.publicId === note.publicId)
+    )
+  } catch (error) {
+    // Only a request that never reached the API lands here; useApiClient stays silent for those.
+    console.error('Failed to delete the calendar note:', error)
+    toast.add({
+      title: t('common.error'),
+      description: t('pages.calendar.notes.deleteFailed'),
+      color: 'error',
+      icon: 'i-lucide-alert-circle'
+    })
+  } finally {
+    deletingNoteId.value = null
+  }
+}
+
 const dotClass = (type: CalendarEventType): string => {
   switch (type) {
     case CalendarEventType.InventoryExpiration: return 'bg-red-500'
     case CalendarEventType.AutomationExecution: return 'bg-blue-500'
     case CalendarEventType.ShoppingListDeadline: return 'bg-amber-500'
+    case CalendarEventType.DayNote: return 'bg-violet-500'
     default: return 'bg-gray-400'
   }
 }
@@ -556,6 +667,8 @@ const chipClass = (type: CalendarEventType): string => {
       return 'bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300'
     case CalendarEventType.ShoppingListDeadline:
       return 'bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300'
+    case CalendarEventType.DayNote:
+      return 'bg-violet-100 text-violet-700 dark:bg-violet-900/40 dark:text-violet-300'
     default:
       return 'bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300'
   }
@@ -570,6 +683,7 @@ const legendTypes = [
   { key: 'inventoryExpiration', dot: 'bg-red-500' },
   { key: 'automationExecution', dot: 'bg-blue-500' },
   { key: 'shoppingListDeadline', dot: 'bg-amber-500' },
+  { key: 'dayNote', dot: 'bg-violet-500' },
   { key: 'activity', dot: 'bg-gray-400' }
 ]
 </script>

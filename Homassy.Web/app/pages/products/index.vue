@@ -284,6 +284,7 @@
 
     <!-- Add Inventory Wizard (bottom-sheet) -->
     <AddInventoryItemModal v-model:open="isAddInventoryOpen" @created="handleInventoryCreated" />
+    <LoadInventoryFromListsDrawer v-model:open="isLoadInventoryOpen" @created="handleInventoryCreated" />
 
     <!-- Dictate a few items straight into stock (#132). Rendered only where recognition
          exists, so the drawer never mounts a microphone the browser cannot open. -->
@@ -378,6 +379,7 @@ usePageHeader(() => ({
 
 // The add-inventory wizard (bottom-sheet) opened from the nav FAB.
 const isAddInventoryOpen = ref(false)
+const isLoadInventoryOpen = ref(false)
 
 // The inventory-overview bottom-sheet, opened by tapping a product card.
 const isOverviewOpen = ref(false)
@@ -399,6 +401,12 @@ useFabActions(() => [
     label: $t('pages.products.addProductButton'),
     icon: 'i-lucide-plus',
     handler: () => { isAddInventoryOpen.value = true }
+  },
+  {
+    label: $t('loadInventory.fabAction'),
+    icon: 'i-lucide-clipboard-list',
+    description: $t('loadInventory.fabDescription'),
+    handler: () => { isLoadInventoryOpen.value = true }
   },
   ...(isVoiceSupported.value
     ? [{

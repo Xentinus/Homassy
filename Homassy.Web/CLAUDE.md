@@ -55,6 +55,7 @@ Homassy.Web/
 │   ├── components/             Shared UI components (auto-imported)
 │   │   ├── auth/               Auth flow components
 │   │   ├── landing/            Public landing page: device frame, rendered app screens, showcase bands
+│   │   ├── calendar/           Calendar event cards, plus the day-note card and form (#60)
 │   │   ├── security/           Security/WebAuthn components
 │   │   └── *.vue               Cards, modals, buttons, etc.
 │   ├── composables/
@@ -123,7 +124,7 @@ Homassy.Web/
 │   ├── pages/
 │   │   ├── index.vue           Root redirect
 │   │   ├── activity.vue        Activity feed
-│   │   ├── calendar.vue        Monthly calendar of expirations & shopping deadlines
+│   │   ├── calendar.vue        Weekly calendar of expirations, shopping deadlines and family day notes (#60)
 │   │   ├── share.vue           Web Share Target landing page (see PWA below)
 │   │   ├── auth/
 │   │   │   ├── login.vue
@@ -296,7 +297,7 @@ One composable per API controller. All use `useApiClient` internally:
 | Composable | Endpoints |
 |---|---|
 | `useProductsApi` | Products CRUD, expiration counts |
-| `useShoppingListApi` | Shopping lists and items, deadline counts |
+| `useShoppingListApi` | Shopping lists and items, deadline counts, the loadable-inventory picker (#63) |
 | `useLocationsApi` | Storage + shopping locations |
 | `useFamilyApi` | Family management |
 | `useUserApi` | User profile, preferences |
@@ -304,7 +305,7 @@ One composable per API controller. All use `useApiClient` internally:
 | `useOpenFoodFactsApi` | Barcode product lookup |
 | `useProgressApi` | Inventory progress |
 | `useAutomationApi` | Automation rules CRUD, enable/disable, manual execution |
-| `useCalendarApi` | Calendar events (expirations & deadlines) for a date range |
+| `useCalendarApi` | Calendar events (expirations & deadlines) for a date range, and day-note CRUD (#60) |
 | `useNotificationsApi` | Notification centre: paged inbox, unread count, read/dismiss |
 | `useStatisticsApi` | Global platform statistics |
 | `useHealthApi` | API health check |

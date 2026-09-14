@@ -1027,13 +1027,62 @@
         "automationExecution": "Automation",
         "shoppingListDeadline": "Shopping deadline",
         "activity": "Activity",
-        "externalCalendar": "External calendar"
+        "externalCalendar": "External calendar",
+        "dayNote": "Note"
+      },
+      "notes": {
+        "addButton": "Note",
+        "createTitle": "New note",
+        "editTitle": "Edit note",
+        "description": "Notes on this day are visible to the whole family.",
+        "titleLabel": "Title",
+        "titlePlaceholder": "e.g. school closed",
+        "titleRequired": "A title is required.",
+        "contentLabel": "Note",
+        "contentPlaceholder": "Anything the others should know about this day",
+        "reminderLabel": "Remind the family",
+        "reminderDate": "Reminder date",
+        "reminderTime": "Reminder time",
+        "reminderHint": "Everyone is notified on the channels they have turned on.",
+        "saveFailed": "The note could not be saved.",
+        "deleteFailed": "The note could not be deleted."
       },
       "views": {
         "month": "Month",
         "week": "Week"
       },
       "today": "Today"
+    }
+  },
+  "loadInventory": {
+    "title": "Load inventory from list",
+    "fabAction": "Load from shopping list",
+    "fabDescription": "Move a whole shopping trip into your inventory",
+    "steps": {
+      "select": "Items",
+      "summary": "Done"
+    },
+    "searchPlaceholder": "Search products or lists...",
+    "selectedCount": "{count} selected",
+    "clearSelection": "Clear",
+    "startButton": "Continue ({count})",
+    "skipButton": "Skip",
+    "addButton": "Add to inventory",
+    "loadMore": "Load more",
+    "notPurchasedYet": "Not bought yet",
+    "shoppingLocationCarriedOver": "The shop is taken from the list item.",
+    "storageLocation": "Storage location",
+    "storageLocationPlaceholder": "Where does it go?",
+    "commitFailed": "The item could not be added to the inventory.",
+    "empty": {
+      "title": "Nothing left to load",
+      "description": "Items with a product on any of your shopping lists show up here until you load them into the inventory.",
+      "noMatch": "No item matches your search"
+    },
+    "summary": {
+      "title": "Inventory updated",
+      "added": "{count} added",
+      "skipped": "{count} skipped"
     }
   },
   "errorCodes": {
@@ -1091,7 +1140,11 @@
     "SYSTEM-0001": "An unexpected error occurred.",
     "SYSTEM-0002": "The request timed out.",
     "SYSTEM-0003": "The request was aborted.",
-    "SYSTEM-0004": "Unauthorized access."
+    "SYSTEM-0004": "Unauthorized access.",
+    "CALNOTE-0001": "The calendar note was not found.",
+    "CALNOTE-0002": "You do not have access to this calendar note.",
+    "CALNOTE-0003": "You must be a member of a family to manage calendar notes.",
+    "CALNOTE-0004": "The reminder time is invalid."
   },
   "shoppingList": {
     "purchase": {
@@ -1903,7 +1956,10 @@
       "26": "Automation Executed",
       "27": "Join Request Sent",
       "28": "Join Request Approved",
-      "29": "Join Request Declined"
+      "29": "Join Request Declined",
+      "30": "Calendar Note Created",
+      "31": "Calendar Note Updated",
+      "32": "Calendar Note Deleted"
     },
     "productCategoryGroup": {
       "0": "Other",
@@ -3085,6 +3141,12 @@
         "bodyLead": "\"{eventTitle}\" starts in {lead}.",
         "bodyAllDayToday": "\"{eventTitle}\" is today.",
         "bodyAllDayLead": "\"{eventTitle}\" is in {lead}."
+      },
+      "CalendarNoteReminder": {
+        "title": "Calendar note",
+        "bodyToday": "\"{noteTitle}\" is today.",
+        "bodyTomorrow": "\"{noteTitle}\" is tomorrow.",
+        "bodyInDays": "\"{noteTitle}\" is in {daysUntil} days."
       }
     }
   },
