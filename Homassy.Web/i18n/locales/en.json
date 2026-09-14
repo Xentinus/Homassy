@@ -1044,6 +1044,7 @@
         "reminderDate": "Reminder date",
         "reminderTime": "Reminder time",
         "reminderHint": "Everyone is notified on the channels they have turned on.",
+        "reminderDateRequired": "Pick a date for the reminder.",
         "saveFailed": "The note could not be saved.",
         "deleteFailed": "The note could not be deleted."
       },

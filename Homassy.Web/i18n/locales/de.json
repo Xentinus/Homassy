@@ -1044,6 +1044,7 @@
         "reminderDate": "Datum der Erinnerung",
         "reminderTime": "Uhrzeit der Erinnerung",
         "reminderHint": "Alle werden über die Kanäle benachrichtigt, die sie aktiviert haben.",
+        "reminderDateRequired": "Wähle ein Datum für die Erinnerung.",
         "saveFailed": "Die Notiz konnte nicht gespeichert werden.",
         "deleteFailed": "Die Notiz konnte nicht gelöscht werden."
       },

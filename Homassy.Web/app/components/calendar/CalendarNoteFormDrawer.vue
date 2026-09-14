@@ -187,6 +187,15 @@ const toReminderIso = (): string | null => {
 
 async function onSubmit(event: FormSubmitEvent<Schema>) {
   const data = event.data
+
+  // The date field only exists while the reminder is armed, so the schema cannot require it. Left
+  // empty it would send `reminderAt: null` and save a note with no reminder at all — silently, which
+  // is the one outcome the person who just ticked "remind the family" would not expect.
+  if (form.value.hasReminder && !form.value.reminderDate) {
+    formRef.value?.setErrors([{ name: 'reminderDate', message: t('pages.calendar.notes.reminderDateRequired') }])
+    return
+  }
+
   saving.value = true
 
   try {

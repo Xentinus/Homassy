@@ -25,6 +25,14 @@ namespace Homassy.Notifications.Workers;
 /// reminder that has already fired.
 /// </para>
 /// <para>
+/// The claim is a conditional <c>UPDATE ... WHERE "ReminderSentAt" IS NULL</c> rather than a
+/// tracked write, and it is the affected-row count that decides who won. That distinction matters:
+/// <c>CalendarNote</c> carries no concurrency token, so a plain <c>SaveChanges</c> would succeed in
+/// <em>both</em> instances of a rolling deploy and push the same reminder to the family twice. The
+/// external-calendar worker gets the same guarantee from a unique index on its dispatch table; this
+/// one has no such table, so the predicate is the guard.
+/// </para>
+/// <para>
 /// A reminder whose moment was missed is still delivered inside the catch-up window. Past that it
 /// is claimed and dropped rather than sent: "this was two weeks ago" is worse than silence, and
 /// leaving it unclaimed would make it fire on every single cycle forever.
@@ -56,12 +64,16 @@ public sealed class CalendarNoteReminderService : PeriodicWorkerService
         using var scope = _scopeFactory.CreateScope();
         var context = scope.ServiceProvider.GetRequiredService<HomassyDbContext>();
 
-        // The filtered index on (ReminderAt) covers exactly this predicate.
+        // The filtered index on (ReminderAt) covers exactly this predicate. Read untracked: the
+        // claim below is a conditional UPDATE, not a tracked write, so nothing here is saved through
+        // the change tracker.
         var due = await context.CalendarNotes
+            .AsNoTracking()
             .Where(n => n.ReminderAt != null
                         && n.ReminderSentAt == null
                         && n.ReminderAt <= nowUtc)
             .OrderBy(n => n.ReminderAt)
+            .Select(n => new DueNote(n.Id, n.PublicId, n.FamilyId, n.Title, n.Date, n.ReminderAt!.Value))
             .ToListAsync(cancellationToken);
 
         if (due.Count == 0)
@@ -74,17 +86,17 @@ public sealed class CalendarNoteReminderService : PeriodicWorkerService
             if (cancellationToken.IsCancellationRequested)
                 return;
 
-            // Claim first. Everything below is best-effort delivery on an already-claimed note.
-            note.ReminderSentAt = nowUtc;
+            // Claim first, and only on the row that is still unclaimed. Everything below is
+            // best-effort delivery on a note this instance now owns.
+            var claimed = await context.CalendarNotes
+                .Where(n => n.Id == note.Id && n.ReminderSentAt == null)
+                .ExecuteUpdateAsync(
+                    setters => setters.SetProperty(n => n.ReminderSentAt, nowUtc),
+                    cancellationToken);
 
-            try
+            if (claimed == 0)
             {
-                await context.SaveChangesAsync(cancellationToken);
-            }
-            catch (DbUpdateException ex)
-            {
-                context.Entry(note).State = EntityState.Detached;
-                Log.Debug(ex, "Calendar note reminder {NoteId} was already claimed elsewhere", note.PublicId);
+                Log.Debug("Calendar note reminder {NoteId} was already claimed elsewhere", note.PublicId);
                 continue;
             }
 
@@ -155,6 +167,18 @@ public sealed class CalendarNoteReminderService : PeriodicWorkerService
         var days = noteDate.DayNumber - today.DayNumber;
         return days < 0 ? 0 : days;
     }
+
+    /// <summary>
+    /// A due note, read untracked. Only the fields the dispatch needs — the row itself is written
+    /// by the conditional claim, never through this projection.
+    /// </summary>
+    private sealed record DueNote(
+        int Id,
+        Guid PublicId,
+        int FamilyId,
+        string Title,
+        DateOnly Date,
+        DateTime ReminderAt);
 
     private static DateTime ToLocal(DateTime utc, UserTimeZone timeZone)
     {

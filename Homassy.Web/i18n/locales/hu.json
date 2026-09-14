@@ -1044,6 +1044,7 @@
         "reminderDate": "Emlékeztető dátuma",
         "reminderTime": "Emlékeztető időpontja",
         "reminderHint": "Mindenki azokon a csatornákon kap értesítést, amelyeket bekapcsolt.",
+        "reminderDateRequired": "Adj meg egy dátumot az emlékeztetőhöz.",
         "saveFailed": "A jegyzetet nem sikerült menteni.",
         "deleteFailed": "A jegyzetet nem sikerült törölni."
       },

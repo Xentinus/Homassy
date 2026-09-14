@@ -107,10 +107,14 @@ namespace Homassy.API.Functions
         {
             var userId = RequireUser();
             var familyId = RequireFamily();
-            var reminderAt = NormalizeReminder(request.ReminderAt);
 
             using var context = _contextFactory.CreateDbContext();
             var note = await LoadForWriteAsync(context, publicId, familyId, cancellationToken);
+
+            // Normalised against what the note already holds. This is a full-state PUT, so editing
+            // only the title of an old note resends the reminder that already fired - and refusing
+            // that as "in the past" would make every note uneditable a day after its reminder.
+            var reminderAt = NormalizeReminder(request.ReminderAt, note.ReminderAt);
 
             // A moved reminder is a new reminder: clearing the sent marker is what re-arms the
             // worker for it. Leaving it alone would silently swallow the rescheduled push.
@@ -200,11 +204,20 @@ namespace Homassy.API.Functions
         }
 
         /// <summary>
-        /// Pins the reminder to UTC and refuses one whose moment has already passed for good. The
-        /// client sends an instant it computed in the user's own zone; an unspecified kind would be
-        /// read as server-local and shift the push by the container's offset.
+        /// Pins the reminder to UTC and refuses a <em>newly set</em> one whose moment has already
+        /// passed for good. The client sends an instant it computed in the user's own zone; an
+        /// unspecified kind would be read as server-local and shift the push by the container's
+        /// offset.
         /// </summary>
-        private static DateTime? NormalizeReminder(DateTime? reminderAt)
+        /// <param name="reminderAt">The reminder the request carries, or null to disarm.</param>
+        /// <param name="current">
+        /// What the note already holds, on an update. A reminder that is unchanged is never refused
+        /// however old it is: the endpoint is a full-state PUT, so an edit that only touches the
+        /// title resends the reminder that fired last week, and rejecting that would make a note
+        /// permanently uneditable a day after its own reminder. Null on create, where every value is
+        /// a new one.
+        /// </param>
+        private static DateTime? NormalizeReminder(DateTime? reminderAt, DateTime? current = null)
         {
             if (!reminderAt.HasValue)
             {
@@ -217,6 +230,16 @@ namespace Homassy.API.Functions
                 DateTimeKind.Local => reminderAt.Value.ToUniversalTime(),
                 _ => DateTime.SpecifyKind(reminderAt.Value, DateTimeKind.Utc)
             };
+
+            // Compared at second precision, not tick-for-tick. PostgreSQL stores `timestamptz` to
+            // the microsecond, so a value that has been through the database already differs from
+            // the one that was sent - and "unchanged" has to mean unchanged to a reader, not to a
+            // clock. The UI picks reminders by the minute, so a second is comfortably finer than
+            // any edit a person can make.
+            if (current.HasValue && Math.Abs((utc - current.Value).TotalSeconds) < 1)
+            {
+                return current.Value;
+            }
 
             if (utc < DateTime.UtcNow - MaxReminderBacklog)
             {

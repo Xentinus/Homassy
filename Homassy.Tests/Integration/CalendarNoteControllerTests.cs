@@ -4,6 +4,7 @@ using Homassy.API.Models.Calendar;
 using Homassy.API.Models.Family;
 using Homassy.Data.Models.Common;
 using Homassy.Tests.Infrastructure;
+using Microsoft.EntityFrameworkCore;
 using Xunit.Abstractions;
 
 namespace Homassy.Tests.Integration;
@@ -16,12 +17,14 @@ public class CalendarNoteControllerTests : IClassFixture<HomassyWebApplicationFa
 {
     private const string NotesEndpoint = "/api/v1.0/calendar/notes";
 
+    private readonly HomassyWebApplicationFactory _factory;
     private readonly HttpClient _client;
     private readonly ITestOutputHelper _output;
     private readonly TestAuthHelper _authHelper;
 
     public CalendarNoteControllerTests(HomassyWebApplicationFactory factory, ITestOutputHelper output)
     {
+        _factory = factory;
         _client = factory.CreateClient();
         _output = output;
         _authHelper = new TestAuthHelper(factory, _client);
@@ -243,6 +246,78 @@ public class CalendarNoteControllerTests : IClassFixture<HomassyWebApplicationFa
             Assert.Equal("Bin day", noteEvent.Title);
             // A note is about a day, not a moment.
             Assert.True(noteEvent.IsAllDay);
+        }
+        finally
+        {
+            if (noteId.HasValue)
+                await _client.DeleteAsync($"{NotesEndpoint}/{noteId}");
+
+            _authHelper.ClearAuthToken();
+            if (testEmail != null)
+                await _authHelper.CleanupUserAsync(testEmail);
+        }
+    }
+
+    /// <summary>
+    /// The update endpoint is a full-state PUT, so an edit that only changes the title resends the
+    /// reminder the note already has. Once that reminder has fired it is more than a day old, and
+    /// refusing it as "in the past" would make the note permanently uneditable.
+    /// </summary>
+    [Fact]
+    public async Task UpdateCalendarNote_ResendingAnAlreadyFiredReminder_IsAccepted()
+    {
+        string? testEmail = null;
+        Guid? noteId = null;
+
+        try
+        {
+            var (email, auth) = await _authHelper.CreateAndAuthenticateUserAsync("note-old-reminder");
+            testEmail = email;
+            _authHelper.SetAuthToken(auth.AccessToken);
+            await CreateFamilyAsync("Old Reminder Family");
+
+            var day = DateOnly.FromDateTime(DateTime.UtcNow.AddDays(1));
+            var createResponse = await _client.PostAsJsonAsync(NotesEndpoint, new CreateCalendarNoteRequest
+            {
+                Date = day,
+                Title = "Gas meter reading",
+                ReminderAt = DateTime.UtcNow.AddHours(2)
+            });
+
+            var created = await createResponse.Content.ReadFromJsonAsync<ApiResponse<CalendarNoteInfo>>();
+            Assert.NotNull(created?.Data);
+            noteId = created.Data.PublicId;
+
+            // Age the reminder past the backlog window the way time would, and mark it delivered.
+            // There is no endpoint that can produce this state, which is exactly why it went unnoticed.
+            var firedAt = DateTime.UtcNow.AddDays(-9);
+            var (scope, context) = _factory.CreateScopedDbContext();
+            using (scope)
+            {
+                var stored = await context.CalendarNotes.FirstAsync(n => n.PublicId == noteId);
+                stored.ReminderAt = firedAt;
+                stored.ReminderSentAt = firedAt;
+                await context.SaveChangesAsync();
+            }
+
+            var response = await _client.PutAsJsonAsync($"{NotesEndpoint}/{noteId}", new UpdateCalendarNoteRequest
+            {
+                Date = day,
+                Title = "Gas meter reading, rescheduled",
+                ReminderAt = firedAt
+            });
+
+            var body = await response.Content.ReadAsStringAsync();
+            _output.WriteLine($"Status: {response.StatusCode}");
+            _output.WriteLine($"Response: {body}");
+
+            Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+
+            var updated = await response.Content.ReadFromJsonAsync<ApiResponse<CalendarNoteInfo>>();
+            Assert.NotNull(updated?.Data);
+            Assert.Equal("Gas meter reading, rescheduled", updated.Data.Title);
+            // Unchanged, so it stays delivered rather than being re-armed.
+            Assert.True(updated.Data.ReminderSent);
         }
         finally
         {

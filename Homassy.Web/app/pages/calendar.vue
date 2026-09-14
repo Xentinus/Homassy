@@ -598,8 +598,9 @@ const openNoteForm = (note: CalendarNoteInfo | null) => {
 // looking at, and a reload would restart the day panel's staggered render under them.
 const onNoteSaved = (note: CalendarNoteInfo) => {
   const index = calendarNotes.value.findIndex(n => n.publicId === note.publicId)
-  if (index >= 0) calendarNotes.value.splice(index, 1, note)
-  else calendarNotes.value = [...calendarNotes.value, note]
+  calendarNotes.value = index >= 0
+    ? calendarNotes.value.map(n => (n.publicId === note.publicId ? note : n))
+    : [...calendarNotes.value, note]
 
   // The day cells are painted from the aggregated event list, so that copy has to move too.
   const asEvent: CalEvent = {
@@ -614,11 +615,13 @@ const onNoteSaved = (note: CalendarNoteInfo) => {
     color: null,
     isAllDay: true
   }
-  const eventIndex = calendarEvents.value.findIndex(
+  const isKnown = calendarEvents.value.some(
     e => e.eventType === CalendarEventType.DayNote && e.publicId === note.publicId
   )
-  if (eventIndex >= 0) calendarEvents.value.splice(eventIndex, 1, asEvent)
-  else calendarEvents.value = [...calendarEvents.value, asEvent]
+  calendarEvents.value = isKnown
+    ? calendarEvents.value.map(e =>
+        e.eventType === CalendarEventType.DayNote && e.publicId === note.publicId ? asEvent : e)
+    : [...calendarEvents.value, asEvent]
 
   editingNote.value = null
 }
