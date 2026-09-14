@@ -118,6 +118,30 @@ export interface QuickPurchaseMultipleShoppingListItemsRequest {
   items: QuickPurchaseFromShoppingListItemRequest[]
 }
 
+/**
+ * One row of the "load inventory from shopping list" picker (#63).
+ *
+ * Flat, and carrying its own context, because the picker spans every list the user can see: two
+ * rows of the same product from two different trips have to stay distinguishable without the
+ * client resolving the list or the shop itself.
+ */
+export interface LoadableShoppingListItemInfo {
+  publicId: string
+  shoppingListPublicId: string
+  shoppingListName: string
+  isSharedWithFamily: boolean
+  productPublicId: string
+  productName: string
+  productBrand?: string | null
+  quantity: number
+  unit: Unit
+  note?: string | null
+  /** When it was bought, or null while it is still outstanding. */
+  purchasedAt?: string | null
+  shoppingLocationPublicId?: string | null
+  shoppingLocationName?: string | null
+}
+
 export interface PurchaseShoppingListItemRequest {
   shoppingListItemPublicId: string
   purchasedAt: string

@@ -10,12 +10,14 @@ namespace Homassy.API.Functions
         private readonly FunctionsRuntime _runtime;
         private readonly IDbContextFactory<HomassyDbContext> _contextFactory;
         private readonly ExternalCalendarFunctions _externalCalendarFunctions;
+        private readonly CalendarNoteFunctions _calendarNoteFunctions;
 
-        public CalendarFunctions(FunctionsRuntime runtime, ExternalCalendarFunctions externalCalendarFunctions)
+        public CalendarFunctions(FunctionsRuntime runtime, ExternalCalendarFunctions externalCalendarFunctions, CalendarNoteFunctions calendarNoteFunctions)
         {
             _runtime = runtime;
             _contextFactory = runtime.ContextFactory;
             _externalCalendarFunctions = externalCalendarFunctions;
+            _calendarNoteFunctions = calendarNoteFunctions;
         }
 
         public async Task<List<CalendarEventInfo>> GetCalendarEventsAsync(
@@ -37,16 +39,51 @@ namespace Homassy.API.Functions
             var automationTask = GetAutomationEventsAsync(automationContext, userId, familyId, startDate, endDate, cancellationToken);
             var shoppingTask = GetShoppingListDeadlineEventsAsync(shoppingContext, userId, familyId, startDate, endDate, cancellationToken);
             var externalTask = GetExternalCalendarEventsAsync(familyId, startDate, endDate);
+            // Notes open a context of their own inside CalendarNoteFunctions, so they are awaited
+            // with the rest rather than sharing one of the three above.
+            var noteTask = GetDayNoteEventsAsync(startDate, endDate, cancellationToken);
 
-            await Task.WhenAll(inventoryTask, automationTask, shoppingTask, externalTask);
+            await Task.WhenAll(inventoryTask, automationTask, shoppingTask, externalTask, noteTask);
 
             var result = new List<CalendarEventInfo>();
             result.AddRange(await inventoryTask);
             result.AddRange(await automationTask);
             result.AddRange(await shoppingTask);
             result.AddRange(await externalTask);
+            result.AddRange(await noteTask);
 
             return result.OrderBy(e => e.Start).ToList();
+        }
+
+        /// <summary>
+        /// The family's day notes (#60), projected onto the same shape as every other calendar
+        /// event so the client's day panel does not need a second query or a second code path.
+        /// </summary>
+        /// <remarks>
+        /// A note is an all-day event: it is about a day, not a moment, so its <c>Start</c> is that
+        /// day at midnight and <see cref="CalendarEventInfo.IsAllDay"/> is set, which is what sorts
+        /// it above the timed entries in the day panel.
+        /// </remarks>
+        private async Task<List<CalendarEventInfo>> GetDayNoteEventsAsync(
+            DateTime startDate,
+            DateTime endDate,
+            CancellationToken cancellationToken)
+        {
+            var notes = await _calendarNoteFunctions.GetNotesAsync(
+                DateOnly.FromDateTime(startDate),
+                DateOnly.FromDateTime(endDate),
+                cancellationToken);
+
+            return notes.Select(n => new CalendarEventInfo
+            {
+                PublicId = n.PublicId,
+                Title = n.Title,
+                EventType = CalendarEventType.DayNote,
+                Start = DateTime.SpecifyKind(n.Date.ToDateTime(TimeOnly.MinValue), DateTimeKind.Utc),
+                Detail = n.Content,
+                RelatedEntityPublicId = n.PublicId,
+                IsAllDay = true
+            }).ToList();
         }
 
         private Task<List<CalendarEventInfo>> GetExternalCalendarEventsAsync(

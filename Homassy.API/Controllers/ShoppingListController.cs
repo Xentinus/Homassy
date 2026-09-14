@@ -164,6 +164,20 @@ namespace Homassy.API.Controllers
         }
 
         /// <summary>
+        /// Gets the shopping list items that can still be loaded into the inventory, across every list
+        /// the caller can see — the family's and their own together, so one shopping trip is one pass.
+        /// Newest purchases first, items still outstanding last.
+        /// </summary>
+        [HttpGet("item/loadable-inventory")]
+        [MapToApiVersion(1.0)]
+        [ProducesResponseType(typeof(ApiResponse<PagedResult<LoadableShoppingListItemInfo>>), StatusCodes.Status200OK)]
+        public async Task<IActionResult> GetLoadableInventoryItems([FromQuery] PaginationRequest pagination, CancellationToken cancellationToken)
+        {
+            var items = await _shoppingListFunctions.GetLoadableInventoryItemsAsync(pagination, cancellationToken);
+            return Ok(ApiResponse<PagedResult<LoadableShoppingListItemInfo>>.SuccessResponse(items));
+        }
+
+        /// <summary>
         /// Marks a shopping list item as purchased and creates a corresponding inventory item.
         /// </summary>
         [HttpPost("item/quick-purchase")]

@@ -1027,13 +1027,63 @@
         "automationExecution": "Automatizálás",
         "shoppingListDeadline": "Bevásárlás határidő",
         "activity": "Tevékenység",
-        "externalCalendar": "Külső naptár"
+        "externalCalendar": "Külső naptár",
+        "dayNote": "Jegyzet"
+      },
+      "notes": {
+        "addButton": "Jegyzet",
+        "createTitle": "Új jegyzet",
+        "editTitle": "Jegyzet szerkesztése",
+        "description": "Az adott naphoz írt jegyzetet az egész család látja.",
+        "titleLabel": "Cím",
+        "titlePlaceholder": "pl. tanítási szünet",
+        "titleRequired": "A cím megadása kötelező.",
+        "contentLabel": "Jegyzet",
+        "contentPlaceholder": "Amit a többieknek tudniuk kell erről a napról",
+        "reminderLabel": "Emlékeztető a családnak",
+        "reminderDate": "Emlékeztető dátuma",
+        "reminderTime": "Emlékeztető időpontja",
+        "reminderHint": "Mindenki azokon a csatornákon kap értesítést, amelyeket bekapcsolt.",
+        "reminderDateRequired": "Adj meg egy dátumot az emlékeztetőhöz.",
+        "saveFailed": "A jegyzetet nem sikerült menteni.",
+        "deleteFailed": "A jegyzetet nem sikerült törölni."
       },
       "views": {
         "month": "Hónap",
         "week": "Hét"
       },
       "today": "Ma"
+    }
+  },
+  "loadInventory": {
+    "title": "Készlet betöltése listából",
+    "fabAction": "Betöltés bevásárlólistából",
+    "fabDescription": "Egy teljes bevásárlás átemelése a készletbe",
+    "steps": {
+      "select": "Tételek",
+      "summary": "Kész"
+    },
+    "searchPlaceholder": "Keresés termékre vagy listára...",
+    "selectedCount": "{count} kiválasztva",
+    "clearSelection": "Törlés",
+    "startButton": "Tovább ({count})",
+    "skipButton": "Kihagyás",
+    "addButton": "Készletbe",
+    "loadMore": "Több betöltése",
+    "notPurchasedYet": "Még nincs megvéve",
+    "shoppingLocationCarriedOver": "A boltot a lista tétele adja.",
+    "storageLocation": "Tárolóhely",
+    "storageLocationPlaceholder": "Hová kerül?",
+    "commitFailed": "A tételt nem sikerült a készletbe tenni.",
+    "empty": {
+      "title": "Nincs mit betölteni",
+      "description": "A bevásárlólistáid termékhez kötött tételei itt jelennek meg, amíg be nem töltöd őket a készletbe.",
+      "noMatch": "Nincs a keresésnek megfelelő tétel"
+    },
+    "summary": {
+      "title": "Készlet frissítve",
+      "added": "{count} hozzáadva",
+      "skipped": "{count} kihagyva"
     }
   },
   "errorCodes": {
@@ -1091,7 +1141,11 @@
     "SYSTEM-0001": "Váratlan hiba történt.",
     "SYSTEM-0002": "A kérés túllépte az időkorlátot.",
     "SYSTEM-0003": "A kérést megszakították.",
-    "SYSTEM-0004": "Jogosulatlan hozzáférés."
+    "SYSTEM-0004": "Jogosulatlan hozzáférés.",
+    "CALNOTE-0001": "A naptárjegyzet nem található.",
+    "CALNOTE-0002": "Nincs hozzáférésed ehhez a naptárjegyzethez.",
+    "CALNOTE-0003": "Naptárjegyzetet csak család tagjaként kezelhetsz.",
+    "CALNOTE-0004": "Az emlékeztető időpontja érvénytelen."
   },
   "shoppingList": {
     "purchase": {
@@ -1903,7 +1957,10 @@
       "26": "Automatizálás végrehajtva",
       "27": "Belépési kérelem elküldve",
       "28": "Belépési kérelem elfogadva",
-      "29": "Belépési kérelem elutasítva"
+      "29": "Belépési kérelem elutasítva",
+      "30": "Naptárjegyzet létrehozva",
+      "31": "Naptárjegyzet módosítva",
+      "32": "Naptárjegyzet törölve"
     },
     "productCategoryGroup": {
       "0": "Egyéb",
@@ -3085,6 +3142,12 @@
         "bodyLead": "\"{eventTitle}\" {lead} múlva kezdődik.",
         "bodyAllDayToday": "\"{eventTitle}\" ma van.",
         "bodyAllDayLead": "\"{eventTitle}\" {lead} múlva lesz."
+      },
+      "CalendarNoteReminder": {
+        "title": "Naptárjegyzet",
+        "bodyToday": "\"{noteTitle}\" ma van.",
+        "bodyTomorrow": "\"{noteTitle}\" holnap lesz.",
+        "bodyInDays": "\"{noteTitle}\" {daysUntil} nap múlva lesz."
       }
     }
   },

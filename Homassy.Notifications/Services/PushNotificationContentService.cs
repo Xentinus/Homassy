@@ -472,6 +472,41 @@ public static class PushNotificationContentService
     }
 
     /// <summary>
+    /// A family day note whose reminder time has come (#60).
+    /// </summary>
+    /// <remarks>
+    /// The note's title is the whole of the body: the note text can be two thousand characters and
+    /// a lock screen shows one line, so the reminder says which note it is and the app shows the
+    /// rest. <paramref name="daysUntil"/> is counted in the recipient's own timezone, so "today"
+    /// means today where they are.
+    /// </remarks>
+    public static (string Title, string Body) GetCalendarNoteReminderContent(
+        Language language, string noteTitle, int daysUntil)
+    {
+        var title = language switch
+        {
+            Language.Hungarian => "Naptárjegyzet",
+            Language.German => "Kalendernotiz",
+            _ => "Calendar note"
+        };
+
+        var body = (language, daysUntil) switch
+        {
+            (Language.Hungarian, <= 0) => $"\"{noteTitle}\" ma van.",
+            (Language.Hungarian, 1) => $"\"{noteTitle}\" holnap lesz.",
+            (Language.Hungarian, _) => $"\"{noteTitle}\" {daysUntil} nap múlva lesz.",
+            (Language.German, <= 0) => $"\"{noteTitle}\" ist heute.",
+            (Language.German, 1) => $"\"{noteTitle}\" ist morgen.",
+            (Language.German, _) => $"\"{noteTitle}\" ist in {daysUntil} Tagen.",
+            (_, <= 0) => $"\"{noteTitle}\" is today.",
+            (_, 1) => $"\"{noteTitle}\" is tomorrow.",
+            _ => $"\"{noteTitle}\" is in {daysUntil} days."
+        };
+
+        return (title, body);
+    }
+
+    /// <summary>
     /// A burst of family chat messages from one sender (#149).
     /// </summary>
     /// <remarks>

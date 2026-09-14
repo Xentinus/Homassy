@@ -66,6 +66,8 @@ Homassy.Tests/
 │   ├── SelectValueControllerTests.cs         Select value endpoint tests
 │   ├── ShoppingListControllerPaginationTests.cs  Pagination tests
 │   ├── ShoppingListControllerTests.cs            Shopping list tests
+│   ├── LoadInventoryFromShoppingListTests.cs     The loadable-inventory picker and what loading does (#63)
+│   ├── CalendarNoteControllerTests.cs            Day-note CRUD, family scoping, calendar aggregation (#60)
 │   └── UserControllerTests.cs                    User profile tests
 ├── Unit/
 │   ├── AutomationEmailContentTests.cs        Automation email content (multilingual)

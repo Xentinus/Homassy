@@ -220,6 +220,7 @@ Manages shopping lists and items (all endpoints require `[Authorize]`).
 | PUT | `/item/{publicId}` | - | Update shopping list item |
 | DELETE | `/item/{publicId}` | - | Delete shopping list item |
 | POST | `/item/reorder` | - | Set the manual (aisle) order of a list's items |
+| GET | `/item/loadable-inventory` | `PageNumber`, `PageSize`, `SearchText` | The items that can still be loaded into the inventory, across every visible list |
 
 **Query Parameters:**
 - `showPurchased` (bool, default: false) - Include purchased items older than 1 day
@@ -231,6 +232,7 @@ Manages shopping lists and items (all endpoints require `[Authorize]`).
 - Family sharing support
 - Shopping location assignment per item — `PUT /item/{publicId}` can reassign it (`ShoppingLocationPublicId`) or clear it (`ClearShoppingLocation: true`, needed because a null id means "no change")
 - **Manual (aisle) ordering.** Items carry a `SortOrder` and `POST /item/reorder` takes the ordered ids and writes them in one transaction. The positions are sparse gapped integers, not indices: `Functions/SparseOrdering` keeps the longest already-increasing run and rewrites only the rest, so a single drag is one row update and the whole list is renumbered only when a gap is exhausted. The response (and the broadcast) carries **only the rows that moved**. A subset of the list is accepted and ordered relative to itself; ids from another list are rejected rather than skipped, as are duplicates. Every pre-existing row is 0, so a list nobody has dragged is unaffected. The same scheme and the same helper back the location and automation reorder endpoints
+- **Loading a shopping trip into the stock (#63).** `GET /item/loadable-inventory` answers across *every* list the caller can see — family and personal together — because a trip is one trip whichever list it was written on. It offers only items with a `ProductId` (a free-text item has nothing to stock), newest purchases first and outstanding items last, and it filters on `ShoppingListItem.InventoryLoadedAt` rather than `PurchasedAt`: an item can be marked purchased without ever reaching the stock, and last week's purchases are exactly what the picker is for. The commit path is the existing `POST /item/quick-purchase`, which now also (a) keeps an already-purchased item's original `PurchasedAt` instead of re-stamping it, (b) stamps `InventoryLoadedAt` inside the same transaction so the item drops out of the picker, and (c) broadcasts the created stock over `InventoryRealtime`, exactly as the inventory endpoints do. The purchase info inherits the item's own `ShoppingLocationId`, which is why the client never asks where it was bought
 
 **Realtime (SignalR):**
 - Hub at `/hubs/shopping-list` (`ShoppingListHub`, `[Authorize]`) — the Kratos session cookie rides the WebSocket handshake, so the existing auth pipeline works unchanged
@@ -452,18 +454,25 @@ Manages item-automation rules — scheduled or threshold-driven actions on inven
 
 ### CalendarController
 
-Aggregates calendar events (inventory expirations, automation executions, shopping-list deadlines) within a date range (requires `[Authorize]`).
+Aggregates calendar events (inventory expirations, automation executions, shopping-list deadlines, external feeds and the family's own day notes) within a date range, and owns the day-note CRUD (requires `[Authorize]`).
 
 **Endpoints:**
 
 | Method | Endpoint | Description |
 |--------|----------|-------------|
 | POST | `/` | Get calendar events for the date range in the request body |
+| POST | `/notes/range` | The family's day notes for a date range, in full |
+| POST | `/notes` | Create a day note |
+| PUT | `/notes/{publicId}` | Update a day note |
+| DELETE | `/notes/{publicId}` | Delete a day note (soft delete) |
 
 **Key Patterns:**
-- Request body carries `StartDate` / `EndDate` (`DateOnly`); the range may not exceed 93 days (validated, else 400)
+- Request body carries `StartDate` / `EndDate` (`DateOnly`); the range may not exceed 93 days (validated, else 400) — the same bound applies to `/notes/range`
 - Dates are converted to UTC day boundaries before querying
 - Backed by `CalendarFunctions`; returns `List<CalendarEventInfo>`
+- **Day notes (#60)** are backed by `CalendarNoteFunctions` and are family-scoped through `SessionInfo`: a user with no family gets `CALNOTE-0003`, and every member may edit and delete every one of the family's notes — the author is recorded, not enforced
+- Notes arrive **twice on purpose**: as `CalendarEventType.DayNote` inside the aggregated event list, which is what paints the day cells in one query, and in full through `/notes/range`, which is the editable shape (text, reminder, author) the calendar's note panel needs
+- A note's reminder is an instant (UTC), not a lead time — a note is about a day and has no start time to lead from. One further back than a day is refused with `CALNOTE-0004`, because it could only ever be dropped as stale by the worker
 
 ### NotificationController
 

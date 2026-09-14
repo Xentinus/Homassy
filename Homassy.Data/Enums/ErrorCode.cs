@@ -113,6 +113,13 @@ public static class ErrorCodes
     public const string ExternalCalendarInvalidReminder = "EXTCAL-0006";
     #endregion
 
+    #region Calendar Note Errors (CALNOTE-0xxx)
+    public const string CalendarNoteNotFound = "CALNOTE-0001";
+    public const string CalendarNoteAccessDenied = "CALNOTE-0002";
+    public const string CalendarNoteRequiresFamily = "CALNOTE-0003";
+    public const string CalendarNoteInvalidReminder = "CALNOTE-0004";
+    #endregion
+
     #region Family Chat Errors (FAMILYCHAT-0xxx)
     public const string FamilyChatAccessDenied = "FAMILYCHAT-0001";
     public const string FamilyChatMessageNotFound = "FAMILYCHAT-0002";

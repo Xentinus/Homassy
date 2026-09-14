@@ -60,6 +60,11 @@ namespace Homassy.Data.Enums
         FamilyChatMessages = 43,
 
         // External calendar
-        CalendarEventReminder = 50
+        CalendarEventReminder = 50,
+
+        /// <summary>
+        /// A day note on the family calendar whose reminder time has come (#60).
+        /// </summary>
+        CalendarNoteReminder = 51
     }
 }

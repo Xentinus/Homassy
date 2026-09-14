@@ -81,13 +81,14 @@ Homassy.Notifications/
 │   ├── FamilyChatActivityClient.cs     # HTTP client → Homassy.API: who is watching the chat (#149)
 │   └── AppBadgeCount.cs                # What a push writes onto the app icon (#130)
 └── Workers/
-    ├── PeriodicWorkerService.cs              # The loop all eight share: timer, jitter, backoff
+    ├── PeriodicWorkerService.cs              # The loop all nine share: timer, jitter, backoff
     ├── PushNotificationSchedulerService.cs   # Hourly, Mon 07:00 → weekly push
     ├── ShoppingListActivityMonitorService.cs  # 5 min → shopping list push
     ├── InventoryActivityMonitorService.cs     # 5 min → inventory (készlet) push
     ├── FamilyJoinRequestMonitorService.cs     # 1 min → family join request push
     ├── ItemAutomationWorkerService.cs         # 5 min → item automation execution
     ├── ExternalCalendarReminderService.cs     # 1 min → synced iCal event reminders
+    ├── CalendarNoteReminderService.cs         # 1 min → day-note reminders (#60)
     ├── FamilyChatNotificationService.cs       # 10 s → held, coalesced family chat push
     └── EmailWeeklySummaryService.cs           # Hourly, Mon 07:00 → weekly email
 ```
@@ -145,14 +146,14 @@ builder.Services.AddDbContext<HomassyDbContext>(configureDbContext, optionsLifet
 Every worker below extends `PeriodicWorkerService` and supplies only a `DoWorkAsync`. The loop
 itself — the interval, the startup jitter, the error backoff and the cancellation handling — lives
 in that one class (#95). It used to be copy-pasted into each worker, which meant any fix to it had
-to be made eight times, and each new worker copied it again.
+to be made nine times, and each new worker copied it again.
 
 Three things it does that the copies did not:
 
 - **`PeriodicTimer` instead of sleeping after the work.** A delay that starts when the work
   finishes makes the effective period `work duration + interval`, so every worker drifted against
   the wall clock. A timer schedules on the period.
-- **Startup jitter.** Eight workers used to sweep the database in the same instant on every
+- **Startup jitter.** Every worker used to sweep the database in the same instant on every
   container start. Each now waits a random slice of `StartupJitterSeconds`, capped at one interval
   so a 10-second worker is not held back by a window meant for an hourly one.
 - **Backoff that escalates.** The error delay doubles on each consecutive failure up to
@@ -269,6 +270,21 @@ at startup instead of producing a worker that spins on an empty table.
 - Reminders whose trigger already passed are still delivered within a 15-minute catch-up window, so a
   deploy or restart does not swallow them; anything older is dropped as stale
 
+### CalendarNoteReminderService
+- Runs every minute, the same cadence as the external-calendar reminder and for the same reason: a
+  reminder set for 08:00 should arrive at 08:00
+- Reads `CalendarNotes` whose `ReminderAt` has come and whose `ReminderSentAt` is still null — a
+  filtered index covers exactly that predicate
+- Duplicate suppression is claim-then-push: `ReminderSentAt` is stamped and committed **before** the
+  notifications go out, so a crash or a second instance can only ever skip a reminder, never repeat
+  one. Rescheduling a note clears the stamp, which is what re-arms it
+- Recipients are every member of the note's family, resolved by `FamilyPushNotifier`. The envelope is
+  built **per recipient**, because "today / tomorrow / in N days" is counted in that reader's own
+  timezone
+- A reminder whose moment was missed is still delivered inside a 60-minute catch-up window. Past that
+  the note is claimed and dropped rather than sent — and claimed rather than left alone, because an
+  unclaimed overdue note would fire on every cycle forever
+
 ### EmailWeeklySummaryService
 - Runs every hour
 - On Mondays at 07:00 **local time**, sends weekly email summaries via `Homassy.Email`
@@ -360,7 +376,7 @@ gitignored — see the exception in `.gitignore`.
 
 Serilog is configured in code via `UseHomassyMinimumLevels()`
 (`Homassy.Data/Extensions/SerilogExtensions.cs`, shared with the API and Email). It pins
-`Microsoft.EntityFrameworkCore` to `Warning`, so the eight background workers do **not** dump the
+`Microsoft.EntityFrameworkCore` to `Warning`, so the nine background workers do **not** dump the
 SQL of every polling cycle into `docker logs homassy-notifications`. Never set `MinimumLevel`
 by hand here.
 

@@ -18,7 +18,8 @@ import type {
   QuickPurchaseMultipleShoppingListItemsRequest,
   PurchaseShoppingListItemRequest,
   DeadlineCountResponse,
-  ReorderShoppingListItemsRequest
+  ReorderShoppingListItemsRequest,
+  LoadableShoppingListItemInfo
 } from '~/types/shoppingList'
 import type { ReorderedEntry } from '~/types/masterData'
 
@@ -236,6 +237,28 @@ export const useShoppingListApi = () => {
   }
 
   /**
+   * The shopping list items that can still be loaded into the inventory (#63), across every list
+   * the user can see. Newest purchases first, items still outstanding last; items already loaded
+   * are not returned again.
+   */
+  const getLoadableInventoryItems = async (params?: {
+    pageNumber?: number
+    pageSize?: number
+    returnAll?: boolean
+    searchText?: string
+  }) => {
+    const queryParams = new URLSearchParams()
+    if (params?.pageNumber) queryParams.append('PageNumber', params.pageNumber.toString())
+    if (params?.pageSize) queryParams.append('PageSize', params.pageSize.toString())
+    if (params?.returnAll) queryParams.append('ReturnAll', params.returnAll.toString())
+    if (params?.searchText) queryParams.append('SearchText', params.searchText)
+
+    return await client.get<PagedResult<LoadableShoppingListItemInfo>>(
+      `/api/v1/ShoppingList/item/loadable-inventory?${queryParams.toString()}`
+    )
+  }
+
+  /**
    * Get count of overdue and due soon shopping list items
    */
   const getDeadlineCount = async () => {
@@ -270,6 +293,7 @@ export const useShoppingListApi = () => {
     purchaseShoppingListItem,
     quickPurchaseShoppingListItem,
     restorePurchaseShoppingListItem,
+    getLoadableInventoryItems,
     getDeadlineCount
   }
 }

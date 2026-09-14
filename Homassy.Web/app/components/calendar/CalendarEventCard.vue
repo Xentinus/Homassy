@@ -64,6 +64,7 @@ const eventTypeKey = computed(() => {
     case CalendarEventType.AutomationExecution: return 'automationExecution'
     case CalendarEventType.ShoppingListDeadline: return 'shoppingListDeadline'
     case CalendarEventType.ExternalCalendar: return 'externalCalendar'
+    case CalendarEventType.DayNote: return 'dayNote'
     default: return 'inventoryExpiration'
   }
 })

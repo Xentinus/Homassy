@@ -214,6 +214,40 @@ namespace Homassy.Data.Context
             });
             #endregion
 
+            #region Calendar note Relationships
+            // Day notes on the family calendar (#60).
+            modelBuilder.Entity<CalendarNote>(entity =>
+            {
+                entity.HasOne(n => n.Family)
+                    .WithMany()
+                    .HasForeignKey(n => n.FamilyId)
+                    .OnDelete(DeleteBehavior.Cascade);
+
+                // The author and the last editor are shown on the note, so both are navigations.
+                // The author cascades, matching FamilyChatMessage.Sender: a purged user's own rows
+                // go with them. The editor does not - somebody who only corrected a typo must not
+                // take the note with them - so that side clears instead, which is why
+                // LastEditedByUserId is nullable.
+                entity.HasOne(n => n.CreatedBy)
+                    .WithMany()
+                    .HasForeignKey(n => n.CreatedByUserId)
+                    .OnDelete(DeleteBehavior.Cascade);
+
+                entity.HasOne(n => n.LastEditedBy)
+                    .WithMany()
+                    .HasForeignKey(n => n.LastEditedByUserId)
+                    .OnDelete(DeleteBehavior.SetNull);
+
+                // Every read is "this family, this date range", which is exactly this index.
+                entity.HasIndex(e => new { e.FamilyId, e.Date });
+
+                // The reminder worker's sweep: the unsent, armed notes, and nothing else.
+                entity.HasIndex(e => e.ReminderAt)
+                    .HasDatabaseName("IX_CalendarNotes_ReminderAt")
+                    .HasFilter("\"ReminderAt\" IS NOT NULL AND \"ReminderSentAt\" IS NULL AND \"IsDeleted\" = false");
+            });
+            #endregion
+
             #region FamilyChat Relationships
             // The family conversation (#144). No navigation from Family to its messages: a chat is
             // read one page at a time by its own query, and a collection on Family would invite
@@ -496,6 +530,7 @@ namespace Homassy.Data.Context
         public DbSet<FamilyChatReadState> FamilyChatReadStates { get; set; }
         public DbSet<FamilyChatMessageReference> FamilyChatMessageReferences { get; set; }
         public DbSet<ExternalCalendarReminderDispatch> ExternalCalendarReminderDispatches { get; set; }
+        public DbSet<CalendarNote> CalendarNotes { get; set; }
         #endregion
 
         #region Product Related DbSets

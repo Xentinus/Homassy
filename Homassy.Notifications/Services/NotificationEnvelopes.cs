@@ -94,6 +94,22 @@ public static class NotificationEnvelopes
                 ["familyName"] = familyName
             });
 
+    /// <summary>
+    /// A family day note whose reminder time has come (#60).
+    /// </summary>
+    /// <param name="noteTitle">The note's title - the only text a lock screen gets to see.</param>
+    /// <param name="daysUntil">
+    /// Whole days between the reminder and the day the note is about, in the recipient's own
+    /// timezone: 0 for today, 1 for tomorrow, more for a reminder set further ahead. The wording
+    /// branches on it, which is why it is a number here and not prose.
+    /// </param>
+    public static NotificationEnvelope CalendarNoteReminder(string noteTitle, int daysUntil)
+        => new(NotificationType.CalendarNoteReminder, new Dictionary<string, string>
+        {
+            ["noteTitle"] = noteTitle,
+            ["daysUntil"] = Num(daysUntil)
+        });
+
     public static NotificationEnvelope CalendarEventReminder(string eventTitle, int leadMinutes, bool isAllDay)
         => new(NotificationType.CalendarEventReminder, new Dictionary<string, string>
         {
