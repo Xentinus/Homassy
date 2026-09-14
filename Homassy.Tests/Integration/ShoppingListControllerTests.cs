@@ -5,6 +5,7 @@ using Homassy.API.Models.Location;
 using Homassy.API.Models.Product;
 using Homassy.API.Models.ShoppingList;
 using Homassy.Tests.Infrastructure;
+using Microsoft.EntityFrameworkCore;
 using Xunit.Abstractions;
 using ProductUnit = Homassy.Data.Enums.Unit;
 using ProductCurrency = Homassy.Data.Enums.Currency;
@@ -1592,6 +1593,115 @@ public class ShoppingListControllerTests : IClassFixture<HomassyWebApplicationFa
             Assert.NotNull(content?.Data);
             Assert.Equal(2, content.Data.Count);
             Assert.All(content.Data, item => Assert.NotNull(item.PurchasedAt));
+
+            if (listId.HasValue)
+                await _client.DeleteAsync($"/api/v1.0/shoppinglist/{listId}");
+            if (productId1.HasValue)
+                await _client.DeleteAsync($"/api/v1.0/product/{productId1}");
+            if (productId2.HasValue)
+                await _client.DeleteAsync($"/api/v1.0/product/{productId2}");
+        }
+        finally
+        {
+            _authHelper.ClearAuthToken();
+            if (testEmail != null)
+                await _authHelper.CleanupUserAsync(testEmail);
+        }
+    }
+
+    /// <summary>
+    /// A batch that fails partway rolls back every write it had made — and that has to include the
+    /// activity rows. They are written through <c>ActivityRecorder</c>'s context-factory overload,
+    /// which opens a context of its own and commits immediately, so recording them inside the loop
+    /// left the feed claiming purchases that were rolled back.
+    /// </summary>
+    [Fact]
+    public async Task QuickPurchaseMultipleShoppingListItems_WhenALaterItemFails_RecordsNoActivityForTheEarlierOnes()
+    {
+        string? testEmail = null;
+        Guid? listId = null;
+        Guid? productId1 = null;
+        Guid? productId2 = null;
+        try
+        {
+            var (email, auth) = await _authHelper.CreateAndAuthenticateUserAsync("qp-multi-rollback");
+            testEmail = email;
+            _authHelper.SetAuthToken(auth.AccessToken);
+
+            var product1Response = await _client.PostAsJsonAsync("/api/v1.0/product",
+                new CreateProductRequest { Unit = ProductUnit.Piece, Name = "Rollback Product 1", Brand = "Brand" });
+            productId1 = (await product1Response.Content.ReadFromJsonAsync<ApiResponse<ProductInfo>>())?.Data?.PublicId;
+
+            var product2Response = await _client.PostAsJsonAsync("/api/v1.0/product",
+                new CreateProductRequest { Unit = ProductUnit.Piece, Name = "Rollback Product 2", Brand = "Brand" });
+            productId2 = (await product2Response.Content.ReadFromJsonAsync<ApiResponse<ProductInfo>>())?.Data?.PublicId;
+
+            var listResponse = await _client.PostAsJsonAsync("/api/v1.0/shoppinglist",
+                new CreateShoppingListRequest { Name = "Rollback List" });
+            listId = (await listResponse.Content.ReadFromJsonAsync<ApiResponse<ShoppingListInfo>>())?.Data?.PublicId;
+
+            var item1Response = await _client.PostAsJsonAsync("/api/v1.0/shoppinglist/item", new CreateShoppingListItemRequest
+            {
+                ShoppingListPublicId = listId!.Value,
+                ProductPublicId = productId1!.Value,
+                Quantity = 2,
+                Unit = ProductUnit.Piece
+            });
+            var itemId1 = (await item1Response.Content.ReadFromJsonAsync<ApiResponse<ShoppingListItemInfo>>())?.Data?.PublicId;
+
+            var item2Response = await _client.PostAsJsonAsync("/api/v1.0/shoppinglist/item", new CreateShoppingListItemRequest
+            {
+                ShoppingListPublicId = listId.Value,
+                ProductPublicId = productId2!.Value,
+                Quantity = 3,
+                Unit = ProductUnit.Piece
+            });
+            var itemId2 = (await item2Response.Content.ReadFromJsonAsync<ApiResponse<ShoppingListItemInfo>>())?.Data?.PublicId;
+
+            // The second item names a storage location that does not exist, so the batch throws
+            // after the first item has already been written into the transaction.
+            var purchaseRequest = new QuickPurchaseMultipleShoppingListItemsRequest
+            {
+                Items =
+                [
+                    new QuickPurchaseFromShoppingListItemRequest
+                    {
+                        ShoppingListItemPublicId = itemId1!.Value,
+                        PurchasedAt = DateTime.UtcNow,
+                        Quantity = 2
+                    },
+                    new QuickPurchaseFromShoppingListItemRequest
+                    {
+                        ShoppingListItemPublicId = itemId2!.Value,
+                        PurchasedAt = DateTime.UtcNow,
+                        Quantity = 3,
+                        StorageLocationPublicId = Guid.NewGuid()
+                    }
+                ]
+            };
+
+            var response = await _client.PostAsJsonAsync("/api/v1.0/shoppinglist/item/quick-purchase/multiple", purchaseRequest);
+            var responseBody = await response.Content.ReadAsStringAsync();
+
+            _output.WriteLine($"Status: {response.StatusCode}");
+            _output.WriteLine($"Response: {responseBody}");
+
+            Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
+
+            var (scope, context) = _factory.CreateScopedDbContext();
+            using (scope)
+            {
+                var item1 = await context.ShoppingListItems.FirstAsync(i => i.PublicId == itemId1.Value);
+
+                // The premise: the first item's own writes were rolled back.
+                Assert.Null(item1.PurchasedAt);
+
+                var activityCount = await context.Activities.CountAsync(a =>
+                    a.ActivityType == Homassy.Data.Enums.ActivityType.ShoppingListItemPurchase
+                    && a.RecordId == item1.Id);
+
+                Assert.Equal(0, activityCount);
+            }
 
             if (listId.HasValue)
                 await _client.DeleteAsync($"/api/v1.0/shoppinglist/{listId}");

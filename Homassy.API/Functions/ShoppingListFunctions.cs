@@ -1977,6 +1977,12 @@ namespace Homassy.API.Functions
                 var upsertedItems = new List<(ShoppingList list, ShoppingListItem item)>();
                 // The created stock, broadcast after the commit so a rolled-back batch pushes nothing.
                 var createdInventory = new List<(Homassy.Data.Entities.Product.Product product, Homassy.Data.Entities.Product.ProductInventoryItem item, decimal originalQuantity)>();
+                // Activity rows are collected here and written after the commit. ActivityRecorder's
+                // context-factory overload opens a context of its own and saves immediately, on a
+                // separate connection — so a row written inside this loop is committed independently
+                // of the transaction guarding the batch, and survives the rollback that a later
+                // invalid item triggers. The feed would then show purchases that never happened.
+                var pendingActivities = new List<(int? familyId, int itemId, string recordName)>();
 
                 foreach (var itemRequest in request.Items)
                 {
@@ -2068,23 +2074,10 @@ namespace Homassy.API.Functions
                         context.ProductPurchaseInfos.Add(purchaseInfo);
                     }
 
-                    // Record activity for each purchased item
-                    try
-                    {
-                        await ActivityRecorder.RecordAsync(
-                            _contextFactory,
-                            userId.Value,
-                            shoppingList.FamilyId,
-                            Homassy.Data.Enums.ActivityType.ShoppingListItemPurchase,
-                            shoppingListItem.Id,
-                            $"{shoppingList.Name} - {product.Name}",
-                            cancellationToken: cancellationToken
-                        );
-                    }
-                    catch (Exception ex)
-                    {
-                        Log.Error(ex, $"Failed to record ShoppingListItemPurchase activity for shopping list item {shoppingListItem.PublicId}");
-                    }
+                    pendingActivities.Add((
+                        shoppingList.FamilyId,
+                        shoppingListItem.Id,
+                        $"{shoppingList.Name} - {product.Name}"));
 
                     results.Add(new ShoppingListItemInfo
                     {
@@ -2113,6 +2106,27 @@ namespace Homassy.API.Functions
                     await _lowStock.CheckLowStockForProductAsync(pid, cancellationToken);
 
                 Log.Information($"User {userId.Value} quick purchased {results.Count} shopping list items");
+
+                // Record activity for each purchased item, now that the batch is durable.
+                foreach (var (activityFamilyId, itemId, recordName) in pendingActivities)
+                {
+                    try
+                    {
+                        await ActivityRecorder.RecordAsync(
+                            _contextFactory,
+                            userId.Value,
+                            activityFamilyId,
+                            Homassy.Data.Enums.ActivityType.ShoppingListItemPurchase,
+                            itemId,
+                            recordName,
+                            cancellationToken: cancellationToken
+                        );
+                    }
+                    catch (Exception ex)
+                    {
+                        Log.Error(ex, $"Failed to record ShoppingListItemPurchase activity for shopping list item {itemId}");
+                    }
+                }
 
                 // Notify everyone viewing the affected list(s) of each purchased item.
                 foreach (var (list, item) in upsertedItems)
