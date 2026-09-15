@@ -1972,4 +1972,53 @@ public class ShoppingListControllerTests : IClassFixture<HomassyWebApplicationFa
             if (testEmail != null) await _authHelper.CleanupUserAsync(testEmail);
         }
     }
+
+    [Fact]
+    public async Task CreateShoppingListItem_ForAProduct_ReturnsTheNestedProduct()
+    {
+        string? testEmail = null;
+        Guid? listId = null;
+        try
+        {
+            var (email, auth) = await _authHelper.CreateAndAuthenticateUserAsync("item-nested-product");
+            testEmail = email;
+            _authHelper.SetAuthToken(auth.AccessToken);
+
+            var productResponse = await _client.PostAsJsonAsync("/api/v1.0/product", new CreateProductRequest
+            {
+                Name = "Nested milk",
+                Brand = "Test brand",
+                Unit = ProductUnit.Liter
+            });
+            var productContent = await productResponse.Content.ReadFromJsonAsync<ApiResponse<ProductInfo>>();
+            var productId = productContent!.Data!.PublicId;
+
+            var listResponse = await _client.PostAsJsonAsync("/api/v1.0/shoppinglist", new CreateShoppingListRequest { Name = "Nested product" });
+            var listContent = await listResponse.Content.ReadFromJsonAsync<ApiResponse<ShoppingListInfo>>();
+            listId = listContent!.Data!.PublicId;
+
+            var response = await _client.PostAsJsonAsync("/api/v1.0/shoppinglist/item", new CreateShoppingListItemRequest
+            {
+                ShoppingListPublicId = listId.Value,
+                ProductPublicId = productId,
+                Quantity = 1
+            });
+            var body = await response.Content.ReadAsStringAsync();
+            _output.WriteLine($"Status: {response.StatusCode}\nResponse: {body}");
+
+            Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+            var content = await response.Content.ReadFromJsonAsync<ApiResponse<ShoppingListItemInfo>>();
+            // The POST response must carry what the ItemUpserted broadcast carries for the same
+            // item — otherwise the same row renders differently depending on which one arrives.
+            Assert.NotNull(content!.Data!.Product);
+            Assert.Equal("Nested milk", content.Data.Product!.Name);
+            Assert.Equal(productId, content.Data.ProductPublicId);
+        }
+        finally
+        {
+            if (listId.HasValue) await _client.DeleteAsync($"/api/v1.0/shoppinglist/{listId}");
+            _authHelper.ClearAuth();
+            if (testEmail != null) await _authHelper.CleanupUserAsync(testEmail);
+        }
+    }
 }
