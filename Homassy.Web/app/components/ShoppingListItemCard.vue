@@ -700,6 +700,7 @@ const effectivePrice = computed(() => {
 const safeItemUrl = computed(() => toSafeHttpUrl(props.item.url))
 
 const haptics = useHaptics()
+const toast = useToast()
 const { inputDateLocale } = useInputDateLocale()
 const { updateShoppingListItem } = useShoppingListApi()
 const { isExpired: checkIsExpired, isExpiringWithinTwoWeeks: checkIsExpiringWithinTwoWeeks } = useExpirationCheck()
@@ -1024,6 +1025,20 @@ const closeEditModal = () => {
 const handleUpdate = async () => {
   isUpdating.value = true
   try {
+    // A malformed URL (e.g. "example.com", missing its scheme) resolves to null and must not be
+    // saved as-is: falling through to the `url`/`clearUrl` mapping below would send `clearUrl:
+    // true` and silently delete whatever link the item already had. An empty field is a
+    // deliberate clear, so only a non-empty-but-unparseable value is rejected here.
+    const safeUrl = toSafeHttpUrl(editForm.value.url)
+    if (editForm.value.url?.trim() && !safeUrl) {
+      toast.add({
+        title: t('toast.error'),
+        description: t('pages.shoppingLists.addProduct.item.urlInvalid'),
+        color: 'error'
+      })
+      return
+    }
+
     // Convert CalendarDate to ISO string for API
     let dueAtString: string | undefined = undefined
     if (editForm.value.dueAt) {
@@ -1061,8 +1076,8 @@ const handleUpdate = async () => {
       shoppingLocationPublicId: selectedLocation || undefined,
       clearShoppingLocation: selectedLocation ? undefined : true,
       // An empty field means "remove it" — a null value would read as "no change" to the API.
-      url: toSafeHttpUrl(editForm.value.url) ?? undefined,
-      clearUrl: toSafeHttpUrl(editForm.value.url) ? undefined : true,
+      url: safeUrl ?? undefined,
+      clearUrl: safeUrl ? undefined : true,
       estimatedUnitPrice: price ?? undefined,
       estimatedPriceCurrency: price != null ? editForm.value.estimatedPriceCurrency : undefined,
       clearEstimatedPrice: price == null ? true : undefined
