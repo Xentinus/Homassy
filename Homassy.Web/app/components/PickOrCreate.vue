@@ -39,6 +39,9 @@
     <div class="mt-3">
       <template v-if="!showCreate">
         <slot name="results" />
+        <div v-if="query.trim()">
+          <slot name="extra-action" />
+        </div>
         <button
           v-if="query.trim()"
           type="button"
@@ -66,7 +69,7 @@ import { ref, computed, useSlots } from 'vue'
  * results, and a prominent "create «query»" row that opens an inline create form.
  *
  * The parent owns the data, filtering and the create logic; this component is the
- * reusable shell. Slots: `search-trailing`, `filters`, `chips`, `results`, `create`.
+ * reusable shell. Slots: `search-trailing`, `filters`, `chips`, `results`, `extra-action`, `create`.
  */
 withDefaults(defineProps<{
   /** Search text (v-model:query). */
