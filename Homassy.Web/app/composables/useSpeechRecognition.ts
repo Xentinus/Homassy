@@ -1,4 +1,4 @@
-import { computed, onBeforeUnmount, ref, shallowRef } from 'vue'
+import { computed, onScopeDispose, ref, shallowRef } from 'vue'
 
 /**
  * A thin wrapper over the Web Speech API's recognition half (#132).
@@ -75,6 +75,8 @@ export const useSpeechRecognition = () => {
   const recognition = shallowRef<SpeechRecognitionLike | null>(null)
   // A stop we asked for, so `onend` does not read as the engine giving up.
   let stoppedByUs = false
+  // A cancel we asked for, so `onend` does not resurrect the words that were thrown away.
+  let discarded = false
 
   const mapError = (code: string): SpeechRecognitionFailure => {
     if (code === 'not-allowed' || code === 'service-not-allowed') return 'denied'
@@ -103,12 +105,24 @@ export const useSpeechRecognition = () => {
    */
   const start = () => {
     const Recognition = getConstructor()
-    if (!Recognition || isListening.value) return
+    if (!Recognition) return
+
+    // A session is still winding down: `stop()` waits for the engine's own end event, so a
+    // second press can land while the previous instance is still finishing. Drop it — a
+    // swallowed press reads as a broken button.
+    if (recognition.value) {
+      if (!stoppedByUs) return
+      const previous = recognition.value
+      teardown()
+      previous.abort()
+      isListening.value = false
+    }
 
     transcript.value = ''
     interim.value = ''
     failure.value = null
     stoppedByUs = false
+    discarded = false
 
     const instance = new Recognition()
     instance.lang = SPEECH_LANGUAGES[locale.value] ?? SPEECH_LANGUAGES.en!
@@ -146,6 +160,15 @@ export const useSpeechRecognition = () => {
     }
 
     instance.onend = () => {
+      // Not every engine turns the words it was still revising into a final result when it is
+      // asked to stop. They were heard and they are on screen, so they are appended rather than
+      // dropped: on an utterance read out in one breath that is the difference between an empty
+      // drawer and a list to confirm, and on a longer one it is the last item of it. The
+      // exception is a cancelled gesture, where the whole utterance is meant to go.
+      if (!discarded && interim.value) {
+        transcript.value = `${transcript.value} ${interim.value}`.trim()
+      }
+
       isListening.value = false
       interim.value = ''
       teardown()
@@ -166,16 +189,29 @@ export const useSpeechRecognition = () => {
     }
   }
 
-  /** Stop listening and keep what was heard. */
+  /**
+   * Stop listening and keep what was heard.
+   *
+   * `isListening` stays true until the engine's own end event. The last final result lands
+   * between this call and that event, and a session that reported itself finished any earlier
+   * would hand the caller a transcript it has not finished writing.
+   */
   const stop = () => {
     stoppedByUs = true
-    isListening.value = false
-    recognition.value?.stop()
+
+    const instance = recognition.value
+    if (!instance) {
+      isListening.value = false
+      return
+    }
+
+    instance.stop()
   }
 
   /** Stop listening and throw away what was heard — the release-outside gesture. */
   const cancel = () => {
     stoppedByUs = true
+    discarded = true
     isListening.value = false
     transcript.value = ''
     interim.value = ''
@@ -188,7 +224,9 @@ export const useSpeechRecognition = () => {
     failure.value = null
   }
 
-  onBeforeUnmount(() => {
+  // Scope disposal rather than a component hook: this runs when the owning setup goes away, and
+  // leaves the composable usable from a plain effect scope as well.
+  onScopeDispose(() => {
     stoppedByUs = true
     recognition.value?.abort()
     teardown()
