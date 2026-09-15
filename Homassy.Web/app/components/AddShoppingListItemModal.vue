@@ -849,7 +849,7 @@ const createShoppingListItemSchema = z.object({
   unit: z.nativeEnum(Unit).optional(),
   note: z.string().max(500, 'Note must not exceed 500 characters').optional(),
   url: z.string().max(1024, 'URL must not exceed 1024 characters')
-    .refine(v => !v || toSafeHttpUrl(v) !== null, 'Must be an http or https URL')
+    .refine(v => !v?.trim() || toSafeHttpUrl(v) !== null, t('pages.shoppingLists.addProduct.item.urlInvalid'))
     .optional().or(z.literal('')),
   // The UInput's `v-model.number` on an emptied `type="number"` field leaves the model holding
   // `''`, not `null` — Nuxt UI's looseToNumber falls back to the original value when
