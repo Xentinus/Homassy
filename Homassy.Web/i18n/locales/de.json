@@ -957,6 +957,7 @@
         "createNewProduct": "Neues Produkt erstellen",
         "pick": {
           "createProduct": "Produkt „{name}“ anlegen",
+          "addAsCustom": "„{name}“ als eigenen Eintrag hinzufügen",
           "createLocation": "Ort „{name}“ anlegen",
           "properties": "Eigenschaften",
           "favorite": "Favorit",

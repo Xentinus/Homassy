@@ -957,6 +957,7 @@
         "createNewProduct": "Új termék létrehozása",
         "pick": {
           "createProduct": "„{name}” létrehozása termékként",
+          "addAsCustom": "„{name}” hozzáadása egyedi tételként",
           "createLocation": "„{name}” létrehozása bolthelyként",
           "properties": "Tulajdonság",
           "favorite": "Kedvenc",

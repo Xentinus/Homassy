@@ -173,7 +173,7 @@
           :description="$t('pages.shoppingLists.noItemsInListHint')"
           :action-label="$t('pages.shoppingLists.addProductButton')"
           action-icon="i-lucide-plus"
-          @action="openAddItemModal('product')"
+          @action="openAddItemModal()"
         />
 
         <!-- Empty: No Search Results -->
@@ -493,7 +493,6 @@
     <AddShoppingListItemModal
       v-model:open="isAddItemModalOpen"
       :list-id="selectedListId"
-      :mode="addItemMode"
       :initial-name="sharedItemName"
     />
 
@@ -703,10 +702,8 @@ const hasEstimate = computed(() => listEstimate.value.pricedCount > 0 || listEst
 
 // Add-item wizard (fullscreen modal) state.
 const isAddItemModalOpen = ref(false)
-const addItemMode = ref<'product' | 'custom'>('product')
-const openAddItemModal = (mode: 'product' | 'custom') => {
+const openAddItemModal = () => {
   if (!selectedListId.value) return
-  addItemMode.value = mode
   isAddItemModalOpen.value = true
 }
 
@@ -717,55 +714,47 @@ const { takeHandoffItemName } = useShareTarget()
 const sharedItemName = ref<string | undefined>(undefined)
 
 /**
- * The mode an arriving deep link asked for but could not be given yet, because
- * `loadShoppingLists()` had not picked a list. `openAddItemModal` refuses without
- * one, so the intent is parked and the watcher below fires it the moment a list
- * exists — otherwise a shortcut into a cold start would silently do nothing.
+ * Set when an arriving deep link asked for the wizard before `loadShoppingLists()` had picked a
+ * list. `openAddItemModal` refuses without one, so the intent is parked and the watcher below
+ * fires it the moment a list exists.
  */
-const pendingAddItemMode = ref<'product' | 'custom' | null>(null)
+const pendingAddItem = ref(false)
 
-function requestAddItem(mode: 'product' | 'custom') {
+function requestAddItem() {
   if (selectedListId.value) {
-    openAddItemModal(mode)
+    openAddItemModal()
   } else {
-    pendingAddItemMode.value = mode
+    pendingAddItem.value = true
   }
 }
 
 watch(selectedListId, (id) => {
-  if (!id || !pendingAddItemMode.value) return
-  const mode = pendingAddItemMode.value
-  pendingAddItemMode.value = null
-  openAddItemModal(mode)
+  if (!id || !pendingAddItem.value) return
+  pendingAddItem.value = false
+  openAddItemModal()
 })
 
 useDeepLinkAction({
-  add: () => requestAddItem('product'),
+  add: () => requestAddItem(),
   'add-custom': () => {
     sharedItemName.value = takeHandoffItemName() ?? undefined
-    requestAddItem('custom')
+    requestAddItem()
   }
 })
 
-// Dynamic add-actions on the nav FAB: only when a list is selected. Two options →
+// Dynamic add-actions on the nav FAB: only when a list is selected.
 const { isSupported: isVoiceSupported } = useSpeechRecognition()
 const isVoiceOpen = ref(false)
 
-// the FAB opens a chooser (see useFabActions); each opens the wizard in a given mode.
 useFabActions(() => selectedListId.value
   ? [
       {
         label: $t('pages.shoppingLists.addWithSearch'),
-        icon: 'i-lucide-search',
-        handler: () => openAddItemModal('product')
+        icon: 'i-lucide-plus',
+        handler: () => openAddItemModal()
       },
-      {
-        label: $t('pages.shoppingLists.addCustom'),
-        icon: 'i-lucide-pencil-line',
-        handler: () => openAddItemModal('custom')
-      },
-      // Voice input (#132), offered next to the other two and only where the browser can
-      // actually transcribe — Firefox has no Web Speech API at all.
+      // Voice input (#132), offered only where the browser can actually transcribe — Firefox
+      // has no Web Speech API at all.
       ...(isVoiceSupported.value
         ? [{
             label: $t('voice.addByVoice'),

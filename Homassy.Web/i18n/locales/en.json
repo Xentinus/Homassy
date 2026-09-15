@@ -957,6 +957,7 @@
         "createNewProduct": "Create new product",
         "pick": {
           "createProduct": "Create product \"{name}\"",
+          "addAsCustom": "Add \"{name}\" as a custom item",
           "createLocation": "Create location \"{name}\"",
           "properties": "Properties",
           "favorite": "Favorite",

@@ -43,65 +43,74 @@
     </template>
 
     <template #default>
-      <!-- Step 0: Product Selection (mode-based) -->
+      <!-- Step 0: Product Selection -->
       <div v-if="currentStep === 0" class="space-y-6">
-        <!-- Product mode: search + create-product sub-view -->
-        <template v-if="mode === 'product'">
-          <PickOrCreate
-            v-model:query="searchQuery"
-            v-model:show-create="showCreateProduct"
-            :placeholder="t('pages.addProduct.search.placeholder')"
-            :create-label="t('pages.shoppingLists.addProduct.pick.createProduct', { name: searchQuery.trim() })"
-            :filter-count="productFilterCount"
-            @create="onStartCreateProduct"
-          >
-            <template #search-trailing>
-              <BarcodeScannerButton v-if="showCameraButton" @scanned="handleSearchBarcodeScanned" />
-            </template>
+        <PickOrCreate
+          v-model:query="searchQuery"
+          v-model:show-create="showCreateProduct"
+          :placeholder="t('pages.addProduct.search.placeholder')"
+          :create-label="t('pages.shoppingLists.addProduct.pick.createProduct', { name: searchQuery.trim() })"
+          :filter-count="productFilterCount"
+          @create="onStartCreateProduct"
+        >
+          <template #search-trailing>
+            <BarcodeScannerButton v-if="showCameraButton" @scanned="handleSearchBarcodeScanned" />
+          </template>
 
-            <template #filters>
-              <div role="group" :aria-label="t('pages.shoppingLists.addProduct.pick.properties')">
-                <p class="text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">{{ t('pages.shoppingLists.addProduct.pick.properties') }}</p>
-                <div class="flex flex-wrap gap-2">
-                  <UButton :label="t('pages.shoppingLists.addProduct.pick.favorite')" icon="i-lucide-star" size="sm" class="rounded-full" :color="productFavoriteFilter ? 'primary' : 'neutral'" :variant="productFavoriteFilter ? 'solid' : 'outline'" :aria-pressed="productFavoriteFilter" @click="() => { productFavoriteFilter = !productFavoriteFilter }" />
-                  <UButton :label="t('pages.shoppingLists.addProduct.pick.eatable')" icon="i-lucide-utensils" size="sm" class="rounded-full" :color="productEatableFilter ? 'primary' : 'neutral'" :variant="productEatableFilter ? 'solid' : 'outline'" :aria-pressed="productEatableFilter" @click="() => { productEatableFilter = !productEatableFilter }" />
-                </div>
+          <template #filters>
+            <div role="group" :aria-label="t('pages.shoppingLists.addProduct.pick.properties')">
+              <p class="text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">{{ t('pages.shoppingLists.addProduct.pick.properties') }}</p>
+              <div class="flex flex-wrap gap-2">
+                <UButton :label="t('pages.shoppingLists.addProduct.pick.favorite')" icon="i-lucide-star" size="sm" class="rounded-full" :color="productFavoriteFilter ? 'primary' : 'neutral'" :variant="productFavoriteFilter ? 'solid' : 'outline'" :aria-pressed="productFavoriteFilter" @click="() => { productFavoriteFilter = !productFavoriteFilter }" />
+                <UButton :label="t('pages.shoppingLists.addProduct.pick.eatable')" icon="i-lucide-utensils" size="sm" class="rounded-full" :color="productEatableFilter ? 'primary' : 'neutral'" :variant="productEatableFilter ? 'solid' : 'outline'" :aria-pressed="productEatableFilter" @click="() => { productEatableFilter = !productEatableFilter }" />
               </div>
-            </template>
+            </div>
+          </template>
 
-            <template #chips>
-              <UButton v-if="productFavoriteFilter" :label="t('pages.shoppingLists.addProduct.pick.favorite')" size="xs" color="primary" variant="soft" trailing-icon="i-lucide-x" class="rounded-full" @click="() => { productFavoriteFilter = false }" />
-              <UButton v-if="productEatableFilter" :label="t('pages.shoppingLists.addProduct.pick.eatable')" size="xs" color="primary" variant="soft" trailing-icon="i-lucide-x" class="rounded-full" @click="() => { productEatableFilter = false }" />
-            </template>
+          <template #chips>
+            <UButton v-if="productFavoriteFilter" :label="t('pages.shoppingLists.addProduct.pick.favorite')" size="xs" color="primary" variant="soft" trailing-icon="i-lucide-x" class="rounded-full" @click="() => { productFavoriteFilter = false }" />
+            <UButton v-if="productEatableFilter" :label="t('pages.shoppingLists.addProduct.pick.eatable')" size="xs" color="primary" variant="soft" trailing-icon="i-lucide-x" class="rounded-full" @click="() => { productEatableFilter = false }" />
+          </template>
 
-            <template #results>
-              <div v-if="isSearching" class="space-y-2">
-                <SkeletonRow v-for="i in 3" :key="i" />
-              </div>
-              <div v-else-if="searchQuery.trim() === ''" class="text-center py-10 text-sm text-gray-500">
-                {{ t('pages.addProduct.search.startTyping') }}
-              </div>
-              <div v-else-if="filteredProductResults.length === 0" class="text-center py-8 text-sm text-gray-500">
-                {{ productFilterCount > 0 ? t('pages.shoppingLists.addProduct.pick.noFilterMatch') : t('pages.addProduct.search.noResults') }}
-              </div>
-              <ul v-else class="flex flex-col gap-2">
-                <li v-for="product in filteredProductResults" :key="product.publicId">
-                  <button type="button" class="w-full flex items-center justify-between gap-3 rounded-lg border px-3 py-2.5 text-left transition" :class="selectedCardId === product.publicId ? 'border-primary-400 bg-primary-50 dark:border-primary-600 dark:bg-primary-950/40' : 'border-default hover:bg-elevated/50'" @click="onProductCardClick(product)">
-                    <span class="flex min-w-0 flex-col">
-                      <span class="flex items-center gap-1.5 truncate text-sm font-medium">
-                        <UIcon v-if="product.isFavorite" name="i-lucide-star" class="h-3.5 w-3.5 shrink-0 text-primary-500" />
-                        {{ product.name }}
-                      </span>
-                      <span class="truncate text-xs text-gray-500 dark:text-gray-400">{{ [product.brand, t(`enums.unit.${product.unit}`)].filter(Boolean).join(' · ') }}</span>
+          <template #results>
+            <div v-if="isSearching" class="space-y-2">
+              <SkeletonRow v-for="i in 3" :key="i" />
+            </div>
+            <div v-else-if="searchQuery.trim() === ''" class="text-center py-10 text-sm text-gray-500">
+              {{ t('pages.addProduct.search.startTyping') }}
+            </div>
+            <div v-else-if="filteredProductResults.length === 0" class="text-center py-8 text-sm text-gray-500">
+              {{ productFilterCount > 0 ? t('pages.shoppingLists.addProduct.pick.noFilterMatch') : t('pages.addProduct.search.noResults') }}
+            </div>
+            <ul v-else class="flex flex-col gap-2">
+              <li v-for="product in filteredProductResults" :key="product.publicId">
+                <button type="button" class="w-full flex items-center justify-between gap-3 rounded-lg border px-3 py-2.5 text-left transition" :class="selectedCardId === product.publicId ? 'border-primary-400 bg-primary-50 dark:border-primary-600 dark:bg-primary-950/40' : 'border-default hover:bg-elevated/50'" @click="onProductCardClick(product)">
+                  <span class="flex min-w-0 flex-col">
+                    <span class="flex items-center gap-1.5 truncate text-sm font-medium">
+                      <UIcon v-if="product.isFavorite" name="i-lucide-star" class="h-3.5 w-3.5 shrink-0 text-primary-500" />
+                      {{ product.name }}
                     </span>
-                    <UIcon v-if="selectedCardId === product.publicId" name="i-lucide-check" class="h-5 w-5 shrink-0 text-primary-500" />
-                  </button>
-                </li>
-              </ul>
-            </template>
+                    <span class="truncate text-xs text-gray-500 dark:text-gray-400">{{ [product.brand, t(`enums.unit.${product.unit}`)].filter(Boolean).join(' · ') }}</span>
+                  </span>
+                  <UIcon v-if="selectedCardId === product.publicId" name="i-lucide-check" class="h-5 w-5 shrink-0 text-primary-500" />
+                </button>
+              </li>
+            </ul>
+          </template>
 
-            <template #create>
-              <UForm
+          <template #extra-action>
+            <button
+              type="button"
+              class="flex w-full items-center gap-2 rounded-lg border border-default px-3 py-2.5 text-sm font-medium transition hover:bg-elevated/50"
+              @click="onPickCustom"
+            >
+              <UIcon name="i-lucide-pencil-line" class="h-4 w-4 shrink-0" />
+              <span class="truncate">{{ t('pages.shoppingLists.addProduct.pick.addAsCustom', { name: searchQuery.trim() }) }}</span>
+            </button>
+          </template>
+
+          <template #create>
+            <UForm
               ref="createProductFormRef"
               :schema="createProductSchema"
               :state="productFormData"
@@ -196,32 +205,9 @@
                   :disabled="isCreating"
                 />
               </UFormField>
-              </UForm>
-            </template>
-          </PickOrCreate>
-        </template>
-
-        <!-- Custom mode: custom name form -->
-        <template v-else>
-          <p class="text-sm text-gray-600 dark:text-gray-400 mb-4">
-            {{ t('pages.shoppingLists.addProduct.custom.description') }}
-          </p>
-
-          <UForm
-            :schema="customNameSchema"
-            :state="customFormData"
-            class="space-y-4"
-            @submit="onCustomNameSubmit"
-          >
-            <UFormField :label="t('pages.shoppingLists.addProduct.custom.label')" name="customName" required>
-              <UInput
-                v-model="customFormData.customName"
-                :placeholder="t('pages.shoppingLists.addProduct.custom.placeholder')"
-                class="w-full"
-              />
-            </UFormField>
-          </UForm>
-        </template>
+            </UForm>
+          </template>
+        </PickOrCreate>
       </div>
 
       <!-- Step 1: Shopping Location (optional — "Next" proceeds without one) -->
@@ -592,11 +578,10 @@ import { emptyProductForm, type ProductFormState, type ProductSchema } from '~/c
 const props = defineProps<{
   open: boolean
   listId: string | null
-  mode: 'product' | 'custom'
   /**
-   * Seeds the custom-item name when the wizard opens (#118) — how a share from
-   * another app arrives as a shopping-list item. Only meaningful in `custom` mode;
-   * `product` mode picks an existing product rather than typing a name.
+   * Seeds the SEARCH FIELD when the wizard opens (#118) — how a share from another app arrives
+   * as a shopping-list item. It is a starting point, not a decision: the user still picks an
+   * existing product, a new product, or a custom item from the results.
    */
   initialName?: string
 }>()
@@ -666,9 +651,8 @@ const canProceed = computed(() => {
   if (currentStep.value === 0) {
     // The create-product sub-view has its own "create" action.
     if (showCreateProduct.value) return false
-    return props.mode === 'product'
-      ? !!selectedProductId.value
-      : customFormData.value.customName.trim().length >= 2
+    // A product must be selected; the custom row advances on its own click.
+    return !!selectedProductId.value
   }
   // Location is optional; only block while its create sub-view is open.
   if (currentStep.value === 1) return !showCreateLocation.value
@@ -690,15 +674,9 @@ const goPrevious = () => {
 const goNext = () => {
   if (!canProceed.value) return
   if (currentStep.value === 0) {
-    if (props.mode === 'product') {
-      productSelectionMode.value = 'product'
-      customProductName.value = ''
-    } else {
-      customProductName.value = customFormData.value.customName.trim()
-      selectedProductId.value = null
-      selectedProductUnit.value = undefined
-      productSelectionMode.value = 'custom'
-    }
+    // Only the product path reaches here: the custom row advances itself in onPickCustom.
+    productSelectionMode.value = 'product'
+    customProductName.value = ''
     currentStep.value = 1
   } else if (currentStep.value === 1) {
     currentStep.value = 2
@@ -744,11 +722,6 @@ const isQueryingBarcode = ref(false)
 const openFoodFactsProduct = ref<OpenFoodFactsProduct | null>(null)
 const isOpenFoodFactsModalOpen = ref(false)
 const isImageLoading = ref(true)
-
-// Custom Name
-const customFormData = ref({
-  customName: ''
-})
 
 // =========================
 // Step 1: Shopping Location State
@@ -813,10 +786,6 @@ const { toFormErrors } = useApiFormErrors()
 
 // Shared with ProductFormDrawer (Törzsadatok) and AddInventoryItemModal.
 const { productSchema: createProductSchema, toCreateProductRequest } = useProductFormSchema()
-
-const customNameSchema = z.object({
-  customName: z.string().min(2, 'Name must be at least 2 characters').max(128, 'Name must not exceed 128 characters')
-})
 
 const createShoppingLocationSchema = z.object({
   name: z.string().min(2, 'Name must be at least 2 characters').max(128, 'Name must not exceed 128 characters'),
@@ -929,7 +898,6 @@ const resetState = () => {
   customProductName.value = ''
   selectedCardId.value = null
 
-  searchQuery.value = ''
   searchResults.value = []
   isSearching.value = false
 
@@ -938,12 +906,9 @@ const resetState = () => {
   openFoodFactsProduct.value = null
   isOpenFoodFactsModalOpen.value = false
 
-  // `initialName` only ever seeds the custom branch — see the prop's doc comment.
-  // Capped at the 128 characters `customNameSchema` allows, so a long shared line
-  // arrives as a valid field rather than one that fails validation on sight.
-  customFormData.value = {
-    customName: props.mode === 'custom' ? (props.initialName?.trim().slice(0, 128) ?? '') : ''
-  }
+  // `initialName` seeds the search, so a shared line can still match an existing product.
+  // Capped at 128 characters, the longest name the custom branch accepts.
+  searchQuery.value = props.initialName?.trim().slice(0, 128) ?? ''
 
   shoppingLocationSearchQuery.value = ''
   selectedShoppingLocationId.value = null
@@ -1113,6 +1078,16 @@ const onProductCardClick = (product: ProductInfo) => {
   productSelectionMode.value = 'product'
 }
 
+// "«X» as a custom item" — the search text becomes the item's name, no product is involved.
+const onPickCustom = () => {
+  customProductName.value = searchQuery.value.trim()
+  selectedProductId.value = null
+  selectedProductUnit.value = undefined
+  selectedCardId.value = null
+  productSelectionMode.value = 'custom'
+  currentStep.value = 1
+}
+
 // Create Product
 const onCreateProduct = async (event: FormSubmitEvent<ProductSchema>) => {
   isCreating.value = true
@@ -1199,15 +1174,6 @@ const handleBarcodeScanned = (barcode: string) => {
 // Barcode scanner handler (for Search sub-view)
 const handleSearchBarcodeScanned = (barcode: string) => {
   searchQuery.value = barcode
-}
-
-// Custom Name Submit
-const onCustomNameSubmit = (event: FormSubmitEvent<z.output<typeof customNameSchema>>) => {
-  customProductName.value = event.data.customName
-  selectedProductId.value = null
-  selectedProductUnit.value = undefined
-  productSelectionMode.value = 'custom'
-  currentStep.value = 1
 }
 
 // =========================
