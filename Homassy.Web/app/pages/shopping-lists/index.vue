@@ -708,10 +708,15 @@ const openAddItemModal = () => {
 }
 
 // --- Share target / app-shortcut arrivals (#118) ----------------------------
-// A name parked by /share for a custom item. Read once, then cleared: it is a
-// one-time intent, and `AddShoppingListItemModal` only seeds from it on open.
+// A name parked by /share for a custom item. `AddShoppingListItemModal` seeds its search field
+// from this on every open (not only a share arrival, now that the wizard's two modes collapsed
+// into one search field), so it has to be a one-time intent: cleared the moment the wizard
+// closes, so a later FAB press does not still find the stale shared name pre-filled.
 const { takeHandoffItemName } = useShareTarget()
 const sharedItemName = ref<string | undefined>(undefined)
+watch(isAddItemModalOpen, (open) => {
+  if (!open) sharedItemName.value = undefined
+})
 
 /**
  * Set when an arriving deep link asked for the wizard before `loadShoppingLists()` had picked a
