@@ -27,10 +27,12 @@ export enum Unit {
   Bag = 55
 }
 
+// Mirrors `Homassy.Data/Enums/Currency.cs` member for member (a subset of it — this app only
+// offers HUF/EUR/USD). Do not renumber these independently of that enum.
 export enum Currency {
   Huf = 135, // Hungarian Forint
-  Eur = 105, // Euro
-  Usd = 279  // US Dollar
+  Eur = 98,  // Euro
+  Usd = 294  // US Dollar
 }
 
 export enum Language {

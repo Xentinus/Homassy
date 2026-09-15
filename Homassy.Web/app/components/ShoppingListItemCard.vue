@@ -796,8 +796,8 @@ const editForm = ref({
 // Currency options for the estimated-price picker in the edit drawer.
 const currencyOptions = computed(() => [
   { label: t('enums.currency.135'), value: Currency.Huf },
-  { label: t('enums.currency.105'), value: Currency.Eur },
-  { label: t('enums.currency.279'), value: Currency.Usd }
+  { label: t('enums.currency.98'), value: Currency.Eur },
+  { label: t('enums.currency.294'), value: Currency.Usd }
 ])
 
 // Computed

@@ -1,7 +1,7 @@
-// `UserTimeZone` is a value import, not a type-only one: the timezone map below names its members
-// rather than repeating their numbers.
-import { UserTimeZone } from '~/types/enums'
-import type { Language, Currency } from '~/types/enums'
+// `UserTimeZone` and `Currency` are value imports, not type-only ones: the timezone and currency
+// maps below name their members rather than repeating their numbers.
+import { UserTimeZone, Currency } from '~/types/enums'
+import type { Language } from '~/types/enums'
 
 /**
  * Valid Kratos timezone values (Windows-style timezone IDs)
@@ -109,11 +109,11 @@ export function languageCodeToEnum(code: string): Language {
  */
 export function currencyCodeToEnum(code: string): Currency {
   const map: Record<string, Currency> = {
-    'HUF': 135,
-    'EUR': 105,
-    'USD': 279
+    'HUF': Currency.Huf,
+    'EUR': Currency.Eur,
+    'USD': Currency.Usd
   }
-  return map[code.toUpperCase()] ?? 135
+  return map[code.toUpperCase()] ?? Currency.Huf
 }
 
 /**
