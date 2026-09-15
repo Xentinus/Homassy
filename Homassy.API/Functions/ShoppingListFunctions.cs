@@ -910,6 +910,11 @@ namespace Homassy.API.Functions
                 throw new ShoppingListAccessDeniedException();
             }
 
+            if (request.EstimatedUnitPrice.HasValue != request.EstimatedPriceCurrency.HasValue)
+            {
+                throw new InvalidShoppingListItemException("EstimatedUnitPrice and EstimatedPriceCurrency must be provided together");
+            }
+
             using var context = _contextFactory.CreateDbContext();
             await using var transaction = await context.Database.BeginTransactionAsync(cancellationToken);
 
@@ -981,6 +986,30 @@ namespace Homassy.API.Functions
                     hasChanges = true;
                 }
 
+                if (!string.IsNullOrWhiteSpace(request.Url))
+                {
+                    trackedItem.Url = request.Url.Trim();
+                    hasChanges = true;
+                }
+                else if (request.ClearUrl == true)
+                {
+                    trackedItem.Url = null;
+                    hasChanges = true;
+                }
+
+                if (request.EstimatedUnitPrice.HasValue && request.EstimatedPriceCurrency.HasValue)
+                {
+                    trackedItem.EstimatedUnitPrice = request.EstimatedUnitPrice.Value;
+                    trackedItem.EstimatedPriceCurrency = request.EstimatedPriceCurrency.Value;
+                    hasChanges = true;
+                }
+                else if (request.ClearEstimatedPrice == true)
+                {
+                    trackedItem.EstimatedUnitPrice = null;
+                    trackedItem.EstimatedPriceCurrency = null;
+                    hasChanges = true;
+                }
+
                 if (request.PurchasedAt.HasValue)
                 {
                     trackedItem.PurchasedAt = request.PurchasedAt.Value;
@@ -1049,6 +1078,9 @@ namespace Homassy.API.Functions
                     Quantity = trackedItem.Quantity,
                     Unit = trackedItem.Unit,
                     Note = trackedItem.Note,
+                    Url = trackedItem.Url,
+                    EstimatedUnitPrice = trackedItem.EstimatedUnitPrice,
+                    EstimatedPriceCurrency = trackedItem.EstimatedPriceCurrency,
                     SortOrder = trackedItem.SortOrder,
                     PurchasedAt = trackedItem.PurchasedAt,
                     DeadlineAt = trackedItem.DeadlineAt,

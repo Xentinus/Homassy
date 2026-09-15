@@ -28,6 +28,23 @@ namespace Homassy.API.Models.ShoppingList
         [SanitizedString]
         public string? Note { get; set; }
 
+        [Url]
+        [StringLength(1024)]
+        public string? Url { get; set; }
+
+        // A null Url means "no change", so removing one needs its own flag — same reason
+        // ClearShoppingLocation exists above.
+        public bool? ClearUrl { get; set; }
+
+        [Range(0, 99999999)]
+        public decimal? EstimatedUnitPrice { get; set; }
+
+        [EnumDataType(typeof(Currency))]
+        public Currency? EstimatedPriceCurrency { get; set; }
+
+        // Clears the price and the currency together: they are one value.
+        public bool? ClearEstimatedPrice { get; set; }
+
         public DateTime? PurchasedAt { get; set; }
 
         public DateTime? DeadlineAt { get; set; }

@@ -1895,4 +1895,81 @@ public class ShoppingListControllerTests : IClassFixture<HomassyWebApplicationFa
             if (testEmail != null) await _authHelper.CleanupUserAsync(testEmail);
         }
     }
+
+    [Fact]
+    public async Task UpdateShoppingListItem_SetsThenClearsUrlAndEstimatedPrice()
+    {
+        string? testEmail = null;
+        Guid? listId = null;
+        try
+        {
+            var (email, auth) = await _authHelper.CreateAndAuthenticateUserAsync("item-url-price-update");
+            testEmail = email;
+            _authHelper.SetAuthToken(auth.AccessToken);
+
+            var (list, itemId) = await CreateListWithCustomItemAsync("Url and price update", 1);
+            listId = list;
+
+            var setResponse = await _client.PutAsJsonAsync($"/api/v1.0/shoppinglist/item/{itemId}", new UpdateShoppingListItemRequest
+            {
+                Url = "https://example.com/offer",
+                EstimatedUnitPrice = 499m,
+                EstimatedPriceCurrency = ProductCurrency.Eur
+            });
+            _output.WriteLine($"Set status: {setResponse.StatusCode}");
+            Assert.Equal(HttpStatusCode.OK, setResponse.StatusCode);
+            var afterSet = await setResponse.Content.ReadFromJsonAsync<ApiResponse<ShoppingListItemInfo>>();
+            Assert.Equal("https://example.com/offer", afterSet!.Data!.Url);
+            Assert.Equal(499m, afterSet.Data.EstimatedUnitPrice);
+            Assert.Equal(ProductCurrency.Eur, afterSet.Data.EstimatedPriceCurrency);
+
+            var clearResponse = await _client.PutAsJsonAsync($"/api/v1.0/shoppinglist/item/{itemId}", new UpdateShoppingListItemRequest
+            {
+                ClearUrl = true,
+                ClearEstimatedPrice = true
+            });
+            _output.WriteLine($"Clear status: {clearResponse.StatusCode}");
+            Assert.Equal(HttpStatusCode.OK, clearResponse.StatusCode);
+            var afterClear = await clearResponse.Content.ReadFromJsonAsync<ApiResponse<ShoppingListItemInfo>>();
+            Assert.Null(afterClear!.Data!.Url);
+            Assert.Null(afterClear.Data.EstimatedUnitPrice);
+            // The currency goes with the price: clearing one clears both.
+            Assert.Null(afterClear.Data.EstimatedPriceCurrency);
+        }
+        finally
+        {
+            if (listId.HasValue) await _client.DeleteAsync($"/api/v1.0/shoppinglist/{listId}");
+            _authHelper.ClearAuth();
+            if (testEmail != null) await _authHelper.CleanupUserAsync(testEmail);
+        }
+    }
+
+    [Fact]
+    public async Task UpdateShoppingListItem_WithCurrencyButNoPrice_ReturnsBadRequest()
+    {
+        string? testEmail = null;
+        Guid? listId = null;
+        try
+        {
+            var (email, auth) = await _authHelper.CreateAndAuthenticateUserAsync("item-currency-no-price");
+            testEmail = email;
+            _authHelper.SetAuthToken(auth.AccessToken);
+
+            var (list, itemId) = await CreateListWithCustomItemAsync("Currency without price", 1);
+            listId = list;
+
+            var response = await _client.PutAsJsonAsync($"/api/v1.0/shoppinglist/item/{itemId}", new UpdateShoppingListItemRequest
+            {
+                EstimatedPriceCurrency = ProductCurrency.Eur
+            });
+            _output.WriteLine($"Status: {response.StatusCode}");
+            Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        }
+        finally
+        {
+            if (listId.HasValue) await _client.DeleteAsync($"/api/v1.0/shoppinglist/{listId}");
+            _authHelper.ClearAuth();
+            if (testEmail != null) await _authHelper.CleanupUserAsync(testEmail);
+        }
+    }
 }
