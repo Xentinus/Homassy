@@ -110,6 +110,23 @@ describe('useSpeechRecognition', () => {
     expect(speech.interim.value).toBe('')
   })
 
+  it('appends them to what was already final, so the last item of a list is not lost', async () => {
+    const speech = await loadComposable()
+
+    speech.start()
+    const engine = FakeRecognition.instances[0]!
+
+    // A list read out in one breath: the first item finalises on the pause, the last one is
+    // still being revised when the button is released.
+    engine.emit('ket liter tej', true)
+    engine.emit('hat tojas', false)
+    speech.stop()
+    engine.end()
+    await nextTick()
+
+    expect(speech.transcript.value).toBe('ket liter tej hat tojas')
+  })
+
   it('throws away the utterance when the gesture is cancelled', async () => {
     const speech = await loadComposable()
 

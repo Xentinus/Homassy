@@ -161,10 +161,13 @@ export const useSpeechRecognition = () => {
 
     instance.onend = () => {
       // Not every engine turns the words it was still revising into a final result when it is
-      // asked to stop. They were heard, they are on screen, and throwing them away here is the
-      // difference between a list to confirm and an empty drawer — so keep them, unless the
-      // reader cancelled, in which case the whole utterance is meant to go.
-      if (!discarded && !transcript.value && interim.value) transcript.value = interim.value
+      // asked to stop. They were heard and they are on screen, so they are appended rather than
+      // dropped: on an utterance read out in one breath that is the difference between an empty
+      // drawer and a list to confirm, and on a longer one it is the last item of it. The
+      // exception is a cancelled gesture, where the whole utterance is meant to go.
+      if (!discarded && interim.value) {
+        transcript.value = `${transcript.value} ${interim.value}`.trim()
+      }
 
       isListening.value = false
       interim.value = ''
