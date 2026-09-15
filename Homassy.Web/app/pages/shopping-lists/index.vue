@@ -682,7 +682,11 @@ const listEstimate = computed(() => estimateListTotal(
       return {
         productId: item.productPublicId ?? item.publicId,
         quantity: item.quantity,
-        bestPrice: best ? { unitPrice: best.unitPrice, currency: best.currency } : undefined
+        bestPrice: best ? { unitPrice: best.unitPrice, currency: best.currency } : undefined,
+        // A price typed onto the row beats purchase history — see `EstimateInput.manualPrice`.
+        manualPrice: item.estimatedUnitPrice != null && item.estimatedPriceCurrency
+          ? { unitPrice: item.estimatedUnitPrice, currency: item.estimatedPriceCurrency }
+          : undefined
       }
     })
 ))
