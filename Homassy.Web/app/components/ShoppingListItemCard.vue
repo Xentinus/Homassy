@@ -100,14 +100,31 @@
         <span class="text-toned">{{ unitLabel }}</span>
       </div>
 
-      <!-- Best known price (#128) — what this household has actually paid per unit for this
-           product, and where. Absent whenever no price is known: the page never passes a
-           placeholder, so there is no "—" row implying a price of nothing. -->
-      <div v-if="bestPrice" class="flex items-center gap-2 text-xs" :title="$t('price.best.title')">
+      <!-- Effective price: the manual price on the item if there is one, otherwise the best known
+           price (#128) — what this household has actually paid per unit for this product, and
+           where. Absent whenever no price is known: the page never passes a placeholder, so there
+           is no "—" row implying a price of nothing. A manual price shows no shop label — it was
+           not paid anywhere. -->
+      <div v-if="effectivePrice" class="flex items-center gap-2 text-xs" :title="$t('price.best.title')">
         <UIcon name="i-lucide-tag" class="h-3.5 w-3.5 text-primary flex-shrink-0" />
-        <span class="font-bold text-highlighted tabular-nums">{{ bestPriceLabel }}</span>
-        <span class="text-toned break-words line-clamp-1">{{ bestPriceShopLabel }}</span>
+        <span class="font-bold text-highlighted tabular-nums">{{ effectivePrice.label }}</span>
+        <span v-if="effectivePrice.shop" class="text-toned break-words line-clamp-1">{{ effectivePrice.shop }}</span>
       </div>
+
+      <!-- Link to the item, if any. @click.stop keeps opening it from also toggling the card,
+           which is clickable underneath it. -->
+      <a
+        v-if="safeItemUrl"
+        :href="safeItemUrl"
+        target="_blank"
+        rel="noopener noreferrer"
+        class="flex items-center gap-2 text-xs text-primary hover:underline"
+        :title="$t('shoppingList.openLink')"
+        @click.stop
+      >
+        <UIcon name="i-lucide-external-link" class="h-3.5 w-3.5 flex-shrink-0" />
+        <span class="break-all line-clamp-1">{{ safeItemUrl }}</span>
+      </a>
 
       <!-- Note (if not empty) -->
       <div v-if="item.note" class="flex items-start gap-2 text-xs">
@@ -413,6 +430,33 @@
             />
           </div>
 
+          <!-- Link -->
+          <div>
+            <label class="block text-sm font-medium mb-1">{{ $t('shoppingList.itemUrl') }}</label>
+            <UInput
+              v-model="editForm.url"
+              type="url"
+              inputmode="url"
+              placeholder="https://..."
+              class="w-full"
+            />
+          </div>
+
+          <!-- Estimated unit price -->
+          <div>
+            <label class="block text-sm font-medium mb-1">{{ $t('shoppingList.estimatedPrice') }}</label>
+            <div class="flex gap-2">
+              <UInput
+                v-model.number="editForm.estimatedUnitPrice"
+                type="number"
+                :min="0"
+                step="0.01"
+                class="flex-1"
+              />
+              <USelect v-model="editForm.estimatedPriceCurrency" :items="currencyOptions" class="w-28" />
+            </div>
+          </div>
+
           <!-- Due Date -->
           <div>
             <label class="block text-sm font-medium mb-1">
@@ -555,7 +599,10 @@ import type { ShoppingListItemInfo, PurchaseShoppingListItemRequest } from '../t
 import type { ShoppingLocationInfo } from '../types/location'
 import type { BestKnownPrice } from '../types/insights'
 import { formatCurrency } from '~/utils/chart/format'
-import { Unit } from '../types/enums'
+import { toSafeHttpUrl } from '~/utils/safeUrl'
+import { currencyCodeToEnum } from '~/utils/enumMappers'
+import { useAuthStore } from '~/stores/auth'
+import { Unit, Currency } from '../types/enums'
 import type { CalendarDate } from '@internationalized/date'
 import { CalendarDate as CalendarDateClass } from '@internationalized/date'
 
@@ -633,6 +680,25 @@ const bestPriceShopLabel = computed(() => {
     ? t('insights.spend.unknownLocation')
     : props.bestPrice.locationName
 })
+
+/**
+ * What this row is estimated at: the price typed onto the item if there is one, otherwise the
+ * household's best known price. Same precedence as `estimateListTotal`, because a card showing
+ * one number while the header total is computed from another reads as a bug.
+ */
+const effectivePrice = computed(() => {
+  const manual = props.item.estimatedUnitPrice
+  const currency = props.item.estimatedPriceCurrency
+  if (manual != null && currency) {
+    return { label: formatCurrency(manual, currency, locale.value), shop: '', isManual: true }
+  }
+  if (!props.bestPrice) return null
+  return { label: bestPriceLabel.value, shop: bestPriceShopLabel.value, isManual: false }
+})
+
+/** The row's link, or null when it has none or the stored value is not an http(s) address. */
+const safeItemUrl = computed(() => toSafeHttpUrl(props.item.url))
+
 const haptics = useHaptics()
 const { inputDateLocale } = useInputDateLocale()
 const { updateShoppingListItem } = useShoppingListApi()
@@ -703,6 +769,12 @@ interface EditForm {
   quantity: number | null
   unit: number | null
   note: string | null
+  url: string | null
+  // A cleared `UInput[type=number]` leaves this holding '' rather than null — Nuxt UI's
+  // looseToNumber falls back to the original value when Number.parseFloat gives NaN. `handleUpdate`
+  // folds that (and `undefined`) back to "no price" before building the request; see its comment.
+  estimatedUnitPrice: number | string | null
+  estimatedPriceCurrency: Currency
   dueAt: CalendarDate | null
   deadlineAt: CalendarDate | null
   shoppingLocationPublicId: string | undefined
@@ -713,10 +785,20 @@ const editForm = ref({
   quantity: null,
   unit: null,
   note: null,
+  url: null,
+  estimatedUnitPrice: null,
+  estimatedPriceCurrency: currencyCodeToEnum(useAuthStore().user?.currency ?? ''),
   dueAt: null,
   deadlineAt: null,
   shoppingLocationPublicId: undefined
 }) as Ref<EditForm>
+
+// Currency options for the estimated-price picker in the edit drawer.
+const currencyOptions = computed(() => [
+  { label: t('enums.currency.135'), value: Currency.Huf },
+  { label: t('enums.currency.105'), value: Currency.Eur },
+  { label: t('enums.currency.279'), value: Currency.Usd }
+])
 
 // Computed
 const displayName = computed(() => {
@@ -923,6 +1005,11 @@ const openEditModal = () => {
     quantity: props.item.quantity,
     unit: props.item.unit,
     note: props.item.note || null,
+    url: props.item.url || null,
+    estimatedUnitPrice: props.item.estimatedUnitPrice ?? null,
+    estimatedPriceCurrency: props.item.estimatedPriceCurrency
+      ? currencyCodeToEnum(props.item.estimatedPriceCurrency)
+      : currencyCodeToEnum(useAuthStore().user?.currency ?? ''),
     dueAt: dueDate,
     deadlineAt: deadlineDate,
     shoppingLocationPublicId: props.item.shoppingLocationPublicId ?? undefined
@@ -954,6 +1041,16 @@ const handleUpdate = async () => {
 
     // '' means "no location" — send an explicit clear flag (null can't be told from "no change").
     const selectedLocation = editForm.value.shoppingLocationPublicId
+
+    // A cleared `UInput[type=number]` leaves `estimatedUnitPrice` holding '' rather than null (see
+    // the `EditForm` comment), so treat '' the same as null here before the guards below run — the
+    // same fold the add wizard's `z.preprocess` does, adapted to this drawer's hand-built request
+    // since it has no zod schema of its own. A typed 0 is kept: only '' and null/undefined mean
+    // "no price".
+    const price = editForm.value.estimatedUnitPrice === '' || editForm.value.estimatedUnitPrice == null
+      ? null
+      : Number(editForm.value.estimatedUnitPrice)
+
     const updateData = {
       quantity: editForm.value.quantity ?? undefined,
       unit: editForm.value.unit ?? undefined,
@@ -962,7 +1059,13 @@ const handleUpdate = async () => {
       deadlineAt: deadlineAtString,
       customName: !props.item.product ? (editForm.value.customName || undefined) : undefined,
       shoppingLocationPublicId: selectedLocation || undefined,
-      clearShoppingLocation: selectedLocation ? undefined : true
+      clearShoppingLocation: selectedLocation ? undefined : true,
+      // An empty field means "remove it" — a null value would read as "no change" to the API.
+      url: toSafeHttpUrl(editForm.value.url) ?? undefined,
+      clearUrl: toSafeHttpUrl(editForm.value.url) ? undefined : true,
+      estimatedUnitPrice: price ?? undefined,
+      estimatedPriceCurrency: price != null ? editForm.value.estimatedPriceCurrency : undefined,
+      clearEstimatedPrice: price == null ? true : undefined
     }
 
     const response = await updateShoppingListItem(props.item.publicId, updateData)
