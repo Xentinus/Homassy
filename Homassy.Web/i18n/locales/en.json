@@ -980,6 +980,11 @@
           "unitPlaceholder": "Select unit",
           "noteLabel": "Note",
           "notePlaceholder": "Add optional note or details",
+          "urlLabel": "Link",
+          "urlPlaceholder": "https://...",
+          "urlInvalid": "Enter an http or https address",
+          "estimatedPriceLabel": "Estimated unit price",
+          "estimatedPricePlaceholder": "e.g. 1290",
           "deadlineLabel": "Deadline",
           "dueLabel": "Due Date",
           "createButton": "Add to Shopping List"

@@ -980,6 +980,11 @@
           "unitPlaceholder": "Válassz mértékegységet",
           "noteLabel": "Megjegyzés",
           "notePlaceholder": "Adj hozzá opcionális megjegyzést",
+          "urlLabel": "Link",
+          "urlPlaceholder": "https://...",
+          "urlInvalid": "Adj meg egy http vagy https címet",
+          "estimatedPriceLabel": "Becsült egységár",
+          "estimatedPricePlaceholder": "pl. 1290",
           "deadlineLabel": "Határidő",
           "dueLabel": "Esedékesség",
           "createButton": "Hozzáadás a listához"

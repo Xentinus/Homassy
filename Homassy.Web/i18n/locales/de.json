@@ -980,6 +980,11 @@
           "unitPlaceholder": "Einheit auswählen",
           "noteLabel": "Notiz",
           "notePlaceholder": "Optionale Notiz hinzufügen",
+          "urlLabel": "Link",
+          "urlPlaceholder": "https://...",
+          "urlInvalid": "Gib eine http- oder https-Adresse ein",
+          "estimatedPriceLabel": "Geschätzter Stückpreis",
+          "estimatedPricePlaceholder": "z. B. 1290",
           "deadlineLabel": "Frist",
           "dueLabel": "Fälligkeitsdatum",
           "createButton": "Zur Liste hinzufügen"

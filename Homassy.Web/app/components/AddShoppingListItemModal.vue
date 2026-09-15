@@ -459,6 +459,37 @@
             />
           </UFormField>
 
+          <UFormField :label="t('pages.shoppingLists.addProduct.item.urlLabel')" name="url">
+            <UInput
+              v-model="itemFormData.url"
+              type="url"
+              inputmode="url"
+              :placeholder="t('pages.shoppingLists.addProduct.item.urlPlaceholder')"
+              :disabled="isCreatingItem"
+              class="w-full"
+            />
+          </UFormField>
+
+          <UFormField :label="t('pages.shoppingLists.addProduct.item.estimatedPriceLabel')" name="estimatedUnitPrice">
+            <div class="flex gap-2">
+              <UInput
+                v-model.number="itemFormData.estimatedUnitPrice"
+                type="number"
+                step="0.01"
+                min="0"
+                :placeholder="t('pages.shoppingLists.addProduct.item.estimatedPricePlaceholder')"
+                :disabled="isCreatingItem"
+                class="flex-1"
+              />
+              <USelect
+                v-model="itemFormData.estimatedPriceCurrency"
+                :items="currencyOptions"
+                :disabled="isCreatingItem"
+                class="w-28"
+              />
+            </div>
+          </UFormField>
+
           <UFormField :label="t('pages.shoppingLists.addProduct.item.deadlineLabel')" name="deadlineAt">
             <UInputDate v-model="itemFormData.deadlineAt" :locale="inputDateLocale" :disabled="isCreatingItem" class="w-full">
               <template #trailing>
@@ -569,10 +600,13 @@ import type { ShoppingLocationInfo, ShoppingLocationRequest } from '~/types/loca
 import type { CreateShoppingListItemRequest } from '~/types/shoppingList'
 import type { OpenFoodFactsProduct } from '~/types/openFoodFacts'
 import type { SelectValue } from '~/types/selectValue'
-import { Unit, SelectValueType, StoreType } from '~/types/enums'
+import { Unit, SelectValueType, StoreType, Currency } from '~/types/enums'
 import type { DateValue } from '@internationalized/date'
 import type { FormSubmitEvent } from '#ui/types'
 import { emptyProductForm, type ProductFormState, type ProductSchema } from '~/composables/useProductFormSchema'
+import { toSafeHttpUrl } from '~/utils/safeUrl'
+import { currencyCodeToEnum } from '~/utils/enumMappers'
+import { useAuthStore } from '~/stores/auth'
 
 // Props & Emits
 const props = defineProps<{
@@ -766,6 +800,9 @@ interface ItemForm {
   quantity: number
   unit: Unit | undefined
   note: string
+  url: string
+  estimatedUnitPrice: number | null
+  estimatedPriceCurrency: Currency
   deadlineAt: DateValue | null
   dueAt: DateValue | null
 }
@@ -774,6 +811,9 @@ const itemFormData = ref({
   quantity: 1,
   unit: undefined,
   note: '',
+  url: '',
+  estimatedUnitPrice: null,
+  estimatedPriceCurrency: currencyCodeToEnum(useAuthStore().user?.currency ?? ''),
   deadlineAt: null,
   dueAt: null
 }) as Ref<ItemForm>
@@ -806,6 +846,11 @@ const createShoppingListItemSchema = z.object({
   // Unit is only required for standalone/custom items; product items inherit the product's unit.
   unit: z.nativeEnum(Unit).optional(),
   note: z.string().max(500, 'Note must not exceed 500 characters').optional(),
+  url: z.string().max(1024, 'URL must not exceed 1024 characters')
+    .refine(v => !v || toSafeHttpUrl(v) !== null, 'Must be an http or https URL')
+    .optional().or(z.literal('')),
+  estimatedUnitPrice: z.number().min(0, 'Price must not be negative').nullable().optional(),
+  estimatedPriceCurrency: z.nativeEnum(Currency).optional(),
   deadlineAt: z.any().nullable().optional(),
   dueAt: z.any().nullable().optional()
 })
@@ -821,6 +866,12 @@ const unitOptions = computed(() => {
       value: value as Unit
     }))
 })
+
+const currencyOptions = computed(() => [
+  { label: t('enums.currency.135'), value: Currency.Huf },
+  { label: t('enums.currency.105'), value: Currency.Eur },
+  { label: t('enums.currency.279'), value: Currency.Usd }
+])
 
 // Store-type multi-select options for the inline "create location" form.
 const storeTypeOptions = computed(() => {
@@ -940,6 +991,9 @@ const resetState = () => {
     quantity: 1,
     unit: undefined,
     note: '',
+    url: '',
+    estimatedUnitPrice: null,
+    estimatedPriceCurrency: currencyCodeToEnum(useAuthStore().user?.currency ?? ''),
     deadlineAt: null,
     dueAt: null
   }
@@ -1260,6 +1314,10 @@ const onCreateShoppingListItem = async (event: FormSubmitEvent<z.output<typeof c
       // Product items inherit the product's unit server-side; only send it for custom items.
       unit: productSelectionMode.value === 'custom' ? event.data.unit : undefined,
       note: event.data.note?.trim() || undefined,
+      url: toSafeHttpUrl(event.data.url) ?? undefined,
+      // The currency only travels with a price — the API rejects one without the other.
+      estimatedUnitPrice: event.data.estimatedUnitPrice ?? undefined,
+      estimatedPriceCurrency: event.data.estimatedUnitPrice != null ? event.data.estimatedPriceCurrency : undefined,
       deadlineAt: deadlineAtString,
       dueAt: dueAtString
     }
