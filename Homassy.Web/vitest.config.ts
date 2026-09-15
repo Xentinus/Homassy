@@ -14,6 +14,13 @@ export default defineConfig({
       '@': fileURLToPath(new URL('./app', import.meta.url))
     }
   },
+  // Nuxt injects `import.meta.client`; outside the app it is simply undefined, which would make
+  // every browser-only branch unreachable from a test. The tests run in Node with the browser
+  // globals they need stubbed, so the client branch is the one to compile.
+  define: {
+    'import.meta.client': 'true',
+    'import.meta.server': 'false'
+  },
   test: {
     environment: 'node',
     include: ['tests/unit/**/*.spec.ts']
