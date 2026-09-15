@@ -801,7 +801,9 @@ interface ItemForm {
   unit: Unit | undefined
   note: string
   url: string
-  estimatedUnitPrice: number | null
+  // A cleared `UInput[type=number]` leaves this holding '' rather than null — see the schema's
+  // preprocess for `estimatedUnitPrice`, which is what actually turns that back into null.
+  estimatedUnitPrice: number | string | null
   estimatedPriceCurrency: Currency
   deadlineAt: DateValue | null
   dueAt: DateValue | null
@@ -849,7 +851,14 @@ const createShoppingListItemSchema = z.object({
   url: z.string().max(1024, 'URL must not exceed 1024 characters')
     .refine(v => !v || toSafeHttpUrl(v) !== null, 'Must be an http or https URL')
     .optional().or(z.literal('')),
-  estimatedUnitPrice: z.number().min(0, 'Price must not be negative').nullable().optional(),
+  // The UInput's `v-model.number` on an emptied `type="number"` field leaves the model holding
+  // `''`, not `null` — Nuxt UI's looseToNumber falls back to the original value when
+  // Number.parseFloat gives NaN. Fold that (and `undefined`) to `null` before the numeric rule
+  // runs, so clearing an optional price still lets the form submit.
+  estimatedUnitPrice: z.preprocess(
+    v => (v === '' || v === undefined ? null : v),
+    z.number().min(0, 'Price must not be negative').nullable()
+  ),
   estimatedPriceCurrency: z.nativeEnum(Currency).optional(),
   deadlineAt: z.any().nullable().optional(),
   dueAt: z.any().nullable().optional()
