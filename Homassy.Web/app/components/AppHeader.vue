@@ -1,7 +1,7 @@
 <template>
   <header
     ref="headerRef"
-    class="fixed inset-x-0 top-0 z-40 border-b border-gray-200 dark:border-gray-800 bg-default/95 backdrop-blur"
+    class="fixed inset-x-0 top-0 z-(--z-header) border-b border-gray-200 dark:border-gray-800 bg-default/95 backdrop-blur"
     :style="{ paddingTop: 'env(safe-area-inset-top)' }"
   >
     <div class="px-6 sm:px-10 lg:px-16 py-4">

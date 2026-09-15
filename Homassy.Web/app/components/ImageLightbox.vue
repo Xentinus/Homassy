@@ -4,7 +4,7 @@
       v-if="open"
       ref="root"
       tabindex="-1"
-      class="fixed inset-0 z-[100] flex touch-none select-none flex-col outline-none"
+      class="fixed inset-0 z-(--z-lightbox) flex touch-none select-none flex-col outline-none"
       role="dialog"
       aria-modal="true"
       :aria-label="t('lightbox.title')"

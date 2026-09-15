@@ -6,7 +6,7 @@
     <Transition name="chat-scrim">
       <div
         v-if="panelOpen && isMobile"
-        class="fixed inset-0 z-[58] bg-black/20"
+        class="fixed inset-0 z-(--z-chat-scrim) bg-black/20"
         aria-hidden="true"
         @click="close"
       />
@@ -19,7 +19,7 @@
         role="dialog"
         tabindex="-1"
         :aria-label="t('familyChat.title')"
-        class="fixed z-[60] flex flex-col overflow-hidden rounded-2xl border border-default bg-default shadow-2xl"
+        class="fixed z-(--z-chat-panel) flex flex-col overflow-hidden rounded-2xl border border-default bg-default shadow-2xl"
         :style="cardStyle"
         @keydown="onCardKeyDown"
       >

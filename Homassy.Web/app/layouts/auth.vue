@@ -10,7 +10,7 @@
          it has to survive navigation — and it sits under the header rather than beside it, so
          the header stays one full-width strip at every size. -->
     <aside
-      class="hidden lg:flex fixed left-0 bottom-0 z-40 w-64 flex-col border-r border-default bg-default/95 backdrop-blur px-3 py-4"
+      class="hidden lg:flex fixed left-0 bottom-0 z-(--z-header) w-64 flex-col border-r border-default bg-default/95 backdrop-blur px-3 py-4"
       :style="{ top: 'var(--app-header-height, 5.5rem)' }"
     >
       <!-- The FAB's desktop form: a primary button, same `useFabActions` registration. -->
@@ -70,7 +70,7 @@
       <slot />
     </UMain>
 
-    <nav class="lg:hidden fixed inset-x-4 bottom-4 z-50 max-w-2xl mx-auto">
+    <nav class="lg:hidden fixed inset-x-4 bottom-4 z-(--z-nav) max-w-2xl mx-auto">
       <!-- Dynamic add button, centred on the nav's top border -->
       <NavFab />
 

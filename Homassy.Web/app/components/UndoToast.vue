@@ -1,54 +1,60 @@
 <template>
-  <Transition name="bubble">
-    <div
-      v-if="visible"
-      role="status"
-      aria-live="polite"
-      class="undo-toast fixed inset-x-4 z-40 mx-auto flex w-fit max-w-[calc(100%-2rem)] items-center gap-3 rounded-full bg-inverted px-4 py-2.5 text-sm font-medium text-inverted shadow-lg"
-    >
-      <!-- Countdown ring: stroke-dashoffset is bound straight to remainingRatio (which already
-           ticks every frame via useUndoableAction's own requestAnimationFrame loop), so there is
-           no separate CSS animation/transition here to neutralise for reduced motion — instead,
-           under prefers-reduced-motion the ring is swapped for the static seconds count below,
-           which is the actual point 8 requirement: the deadline stays legible, only the motion
-           goes. Both are aria-hidden — the live region only needs to announce the label (below)
-           once when it changes, not a per-second countdown. -->
-      <svg
-        v-if="!prefersReducedMotion"
-        class="h-6 w-6 shrink-0 -rotate-90"
-        viewBox="0 0 24 24"
-        aria-hidden="true"
+  <!-- Teleported for the same reason ShoppingModeView is: `<UApp>` carries `isolation: isolate`,
+       so anything left inside it is trapped below every portalled overlay no matter its z-index —
+       and a good share of the undoable purchases are made from inside shopping mode, which is one
+       of those portals. Out here the toast ranks against them properly (see --z-bottom-toast). -->
+  <Teleport to="body">
+    <Transition name="bubble">
+      <div
+        v-if="visible"
+        role="status"
+        aria-live="polite"
+        class="undo-toast fixed inset-x-4 z-(--z-bottom-toast) mx-auto flex w-fit max-w-[calc(100%-2rem)] items-center gap-3 rounded-full bg-inverted px-4 py-2.5 text-sm font-medium text-inverted shadow-lg"
       >
-        <circle cx="12" cy="12" r="10" fill="none" stroke="currentColor" stroke-width="2.5" class="opacity-25" />
-        <circle
-          cx="12"
-          cy="12"
-          r="10"
-          fill="none"
-          stroke="currentColor"
-          stroke-width="2.5"
-          stroke-linecap="round"
-          :stroke-dasharray="RING_CIRCUMFERENCE"
-          :stroke-dashoffset="ringDashOffset"
-        />
-      </svg>
-      <span
-        v-else
-        class="flex h-6 min-w-6 shrink-0 items-center justify-center text-xs font-bold tabular-nums"
-        aria-hidden="true"
-      >{{ $t('undo.secondsLeft', { seconds: secondsLeft }) }}</span>
+        <!-- Countdown ring: stroke-dashoffset is bound straight to remainingRatio (which already
+             ticks every frame via useUndoableAction's own requestAnimationFrame loop), so there is
+             no separate CSS animation/transition here to neutralise for reduced motion — instead,
+             under prefers-reduced-motion the ring is swapped for the static seconds count below,
+             which is the actual point 8 requirement: the deadline stays legible, only the motion
+             goes. Both are aria-hidden — the live region only needs to announce the label (below)
+             once when it changes, not a per-second countdown. -->
+        <svg
+          v-if="!prefersReducedMotion"
+          class="h-6 w-6 shrink-0 -rotate-90"
+          viewBox="0 0 24 24"
+          aria-hidden="true"
+        >
+          <circle cx="12" cy="12" r="10" fill="none" stroke="currentColor" stroke-width="2.5" class="opacity-25" />
+          <circle
+            cx="12"
+            cy="12"
+            r="10"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2.5"
+            stroke-linecap="round"
+            :stroke-dasharray="RING_CIRCUMFERENCE"
+            :stroke-dashoffset="ringDashOffset"
+          />
+        </svg>
+        <span
+          v-else
+          class="flex h-6 min-w-6 shrink-0 items-center justify-center text-xs font-bold tabular-nums"
+          aria-hidden="true"
+        >{{ $t('undo.secondsLeft', { seconds: secondsLeft }) }}</span>
 
-      <span class="min-w-0 flex-1 truncate">{{ label }}</span>
+        <span class="min-w-0 flex-1 truncate">{{ label }}</span>
 
-      <button
-        type="button"
-        class="undo-toast-action shrink-0 rounded-full px-2 py-1 font-bold underline decoration-2 underline-offset-2 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-current"
-        @click="handleUndo"
-      >
-        {{ $t('undo.action') }}
-      </button>
-    </div>
-  </Transition>
+        <button
+          type="button"
+          class="undo-toast-action shrink-0 rounded-full px-2 py-1 font-bold underline decoration-2 underline-offset-2 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-current"
+          @click="handleUndo"
+        >
+          {{ $t('undo.action') }}
+        </button>
+      </div>
+    </Transition>
+  </Teleport>
 </template>
 
 <script setup lang="ts">
@@ -111,12 +117,13 @@ const handleUndo = (): void => { undoAll() }
 </script>
 
 <style scoped>
-/* Above the bottom nav (see layouts/auth.vue), never on top of it. The nav's own row is h-16 (4rem)
-   plus vertical padding and a safe-area pad, so 6rem clears it with a visible gap; a reviewer
-   looking at this in an actual viewport should double-check the gap once the two can be seen
-   together (see the task report — this is the one thing not confirmed without a browser). */
+/* Clear of the whole bottom chrome — the nav bar AND the FAB that overhangs its top edge.
+   `--app-bottom-slot` (main.css) is what works that height out, per breakpoint; this used to be a
+   hand-written `6rem`, which was the nav's top edge exactly and therefore ran straight under the
+   '+' button. `--z-bottom-toast` on the element is the other half of that fix: the nav outranked
+   the toast, so even the part of the pill that was clear of the button was painted over. */
 .undo-toast {
-  bottom: calc(6rem + env(safe-area-inset-bottom));
+  bottom: var(--app-bottom-slot);
 }
 
 .undo-toast-action:hover {

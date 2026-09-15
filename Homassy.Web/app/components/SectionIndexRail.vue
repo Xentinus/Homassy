@@ -1,7 +1,7 @@
 <template>
   <div
     v-if="sections.length >= minSections"
-    class="fixed right-0 z-30 flex touch-none select-none items-center"
+    class="fixed right-0 z-(--z-rail) flex touch-none select-none items-center"
     :style="railStyle"
     @pointerdown="onPointerDown"
     @pointermove="onPointerMove"

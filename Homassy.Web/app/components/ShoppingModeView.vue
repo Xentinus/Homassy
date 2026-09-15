@@ -1,7 +1,7 @@
 <template>
   <Teleport to="body">
     <div
-      class="shopping-mode fixed inset-0 z-50 flex flex-col bg-default"
+      class="shopping-mode fixed inset-0 z-(--z-fullscreen) flex flex-col bg-default"
       role="dialog"
       aria-modal="true"
       :aria-label="$t('shoppingList.shoppingMode.title')"
