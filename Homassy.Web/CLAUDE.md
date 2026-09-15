@@ -637,6 +637,43 @@ Used for `/auth/*` pages and the landing page. Minimal layout without navigation
 
 ---
 
+## Stacking: the z-index ladder and the bottom chrome
+
+Every floating surface takes its z-index from one ladder of custom properties in
+`app/assets/css/main.css` (`--z-rail`, `--z-header`, `--z-nav`, `--z-fullscreen`, the chat trio,
+`--z-bottom-toast`, `--z-toast`, `--z-lightbox`, `--z-tour`), referenced as `z-(--z-nav)`.
+`tests/unit/stackingLadder.spec.ts` fails if two rungs share a number, if the ladder stops being
+ascending, or if any `fixed` element in `app/**` names a z-index of its own. A `z-` on an
+`absolute` element is exempt — it is local to whatever context encloses it.
+
+**There are two stacking tiers, and a z-index only ranks within one.** `UApp` carries
+`isolation: isolate`, so anything rendered inside it (header, sidebar, bottom nav, `NavFab`,
+`SectionIndexRail`) is trapped below everything portalled out to `<body>` — our own
+`<Teleport to="body">` components and every Reka UI portal (modal, drawer, popover, tooltip, the
+toaster). A tier-1 element cannot be lifted over a drawer by raising its number; it either
+teleports too, or it clears the obstacle geometrically.
+
+Nuxt UI's portalled overlays carry **no z-index at all** and are ranked by DOM order, which is what
+lets a popover opened inside a modal land on top of it. Leave them that way: numbering the drawers
+means numbering every anchored thing that can open over one, and the first one missed is a select
+menu rendering behind its own form. The consequence is that everything from `--z-fullscreen` up
+paints over an open drawer — which the toaster has always done.
+
+**The bottom chrome has its own geometry**, in the same file: `--app-nav-inset` (the floating nav
+bar's top edge), `--app-fab-inset` (the `+` button that overhangs it) and `--app-bottom-slot` (the
+first line clear of both — where `UndoToast` sits), plus `--app-bottom-slot-height` for anything
+that has to stay off the toast in turn. All three change at `md` (the nav is `h-16 md:h-12`) and at
+`lg` (no bottom nav at all), so a consumer gets the right answer per breakpoint for free. Anything
+parked near the bottom edge reads these rather than writing a number: `FamilyChatBubble`'s clamp
+resolves them through its inset probe, which is what keeps the chat head off the FAB.
+
+The toaster's own offset is the exception to "theme overrides go in `app.config.ts`": its default
+`top-4` is declared in the toaster theme's *compoundVariants*, and an app-config override merges
+into the `slots` layer underneath them, so it loses silently. `app.vue` passes
+`toaster.ui.viewport` instead — that reaches the slot as `class`, the one layer after the variants.
+
+---
+
 ## Internationalization (i18n)
 
 - **Locales**: English (`en`), Hungarian (`hu`), German (`de`)

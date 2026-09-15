@@ -81,6 +81,82 @@ html {
 :root {
   --app-header-height: 5.5rem;
 
+  /* --- Stacking ladder -------------------------------------------------------------------
+     Every piece of floating chrome takes its z-index from here rather than naming one inline, so
+     the order the overlays paint in is readable in one place instead of having to be
+     reconstructed from a dozen components. Referenced as `z-(--z-nav)` and friends.
+
+     The app has TWO stacking tiers, and a z-index only ever ranks an element against the others
+     in its own tier. This is the single most important thing to know before moving anything:
+
+       Tier 1 — rendered inside <UApp>. Nuxt UI puts `isolation: isolate` on it, which traps
+                every number below inside that one context.
+       Tier 2 — portalled out to <body>: our own `<Teleport to="body">` components (the chat
+                bubble and panel, the lightbox, the onboarding tour, shopping mode, the undo
+                toast) and everything Reka UI portals for Nuxt UI — modals, drawers, popovers,
+                tooltips, the toaster.
+
+     Because tier 2 lives outside UApp's isolated context, ALL of it paints above ALL of tier 1
+     regardless of the numbers. A header at z-9999 still goes under a drawer. So: anything that
+     has to appear over an overlay belongs in tier 2 (teleport it), and anything in tier 1 that
+     has to stay clear of the bottom chrome does it with geometry, not z-index — see the
+     bottom-chrome block below.
+
+     Nuxt UI's own portalled overlays — modals, drawers, popovers, tooltips, menus — carry no
+     z-index at all and are ranked purely by DOM order, which is what lets a popover opened from
+     inside a modal land on top of it. They are deliberately left that way: numbering the drawers
+     would mean numbering every anchored thing that can open over one, and the first one missed is
+     a select menu that renders behind the form it belongs to. The consequence to know is that
+     anything in this ladder from `--z-fullscreen` up paints over an open drawer. That is not new
+     — the toaster has always done it, at the same z-100 it still carries here.
+
+     Gaps of ten leave room to slot something in without renumbering everything.
+
+     One placement is deliberate rather than obvious: `--z-bottom-toast` (UndoToast) is above
+     `--z-fullscreen` (ShoppingModeView). A good share of the undoable purchases are made inside
+     shopping mode, and while the toast was a tier-1 element at z-40 it was not merely behind that
+     view there, it was unreachable. */
+
+  /* Tier 1 — inside <UApp>. */
+  --z-rail: 10;          /* SectionIndexRail */
+  --z-header: 20;        /* AppHeader, and the lg: sidebar that hangs off it */
+  --z-nav: 30;           /* bottom nav bar; NavFab's own z is local to this context */
+
+  /* Tier 2 — portalled to <body>. */
+  --z-fullscreen: 50;    /* ShoppingModeView */
+  --z-chat-dock: 60;     /* the chat bubble's dismiss target, painted just under the bubble */
+  --z-chat-bubble: 61;
+  --z-chat-scrim: 70;
+  --z-chat-panel: 80;
+  --z-bottom-toast: 90;  /* UndoToast */
+  --z-toast: 100;        /* Nuxt UI toaster viewport, via app.config.ts */
+  --z-lightbox: 110;     /* ImageLightbox */
+  --z-tour: 120;         /* OnboardingSpotlight — over all of it, which is the point of it */
+
+  /* Where the Nuxt UI toaster's viewport starts. Its own default is a flat `top-4`, which put
+     every toast over the fixed AppHeader's title and actions — and, with no safe-area term in it,
+     under the status bar on a notched phone once `viewport-fit=cover` is ever turned on. The
+     header publishes its measured height (--app-header-height), so the toasts can simply begin
+     below it. The fallback covers layouts/public.vue, which has no AppHeader to measure. */
+  --app-toast-top: calc(var(--app-header-height, 5.5rem) + 0.5rem);
+
+  /* --- Bottom chrome geometry ------------------------------------------------------------
+     How much of the bottom of the viewport the floating nav and its FAB occupy, so that
+     anything else wanting to sit down there can clear them by name instead of by a guessed
+     magic number. Measured off layouts/auth.vue and NavFab.vue:
+
+       nav container   bottom-4                                        = 1rem
+       nav bar         pt-2 + h-16 + pb-[calc(0.5rem + safe-area)]     = 5rem + safe-area
+       FAB             h-14, centred on the bar's top edge, + ring-4   = 2rem above that edge
+
+     `--app-bottom-slot` is the first line clear of all of it — where UndoToast sits.
+     `--app-bottom-slot-height` is that toast's own height (py-2.5 around a h-6 row), which is
+     what the chat bubble needs in order to stay off it. */
+  --app-nav-inset: calc(6rem + env(safe-area-inset-bottom));
+  --app-fab-inset: calc(var(--app-nav-inset) + 2rem);
+  --app-bottom-slot: calc(var(--app-fab-inset) + 0.5rem);
+  --app-bottom-slot-height: 2.75rem;
+
   /* Bubble list transition — always driven through <AnimatedList>. */
   --bubble-in: 280ms;
   --bubble-out: 180ms;
@@ -107,6 +183,25 @@ html {
      duration (the toast's ring is a per-frame stroke-dashoffset, not a CSS-timed animation), it is
      just declared here so this duration has the same one visible home as every other. */
   --undo-window: 5000ms;
+}
+
+/* The nav items are `h-16 md:h-12`, so the bar — and everything stacked above it — is a
+   rem shorter from `md` up. Same breakpoint as the class, spelled out because a plain
+   custom property cannot carry a Tailwind variant. */
+@media (min-width: 48rem) {
+  :root {
+    --app-nav-inset: calc(5rem + env(safe-area-inset-bottom));
+  }
+}
+
+/* From `lg` the bottom nav is hidden entirely (layouts/auth.vue) and navigation moves to the
+   left sidebar, so there is no nav and no FAB to clear — only UMain's own `lg:pb-10`. */
+@media (min-width: 64rem) {
+  :root {
+    --app-nav-inset: env(safe-area-inset-bottom);
+    --app-fab-inset: var(--app-nav-inset);
+    --app-bottom-slot: calc(2.5rem + env(safe-area-inset-bottom));
+  }
 }
 
 /* Page content cross-fade on navigation (the bottom nav + header stay fixed in the layout). */

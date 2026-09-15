@@ -5,7 +5,7 @@
     <Transition name="chat-bubble-fade">
       <div
         v-if="dismissArmed"
-        class="fixed left-1/2 z-[54] flex h-20 w-20 -translate-x-1/2 items-center justify-center rounded-full border border-default bg-default/90 shadow-lg backdrop-blur transition-transform"
+        class="fixed left-1/2 z-(--z-chat-dock) flex h-20 w-20 -translate-x-1/2 items-center justify-center rounded-full border border-default bg-default/90 shadow-lg backdrop-blur transition-transform"
         :class="overDropTarget ? 'scale-125 text-error-500 border-error-400' : 'text-gray-400'"
         :style="{ bottom: `calc(2rem + ${safeAreaBottom}px)` }"
         aria-hidden="true"
@@ -21,7 +21,7 @@
         data-chat-bubble
         type="button"
         :aria-label="bubbleLabel"
-        class="fixed left-0 top-0 z-[55] flex h-14 w-14 items-center justify-center rounded-full bg-primary-500 text-white shadow-xl ring-2 ring-white/80 dark:ring-gray-900/80 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-primary-300"
+        class="fixed left-0 top-0 z-(--z-chat-bubble) flex h-14 w-14 items-center justify-center rounded-full bg-primary-500 text-white shadow-xl ring-2 ring-white/80 dark:ring-gray-900/80 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-primary-300"
         :style="bubbleStyle"
         @pointerdown="onPointerDown"
         @pointermove="onPointerMove"
@@ -142,8 +142,16 @@ const {
 const BUBBLE_SIZE = 56
 /** Smallest gap between the bubble and the viewport edge, on top of any safe-area inset. */
 const EDGE_MARGIN = 12
-/** Keeps the bubble clear of the bottom nav when it is parked low. */
-const NAV_CLEARANCE = 96
+/**
+ * Fallback for the bottom clearance when the custom properties behind it cannot be resolved.
+ * The live value comes from `--app-bottom-slot` + `--app-bottom-slot-height` in main.css; this is
+ * that expression at the mobile breakpoint with no safe-area inset.
+ *
+ * It used to be a hand-written 96, which is the nav bar's top edge and nothing else — so a parked
+ * bubble could sit squarely on the '+' button that overhangs that edge, and on the undo toast
+ * above it.
+ */
+const BOTTOM_CLEARANCE_FALLBACK = 188
 /**
  * Keeps it clear of the persistent header when parked high.
  *
@@ -264,8 +272,14 @@ const bubbleStyle = computed(() => ({
 
 // --- Geometry ---
 
-/** The safe-area insets, read off a probe so `env()` is resolved by the browser rather than guessed. */
-const readSafeAreaInsets = (): { top: number, right: number, bottom: number, left: number } => {
+/**
+ * The viewport's own edges, read off a probe so the browser resolves both `env()` and the
+ * bottom-chrome custom properties rather than this file guessing at either.
+ *
+ * `bottomChrome` is the whole strip the nav, its FAB and the undo toast occupy. It already
+ * contains the bottom safe-area inset, so it replaces `bottom` in a clamp rather than adding to it.
+ */
+const readViewportInsets = (): { top: number, right: number, bottom: number, left: number, bottomChrome: number } => {
   const probe = document.createElement('div')
   probe.style.cssText = [
     'position:fixed',
@@ -275,7 +289,10 @@ const readSafeAreaInsets = (): { top: number, right: number, bottom: number, lef
     'padding-top:env(safe-area-inset-top, 0px)',
     'padding-right:env(safe-area-inset-right, 0px)',
     'padding-bottom:env(safe-area-inset-bottom, 0px)',
-    'padding-left:env(safe-area-inset-left, 0px)'
+    'padding-left:env(safe-area-inset-left, 0px)',
+    // Margin rather than padding only because all four padding sides are already spoken for
+    // above. Nothing lays this probe out; the value is read straight back off it.
+    'margin-bottom:calc(var(--app-bottom-slot) + var(--app-bottom-slot-height) + 0.5rem)'
   ].join(';')
 
   document.body.appendChild(probe)
@@ -284,22 +301,23 @@ const readSafeAreaInsets = (): { top: number, right: number, bottom: number, lef
     top: Number.parseFloat(style.paddingTop) || 0,
     right: Number.parseFloat(style.paddingRight) || 0,
     bottom: Number.parseFloat(style.paddingBottom) || 0,
-    left: Number.parseFloat(style.paddingLeft) || 0
+    left: Number.parseFloat(style.paddingLeft) || 0,
+    bottomChrome: Number.parseFloat(style.marginBottom) || BOTTOM_CLEARANCE_FALLBACK
   }
   probe.remove()
 
   return insets
 }
 
-/** Pins a position inside the viewport, safe areas and the bottom nav included. */
+/** Pins a position inside the viewport, safe areas and the whole bottom chrome included. */
 const clamp = (nextX: number, nextY: number): { x: number, y: number } => {
-  const insets = readSafeAreaInsets()
+  const insets = readViewportInsets()
   const minX = EDGE_MARGIN + insets.left
   const maxX = window.innerWidth - BUBBLE_SIZE - EDGE_MARGIN - insets.right
-  // The header is sticky at the top and the nav is fixed at the bottom; the bubble is allowed
-  // over neither, so its travel is the strip between them.
+  // The header is fixed at the top, and the nav, its FAB and the undo toast are stacked at the
+  // bottom; the bubble is allowed over none of them, so its travel is the strip between.
   const minY = HEADER_CLEARANCE + insets.top
-  const maxY = window.innerHeight - BUBBLE_SIZE - NAV_CLEARANCE - insets.bottom
+  const maxY = window.innerHeight - BUBBLE_SIZE - insets.bottomChrome
 
   return {
     x: Math.min(Math.max(nextX, minX), Math.max(minX, maxX)),
@@ -469,7 +487,7 @@ const isOverDropTarget = (): boolean => {
  * bubble stays where the chat left it rather than springing back.
  */
 const snapToCorner = (): void => {
-  const insets = readSafeAreaInsets()
+  const insets = readViewportInsets()
   const inTopHalf = y.value + BUBBLE_SIZE / 2 < window.innerHeight / 2
 
   const targetX = nearestEdge.value === 'left'
@@ -478,7 +496,7 @@ const snapToCorner = (): void => {
 
   const targetY = inTopHalf
     ? HEADER_CLEARANCE + insets.top
-    : window.innerHeight - BUBBLE_SIZE - NAV_CLEARANCE - insets.bottom
+    : window.innerHeight - BUBBLE_SIZE - insets.bottomChrome
 
   const settled = clamp(targetX, targetY)
   const alreadyThere = Math.abs(settled.x - x.value) < 1 && Math.abs(settled.y - y.value) < 1
@@ -504,7 +522,7 @@ const snapToCorner = (): void => {
 
 /** Settles the bubble against whichever side it was left nearer, and remembers where that is. */
 const snapToEdge = (): void => {
-  const insets = readSafeAreaInsets()
+  const insets = readViewportInsets()
   const targetX = nearestEdge.value === 'left'
     ? EDGE_MARGIN + insets.left
     : window.innerWidth - BUBBLE_SIZE - EDGE_MARGIN - insets.right
@@ -568,7 +586,9 @@ const place = (): void => {
     ? fromFraction(stored.x, stored.y)
     : {
         x: window.innerWidth - BUBBLE_SIZE - EDGE_MARGIN,
-        y: window.innerHeight - BUBBLE_SIZE - NAV_CLEARANCE - 24
+        // Clamped immediately below, which is what applies the real bottom clearance; the 24 only
+        // lifts the default parking spot a little further clear of it.
+        y: window.innerHeight - BUBBLE_SIZE - BOTTOM_CLEARANCE_FALLBACK - 24
       }
 
   const clamped = clamp(target.x, target.y)
@@ -582,7 +602,7 @@ const place = (): void => {
  * outside the viewport, so the position is re-clamped rather than trusted.
  */
 const onViewportChange = (): void => {
-  safeAreaBottom.value = readSafeAreaInsets().bottom
+  safeAreaBottom.value = readViewportInsets().bottom
   const next = clamp(x.value, y.value)
   x.value = next.x
   y.value = next.y
@@ -607,7 +627,7 @@ const loadFamily = async (): Promise<void> => {
 }
 
 onMounted(async () => {
-  safeAreaBottom.value = readSafeAreaInsets().bottom
+  safeAreaBottom.value = readViewportInsets().bottom
   place()
   scheduleIdle()
 

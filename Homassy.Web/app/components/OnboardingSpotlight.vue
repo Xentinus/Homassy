@@ -2,7 +2,7 @@
   <Teleport to="body">
     <div
       v-if="isActive"
-      class="onboarding-tour fixed inset-0 z-[100]"
+      class="onboarding-tour fixed inset-0 z-(--z-tour)"
       :class="{ 'onboarding-tour--still': reducedMotion }"
       role="dialog"
       aria-modal="true"
