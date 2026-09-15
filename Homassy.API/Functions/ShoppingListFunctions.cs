@@ -437,6 +437,9 @@ namespace Homassy.API.Functions
                 Quantity = item.Quantity,
                 Unit = item.Unit,
                 Note = item.Note,
+                Url = item.Url,
+                EstimatedUnitPrice = item.EstimatedUnitPrice,
+                EstimatedPriceCurrency = item.EstimatedPriceCurrency,
                 SortOrder = item.SortOrder,
                 PurchasedAt = item.PurchasedAt,
                 DeadlineAt = item.DeadlineAt,
@@ -763,6 +766,11 @@ namespace Homassy.API.Functions
                 throw new InvalidShoppingListItemException("Either CustomName or ProductPublicId must be provided");
             }
 
+            if (request.EstimatedUnitPrice.HasValue != request.EstimatedPriceCurrency.HasValue)
+            {
+                throw new InvalidShoppingListItemException("EstimatedUnitPrice and EstimatedPriceCurrency must be provided together");
+            }
+
             int? productId = null;
             int? shoppingLocationId = null;
 
@@ -805,6 +813,9 @@ namespace Homassy.API.Functions
                     Quantity = request.Quantity,
                     Unit = itemUnit,
                     Note = request.Note?.Trim(),
+                    Url = string.IsNullOrWhiteSpace(request.Url) ? null : request.Url.Trim(),
+                    EstimatedUnitPrice = request.EstimatedUnitPrice,
+                    EstimatedPriceCurrency = request.EstimatedPriceCurrency,
                     // New items append to the end of the manual (aisle) order.
                     SortOrder = SparseOrdering.Append(await MaxSortOrderAsync(context, shoppingList.Id, cancellationToken)),
                     DeadlineAt = request.DeadlineAt,
@@ -853,6 +864,9 @@ namespace Homassy.API.Functions
                     Quantity = shoppingListItem.Quantity,
                     Unit = shoppingListItem.Unit,
                     Note = shoppingListItem.Note,
+                    Url = shoppingListItem.Url,
+                    EstimatedUnitPrice = shoppingListItem.EstimatedUnitPrice,
+                    EstimatedPriceCurrency = shoppingListItem.EstimatedPriceCurrency,
                     SortOrder = shoppingListItem.SortOrder,
                     PurchasedAt = shoppingListItem.PurchasedAt,
                     DeadlineAt = shoppingListItem.DeadlineAt,
@@ -1728,6 +1742,11 @@ namespace Homassy.API.Functions
                 {
                     throw new InvalidShoppingListItemException("Either CustomName or ProductPublicId must be provided for all items");
                 }
+
+                if (item.EstimatedUnitPrice.HasValue != item.EstimatedPriceCurrency.HasValue)
+                {
+                    throw new InvalidShoppingListItemException("EstimatedUnitPrice and EstimatedPriceCurrency must be provided together for all items");
+                }
             }
 
             using var context = _contextFactory.CreateDbContext();
@@ -1781,6 +1800,9 @@ namespace Homassy.API.Functions
                         Quantity = item.Quantity,
                         Unit = itemUnit,
                         Note = item.Note?.Trim(),
+                        Url = string.IsNullOrWhiteSpace(item.Url) ? null : item.Url.Trim(),
+                        EstimatedUnitPrice = item.EstimatedUnitPrice,
+                        EstimatedPriceCurrency = item.EstimatedPriceCurrency,
                         SortOrder = nextSortOrder,
                         DeadlineAt = item.DeadlineAt,
                         DueAt = item.DueAt

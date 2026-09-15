@@ -1781,4 +1781,118 @@ public class ShoppingListControllerTests : IClassFixture<HomassyWebApplicationFa
         }
     }
     #endregion
+
+    [Fact]
+    public async Task CreateShoppingListItem_WithUrlAndEstimatedPrice_RoundTripsBothFields()
+    {
+        string? testEmail = null;
+        Guid? listId = null;
+        try
+        {
+            var (email, auth) = await _authHelper.CreateAndAuthenticateUserAsync("item-url-price-create");
+            testEmail = email;
+            _authHelper.SetAuthToken(auth.AccessToken);
+
+            var listResponse = await _client.PostAsJsonAsync("/api/v1.0/shoppinglist", new CreateShoppingListRequest { Name = "Url and price" });
+            var listContent = await listResponse.Content.ReadFromJsonAsync<ApiResponse<ShoppingListInfo>>();
+            listId = listContent!.Data!.PublicId;
+
+            var response = await _client.PostAsJsonAsync("/api/v1.0/shoppinglist/item", new CreateShoppingListItemRequest
+            {
+                ShoppingListPublicId = listId.Value,
+                CustomName = "Halogen bulb",
+                Quantity = 2,
+                Unit = ProductUnit.Piece,
+                Url = "https://example.com/offer?id=12",
+                EstimatedUnitPrice = 1290.5m,
+                EstimatedPriceCurrency = ProductCurrency.Huf
+            });
+            var body = await response.Content.ReadAsStringAsync();
+            _output.WriteLine($"Status: {response.StatusCode}\nResponse: {body}");
+
+            Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+            var content = await response.Content.ReadFromJsonAsync<ApiResponse<ShoppingListItemInfo>>();
+            Assert.Equal("https://example.com/offer?id=12", content!.Data!.Url);
+            Assert.Equal(1290.5m, content.Data.EstimatedUnitPrice);
+            Assert.Equal(ProductCurrency.Huf, content.Data.EstimatedPriceCurrency);
+
+            // The currency must reach the client as its NAME: the web estimate keys its totals by
+            // this string and hands it to Intl.NumberFormat, which cannot read "135".
+            Assert.Contains("\"estimatedPriceCurrency\":\"Huf\"", body);
+        }
+        finally
+        {
+            if (listId.HasValue) await _client.DeleteAsync($"/api/v1.0/shoppinglist/{listId}");
+            _authHelper.ClearAuth();
+            if (testEmail != null) await _authHelper.CleanupUserAsync(testEmail);
+        }
+    }
+
+    [Fact]
+    public async Task CreateShoppingListItem_WithPriceButNoCurrency_ReturnsBadRequest()
+    {
+        string? testEmail = null;
+        Guid? listId = null;
+        try
+        {
+            var (email, auth) = await _authHelper.CreateAndAuthenticateUserAsync("item-price-no-currency");
+            testEmail = email;
+            _authHelper.SetAuthToken(auth.AccessToken);
+
+            var listResponse = await _client.PostAsJsonAsync("/api/v1.0/shoppinglist", new CreateShoppingListRequest { Name = "Price without currency" });
+            var listContent = await listResponse.Content.ReadFromJsonAsync<ApiResponse<ShoppingListInfo>>();
+            listId = listContent!.Data!.PublicId;
+
+            var response = await _client.PostAsJsonAsync("/api/v1.0/shoppinglist/item", new CreateShoppingListItemRequest
+            {
+                ShoppingListPublicId = listId.Value,
+                CustomName = "Halogen bulb",
+                Quantity = 1,
+                Unit = ProductUnit.Piece,
+                EstimatedUnitPrice = 1290.5m
+            });
+            _output.WriteLine($"Status: {response.StatusCode}");
+            Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        }
+        finally
+        {
+            if (listId.HasValue) await _client.DeleteAsync($"/api/v1.0/shoppinglist/{listId}");
+            _authHelper.ClearAuth();
+            if (testEmail != null) await _authHelper.CleanupUserAsync(testEmail);
+        }
+    }
+
+    [Fact]
+    public async Task CreateShoppingListItem_WithNonHttpUrl_ReturnsBadRequest()
+    {
+        string? testEmail = null;
+        Guid? listId = null;
+        try
+        {
+            var (email, auth) = await _authHelper.CreateAndAuthenticateUserAsync("item-bad-url");
+            testEmail = email;
+            _authHelper.SetAuthToken(auth.AccessToken);
+
+            var listResponse = await _client.PostAsJsonAsync("/api/v1.0/shoppinglist", new CreateShoppingListRequest { Name = "Bad url" });
+            var listContent = await listResponse.Content.ReadFromJsonAsync<ApiResponse<ShoppingListInfo>>();
+            listId = listContent!.Data!.PublicId;
+
+            var response = await _client.PostAsJsonAsync("/api/v1.0/shoppinglist/item", new CreateShoppingListItemRequest
+            {
+                ShoppingListPublicId = listId.Value,
+                CustomName = "Halogen bulb",
+                Quantity = 1,
+                Unit = ProductUnit.Piece,
+                Url = "javascript:alert(1)"
+            });
+            _output.WriteLine($"Status: {response.StatusCode}");
+            Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        }
+        finally
+        {
+            if (listId.HasValue) await _client.DeleteAsync($"/api/v1.0/shoppinglist/{listId}");
+            _authHelper.ClearAuth();
+            if (testEmail != null) await _authHelper.CleanupUserAsync(testEmail);
+        }
+    }
 }
