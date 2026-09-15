@@ -957,6 +957,7 @@
         "createNewProduct": "Neues Produkt erstellen",
         "pick": {
           "createProduct": "Produkt „{name}“ anlegen",
+          "addAsCustom": "„{name}“ als eigenen Eintrag hinzufügen",
           "createLocation": "Ort „{name}“ anlegen",
           "properties": "Eigenschaften",
           "favorite": "Favorit",
@@ -979,6 +980,11 @@
           "unitPlaceholder": "Einheit auswählen",
           "noteLabel": "Notiz",
           "notePlaceholder": "Optionale Notiz hinzufügen",
+          "urlLabel": "Link",
+          "urlPlaceholder": "https://...",
+          "urlInvalid": "Gib eine http- oder https-Adresse ein",
+          "estimatedPriceLabel": "Geschätzter Stückpreis",
+          "estimatedPricePlaceholder": "z. B. 1290",
           "deadlineLabel": "Frist",
           "dueLabel": "Fälligkeitsdatum",
           "createButton": "Zur Liste hinzufügen"
@@ -1171,6 +1177,9 @@
     "editItemDescription": "Ändern Sie die Details des Einkaufslistenartikels",
     "customName": "Benutzerdefinierter Name",
     "shoppingLocation": "Einkaufsort",
+    "openLink": "Link öffnen",
+    "itemUrl": "Link",
+    "estimatedPrice": "Geschätzter Stückpreis",
     "deleteItemWarning": "Möchten Sie diesen Artikel wirklich löschen?",
     "itemUpdated": "Artikel erfolgreich aktualisiert",
     "itemDeleted": "Artikel erfolgreich gelöscht",
@@ -1924,9 +1933,9 @@
       "55": "Beutel"
     },
     "currency": {
-      "105": "EUR",
+      "98": "EUR",
       "135": "HUF",
-      "279": "USD"
+      "294": "USD"
     },
     "activityType": {
       "1": "Produkt erstellt",

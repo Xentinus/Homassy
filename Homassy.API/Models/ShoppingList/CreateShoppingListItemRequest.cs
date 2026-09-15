@@ -30,6 +30,18 @@ namespace Homassy.API.Models.ShoppingList
         [SanitizedString]
         public string? Note { get; set; }
 
+        [Url]
+        [StringLength(1024)]
+        public string? Url { get; set; }
+
+        // Set together with EstimatedPriceCurrency or not at all — enforced in
+        // ShoppingListFunctions, because DataAnnotations cannot express a two-property rule.
+        [Range(0, 99999999)]
+        public decimal? EstimatedUnitPrice { get; set; }
+
+        [EnumDataType(typeof(Currency))]
+        public Currency? EstimatedPriceCurrency { get; set; }
+
         public DateTime? DeadlineAt { get; set; }
 
         public DateTime? DueAt { get; set; }

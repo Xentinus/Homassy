@@ -34,4 +34,31 @@ describe('estimateListTotal', () => {
     const r = estimateListTotal([{ productId: 1, quantity: 0, bestPrice: { unitPrice: 100, currency: 'HUF' } }])
     expect(r.totalsByCurrency.HUF).toBe(100)
   })
+
+  it('prefers a manual price over the best known price', () => {
+    const r = estimateListTotal([{
+      productId: 1,
+      quantity: 2,
+      bestPrice: { unitPrice: 100, currency: 'HUF' },
+      manualPrice: { unitPrice: 150, currency: 'HUF' }
+    }])
+    expect(r.totalsByCurrency.HUF).toBe(300)
+    expect(r.pricedCount).toBe(1)
+  })
+
+  it('prices a row that has only a manual price', () => {
+    const r = estimateListTotal([{ productId: 'custom-row', quantity: 3, manualPrice: { unitPrice: 50, currency: 'HUF' } }])
+    expect(r.totalsByCurrency.HUF).toBe(150)
+    expect(r.unpricedCount).toBe(0)
+  })
+
+  it('uses the manual price currency, not the known price currency', () => {
+    const r = estimateListTotal([{
+      productId: 1,
+      quantity: 1,
+      bestPrice: { unitPrice: 100, currency: 'HUF' },
+      manualPrice: { unitPrice: 2, currency: 'EUR' }
+    }])
+    expect(r.totalsByCurrency).toEqual({ EUR: 2 })
+  })
 })

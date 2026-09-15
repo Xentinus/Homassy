@@ -173,7 +173,7 @@
           :description="$t('pages.shoppingLists.noItemsInListHint')"
           :action-label="$t('pages.shoppingLists.addProductButton')"
           action-icon="i-lucide-plus"
-          @action="openAddItemModal('product')"
+          @action="openAddItemModal()"
         />
 
         <!-- Empty: No Search Results -->
@@ -493,7 +493,6 @@
     <AddShoppingListItemModal
       v-model:open="isAddItemModalOpen"
       :list-id="selectedListId"
-      :mode="addItemMode"
       :initial-name="sharedItemName"
     />
 
@@ -682,7 +681,11 @@ const listEstimate = computed(() => estimateListTotal(
       return {
         productId: item.productPublicId ?? item.publicId,
         quantity: item.quantity,
-        bestPrice: best ? { unitPrice: best.unitPrice, currency: best.currency } : undefined
+        bestPrice: best ? { unitPrice: best.unitPrice, currency: best.currency } : undefined,
+        // A price typed onto the row beats purchase history — see `EstimateInput.manualPrice`.
+        manualPrice: item.estimatedUnitPrice != null && item.estimatedPriceCurrency
+          ? { unitPrice: item.estimatedUnitPrice, currency: item.estimatedPriceCurrency }
+          : undefined
       }
     })
 ))
@@ -699,69 +702,64 @@ const hasEstimate = computed(() => listEstimate.value.pricedCount > 0 || listEst
 
 // Add-item wizard (fullscreen modal) state.
 const isAddItemModalOpen = ref(false)
-const addItemMode = ref<'product' | 'custom'>('product')
-const openAddItemModal = (mode: 'product' | 'custom') => {
+const openAddItemModal = () => {
   if (!selectedListId.value) return
-  addItemMode.value = mode
   isAddItemModalOpen.value = true
 }
 
 // --- Share target / app-shortcut arrivals (#118) ----------------------------
-// A name parked by /share for a custom item. Read once, then cleared: it is a
-// one-time intent, and `AddShoppingListItemModal` only seeds from it on open.
+// A name parked by /share for a custom item. `AddShoppingListItemModal` seeds its search field
+// from this on every open (not only a share arrival, now that the wizard's two modes collapsed
+// into one search field), so it has to be a one-time intent: cleared the moment the wizard
+// closes, so a later FAB press does not still find the stale shared name pre-filled.
 const { takeHandoffItemName } = useShareTarget()
 const sharedItemName = ref<string | undefined>(undefined)
+watch(isAddItemModalOpen, (open) => {
+  if (!open) sharedItemName.value = undefined
+})
 
 /**
- * The mode an arriving deep link asked for but could not be given yet, because
- * `loadShoppingLists()` had not picked a list. `openAddItemModal` refuses without
- * one, so the intent is parked and the watcher below fires it the moment a list
- * exists — otherwise a shortcut into a cold start would silently do nothing.
+ * Set when an arriving deep link asked for the wizard before `loadShoppingLists()` had picked a
+ * list. `openAddItemModal` refuses without one, so the intent is parked and the watcher below
+ * fires it the moment a list exists.
  */
-const pendingAddItemMode = ref<'product' | 'custom' | null>(null)
+const pendingAddItem = ref(false)
 
-function requestAddItem(mode: 'product' | 'custom') {
+function requestAddItem() {
   if (selectedListId.value) {
-    openAddItemModal(mode)
+    openAddItemModal()
   } else {
-    pendingAddItemMode.value = mode
+    pendingAddItem.value = true
   }
 }
 
 watch(selectedListId, (id) => {
-  if (!id || !pendingAddItemMode.value) return
-  const mode = pendingAddItemMode.value
-  pendingAddItemMode.value = null
-  openAddItemModal(mode)
+  if (!id || !pendingAddItem.value) return
+  pendingAddItem.value = false
+  openAddItemModal()
 })
 
 useDeepLinkAction({
-  add: () => requestAddItem('product'),
+  add: () => requestAddItem(),
   'add-custom': () => {
     sharedItemName.value = takeHandoffItemName() ?? undefined
-    requestAddItem('custom')
+    requestAddItem()
   }
 })
 
-// Dynamic add-actions on the nav FAB: only when a list is selected. Two options →
+// Dynamic add-actions on the nav FAB: only when a list is selected.
 const { isSupported: isVoiceSupported } = useSpeechRecognition()
 const isVoiceOpen = ref(false)
 
-// the FAB opens a chooser (see useFabActions); each opens the wizard in a given mode.
 useFabActions(() => selectedListId.value
   ? [
       {
         label: $t('pages.shoppingLists.addWithSearch'),
-        icon: 'i-lucide-search',
-        handler: () => openAddItemModal('product')
+        icon: 'i-lucide-plus',
+        handler: () => openAddItemModal()
       },
-      {
-        label: $t('pages.shoppingLists.addCustom'),
-        icon: 'i-lucide-pencil-line',
-        handler: () => openAddItemModal('custom')
-      },
-      // Voice input (#132), offered next to the other two and only where the browser can
-      // actually transcribe — Firefox has no Web Speech API at all.
+      // Voice input (#132), offered only where the browser can actually transcribe — Firefox
+      // has no Web Speech API at all.
       ...(isVoiceSupported.value
         ? [{
             label: $t('voice.addByVoice'),

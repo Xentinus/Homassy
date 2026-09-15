@@ -957,6 +957,7 @@
         "createNewProduct": "Új termék létrehozása",
         "pick": {
           "createProduct": "„{name}” létrehozása termékként",
+          "addAsCustom": "„{name}” hozzáadása egyedi tételként",
           "createLocation": "„{name}” létrehozása bolthelyként",
           "properties": "Tulajdonság",
           "favorite": "Kedvenc",
@@ -979,6 +980,11 @@
           "unitPlaceholder": "Válassz mértékegységet",
           "noteLabel": "Megjegyzés",
           "notePlaceholder": "Adj hozzá opcionális megjegyzést",
+          "urlLabel": "Link",
+          "urlPlaceholder": "https://...",
+          "urlInvalid": "Adj meg egy http vagy https címet",
+          "estimatedPriceLabel": "Becsült egységár",
+          "estimatedPricePlaceholder": "pl. 1290",
           "deadlineLabel": "Határidő",
           "dueLabel": "Esedékesség",
           "createButton": "Hozzáadás a listához"
@@ -1171,6 +1177,9 @@
     "editItemDescription": "A bevásárlólista elem részleteinek módosítása",
     "customName": "Egyedi név",
     "shoppingLocation": "Bevásárlási hely",
+    "openLink": "Link megnyitása",
+    "itemUrl": "Link",
+    "estimatedPrice": "Becsült egységár",
     "deleteItemWarning": "Biztosan törölni szeretnéd ezt az elemet?",
     "itemUpdated": "Elem sikeresen frissítve",
     "itemDeleted": "Elem sikeresen törölve",
@@ -1924,9 +1933,9 @@
       "55": "tasak"
     },
     "currency": {
-      "105": "€",
+      "98": "€",
       "135": "Ft",
-      "279": "$"
+      "294": "$"
     },
     "activityType": {
       "1": "Termék létrehozva",

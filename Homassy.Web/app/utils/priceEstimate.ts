@@ -21,6 +21,12 @@ export interface EstimateInput {
   quantity: number
   /** Absent when the household has never recorded a price for this product. */
   bestPrice?: { unitPrice: number; currency: string }
+  /**
+   * A unit price typed onto the row itself. It wins over `bestPrice`: someone who wrote down what
+   * they expect to pay for this trip knows something the purchase history does not, and a custom
+   * row has no history to consult at all.
+   */
+  manualPrice?: { unitPrice: number; currency: string }
 }
 
 export interface EstimateResult {
@@ -55,12 +61,13 @@ export const estimateListTotal = (items: readonly EstimateInput[]): EstimateResu
   let pricedCount = 0
 
   for (const item of items) {
-    if (!item.bestPrice) {
+    const price = item.manualPrice ?? item.bestPrice
+    if (!price) {
       unpricedCount++
       continue
     }
 
-    const { unitPrice, currency } = item.bestPrice
+    const { unitPrice, currency } = price
     totalsByCurrency[currency] = (totalsByCurrency[currency] ?? 0) + unitPrice * effectiveQuantity(item.quantity)
     pricedCount++
   }

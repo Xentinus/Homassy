@@ -1781,4 +1781,338 @@ public class ShoppingListControllerTests : IClassFixture<HomassyWebApplicationFa
         }
     }
     #endregion
+
+    [Fact]
+    public async Task CreateShoppingListItem_WithUrlAndEstimatedPrice_RoundTripsBothFields()
+    {
+        string? testEmail = null;
+        Guid? listId = null;
+        try
+        {
+            var (email, auth) = await _authHelper.CreateAndAuthenticateUserAsync("item-url-price-create");
+            testEmail = email;
+            _authHelper.SetAuthToken(auth.AccessToken);
+
+            var listResponse = await _client.PostAsJsonAsync("/api/v1.0/shoppinglist", new CreateShoppingListRequest { Name = "Url and price" });
+            var listContent = await listResponse.Content.ReadFromJsonAsync<ApiResponse<ShoppingListInfo>>();
+            listId = listContent!.Data!.PublicId;
+
+            var response = await _client.PostAsJsonAsync("/api/v1.0/shoppinglist/item", new CreateShoppingListItemRequest
+            {
+                ShoppingListPublicId = listId.Value,
+                CustomName = "Halogen bulb",
+                Quantity = 2,
+                Unit = ProductUnit.Piece,
+                Url = "https://example.com/offer?id=12",
+                EstimatedUnitPrice = 1290.5m,
+                EstimatedPriceCurrency = ProductCurrency.Huf
+            });
+            var body = await response.Content.ReadAsStringAsync();
+            _output.WriteLine($"Status: {response.StatusCode}\nResponse: {body}");
+
+            Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+            var content = await response.Content.ReadFromJsonAsync<ApiResponse<ShoppingListItemInfo>>();
+            Assert.Equal("https://example.com/offer?id=12", content!.Data!.Url);
+            Assert.Equal(1290.5m, content.Data.EstimatedUnitPrice);
+            Assert.Equal(ProductCurrency.Huf, content.Data.EstimatedPriceCurrency);
+
+            // The currency must reach the client as its NAME: the web estimate keys its totals by
+            // this string and hands it to Intl.NumberFormat, which cannot read "135".
+            Assert.Contains("\"estimatedPriceCurrency\":\"Huf\"", body);
+        }
+        finally
+        {
+            if (listId.HasValue) await _client.DeleteAsync($"/api/v1.0/shoppinglist/{listId}");
+            _authHelper.ClearAuth();
+            if (testEmail != null) await _authHelper.CleanupUserAsync(testEmail);
+        }
+    }
+
+    [Fact]
+    public async Task CreateShoppingListItem_WithPriceButNoCurrency_ReturnsBadRequest()
+    {
+        string? testEmail = null;
+        Guid? listId = null;
+        try
+        {
+            var (email, auth) = await _authHelper.CreateAndAuthenticateUserAsync("item-price-no-currency");
+            testEmail = email;
+            _authHelper.SetAuthToken(auth.AccessToken);
+
+            var listResponse = await _client.PostAsJsonAsync("/api/v1.0/shoppinglist", new CreateShoppingListRequest { Name = "Price without currency" });
+            var listContent = await listResponse.Content.ReadFromJsonAsync<ApiResponse<ShoppingListInfo>>();
+            listId = listContent!.Data!.PublicId;
+
+            var response = await _client.PostAsJsonAsync("/api/v1.0/shoppinglist/item", new CreateShoppingListItemRequest
+            {
+                ShoppingListPublicId = listId.Value,
+                CustomName = "Halogen bulb",
+                Quantity = 1,
+                Unit = ProductUnit.Piece,
+                EstimatedUnitPrice = 1290.5m
+            });
+            _output.WriteLine($"Status: {response.StatusCode}");
+            Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        }
+        finally
+        {
+            if (listId.HasValue) await _client.DeleteAsync($"/api/v1.0/shoppinglist/{listId}");
+            _authHelper.ClearAuth();
+            if (testEmail != null) await _authHelper.CleanupUserAsync(testEmail);
+        }
+    }
+
+    [Fact]
+    public async Task CreateShoppingListItem_WithNonHttpUrl_ReturnsBadRequest()
+    {
+        string? testEmail = null;
+        Guid? listId = null;
+        try
+        {
+            var (email, auth) = await _authHelper.CreateAndAuthenticateUserAsync("item-bad-url");
+            testEmail = email;
+            _authHelper.SetAuthToken(auth.AccessToken);
+
+            var listResponse = await _client.PostAsJsonAsync("/api/v1.0/shoppinglist", new CreateShoppingListRequest { Name = "Bad url" });
+            var listContent = await listResponse.Content.ReadFromJsonAsync<ApiResponse<ShoppingListInfo>>();
+            listId = listContent!.Data!.PublicId;
+
+            var response = await _client.PostAsJsonAsync("/api/v1.0/shoppinglist/item", new CreateShoppingListItemRequest
+            {
+                ShoppingListPublicId = listId.Value,
+                CustomName = "Halogen bulb",
+                Quantity = 1,
+                Unit = ProductUnit.Piece,
+                Url = "javascript:alert(1)"
+            });
+            _output.WriteLine($"Status: {response.StatusCode}");
+            Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        }
+        finally
+        {
+            if (listId.HasValue) await _client.DeleteAsync($"/api/v1.0/shoppinglist/{listId}");
+            _authHelper.ClearAuth();
+            if (testEmail != null) await _authHelper.CleanupUserAsync(testEmail);
+        }
+    }
+
+    [Fact]
+    public async Task UpdateShoppingListItem_SetsThenClearsUrlAndEstimatedPrice()
+    {
+        string? testEmail = null;
+        Guid? listId = null;
+        try
+        {
+            var (email, auth) = await _authHelper.CreateAndAuthenticateUserAsync("item-url-price-update");
+            testEmail = email;
+            _authHelper.SetAuthToken(auth.AccessToken);
+
+            var (list, itemId) = await CreateListWithCustomItemAsync("Url and price update", 1);
+            listId = list;
+
+            var setResponse = await _client.PutAsJsonAsync($"/api/v1.0/shoppinglist/item/{itemId}", new UpdateShoppingListItemRequest
+            {
+                Url = "https://example.com/offer",
+                EstimatedUnitPrice = 499m,
+                EstimatedPriceCurrency = ProductCurrency.Eur
+            });
+            _output.WriteLine($"Set status: {setResponse.StatusCode}");
+            Assert.Equal(HttpStatusCode.OK, setResponse.StatusCode);
+            var afterSet = await setResponse.Content.ReadFromJsonAsync<ApiResponse<ShoppingListItemInfo>>();
+            Assert.Equal("https://example.com/offer", afterSet!.Data!.Url);
+            Assert.Equal(499m, afterSet.Data.EstimatedUnitPrice);
+            Assert.Equal(ProductCurrency.Eur, afterSet.Data.EstimatedPriceCurrency);
+
+            var clearResponse = await _client.PutAsJsonAsync($"/api/v1.0/shoppinglist/item/{itemId}", new UpdateShoppingListItemRequest
+            {
+                ClearUrl = true,
+                ClearEstimatedPrice = true
+            });
+            _output.WriteLine($"Clear status: {clearResponse.StatusCode}");
+            Assert.Equal(HttpStatusCode.OK, clearResponse.StatusCode);
+            var afterClear = await clearResponse.Content.ReadFromJsonAsync<ApiResponse<ShoppingListItemInfo>>();
+            Assert.Null(afterClear!.Data!.Url);
+            Assert.Null(afterClear.Data.EstimatedUnitPrice);
+            // The currency goes with the price: clearing one clears both.
+            Assert.Null(afterClear.Data.EstimatedPriceCurrency);
+        }
+        finally
+        {
+            if (listId.HasValue) await _client.DeleteAsync($"/api/v1.0/shoppinglist/{listId}");
+            _authHelper.ClearAuth();
+            if (testEmail != null) await _authHelper.CleanupUserAsync(testEmail);
+        }
+    }
+
+    [Fact]
+    public async Task UpdateShoppingListItem_WithCurrencyButNoPrice_ReturnsBadRequest()
+    {
+        string? testEmail = null;
+        Guid? listId = null;
+        try
+        {
+            var (email, auth) = await _authHelper.CreateAndAuthenticateUserAsync("item-currency-no-price");
+            testEmail = email;
+            _authHelper.SetAuthToken(auth.AccessToken);
+
+            var (list, itemId) = await CreateListWithCustomItemAsync("Currency without price", 1);
+            listId = list;
+
+            var response = await _client.PutAsJsonAsync($"/api/v1.0/shoppinglist/item/{itemId}", new UpdateShoppingListItemRequest
+            {
+                EstimatedPriceCurrency = ProductCurrency.Eur
+            });
+            _output.WriteLine($"Status: {response.StatusCode}");
+            Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        }
+        finally
+        {
+            if (listId.HasValue) await _client.DeleteAsync($"/api/v1.0/shoppinglist/{listId}");
+            _authHelper.ClearAuth();
+            if (testEmail != null) await _authHelper.CleanupUserAsync(testEmail);
+        }
+    }
+
+    [Fact]
+    public async Task CreateShoppingListItem_ForAProduct_ReturnsTheNestedProduct()
+    {
+        string? testEmail = null;
+        Guid? listId = null;
+        try
+        {
+            var (email, auth) = await _authHelper.CreateAndAuthenticateUserAsync("item-nested-product");
+            testEmail = email;
+            _authHelper.SetAuthToken(auth.AccessToken);
+
+            var productResponse = await _client.PostAsJsonAsync("/api/v1.0/product", new CreateProductRequest
+            {
+                Name = "Nested milk",
+                Brand = "Test brand",
+                Unit = ProductUnit.Liter
+            });
+            var productContent = await productResponse.Content.ReadFromJsonAsync<ApiResponse<ProductInfo>>();
+            var productId = productContent!.Data!.PublicId;
+
+            var listResponse = await _client.PostAsJsonAsync("/api/v1.0/shoppinglist", new CreateShoppingListRequest { Name = "Nested product" });
+            var listContent = await listResponse.Content.ReadFromJsonAsync<ApiResponse<ShoppingListInfo>>();
+            listId = listContent!.Data!.PublicId;
+
+            var response = await _client.PostAsJsonAsync("/api/v1.0/shoppinglist/item", new CreateShoppingListItemRequest
+            {
+                ShoppingListPublicId = listId.Value,
+                ProductPublicId = productId,
+                Quantity = 1
+            });
+            var body = await response.Content.ReadAsStringAsync();
+            _output.WriteLine($"Status: {response.StatusCode}\nResponse: {body}");
+
+            Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+            var content = await response.Content.ReadFromJsonAsync<ApiResponse<ShoppingListItemInfo>>();
+            // The POST response must carry what the ItemUpserted broadcast carries for the same
+            // item — otherwise the same row renders differently depending on which one arrives.
+            Assert.NotNull(content!.Data!.Product);
+            Assert.Equal("Nested milk", content.Data.Product!.Name);
+            Assert.Equal(productId, content.Data.ProductPublicId);
+        }
+        finally
+        {
+            if (listId.HasValue) await _client.DeleteAsync($"/api/v1.0/shoppinglist/{listId}");
+            _authHelper.ClearAuth();
+            if (testEmail != null) await _authHelper.CleanupUserAsync(testEmail);
+        }
+    }
+
+    [Fact]
+    public async Task SimpleQuickPurchase_ForAProduct_ReturnsTheAddressedItemHydratedAndSetsPurchasedAt()
+    {
+        string? testEmail = null;
+        Guid? listId = null;
+        try
+        {
+            var (email, auth) = await _authHelper.CreateAndAuthenticateUserAsync("simple-quick-purchase");
+            testEmail = email;
+            _authHelper.SetAuthToken(auth.AccessToken);
+
+            var productResponse = await _client.PostAsJsonAsync("/api/v1.0/product", new CreateProductRequest
+            {
+                Name = "Quick purchase milk",
+                Brand = "Test brand",
+                Unit = ProductUnit.Liter
+            });
+            var productContent = await productResponse.Content.ReadFromJsonAsync<ApiResponse<ProductInfo>>();
+            var productId = productContent!.Data!.PublicId;
+
+            var listResponse = await _client.PostAsJsonAsync("/api/v1.0/shoppinglist", new CreateShoppingListRequest { Name = "Simple quick purchase" });
+            var listContent = await listResponse.Content.ReadFromJsonAsync<ApiResponse<ShoppingListInfo>>();
+            listId = listContent!.Data!.PublicId;
+
+            var itemResponse = await _client.PostAsJsonAsync("/api/v1.0/shoppinglist/item", new CreateShoppingListItemRequest
+            {
+                ShoppingListPublicId = listId.Value,
+                ProductPublicId = productId,
+                Quantity = 1
+            });
+            var itemContent = await itemResponse.Content.ReadFromJsonAsync<ApiResponse<ShoppingListItemInfo>>();
+            var itemId = itemContent!.Data!.PublicId;
+
+            var response = await _client.GetAsync($"/api/v1.0/shoppinglist/item/{itemId}/quick-purchase");
+            var body = await response.Content.ReadAsStringAsync();
+            _output.WriteLine($"Status: {response.StatusCode}\nResponse: {body}");
+
+            Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+            var content = await response.Content.ReadFromJsonAsync<ApiResponse<ShoppingListItemInfo>>();
+            // Proves the call site passed its own tracked item (not some other item) and its own
+            // list: the wrong pairing would still return 200 but with the wrong PublicId or a
+            // thin projection.
+            Assert.Equal(itemId, content!.Data!.PublicId);
+            Assert.NotNull(content.Data.PurchasedAt);
+            Assert.NotNull(content.Data.Product);
+            Assert.Equal("Quick purchase milk", content.Data.Product!.Name);
+            Assert.Equal(productId, content.Data.ProductPublicId);
+        }
+        finally
+        {
+            if (listId.HasValue) await _client.DeleteAsync($"/api/v1.0/shoppinglist/{listId}");
+            _authHelper.ClearAuth();
+            if (testEmail != null) await _authHelper.CleanupUserAsync(testEmail);
+        }
+    }
+
+    [Fact]
+    public async Task RestorePurchase_AfterQuickPurchase_ClearsPurchasedAtOnTheAddressedItem()
+    {
+        string? testEmail = null;
+        Guid? listId = null;
+        try
+        {
+            var (email, auth) = await _authHelper.CreateAndAuthenticateUserAsync("restore-purchase");
+            testEmail = email;
+            _authHelper.SetAuthToken(auth.AccessToken);
+
+            var (list, itemId) = await CreateListWithCustomItemAsync("Restore purchase", 1);
+            listId = list;
+
+            var quickPurchaseResponse = await _client.GetAsync($"/api/v1.0/shoppinglist/item/{itemId}/quick-purchase");
+            Assert.Equal(HttpStatusCode.OK, quickPurchaseResponse.StatusCode);
+            var quickPurchaseContent = await quickPurchaseResponse.Content.ReadFromJsonAsync<ApiResponse<ShoppingListItemInfo>>();
+            Assert.NotNull(quickPurchaseContent!.Data!.PurchasedAt);
+
+            var response = await _client.GetAsync($"/api/v1.0/shoppinglist/item/{itemId}/restore-purchase");
+            var body = await response.Content.ReadAsStringAsync();
+            _output.WriteLine($"Status: {response.StatusCode}\nResponse: {body}");
+
+            Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+            var content = await response.Content.ReadFromJsonAsync<ApiResponse<ShoppingListItemInfo>>();
+            // Proves the call site passed its own tracked item and its own list, and that the
+            // conversion did not drop the state change RestorePurchaseAsync makes.
+            Assert.Equal(itemId, content!.Data!.PublicId);
+            Assert.Null(content.Data.PurchasedAt);
+        }
+        finally
+        {
+            if (listId.HasValue) await _client.DeleteAsync($"/api/v1.0/shoppinglist/{listId}");
+            _authHelper.ClearAuth();
+            if (testEmail != null) await _authHelper.CleanupUserAsync(testEmail);
+        }
+    }
 }

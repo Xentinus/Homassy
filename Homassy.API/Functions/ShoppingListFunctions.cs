@@ -437,6 +437,9 @@ namespace Homassy.API.Functions
                 Quantity = item.Quantity,
                 Unit = item.Unit,
                 Note = item.Note,
+                Url = item.Url,
+                EstimatedUnitPrice = item.EstimatedUnitPrice,
+                EstimatedPriceCurrency = item.EstimatedPriceCurrency,
                 SortOrder = item.SortOrder,
                 PurchasedAt = item.PurchasedAt,
                 DeadlineAt = item.DeadlineAt,
@@ -763,6 +766,11 @@ namespace Homassy.API.Functions
                 throw new InvalidShoppingListItemException("Either CustomName or ProductPublicId must be provided");
             }
 
+            if (request.EstimatedUnitPrice.HasValue != request.EstimatedPriceCurrency.HasValue)
+            {
+                throw new InvalidShoppingListItemException("EstimatedUnitPrice and EstimatedPriceCurrency must be provided together");
+            }
+
             int? productId = null;
             int? shoppingLocationId = null;
 
@@ -805,6 +813,9 @@ namespace Homassy.API.Functions
                     Quantity = request.Quantity,
                     Unit = itemUnit,
                     Note = request.Note?.Trim(),
+                    Url = string.IsNullOrWhiteSpace(request.Url) ? null : request.Url.Trim(),
+                    EstimatedUnitPrice = request.EstimatedUnitPrice,
+                    EstimatedPriceCurrency = request.EstimatedPriceCurrency,
                     // New items append to the end of the manual (aisle) order.
                     SortOrder = SparseOrdering.Append(await MaxSortOrderAsync(context, shoppingList.Id, cancellationToken)),
                     DeadlineAt = request.DeadlineAt,
@@ -841,23 +852,10 @@ namespace Homassy.API.Functions
                 }
 
                 // Notify everyone viewing this list of the new item.
-                await _runtime.ShoppingList.ItemUpsertedAsync(shoppingList.PublicId, BuildItemInfo(shoppingListItem, shoppingList), cancellationToken, actorPublicId);
+                var info = BuildItemInfo(shoppingListItem, shoppingList);
+                await _runtime.ShoppingList.ItemUpsertedAsync(shoppingList.PublicId, info, cancellationToken, actorPublicId);
 
-                return new ShoppingListItemInfo
-                {
-                    PublicId = shoppingListItem.PublicId,
-                    ShoppingListPublicId = shoppingList.PublicId,
-                    ProductPublicId = request.ProductPublicId,
-                    ShoppingLocationPublicId = request.ShoppingLocationPublicId,
-                    CustomName = shoppingListItem.CustomName,
-                    Quantity = shoppingListItem.Quantity,
-                    Unit = shoppingListItem.Unit,
-                    Note = shoppingListItem.Note,
-                    SortOrder = shoppingListItem.SortOrder,
-                    PurchasedAt = shoppingListItem.PurchasedAt,
-                    DeadlineAt = shoppingListItem.DeadlineAt,
-                    DueAt = shoppingListItem.DueAt
-                };
+                return info;
             }
             catch (Exception ex)
             {
@@ -894,6 +892,11 @@ namespace Homassy.API.Functions
                 (!familyId.HasValue || shoppingList.FamilyId != familyId.Value))
             {
                 throw new ShoppingListAccessDeniedException();
+            }
+
+            if (request.EstimatedUnitPrice.HasValue != request.EstimatedPriceCurrency.HasValue)
+            {
+                throw new InvalidShoppingListItemException("EstimatedUnitPrice and EstimatedPriceCurrency must be provided together");
             }
 
             using var context = _contextFactory.CreateDbContext();
@@ -967,6 +970,30 @@ namespace Homassy.API.Functions
                     hasChanges = true;
                 }
 
+                if (!string.IsNullOrWhiteSpace(request.Url))
+                {
+                    trackedItem.Url = request.Url.Trim();
+                    hasChanges = true;
+                }
+                else if (request.ClearUrl == true)
+                {
+                    trackedItem.Url = null;
+                    hasChanges = true;
+                }
+
+                if (request.EstimatedUnitPrice.HasValue && request.EstimatedPriceCurrency.HasValue)
+                {
+                    trackedItem.EstimatedUnitPrice = request.EstimatedUnitPrice.Value;
+                    trackedItem.EstimatedPriceCurrency = request.EstimatedPriceCurrency.Value;
+                    hasChanges = true;
+                }
+                else if (request.ClearEstimatedPrice == true)
+                {
+                    trackedItem.EstimatedUnitPrice = null;
+                    trackedItem.EstimatedPriceCurrency = null;
+                    hasChanges = true;
+                }
+
                 if (request.PurchasedAt.HasValue)
                 {
                     trackedItem.PurchasedAt = request.PurchasedAt.Value;
@@ -997,15 +1024,17 @@ namespace Homassy.API.Functions
 
                 await transaction.CommitAsync(cancellationToken);
 
+                var info = BuildItemInfo(trackedItem, shoppingList);
+
                 // Record activity only if changes were made
                 if (hasChanges)
                 {
                     try
                     {
-                        var itemName = !string.IsNullOrWhiteSpace(trackedItem.CustomName) 
-                            ? trackedItem.CustomName 
+                        var itemName = !string.IsNullOrWhiteSpace(trackedItem.CustomName)
+                            ? trackedItem.CustomName
                             : (trackedItem.ProductId.HasValue ? _productFunctions.GetProductById(trackedItem.ProductId.Value)?.Name : null) ?? "Unknown";
-                        
+
                         await ActivityRecorder.RecordAsync(
                             _contextFactory,
                             userId.Value,
@@ -1022,24 +1051,10 @@ namespace Homassy.API.Functions
                     }
 
                     // Notify everyone viewing this list of the change.
-                    await _runtime.ShoppingList.ItemUpsertedAsync(shoppingList.PublicId, BuildItemInfo(trackedItem, shoppingList), cancellationToken, actorPublicId);
+                    await _runtime.ShoppingList.ItemUpsertedAsync(shoppingList.PublicId, info, cancellationToken, actorPublicId);
                 }
 
-                return new ShoppingListItemInfo
-                {
-                    PublicId = trackedItem.PublicId,
-                    ShoppingListPublicId = shoppingList.PublicId,
-                    ProductPublicId = trackedItem.ProductId.HasValue ? _productFunctions.GetProductById(trackedItem.ProductId)?.PublicId : null,
-                    ShoppingLocationPublicId = trackedItem.ShoppingLocationId.HasValue ? _locationFunctions.GetShoppingLocationById(trackedItem.ShoppingLocationId)?.PublicId : null,
-                    CustomName = trackedItem.CustomName,
-                    Quantity = trackedItem.Quantity,
-                    Unit = trackedItem.Unit,
-                    Note = trackedItem.Note,
-                    SortOrder = trackedItem.SortOrder,
-                    PurchasedAt = trackedItem.PurchasedAt,
-                    DeadlineAt = trackedItem.DeadlineAt,
-                    DueAt = trackedItem.DueAt
-                };
+                return info;
             }
             catch (Exception ex)
             {
@@ -1207,23 +1222,9 @@ namespace Homassy.API.Functions
                         Log.Error(ex, $"Failed to record ShoppingListItemPurchase activity for custom shopping list item {shoppingListItem.PublicId}");
                     }
 
-                    var customItemInfo = new ShoppingListItemInfo
-                    {
-                        PublicId = trackedShoppingListItem.PublicId,
-                        ShoppingListPublicId = shoppingList.PublicId,
-                        ProductPublicId = null,
-                        ShoppingLocationPublicId = shoppingListItem.ShoppingLocationId.HasValue ? _locationFunctions.GetShoppingLocationById(shoppingListItem.ShoppingLocationId)?.PublicId : null,
-                        CustomName = trackedShoppingListItem.CustomName,
-                        Quantity = trackedShoppingListItem.Quantity,
-                        Unit = trackedShoppingListItem.Unit,
-                        Note = trackedShoppingListItem.Note,
-                        SortOrder = trackedShoppingListItem.SortOrder,
-                        PurchasedAt = trackedShoppingListItem.PurchasedAt,
-                        DeadlineAt = trackedShoppingListItem.DeadlineAt,
-                        DueAt = trackedShoppingListItem.DueAt
-                    };
+                    var customItemInfo = BuildItemInfo(trackedShoppingListItem, shoppingList);
 
-                    await _runtime.ShoppingList.ItemUpsertedAsync(shoppingList.PublicId, BuildItemInfo(trackedShoppingListItem, shoppingList), cancellationToken, actorPublicId);
+                    await _runtime.ShoppingList.ItemUpsertedAsync(shoppingList.PublicId, customItemInfo, cancellationToken, actorPublicId);
 
                     return customItemInfo;
                 }
@@ -1329,23 +1330,9 @@ namespace Homassy.API.Functions
                     Log.Error(ex, $"Failed to record ShoppingListItemPurchase activity for shopping list item {shoppingListItem.PublicId}");
                 }
 
-                var shoppingListItemInfo = new ShoppingListItemInfo
-                {
-                    PublicId = trackedShoppingListItem.PublicId,
-                    ShoppingListPublicId = shoppingList.PublicId,
-                    ProductPublicId = product.PublicId,
-                    ShoppingLocationPublicId = shoppingLocationId.HasValue ? _locationFunctions.GetShoppingLocationById(shoppingLocationId)?.PublicId : null,
-                    CustomName = trackedShoppingListItem.CustomName,
-                    Quantity = trackedShoppingListItem.Quantity,
-                    Unit = trackedShoppingListItem.Unit,
-                    Note = trackedShoppingListItem.Note,
-                    SortOrder = trackedShoppingListItem.SortOrder,
-                    PurchasedAt = trackedShoppingListItem.PurchasedAt,
-                    DeadlineAt = trackedShoppingListItem.DeadlineAt,
-                    DueAt = trackedShoppingListItem.DueAt
-                };
+                var shoppingListItemInfo = BuildItemInfo(trackedShoppingListItem, shoppingList);
 
-                await _runtime.ShoppingList.ItemUpsertedAsync(shoppingList.PublicId, BuildItemInfo(trackedShoppingListItem, shoppingList), cancellationToken, actorPublicId);
+                await _runtime.ShoppingList.ItemUpsertedAsync(shoppingList.PublicId, shoppingListItemInfo, cancellationToken, actorPublicId);
 
                 return shoppingListItemInfo;
             }
@@ -1431,23 +1418,9 @@ namespace Homassy.API.Functions
                 // Refresh cache
                 await RefreshShoppingListItemCacheAsync(shoppingListItem.Id, cancellationToken);
 
-                var shoppingListItemInfo = new ShoppingListItemInfo
-                {
-                    PublicId = trackedShoppingListItem.PublicId,
-                    ShoppingListPublicId = shoppingList.PublicId,
-                    ProductPublicId = shoppingListItem.ProductId.HasValue ? _productFunctions.GetProductById(shoppingListItem.ProductId)?.PublicId : null,
-                    ShoppingLocationPublicId = shoppingListItem.ShoppingLocationId.HasValue ? _locationFunctions.GetShoppingLocationById(shoppingListItem.ShoppingLocationId)?.PublicId : null,
-                    CustomName = trackedShoppingListItem.CustomName,
-                    Quantity = trackedShoppingListItem.Quantity,
-                    Unit = trackedShoppingListItem.Unit,
-                    Note = trackedShoppingListItem.Note,
-                    SortOrder = trackedShoppingListItem.SortOrder,
-                    PurchasedAt = trackedShoppingListItem.PurchasedAt,
-                    DeadlineAt = trackedShoppingListItem.DeadlineAt,
-                    DueAt = trackedShoppingListItem.DueAt
-                };
+                var shoppingListItemInfo = BuildItemInfo(trackedShoppingListItem, shoppingList);
 
-                await _runtime.ShoppingList.ItemUpsertedAsync(shoppingList.PublicId, BuildItemInfo(trackedShoppingListItem, shoppingList), cancellationToken, actorPublicId);
+                await _runtime.ShoppingList.ItemUpsertedAsync(shoppingList.PublicId, shoppingListItemInfo, cancellationToken, actorPublicId);
 
                 return shoppingListItemInfo;
             }
@@ -1566,23 +1539,10 @@ namespace Homassy.API.Functions
                 // Refresh cache
                 await RefreshShoppingListItemCacheAsync(shoppingListItem.Id, cancellationToken);
 
-                await _runtime.ShoppingList.ItemUpsertedAsync(shoppingList.PublicId, BuildItemInfo(trackedShoppingListItem, shoppingList), cancellationToken, actorPublicId);
+                var info = BuildItemInfo(trackedShoppingListItem, shoppingList);
+                await _runtime.ShoppingList.ItemUpsertedAsync(shoppingList.PublicId, info, cancellationToken, actorPublicId);
 
-                return new ShoppingListItemInfo
-                {
-                    PublicId = trackedShoppingListItem.PublicId,
-                    ShoppingListPublicId = shoppingList.PublicId,
-                    ProductPublicId = shoppingListItem.ProductId.HasValue ? _productFunctions.GetProductById(shoppingListItem.ProductId)?.PublicId : null,
-                    ShoppingLocationPublicId = trackedShoppingListItem.ShoppingLocationId.HasValue ? _locationFunctions.GetShoppingLocationById(trackedShoppingListItem.ShoppingLocationId)?.PublicId : null,
-                    CustomName = trackedShoppingListItem.CustomName,
-                    Quantity = trackedShoppingListItem.Quantity,
-                    Unit = trackedShoppingListItem.Unit,
-                    Note = trackedShoppingListItem.Note,
-                    SortOrder = trackedShoppingListItem.SortOrder,
-                    PurchasedAt = trackedShoppingListItem.PurchasedAt,
-                    DeadlineAt = trackedShoppingListItem.DeadlineAt,
-                    DueAt = trackedShoppingListItem.DueAt
-                };
+                return info;
             }
             catch (Exception ex)
             {
@@ -1666,23 +1626,9 @@ namespace Homassy.API.Functions
                 // Refresh cache
                 await RefreshShoppingListItemCacheAsync(shoppingListItem.Id, cancellationToken);
 
-                var shoppingListItemInfo = new ShoppingListItemInfo
-                {
-                    PublicId = trackedShoppingListItem.PublicId,
-                    ShoppingListPublicId = shoppingList.PublicId,
-                    ProductPublicId = shoppingListItem.ProductId.HasValue ? _productFunctions.GetProductById(shoppingListItem.ProductId)?.PublicId : null,
-                    ShoppingLocationPublicId = shoppingListItem.ShoppingLocationId.HasValue ? _locationFunctions.GetShoppingLocationById(shoppingListItem.ShoppingLocationId)?.PublicId : null,
-                    CustomName = trackedShoppingListItem.CustomName,
-                    Quantity = trackedShoppingListItem.Quantity,
-                    Unit = trackedShoppingListItem.Unit,
-                    Note = trackedShoppingListItem.Note,
-                    SortOrder = trackedShoppingListItem.SortOrder,
-                    PurchasedAt = trackedShoppingListItem.PurchasedAt,
-                    DeadlineAt = trackedShoppingListItem.DeadlineAt,
-                    DueAt = trackedShoppingListItem.DueAt
-                };
+                var shoppingListItemInfo = BuildItemInfo(trackedShoppingListItem, shoppingList);
 
-                await _runtime.ShoppingList.ItemUpsertedAsync(shoppingList.PublicId, BuildItemInfo(trackedShoppingListItem, shoppingList), cancellationToken, actorPublicId);
+                await _runtime.ShoppingList.ItemUpsertedAsync(shoppingList.PublicId, shoppingListItemInfo, cancellationToken, actorPublicId);
 
                 return shoppingListItemInfo;
             }
@@ -1727,6 +1673,11 @@ namespace Homassy.API.Functions
                 if (string.IsNullOrWhiteSpace(item.CustomName) && !item.ProductPublicId.HasValue)
                 {
                     throw new InvalidShoppingListItemException("Either CustomName or ProductPublicId must be provided for all items");
+                }
+
+                if (item.EstimatedUnitPrice.HasValue != item.EstimatedPriceCurrency.HasValue)
+                {
+                    throw new InvalidShoppingListItemException("EstimatedUnitPrice and EstimatedPriceCurrency must be provided together for all items");
                 }
             }
 
@@ -1781,6 +1732,9 @@ namespace Homassy.API.Functions
                         Quantity = item.Quantity,
                         Unit = itemUnit,
                         Note = item.Note?.Trim(),
+                        Url = string.IsNullOrWhiteSpace(item.Url) ? null : item.Url.Trim(),
+                        EstimatedUnitPrice = item.EstimatedUnitPrice,
+                        EstimatedPriceCurrency = item.EstimatedPriceCurrency,
                         SortOrder = nextSortOrder,
                         DeadlineAt = item.DeadlineAt,
                         DueAt = item.DueAt
@@ -1822,27 +1776,17 @@ namespace Homassy.API.Functions
                     }
                 }
 
-                // Notify everyone viewing this list of each new item.
+                // Notify everyone viewing this list of each new item, and collect the same
+                // projection to return.
+                var createdItemInfos = new List<ShoppingListItemInfo>(createdItems.Count);
                 foreach (var sli in createdItems)
                 {
-                    await _runtime.ShoppingList.ItemUpsertedAsync(shoppingList.PublicId, BuildItemInfo(sli, shoppingList), cancellationToken, actorPublicId);
+                    var info = BuildItemInfo(sli, shoppingList);
+                    await _runtime.ShoppingList.ItemUpsertedAsync(shoppingList.PublicId, info, cancellationToken, actorPublicId);
+                    createdItemInfos.Add(info);
                 }
 
-                return createdItems.Select(sli => new ShoppingListItemInfo
-                {
-                    PublicId = sli.PublicId,
-                    ShoppingListPublicId = shoppingList.PublicId,
-                    ProductPublicId = sli.ProductId.HasValue ? _productFunctions.GetProductById(sli.ProductId)?.PublicId : null,
-                    ShoppingLocationPublicId = sli.ShoppingLocationId.HasValue ? _locationFunctions.GetShoppingLocationById(sli.ShoppingLocationId)?.PublicId : null,
-                    CustomName = sli.CustomName,
-                    Quantity = sli.Quantity,
-                    Unit = sli.Unit,
-                    Note = sli.Note,
-                    SortOrder = sli.SortOrder,
-                    PurchasedAt = sli.PurchasedAt,
-                    DeadlineAt = sli.DeadlineAt,
-                    DueAt = sli.DueAt
-                }).ToList();
+                return createdItemInfos;
             }
             catch (Exception ex)
             {
@@ -1972,7 +1916,6 @@ namespace Homassy.API.Functions
 
             try
             {
-                var results = new List<ShoppingListItemInfo>();
                 var affectedProductIds = new HashSet<int>();
                 var upsertedItems = new List<(ShoppingList list, ShoppingListItem item)>();
                 // The created stock, broadcast after the commit so a rolled-back batch pushes nothing.
@@ -2079,22 +2022,6 @@ namespace Homassy.API.Functions
                         shoppingListItem.Id,
                         $"{shoppingList.Name} - {product.Name}"));
 
-                    results.Add(new ShoppingListItemInfo
-                    {
-                        PublicId = trackedShoppingListItem.PublicId,
-                        ShoppingListPublicId = shoppingList.PublicId,
-                        ProductPublicId = product.PublicId,
-                        ShoppingLocationPublicId = shoppingLocationId.HasValue ? _locationFunctions.GetShoppingLocationById(shoppingLocationId)?.PublicId : null,
-                        CustomName = trackedShoppingListItem.CustomName,
-                        Quantity = trackedShoppingListItem.Quantity,
-                        Unit = trackedShoppingListItem.Unit,
-                        Note = trackedShoppingListItem.Note,
-                        SortOrder = trackedShoppingListItem.SortOrder,
-                        PurchasedAt = trackedShoppingListItem.PurchasedAt,
-                        DeadlineAt = trackedShoppingListItem.DeadlineAt,
-                        DueAt = trackedShoppingListItem.DueAt
-                    });
-
                     upsertedItems.Add((shoppingList, trackedShoppingListItem));
                 }
 
@@ -2105,7 +2032,7 @@ namespace Homassy.API.Functions
                 foreach (var pid in affectedProductIds)
                     await _lowStock.CheckLowStockForProductAsync(pid, cancellationToken);
 
-                Log.Information($"User {userId.Value} quick purchased {results.Count} shopping list items");
+                Log.Information($"User {userId.Value} quick purchased {upsertedItems.Count} shopping list items");
 
                 // Record activity for each purchased item, now that the batch is durable.
                 foreach (var (activityFamilyId, itemId, recordName) in pendingActivities)
@@ -2128,10 +2055,14 @@ namespace Homassy.API.Functions
                     }
                 }
 
-                // Notify everyone viewing the affected list(s) of each purchased item.
+                // Notify everyone viewing the affected list(s) of each purchased item, and collect
+                // the same projection to return.
+                var results = new List<ShoppingListItemInfo>(upsertedItems.Count);
                 foreach (var (list, item) in upsertedItems)
                 {
-                    await _runtime.ShoppingList.ItemUpsertedAsync(list.PublicId, BuildItemInfo(item, list), cancellationToken, actorPublicId);
+                    var info = BuildItemInfo(item, list);
+                    await _runtime.ShoppingList.ItemUpsertedAsync(list.PublicId, info, cancellationToken, actorPublicId);
+                    results.Add(info);
                 }
 
                 // Realtime: the same batch also created stock, so the Készletek grid hears about it too.

@@ -406,6 +406,12 @@ namespace Homassy.Data.Context
                 .Property(p => p.Price)
                 .HasPrecision(18, 4);
 
+            // Same reason as ProductPurchaseInfo.Price above: without an explicit precision EF
+            // picks its own default and the generated migration will not be numeric(18,4).
+            modelBuilder.Entity<ShoppingListItem>()
+                .Property(i => i.EstimatedUnitPrice)
+                .HasPrecision(18, 4);
+
             modelBuilder.Entity<ProductInventoryItem>()
                 .HasMany(i => i.Automations)
                 .WithOne(a => a.ProductInventoryItem)

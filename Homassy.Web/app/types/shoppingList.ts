@@ -39,6 +39,15 @@ export interface ShoppingListItemInfo {
   purchasedAt?: string
   deadlineAt?: string
   dueAt?: string
+  url?: string
+  estimatedUnitPrice?: number
+  /**
+   * The `Currency` enum's NAME (e.g. `"Huf"`), not its number — the same shape
+   * `BestKnownPrice.currency` has, so both can key `estimateListTotal`'s totals and both can be
+   * passed straight to `formatCurrency`. Use `currencyCodeToEnum` to turn it back into the
+   * numeric `Currency` a request or a `USelect` needs.
+   */
+  estimatedPriceCurrency?: string
 }
 
 export interface CreateShoppingListRequest {
@@ -66,6 +75,11 @@ export interface CreateShoppingListItemRequest {
   note?: string
   deadlineAt?: string
   dueAt?: string
+  url?: string
+  // Sent together or not at all; the API rejects one without the other. Numeric enum here —
+  // only the RESPONSE uses the currency's name.
+  estimatedUnitPrice?: number
+  estimatedPriceCurrency?: Currency
 }
 
 export interface UpdateShoppingListItemRequest {
@@ -80,6 +94,13 @@ export interface UpdateShoppingListItemRequest {
   purchasedAt?: string
   deadlineAt?: string
   dueAt?: string
+  url?: string
+  // An absent url means "no change"; removing one needs the flag.
+  clearUrl?: boolean
+  estimatedUnitPrice?: number
+  estimatedPriceCurrency?: Currency
+  // Clears the price and its currency together.
+  clearEstimatedPrice?: boolean
 }
 
 export interface CreateShoppingListItemEntry {
@@ -92,6 +113,11 @@ export interface CreateShoppingListItemEntry {
   note?: string
   deadlineAt?: string
   dueAt?: string
+  url?: string
+  // Sent together or not at all; the API rejects one without the other. Numeric enum here —
+  // only the RESPONSE uses the currency's name.
+  estimatedUnitPrice?: number
+  estimatedPriceCurrency?: Currency
 }
 
 export interface CreateMultipleShoppingListItemsRequest {

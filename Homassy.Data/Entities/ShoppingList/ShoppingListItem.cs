@@ -24,6 +24,27 @@ namespace Homassy.Data.Entities.ShoppingList
         public string? Note { get; set; }
 
         /// <summary>
+        /// A link for this row — the webshop offer, recipe or product page it came from. Stored
+        /// per row rather than per product: the offer is about this trip, not about the product
+        /// forever, and a custom row has no product to hang it on.
+        /// </summary>
+        [Url]
+        [StringLength(1024)]
+        public string? Url { get; set; }
+
+        /// <summary>
+        /// What the user expects to pay per unit, typed by hand. Overrides the household's best
+        /// known price in the list estimate (#128), and is the only way a custom row — which has
+        /// no product and therefore no purchase history — can be priced at all.
+        /// Always set together with <see cref="EstimatedPriceCurrency"/>.
+        /// </summary>
+        [Range(0, 99999999)]
+        public decimal? EstimatedUnitPrice { get; set; }
+
+        [EnumDataType(typeof(Currency))]
+        public Currency? EstimatedPriceCurrency { get; set; }
+
+        /// <summary>
         /// Manual (aisle) position within the list. Sparse — see <see cref="Functions.SparseOrdering"/>:
         /// values are gapped so moving one row rewrites one row. Zero on every pre-existing row, which
         /// leaves the list in the urgency-then-name order it had before anyone dragged anything.
