@@ -120,39 +120,10 @@
           />
         </ClientOnly>
 
-        <!-- What the installed app's icon badge counts. Device-local, like the haptics switch
-             below it: the badge only exists on a device the app is installed on, so "badge this
-             phone with the shopping list" is a statement about the phone, not the account.
-             Only rendered where badging exists at all - a switch with no surface to act on is
-             worse than no switch. -->
-        <ClientOnly>
-          <template v-if="badgeSupported">
-            <SettingsRow
-              static
-              :chevron="false"
-              :label="$t('profile.badge.label')"
-              :description="$t('profile.badge.description')"
-              icon="i-lucide-bell-dot"
-            />
-            <SettingsRow
-              v-for="source in badgeSourceRows"
-              :key="source.key"
-              static
-              :chevron="false"
-              :label="source.label"
-              :description="source.description"
-              :icon="source.icon"
-            >
-              <template #trailing>
-                <USwitch
-                  :model-value="badgeSources[source.key]"
-                  :aria-label="source.label"
-                  @update:model-value="(value) => onBadgeSourceToggle(source.key, value)"
-                />
-              </template>
-            </SettingsRow>
-          </template>
-        </ClientOnly>
+        <!-- The app-icon badge's source switches used to sit here. They moved into the
+             notification settings drawer: the badge is a notification surface, and having it on a
+             different screen from the switches that decide whether this device is notified at all
+             made it read like a display preference. -->
 
         <ClientOnly>
           <SettingsRow
@@ -732,40 +703,6 @@ async function onLogout() {
 }
 
 // --- App icon badge sources -------------------------------------------------
-// Three switches over one number: the badge is a sum, and each contributor can be turned off on
-// its own. Device-local, so this is `localStorage`, not the notification preferences.
-const {
-  isSupported: badgeSupported,
-  sources: badgeSources,
-  setSource: setBadgeSource
-} = useAppBadge()
-
-const badgeSourceRows = computed(() => [
-  {
-    key: 'deadline' as const,
-    icon: 'i-lucide-shopping-cart',
-    label: t('profile.badge.sources.deadline.label'),
-    description: t('profile.badge.sources.deadline.description')
-  },
-  {
-    key: 'chat' as const,
-    icon: 'i-lucide-message-circle',
-    label: t('profile.badge.sources.chat.label'),
-    description: t('profile.badge.sources.chat.description')
-  },
-  {
-    key: 'expiration' as const,
-    icon: 'i-lucide-package',
-    label: t('profile.badge.sources.expiration.label'),
-    description: t('profile.badge.sources.expiration.description')
-  }
-])
-
-function onBadgeSourceToggle(key: 'deadline' | 'chat' | 'expiration', enabled: boolean) {
-  setBadgeSource(key, enabled)
-  hapticSelect()
-}
-
 // --- Family chat bubble (#145) ----------------------------------------------
 // Dropping the bubble on the dismiss target hides it for the session; this row is how it comes
 // back before the next launch does it anyway.

@@ -201,6 +201,8 @@ const { setExpirationCount, setDeadlineCount, setChatUnreadCount, resolveIconPer
 // module state (the bubble fetches it and the socket keeps it current), so the layout only has to
 // forward it - one number, whichever surface shows it.
 const { unreadCount: chatUnreadCount } = useFamilyChat()
+// Server/browser reconciliation for the push subscription — see `usePushNotifications`.
+const { syncSubscription } = usePushNotifications()
 // First-run spotlight tour (#98). The layout is where it starts from because it is the
 // one component that outlives the tour's own navigation.
 const { maybeAutoStart } = useOnboardingTour()
@@ -278,6 +280,10 @@ onMounted(() => {
   fetchDeadlineCount()
   // Whether the app-icon badge is allowed at all (#130) — one read per app load.
   resolveIconPermission()
+  // Re-post whatever push subscription this browser holds, so the server's idea of this device
+  // cannot drift away from the browser's while nobody is looking. Idempotent, once per app load,
+  // and a no-op without permission or a subscription.
+  syncSubscription()
   eventBus.on('notification-preferences:updated', handlePreferencesUpdated)
 
   // First-run tour (#98). It needs the user record to know whether this user has

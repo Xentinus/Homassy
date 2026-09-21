@@ -163,6 +163,12 @@ public sealed class FamilyChatNotificationService : PeriodicWorkerService
 
         // Muted chat notifications: the flag is chat-specific on purpose, so a family that talks
         // all evening can silence it without losing expiration alerts.
+        //
+        // It silences the *push* and nothing else. This used to drop the muted member from the
+        // recipient list outright, which also took away their notification-centre row - and since
+        // the settings drawer cleared this flag whenever the master push switch was turned off, a
+        // user with "push off, in-app on" had chat quietly excluded from the one channel they had
+        // left. Mute means "do not ring my phone about the chat", not "do not record it".
         var mutedUserIds = await context.UserNotificationPreferences
             .AsNoTracking()
             .Where(p => !p.PushFamilyChatEnabled)
@@ -181,10 +187,7 @@ public sealed class FamilyChatNotificationService : PeriodicWorkerService
 
         var readAt = readMarkers.ToDictionary(r => r.UserId, r => r.LastReadAt);
 
-        var candidates = recipients
-            .Where(r => !muted.Contains(r.Id))
-            .Where(r => !readAt.TryGetValue(r.Id, out var marker) || marker < burst.LastSentAt)
-            .ToList();
+        var candidates = ResolveCandidates(recipients, muted, readAt, burst.LastSentAt);
 
         if (candidates.Count == 0) return;
 
@@ -206,8 +209,10 @@ public sealed class FamilyChatNotificationService : PeriodicWorkerService
         // read from the database, never derived from `burst.Count`: the burst is what this sender
         // just wrote, while the badge is everything still waiting for that reader - including
         // messages from somebody else and the shopping list's own deadlines.
+        // Only for the targets that actually get a push: the badge travels in the push payload, so
+        // computing one for an inbox-only recipient is a database round trip nothing reads.
         var badgeCounts = new Dictionary<int, int>(targets.Count);
-        foreach (var target in targets)
+        foreach (var target in targets.Where(t => t.PushEnabled))
         {
             badgeCounts[target.Id] = await AppBadgeCount.ForUserAsync(context, target.Id, familyId, cancellationToken);
         }
@@ -222,6 +227,36 @@ public sealed class FamilyChatNotificationService : PeriodicWorkerService
             "Notified {Count} member(s) of family {FamilyId} about {Messages} chat message(s)",
             targets.Count, familyId, burst.Count);
     }
+
+    /// <summary>
+    /// Narrows the family's recipients to the ones this burst should reach, and on which channels.
+    /// </summary>
+    /// <remarks>
+    /// The two rules are deliberately different in kind:
+    /// <list type="bullet">
+    /// <item><description>
+    /// <b>Muted</b> (<c>PushFamilyChatEnabled</c> off) loses the <em>push</em> only. It is a
+    /// push-channel switch, and using it to drop the member entirely took their notification-centre
+    /// row with it - which is how a user with push off ended up with no record of the chat at all.
+    /// </description></item>
+    /// <item><description>
+    /// <b>Already read</b> drops the member from <em>both</em> channels. There is nothing to tell
+    /// somebody who has read the messages, on either surface.
+    /// </description></item>
+    /// </list>
+    /// A member left with neither channel is dropped, so the caller's target list is only people
+    /// something will actually reach.
+    /// </remarks>
+    public static List<RecipientInfo> ResolveCandidates(
+        IReadOnlyList<RecipientInfo> recipients,
+        IReadOnlySet<int> mutedUserIds,
+        IReadOnlyDictionary<int, DateTime> lastReadAt,
+        DateTime burstLastSentAt) =>
+        recipients
+            .Select(r => mutedUserIds.Contains(r.Id) ? r with { PushEnabled = false } : r)
+            .Where(r => r.PushEnabled || r.InAppEnabled)
+            .Where(r => !lastReadAt.TryGetValue(r.Id, out var marker) || marker < burstLastSentAt)
+            .ToList();
 
     private static async Task<string> GetDisplayNameAsync(HomassyDbContext context, int userId, CancellationToken cancellationToken)
     {

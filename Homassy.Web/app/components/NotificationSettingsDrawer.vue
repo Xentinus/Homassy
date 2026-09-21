@@ -120,6 +120,48 @@
             <p class="text-xs text-gray-500 dark:text-gray-400">{{ t('profile.notifications.inAppNotificationsDescription') }}</p>
           </template>
         </div>
+
+        <!-- App icon badge (#130). Moved here from the profile page: it is a notification surface
+             like the two above it — a number that sits on the home screen with the app closed —
+             and it belongs next to the switches that decide whether this device is notified at all.
+
+             Unlike everything else in this drawer it is device-local (`localStorage`) and applies
+             the moment it is switched, so it is deliberately outside `form` and untouched by Save:
+             "badge this phone with the shopping list" is a statement about the phone, not the
+             account. Only rendered where badging exists at all — a switch with no surface to act
+             on is worse than no switch. -->
+        <ClientOnly>
+          <div v-if="badgeSupported" class="space-y-4">
+            <div class="flex items-center gap-3">
+              <UIcon name="i-lucide-bell-dot" class="text-2xl text-primary" />
+              <div>
+                <h3 class="text-md font-semibold text-gray-900 dark:text-gray-100">{{ t('profile.badge.label') }}</h3>
+                <p class="text-xs text-gray-500 dark:text-gray-400">{{ t('profile.badge.description') }}</p>
+              </div>
+            </div>
+
+            <div
+              v-if="!form.pushNotificationsEnabled"
+              class="text-xs text-gray-500 dark:text-gray-400 p-3 rounded-lg bg-gray-50 dark:bg-gray-800/50 flex items-start gap-2"
+            >
+              <UIcon name="i-lucide-info" class="text-base flex-shrink-0 mt-0.5" />
+              {{ t('profile.badge.requiresPush') }}
+            </div>
+
+            <template v-for="source in badgeSourceRows" :key="source.key">
+              <div class="flex items-center justify-between">
+                <label class="text-sm font-medium">{{ source.label }}</label>
+                <USwitch
+                  :model-value="badgeSources[source.key]"
+                  :aria-label="source.label"
+                  :disabled="isSaving"
+                  @update:model-value="(value) => setBadgeSource(source.key, value)"
+                />
+              </div>
+              <p class="text-xs text-gray-500 dark:text-gray-400">{{ source.description }}</p>
+            </template>
+          </div>
+        </ClientOnly>
       </div>
 
     <template #footer>
@@ -166,6 +208,31 @@ const toast = useToast()
 const eventBus = useEventBus()
 const { getNotificationPreferences, updateNotificationPreferences, sendTestPushNotification, sendTestEmailSummary } = useUserApi()
 const { isSupported, permissionStatus, subscribe, unsubscribe, isSubscribed } = usePushNotifications()
+// The app-icon badge's three sources (#130). Device-local and applied on the spot, so they live
+// outside `form` and Save never sees them - see the template for why they are in this drawer.
+const {
+  isSupported: badgeSupported,
+  sources: badgeSources,
+  setSource: setBadgeSource
+} = useAppBadge()
+
+const badgeSourceRows = computed(() => ([
+  {
+    key: 'deadline' as const,
+    label: t('profile.badge.sources.deadline.label'),
+    description: t('profile.badge.sources.deadline.description')
+  },
+  {
+    key: 'chat' as const,
+    label: t('profile.badge.sources.chat.label'),
+    description: t('profile.badge.sources.chat.description')
+  },
+  {
+    key: 'expiration' as const,
+    label: t('profile.badge.sources.expiration.label'),
+    description: t('profile.badge.sources.expiration.description')
+  }
+]))
 
 const emptyForm = (): NotificationForm => ({
   emailNotificationsEnabled: false,
@@ -189,10 +256,17 @@ const pushSupported = computed(() => isSupported.value)
 const pushPermission = computed(() => permissionStatus.value)
 const hasChanges = computed(() => JSON.stringify(form.value) !== JSON.stringify(original.value))
 
-// Turning push off cascades to the weekly push summary (local buffer only).
+// Turning push off cascades to the weekly push summary (local buffer only). It exists because
+// `onSave` reads that switch as "the user still wants push" and would re-subscribe on it.
+//
+// It deliberately does NOT cascade to `pushFamilyChatEnabled`. That flag is read server-side as
+// "the chat may notify me", and the chat worker used it to decide recipients for *both* channels —
+// so clearing it here silently removed chat messages from the notification centre of anyone who
+// turned push off. The worker now treats it as push-only (see FamilyChatNotificationService), and
+// the switch is disabled rather than cleared while push is off, so the choice survives the round
+// trip.
 watch(() => form.value.pushNotificationsEnabled, (enabled) => {
   if (!enabled) form.value.pushWeeklySummaryEnabled = false
-  if (!enabled) form.value.pushFamilyChatEnabled = false
 })
 
 watch(() => props.open, async (isOpen) => {

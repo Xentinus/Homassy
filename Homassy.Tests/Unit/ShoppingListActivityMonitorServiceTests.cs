@@ -247,14 +247,14 @@ public class ShoppingListActivityMonitorServiceTests
 
     private sealed class NoOpWebPushService : IWebPushService
     {
-        public Task<bool> SendNotificationAsync(
+        public Task<PushSendResult> SendNotificationAsync(
             UserPushSubscription subscription,
             string title,
             string body,
             string? url = null,
             string? actionTitle = null,
             int? badgeCount = null,
-            CancellationToken cancellationToken = default) => Task.FromResult(true);
+            CancellationToken cancellationToken = default) => Task.FromResult(PushSendResult.Delivered);
 
         public string GetVapidPublicKey() => "test-vapid-key";
     }

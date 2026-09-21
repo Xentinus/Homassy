@@ -34,26 +34,39 @@ public static class TestPushEndpoint
 
         var (title, body, actionTitle) = PushNotificationContentService.GetTestNotificationContent(user.Language);
         var anySent = false;
+        var anyTransient = false;
         var hasChanges = false;
 
         foreach (var subscription in subscriptions)
         {
-            var success = await webPushService.SendNotificationAsync(
+            var result = await webPushService.SendNotificationAsync(
                 subscription, title, body, "/", actionTitle, cancellationToken: cancellationToken);
 
-            if (success)
+            if (result == PushSendResult.Delivered)
             {
                 anySent = true;
             }
-            else
+            else if (result == PushSendResult.SubscriptionGone)
             {
                 subscription.DeleteRecord(request.UserId);
                 hasChanges = true;
+            }
+            else
+            {
+                anyTransient = true;
             }
         }
 
         if (hasChanges)
             await context.SaveChangesAsync(cancellationToken);
+
+        // The two failures need different answers. "Re-enable push notifications" is the fix for a
+        // dead subscription and useless advice when the push service is simply down: following it
+        // would make the user throw away a subscription that is still good.
+        if (!anySent && anyTransient)
+            return Results.Problem(
+                "The push service could not be reached. The subscription is still valid - try again shortly.",
+                statusCode: StatusCodes.Status503ServiceUnavailable);
 
         if (!anySent)
             return Results.Problem("No valid push subscription found. Please re-enable push notifications.", statusCode: StatusCodes.Status422UnprocessableEntity);

@@ -1375,6 +1375,7 @@
     "badge": {
       "label": "Alkalmazásikon jelvény",
       "description": "Mit számoljon a telepített app ikonján lévő szám ezen az eszközön.",
+      "requiresPush": "A jelvény a push értesítésekkel együtt működik: az ikon a push üzenettel frissül, amikor az app zárva van.",
       "sources": {
         "deadline": {
           "label": "Lejárt bevásárlási tételek",

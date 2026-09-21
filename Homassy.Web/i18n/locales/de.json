@@ -1375,6 +1375,7 @@
     "badge": {
       "label": "App-Symbol-Badge",
       "description": "Was die Zahl auf dem Symbol der installierten App auf diesem Gerät zählt.",
+      "requiresPush": "Das Badge hängt an den Push-Benachrichtigungen: Die Push-Nachricht aktualisiert das Symbol, während die App geschlossen ist.",
       "sources": {
         "deadline": {
           "label": "Überfällige Einkaufsposten",
