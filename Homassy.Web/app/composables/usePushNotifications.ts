@@ -1,5 +1,23 @@
+/**
+ * Where the service worker looks for the API base URL and the VAPID key when it has to
+ * re-register a subscription with no page open (`pushsubscriptionchange`). Kept in step with
+ * `public/sw-push.js`.
+ */
+const PUSH_CONFIG_CACHE = 'homassy-push-config'
+const PUSH_CONFIG_KEY = '/__homassy_push_config'
+
+/**
+ * The app-start reconciliation runs once per page load, not once per call site. `syncSubscription`
+ * is safe to call from anywhere, and the layout calling it on mount must not turn into one request
+ * per navigation.
+ */
+let syncPromise: Promise<void> | null = null
+
 export const usePushNotifications = () => {
   const client = useApiClient()
+  // Read here, in setup, rather than inside the async helpers below: those run from a mounted hook
+  // and from click handlers, where the Nuxt instance is no longer the ambient one.
+  const runtimeConfig = useRuntimeConfig()
 
   const isSupported = computed(() => {
     if (!import.meta.client) return false
@@ -29,6 +47,98 @@ export const usePushNotifications = () => {
     return outputArray
   }
 
+  /** The VAPID public key, in whichever casing the API answered in. */
+  const fetchVapidKey = async (): Promise<string | undefined> => {
+    const response = await client.get<{ publicKey: string }>('/api/v1/User/push/vapid-key', { showErrorToast: false })
+    // The endpoint has answered in both spellings; accept either rather than depending on which
+    // serializer casing is configured server-side.
+    return response?.data?.publicKey ?? (response?.data as { PublicKey?: string } | undefined)?.PublicKey
+  }
+
+  /**
+   * Leaves the API base URL and the VAPID key where the service worker can find them.
+   *
+   * The worker has no access to the Nuxt runtime config and no client to ask when
+   * `pushsubscriptionchange` fires — by definition nothing is open — so the page has to have put
+   * them somewhere durable beforehand. Rewritten only when the record is missing or the base URL
+   * changed, so the usual app start costs one cache read and nothing else.
+   */
+  const publishPushConfig = async (vapidKey?: string): Promise<void> => {
+    if (!import.meta.client || typeof caches === 'undefined') return
+
+    const apiBase = String(runtimeConfig.public.apiBase || window.location.origin)
+
+    try {
+      const cache = await caches.open(PUSH_CONFIG_CACHE)
+      const existing = await cache.match(PUSH_CONFIG_KEY)
+
+      if (existing) {
+        const stored = await existing.clone().json() as { apiBase?: string, vapidKey?: string }
+        if (stored.apiBase === apiBase && stored.vapidKey) return
+      }
+
+      const key = vapidKey ?? await fetchVapidKey()
+      if (!key) return
+
+      await cache.put(
+        PUSH_CONFIG_KEY,
+        new Response(JSON.stringify({ apiBase, vapidKey: key }), {
+          headers: { 'Content-Type': 'application/json' }
+        })
+      )
+    } catch {
+      // Cache Storage refused (private window, cleared site data). The worker falls back to the
+      // old subscription's own key and this origin, which covers the common case anyway.
+    }
+  }
+
+  /**
+   * Reconcile what this browser holds with what the server has recorded, at app start.
+   *
+   * The two can drift apart without anything looking wrong: the browser rotates a subscription
+   * while the app is closed, a server-side cleanup removes the row, a database is restored from a
+   * backup. Nothing detected that, because `isSubscribed()` only ever asked the browser — so the
+   * settings screen kept saying "subscribed" while the server had nobody to send to, and the user's
+   * only clue was that notifications stopped arriving.
+   *
+   * Re-posting the current subscription is cheap and idempotent (the endpoint is an upsert, and it
+   * un-deletes a row that was removed), so this runs unconditionally rather than trying to guess
+   * whether the server is out of step.
+   */
+  const syncSubscription = async (): Promise<void> => {
+    if (!import.meta.client || !isSupported.value) return
+    if (syncPromise) return syncPromise
+
+    syncPromise = (async () => {
+      try {
+        if (Notification.permission !== 'granted') return
+
+        const registration = await navigator.serviceWorker.ready
+        const subscription = await registration.pushManager.getSubscription()
+        if (!subscription) return
+
+        const json = subscription.toJSON()
+        const p256dh = json.keys?.p256dh
+        const auth = json.keys?.auth
+        if (!json.endpoint || !p256dh || !auth) return
+
+        await client.post('/api/v1/User/push/subscribe', {
+          endpoint: json.endpoint,
+          p256dh,
+          auth,
+          userAgent: navigator.userAgent
+        }, { showErrorToast: false })
+
+        await publishPushConfig()
+      } catch {
+        // Offline, or the session has expired. Either way the next app start tries again, and
+        // nothing the user can act on has happened.
+      }
+    })()
+
+    return syncPromise
+  }
+
   const subscribe = async (): Promise<boolean> => {
     try {
       if (!isSupported.value) {
@@ -41,13 +151,7 @@ export const usePushNotifications = () => {
       if (permission !== 'granted') return false
 
       // Get VAPID public key from backend
-      const vapidResponse = await client.get<{ publicKey: string }>('/api/v1/User/push/vapid-key', { showErrorToast: false })
-      console.log('[Push] subscribe: vapidResponse =', vapidResponse)
-      // Support both camelCase and PascalCase API responses
-      // The endpoint has answered in both spellings; accept either rather than
-      // depending on which serializer casing is configured server-side.
-      const vapidKey = vapidResponse?.data?.publicKey
-        ?? (vapidResponse?.data as { PublicKey?: string } | undefined)?.PublicKey
+      const vapidKey = await fetchVapidKey()
       console.log('[Push] subscribe: vapidKey =', vapidKey ? `${vapidKey.substring(0, 10)}...` : 'MISSING')
       if (!vapidKey) {
         console.error('[Push] subscribe: VAPID key missing from response')
@@ -98,6 +202,9 @@ export const usePushNotifications = () => {
       }, { showErrorToast: false })
       console.log('[Push] subscribe: backend result =', result)
 
+      // Hand the worker what it needs to re-register this subscription on its own later.
+      await publishPushConfig(vapidKey)
+
       return result?.success ?? false
     } catch (error) {
       console.error('[Push] subscribe: failed with error:', error)
@@ -115,6 +222,18 @@ export const usePushNotifications = () => {
       const endpoint = subscription.endpoint
       await subscription.unsubscribe()
       await client.post('/api/v1/User/push/unsubscribe', { endpoint }, { showErrorToast: false })
+    }
+
+    // Take the worker's re-registration kit away with it. Opting out has to be the end of it —
+    // leaving the key behind is how a background event turns a deliberate "no" back into a yes.
+    if (typeof caches !== 'undefined') {
+      try {
+        const cache = await caches.open(PUSH_CONFIG_CACHE)
+        await cache.delete(PUSH_CONFIG_KEY)
+      } catch {
+        // Nothing to clean up, or storage refused. The subscription itself is already gone, which
+        // is what actually stops the pushes.
+      }
     }
 
     return true
@@ -137,6 +256,7 @@ export const usePushNotifications = () => {
     permissionStatus,
     subscribe,
     unsubscribe,
-    isSubscribed
+    isSubscribed,
+    syncSubscription
   }
 }

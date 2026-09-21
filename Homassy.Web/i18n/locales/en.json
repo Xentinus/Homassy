@@ -1375,6 +1375,7 @@
     "badge": {
       "label": "App icon badge",
       "description": "What the number on the installed app’s icon counts, on this device.",
+      "requiresPush": "The badge rides on push notifications: the icon is updated by the push message while the app is closed.",
       "sources": {
         "deadline": {
           "label": "Overdue shopping items",

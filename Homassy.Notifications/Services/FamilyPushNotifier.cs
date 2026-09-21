@@ -159,10 +159,10 @@ public sealed class FamilyPushNotifier
                 {
                     var (title, body) = NotificationContentRenderer.Render(envelope, recipient.Language);
 
-                    var success = await _webPushService.SendNotificationAsync(
+                    var result = await _webPushService.SendNotificationAsync(
                         subscription, title, body, url, actionTitle, badgeCount, cancellationToken);
 
-                    if (!success)
+                    if (result == PushSendResult.SubscriptionGone)
                     {
                         subscription.DeleteRecord();
                         hasChanges = true;
@@ -170,6 +170,18 @@ public sealed class FamilyPushNotifier
                             "Removed invalid push subscription {Endpoint} for user {UserId}",
                             subscription.Endpoint, recipient.Id);
                         break; // subscription is dead – skip its remaining notifications
+                    }
+
+                    if (result == PushSendResult.TransientFailure)
+                    {
+                        // The push service is having a bad moment; this device is not gone. Skip
+                        // the rest of the batch for it (they would almost certainly fail too) and
+                        // leave the row alone - deleting it here is what used to silence a device
+                        // permanently after one rate limit.
+                        Log.Warning(
+                            "Push to {Endpoint} for user {UserId} failed transiently; keeping the subscription",
+                            subscription.Endpoint, recipient.Id);
+                        break;
                     }
                 }
             }

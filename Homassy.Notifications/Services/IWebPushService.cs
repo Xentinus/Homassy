@@ -11,7 +11,12 @@ public interface IWebPushService
     /// means "do not touch the badge", which is what every notification that is not about a
     /// countable backlog should do.
     /// </param>
-    Task<bool> SendNotificationAsync(
+    /// <returns>
+    /// Whether the push was delivered and, when it was not, whether the failure says anything
+    /// about the subscription. Callers may only delete a subscription on
+    /// <see cref="PushSendResult.SubscriptionGone"/> - see that enum for why this is not a bool.
+    /// </returns>
+    Task<PushSendResult> SendNotificationAsync(
         UserPushSubscription subscription,
         string title,
         string body,

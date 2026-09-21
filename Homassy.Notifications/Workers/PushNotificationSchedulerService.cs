@@ -170,10 +170,10 @@ public sealed class PushNotificationSchedulerService : PeriodicWorkerService
             if (!isWeekly && subscription.LastDailyNotificationSentAt?.Date == today)
                 continue;
 
-            var success = await _webPushService.SendNotificationAsync(
+            var result = await _webPushService.SendNotificationAsync(
                 subscription, title, body, "/products", actionTitle, badgeCount, cancellationToken);
 
-            if (success)
+            if (result == PushSendResult.Delivered)
             {
                 if (isWeekly)
                     subscription.LastWeeklyNotificationSentAt = DateTime.UtcNow;
@@ -181,11 +181,18 @@ public sealed class PushNotificationSchedulerService : PeriodicWorkerService
                     subscription.LastDailyNotificationSentAt = DateTime.UtcNow;
                 hasChanges = true;
             }
-            else
+            else if (result == PushSendResult.SubscriptionGone)
             {
                 subscription.DeleteRecord();
                 hasChanges = true;
                 Log.Information("Removed invalid push subscription {Endpoint} for user {UserId}",
+                    subscription.Endpoint, subscription.UserId);
+            }
+            else
+            {
+                // Transient: no stamp, no delete. Leaving the send stamp alone is what lets the
+                // next hourly cycle try this summary again instead of skipping it as already sent.
+                Log.Warning("Push to {Endpoint} for user {UserId} failed transiently; will retry next cycle",
                     subscription.Endpoint, subscription.UserId);
             }
         }
