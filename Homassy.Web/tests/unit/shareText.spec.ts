@@ -47,31 +47,31 @@ describe('safeReturnTo', () => {
   })
 
   it('falls back when there is no destination', () => {
-    expect(safeReturnTo(undefined)).toBe('/calendar')
-    expect(safeReturnTo(null)).toBe('/calendar')
-    expect(safeReturnTo('')).toBe('/calendar')
+    expect(safeReturnTo(undefined)).toBe('/home')
+    expect(safeReturnTo(null)).toBe('/home')
+    expect(safeReturnTo('')).toBe('/home')
   })
 
   it('refuses a protocol-relative or absolute target', () => {
     // The shape worth refusing outright: `//host` is a URL, not a path.
-    expect(safeReturnTo('//evil.example/products')).toBe('/calendar')
-    expect(safeReturnTo('https://evil.example')).toBe('/calendar')
-    expect(safeReturnTo('javascript:alert(1)')).toBe('/calendar')
+    expect(safeReturnTo('//evil.example/products')).toBe('/home')
+    expect(safeReturnTo('https://evil.example')).toBe('/home')
+    expect(safeReturnTo('javascript:alert(1)')).toBe('/home')
   })
 
   it('refuses a relative target', () => {
-    expect(safeReturnTo('products')).toBe('/calendar')
+    expect(safeReturnTo('products')).toBe('/home')
   })
 
   it('refuses a target back inside the auth flow', () => {
     // A login page that sends you to the login page is a loop.
-    expect(safeReturnTo('/auth/login')).toBe('/calendar')
-    expect(safeReturnTo('/auth/register')).toBe('/calendar')
+    expect(safeReturnTo('/auth/login')).toBe('/home')
+    expect(safeReturnTo('/auth/register')).toBe('/home')
   })
 
   it('takes the first value of a repeated query parameter', () => {
     expect(safeReturnTo(['/share', '//evil.example'])).toBe('/share')
-    expect(safeReturnTo(['//evil.example', '/share'])).toBe('/calendar')
+    expect(safeReturnTo(['//evil.example', '/share'])).toBe('/home')
   })
 
   it('honours a caller-supplied fallback', () => {

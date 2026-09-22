@@ -216,7 +216,8 @@
     "products": "Készletek",
     "shoppingLists": "Bevásárlólisták",
     "calendar": "Naptár",
-    "profile": "Profil"
+    "profile": "Profil",
+    "together": "Együtt"
   },
   "search": {
     "title": "Keresés",
@@ -1040,7 +1041,7 @@
         "addButton": "Jegyzet",
         "createTitle": "Új jegyzet",
         "editTitle": "Jegyzet szerkesztése",
-        "description": "Az adott naphoz írt jegyzetet az egész család látja.",
+        "description": "A jegyzet az adott napra kerül a naptárba. Ha van háztartásod, a tagjai is látják.",
         "titleLabel": "Cím",
         "titlePlaceholder": "pl. tanítási szünet",
         "titleRequired": "A cím megadása kötelező.",
@@ -1059,6 +1060,51 @@
         "week": "Hét"
       },
       "today": "Ma"
+    },
+    "household": {
+      "greeting": "Szia, {name}",
+      "contextLabel": "Mire készülsz",
+      "presence": {
+        "title": "Ki van itt",
+        "you": "Te",
+        "online": "online",
+        "shopping": "boltban",
+        "shoppingAt": "{list} listával"
+      },
+      "atHome": {
+        "tab": "Ha hazaérsz",
+        "daysLeft": "{days}n",
+        "discard": "Kidobtam",
+        "consume": "Felhasznált",
+        "consumeFailed": "Nem sikerült felhasználtnak jelölni.",
+        "putAway": "{count} tétel vár bepakolásra",
+        "putAwayHint": "Megvetted, de még nincs a készletben"
+      },
+      "shopping": {
+        "tab": "Ha boltba mégy",
+        "pending": "{count} tétel",
+        "go": "Indulok"
+      },
+      "notes": {
+        "title": "Falra tűzve",
+        "today": "Ma",
+        "tomorrow": "Holnap",
+        "empty": "Nincs mai vagy későbbi jegyzet."
+      },
+      "today": {
+        "title": "Mai nap",
+        "calendar": "Naptár",
+        "allDay": "egész nap",
+        "empty": "Ma nincs esemény."
+      },
+      "fab": {
+        "note": "Jegyzet",
+        "noteDescription": "Tűzz ki valamit a családi falra",
+        "inventory": "Készlet",
+        "inventoryDescription": "Tétel felvitele a kamrába",
+        "listItem": "Listaelem",
+        "listItemDescription": "Tétel hozzáadása bevásárlólistához"
+      }
     }
   },
   "loadInventory": {
@@ -1150,7 +1196,6 @@
     "SYSTEM-0004": "Jogosulatlan hozzáférés.",
     "CALNOTE-0001": "A naptárjegyzet nem található.",
     "CALNOTE-0002": "Nincs hozzáférésed ehhez a naptárjegyzethez.",
-    "CALNOTE-0003": "Naptárjegyzetet csak család tagjaként kezelhetsz.",
     "CALNOTE-0004": "Az emlékeztető időpontja érvénytelen."
   },
   "shoppingList": {
@@ -3028,7 +3073,7 @@
     "steps": {
       "nav": {
         "title": "Így tudsz mozogni",
-        "description": "Négy hely: a naptár, a készleteid, a bevásárlólisták és a profilod. Ez a sáv mindenhol veled marad."
+        "description": "Négy hely: a kezdőlapod, a készleteid, a bevásárlólisták és a profilod. Ez a sáv mindenhol veled marad."
       },
       "inventory": {
         "title": "Minden, ami otthon van",

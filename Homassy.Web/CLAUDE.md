@@ -56,6 +56,7 @@ Homassy.Web/
 │   │   ├── auth/               Auth flow components
 │   │   ├── landing/            Public landing page: device frame, rendered app screens, showcase bands
 │   │   ├── calendar/           Calendar event cards, plus the day-note card and form (#60)
+│   │   ├── home/               The home screen's rows: presence strip, at-home item, shopping list row
 │   │   ├── security/           Security/WebAuthn components
 │   │   └── *.vue               Cards, modals, buttons, etc.
 │   ├── composables/
@@ -109,7 +110,8 @@ Homassy.Web/
 │   │   ├── usePullToRefresh.ts
 │   │   ├── usePushNotifications.ts
 │   │   ├── useReorderableList.ts  Manual order + optimistic reorder for a list of rows
-│   │   ├── useShoppingMode.ts   Which lists are mid-shop (module-scoped, not persisted)
+│   │   ├── usePresenceSocket.ts  Household presence: who is online, who is in a shop (`/hubs/presence`)
+│   │   ├── useShoppingMode.ts   Which lists are mid-shop (module-scoped, not persisted; reports into presence)
 │   │   ├── useWakeLock.ts       Screen Wake Lock, re-acquired after backgrounding
 │   │   ├── useShoppingListSocket.ts  SignalR realtime client for shopping lists
 │   │   ├── useInventorySocket.ts  SignalR realtime client for the Készletek (inventory) grid
@@ -123,6 +125,7 @@ Homassy.Web/
 │   │   └── auth.ts             Route guard: validates Kratos session client-side
 │   ├── pages/
 │   │   ├── index.vue           Root redirect
+│   │   ├── home.vue            The home screen: what waits at home, what waits in a shop, who is around
 │   │   ├── activity.vue        Activity feed
 │   │   ├── calendar.vue        Weekly calendar of expirations, shopping deadlines and family day notes (#60)
 │   │   ├── share.vue           Web Share Target landing page (see PWA below)
@@ -177,6 +180,7 @@ Homassy.Web/
 │       ├── enumMappers.ts
 │       ├── errorCodes.ts
 │       ├── geoUtils.ts           Haversine distanceMeters + NEARBY_RADIUS_METERS
+│       ├── homeFocus.ts         What the home screen shows, derived from inventory/lists/calendar (unit-tested)
 │       ├── manualOrder.ts        The pure ordering rules behind drag-and-drop reordering
 │       ├── voiceItemParser.ts    Dictated sentence → quantity + unit + name, per locale
 │       └── stringUtils.ts
@@ -358,6 +362,8 @@ The spellings are pinned by `ProductControllerTests.CreateProduct_InvalidRequest
 - Groups are identity-derived server-side (per-family + per-user), so there is no per-resource join — `joinInventory()` just returns the light `InventoryGridProductInfo[]` snapshot (only the fields the cards need); falls back to REST on SSR / socket down
 - Server events: `InventoryUpserted` / `InventoryDeleted` (item-level, carry the parent product), `ProductUpdated` / `ProductFavoriteChanged` / `ProductDeleted` (product-level). The grid (`products/index.vue`) patches `allProducts` in place — inserting a card on the first in-scope item and removing it when the last one is gone. The product detail page (`products/[publicId].vue`) treats a matching event as a trigger to refetch that single product (the light event lacks storage/purchase/consumption detail)
 - Writes still go through `useProductsApi` (REST); the API broadcasts the change back, and automation-driven changes from `Homassy.Notifications` are relayed via the API's internal broadcast endpoint, so all clients (including automations) stay in sync
+
+`usePresenceSocket` is the third: `${apiBase}/hubs/presence`, identity-derived groups joined on connect, one event (`PresenceChanged`) carrying the whole household roster. It is the only socket the client *reports* into — `SetShopping(listPublicId)` when shopping mode opens or closes — and the only one with no REST fallback at all. See *Household presence* below.
 
 ### Swipe Actions
 
@@ -1079,6 +1085,79 @@ floats over the app (#145) and the panel it opens into (#146).
 
 ---
 
+## The home screen (`/home`)
+
+The first tab, and what an authenticated relaunch opens on. It answers two questions and nothing
+else — **what is waiting for me at home** and **what is waiting for me in a shop** — with the
+household's presence above them and the pinned notes plus today's appointments below.
+
+| Piece | Role |
+|---|---|
+| `app/pages/home.vue` | the fetching, the actions, the chrome |
+| `app/utils/homeFocus.ts` | every derivation, as pure functions (unit-tested) |
+| `app/components/home/HomePresenceStrip.vue` | who is around, and who is in a shop |
+| `app/components/home/HomeAtHomeRow.vue` | one piece of stock with its two decisions |
+| `app/components/home/HomeShoppingRow.vue` | one list with a deadline, and the way into shopping mode |
+| `app/composables/usePresenceSocket.ts` | the `/hubs/presence` client |
+| `i18n/locales/*.json` → `pages.household` | all three locales. **`pages.home` is the public landing page** — do not add to it |
+
+- **It deliberately shows no activity feed.** Activity has its own timeline at `/activity` and is
+  folded into the calendar; a third rendering of what already happened is the opposite of a screen
+  you act on. That is what this page replaced the calendar as the first tab for — the calendar is
+  now reached from the "today" block at the bottom of this screen, and from the command palette.
+- **The two contexts are shown only as far as there is anything in them** (`pickHomeContext`, which
+  is unit-tested). Both filled: they are alternatives — you are either about to be at home or about
+  to be in a shop — so they sit behind one switcher, with the counts on the tabs so the hidden one
+  still says how much is waiting. One filled: no switcher (a control with one useful position is a
+  control that does nothing), just that context under its tab label as a heading. Neither: the block
+  is not rendered at all. There are no per-context empty states — two panels each announcing that
+  nothing is waiting were worth less than the space they cost, which is why `atHome.empty` and
+  `shopping.empty` no longer exist.
+- **What the reader last picked is a preference, not the state.** `context` holds it, `activeContext`
+  is derived from it, so somebody sitting on the shopping side whose last deadline is met lands on
+  whatever is left rather than on an empty panel. A watcher writing `context` back would fight their
+  next tap to return.
+- **"When you get home" is tighter than the expiration ramp's `soon`**: expired and `critical`
+  only (`AT_HOME_LEVELS`). Fourteen days is the right net for the grid's amber tint and far too
+  wide for a list claiming everything on it needs doing tonight. The block ends with the *put-away*
+  row — bought but never loaded into stock, which is `getLoadableInventoryItems()` filtered to the
+  ones with a `purchasedAt` — linking to `/products?action=load-inventory`.
+- **"If you go shopping" reads deadlines off the calendar feed**, not by opening every list: the
+  feed already aggregates `deadlineAt` / `dueAt` into one event per deadline, so one call answers
+  for every list at once. "Go" navigates to `/shopping-lists?shop=<id>`, which selects that list
+  and opens in-store shopping mode on it. That is **its own query parameter** on purpose:
+  `useSearchHandoff` and `useDeepLinkAction` each strip their own with a `router.replace` of the
+  query they read at mount, and two of those in one tick put each other's parameter back.
+- **Discard is optimistic with the undo window; "used it" is a plain round trip.** Consumption is a
+  relative delta, and the undo queue's same-entity replacement would swallow one of two rapid
+  decrements — the reasoning `InventoryItemRow` records, followed here rather than re-decided.
+- **It owns the splash dismissal** (`markSplashReady()` in its first load's `finally`), and
+  `plugins/auth.ts`'s `isBootRoute` is `/` or `/home` accordingly.
+
+### Household presence
+
+`usePresenceSocket` holds one app-wide connection to `/hubs/presence`. **The auth layout joins it**,
+not the home page: the first nav item is named after it ("Together" only once somebody else is
+actually connected, "Home" otherwise), and shopping mode reports into it from the shopping-list
+page.
+
+- The roster **includes the viewer** — the strip is a picture of the household, and one that leaves
+  you out reads like a list of other people. That is the opposite of `useShoppingListSocket`'s
+  `presentMembers`, which answers "who *else* is here" and filters self out.
+- **`useShoppingMode` reports the most recently entered list**, and `null` once none is left. The
+  client sends the list's **id**; the server resolves its name, because that string is shown to
+  everyone else.
+- On a reconnect the composable **re-announces its shopping context**: the server's registry is
+  keyed by connection id, and a reconnect is a new connection that knows nothing about the shop its
+  user is standing in.
+- While the socket is down the roster is emptied rather than frozen — claiming the household is
+  still around would be a lie that outlives the outage. There is no REST fallback: no socket, no
+  strip.
+- A household of one shows **nothing at all** here: no tiles, no invitation. The first screen is
+  not a place to advertise a feature nobody asked for.
+
+---
+
 ## Notification centre (`useNotificationCenter`)
 
 The inbox behind the bell in `AppHeader`. It replaces nothing: `NotificationSettingsDrawer`
@@ -1147,7 +1226,7 @@ Colours always come from Nuxt UI's semantic tokens (`--ui-bg`, `--ui-text*`, `--
 | ↳ the logo | an **inline** SVG, not `<img src="/favicon.svg">` — an `<img>` is an opaque box to CSS |
 | `app/composables/useSplashScreen.ts` | `markReady()` / `rearm()`, `MIN_VISIBLE_MS` floor |
 | `app/plugins/auth.ts` | owns the primary dismissal after the Kratos session resolves (6 s safety net) |
-| `app/pages/calendar.vue` | dismisses on a normal relaunch, after its first data load |
+| `app/pages/home.vue` | dismisses on a normal relaunch, after its first data load |
 | `app/plugins/splash-resume.client.ts` | re-shows it on a warm resume after ≥10 min backgrounded |
 | `nuxt.config.ts` | inline head script adding `.pwa-standalone` (iOS `navigator.standalone`) |
 

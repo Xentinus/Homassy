@@ -13,7 +13,7 @@
       :title="$t('share.empty.title')"
       :description="$t('share.empty.description')"
       :action-label="$t('share.empty.action')"
-      @action="navigateTo('/calendar')"
+      @action="navigateTo('/home')"
     />
 
     <template v-else>

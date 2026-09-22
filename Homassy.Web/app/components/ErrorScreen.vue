@@ -52,7 +52,7 @@ const props = defineProps<{
 const { t } = useI18n()
 const router = useRouter()
 
-const CALENDAR_PATH = '/calendar'
+const HOME_PATH = '/home'
 
 const copy = computed(() => ({
   title: t(`errorPage.${props.kind}.title`),
@@ -67,7 +67,7 @@ const copy = computed(() => ({
  */
 const backPath = computed(() => {
   const back = router.options.history.state?.back
-  return typeof back === 'string' && back !== CALENDAR_PATH ? back : null
+  return typeof back === 'string' && back !== HOME_PATH ? back : null
 })
 
 /** Re-runs the navigation that failed: this screen is served at its URL. */
@@ -84,7 +84,7 @@ const actions = computed(() => {
     key: 'calendar',
     label: t('errorPage.goToCalendar'),
     icon: 'i-lucide-calendar-days',
-    run: () => clearError({ redirect: CALENDAR_PATH })
+    run: () => clearError({ redirect: HOME_PATH })
   }
 
   // A wrong address is not worth retrying, so 404 leads with somewhere to go.

@@ -31,7 +31,7 @@ export function shareNameFrom(content: { title?: string | null, text?: string | 
 
 /**
  * Validate a `return_to` value from the login page's query string, falling back to the
- * calendar.
+ * home screen.
  *
  * The parameter used to be dead — nothing wrote it — and is now written on every gated
  * navigation so a deep link survives the auth gate. That makes it reachable by anyone
@@ -44,7 +44,7 @@ export function shareNameFrom(content: { title?: string | null, text?: string | 
  * target would already have failed harmlessly — but `//evil.example` is the shape worth
  * refusing outright rather than reasoning about.
  */
-export function safeReturnTo(value: unknown, fallback = '/calendar'): string {
+export function safeReturnTo(value: unknown, fallback = '/home'): string {
   const target = Array.isArray(value) ? value[0] : value
   if (typeof target !== 'string' || !target) return fallback
   if (!target.startsWith('/') || target.startsWith('//')) return fallback
