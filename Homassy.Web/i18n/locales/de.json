@@ -216,7 +216,8 @@
     "products": "Lagerbestand",
     "shoppingLists": "Einkaufslisten",
     "calendar": "Kalender",
-    "profile": "Profil"
+    "profile": "Profil",
+    "together": "Gemeinsam"
   },
   "search": {
     "title": "Suche",
@@ -1040,7 +1041,7 @@
         "addButton": "Notiz",
         "createTitle": "Neue Notiz",
         "editTitle": "Notiz bearbeiten",
-        "description": "Notizen zu diesem Tag sieht die ganze Familie.",
+        "description": "Die Notiz liegt auf diesem Tag im Kalender. Gehörst du zu einem Haushalt, sehen sie alle.",
         "titleLabel": "Titel",
         "titlePlaceholder": "z. B. schulfrei",
         "titleRequired": "Ein Titel ist erforderlich.",
@@ -1059,6 +1060,51 @@
         "week": "Woche"
       },
       "today": "Heute"
+    },
+    "household": {
+      "greeting": "Hallo, {name}",
+      "contextLabel": "Was als Nächstes ansteht",
+      "presence": {
+        "title": "Wer da ist",
+        "you": "Du",
+        "online": "online",
+        "shopping": "einkaufen",
+        "shoppingAt": "bei {list}"
+      },
+      "atHome": {
+        "tab": "Wenn du heimkommst",
+        "daysLeft": "{days}T",
+        "discard": "Weggeworfen",
+        "consume": "Verbraucht",
+        "consumeFailed": "Konnte nicht als verbraucht markiert werden.",
+        "putAway": "{count} Artikel einzuräumen",
+        "putAwayHint": "Gekauft, aber noch nicht im Bestand"
+      },
+      "shopping": {
+        "tab": "Wenn du einkaufen gehst",
+        "pending": "{count} zu kaufen",
+        "go": "Los"
+      },
+      "notes": {
+        "title": "An der Wand",
+        "today": "Heute",
+        "tomorrow": "Morgen",
+        "empty": "Nichts für heute oder später angeheftet."
+      },
+      "today": {
+        "title": "Heute",
+        "calendar": "Kalender",
+        "allDay": "ganztägig",
+        "empty": "Heute steht nichts an."
+      },
+      "fab": {
+        "note": "Notiz",
+        "noteDescription": "Etwas an die Familienwand heften",
+        "inventory": "Bestand",
+        "inventoryDescription": "Einen Artikel in den Bestand legen",
+        "listItem": "Listeneintrag",
+        "listItemDescription": "Etwas auf eine Einkaufsliste setzen"
+      }
     }
   },
   "loadInventory": {
@@ -1150,7 +1196,6 @@
     "SYSTEM-0004": "Unbefugter Zugriff.",
     "CALNOTE-0001": "Die Kalendernotiz wurde nicht gefunden.",
     "CALNOTE-0002": "Du hast keinen Zugriff auf diese Kalendernotiz.",
-    "CALNOTE-0003": "Kalendernotizen kannst du nur als Mitglied einer Familie verwalten.",
     "CALNOTE-0004": "Die Erinnerungszeit ist ungültig."
   },
   "shoppingList": {
@@ -3028,7 +3073,7 @@
     "steps": {
       "nav": {
         "title": "So findest du dich zurecht",
-        "description": "Vier Bereiche: der Kalender, dein Bestand, die Einkaufslisten und dein Profil. Diese Leiste bleibt überall bei dir."
+        "description": "Vier Orte: deine Startseite, dein Bestand, die Einkaufslisten und dein Profil. Diese Leiste bleibt überall bei dir."
       },
       "inventory": {
         "title": "Alles, was du zu Hause hast",

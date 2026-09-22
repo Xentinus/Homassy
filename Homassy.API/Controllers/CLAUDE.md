@@ -461,7 +461,7 @@ Aggregates calendar events (inventory expirations, automation executions, shoppi
 | Method | Endpoint | Description |
 |--------|----------|-------------|
 | POST | `/` | Get calendar events for the date range in the request body |
-| POST | `/notes/range` | The family's day notes for a date range, in full |
+| POST | `/notes/range` | The day notes this caller may see for a date range, in full |
 | POST | `/notes` | Create a day note |
 | PUT | `/notes/{publicId}` | Update a day note |
 | DELETE | `/notes/{publicId}` | Delete a day note (soft delete) |
@@ -470,7 +470,7 @@ Aggregates calendar events (inventory expirations, automation executions, shoppi
 - Request body carries `StartDate` / `EndDate` (`DateOnly`); the range may not exceed 93 days (validated, else 400) — the same bound applies to `/notes/range`
 - Dates are converted to UTC day boundaries before querying
 - Backed by `CalendarFunctions`; returns `List<CalendarEventInfo>`
-- **Day notes (#60)** are backed by `CalendarNoteFunctions` and are family-scoped through `SessionInfo`: a user with no family gets `CALNOTE-0003`, and every member may edit and delete every one of the family's notes — the author is recorded, not enforced
+- **Day notes (#60)** are backed by `CalendarNoteFunctions` and scoped through `SessionInfo` in two shapes: a user in a family reads and writes the household's notes (every member may edit and delete every one — the author is recorded, not enforced), and a user with no family keeps personal ones only they can see. Writing a note is not a household feature, so there is no longer a CALNOTE-0003 "you must be in a family"; a personal note stays personal after its author joins one
 - Notes arrive **twice on purpose**: as `CalendarEventType.DayNote` inside the aggregated event list, which is what paints the day cells in one query, and in full through `/notes/range`, which is the editable shape (text, reminder, author) the calendar's note panel needs
 - A note's reminder is an instant (UTC), not a lead time — a note is about a day and has no start time to lead from. One further back than a day is refused with `CALNOTE-0004`, because it could only ever be dropped as stale by the worker
 

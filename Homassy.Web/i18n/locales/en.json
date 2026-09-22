@@ -216,7 +216,8 @@
     "products": "Inventory",
     "shoppingLists": "Shopping Lists",
     "calendar": "Calendar",
-    "profile": "Profile"
+    "profile": "Profile",
+    "together": "Together"
   },
   "search": {
     "title": "Search",
@@ -1040,7 +1041,7 @@
         "addButton": "Note",
         "createTitle": "New note",
         "editTitle": "Edit note",
-        "description": "Notes on this day are visible to the whole family.",
+        "description": "A note sits on that day in the calendar. If you are in a household, everyone in it sees it.",
         "titleLabel": "Title",
         "titlePlaceholder": "e.g. school closed",
         "titleRequired": "A title is required.",
@@ -1059,6 +1060,51 @@
         "week": "Week"
       },
       "today": "Today"
+    },
+    "household": {
+      "greeting": "Hi, {name}",
+      "contextLabel": "What you are about to do",
+      "presence": {
+        "title": "Who is around",
+        "you": "You",
+        "online": "online",
+        "shopping": "shopping",
+        "shoppingAt": "at {list}"
+      },
+      "atHome": {
+        "tab": "When you get home",
+        "daysLeft": "{days}d",
+        "discard": "Threw out",
+        "consume": "Used it",
+        "consumeFailed": "That could not be marked as used.",
+        "putAway": "{count} items to put away",
+        "putAwayHint": "Bought, not in stock yet"
+      },
+      "shopping": {
+        "tab": "If you go shopping",
+        "pending": "{count} to buy",
+        "go": "Go"
+      },
+      "notes": {
+        "title": "On the wall",
+        "today": "Today",
+        "tomorrow": "Tomorrow",
+        "empty": "Nothing pinned for today or later."
+      },
+      "today": {
+        "title": "Today",
+        "calendar": "Calendar",
+        "allDay": "all day",
+        "empty": "Nothing on today."
+      },
+      "fab": {
+        "note": "Note",
+        "noteDescription": "Pin something to the family wall",
+        "inventory": "Add stock",
+        "inventoryDescription": "Put an item into the inventory",
+        "listItem": "List item",
+        "listItemDescription": "Add something to a shopping list"
+      }
     }
   },
   "loadInventory": {
@@ -1150,7 +1196,6 @@
     "SYSTEM-0004": "Unauthorized access.",
     "CALNOTE-0001": "The calendar note was not found.",
     "CALNOTE-0002": "You do not have access to this calendar note.",
-    "CALNOTE-0003": "You must be a member of a family to manage calendar notes.",
     "CALNOTE-0004": "The reminder time is invalid."
   },
   "shoppingList": {
@@ -3028,7 +3073,7 @@
     "steps": {
       "nav": {
         "title": "Your way around",
-        "description": "Four places: the calendar, your inventory, the shopping lists and your profile. This bar stays with you everywhere."
+        "description": "Four places: your home screen, your inventory, the shopping lists and your profile. This bar stays with you everywhere."
       },
       "inventory": {
         "title": "Everything you have at home",

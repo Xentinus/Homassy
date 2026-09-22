@@ -73,7 +73,7 @@ public sealed class CalendarNoteReminderService : PeriodicWorkerService
                         && n.ReminderSentAt == null
                         && n.ReminderAt <= nowUtc)
             .OrderBy(n => n.ReminderAt)
-            .Select(n => new DueNote(n.Id, n.PublicId, n.FamilyId, n.Title, n.Date, n.ReminderAt!.Value))
+            .Select(n => new DueNote(n.Id, n.PublicId, n.FamilyId, n.CreatedByUserId, n.Title, n.Date, n.ReminderAt!.Value))
             .ToListAsync(cancellationToken);
 
         if (due.Count == 0)
@@ -110,7 +110,7 @@ public sealed class CalendarNoteReminderService : PeriodicWorkerService
 
             try
             {
-                await NotifyAsync(context, note.FamilyId, note.Title, note.Date, nowUtc, cancellationToken);
+                await NotifyAsync(context, note, nowUtc, cancellationToken);
             }
             catch (OperationCanceledException)
             {
@@ -124,36 +124,62 @@ public sealed class CalendarNoteReminderService : PeriodicWorkerService
     }
 
     /// <summary>
-    /// Sends the reminder to every member of the family, one call per recipient: how many days away
-    /// the note is depends on the reader's own timezone, so the envelope differs per person.
+    /// Sends the reminder to whoever the note is for — every member of the household for a family
+    /// note, the author alone for a personal one — one call per recipient: how many days away the
+    /// note is depends on the reader's own timezone, so the envelope differs per person.
     /// </summary>
     private async Task NotifyAsync(
         HomassyDbContext context,
-        int familyId,
-        string title,
-        DateOnly noteDate,
+        DueNote note,
         DateTime nowUtc,
         CancellationToken cancellationToken)
     {
-        var recipients = await _notifier.GetRecipientsAsync(context, familyId, [], cancellationToken);
+        // A personal note has no household to tell. Its author is resolved through the same
+        // recipient path so the channel preferences that silence a family reminder silence this one
+        // too — a note is not a reason to bypass somebody's own notification settings.
+        var recipients = note.FamilyId.HasValue
+            ? await _notifier.GetRecipientsAsync(context, note.FamilyId.Value, [], cancellationToken)
+            : await ResolveAuthorAsync(context, note.CreatedByUserId, cancellationToken);
+
         if (recipients.Count == 0)
             return;
 
         foreach (var recipient in recipients)
         {
-            var daysUntil = DaysUntil(noteDate, nowUtc, recipient.TimeZone);
+            var daysUntil = DaysUntil(note.Date, nowUtc, recipient.TimeZone);
 
             await _notifier.DispatchAsync(
                 context,
                 [recipient],
-                [NotificationEnvelopes.CalendarNoteReminder(title, daysUntil)],
+                [NotificationEnvelopes.CalendarNoteReminder(note.Title, daysUntil)],
                 "/calendar",
                 cancellationToken);
         }
 
-        Log.Information(
-            "Calendar note reminder \"{Title}\" sent to {Count} member(s) of family {FamilyId}",
-            title, recipients.Count, familyId);
+        if (note.FamilyId.HasValue)
+        {
+            Log.Information(
+                "Calendar note reminder \"{Title}\" sent to {Count} member(s) of family {FamilyId}",
+                note.Title, recipients.Count, note.FamilyId.Value);
+        }
+        else
+        {
+            Log.Information(
+                "Personal calendar note reminder \"{Title}\" sent to user {UserId}",
+                note.Title, note.CreatedByUserId);
+        }
+    }
+
+    /// <summary>The note's author as a recipient list, empty when neither channel applies to them.</summary>
+    private async Task<List<RecipientInfo>> ResolveAuthorAsync(
+        HomassyDbContext context,
+        int userId,
+        CancellationToken cancellationToken)
+    {
+        var author = await _notifier.GetRecipientAsync(context, userId, cancellationToken);
+
+        // RecipientInfo is a record struct, so the null here is a Nullable<T> to unwrap.
+        return author.HasValue ? [author.Value] : [];
     }
 
     /// <summary>
@@ -175,7 +201,9 @@ public sealed class CalendarNoteReminderService : PeriodicWorkerService
     private sealed record DueNote(
         int Id,
         Guid PublicId,
-        int FamilyId,
+        /// <summary>Null for a personal note — then <paramref name="CreatedByUserId"/> is who it is for.</summary>
+        int? FamilyId,
+        int CreatedByUserId,
         string Title,
         DateOnly Date,
         DateTime ReminderAt);

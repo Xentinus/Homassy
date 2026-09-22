@@ -241,6 +241,10 @@ namespace Homassy.Data.Context
                 // Every read is "this family, this date range", which is exactly this index.
                 entity.HasIndex(e => new { e.FamilyId, e.Date });
 
+                // The same read for someone with no family, whose notes are their own: the personal
+                // half of the range query filters on the author instead, and would otherwise scan.
+                entity.HasIndex(e => new { e.CreatedByUserId, e.Date });
+
                 // The reminder worker's sweep: the unsent, armed notes, and nothing else.
                 entity.HasIndex(e => e.ReminderAt)
                     .HasDatabaseName("IX_CalendarNotes_ReminderAt")

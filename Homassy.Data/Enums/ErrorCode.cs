@@ -116,7 +116,6 @@ public static class ErrorCodes
     #region Calendar Note Errors (CALNOTE-0xxx)
     public const string CalendarNoteNotFound = "CALNOTE-0001";
     public const string CalendarNoteAccessDenied = "CALNOTE-0002";
-    public const string CalendarNoteRequiresFamily = "CALNOTE-0003";
     public const string CalendarNoteInvalidReminder = "CALNOTE-0004";
     #endregion
 

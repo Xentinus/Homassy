@@ -16,17 +16,10 @@ namespace Homassy.Data.Exceptions
         public CalendarNoteAccessDeniedException(string message = "Access denied to this calendar note") : base(message) { }
     }
 
-    /// <summary>
-    /// A note belongs to a family, so a user who is not in one has nowhere to put it. Thrown rather
-    /// than silently creating a personal note: a note nobody else can see is a reminder, and that is
-    /// a different feature.
-    /// </summary>
-    public class CalendarNoteRequiresFamilyException : Exception
-    {
-        public string ErrorCode { get; } = ErrorCodes.CalendarNoteRequiresFamily;
-
-        public CalendarNoteRequiresFamilyException(string message = "You must be a member of a family to manage calendar notes") : base(message) { }
-    }
+    // CALNOTE-0003 used to live here: "you must be in a family to manage calendar notes". Writing a
+    // note is not a household feature — a user with no family keeps personal notes instead of being
+    // refused one (see CalendarNote) — so the rule, its error code and its three translations are
+    // gone rather than left behind for someone to wire back up.
 
     public class CalendarNoteInvalidReminderException : Exception
     {

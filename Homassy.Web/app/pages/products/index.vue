@@ -423,7 +423,10 @@ useFabActions(() => [
 // later back-navigation to /products does not reopen the drawer.
 useDeepLinkAction({
   add: () => { isAddInventoryOpen.value = true },
-  scan: () => openScanner()
+  scan: () => openScanner(),
+  // The home screen's "put it away" row links here: what that row counts is exactly what this
+  // wizard clears, so it hands the reader the wizard rather than the grid and a hunt for the FAB.
+  'load-inventory': () => { isLoadInventoryOpen.value = true }
 })
 
 const { pullDistance, isPulling, isRefreshing, isReady } = usePullToRefresh(() => loadProducts())

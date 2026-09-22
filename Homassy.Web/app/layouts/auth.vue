@@ -184,6 +184,14 @@ const { getDeadlineCount } = useShoppingListApi()
 const eventBus = useEventBus()
 const { fabVisible } = useFab()
 const authStore = useAuthStore()
+const presence = usePresenceSocket()
+
+/**
+ * The first nav item is named after who is in it. "Together" only once somebody else is actually
+ * connected — a household of one, or one whose other members are all offline, gets "Home", which
+ * is what that tab is to them. The roster is live, so the label follows a partner opening the app.
+ */
+const isSharedHousehold = computed(() => presence.members.value.length > 1)
 
 // Profile nav item shows the user's avatar. UserAvatar owns the picture-or-initials
 // fallback, so this layout only has to say whose avatar it is.
@@ -278,6 +286,13 @@ const handlePreferencesUpdated = () => {
 onMounted(() => {
   fetchExpirationCount()
   fetchDeadlineCount()
+
+  // Household presence is app-wide chrome, not a page's data: the first nav item is named after
+  // it, and shopping mode reports into it from the shopping-list page. Joining here means the
+  // roster is live wherever the user happens to be, and the home screen renders what is already
+  // there instead of opening its own connection. Fire-and-forget — nothing on screen depends on
+  // it succeeding, and a household of one never has anything to show anyway.
+  void presence.join().catch(() => { /* no roster, no strip, no rename */ })
   // Whether the app-icon badge is allowed at all (#130) — one read per app load.
   resolveIconPermission()
   // Re-post whatever push subscription this browser holds, so the server's idea of this device
@@ -340,13 +355,16 @@ onUnmounted(() => {
 
 const navItems = computed(() => [
   {
-    label: t('nav.calendar'),
-    to: '/calendar',
-    icon: 'i-lucide-calendar',
+    // The first tab is the home screen — what is waiting at home, what is waiting in a shop, who
+    // is around. The calendar it replaced is still a page, reached from that screen's "today"
+    // block and from the command palette; it is simply no longer the thing the app opens on.
+    label: isSharedHousehold.value ? t('nav.together') : t('nav.home'),
+    to: '/home',
+    icon: isSharedHousehold.value ? 'i-lucide-users' : 'i-lucide-house',
     // `data-tour` targets for the first-run spotlight tour (#98). The nav is the one
     // piece of chrome that is on screen everywhere, so most of the tour points at it.
-    tour: 'nav-calendar',
-    active: route.path.startsWith('/calendar')
+    tour: 'nav-home',
+    active: route.path.startsWith('/home') || route.path.startsWith('/calendar')
   },
   {
     label: t('nav.products'),

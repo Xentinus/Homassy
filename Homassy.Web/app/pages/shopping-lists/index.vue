@@ -739,6 +739,64 @@ watch(selectedListId, (id) => {
   openAddItemModal()
 })
 
+/**
+ * "Indulok" on the home screen (`/shopping-lists?shop=<listPublicId>`): pick that list and open
+ * shopping mode on it, in one navigation.
+ *
+ * Its own parameter rather than `?select=` plus an `?action=`, because `useSearchHandoff` and
+ * `useDeepLinkAction` each strip their own parameter with a `router.replace` of the query they
+ * read at mount — two of those in the same tick and the second puts the first one's parameter
+ * back. One parameter, stripped once, cannot race itself.
+ *
+ * The list may not be selected yet when this arrives (the lists are still loading), so the id is
+ * parked and the watcher below acts on it once the selection lands. Shopping mode renders from
+ * `currentListDetails`, which arrives moments later — it opens empty and fills, rather than
+ * making the reader wait on a blank screen.
+ */
+const route = useRoute()
+const router = useRouter()
+const pendingShopListId = ref<string | null>(null)
+
+const requestShoppingMode = (listPublicId: string) => {
+  if (!allShoppingLists.value.some(list => list.publicId === listPublicId)) {
+    // A list deleted (or unshared) between the home screen's fetch and this tap: leave the page
+    // on whatever it selected for itself rather than in an error state.
+    return
+  }
+
+  selectedListId.value = listPublicId
+
+  if (selectedListId.value === listPublicId) {
+    shoppingMode.enter(listPublicId)
+  }
+}
+
+onMounted(async () => {
+  const raw = route.query.shop
+  const listPublicId = Array.isArray(raw) ? raw[0] : raw
+  if (typeof listPublicId !== 'string' || !listPublicId) return
+
+  // Stripped first, like the two handoff composables do: a reload should land on the list, not
+  // back inside a shop screen the reader has since left.
+  const query = { ...route.query }
+  delete query.shop
+  await router.replace({ path: route.path, query, hash: route.hash })
+
+  if (allShoppingLists.value.length > 0) {
+    requestShoppingMode(listPublicId)
+  }
+  else {
+    pendingShopListId.value = listPublicId
+  }
+})
+
+watch(allShoppingLists, (lists) => {
+  const wanted = pendingShopListId.value
+  if (!wanted || lists.length === 0) return
+  pendingShopListId.value = null
+  requestShoppingMode(wanted)
+})
+
 useDeepLinkAction({
   add: () => requestAddItem(),
   'add-custom': () => {

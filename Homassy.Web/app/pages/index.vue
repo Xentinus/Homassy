@@ -139,7 +139,7 @@ const toast = useToast()
 const config = useRuntimeConfig()
 
 /**
- * Set only once we know an already-authenticated visitor is being sent to `/calendar`, so the
+ * Set only once we know an already-authenticated visitor is being sent to `/home`, so the
  * landing page is not still on screen underneath the navigation.
  *
  * It used to start `true` and gate the whole page on the session check finishing, which meant
@@ -310,11 +310,11 @@ onMounted(async () => {
   await authStore.initialize()
 
   // If a valid session is restored, skip the landing page and go straight to
-  // the calendar (same destination as a successful login).
+  // the home screen (same destination as a successful login).
   if (authStore.isAuthenticated) {
-    console.debug('[Index] Existing session found, redirecting to /calendar')
+    console.debug('[Index] Existing session found, redirecting to /home')
     leaving.value = true
-    await navigateTo('/calendar')
+    await navigateTo('/home')
     return
   }
 

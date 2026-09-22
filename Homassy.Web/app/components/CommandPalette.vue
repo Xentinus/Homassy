@@ -229,6 +229,9 @@ const navigationGroup = computed(() => ({
   id: 'navigation',
   label: t('search.groups.navigation'),
   items: [
+    { label: t('search.goTo', { page: t('nav.home') }), icon: 'i-lucide-house', onSelect: () => go({ path: '/home' }, false) },
+    // The calendar lost its nav slot to the home screen, so this is now the direct way to it
+    // besides the home screen's own "today" link.
     { label: t('search.goTo', { page: t('nav.calendar') }), icon: 'i-lucide-calendar', onSelect: () => go({ path: '/calendar' }, false) },
     { label: t('search.goTo', { page: t('nav.products') }), icon: 'i-lucide-package', onSelect: () => go({ path: '/products' }, false) },
     { label: t('search.goTo', { page: t('nav.shoppingLists') }), icon: 'i-lucide-shopping-cart', onSelect: () => go({ path: '/shopping-lists' }, false) },

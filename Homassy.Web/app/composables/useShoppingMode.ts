@@ -13,11 +13,24 @@
 const activeLists = ref<Set<string>>(new Set())
 
 export const useShoppingMode = () => {
+  const { reportShopping } = usePresenceSocket()
+
   const isActiveFor = (listPublicId: string | null | undefined): boolean =>
     !!listPublicId && activeLists.value.has(listPublicId)
 
+  /**
+   * Which list the household is told about. Shopping mode is per list and two can be open at
+   * once, but presence carries one context, so the most recently entered list wins — that is the
+   * one being shopped now. Insertion order is the Set's own, so the last entry is the last added.
+   */
+  const announce = () => {
+    const current = [...activeLists.value].at(-1) ?? null
+    reportShopping(current)
+  }
+
   const enter = (listPublicId: string) => {
     activeLists.value = new Set(activeLists.value).add(listPublicId)
+    announce()
   }
 
   const exit = (listPublicId: string | null | undefined) => {
@@ -25,6 +38,7 @@ export const useShoppingMode = () => {
     const next = new Set(activeLists.value)
     next.delete(listPublicId)
     activeLists.value = next
+    announce()
   }
 
   const toggle = (listPublicId: string) => {

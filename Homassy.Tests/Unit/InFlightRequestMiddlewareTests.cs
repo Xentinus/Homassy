@@ -41,7 +41,7 @@ public class InFlightRequestMiddlewareTests
 
     /// <summary>
     /// A SignalR connection stays in the pipeline until the client goes away, so counting it
-    /// would make the number permanent rather than in-flight: four hubs and three connected
+    /// would make the number permanent rather than in-flight: five hubs and three connected
     /// devices would mean the "stopping immediately" path never fires on the real box, and the
     /// drain timing would be measuring socket teardown instead of requests.
     /// </summary>
@@ -51,6 +51,7 @@ public class InFlightRequestMiddlewareTests
     [InlineData("/hubs/master-data")]
     [InlineData("/hubs/family-chat")]
     [InlineData("/hubs/family-chat/negotiate")]
+    [InlineData("/hubs/presence")]
     [InlineData("/HUBS/Inventory")]
     public async Task AHubConnection_IsNotCounted(string path)
     {

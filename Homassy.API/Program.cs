@@ -90,6 +90,8 @@ try
     builder.Services.AddSingleton<ShoppingListPresence>();
     builder.Services.AddSingleton<FamilyChatRealtime>();
     builder.Services.AddSingleton<FamilyChatConnectionState>();
+    builder.Services.AddSingleton<PresenceRealtime>();
+    builder.Services.AddSingleton<FamilyPresence>();
 
     // The cross-cutting services the Functions layer needs, as one typed parameter object.
     // See FunctionsRuntime for why it is a bundle rather than separate constructor parameters.
@@ -527,6 +529,10 @@ try
     // Realtime family chat channel (#144) - one group per family, joined when the chat panel
     // opens rather than on connect.
     app.MapHub<FamilyChatHub>("/hubs/family-chat").RequireCors("HomassyPolicy");
+
+    // Household presence - who has the app open and who is in a shop. One group per household
+    // (or per lone user), joined on connect because the home screen draws it immediately.
+    app.MapHub<PresenceHub>("/hubs/presence").RequireCors("HomassyPolicy");
 
     Log.Information("Homassy API started successfully");
 

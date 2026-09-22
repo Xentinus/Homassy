@@ -54,6 +54,7 @@ Homassy.API is a home storage management system built with ASP.NET Core. The pro
 - **Manual (Aisle) Ordering**: shopping list items, storage and shopping locations and automations each carry a `SortOrder`, written by a per-entity reorder endpoint that takes the ordered ids and commits them in one transaction. The positions are sparse gapped integers, not indices, so moving one row rewrites one row — `Functions/SparseOrdering` turns the requested order into the provably smallest set of writes and renumbers only when a gap runs out. Every pre-existing row is 0, which is why each list's previous ordering survives as the tie-break
 - **SignalR Realtime (Inventory / Készletek)**: Identity-derived groups (per-family + per-user, joined on connect) push live inventory/product events to every grid that can see the change; the Functions layer broadcasts light card-only payloads via the injected `InventoryRealtime` helper after each commit, and out-of-process automation relays through the internal broadcast endpoint
 - **SignalR Realtime (Family chat)**: One group per family, joined when the chat panel opens rather than on connect; `JoinChat()` takes no argument (the group comes from the session, so no client can ask for another family's) and answers with the newest page of history. Messages are cursor-paged on `(SentAt, PublicId)`, uncached and outside the trigger system, and every broadcast carries the sender's own correlation id so an optimistic append reconciles instead of duplicating
+- **SignalR Realtime (Household presence)**: Who has the app open and who is in a shop, for the web client's home screen. Identity-derived groups joined on connect (a household, or a lone user who has none — no special case on the connect path), with the roster in `FamilyPresence` and one event, `PresenceChanged`. `SetShopping(listPublicId)` is the only thing a client reports, and the hub resolves the list's **name** itself through the access-checked path — the value reaches every other member, so it must not be client-authored. Presence is socket-only: there is no REST endpoint for the roster, because a roster read over HTTP is stale the moment it is answered
 
 ---
 
@@ -165,7 +166,10 @@ Homassy.API/
 │   ├── InventoryHub.cs            Per-family + per-user groups joined on connect; JoinInventory returns the light grid snapshot
 │   ├── InventoryRealtime.cs       Broadcast helper, singleton (InventoryUpserted/InventoryDeleted/ProductUpdated/ProductFavoriteChanged/ProductDeleted)
 │   ├── FamilyChatHub.cs           One group per family; JoinChat takes no argument and returns the newest page
-│   └── FamilyChatRealtime.cs      Broadcast helper, singleton (MessageCreated/MessageDeleted)
+│   ├── FamilyChatRealtime.cs      Broadcast helper, singleton (MessageCreated/MessageDeleted)
+│   ├── PresenceHub.cs             Household presence: one group per family (or lone user), joined on connect; GetPresence returns the roster, SetShopping reports in-store shopping mode
+│   ├── PresenceRealtime.cs        Broadcast helper, singleton (PresenceChanged)
+│   └── FamilyPresence.cs          The roster itself: one entry per live connection, collapsed per member (process-local, like ShoppingListPresence)
 ├── Infrastructure/       Infrastructure components
 │   └── DatabaseTriggerInitializer.cs
 ├── Middleware/           Custom middleware

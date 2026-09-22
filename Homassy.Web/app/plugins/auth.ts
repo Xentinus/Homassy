@@ -25,19 +25,19 @@ export default defineNuxtPlugin(async () => {
   // Load authentication state by checking the Kratos session
   await authStore.loadFromCookies()
 
-  const isBootRoute = (path: string) => path === '/' || path === '/calendar'
+  const isBootRoute = (path: string) => path === '/' || path === '/home'
 
   if (!authStore.isAuthenticated) {
     // Anonymous: reveal the landing / login page immediately.
     markReady()
   }
   else if (!isBootRoute(router.currentRoute.value.path)) {
-    // Authenticated deep-link / refresh onto a non-calendar page: that page
+    // Authenticated deep-link / refresh onto a page other than the home screen: that page
     // owns its own skeletons, so dismiss as soon as it takes over.
     markReady()
   }
   else {
-    // Normal relaunch path (`/` redirects to `/calendar`): the calendar hides
+    // Normal relaunch path (`/` redirects to `/home`): the home screen hides
     // the splash once its first data load finishes. Guard against ever getting
     // stuck if the redirect lands somewhere unexpected.
     const stop = router.afterEach((to) => {

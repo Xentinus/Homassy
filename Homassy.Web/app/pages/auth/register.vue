@@ -298,7 +298,7 @@ async function verifyCode(event: FormSubmitEvent<CodeSchema>) {
       icon: 'i-heroicons-check-circle'
     })
 
-    await router.push('/calendar')
+    await router.push('/home')
   } catch (caught) {
     const e = caught as KratosError
     console.error('[Register] Code verification failed:', e)
