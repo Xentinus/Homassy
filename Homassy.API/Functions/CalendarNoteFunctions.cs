@@ -19,9 +19,11 @@ namespace Homassy.API.Functions
     /// one date-range query when the calendar opens, so the indexed <c>(FamilyId, Date)</c> lookup is
     /// already the cheap path - a process-wide cache would only add an invalidation hop.
     /// <para>
-    /// Everything here is family-scoped through <see cref="SessionInfo"/>. A note has no personal
-    /// variant by design: a note only its author can see is a reminder, and this feature exists
-    /// precisely so the rest of the household finds out about the day.
+    /// Scope comes from <see cref="SessionInfo"/> and has two shapes. A user in a family reads and
+    /// writes the family's notes, as they always did. A user with no family writes personal ones
+    /// (<see cref="CalendarNote.FamilyId"/> null) that only they can see: having nobody to tell is
+    /// not a reason to be refused a note about your own day. Both shapes are one query - see
+    /// <see cref="GetNotesAsync"/>.
     /// </para>
     /// </remarks>
     public class CalendarNoteFunctions
@@ -42,23 +44,33 @@ namespace Homassy.API.Functions
             _userFunctions = userFunctions;
         }
 
-        /// <summary>The family's notes in a date range, oldest day first.</summary>
+        /// <summary>
+        /// The notes this user may see in a date range, oldest day first: their family's, plus any
+        /// personal ones they wrote themselves.
+        /// </summary>
+        /// <remarks>
+        /// One query rather than a branch, because a user can hold both — a family member who wrote
+        /// personal notes before joining still has them, and they do not become the household's (see
+        /// <see cref="CalendarNote"/>). Each half of the OR is served by its own index.
+        /// </remarks>
         public async Task<List<CalendarNoteInfo>> GetNotesAsync(
             DateOnly startDate,
             DateOnly endDate,
             CancellationToken cancellationToken = default)
         {
             var familyId = SessionInfo.GetFamilyId();
-            if (!familyId.HasValue)
+            var userId = SessionInfo.GetUserId();
+
+            if (!userId.HasValue)
             {
-                // Not an error: a user with no family simply has no notes, and the calendar still
-                // renders its other event types.
                 return [];
             }
 
             using var context = _contextFactory.CreateForReading();
             var notes = await context.CalendarNotes
-                .Where(n => n.FamilyId == familyId.Value && n.Date >= startDate && n.Date <= endDate)
+                .Where(n => n.Date >= startDate && n.Date <= endDate
+                    && ((familyId.HasValue && n.FamilyId == familyId.Value)
+                        || (n.FamilyId == null && n.CreatedByUserId == userId.Value)))
                 .OrderBy(n => n.Date)
                 .ThenBy(n => n.CreatedAt)
                 .ToListAsync(cancellationToken);
@@ -71,7 +83,9 @@ namespace Homassy.API.Functions
             CancellationToken cancellationToken = default)
         {
             var userId = RequireUser();
-            var familyId = RequireFamily();
+            // Null is a valid answer: the note is then this user's own. Which one it is, is decided
+            // once here — a note does not change hands later when its author joins a family.
+            var familyId = SessionInfo.GetFamilyId();
             var reminderAt = NormalizeReminder(request.ReminderAt);
 
             using var context = _contextFactory.CreateDbContext();
@@ -106,10 +120,10 @@ namespace Homassy.API.Functions
             CancellationToken cancellationToken = default)
         {
             var userId = RequireUser();
-            var familyId = RequireFamily();
+            var familyId = SessionInfo.GetFamilyId();
 
             using var context = _contextFactory.CreateDbContext();
-            var note = await LoadForWriteAsync(context, publicId, familyId, cancellationToken);
+            var note = await LoadForWriteAsync(context, publicId, familyId, userId, cancellationToken);
 
             // Normalised against what the note already holds. This is a full-state PUT, so editing
             // only the title of an old note resends the reminder that already fired - and refusing
@@ -144,10 +158,10 @@ namespace Homassy.API.Functions
         public async Task DeleteNoteAsync(Guid publicId, CancellationToken cancellationToken = default)
         {
             var userId = RequireUser();
-            var familyId = RequireFamily();
+            var familyId = SessionInfo.GetFamilyId();
 
             using var context = _contextFactory.CreateDbContext();
-            var note = await LoadForWriteAsync(context, publicId, familyId, cancellationToken);
+            var note = await LoadForWriteAsync(context, publicId, familyId, userId, cancellationToken);
 
             note.DeleteRecord(userId);
             await context.SaveChangesAsync(cancellationToken);
@@ -160,19 +174,26 @@ namespace Homassy.API.Functions
                 cancellationToken: cancellationToken);
         }
 
+        /// <summary>
+        /// The note, if this caller may write to it. A family note is writable by every member —
+        /// the notes are the household's, not their author's, and the author is recorded rather
+        /// than enforced. A personal note is writable only by whoever wrote it.
+        /// </summary>
         private static async Task<CalendarNote> LoadForWriteAsync(
             HomassyDbContext context,
             Guid publicId,
-            int familyId,
+            int? familyId,
+            int userId,
             CancellationToken cancellationToken)
         {
             var note = await context.CalendarNotes
                 .FirstOrDefaultAsync(n => n.PublicId == publicId, cancellationToken)
                 ?? throw new CalendarNoteNotFoundException();
 
-            // Every member may edit and delete every note: the notes are the family's, not their
-            // author's, and the author is recorded rather than enforced.
-            if (note.FamilyId != familyId)
+            var isOwnPersonalNote = note.FamilyId == null && note.CreatedByUserId == userId;
+            var isOwnFamilyNote = note.FamilyId != null && note.FamilyId == familyId;
+
+            if (!isOwnPersonalNote && !isOwnFamilyNote)
             {
                 throw new CalendarNoteAccessDeniedException();
             }
@@ -190,17 +211,6 @@ namespace Homassy.API.Functions
             }
 
             return userId.Value;
-        }
-
-        private static int RequireFamily()
-        {
-            var familyId = SessionInfo.GetFamilyId();
-            if (!familyId.HasValue)
-            {
-                throw new CalendarNoteRequiresFamilyException();
-            }
-
-            return familyId.Value;
         }
 
         /// <summary>

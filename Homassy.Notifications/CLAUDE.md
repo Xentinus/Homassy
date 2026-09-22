@@ -278,7 +278,7 @@ at startup instead of producing a worker that spins on an empty table.
 - Duplicate suppression is claim-then-push: `ReminderSentAt` is stamped and committed **before** the
   notifications go out, so a crash or a second instance can only ever skip a reminder, never repeat
   one. Rescheduling a note clears the stamp, which is what re-arms it
-- Recipients are every member of the note's family, resolved by `FamilyPushNotifier`. The envelope is
+- Recipients are every member of the note's family — or, for a personal note (`FamilyId` null), its author alone — resolved by `FamilyPushNotifier`. The envelope is
   built **per recipient**, because "today / tomorrow / in N days" is counted in that reader's own
   timezone
 - A reminder whose moment was missed is still delivered inside a 60-minute catch-up window. Past that

@@ -58,11 +58,11 @@ public class CalendarNoteControllerTests : IClassFixture<HomassyWebApplicationFa
     }
 
     /// <summary>
-    /// A note belongs to a family, so a user who is not in one has nowhere to put it. Refused at the
-    /// edge rather than quietly stored as a personal note nobody else can see.
+    /// Writing a note is not a household feature: a user with no family keeps personal notes, and
+    /// reads them back like any other. This used to be refused with CALNOTE-0003.
     /// </summary>
     [Fact]
-    public async Task CreateCalendarNote_WithoutFamily_ReturnsBadRequest()
+    public async Task CreateCalendarNote_WithoutFamily_CreatesAPersonalNote()
     {
         string? testEmail = null;
         try
@@ -71,9 +71,11 @@ public class CalendarNoteControllerTests : IClassFixture<HomassyWebApplicationFa
             testEmail = email;
             _authHelper.SetAuthToken(auth.AccessToken);
 
+            var date = DateOnly.FromDateTime(DateTime.UtcNow);
+
             var response = await _client.PostAsJsonAsync(NotesEndpoint, new CreateCalendarNoteRequest
             {
-                Date = DateOnly.FromDateTime(DateTime.UtcNow),
+                Date = date,
                 Title = "Gas meter reading"
             });
 
@@ -81,14 +83,81 @@ public class CalendarNoteControllerTests : IClassFixture<HomassyWebApplicationFa
             _output.WriteLine($"Status: {response.StatusCode}");
             _output.WriteLine($"Response: {body}");
 
-            Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
-            Assert.Contains("CALNOTE-0003", body);
+            Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+
+            // And it comes back on the range read — a note the author cannot see again would be a
+            // write to nowhere.
+            var range = await _client.PostAsJsonAsync($"{NotesEndpoint}/range", new GetCalendarNotesRequest
+            {
+                StartDate = date,
+                EndDate = date
+            });
+
+            var rangeBody = await range.Content.ReadAsStringAsync();
+            _output.WriteLine($"Range status: {range.StatusCode}");
+
+            Assert.Equal(HttpStatusCode.OK, range.StatusCode);
+            Assert.Contains("Gas meter reading", rangeBody);
         }
         finally
         {
             _authHelper.ClearAuthToken();
             if (testEmail != null)
                 await _authHelper.CleanupUserAsync(testEmail);
+        }
+    }
+
+    /// <summary>
+    /// A personal note is personal: another family-less user must not see it on their own calendar,
+    /// which is the whole difference between this and a family note.
+    /// </summary>
+    [Fact]
+    public async Task PersonalCalendarNote_IsNotVisibleToAnotherUser()
+    {
+        string? authorEmail = null;
+        string? strangerEmail = null;
+
+        try
+        {
+            var (email, auth) = await _authHelper.CreateAndAuthenticateUserAsync("note-personal-author");
+            authorEmail = email;
+            _authHelper.SetAuthToken(auth.AccessToken);
+
+            var date = DateOnly.FromDateTime(DateTime.UtcNow);
+
+            var created = await _client.PostAsJsonAsync(NotesEndpoint, new CreateCalendarNoteRequest
+            {
+                Date = date,
+                Title = "Dentist, mine alone"
+            });
+
+            Assert.Equal(HttpStatusCode.OK, created.StatusCode);
+            _authHelper.ClearAuthToken();
+
+            var (otherEmail, otherAuth) = await _authHelper.CreateAndAuthenticateUserAsync("note-personal-stranger");
+            strangerEmail = otherEmail;
+            _authHelper.SetAuthToken(otherAuth.AccessToken);
+
+            var range = await _client.PostAsJsonAsync($"{NotesEndpoint}/range", new GetCalendarNotesRequest
+            {
+                StartDate = date,
+                EndDate = date
+            });
+
+            var rangeBody = await range.Content.ReadAsStringAsync();
+            _output.WriteLine($"Stranger range status: {range.StatusCode}");
+            _output.WriteLine($"Stranger range body: {rangeBody}");
+
+            Assert.Equal(HttpStatusCode.OK, range.StatusCode);
+            Assert.DoesNotContain("Dentist, mine alone", rangeBody);
+        }
+        finally
+        {
+            _authHelper.ClearAuthToken();
+            if (authorEmail != null)
+                await _authHelper.CleanupUserAsync(authorEmail);
+            if (strangerEmail != null)
+                await _authHelper.CleanupUserAsync(strangerEmail);
         }
     }
 

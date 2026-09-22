@@ -104,7 +104,6 @@ public static class ErrorCodeDescriptions
         // Calendar Note Errors
         [ErrorCodes.CalendarNoteNotFound] = "The calendar note was not found.",
         [ErrorCodes.CalendarNoteAccessDenied] = "You do not have access to this calendar note.",
-        [ErrorCodes.CalendarNoteRequiresFamily] = "You must be a member of a family to manage calendar notes.",
         [ErrorCodes.CalendarNoteInvalidReminder] = "The reminder time is invalid.",
         // Family Chat Errors
         [ErrorCodes.FamilyChatAccessDenied] = "You do not have access to this family chat.",
