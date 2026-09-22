@@ -5,6 +5,22 @@ services:
       - POSTGRES_USER=${POSTGRES_USER}
       - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
 
+  homassy.migrator:
+    environment:
+      # Development only, and only from this file: the production compose invocation never merges the
+      # override, so the migrator there keeps the unset environment that DevUserSeeder reads as
+      # production. The seeder refuses anything but "Development" on its own as well — neither gate
+      # depends on the other.
+      - ASPNETCORE_ENVIRONMENT=Development
+      # The seed talks to Kratos over the compose network. Without this the seeder skips itself rather
+      # than falling back to a localhost that means the migrator's own container.
+      - Kratos__AdminUrl=http://homassy-kratos:4434
+    depends_on:
+      # The seed creates an identity, so Kratos has to be up. The API in turn waits for this container
+      # to exit successfully, so the whole chain still starts in one `docker compose up`.
+      homassy.kratos:
+        condition: service_healthy
+
   homassy.api:
     environment:
       - ConnectionStrings__DefaultConnection=${DB_CONNECTION_STRING_DOCKER}

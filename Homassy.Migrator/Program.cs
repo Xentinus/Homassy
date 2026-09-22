@@ -47,6 +47,11 @@ try
     {
         case "migrate":
             await RunEfMigrationsAsync(context);
+            await SeedDevUserAsync(configuration);
+            break;
+
+        case "seed-dev-user":
+            await SeedDevUserAsync(configuration, explicitlyRequested: true);
             break;
 
         case "migrate-to-kratos":
@@ -66,6 +71,8 @@ try
             Console.WriteLine($"Unknown command: {command}");
             Console.WriteLine("Available commands:");
             Console.WriteLine("  migrate              - Run EF Core database migrations (default)");
+            Console.WriteLine("  seed-dev-user        - Create the fixed development login identity in Kratos");
+            Console.WriteLine("                         (refused unless ASPNETCORE_ENVIRONMENT=Development)");
             Console.WriteLine("  migrate-to-kratos    - Migrate users to Kratos identity system");
             Console.WriteLine("                         Options: --dry-run");
             Console.WriteLine("  verify-kratos        - Verify Kratos migration status");
@@ -82,6 +89,52 @@ catch (Exception ex)
     Console.Error.WriteLine($"FATAL ERROR: {ex.GetType().Name}: {ex.Message}");
     Console.Error.WriteLine($"Stack Trace: {ex.StackTrace}");
     Environment.Exit(1);
+}
+
+/// <summary>
+/// Creates the fixed development login identity, so a freshly started stack (or one whose volumes were
+/// wiped) can be logged into without registering an account by hand.
+///
+/// Part of the default `migrate` run because that is what `docker compose up` already executes — a seed
+/// nobody has to remember to run is the only kind that is there when it is needed. It is refused outside
+/// Development, and the variables that switch it on live in the dev-only compose override; see
+/// <see cref="DevUserSeeder"/> for why both gates exist and why a failure here is never fatal.
+/// </summary>
+static async Task SeedDevUserAsync(IConfiguration configuration, bool explicitlyRequested = false)
+{
+    var environmentName = configuration["ASPNETCORE_ENVIRONMENT"]
+        ?? configuration["DOTNET_ENVIRONMENT"];
+
+    if (!DevUserSeeder.IsDevelopmentEnvironment(environmentName))
+    {
+        // Silent on the default path: every production `migrate` would otherwise print a line about a
+        // development feature it is right not to run. Explicitly asking for it deserves an answer.
+        if (explicitlyRequested)
+        {
+            Console.WriteLine($"\n--- Dev User Seed ---");
+            Console.WriteLine($"  Refused: environment is '{environmentName ?? "(unset)"}', not Development");
+        }
+
+        return;
+    }
+
+    var kratosAdminUrl = configuration["Kratos:AdminUrl"];
+    if (string.IsNullOrWhiteSpace(kratosAdminUrl))
+    {
+        Console.WriteLine("\n--- Dev User Seed ---");
+        Console.WriteLine("  Skipped: Kratos:AdminUrl is not configured");
+        return;
+    }
+
+    Console.WriteLine("\n--- Dev User Seed ---");
+
+    var seeder = new DevUserSeeder(kratosAdminUrl, configuration["DevUser:Email"]);
+    var outcome = await seeder.RunAsync();
+
+    if (outcome is DevSeedOutcome.Created or DevSeedOutcome.AlreadyExists)
+    {
+        Console.WriteLine($"  Log in as {seeder.Email} — the one-time code is printed by: docker logs homassy-email");
+    }
 }
 
 static async Task RunEfMigrationsAsync(HomassyDbContext context)

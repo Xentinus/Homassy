@@ -20,7 +20,8 @@ public static class KratosWebhookEndpoint
         IEmailQueueService queue,
         IEmailContentService content,
         ITemplateRendererService renderer,
-        ILoggerFactory loggerFactory)
+        ILoggerFactory loggerFactory,
+        IHostEnvironment environment)
     {
         var logger = loggerFactory.CreateLogger("KratosWebhookEndpoint");
         if (!TemplateTypeMap.TryGetValue(request.TemplateType, out var mapping))
@@ -47,6 +48,28 @@ public static class KratosWebhookEndpoint
         {
             logger.LogWarning("No code found for template_type {TemplateType}", request.TemplateType);
             return Results.Ok();
+        }
+
+        // DEVELOPMENT ONLY — this writes a live credential to the log.
+        //
+        // The local stack has no inbox: outgoing mail goes to whatever SMTP the compose file points at,
+        // and a developer logging in to a freshly seeded database has no way to read the code Kratos just
+        // generated. Kratos itself will not say it either (`log.leak_sensitive_values: false`), and it has
+        // no setting that pins the code to a fixed value, so the choice is between printing it here and
+        // inventing an authentication path that exists only in development — which is the kind of thing
+        // that survives into production. This does not: `IsDevelopment()` is false unless
+        // ASPNETCORE_ENVIRONMENT says otherwise, and the production compose file sets it to Production.
+        //
+        // Warning level on purpose. It is not a warning about the request; it is a warning that this log
+        // now contains a credential, and it should be as loud as an accident with the environment
+        // variable would be.
+        if (environment.IsDevelopment())
+        {
+            logger.LogWarning(
+                "[DEV] {TemplateType} for {To}: {Code} — development only, never enabled outside it",
+                request.TemplateType,
+                request.To,
+                code);
         }
 
         var expiresAt = content.GetExpiresAt(language, expiresInMinutes);

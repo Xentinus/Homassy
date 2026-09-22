@@ -83,6 +83,53 @@ dotnet Homassy.Migrator.dll [command] [options]
 
 ---
 
+## Development login seed
+
+`migrate` finishes by creating one fixed Kratos identity — **`dev@homassy.local`** — so a stack whose
+volumes were just wiped can be logged into without registering an account by hand. `DevUserSeeder`
+(`Migrations/DevUserSeeder.cs`) owns it.
+
+**It cannot run in production, for two independent reasons.**
+
+1. The seeder refuses anything but `ASPNETCORE_ENVIRONMENT` / `DOTNET_ENVIRONMENT` = `Development`,
+   and an **unset** environment is read as production — which is exactly what the migrator has in
+   `docker-compose.production.yml`.
+2. The variables that switch it on (`ASPNETCORE_ENVIRONMENT`, `Kratos__AdminUrl`) live in
+   `docker-compose.override.yml`, the dev-only file the production invocation never merges.
+
+Neither gate leans on the other: delete one and the seed is still off in production.
+
+**How you log in with it.** The app's login is a one-time code that Kratos generates and Kratos alone
+validates — there is no setting that pins it to a fixed value, and a second authentication path that
+exists only in development is the kind of thing that survives into production. So the login is the
+real login, and the only concession is that `Homassy.Email` writes the code it was asked to send into
+its own log when it runs in Development:
+
+```bash
+docker logs homassy-email | grep "\[DEV\]"
+# [DEV] login_code_valid for dev@homassy.local: 594535 — development only, never enabled outside it
+```
+
+**Other things worth knowing:**
+
+- Re-running is safe: an existing identity is left alone (`AlreadyExists`).
+- A failure is never fatal. The API waits for this container to exit successfully, and a dev
+  convenience that can stop the stack from coming up is worse than no dev convenience — Kratos being
+  unreachable logs a warning and exits 0.
+- It waits for Kratos (30 × 2 s on `/health/alive`): on a cold `docker compose up` the migrator and
+  Kratos start off the same healthy database, so the seed can easily get there first. The override
+  also gives the migrator a `depends_on` on Kratos being healthy.
+- **No local `User` row is seeded.** The API creates one lazily on the first authenticated request
+  (`AuthController.EnsureLocalUserAsync`), so seeding one here would be a second, divergent copy of
+  that logic.
+- **The seeded user has no family**, and the features that require one (day notes, sharing, household
+  presence) refuse until it creates or joins one — one pass through *Profile → Family* after the first
+  login.
+- `DevUser__Email` overrides the address; `seed-dev-user` runs the seed on its own (and still refuses
+  outside Development).
+
+---
+
 ## EF Core Migrations
 
 Applies all pending EF Core migrations from `Homassy.Data/Migrations/` using `context.Database.MigrateAsync()`.

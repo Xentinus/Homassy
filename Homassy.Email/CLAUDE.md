@@ -144,6 +144,15 @@ Receives webhook calls from Ory Kratos Courier when it needs to send an authenti
 
 **Authentication:** `X-Api-Key` header required.
 
+**In Development the code is written to the log.** The local stack has no inbox, Kratos will not print the code itself (`log.leak_sensitive_values: false`) and it has no setting that pins it to a fixed value — so a developer logging in to a freshly seeded database would have no way to read it. `IsDevelopment()` gates a single `[DEV]` warning line carrying the template type, the recipient and the code:
+
+```bash
+docker logs homassy-email | grep "[DEV]"
+# [DEV] login_code_valid for dev@homassy.local: 594535 — development only, never enabled outside it
+```
+
+It is a warning rather than information on purpose: it is not a warning about the request, it is a warning that this log now holds a credential. The production compose file sets `ASPNETCORE_ENVIRONMENT=Production`, so it never fires there. The identity it is usually read for is seeded by `Homassy.Migrator` (see that project's CLAUDE.md).
+
 **Request body** (sent by Kratos, defined in `webhook_body.jsonnet`):
 ```json
 {
